@@ -6,8 +6,8 @@
    - which stages are required vs optional
    - how stage failures are handled
 
-   Currently implemented: document-action
-   Future: dispute, records, appeal, jurisdictional
+   Currently implemented: document-action, jurisdictional
+   Future: dispute, records, appeal
 
    Unknown engines are rejected — never silently ignored.
 
@@ -76,8 +76,43 @@ const documentActionPolicy: EnginePolicy = {
 
 // ── Engine Policy Registry ──────────────────────────────────
 
+
+// ── jurisdictional engine policy ────────────────────────────
+// Pipeline for tenant, permit, and code enforcement workflows.
+// Same stage structure as document-action but with jurisdictional
+// emphasis on governing rules and procedural requirements.
+
+const jurisdictionalPolicy: EnginePolicy = {
+  engine: "jurisdictional",
+  description: "Jurisdiction → governing rules → notice → deadline → procedural requirements → evidence → response → submission.",
+  stages: [
+    // ── Intelligence stages ──
+    { name: "security", required: true, blocksOnFailure: true },
+    { name: "classification", required: true, blocksOnFailure: true },
+    { name: "extraction", required: true, blocksOnFailure: true },
+    { name: "facts", required: true, blocksOnFailure: false },
+    { name: "deadline", required: true, blocksOnFailure: false },
+    { name: "evidence", required: false, blocksOnFailure: false },
+    { name: "strategy", required: false, blocksOnFailure: false },
+    { name: "draft", required: true, blocksOnFailure: true },
+    { name: "draftProvenance", required: true, blocksOnFailure: false },
+    { name: "factualValidation", required: false, blocksOnFailure: false },
+    { name: "requirementValidation", required: false, blocksOnFailure: false },
+    { name: "blocking", required: true, blocksOnFailure: true },
+    // ── Consequential stages ──
+    { name: "reviewBoundary", required: true, blocksOnFailure: true },
+    { name: "approvalBoundary", required: true, blocksOnFailure: true },
+    { name: "submissionBoundary", required: true, blocksOnFailure: true },
+    { name: "proofTrackingBoundary", required: true, blocksOnFailure: true },
+    // ── Marker stages ──
+    { name: "provenance", required: false, blocksOnFailure: false },
+    { name: "analysis", required: false, blocksOnFailure: false },
+  ],
+};
+
 const ENGINE_POLICIES: Partial<Record<WorkflowEngine, EnginePolicy>> = {
   "document-action": documentActionPolicy,
+  "jurisdictional": jurisdictionalPolicy,
 };
 
 // ── Resolution ──────────────────────────────────────────────

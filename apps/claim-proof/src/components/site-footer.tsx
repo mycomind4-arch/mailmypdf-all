@@ -1,0 +1,41 @@
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-rule/60 bg-paper-deep/30">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="grid gap-8 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <div className="postmark w-fit">Claim Proof · MailMyPDF</div>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-ink-soft">
+              Evidence-first claim documentation and proof packages. Upload a denial, extract the facts, prepare a documented response, and send it certified.
+            </p>
+          </div>
+          <div>
+            <div className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">Product</div>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><a href="#how-it-works" className="text-ink-soft transition-colors hover:text-stamp">How it works</a></li>
+              <li><a href="#claim-types" className="text-ink-soft transition-colors hover:text-stamp">Claim types</a></li>
+              <li><a href="#start" className="text-ink-soft transition-colors hover:text-stamp">Start a response</a></li>
+              <li><a href="#faq" className="text-ink-soft transition-colors hover:text-stamp">FAQ</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">Ecosystem</div>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><a href="https://notice-respond.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Notice Respond</a></li>
+              <li><a href="https://benefits-appeal.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Benefits Appeal</a></li>
+              <li><a href="https://mailmypdf.com" className="text-ink-soft transition-colors hover:text-stamp">MailMyPDF</a></li>
+              <li><a href="https://gov-reply.mycomind4.workers.dev" className="text-ink-soft transition-colors hover:text-stamp">GovReply</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-rule/60 pt-6 sm:flex-row sm:items-center">
+          <p className="text-xs text-muted-foreground">© 2026 MailMyPDF. Claim Proof is a document and correspondence tool — not a law firm, claims adjuster, or insurance provider.</p>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            <a href="#" className="transition-colors hover:text-stamp">Privacy</a>
+            <a href="#" className="transition-colors hover:text-stamp">Terms</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}

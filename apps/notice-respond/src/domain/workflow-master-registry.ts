@@ -1332,7 +1332,93 @@ export const registryByEngine: Record<WorkflowEngine, WorkflowRegistryEntry[]> =
 export const registryByVertical: Record<string, WorkflowRegistryEntry[]> = (() => {
   const result: Record<string, WorkflowRegistryEntry[]> = {};
   for (const entry of WORKFLOW_REGISTRY) {
-    if (!result[entry.vertical]) result[entry.vertical] = [];
+    if (!result[entry.vertical]) result[entry.vertical] = [
+  // ═══ Tenant Reply workflows ═══
+  {
+    id: "tenant-eviction-response",
+    vertical: "tenant-reply",
+    category: "Housing",
+    engine: "jurisdictional",
+    lifecycle: "functional",
+    title: "Respond to an Eviction Notice",
+    canonicalKeyword: "respond to an eviction notice",
+    keywordCluster: ["eviction notice response", "pay or quit response", "cure or quit response"],
+    msv: null, cpc: null, competition: null,
+    seoUrl: "/workflows/tenant-eviction-response",
+    repo: "tenant-reply",
+    productStatus: "functional",
+    testStatus: "partial",
+    deploymentStatus: "staging",
+    factoryReuseScore: 0.85,
+    implementationDifficulty: 2,
+    priority: "high",
+    researchRequired: true,
+  },
+  {
+    id: "tenant-repair-demand",
+    vertical: "tenant-reply",
+    category: "Housing",
+    engine: "jurisdictional",
+    lifecycle: "functional",
+    title: "Respond to a Repair Demand or Habitability Issue",
+    canonicalKeyword: "tenant repair demand letter",
+    keywordCluster: ["habitability complaint", "repair request letter to landlord"],
+    msv: null, cpc: null, competition: null,
+    seoUrl: "/workflows/tenant-repair-demand",
+    repo: "tenant-reply",
+    productStatus: "functional",
+    testStatus: "partial",
+    deploymentStatus: "staging",
+    factoryReuseScore: 0.85,
+    implementationDifficulty: 2,
+    priority: "high",
+    researchRequired: true,
+  },
+
+  // ═══ Claim Proof workflows ═══
+  {
+    id: "claim-proof-package",
+    vertical: "claim-proof",
+    category: "Appeals / Claims",
+    engine: "appeal",
+    lifecycle: "functional",
+    title: "Build a Claim Proof Package",
+    canonicalKeyword: "build a claim proof package",
+    keywordCluster: ["insurance claim documentation", "disability claim evidence", "VA claim proof package"],
+    msv: null, cpc: null, competition: null,
+    seoUrl: "/workflows/claim-proof-package",
+    repo: "claim-proof",
+    productStatus: "functional",
+    testStatus: "partial",
+    deploymentStatus: "staging",
+    factoryReuseScore: 0.80,
+    implementationDifficulty: 3,
+    priority: "high",
+    researchRequired: true,
+  },
+
+  // ═══ Permit Reply workflows ═══
+  {
+    id: "permit-denial-response",
+    vertical: "permit-reply",
+    category: "Regulatory / Permit / Rights",
+    engine: "jurisdictional",
+    lifecycle: "functional",
+    title: "Respond to a Permit Denial",
+    canonicalKeyword: "respond to a permit denial",
+    keywordCluster: ["permit denial appeal", "building permit reconsideration", "permit denial response letter"],
+    msv: null, cpc: null, competition: null,
+    seoUrl: "/workflows/permit-denial-response",
+    repo: "permit-reply",
+    productStatus: "functional",
+    testStatus: "partial",
+    deploymentStatus: "staging",
+    factoryReuseScore: 0.88,
+    implementationDifficulty: 3,
+    priority: "high",
+    researchRequired: true,
+  },
+];
     result[entry.vertical].push(entry);
   }
   return result;
