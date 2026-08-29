@@ -1,0 +1,18 @@
+{
+  "name": "@mailmypdf/ecosystem",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mailmypdf/core": "workspace:*",
+    "@mailmypdf/workflows": "workspace:*"
+  }
+}

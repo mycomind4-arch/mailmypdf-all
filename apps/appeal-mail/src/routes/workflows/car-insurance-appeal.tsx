@@ -1,0 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { CarInsuranceAppealWorkspace } from "@/components/workflow/car-insurance-appeal-workspace";
+
+export const Route = createFileRoute("/workflows/car-insurance-appeal")({ head: () => ({ meta: [{ title: "Appeal a Car Insurance Claim — Appeal Mail" }, { name: "description", content: "Upload the claim decision and prepare the response." }, { property: "og:title", content: "Appeal a Car Insurance Claim — Appeal Mail" }, { property: "og:description", content: "Upload the claim decision and prepare the response." }, { name: "twitter:card", content: "summary" }, { name: "twitter:title", content: "Appeal a Car Insurance Claim — Appeal Mail" }, { name: "twitter:description", content: "Upload the claim decision and prepare the response." }], links: [{ rel: "canonical", href: "/workflows/car-insurance-appeal" }] }), component: CarInsuranceAppealWorkspace });

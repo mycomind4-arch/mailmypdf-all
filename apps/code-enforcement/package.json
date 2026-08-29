@@ -1,0 +1,39 @@
+{
+  "name": "code-enforcement",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "verify:launch": "npm test && npm run build",
+    "build:cf": "npx @opennextjs/cloudflare build",
+    "deploy:cf": "npx @opennextjs/cloudflare build && npx wrangler deploy",
+    "preview:cf": "npx @opennextjs/cloudflare build && npx wrangler dev",
+    "deploy": "npx @opennextjs/cloudflare build && npx @opennextjs/cloudflare deploy"
+  },
+  "dependencies": {
+    "@mailmypdf/pricing": "workspace:*",
+    "@tanstack/react-query": "^5.75.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.507.0",
+    "next": "^15.3.0",
+    "pdf-parse": "^1.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@opennextjs/cloudflare": "^1.20.3",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.0",
+    "vitest": "latest",
+    "wrangler": "^4.126.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "": "node_modules/wrangler/config-schema.json",
+  "name": "insurance-claims",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "GEMINI_MODEL": "gemini-2.0-flash",
+    "APP_URL": "https://insurance-claims.pages.dev"
+  }
+}

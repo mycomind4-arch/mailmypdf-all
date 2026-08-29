@@ -1,0 +1,24 @@
+{
+  "name": "@mailmypdf/voice-client",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@pipecat-ai/client-js": ">=1.13.0 <2"
+  },
+  "peerDependenciesMeta": {
+    "@pipecat-ai/client-js": {
+      "optional": true
+    }
+  }
+}

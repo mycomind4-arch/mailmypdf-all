@@ -1,0 +1,51 @@
+# Immigration Mail
+
+> Prepare and send important U.S. immigration-related correspondence with confidence.
+
+Immigration Mail is a standalone product that provides guided workflows for preparing immigration-related correspondence — response letters, explanation letters, and supporting document cover letters — and sends them as physical mail via USPS with tracking and proof of delivery.
+
+## What it does
+- Guides users through step-by-step correspondence workflows (not blank-page AI chat)
+- Helps organize user-provided facts and uploaded documents
+- Provides AI-assisted drafting that remains editable and reviewable — AI never invents facts, deadlines, requirements, or legal conclusions
+- Sends physical mail (Standard, Certified, Registered) with tracking
+- Retains mailing records including tracking numbers, mail type, and recipient address
+- Provides a dashboard for viewing mailing history and tracking status
+
+## Important limitations
+Immigration Mail is NOT a law firm, attorney, government agency, or government website. It does not:
+- Provide legal advice
+- Determine immigration eligibility
+- Guarantee outcomes
+- Guarantee that a submission satisfies a government requirement
+- Replace the guidance of a qualified immigration attorney
+
+## Primary workflows
+1. **Respond to a Notice:** Organize notice → Confirm information → Define objective → Prepare draft → Review → Attachments → Recipient → Mailing → Checkout → Submitted
+2. **Submit Supporting Documents:** Describe submission → Generate cover letter → Review → Attachments → Recipient → Mailing → Checkout → Submitted
+3. **Prepare an Explanation Letter:** Provide facts → Define objective → Generate draft → Review → Attachments → Recipient → Mailing → Checkout → Submitted
+
+## Trust principles
+- AI must not invent facts, deadlines, requirements, or legal conclusions
+- User-provided and document-extracted information must be distinguishable from AI-generated drafting
+- Nothing is sent until the user reviews and approves it via a mandatory checklist
+- Documents are stored securely and never used for marketing or AI training
+- Users can request full data deletion at any time
+
+## Mailing options
+- Standard ($4.99): 3–7 business days, USPS tracking included
+- Certified ($14.94): Delivery tracking + confirmation, proof of delivery, 3–7 days
+- Registered ($32.49): Secure handling + tracking, insured, signature required, 5–10 days
+
+## Resources
+- Guide: How to Respond to a Request for Evidence (RFE)
+- Guide: Writing an Effective Explanation Letter
+- Guide: Why Certified Mail Matters for Immigration Correspondence
+
+## Technology
+- Built on TanStack Start (React + TanStack Router) with server-side rendering
+- Deployed on Cloudflare Pages
+- Physical mail fulfillment via MailMyPDF v1 API (tenant-based integration)
+- AI-assisted drafting (provider to be connected)
+- Payment processing via Stripe (to be connected)
+- Authentication via Supabase (to be connected)

@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { InsuranceCoverageDenialWorkspace } from "@/components/workflow/insurance-coverage-denial-workspace";
+export const Route=createFileRoute("/workflows/insurance-coverage-denial")({head:()=>({meta:[{title:"Appeal an Insurance Coverage Denial — Authority-First | Appeal Mail"},{name:"description",content:"Analyze an insurance coverage denial against the actual notice and supplied plan language, identify evidence gaps, build a human-reviewed appeal, and price the final physical packet transparently."},{name:"twitter:card",content:"summary"}],links:[{rel:"canonical",href:"/workflows/insurance-coverage-denial"}]}),component:()=> <main><InsuranceCoverageDenialWorkspace/></main>});

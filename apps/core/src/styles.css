@@ -1,0 +1,373 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * MailMyPDF Premium Design System
+ *
+ * Warm ivory canvas, deep navy ink, cobalt accent, restrained brass.
+ * Editorial serif display (Instrument Serif), grotesk body (Inter).
+ * Load fonts via <link> in src/routes/__root.tsx — never @import a URL here.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-stamp: var(--stamp);
+  --color-stamp-soft: var(--stamp-soft);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --shadow-card: 0 1px 2px 0 color-mix(in oklab, var(--ink) 5%, transparent),
+                 0 1px 3px 0 color-mix(in oklab, var(--ink) 4%, transparent),
+                 0 6px 16px -6px color-mix(in oklab, var(--ink) 8%, transparent),
+                 0 24px 48px -20px color-mix(in oklab, var(--ink) 12%, transparent);
+  --shadow-stamp: 0 6px 20px -10px color-mix(in oklab, var(--cobalt) 40%, transparent);
+  --shadow-hover: 0 2px 4px 0 color-mix(in oklab, var(--ink) 8%, transparent),
+                  0 8px 24px -8px color-mix(in oklab, var(--ink) 12%, transparent),
+                  0 32px 56px -24px color-mix(in oklab, var(--ink) 16%, transparent);
+  --shadow-premium: 0 1px 2px 0 color-mix(in oklab, var(--ink) 4%, transparent),
+                    0 4px 12px -4px color-mix(in oklab, var(--ink) 6%, transparent),
+                    0 20px 40px -16px color-mix(in oklab, var(--ink) 10%, transparent);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* Paper palette — warm ivory */
+  --paper: oklch(0.975 0.008 85);
+  --paper-deep: oklch(0.955 0.012 82);
+
+  /* Ink — deep charcoal with navy undertone */
+  --ink: oklch(0.26 0.035 255);
+  --ink-soft: oklch(0.44 0.03 255);
+
+  /* Stamp — muted postal red (used sparingly) */
+  --stamp: oklch(0.54 0.16 28);
+  --stamp-soft: oklch(0.76 0.06 28);
+
+  /* Cobalt — primary accent */
+  --cobalt: oklch(0.45 0.14 255);
+  --cobalt-soft: oklch(0.62 0.10 255);
+
+  /* Brass — secondary accent */
+  --brass: oklch(0.62 0.07 75);
+  --brass-soft: oklch(0.78 0.05 75);
+
+  /* Rule — subtle border */
+  --rule: oklch(0.88 0.012 82);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(0.992 0.004 85);
+  --card-foreground: var(--ink);
+  --popover: oklch(0.992 0.004 85);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-deep);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--cobalt);
+  --accent-foreground: oklch(0.98 0.003 85);
+  --destructive: oklch(0.52 0.20 25);
+  --destructive-foreground: oklch(0.98 0.003 85);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--cobalt);
+}
+
+.dark {
+  --paper: oklch(0.16 0.015 255);
+  --paper-deep: oklch(0.20 0.018 255);
+  --ink: oklch(0.95 0.008 85);
+  --ink-soft: oklch(0.76 0.015 85);
+  --stamp: oklch(0.64 0.16 28);
+  --stamp-soft: oklch(0.50 0.10 28);
+  --cobalt: oklch(0.60 0.14 255);
+  --cobalt-soft: oklch(0.48 0.10 255);
+  --brass: oklch(0.66 0.07 75);
+  --brass-soft: oklch(0.52 0.05 75);
+  --rule: oklch(0.30 0.015 255);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-deep);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-deep);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-deep);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--cobalt);
+  --accent-foreground: oklch(0.98 0.003 85);
+  --destructive: oklch(0.64 0.18 25);
+  --destructive-foreground: oklch(0.98 0.003 85);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--cobalt);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+  }
+
+  h1 { letter-spacing: -0.028em; }
+
+  /* Subtle paper texture — extremely faint */
+  body {
+    background-image:
+      radial-gradient(circle at 15% 5%, color-mix(in oklab, var(--cobalt) 3%, transparent) 0%, transparent 35%),
+      radial-gradient(circle at 85% 95%, color-mix(in oklab, var(--ink) 4%, transparent) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--cobalt) 18%, transparent);
+    color: var(--ink);
+  }
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+
+@utility postmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--cobalt) 25%, transparent);
+  color: var(--cobalt);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--cobalt) 5%, transparent);
+}
+
+@utility envelope-card {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+@utility envelope-card-hover {
+  &:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--ink) 20%, var(--rule));
+  }
+}
+
+@utility envelope-card-notch {
+  &::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40%;
+    height: 12px;
+    background: var(--paper);
+    border-left: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    border-radius: 0 0 12px 12px;
+  }
+}
+
+@utility hairline {
+  border-top: 1px solid var(--rule);
+}
+
+@utility premium-section {
+  position: relative;
+}
+
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+
+@utility proof-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+/* Decorative circular postmark — faded stamp */
+@utility postmark-circle {
+  position: absolute;
+  border: 2px solid color-mix(in oklab, var(--stamp) 25%, transparent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--stamp) 40%, transparent);
+  transform: rotate(-12deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Premium gradient surface for dark sections */
+@utility proof-surface {
+  background: linear-gradient(135deg,
+    oklch(0.22 0.03 255) 0%,
+    oklch(0.18 0.025 255) 50%,
+    oklch(0.15 0.02 255) 100%);
+  color: oklch(0.95 0.008 85);
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+
+@keyframes float {
+  0%, 100% { transform: rotate(1deg) translateY(0); }
+  50% { transform: rotate(1deg) translateY(-6px); }
+}
+
+@keyframes pos-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pos-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08); }
+}
+
+/* Entrance animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease forwards;
+}
+
+/* FairProcess animations */
+@keyframes fp-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fp-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fp-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08); }
+}
+
+.animate-fp-fade-in {
+  animation: fp-fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fp-slide-up {
+  animation: fp-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fp-glow {
+  animation: fp-glow 3s infinite ease-in-out;
+}

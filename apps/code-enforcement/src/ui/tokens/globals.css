@@ -1,0 +1,126 @@
+/**
+ * Design Token CSS Layer
+ *
+ * Maps the TypeScript tokens to CSS custom properties.
+ * Components should use these variables, not raw values.
+ */
+
+:root {
+  /* Colors — Surface */
+  --ce-bg: #0a0e14;
+  --ce-surface: #0f141c;
+  --ce-surface-raised: #141a24;
+  --ce-surface-hover: #191f2b;
+
+  /* Colors — Text */
+  --ce-text-primary: #eef2f7;
+  --ce-text-secondary: #a4b0c0;
+  --ce-text-muted: #6b7a8e;
+  --ce-text-disabled: #4a5568;
+
+  /* Colors — Accent */
+  --ce-accent: #3b8dde;
+  --ce-accent-hover: #4d9ef0;
+  --ce-accent-muted: #2868a8;
+
+  /* Status */
+  --ce-status-critical: #e5484d;
+  --ce-status-critical-bg: #2a1518;
+  --ce-status-high: #e8833a;
+  --ce-status-high-bg: #2a1d12;
+  --ce-status-medium: #eab308;
+  --ce-status-medium-bg: #252318;
+  --ce-status-low: #22c55e;
+  --ce-status-low-bg: #14291e;
+  --ce-status-info: #3b8dde;
+  --ce-status-info-bg: #13243a;
+
+  /* Fact taxonomy */
+  --ce-fact-verified: #22c55e;
+  --ce-fact-assertion: #eab308;
+  --ce-fact-inference: #8b5cf6;
+  --ce-fact-unknown: #6b7a8e;
+  --ce-fact-conflict: #e5484d;
+  --ce-fact-rule: #3b8dde;
+  --ce-fact-recommendation: #14b8a6;
+
+  /* Borders */
+  --ce-border: #1e2632;
+  --ce-border-hover: #2a3442;
+  --ce-border-focus: #3b8dde;
+
+  /* Spacing */
+  --ce-space-0: 0;
+  --ce-space-1: 4px;
+  --ce-space-2: 8px;
+  --ce-space-3: 12px;
+  --ce-space-4: 16px;
+  --ce-space-5: 20px;
+  --ce-space-6: 24px;
+  --ce-space-8: 32px;
+  --ce-space-10: 40px;
+  --ce-space-12: 48px;
+  --ce-space-16: 64px;
+
+  /* Radii */
+  --ce-radius-sm: 6px;
+  --ce-radius-md: 10px;
+  --ce-radius-lg: 14px;
+  --ce-radius-xl: 20px;
+  --ce-radius-full: 999px;
+
+  /* Shadows */
+  --ce-shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+  --ce-shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+  --ce-shadow-lg: 0 12px 30px rgba(0,0,0,0.18);
+  --ce-shadow-focus: 0 0 0 3px rgba(59,141,222,0.25);
+
+  /* Typography */
+  --ce-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ce-font-mono: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+  --ce-text-xs: 11px;
+  --ce-text-sm: 13px;
+  --ce-text-base: 15px;
+  --ce-text-lg: 17px;
+  --ce-text-xl: 21px;
+  --ce-text-xxl: 28px;
+  --ce-text-display: 42px;
+
+  /* Transitions */
+  --ce-transition-fast: 150ms ease;
+  --ce-transition-normal: 200ms ease;
+
+  /* Z-Index */
+  --ce-z-dropdown: 100;
+  --ce-z-sticky: 200;
+  --ce-z-drawer: 300;
+  --ce-z-modal: 400;
+  --ce-z-toast: 500;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  font-family: var(--ce-font-family);
+  background: var(--ce-bg);
+  color: var(--ce-text-primary);
+  font-size: var(--ce-text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+*:focus-visible {
+  outline: 2px solid var(--ce-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

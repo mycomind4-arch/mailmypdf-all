@@ -1,0 +1,23 @@
+{
+  "name": "@mailmypdf/pricing",
+  "version": "0.2.1",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "typescript": "^7.0.2"
+  }
+}

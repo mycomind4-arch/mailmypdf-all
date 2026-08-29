@@ -1,0 +1,13 @@
+{
+  "name": "dispute-mail",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "verify:launch": "npm test && npm run build"
+  },

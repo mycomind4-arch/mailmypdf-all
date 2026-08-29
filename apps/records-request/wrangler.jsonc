@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "records-requests",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "records-requests"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "RECORDS_DB",
+      "database_name": "records-requests",
+      "database_id": "ee2cb729-0ea3-4aa7-a1aa-ca49b6513071"
+    }
+  ],
+  "vars": {
+    "MAILMYPDF_FULFILLMENT_ENABLED": "false"
+  },
+  "env": {
+    "production": {
+      "name": "records-requests",
+      "vars": {
+        "MAILMYPDF_FULFILLMENT_ENABLED": "false"
+      },
+      "d1_databases": [
+        {
+          "binding": "RECORDS_DB",
+          "database_name": "records-requests",
+          "database_id": "ee2cb729-0ea3-4aa7-a1aa-ca49b6513071"
+        }
+      ]
+    }
+  }
+}

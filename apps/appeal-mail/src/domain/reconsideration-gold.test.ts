@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { getWorkflow } from "@/domain/workflows";
+describe("Reconsideration Gold workflow",()=>{it("declares the standard customer experience and transactional intent",()=>{const w=getWorkflow("reconsideration");expect(w.id).toBe("reconsideration");expect(w.acceptsDocuments).toBe(true);expect(w.experienceStages).toEqual(["understand","build","send"]);expect(w.primaryKeyword).toBeDefined();expect(w.keywordIntent).toBe("transactional");expect(w.workflowPrompt).toContain("reconsideration");});it("has the specialized reconsideration focus",()=>{const w=getWorkflow("reconsideration");expect(w.focusAreas).toEqual(expect.arrayContaining(["New information","Factual errors","Omitted evidence","Internal review process"]));});});

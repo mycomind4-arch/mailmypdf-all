@@ -1,0 +1,10 @@
+# Static assets
+/assets/* /assets/:splat 200
+/favicon.ico /favicon.ico 200
+/robots.txt /robots.txt 200
+
+# API routes proxy to Worker
+/api/* https://mailmypdf.mailmypdf.workers.dev/api/:splat 200
+
+# Verification portal proxy to Worker
+/verify/* https://mailmypdf.mailmypdf.workers.dev/verify/:splat 200

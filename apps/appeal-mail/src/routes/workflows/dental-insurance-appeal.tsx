@@ -1,0 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { DentalInsuranceAppealWorkspace } from "@/components/workflow/dental-insurance-appeal-workspace";
+
+export const Route = createFileRoute("/workflows/dental-insurance-appeal")({ head: () => ({ meta: [{ title: "Appeal a Dental Insurance Denial — Appeal Mail" }, { name: "description", content: "Upload a dental denial and build the response." }, { property: "og:title", content: "Appeal a Dental Insurance Denial — Appeal Mail" }, { property: "og:description", content: "Upload a dental denial and build the response." }, { name: "twitter:card", content: "summary" }, { name: "twitter:title", content: "Appeal a Dental Insurance Denial — Appeal Mail" }, { name: "twitter:description", content: "Upload a dental denial and build the response." }], links: [{ rel: "canonical", href: "/workflows/dental-insurance-appeal" }] }), component: DentalInsuranceAppealWorkspace });

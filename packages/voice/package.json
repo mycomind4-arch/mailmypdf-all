@@ -1,0 +1,40 @@
+{
+  "name": "@mailmypdf/voice",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mailmypdf/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@livekit/agents": ">=1.6.0 <2",
+    "@livekit/agents-plugin-openai": ">=1.6.0 <2",
+    "@livekit/agents-plugin-silero": ">=1.6.0 <2",
+    "@pipecat-ai/client-js": ">=1.13.0 <2"
+  },
+  "peerDependenciesMeta": {
+    "@livekit/agents": {
+      "optional": true
+    },
+    "@livekit/agents-plugin-openai": {
+      "optional": true
+    },
+    "@livekit/agents-plugin-silero": {
+      "optional": true
+    },
+    "@pipecat-ai/client-js": {
+      "optional": true
+    }
+  }
+}

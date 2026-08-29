@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /orders/
+Disallow: /send
+Disallow: /admin
+Disallow: /auth
+Disallow: /api/
+
+Sitemap: https://mailmypdf.com/sitemap.xml

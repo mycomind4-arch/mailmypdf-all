@@ -1,0 +1,30 @@
+{
+  "name": "mailmypdf-smallbusiness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "preview": "vite preview",
+    "trigger:dev": "trigger dev",
+    "trigger:deploy": "trigger deploy"
+  },
+  "dependencies": {
+    "@mailmypdf/pricing": "workspace:*",
+    "@trigger.dev/sdk": "latest",
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "vitest": "latest"
+  }
+}

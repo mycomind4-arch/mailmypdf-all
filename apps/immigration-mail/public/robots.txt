@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /auth
+Sitemap: https://immigration-mail.pages.dev/sitemap.xml

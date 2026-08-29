@@ -1,0 +1,15 @@
+# Cloudflare / OpenNext build artifacts
+.open-next/
+.wrangler/
+
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+out/
+
+# Misc
+*.tsbuildinfo
+.env*.local
+dist/

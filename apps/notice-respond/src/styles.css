@@ -1,0 +1,590 @@
+@import "tailwindcss" source(none);
+@source "../src";
+
+/*
+ * Notice Response — Design System v2
+ *
+ * Two-layer visual identity:
+ *   Layer 1 (Public):   warm ivory, charcoal, restrained navy, muted forest
+ *   Layer 2 (Command):  deep charcoal, near-black, dark slate, warm off-white
+ *
+ * Typography:
+ *   Display: Instrument Serif
+ *   UI:      Inter
+ *   Mono:    JetBrains Mono
+ *
+ * Fonts loaded via <link> in __root.tsx
+ *
+ * All legacy Tailwind color names are remapped so existing utility classes
+ * resolve to the brand palette automatically.
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-stamp: var(--stamp);
+  --color-stamp-soft: var(--stamp-soft);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-brass: var(--brass);
+  --color-navy: var(--navy);
+  --color-forest: var(--forest);
+
+  /* ── Legacy amber → stamp (forest green) ── */
+  --color-amber-50: color-mix(in oklab, var(--stamp) 6%, var(--paper));
+  --color-amber-100: color-mix(in oklab, var(--stamp) 10%, var(--paper));
+  --color-amber-200: color-mix(in oklab, var(--stamp) 18%, var(--paper));
+  --color-amber-300: color-mix(in oklab, var(--stamp) 30%, var(--paper));
+  --color-amber-400: color-mix(in oklab, var(--stamp) 45%, var(--paper));
+  --color-amber-500: var(--stamp);
+  --color-amber-600: color-mix(in oklab, var(--stamp) 80%, var(--ink));
+  --color-amber-700: var(--stamp);
+  --color-amber-800: color-mix(in oklab, var(--stamp) 60%, var(--ink));
+  --color-amber-900: color-mix(in oklab, var(--stamp) 40%, var(--ink));
+  --color-amber-950: color-mix(in oklab, var(--stamp) 25%, var(--ink));
+
+  /* ── Legacy emerald → stamp ── */
+  --color-emerald-50: color-mix(in oklab, var(--stamp) 6%, var(--paper));
+  --color-emerald-100: color-mix(in oklab, var(--stamp) 10%, var(--paper));
+  --color-emerald-200: color-mix(in oklab, var(--stamp) 18%, var(--paper));
+  --color-emerald-300: color-mix(in oklab, var(--stamp) 30%, var(--paper));
+  --color-emerald-400: color-mix(in oklab, var(--stamp) 45%, var(--paper));
+  --color-emerald-500: var(--stamp);
+  --color-emerald-600: color-mix(in oklab, var(--stamp) 80%, var(--ink));
+  --color-emerald-700: var(--stamp);
+  --color-emerald-800: color-mix(in oklab, var(--stamp) 60%, var(--ink));
+  --color-emerald-900: color-mix(in oklab, var(--stamp) 40%, var(--ink));
+
+  /* ── Legacy slate → ink/paper ── */
+  --color-slate-50: var(--paper-deep);
+  --color-slate-100: var(--paper-deep);
+  --color-slate-200: var(--rule);
+  --color-slate-300: color-mix(in oklab, var(--ink-soft) 50%, var(--paper));
+  --color-slate-400: var(--ink-soft);
+  --color-slate-500: var(--ink-soft);
+  --color-slate-600: color-mix(in oklab, var(--ink) 70%, var(--paper));
+  --color-slate-700: var(--ink);
+  --color-slate-800: var(--ink);
+  --color-slate-900: var(--ink);
+  --color-slate-950: var(--ink);
+
+  --color-white: var(--card);
+
+  /* ── Legacy red → danger ── */
+  --color-red-50: var(--color-danger-bg);
+  --color-red-100: color-mix(in oklab, var(--color-danger) 10%, var(--paper));
+  --color-red-200: var(--color-danger-border);
+  --color-red-300: color-mix(in oklab, var(--color-danger) 40%, var(--paper));
+  --color-red-400: color-mix(in oklab, var(--color-danger) 60%, var(--paper));
+  --color-red-500: var(--color-danger);
+  --color-red-600: var(--color-danger);
+  --color-red-700: color-mix(in oklab, var(--color-danger) 80%, var(--ink));
+  --color-red-800: color-mix(in oklab, var(--color-danger) 60%, var(--ink));
+  --color-red-900: color-mix(in oklab, var(--color-danger) 40%, var(--ink));
+
+  /* ── Legacy indigo → ink ── */
+  --color-indigo-50: color-mix(in oklab, var(--ink) 5%, var(--paper));
+  --color-indigo-100: color-mix(in oklab, var(--ink) 10%, var(--paper));
+  --color-indigo-200: color-mix(in oklab, var(--ink) 15%, var(--paper));
+  --color-indigo-300: color-mix(in oklab, var(--ink) 25%, var(--paper));
+  --color-indigo-400: var(--ink-soft);
+  --color-indigo-500: var(--ink-soft);
+  --color-indigo-600: var(--ink);
+  --color-indigo-700: var(--ink);
+  --color-indigo-800: var(--ink);
+  --color-indigo-900: var(--ink);
+  --color-indigo-950: var(--ink);
+
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  --shadow-card: 0 1px 0 0 color-mix(in oklab, var(--ink) 6%, transparent),
+                 0 2px 4px -2px color-mix(in oklab, var(--ink) 4%, transparent),
+                 0 8px 24px -12px color-mix(in oklab, var(--ink) 8%, transparent);
+  --shadow-premium: 0 1px 0 0 color-mix(in oklab, var(--ink) 5%, transparent),
+                    0 4px 12px -4px color-mix(in oklab, var(--ink) 8%, transparent),
+                    0 20px 48px -16px color-mix(in oklab, var(--ink) 14%, transparent);
+  --shadow-stamp: 0 4px 14px -6px color-mix(in oklab, var(--stamp) 40%, transparent);
+  --shadow-hover: 0 2px 0 0 color-mix(in oklab, var(--ink) 10%, transparent),
+                  0 16px 40px -16px color-mix(in oklab, var(--ink) 16%, transparent);
+  --shadow-command: 0 1px 0 0 color-mix(in oklab, var(--cmd-text) 4%, transparent),
+                    0 4px 16px -6px color-mix(in oklab, var(--cmd-shadow) 50%, transparent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAYER 1 — PUBLIC / SEO  (warm ivory, light, editorial)
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --paper: oklch(0.97 0.008 85);
+  --paper-deep: oklch(0.93 0.012 85);
+  --ink: oklch(0.24 0.03 250);
+  --ink-soft: oklch(0.45 0.025 250);
+  --stamp: oklch(0.50 0.10 160);
+  --stamp-soft: oklch(0.68 0.06 160);
+  --rule: oklch(0.88 0.008 85);
+  --cobalt: oklch(0.48 0.12 250);
+  --brass: oklch(0.72 0.06 80);
+  --navy: oklch(0.30 0.05 250);
+  --forest: oklch(0.42 0.08 160);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(0.99 0.003 85);
+  --card-foreground: var(--ink);
+  --popover: oklch(0.99 0.003 85);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-deep);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--stamp);
+  --accent-foreground: oklch(0.99 0.003 85);
+  --destructive: oklch(0.52 0.20 25);
+  --destructive-foreground: oklch(0.99 0.003 85);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--ink);
+
+  --color-success: oklch(0.50 0.10 160);
+  --color-success-bg: oklch(0.95 0.02 160);
+  --color-success-border: oklch(0.80 0.06 160);
+  --color-warning: oklch(0.55 0.12 70);
+  --color-warning-bg: oklch(0.95 0.02 70);
+  --color-warning-border: oklch(0.80 0.06 70);
+  --color-danger: oklch(0.52 0.20 25);
+  --color-danger-bg: oklch(0.95 0.02 25);
+  --color-danger-border: oklch(0.80 0.06 25);
+  --color-info: var(--ink-soft);
+  --color-info-bg: var(--paper-deep);
+  --color-info-border: var(--rule);
+
+  /* Command center shadow ref (used by .cmd-* utilities even in light mode) */
+  --cmd-text: var(--ink);
+  --cmd-shadow: var(--ink);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAYER 2 — COMMAND CENTER  (deep charcoal, near-black, focused)
+   Applied via .command-center class on a wrapper element
+   ══════════════════════════════════════════════════════════════════════════ */
+.command-center {
+  --paper: oklch(0.17 0.015 250);
+  --paper-deep: oklch(0.21 0.015 250);
+  --ink: oklch(0.93 0.01 85);
+  --ink-soft: oklch(0.70 0.015 85);
+  --stamp: oklch(0.62 0.10 160);
+  --stamp-soft: oklch(0.50 0.06 160);
+  --rule: oklch(0.30 0.015 250);
+  --cobalt: oklch(0.60 0.12 250);
+  --brass: oklch(0.65 0.05 80);
+  --navy: oklch(0.22 0.03 250);
+  --forest: oklch(0.52 0.08 160);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(0.22 0.012 250);
+  --card-foreground: var(--ink);
+  --popover: oklch(0.22 0.012 250);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: oklch(0.15 0.015 250);
+  --secondary: oklch(0.26 0.012 250);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.26 0.012 250);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--stamp);
+  --accent-foreground: oklch(0.93 0.01 85);
+  --destructive: oklch(0.58 0.18 25);
+  --destructive-foreground: oklch(0.93 0.01 85);
+  --border: var(--rule);
+  --input: oklch(0.32 0.015 250);
+  --ring: var(--stamp);
+
+  --color-success: oklch(0.60 0.10 160);
+  --color-success-bg: oklch(0.24 0.02 160);
+  --color-success-border: oklch(0.38 0.04 160);
+  --color-warning: oklch(0.65 0.10 70);
+  --color-warning-bg: oklch(0.24 0.02 70);
+  --color-warning-border: oklch(0.38 0.04 70);
+  --color-danger: oklch(0.58 0.18 25);
+  --color-danger-bg: oklch(0.24 0.02 25);
+  --color-danger-border: oklch(0.38 0.04 25);
+  --color-info: var(--ink-soft);
+  --color-info-bg: var(--secondary);
+  --color-info-border: var(--rule);
+
+  --cmd-text: var(--ink);
+  --cmd-shadow: oklch(0.10 0.02 250);
+
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BASE
+   ══════════════════════════════════════════════════════════════════════════ */
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background-image:
+      radial-gradient(circle at 15% 8%, color-mix(in oklab, var(--stamp) 3%, transparent) 0%, transparent 35%),
+      radial-gradient(circle at 85% 92%, color-mix(in oklab, var(--ink) 3%, transparent) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+  .command-center body,
+  body.command-center {
+    background-image:
+      radial-gradient(circle at 20% 10%, color-mix(in oklab, var(--stamp) 4%, transparent) 0%, transparent 30%),
+      radial-gradient(circle at 80% 90%, color-mix(in oklab, var(--navy) 8%, transparent) 0%, transparent 35%);
+  }
+  h1, h2, h3, h4, .font-serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  h1 { letter-spacing: -0.025em; }
+  a { color: inherit; text-decoration: none; }
+  * { box-sizing: border-box; }
+  @keyframes float {
+    0%, 100% { transform: rotate(1deg) translateY(0); }
+    50% { transform: rotate(1deg) translateY(-6px); }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAYOUT
+   ══════════════════════════════════════════════════════════════════════════ */
+.container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+@media (max-width: 640px) {
+  .container { width: min(100% - 28px, 1180px); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CUSTOM UTILITIES
+   ══════════════════════════════════════════════════════════════════════════ */
+@utility postmark {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px dashed color-mix(in oklab, var(--stamp) 55%, transparent);
+  color: var(--stamp); font-family: var(--font-mono); font-size: 0.68rem;
+  letter-spacing: 0.15em; text-transform: uppercase; border-radius: 999px;
+  background: color-mix(in oklab, var(--stamp) 6%, transparent);
+}
+@utility envelope-card {
+  background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); position: relative;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+@utility envelope-card-hover {
+  &:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+}
+@utility hairline { border-top: 1px solid var(--rule); }
+@utility postmark-circle {
+  position: absolute; border: 2px solid color-mix(in oklab, var(--stamp) 30%, transparent);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: color-mix(in oklab, var(--stamp) 45%, transparent);
+  transform: rotate(-12deg); pointer-events: none; z-index: 0;
+}
+@utility wax-seal {
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%,
+    color-mix(in oklab, var(--stamp) 22%, var(--paper)) 0%,
+    color-mix(in oklab, var(--stamp) 10%, var(--paper)) 100%);
+  border: 2px solid color-mix(in oklab, var(--stamp) 35%, transparent);
+  box-shadow:
+    0 2px 8px -2px color-mix(in oklab, var(--stamp) 30%, transparent),
+    inset 0 1px 2px color-mix(in oklab, var(--paper) 40%, transparent),
+    inset 0 -1px 3px color-mix(in oklab, var(--stamp) 15%, transparent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════════════════════════════════════════ */
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); position: relative; transition: box-shadow 0.25s ease, transform 0.25s ease; }
+.card-elevated { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius-lg); box-shadow: var(--shadow-premium); }
+.card-flat { border: 1px solid var(--rule); border-radius: var(--radius-lg); background: var(--paper-deep); }
+.card-hover:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+   ══════════════════════════════════════════════════════════════════════════ */
+.eyebrow { letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.68rem; font-weight: 700; color: var(--stamp); font-family: var(--font-sans); }
+.heading-xl { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: -0.02em; line-height: 1.15; color: var(--ink); }
+.heading-lg { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 400; letter-spacing: -0.015em; line-height: 1.25; color: var(--ink); }
+.heading-md { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 400; line-height: 1.35; color: var(--ink); }
+.heading-sm { font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; line-height: 1.4; color: var(--ink); }
+.text-body { font-size: 0.875rem; line-height: 1.65; color: var(--ink-soft); }
+.text-muted { font-size: 0.8rem; line-height: 1.55; color: var(--ink-soft); }
+.text-mono { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-soft); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   ══════════════════════════════════════════════════════════════════════════ */
+.btn-primary { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: var(--radius-md); background: var(--ink); padding: 0.65rem 1.4rem; font-weight: 600; font-size: 0.875rem; color: var(--paper); transition: background 0.2s, transform 0.2s; cursor: pointer; border: none; }
+.btn-primary:hover { background: var(--ink-soft); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-amber { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: var(--radius-md); background: var(--stamp); padding: 0.65rem 1.4rem; font-weight: 600; font-size: 0.875rem; color: var(--paper); transition: background 0.2s; cursor: pointer; border: none; }
+.btn-amber:hover { background: color-mix(in oklab, var(--stamp) 80%, var(--ink)); }
+.btn-amber:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--rule); background: var(--card); padding: 0.65rem 1.4rem; font-weight: 600; font-size: 0.875rem; color: var(--ink); transition: all 0.2s; cursor: pointer; }
+.btn-outline:hover { border-color: var(--ink); background: var(--paper-deep); }
+.btn-ghost { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.82rem; color: var(--ink-soft); transition: color 0.15s; cursor: pointer; background: none; border: none; }
+.btn-ghost:hover { color: var(--stamp); }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.78rem; }
+.btn-secondary { display: inline-flex; align-items: center; gap: 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--rule); background: var(--card); padding: 0.65rem 1.4rem; font-weight: 600; font-size: 0.875rem; color: var(--ink); transition: all 0.2s; cursor: pointer; }
+.btn-secondary:hover { border-color: var(--ink); background: var(--paper-deep); }
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INPUTS
+   ══════════════════════════════════════════════════════════════════════════ */
+.input-field { width: 100%; border-radius: var(--radius-md); border: 1px solid var(--input); padding: 0.625rem 0.875rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s, box-shadow 0.15s; background: var(--card); color: var(--ink); font-family: var(--font-sans); }
+.input-field:focus { border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ink) 8%, transparent); }
+.command-center .input-field:focus { border-color: var(--stamp); box-shadow: 0 0 0 3px color-mix(in oklab, var(--stamp) 12%, transparent); }
+.input-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 0.35rem; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BADGES & STATUS
+   ══════════════════════════════════════════════════════════════════════════ */
+.badge { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.18rem 0.55rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+.badge-amber { background: color-mix(in oklab, var(--stamp) 10%, transparent); color: var(--stamp); }
+.badge-indigo { background: var(--secondary); color: var(--ink-soft); }
+.badge-green { background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success-border); }
+.badge-amber-warn { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid var(--color-warning-border); }
+.badge-red { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid var(--color-danger-border); }
+.badge-gray { background: var(--paper-deep); color: var(--ink-soft); }
+.badge-outline { background: transparent; border: 1px solid var(--rule); color: var(--ink-soft); }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-dot-green { background: var(--color-success); }
+.status-dot-amber { background: var(--color-warning); }
+.status-dot-red { background: var(--color-danger); }
+.status-dot-gray { background: var(--rule); }
+
+/* Provenance badges */
+.provenance-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.5rem; border-radius: var(--radius-sm); }
+.provenance-user { background: color-mix(in oklab, var(--cobalt) 10%, transparent); color: var(--cobalt); }
+.provenance-doc { background: color-mix(in oklab, var(--brass) 12%, transparent); color: color-mix(in oklab, var(--brass) 70%, var(--ink)); }
+.provenance-ai { background: color-mix(in oklab, var(--stamp) 8%, transparent); color: var(--stamp); }
+.provenance-system { background: var(--paper-deep); color: var(--ink-soft); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ALERTS
+   ══════════════════════════════════════════════════════════════════════════ */
+.alert { border-radius: var(--radius-md); padding: 0.9rem 1rem; font-size: 0.82rem; line-height: 1.6; }
+.alert-warning { background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); color: var(--color-warning); }
+.alert-info { background: var(--paper-deep); border: 1px solid var(--rule); color: var(--ink-soft); }
+.alert-success { background: var(--color-success-bg); border: 1px solid var(--color-success-border); color: var(--color-success); }
+.alert-danger { background: var(--color-danger-bg); border: 1px solid var(--color-danger-border); color: var(--color-danger); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROGRESS
+   ══════════════════════════════════════════════════════════════════════════ */
+.progress-track { height: 6px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; background: var(--ink); transition: width 0.4s ease; }
+.progress-fill-amber { background: var(--stamp); }
+.progress-fill-success { background: var(--color-success); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROGRESS RAIL (Response Lifecycle)
+   ══════════════════════════════════════════════════════════════════════════ */
+.lifecycle-rail { display: flex; flex-direction: column; gap: 0; }
+.lifecycle-step { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem 0; position: relative; }
+.lifecycle-step-marker { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; border: 2px solid var(--rule); background: var(--card); color: var(--ink-soft); transition: all 0.2s; }
+.lifecycle-step.completed .lifecycle-step-marker { background: var(--stamp); border-color: var(--stamp); color: var(--paper); }
+.lifecycle-step.current .lifecycle-step-marker { border-color: var(--stamp); color: var(--stamp); box-shadow: 0 0 0 4px color-mix(in oklab, var(--stamp) 15%, transparent); }
+.lifecycle-step.blocked .lifecycle-step-marker { border-color: var(--color-danger); color: var(--color-danger); }
+.lifecycle-step:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 36px; bottom: -4px; width: 2px; background: var(--rule); }
+.lifecycle-step.completed:not(:last-child)::before { background: var(--stamp); }
+.lifecycle-step-label { font-size: 0.8rem; font-weight: 500; color: var(--ink-soft); padding-top: 0.3rem; }
+.lifecycle-step.completed .lifecycle-step-label { color: var(--ink); }
+.lifecycle-step.current .lifecycle-step-label { color: var(--ink); font-weight: 600; }
+.lifecycle-step.blocked .lifecycle-step-label { color: var(--color-danger); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SIDEBAR / APP SHELL
+   ══════════════════════════════════════════════════════════════════════════ */
+.app-shell { display: flex; min-height: 100vh; background: var(--paper); }
+.sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--rule); background: var(--card); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar-nav-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.85rem; border-radius: var(--radius-md); font-size: 0.82rem; font-weight: 500; color: var(--ink-soft); transition: all 0.15s; cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+.sidebar-nav-item:hover { background: var(--paper-deep); color: var(--ink); }
+.sidebar-nav-item.active { background: color-mix(in oklab, var(--ink) 5%, var(--paper)); color: var(--ink); font-weight: 600; }
+.sidebar-nav-item.completed { color: var(--color-success); }
+.sidebar-nav-item .nav-number { font-size: 0.68rem; font-weight: 700; color: var(--rule); }
+.sidebar-nav-item.active .nav-number { color: var(--ink); }
+.sidebar-nav-item.completed .nav-number { color: var(--color-success); }
+.app-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app-topbar { border-bottom: 1px solid var(--rule); background: var(--card); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.app-main { flex: 1; padding: 2rem; max-width: 900px; }
+@media (max-width: 768px) { .app-main { padding: 1.25rem 1rem; } }
+
+/* Command center layout */
+.cmd-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--rule); background: var(--card); position: sticky; top: 0; z-index: 20; }
+.cmd-body { display: flex; gap: 0; min-height: calc(100vh - 57px - 49px); }
+.cmd-left { width: 260px; flex-shrink: 0; border-right: 1px solid var(--rule); padding: 1.25rem 1rem; position: sticky; top: 57px; height: calc(100vh - 57px); overflow-y: auto; }
+.cmd-center { flex: 1; min-width: 0; padding: 2rem 2.5rem; max-width: 760px; }
+.cmd-right { width: 280px; flex-shrink: 0; border-left: 1px solid var(--rule); padding: 1.25rem 1rem; position: sticky; top: 57px; height: calc(100vh - 57px); overflow-y: auto; }
+@media (max-width: 1280px) { .cmd-right { display: none; } }
+@media (max-width: 1024px) { .cmd-left { display: none; } .cmd-center { padding: 1.5rem 1.25rem; max-width: 100%; } }
+@media (max-width: 768px) { .cmd-center { padding: 1.25rem 1rem; } .cmd-topbar { padding: 0.625rem 1rem; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SECTION DIVIDERS
+   ══════════════════════════════════════════════════════════════════════════ */
+.section-divider { border-top: 1px solid var(--rule); margin: 1.5rem 0; }
+.section-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UPLOAD ZONE & MAIL OPTIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+.upload-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 2px dashed var(--rule); border-radius: var(--radius-lg); padding: 2.5rem 1.5rem; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--card); }
+.upload-zone:hover { border-color: var(--stamp); background: color-mix(in oklab, var(--stamp) 3%, var(--card)); }
+.mail-option { border: 1px solid var(--rule); border-radius: var(--radius-md); padding: 1rem; cursor: pointer; transition: all 0.2s; background: var(--card); }
+.mail-option:hover { border-color: var(--ink); }
+.mail-option.selected { border-color: var(--stamp); box-shadow: 0 0 0 3px color-mix(in oklab, var(--stamp) 12%, transparent); }
+.check-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; border: 1px solid var(--rule); border-radius: var(--radius-md); cursor: pointer; transition: all 0.15s; background: var(--card); font-size: 0.875rem; }
+.check-card:hover { background: var(--paper-deep); }
+.check-card input { width: 18px; height: 18px; accent-color: var(--stamp); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROSE
+   ══════════════════════════════════════════════════════════════════════════ */
+.prose-content h2 { font-family: var(--font-serif); }
+.prose-content p { margin-top: 1rem; font-size: 0.9rem; line-height: 1.75; color: var(--ink-soft); }
+.prose-content ul { margin-top: 1rem; padding-left: 1.25rem; }
+.prose-content ul li { font-size: 0.9rem; line-height: 1.75; color: var(--ink-soft); margin-top: 0.5rem; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+@keyframes pulse-amber { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.animate-pulse-amber { animation: pulse-amber 2s ease-in-out infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin 1.5s linear infinite; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════════════════════════════════ */
+.sidebar::-webkit-scrollbar, .cmd-left::-webkit-scrollbar, .cmd-right::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb, .cmd-left::-webkit-scrollbar-thumb, .cmd-right::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+.sidebar::-webkit-scrollbar-track, .cmd-left::-webkit-scrollbar-track, .cmd-right::-webkit-scrollbar-track { background: transparent; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE
+   ══════════════════════════════════════════════════════════════════════════ */
+.mobile-nav { display: none; }
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: -240px; top: 0; z-index: 50; transition: left 0.3s ease; box-shadow: 2px 0 12px rgba(0,0,0,0.08); }
+  .sidebar.open { left: 0; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.2); z-index: 40; }
+  .sidebar-overlay.visible { display: block; }
+  .mobile-nav { display: flex; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCUS / A11Y
+   ══════════════════════════════════════════════════════════════════════════ */
+*:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.command-center *:focus-visible { outline-color: var(--stamp); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DARK HERO TEXT UTILITIES
+   ══════════════════════════════════════════════════════════════════════════ */
+.hero-light { color: #f8fafc; }
+.hero-muted { color: rgba(203, 213, 225, 0.85); }
+.hero-muted-soft { color: rgba(148, 163, 184, 0.9); }
+.hero-border { border-color: rgba(255, 255, 255, 0.12); }
+.hero-bg-glass { background-color: rgba(255, 255, 255, 0.05); backdrop-filter: blur(4px); }
+.hero-divider { color: rgba(100, 116, 139, 0.6); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VOICE UI
+   ══════════════════════════════════════════════════════════════════════════ */
+@keyframes voice-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.7; } }
+@keyframes voice-wave { 0%, 100% { height: 4px; } 25% { height: 12px; } 50% { height: 8px; } 75% { height: 16px; } }
+.voice-indicator { animation: voice-pulse 1.5s ease-in-out infinite; }
+.voice-wave-bar { display: inline-block; width: 3px; background: var(--stamp); border-radius: 999px; animation: voice-wave 0.8s ease-in-out infinite; }
+.voice-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.voice-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+.voice-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+.voice-narrating { position: relative; }
+.voice-narrating::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px color-mix(in oklab, var(--stamp) 30%, transparent); pointer-events: none; animation: voice-pulse 2s ease-in-out infinite; }
+.dictation-active { border-color: var(--stamp) !important; box-shadow: 0 0 0 3px color-mix(in oklab, var(--stamp) 15%, transparent) !important; }
+.segment-highlight { background: color-mix(in oklab, var(--stamp) 8%, transparent); border-radius: 0.25rem; padding: 0.125rem 0.25rem; transition: background 0.3s ease; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EVIDENCE ROWS
+   ══════════════════════════════════════════════════════════════════════════ */
+.evidence-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--rule); border-radius: var(--radius-md); background: var(--card); transition: border-color 0.15s; }
+.evidence-row:hover { border-color: var(--ink-soft); }
+.evidence-status { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.evidence-status.required { color: var(--color-warning); }
+.evidence-status.missing { color: var(--color-danger); }
+.evidence-status.provided { color: var(--color-success); }
+.evidence-status.verified { color: var(--color-success); }
+.evidence-status.conflict { color: var(--color-danger); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DRAFT REVIEW
+   ══════════════════════════════════════════════════════════════════════════ */
+.draft-paper { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 2rem 2.5rem; font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.8; color: var(--ink); white-space: pre-wrap; min-height: 400px; box-shadow: var(--shadow-card); }
+@media (max-width: 768px) { .draft-paper { padding: 1.25rem 1rem; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TIMELINE
+   ══════════════════════════════════════════════════════════════════════════ */
+.timeline-item { display: flex; gap: 1rem; padding-bottom: 1.5rem; position: relative; }
+.timeline-item:not(:last-child)::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--rule); }
+.timeline-dot { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--rule); background: var(--card); display: flex; align-items: center; justify-content: center; }
+.timeline-dot.completed { background: var(--stamp); border-color: var(--stamp); }
+.timeline-dot.current { border-color: var(--stamp); box-shadow: 0 0 0 4px color-mix(in oklab, var(--stamp) 15%, transparent); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EMPTY STATES
+   ══════════════════════════════════════════════════════════════════════════ */
+.empty-state { text-align: center; padding: 3rem 1.5rem; }
+.empty-state-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: color-mix(in oklab, var(--stamp) 8%, transparent); margin-bottom: 1rem; }

@@ -1,0 +1,26 @@
+# Notice Respond
+
+> Respond to government notices with confidence.
+
+Notice Respond is a standalone product that provides guided workflows for preparing responses to government notices — IRS notices, court summonses, agency actions, and appeals — and sends them as physical mail via USPS with tracking and proof of delivery.
+
+## What it does
+- Guides users through step-by-step response workflows (not blank-page AI chat)
+- Provides AI-assisted drafting that remains editable — AI never invents facts, deadlines, or legal conclusions
+- Sends physical mail (First-Class, Certified, Certified with Return Receipt, Registered) with tracking
+- Retains mailing records including tracking numbers and recipient addresses
+- Provides a dashboard for viewing mailing history and tracking status
+
+## Important limitations
+Notice Respond is NOT a law firm, CPA firm, or government agency. It does not provide legal or tax advice.
+
+## Primary workflows
+1. Respond to an IRS Notice
+2. Respond to a Court Summons
+3. Respond to an Agency Action
+4. File an Appeal
+
+## Technology
+- Built on TanStack Start (React + TanStack Router) with SSR
+- Deployed on Cloudflare Pages
+- Physical mail fulfillment via MailMyPDF v1 API

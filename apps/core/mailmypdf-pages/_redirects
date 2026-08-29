@@ -1,0 +1,10 @@
+# Static assets served from Pages
+/assets/* /assets/:splat 200
+/favicon.ico /favicon.ico 200
+/robots.txt /robots.txt 200
+
+# API routes proxy to Worker
+/api/* https://mailmypdf.mailmypdf.workers.dev/api/:splat 200
+
+# All other routes (SSR pages) proxy to Worker
+/* https://mailmypdf.mailmypdf.workers.dev/:splat 200

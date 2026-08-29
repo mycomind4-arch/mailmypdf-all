@@ -1,0 +1,30 @@
+# Benefits Appeal
+
+> Appeal denied government benefits with confidence.
+
+Benefits Appeal is a standalone product that provides guided workflows for preparing benefits appeals — denied SSDI, SSI, unemployment, Medicaid, SNAP, VA, housing, and disability benefits — and sends them as physical mail via USPS with tracking and proof of delivery.
+
+## What it does
+- Guides users through step-by-step benefits appeal workflows (not blank-page AI chat)
+- Provides AI-assisted drafting that remains editable — AI never invents facts, eligibility, or outcomes
+- Sends physical mail (First-Class, Certified, Certified with Return Receipt, Registered) with tracking
+- Retains mailing records including tracking numbers and proof of timely filing
+- Provides a dashboard for viewing mailing history and tracking status
+
+## Important limitations
+Benefits Appeal is NOT a law firm and does not provide legal advice. It does not determine eligibility or promise an outcome.
+
+## Primary workflows
+1. Appeal an SSDI Denial
+2. Appeal an SSI Denial
+3. Appeal an Unemployment Denial
+4. Appeal a Medicaid Denial
+5. Appeal a VA Benefits Denial
+6. Respond to a Benefits Overpayment Notice
+7. Request a Benefits Reconsideration
+8. Prepare for a Benefits Hearing
+
+## Technology
+- Built on TanStack Start (React + TanStack Router) with SSR
+- Deployed on Cloudflare Pages
+- Physical mail fulfillment via MailMyPDF v1 API

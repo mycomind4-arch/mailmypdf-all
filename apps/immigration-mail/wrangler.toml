@@ -1,0 +1,5 @@
+name = "immigration-mail"
+compatibility_date = "2026-08-12"
+
+[vars]
+APP_NAME = "Immigration Mail"

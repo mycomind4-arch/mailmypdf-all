@@ -1,0 +1,34 @@
+{
+  "name": "benefits-appeal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "next lint",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "preview": "opennextjs-cloudflare build && wrangler dev"
+  },
+  "dependencies": {
+    "@mailmypdf/pricing": "workspace:*",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^16.12.0"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.3",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,7 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
+import { errorResponse } from "@/lib/proof-of-service/api-helpers";
+import { getClientIp, rateLimit } from "@/lib/rate-limit";
+import { draftNoticeResponse } from "@/products/notice-response/claude";
+const Input = z.object({ sender: z.string().min(1).max(300), deadline: z.string().min(1).max(100), referenceNumber: z.string().max(200).default(""), responseType: z.string().min(1).max(200), userFacts: z.string().min(1).max(12000), noticeFacts: z.string().min(1).max(12000) });
+export const Route = createFileRoute("/api/v1/notice-response/draft")({ server: { handlers: { POST: async ({ request }) => { const limiter = rateLimit(getClientIp(request), "notice-response.draft", { maxRequests: 20, windowMs: 60_000 }); if (!limiter.allowed) return errorResponse(429, "rate_limited", "Too many response drafts. Please wait a minute and try again.", "NOTICE_DRAFT_RATE_LIMITED"); let input: z.infer<typeof Input>; try { input = Input.parse(await request.json()); } catch { return errorResponse(400, "invalid_input", "The response draft request is incomplete or invalid.", "INVALID_NOTICE_DRAFT_INPUT"); } try { const draft = await draftNoticeResponse(input); return Response.json({ product: "notice-response", draft, requiresHumanReview: true }); } catch (error) { console.error("[notice-response] draft failed", error); return errorResponse(502, "provider_error", "The response draft could not be generated. Please try again.", "NOTICE_DRAFT_FAILED"); } } } } });

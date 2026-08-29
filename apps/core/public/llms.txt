@@ -1,0 +1,79 @@
+# MailMyPDF
+
+> Upload a PDF or write a letter, and we print and mail it as a physical letter — no printer, no envelope, no post office trip.
+
+MailMyPDF is a paid online service for sending PDF documents and letters through the U.S. postal system. Guest checkout is available — no account required. U.S. domestic mail only.
+
+## Mailing options
+
+- Standard Mail (3–7 business days): Starting at $4.99
+- Certified Mail (delivery tracking + confirmation): +$9.95
+- Registered Mail (secure handling + tracking): +$27.50
+- Color printing: +$0.15 per page
+- Scheduled/future letters
+- Bulk mailing
+
+## Additional features
+
+- 20+ letter templates (legal, personal, business, official)
+- AI-assisted dispute letter workflow
+- MailMyPDF Pro subscription: $9.99/month, includes 5 free standard letters
+- Order tracking and proof of mailing records
+- Address verification
+
+## Pages
+
+- [Home](/): What MailMyPDF does and how it works.
+- [Send a PDF](/send): Upload a PDF for printing and mailing.
+- [Write a letter](/write): Compose a letter in-browser with templates.
+- [Find your order](/orders): Look up an existing order by ID and confirmation token.
+- [Dispute anything by mail](/dispute-mail): AI-assisted dispute letter writing and mailing.
+- [Certified mail guide](/certified-mail-guide): Learn about certified mail options.
+- [MailMyPDF Pro](/pro): Subscription plan for frequent mailers.
+
+## Send by document type
+
+- [Mail a PDF online](/mail-a-pdf): The core PDF-to-letter flow.
+- [Print and mail a PDF online](/print-and-mail-pdf-online): Skip your printer — we print and mail.
+- [Print and mail a document online](/print-and-mail-a-document-online): Any document, printed and mailed.
+- [Print and post documents online](/print-and-post-documents-online): Print-and-post service overview.
+- [Send a PDF by post](/send-pdf-by-post): PDF postal delivery.
+- [Send documents by mail online](/send-documents-by-mail-online): General document mailing.
+- [Send a signed document online](/send-signed-document-online): Mail a signed PDF.
+- [Mail a signed contract online](/mail-a-contract-online): Contracts by mail.
+- [Mail forms online](/mail-forms-online): Government and business forms.
+- [Mail paperwork online](/mail-paperwork-online): Paperwork by mail.
+- [Mail tax documents online](/mail-tax-documents-online): Tax forms and returns.
+- [Mail documents without a printer](/mail-documents-without-printer): No-printer workflow.
+- [Send a letter without a printer](/send-a-letter-without-a-printer): Same, letter-first framing.
+- [Send a letter online](/send-letter-online): General online-letter flow.
+
+## Send by recipient
+
+- [Send a letter to the IRS](/send-letter-to-irs)
+- [Send a letter to Social Security](/send-letter-to-social-security)
+- [Send a letter to the DMV](/send-letter-to-dmv)
+- [Send a letter to USCIS](/send-letter-to-uscis)
+- [Send a letter to a court](/send-letter-to-court)
+- [Send a letter to a court clerk](/send-letter-to-court-clerk)
+- [Send a letter to a county clerk](/send-letter-to-county-clerk)
+- [Send a letter to your bank](/send-letter-to-bank)
+- [Send a letter to an insurance company](/send-letter-to-insurance-company)
+- [Send a letter to a landlord](/send-letter-to-landlord)
+- [Send a letter to a tenant](/send-letter-to-tenant)
+- [Send a letter to a client](/send-letter-to-client)
+- [Send a letter to a company](/send-letter-to-company)
+
+## Send by letter type
+
+- [Send a business letter online](/send-business-letter-online)
+- [Send business documents by mail](/send-business-documents-by-mail)
+- [Send a cease and desist letter](/send-cease-and-desist-letter)
+- [Send a demand letter online](/send-demand-letter-online)
+- [Send a complaint letter online](/send-complaint-letter-online)
+- [Send a cancellation letter online](/send-cancellation-letter-online)
+- [Send a resignation letter by mail](/send-resignation-letter-by-mail)
+- [Send an invoice by mail](/send-invoice-by-mail)
+- [Send insurance documents by mail](/send-insurance-documents-by-mail)
+- [Send school documents by mail](/send-school-documents-by-mail)
+- [Send a medical records request by mail](/send-medical-records-request-by-mail)

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /auth
+Disallow: /account
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://benefits-appeal.pages.dev/sitemap.xml

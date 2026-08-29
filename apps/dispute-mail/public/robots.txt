@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /auth
+Sitemap: https://dispute-mail.pages.dev/sitemap.xml
