@@ -1,4 +1,5 @@
 import '../src/ui/tokens/globals.css'
+import EcosystemNav from './components/EcosystemNav'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://mycomind4-arch-code-enforcement.pages.dev'
 
@@ -15,7 +16,6 @@ export const metadata = {
     type: 'website',
     siteName: 'Code Enforcement',
     url: siteUrl,
-    // TODO: Create /og-image.png (1200x630)
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Code Enforcement — My-CoMind' }],
   },
   twitter: {
@@ -28,5 +28,12 @@ export const metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>
+  return (
+    <html lang="en">
+      <body>
+        <EcosystemNav />
+        <main>{children}</main>
+      </body>
+    </html>
+  )
 }
