@@ -24,6 +24,7 @@ import { Route as ProductsRouteImport } from './routes/products'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WriteADisputeLetterRouteImport } from './routes/write-a-dispute-letter'
+import { Route as ApiCheckoutRouteImport } from './routes/api/checkout'
 import { Route as ResourcesIndexRouteImport } from './routes/resources/index'
 import { Route as ResourcesSlugRouteImport } from './routes/resources/$slug'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
@@ -108,6 +109,11 @@ const WriteADisputeLetterRoute = WriteADisputeLetterRouteImport.update({
   path: '/write-a-dispute-letter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
+  id: '/api/checkout',
+  path: '/api/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
   id: '/resources/',
   path: '/resources/',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources/': typeof ResourcesIndexRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources': typeof ResourcesIndexRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources/': typeof ResourcesIndexRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources/'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources/'
@@ -323,6 +335,7 @@ export interface RootRouteChildren {
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   WriteADisputeLetterRoute: typeof WriteADisputeLetterRoute
+  ApiCheckoutRoute: typeof ApiCheckoutRoute
   ResourcesSlugRoute: typeof ResourcesSlugRoute
   WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRouteWithChildren
   ResourcesIndexRoute: typeof ResourcesIndexRoute
@@ -439,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WriteADisputeLetterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/checkout': {
+      id: '/api/checkout'
+      path: '/api/checkout'
+      fullPath: '/api/checkout'
+      preLoaderRoute: typeof ApiCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resources/': {
       id: '/resources/'
       path: '/resources'
@@ -525,6 +545,7 @@ const rootRouteChildren: RootRouteChildren = {
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   WriteADisputeLetterRoute: WriteADisputeLetterRoute,
+  ApiCheckoutRoute: ApiCheckoutRoute,
   ResourcesSlugRoute: ResourcesSlugRoute,
   WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRouteWithChildren,
   ResourcesIndexRoute: ResourcesIndexRoute,
