@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./packages/pricing" },
+    { "path": "./packages/ecosystem" },
+    { "path": "./packages/design-system" },
+    { "path": "./packages/fulfillment" },
+    { "path": "./packages/core" },
+    { "path": "./packages/ai" },
+    { "path": "./packages/documents" },
+    { "path": "./packages/intelligence" },
+    { "path": "./packages/mailing-client" },
+    { "path": "./packages/proof" },
+    { "path": "./packages/payment-fulfillment" },
+    { "path": "./packages/vertical-foundry" },
+    { "path": "./packages/workflows" },
+    { "path": "./packages/agent-runtime" }
+  ]
+}

@@ -23,7 +23,8 @@ export default defineConfig({
         // doesn't generate broken CJS-to-ESM interop code (pdf-lib uses tslib
         // helpers via TypeScript's importHelpers, and the CJS wrapper causes
         // "Cannot destructure property '__extends' of 'undefined" in Workers).
-        tslib: path.resolve(import.meta.dirname, "node_modules/tslib/tslib.es6.mjs"),
+        // In monorepo: resolve from root node_modules (pnpm hoists to workspace root).
+        tslib: path.resolve(import.meta.dirname, "../../node_modules/tslib/tslib.es6.mjs"),
       },
     },
   },

@@ -11,6 +11,7 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "tslib": "^2.8.1",
     "turbo": "^2.1.0",
     "typescript": "^5.6.0"
   },
