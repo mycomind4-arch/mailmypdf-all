@@ -30,8 +30,11 @@ export function SiteNav() {
           <span style={{fontSize: 10, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase'}}>MailMyPDF</span>
         </Link>
         <div style={{display: 'flex', alignItems: 'center', gap: 20}}>
-          <Link href="/" style={{fontSize: 14, color: '#94a3b8', fontWeight: 500}}>Home</Link>
-          <Link href="/workflows" style={{fontSize: 14, color: '#94a3b8', fontWeight: 500}}>Workflows</Link>
+          <Link href="/start" style={navLinkStyle}>Start</Link>
+          <Link href="/workflows" style={navLinkStyle}>Workflows</Link>
+          <Link href="/how-it-works" style={navLinkStyle}>How It Works</Link>
+          <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
+          <Link href="/dashboard" style={navLinkStyle}>Dashboard</Link>
           <div style={{position: 'relative'}} className="ecosystem-dropdown">
             <span style={{fontSize: 14, color: '#94a3b8', fontWeight: 500, cursor: 'pointer'}}>Ecosystem ▾</span>
             <div className="ecosystem-menu" style={{
@@ -56,8 +59,17 @@ export function SiteNav() {
               }}>Explore all products →</a>
             </div>
           </div>
+          <Link href="/start" style={{
+            display: 'inline-flex', alignItems: 'center', borderRadius: '0.5rem',
+            background: '#67e8f9', color: '#0a0f1a', padding: '0.375rem 0.875rem',
+            fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+          }}>Start a Claim</Link>
         </div>
       </div>
     </nav>
   )
+}
+
+const navLinkStyle: React.CSSProperties = {
+  fontSize: 14, color: '#94a3b8', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap',
 }
