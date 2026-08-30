@@ -28,6 +28,7 @@ import { useCombinedAnalysis } from "@/domain/use-combined-analysis";
 import { LLMAnalysisPanel } from "@/components/llm-analysis-panel";
 import { FAQSection } from "@/components/faq-section";
 import { getWorkflowSEO } from "@/domain/workflow-seo";
+import { handleDocumentUpload } from "@/platform/upload-handler";
 export const Route = createFileRoute("/workflows/cp523-response")({
   head: () => createWorkflowHead("cp523-response"),
   component: CP523Response,
@@ -77,20 +78,20 @@ function CP523Response() {
       }
 
       let text = "";
-      if (file.type === "application/pdf") {
-        try {
-          const buffer = await file.arrayBuffer();
-          const decoder = new TextDecoder("latin1");
-          const raw = decoder.decode(buffer);
-          const textMatches = raw.match(/\(([^)]+)\)/g);
-          if (textMatches) {
-            text = textMatches.map(m => m.slice(1, -1)).join(" ");
-          }
-        } catch { text = ""; }
-      } else if (file.type.startsWith("image/")) {
-        text = "";
+      const uploadResult = await handleDocumentUpload(file);
+      if (uploadResult.error) {
+        setExtractionError(uploadResult.error);
+        return;
+      }
+      if (uploadResult.ocrRequired) {
+        setExtractionError("We could not reliably extract text from this document. It appears to be a scanned image. Please provide a text-based PDF.");
+        return;
+      }
+      text = uploadResult.text;
+      if (uploadResult.securityWarning) {
+        setSecurityWarning(uploadResult.securityWarning);
       } else {
-        text = await file.text();
+        setSecurityWarning(null);
       }
 
       const upload: DocumentUpload = {

@@ -22,6 +22,7 @@ import { useCombinedAnalysis } from "@/domain/use-combined-analysis";
 import { LLMAnalysisPanel } from "@/components/llm-analysis-panel";
 import { FAQSection } from "@/components/faq-section";
 import { getWorkflowSEO } from "@/domain/workflow-seo";
+import { handleDocumentUpload } from "@/platform/upload-handler";
 export const Route = createFileRoute("/workflows/equifax-dispute")({
   head: () => createWorkflowHead("equifax-dispute"),
   component: EquifaxDispute,
@@ -51,10 +52,21 @@ function EquifaxDispute() {
       if (!mv.valid) { setExtractionError(mv.error ?? "File type not allowed"); return; }
 
       let text = "";
-      if (file.type === "application/pdf") {
-        try { const buffer = await file.arrayBuffer(); const decoder = new TextDecoder("latin1"); const raw = decoder.decode(buffer);
-          const m = raw.match(/\(([^)]+)\)/g); if (m) text = m.map(x => x.slice(1, -1)).join(" "); } catch { text = ""; }
-      } else if (file.type.startsWith("image/")) { text = ""; } else { text = await file.text(); }
+      const uploadResult = await handleDocumentUpload(file);
+      if (uploadResult.error) {
+        setExtractionError(uploadResult.error);
+        return;
+      }
+      if (uploadResult.ocrRequired) {
+        setExtractionError("We could not reliably extract text from this document. It appears to be a scanned image. Please provide a text-based PDF.");
+        return;
+      }
+      text = uploadResult.text;
+      if (uploadResult.securityWarning) {
+        setSecurityWarning(uploadResult.securityWarning);
+      } else {
+        setSecurityWarning(null);
+      }
 
       const upload: DocumentUpload = { fileName: file.name, fileSize: file.size, fileType: file.type, rawText: text, uploadedAt: new Date().toISOString() };
       update((s) => setUpload(s, upload));
