@@ -33,6 +33,7 @@ import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
 import { Route as WorkflowsAgencyActionRouteImport } from './routes/workflows/agency-action'
 import { Route as WorkflowsAnalyzeRouteImport } from './routes/workflows/analyze'
 import { Route as WorkflowsBenefitsNoticeRouteImport } from './routes/workflows/benefits-notice'
+import { Route as WorkflowsClaimProofPackageRouteImport } from './routes/workflows/claim-proof-package'
 import { Route as WorkflowsCodeEnforcementRouteImport } from './routes/workflows/code-enforcement'
 import { Route as WorkflowsCourtSummonsRouteImport } from './routes/workflows/court-summons'
 import { Route as WorkflowsCp14ResponseRouteImport } from './routes/workflows/cp14-response'
@@ -45,6 +46,7 @@ import { Route as WorkflowsExperianDisputeRouteImport } from './routes/workflows
 import { Route as WorkflowsFileAppealRouteImport } from './routes/workflows/file-appeal'
 import { Route as WorkflowsIrsNoticeRouteImport } from './routes/workflows/irs-notice'
 import { Route as WorkflowsPermitCorrectionRouteImport } from './routes/workflows/permit-correction'
+import { Route as WorkflowsPermitDenialResponseRouteImport } from './routes/workflows/permit-denial-response'
 import { Route as WorkflowsRespondToABenefitsNoticeRouteImport } from './routes/workflows/respond-to-a-benefits-notice'
 import { Route as WorkflowsRespondToACourtSummonsRouteImport } from './routes/workflows/respond-to-a-court-summons'
 import { Route as WorkflowsRespondToADmvNoticeRouteImport } from './routes/workflows/respond-to-a-dmv-notice'
@@ -61,13 +63,19 @@ import { Route as WorkflowsRespondToCp504NoticeRouteImport } from './routes/work
 import { Route as WorkflowsRespondToCp523NoticeRouteImport } from './routes/workflows/respond-to-cp523-notice'
 import { Route as WorkflowsSsaNoticeRouteImport } from './routes/workflows/ssa-notice'
 import { Route as WorkflowsTaxNoticeRouteImport } from './routes/workflows/tax-notice'
+import { Route as WorkflowsTenantEvictionResponseRouteImport } from './routes/workflows/tenant-eviction-response'
+import { Route as WorkflowsTenantRepairDemandRouteImport } from './routes/workflows/tenant-repair-demand'
 import { Route as WorkflowsTransunionDisputeRouteImport } from './routes/workflows/transunion-dispute'
 import { Route as WorkflowsUscisNoticeRouteImport } from './routes/workflows/uscis-notice'
 import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
 import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiCasesIndexRouteImport } from './routes/api/cases/index'
 import { Route as ApiCasesCaseIdRouteImport } from './routes/api/cases/$caseId'
+import { Route as ApiCasesCp2000RouteImport } from './routes/api/cases/cp2000'
 import { Route as ApiCasesCreateRouteImport } from './routes/api/cases/create'
+import { Route as ApiDocumentsExtractRouteImport } from './routes/api/documents/extract'
+import { Route as ApiCasesCaseIdApproveRouteImport } from './routes/api/cases/$caseId/approve'
+import { Route as ApiCasesCaseIdEvidenceRouteImport } from './routes/api/cases/$caseId/evidence'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -190,6 +198,12 @@ const WorkflowsBenefitsNoticeRoute = WorkflowsBenefitsNoticeRouteImport.update({
   path: '/workflows/benefits-notice',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkflowsClaimProofPackageRoute =
+  WorkflowsClaimProofPackageRouteImport.update({
+    id: '/workflows/claim-proof-package',
+    path: '/workflows/claim-proof-package',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const WorkflowsCodeEnforcementRoute =
   WorkflowsCodeEnforcementRouteImport.update({
     id: '/workflows/code-enforcement',
@@ -251,6 +265,12 @@ const WorkflowsPermitCorrectionRoute =
   WorkflowsPermitCorrectionRouteImport.update({
     id: '/workflows/permit-correction',
     path: '/workflows/permit-correction',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkflowsPermitDenialResponseRoute =
+  WorkflowsPermitDenialResponseRouteImport.update({
+    id: '/workflows/permit-denial-response',
+    path: '/workflows/permit-denial-response',
     getParentRoute: () => rootRouteImport,
   } as any)
 const WorkflowsRespondToABenefitsNoticeRoute =
@@ -347,6 +367,18 @@ const WorkflowsTaxNoticeRoute = WorkflowsTaxNoticeRouteImport.update({
   path: '/workflows/tax-notice',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkflowsTenantEvictionResponseRoute =
+  WorkflowsTenantEvictionResponseRouteImport.update({
+    id: '/workflows/tenant-eviction-response',
+    path: '/workflows/tenant-eviction-response',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkflowsTenantRepairDemandRoute =
+  WorkflowsTenantRepairDemandRouteImport.update({
+    id: '/workflows/tenant-repair-demand',
+    path: '/workflows/tenant-repair-demand',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const WorkflowsTransunionDisputeRoute =
   WorkflowsTransunionDisputeRouteImport.update({
     id: '/workflows/transunion-dispute',
@@ -378,10 +410,30 @@ const ApiCasesCaseIdRoute = ApiCasesCaseIdRouteImport.update({
   path: '/api/cases/$caseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCasesCp2000Route = ApiCasesCp2000RouteImport.update({
+  id: '/api/cases/cp2000',
+  path: '/api/cases/cp2000',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCasesCreateRoute = ApiCasesCreateRouteImport.update({
   id: '/api/cases/create',
   path: '/api/cases/create',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocumentsExtractRoute = ApiDocumentsExtractRouteImport.update({
+  id: '/extract',
+  path: '/extract',
+  getParentRoute: () => ApiDocumentsRoute,
+} as any)
+const ApiCasesCaseIdApproveRoute = ApiCasesCaseIdApproveRouteImport.update({
+  id: '/approve',
+  path: '/approve',
+  getParentRoute: () => ApiCasesCaseIdRoute,
+} as any)
+const ApiCasesCaseIdEvidenceRoute = ApiCasesCaseIdEvidenceRouteImport.update({
+  id: '/evidence',
+  path: '/evidence',
+  getParentRoute: () => ApiCasesCaseIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -402,11 +454,12 @@ export interface FileRoutesByFullPath {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/api/checkout': typeof ApiCheckoutRoute
-  '/api/documents': typeof ApiDocumentsRoute
+  '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/agency-action': typeof WorkflowsAgencyActionRoute
   '/workflows/analyze': typeof WorkflowsAnalyzeRoute
   '/workflows/benefits-notice': typeof WorkflowsBenefitsNoticeRoute
+  '/workflows/claim-proof-package': typeof WorkflowsClaimProofPackageRoute
   '/workflows/code-enforcement': typeof WorkflowsCodeEnforcementRoute
   '/workflows/court-summons': typeof WorkflowsCourtSummonsRoute
   '/workflows/cp14-response': typeof WorkflowsCp14ResponseRoute
@@ -419,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/workflows/file-appeal': typeof WorkflowsFileAppealRoute
   '/workflows/irs-notice': typeof WorkflowsIrsNoticeRoute
   '/workflows/permit-correction': typeof WorkflowsPermitCorrectionRoute
+  '/workflows/permit-denial-response': typeof WorkflowsPermitDenialResponseRoute
   '/workflows/respond-to-a-benefits-notice': typeof WorkflowsRespondToABenefitsNoticeRoute
   '/workflows/respond-to-a-court-summons': typeof WorkflowsRespondToACourtSummonsRoute
   '/workflows/respond-to-a-dmv-notice': typeof WorkflowsRespondToADmvNoticeRoute
@@ -435,15 +489,21 @@ export interface FileRoutesByFullPath {
   '/workflows/respond-to-cp523-notice': typeof WorkflowsRespondToCp523NoticeRoute
   '/workflows/ssa-notice': typeof WorkflowsSsaNoticeRoute
   '/workflows/tax-notice': typeof WorkflowsTaxNoticeRoute
+  '/workflows/tenant-eviction-response': typeof WorkflowsTenantEvictionResponseRoute
+  '/workflows/tenant-repair-demand': typeof WorkflowsTenantRepairDemandRoute
   '/workflows/transunion-dispute': typeof WorkflowsTransunionDisputeRoute
   '/workflows/uscis-notice': typeof WorkflowsUscisNoticeRoute
   '/resources/': typeof ResourcesIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
-  '/api/cases/$caseId': typeof ApiCasesCaseIdRoute
+  '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
+  '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
+  '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/cases/': typeof ApiCasesIndexRoute
+  '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
+  '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -463,11 +523,12 @@ export interface FileRoutesByTo {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/api/checkout': typeof ApiCheckoutRoute
-  '/api/documents': typeof ApiDocumentsRoute
+  '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/agency-action': typeof WorkflowsAgencyActionRoute
   '/workflows/analyze': typeof WorkflowsAnalyzeRoute
   '/workflows/benefits-notice': typeof WorkflowsBenefitsNoticeRoute
+  '/workflows/claim-proof-package': typeof WorkflowsClaimProofPackageRoute
   '/workflows/code-enforcement': typeof WorkflowsCodeEnforcementRoute
   '/workflows/court-summons': typeof WorkflowsCourtSummonsRoute
   '/workflows/cp14-response': typeof WorkflowsCp14ResponseRoute
@@ -480,6 +541,7 @@ export interface FileRoutesByTo {
   '/workflows/file-appeal': typeof WorkflowsFileAppealRoute
   '/workflows/irs-notice': typeof WorkflowsIrsNoticeRoute
   '/workflows/permit-correction': typeof WorkflowsPermitCorrectionRoute
+  '/workflows/permit-denial-response': typeof WorkflowsPermitDenialResponseRoute
   '/workflows/respond-to-a-benefits-notice': typeof WorkflowsRespondToABenefitsNoticeRoute
   '/workflows/respond-to-a-court-summons': typeof WorkflowsRespondToACourtSummonsRoute
   '/workflows/respond-to-a-dmv-notice': typeof WorkflowsRespondToADmvNoticeRoute
@@ -496,15 +558,21 @@ export interface FileRoutesByTo {
   '/workflows/respond-to-cp523-notice': typeof WorkflowsRespondToCp523NoticeRoute
   '/workflows/ssa-notice': typeof WorkflowsSsaNoticeRoute
   '/workflows/tax-notice': typeof WorkflowsTaxNoticeRoute
+  '/workflows/tenant-eviction-response': typeof WorkflowsTenantEvictionResponseRoute
+  '/workflows/tenant-repair-demand': typeof WorkflowsTenantRepairDemandRoute
   '/workflows/transunion-dispute': typeof WorkflowsTransunionDisputeRoute
   '/workflows/uscis-notice': typeof WorkflowsUscisNoticeRoute
   '/resources': typeof ResourcesIndexRoute
   '/workflows': typeof WorkflowsIndexRoute
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
-  '/api/cases/$caseId': typeof ApiCasesCaseIdRoute
+  '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
+  '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
+  '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/cases': typeof ApiCasesIndexRoute
+  '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
+  '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -525,11 +593,12 @@ export interface FileRoutesById {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/api/checkout': typeof ApiCheckoutRoute
-  '/api/documents': typeof ApiDocumentsRoute
+  '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/agency-action': typeof WorkflowsAgencyActionRoute
   '/workflows/analyze': typeof WorkflowsAnalyzeRoute
   '/workflows/benefits-notice': typeof WorkflowsBenefitsNoticeRoute
+  '/workflows/claim-proof-package': typeof WorkflowsClaimProofPackageRoute
   '/workflows/code-enforcement': typeof WorkflowsCodeEnforcementRoute
   '/workflows/court-summons': typeof WorkflowsCourtSummonsRoute
   '/workflows/cp14-response': typeof WorkflowsCp14ResponseRoute
@@ -542,6 +611,7 @@ export interface FileRoutesById {
   '/workflows/file-appeal': typeof WorkflowsFileAppealRoute
   '/workflows/irs-notice': typeof WorkflowsIrsNoticeRoute
   '/workflows/permit-correction': typeof WorkflowsPermitCorrectionRoute
+  '/workflows/permit-denial-response': typeof WorkflowsPermitDenialResponseRoute
   '/workflows/respond-to-a-benefits-notice': typeof WorkflowsRespondToABenefitsNoticeRoute
   '/workflows/respond-to-a-court-summons': typeof WorkflowsRespondToACourtSummonsRoute
   '/workflows/respond-to-a-dmv-notice': typeof WorkflowsRespondToADmvNoticeRoute
@@ -558,15 +628,21 @@ export interface FileRoutesById {
   '/workflows/respond-to-cp523-notice': typeof WorkflowsRespondToCp523NoticeRoute
   '/workflows/ssa-notice': typeof WorkflowsSsaNoticeRoute
   '/workflows/tax-notice': typeof WorkflowsTaxNoticeRoute
+  '/workflows/tenant-eviction-response': typeof WorkflowsTenantEvictionResponseRoute
+  '/workflows/tenant-repair-demand': typeof WorkflowsTenantRepairDemandRoute
   '/workflows/transunion-dispute': typeof WorkflowsTransunionDisputeRoute
   '/workflows/uscis-notice': typeof WorkflowsUscisNoticeRoute
   '/resources/': typeof ResourcesIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
-  '/api/cases/$caseId': typeof ApiCasesCaseIdRoute
+  '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
+  '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
+  '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/cases/': typeof ApiCasesIndexRoute
+  '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
+  '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -593,6 +669,7 @@ export interface FileRouteTypes {
     | '/workflows/agency-action'
     | '/workflows/analyze'
     | '/workflows/benefits-notice'
+    | '/workflows/claim-proof-package'
     | '/workflows/code-enforcement'
     | '/workflows/court-summons'
     | '/workflows/cp14-response'
@@ -605,6 +682,7 @@ export interface FileRouteTypes {
     | '/workflows/file-appeal'
     | '/workflows/irs-notice'
     | '/workflows/permit-correction'
+    | '/workflows/permit-denial-response'
     | '/workflows/respond-to-a-benefits-notice'
     | '/workflows/respond-to-a-court-summons'
     | '/workflows/respond-to-a-dmv-notice'
@@ -621,6 +699,8 @@ export interface FileRouteTypes {
     | '/workflows/respond-to-cp523-notice'
     | '/workflows/ssa-notice'
     | '/workflows/tax-notice'
+    | '/workflows/tenant-eviction-response'
+    | '/workflows/tenant-repair-demand'
     | '/workflows/transunion-dispute'
     | '/workflows/uscis-notice'
     | '/resources/'
@@ -628,8 +708,12 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/cases/$caseId'
+    | '/api/cases/cp2000'
     | '/api/cases/create'
+    | '/api/documents/extract'
     | '/api/cases/'
+    | '/api/cases/$caseId/approve'
+    | '/api/cases/$caseId/evidence'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -654,6 +738,7 @@ export interface FileRouteTypes {
     | '/workflows/agency-action'
     | '/workflows/analyze'
     | '/workflows/benefits-notice'
+    | '/workflows/claim-proof-package'
     | '/workflows/code-enforcement'
     | '/workflows/court-summons'
     | '/workflows/cp14-response'
@@ -666,6 +751,7 @@ export interface FileRouteTypes {
     | '/workflows/file-appeal'
     | '/workflows/irs-notice'
     | '/workflows/permit-correction'
+    | '/workflows/permit-denial-response'
     | '/workflows/respond-to-a-benefits-notice'
     | '/workflows/respond-to-a-court-summons'
     | '/workflows/respond-to-a-dmv-notice'
@@ -682,6 +768,8 @@ export interface FileRouteTypes {
     | '/workflows/respond-to-cp523-notice'
     | '/workflows/ssa-notice'
     | '/workflows/tax-notice'
+    | '/workflows/tenant-eviction-response'
+    | '/workflows/tenant-repair-demand'
     | '/workflows/transunion-dispute'
     | '/workflows/uscis-notice'
     | '/resources'
@@ -689,8 +777,12 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/cases/$caseId'
+    | '/api/cases/cp2000'
     | '/api/cases/create'
+    | '/api/documents/extract'
     | '/api/cases'
+    | '/api/cases/$caseId/approve'
+    | '/api/cases/$caseId/evidence'
   id:
     | '__root__'
     | '/'
@@ -715,6 +807,7 @@ export interface FileRouteTypes {
     | '/workflows/agency-action'
     | '/workflows/analyze'
     | '/workflows/benefits-notice'
+    | '/workflows/claim-proof-package'
     | '/workflows/code-enforcement'
     | '/workflows/court-summons'
     | '/workflows/cp14-response'
@@ -727,6 +820,7 @@ export interface FileRouteTypes {
     | '/workflows/file-appeal'
     | '/workflows/irs-notice'
     | '/workflows/permit-correction'
+    | '/workflows/permit-denial-response'
     | '/workflows/respond-to-a-benefits-notice'
     | '/workflows/respond-to-a-court-summons'
     | '/workflows/respond-to-a-dmv-notice'
@@ -743,6 +837,8 @@ export interface FileRouteTypes {
     | '/workflows/respond-to-cp523-notice'
     | '/workflows/ssa-notice'
     | '/workflows/tax-notice'
+    | '/workflows/tenant-eviction-response'
+    | '/workflows/tenant-repair-demand'
     | '/workflows/transunion-dispute'
     | '/workflows/uscis-notice'
     | '/resources/'
@@ -750,8 +846,12 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/cases/$caseId'
+    | '/api/cases/cp2000'
     | '/api/cases/create'
+    | '/api/documents/extract'
     | '/api/cases/'
+    | '/api/cases/$caseId/approve'
+    | '/api/cases/$caseId/evidence'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -772,11 +872,12 @@ export interface RootRouteChildren {
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   ApiCheckoutRoute: typeof ApiCheckoutRoute
-  ApiDocumentsRoute: typeof ApiDocumentsRoute
+  ApiDocumentsRoute: typeof ApiDocumentsRouteWithChildren
   ResourcesSlugRoute: typeof ResourcesSlugRoute
   WorkflowsAgencyActionRoute: typeof WorkflowsAgencyActionRoute
   WorkflowsAnalyzeRoute: typeof WorkflowsAnalyzeRoute
   WorkflowsBenefitsNoticeRoute: typeof WorkflowsBenefitsNoticeRoute
+  WorkflowsClaimProofPackageRoute: typeof WorkflowsClaimProofPackageRoute
   WorkflowsCodeEnforcementRoute: typeof WorkflowsCodeEnforcementRoute
   WorkflowsCourtSummonsRoute: typeof WorkflowsCourtSummonsRoute
   WorkflowsCp14ResponseRoute: typeof WorkflowsCp14ResponseRoute
@@ -789,6 +890,7 @@ export interface RootRouteChildren {
   WorkflowsFileAppealRoute: typeof WorkflowsFileAppealRoute
   WorkflowsIrsNoticeRoute: typeof WorkflowsIrsNoticeRoute
   WorkflowsPermitCorrectionRoute: typeof WorkflowsPermitCorrectionRoute
+  WorkflowsPermitDenialResponseRoute: typeof WorkflowsPermitDenialResponseRoute
   WorkflowsRespondToABenefitsNoticeRoute: typeof WorkflowsRespondToABenefitsNoticeRoute
   WorkflowsRespondToACourtSummonsRoute: typeof WorkflowsRespondToACourtSummonsRoute
   WorkflowsRespondToADmvNoticeRoute: typeof WorkflowsRespondToADmvNoticeRoute
@@ -805,13 +907,16 @@ export interface RootRouteChildren {
   WorkflowsRespondToCp523NoticeRoute: typeof WorkflowsRespondToCp523NoticeRoute
   WorkflowsSsaNoticeRoute: typeof WorkflowsSsaNoticeRoute
   WorkflowsTaxNoticeRoute: typeof WorkflowsTaxNoticeRoute
+  WorkflowsTenantEvictionResponseRoute: typeof WorkflowsTenantEvictionResponseRoute
+  WorkflowsTenantRepairDemandRoute: typeof WorkflowsTenantRepairDemandRoute
   WorkflowsTransunionDisputeRoute: typeof WorkflowsTransunionDisputeRoute
   WorkflowsUscisNoticeRoute: typeof WorkflowsUscisNoticeRoute
   ResourcesIndexRoute: typeof ResourcesIndexRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
   ApiAdminHealthRoute: typeof ApiAdminHealthRoute
   ApiAuthStatusRoute: typeof ApiAuthStatusRoute
-  ApiCasesCaseIdRoute: typeof ApiCasesCaseIdRoute
+  ApiCasesCaseIdRoute: typeof ApiCasesCaseIdRouteWithChildren
+  ApiCasesCp2000Route: typeof ApiCasesCp2000Route
   ApiCasesCreateRoute: typeof ApiCasesCreateRoute
   ApiCasesIndexRoute: typeof ApiCasesIndexRoute
 }
@@ -986,6 +1091,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsBenefitsNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workflows/claim-proof-package': {
+      id: '/workflows/claim-proof-package'
+      path: '/workflows/claim-proof-package'
+      fullPath: '/workflows/claim-proof-package'
+      preLoaderRoute: typeof WorkflowsClaimProofPackageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/code-enforcement': {
       id: '/workflows/code-enforcement'
       path: '/workflows/code-enforcement'
@@ -1068,6 +1180,13 @@ declare module '@tanstack/react-router' {
       path: '/workflows/permit-correction'
       fullPath: '/workflows/permit-correction'
       preLoaderRoute: typeof WorkflowsPermitCorrectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/permit-denial-response': {
+      id: '/workflows/permit-denial-response'
+      path: '/workflows/permit-denial-response'
+      fullPath: '/workflows/permit-denial-response'
+      preLoaderRoute: typeof WorkflowsPermitDenialResponseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows/respond-to-a-benefits-notice': {
@@ -1182,6 +1301,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsTaxNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workflows/tenant-eviction-response': {
+      id: '/workflows/tenant-eviction-response'
+      path: '/workflows/tenant-eviction-response'
+      fullPath: '/workflows/tenant-eviction-response'
+      preLoaderRoute: typeof WorkflowsTenantEvictionResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/tenant-repair-demand': {
+      id: '/workflows/tenant-repair-demand'
+      path: '/workflows/tenant-repair-demand'
+      fullPath: '/workflows/tenant-repair-demand'
+      preLoaderRoute: typeof WorkflowsTenantRepairDemandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/transunion-dispute': {
       id: '/workflows/transunion-dispute'
       path: '/workflows/transunion-dispute'
@@ -1224,6 +1357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCasesCaseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cases/cp2000': {
+      id: '/api/cases/cp2000'
+      path: '/api/cases/cp2000'
+      fullPath: '/api/cases/cp2000'
+      preLoaderRoute: typeof ApiCasesCp2000RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cases/create': {
       id: '/api/cases/create'
       path: '/api/cases/create'
@@ -1231,8 +1371,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCasesCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/documents/extract': {
+      id: '/api/documents/extract'
+      path: '/extract'
+      fullPath: '/api/documents/extract'
+      preLoaderRoute: typeof ApiDocumentsExtractRouteImport
+      parentRoute: typeof ApiDocumentsRoute
+    }
+    '/api/cases/$caseId/approve': {
+      id: '/api/cases/$caseId/approve'
+      path: '/approve'
+      fullPath: '/api/cases/$caseId/approve'
+      preLoaderRoute: typeof ApiCasesCaseIdApproveRouteImport
+      parentRoute: typeof ApiCasesCaseIdRoute
+    }
+    '/api/cases/$caseId/evidence': {
+      id: '/api/cases/$caseId/evidence'
+      path: '/evidence'
+      fullPath: '/api/cases/$caseId/evidence'
+      preLoaderRoute: typeof ApiCasesCaseIdEvidenceRouteImport
+      parentRoute: typeof ApiCasesCaseIdRoute
+    }
   }
 }
+
+interface ApiDocumentsRouteChildren {
+  ApiDocumentsExtractRoute: typeof ApiDocumentsExtractRoute
+}
+
+const ApiDocumentsRouteChildren: ApiDocumentsRouteChildren = {
+  ApiDocumentsExtractRoute: ApiDocumentsExtractRoute,
+}
+
+const ApiDocumentsRouteWithChildren = ApiDocumentsRoute._addFileChildren(
+  ApiDocumentsRouteChildren,
+)
+
+interface ApiCasesCaseIdRouteChildren {
+  ApiCasesCaseIdApproveRoute: typeof ApiCasesCaseIdApproveRoute
+  ApiCasesCaseIdEvidenceRoute: typeof ApiCasesCaseIdEvidenceRoute
+}
+
+const ApiCasesCaseIdRouteChildren: ApiCasesCaseIdRouteChildren = {
+  ApiCasesCaseIdApproveRoute: ApiCasesCaseIdApproveRoute,
+  ApiCasesCaseIdEvidenceRoute: ApiCasesCaseIdEvidenceRoute,
+}
+
+const ApiCasesCaseIdRouteWithChildren = ApiCasesCaseIdRoute._addFileChildren(
+  ApiCasesCaseIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -1252,11 +1439,12 @@ const rootRouteChildren: RootRouteChildren = {
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   ApiCheckoutRoute: ApiCheckoutRoute,
-  ApiDocumentsRoute: ApiDocumentsRoute,
+  ApiDocumentsRoute: ApiDocumentsRouteWithChildren,
   ResourcesSlugRoute: ResourcesSlugRoute,
   WorkflowsAgencyActionRoute: WorkflowsAgencyActionRoute,
   WorkflowsAnalyzeRoute: WorkflowsAnalyzeRoute,
   WorkflowsBenefitsNoticeRoute: WorkflowsBenefitsNoticeRoute,
+  WorkflowsClaimProofPackageRoute: WorkflowsClaimProofPackageRoute,
   WorkflowsCodeEnforcementRoute: WorkflowsCodeEnforcementRoute,
   WorkflowsCourtSummonsRoute: WorkflowsCourtSummonsRoute,
   WorkflowsCp14ResponseRoute: WorkflowsCp14ResponseRoute,
@@ -1269,6 +1457,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkflowsFileAppealRoute: WorkflowsFileAppealRoute,
   WorkflowsIrsNoticeRoute: WorkflowsIrsNoticeRoute,
   WorkflowsPermitCorrectionRoute: WorkflowsPermitCorrectionRoute,
+  WorkflowsPermitDenialResponseRoute: WorkflowsPermitDenialResponseRoute,
   WorkflowsRespondToABenefitsNoticeRoute:
     WorkflowsRespondToABenefitsNoticeRoute,
   WorkflowsRespondToACourtSummonsRoute: WorkflowsRespondToACourtSummonsRoute,
@@ -1288,13 +1477,16 @@ const rootRouteChildren: RootRouteChildren = {
   WorkflowsRespondToCp523NoticeRoute: WorkflowsRespondToCp523NoticeRoute,
   WorkflowsSsaNoticeRoute: WorkflowsSsaNoticeRoute,
   WorkflowsTaxNoticeRoute: WorkflowsTaxNoticeRoute,
+  WorkflowsTenantEvictionResponseRoute: WorkflowsTenantEvictionResponseRoute,
+  WorkflowsTenantRepairDemandRoute: WorkflowsTenantRepairDemandRoute,
   WorkflowsTransunionDisputeRoute: WorkflowsTransunionDisputeRoute,
   WorkflowsUscisNoticeRoute: WorkflowsUscisNoticeRoute,
   ResourcesIndexRoute: ResourcesIndexRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
   ApiAdminHealthRoute: ApiAdminHealthRoute,
   ApiAuthStatusRoute: ApiAuthStatusRoute,
-  ApiCasesCaseIdRoute: ApiCasesCaseIdRoute,
+  ApiCasesCaseIdRoute: ApiCasesCaseIdRouteWithChildren,
+  ApiCasesCp2000Route: ApiCasesCp2000Route,
   ApiCasesCreateRoute: ApiCasesCreateRoute,
   ApiCasesIndexRoute: ApiCasesIndexRoute,
 }
