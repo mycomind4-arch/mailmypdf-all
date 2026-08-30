@@ -13,6 +13,8 @@
     "verify:launch": "npm test && npm run build"
   },
   "dependencies": {
+    "@mailmypdf/mailing-client": "workspace:*",
+    "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.2.1",

@@ -66,9 +66,16 @@ CREATE TABLE IF NOT EXISTS mailings (
   recipient JSONB NOT NULL,
   stripe_session_id TEXT,
   stripe_payment_id TEXT,
+  error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Fulfillment is keyed off the appeal id (one mailing intent per appeal).
+-- This index backs the MailingIntentStore adapter's lookups by appeal_id
+-- and by stripe_session_id (used for the browser-return fallback path).
+CREATE INDEX IF NOT EXISTS idx_mailings_appeal_id ON mailings(appeal_id);
+CREATE INDEX IF NOT EXISTS idx_mailings_stripe_session_id ON mailings(stripe_session_id);
 
 -- ═══════════════════════════════════════════════════════════
 -- RECIPIENTS TABLE (saved addresses for reuse)
