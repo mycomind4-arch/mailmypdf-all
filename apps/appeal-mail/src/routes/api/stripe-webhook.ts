@@ -1,15 +1,125 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { computeHash, createProofPacket } from "@/domain/proof";
-import { mailMyPDFProvider } from "@/platform/mailmypdf-provider";
-import { textToPdf } from "@/platform/simple-pdf";
-import { uploadDocument } from "@/platform/mailmypdf";
-export const Route = createFileRoute("/api/stripe-webhook")({ server: { handlers: { POST: async ({ request }) => {
-  const { default: Stripe } = await import("stripe"); const stripeSecretKey=process.env.STRIPE_SECRET_KEY; const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET; const signature=request.headers.get("stripe-signature");
-  if(!stripeSecretKey||!webhookSecret)return Response.json({error:"Stripe webhook is not configured."},{status:503}); if(!signature)return Response.json({error:"Missing Stripe signature header."},{status:400});
-  const stripe=new Stripe(stripeSecretKey,{apiVersion:"2024-06-20" as Stripe.LatestApiVersion}); const body=await request.text(); let event:Stripe.Event; try{event=await stripe.webhooks.constructEventAsync(body,signature,webhookSecret);}catch(err){return Response.json({error:`Webhook signature verification failed: ${(err as Error).message}`},{status:400});}
-  const {createClient}=await import("@supabase/supabase-js"); if(event.type==="checkout.session.completed"){
-    const session=event.data.object as Stripe.Checkout.Session; const appealId=session.metadata?.appeal_id; const workflowId=session.metadata?.workflow_id||"unknown"; const mailingMethod=session.metadata?.mailing_method||"standard"; const recipientName=session.metadata?.recipient_name||"";
-    try{const supabaseUrl=process.env.VITE_SUPABASE_URL||process.env.SUPABASE_URL; const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY; if(!supabaseUrl||!serviceKey||!appealId)throw new Error("Payment fulfillment storage is not configured or appeal id is missing."); const supabase=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}}); const {data:appeal,error}=await supabase.from("appeals").select("*").eq("id",appealId).single(); if(error||!appeal)throw new Error(`Unable to load paid appeal ${appealId}: ${error?.message||"not found"}`); await supabase.from("mailings").insert({appeal_id:appealId,status:"paid",mailing_method:mailingMethod,recipient:{name:recipientName},stripe_session_id:session.id,stripe_payment_id:session.payment_intent as string});
-      if(["government-decision","agency-decision-appeal","administrative-decision-appeal","administrative-decision","ssdi-appeal"].includes(workflowId)){const packet=appeal.packet as any;if(!packet?.recipientName||!packet.recipientAddress1||!packet.recipientCity||!packet.recipientState||!packet.recipientZip)throw new Error("Paid appeal has no complete packet recipient.");if(!appeal.draft?.trim())throw new Error("Paid appeal has no final response draft.");const title=workflowId==="ssdi-appeal"?"SSDI Appeal Response":workflowId==="administrative-decision-appeal"?"Administrative Decision Appeal Response":workflowId==="administrative-decision"?"Administrative Decision Response":workflowId==="agency-decision-appeal"?"Agency Decision Appeal Response":"Government Decision Appeal Response";const pdfBytes=textToPdf(appeal.draft,title);const responseFile=new File([pdfBytes],`${workflowId}-${appealId}.pdf`,{type:"application/pdf"});const mailedDocument=await uploadDocument(responseFile);const provider=await mailMyPDFProvider.createLetter({workflowId,documentId:mailedDocument.id,recipient:{name:packet.recipientName,address1:packet.recipientAddress1,address2:packet.recipientAddress2,city:packet.recipientCity,state:packet.recipientState,postalCode:packet.recipientZip},method:mailingMethod as "standard"|"certified"|"registered",stripePaymentId:session.payment_intent as string,idempotencyKey:`stripe:${session.id}:appeal:${appealId}`,matterReference:appeal.decision?.referenceNumber||appealId,matterType:workflowId});const providerStatus=await mailMyPDFProvider.getStatus(provider.providerOrderId);const now=new Date().toISOString();const finalAppealHash=await computeHash(appeal.draft);const proof=createProofPacket({appealId,packetId:packet.id,finalAppealHash,attachmentHashes:[],recipient:{name:packet.recipientName,address1:packet.recipientAddress1,city:packet.recipientCity,state:packet.recipientState,zip:packet.recipientZip},mailingMethod:mailingMethod as "standard"|"certified"|"registered",providerOrderId:provider.providerOrderId});proof.mailingTimestamp=["mailed","in_transit","delivered"].includes(providerStatus.state)?now:undefined;proof.trackingNumber=providerStatus.trackingNumber;proof.status=providerStatus.state==="delivered"?"delivered":providerStatus.state==="in_transit"?"in_transit":providerStatus.state==="mailed"?"mailed":"assembled";proof.sealedAt=now;const appealStatus=proof.status==="delivered"?"delivered":proof.status==="mailed"||proof.status==="in_transit"?"mailed":"ready";await supabase.from("appeals").update({status:appealStatus,proof,updated_at:now}).eq("id",appealId).eq("user_id",appeal.user_id);console.log(`${workflowId} fulfilled: ${appealId} -> ${provider.providerOrderId} (${providerStatus.state})`);}else{await supabase.from("appeals").update({status:"ready",updated_at:new Date().toISOString()}).eq("id",appealId);console.log(`Payment completed for appeal ${appealId}: ${mailingMethod} to ${recipientName}`);}}catch(err){console.error("Post-payment processing failed:",err);}}
-  else if(event.type==="payment_intent.payment_failed"){console.log(`Payment failed: ${(event.data.object as Stripe.PaymentIntent).id}`);}else if(event.type==="charge.refunded"){console.log(`Charge refunded: ${(event.data.object as Stripe.Charge).id}`);}else{console.log(`Unhandled Stripe event: ${event.type}`);}return Response.json({received:true},{status:200});
-} } } });
+import { fulfillMailingIntent } from "@mailmypdf/payment-fulfillment";
+import { createAppealMailIntentStore } from "@/platform/mailing-intent-store";
+import { mailMyPDFClient } from "@/platform/mailmypdf-client";
+
+/**
+ * Appeal Mail's Stripe webhook.
+ *
+ * Fulfillment now runs through the canonical @mailmypdf/payment-fulfillment
+ * engine for EVERY workflow — not the 5 that used to be hardcoded here.
+ * Every one of Appeal Mail's 25 workflows produces an appeal with a
+ * `packet` (see domain/packet.ts: assemblePacket, called from every
+ * workflow's approve.ts). The store reports "no intent" for any appeal
+ * without a complete packet, so this fails closed rather than silently
+ * skipping mailing.
+ *
+ * fulfillMailingIntent() is idempotent (checks provider_order_id before
+ * resubmitting) and verifies the stored draft/recipient against the
+ * approval-time hashes before it will submit anything to MailMyPDF.
+ *
+ * Known follow-up: checkout.ts does not currently set
+ * `payment_intent_data.metadata`, so `charge.refunded` events can't be
+ * mapped back to an appeal id from the charge object alone. Refunds are
+ * logged but not yet auto-reconciled — tracked for the next pass across
+ * all 25 checkout.ts routes.
+ */
+const store = createAppealMailIntentStore();
+
+export const Route = createFileRoute("/api/stripe-webhook")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const { default: Stripe } = await import("stripe");
+        const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        const signature = request.headers.get("stripe-signature");
+
+        if (!stripeSecretKey || !webhookSecret) {
+          return Response.json({ error: "Stripe webhook is not configured." }, { status: 503 });
+        }
+        if (!signature) {
+          return Response.json({ error: "Missing Stripe signature header." }, { status: 400 });
+        }
+
+        const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" as Stripe.LatestApiVersion });
+        const body = await request.text();
+        let event: Stripe.Event;
+        try {
+          event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+        } catch (err) {
+          return Response.json(
+            { error: `Webhook signature verification failed: ${(err as Error).message}` },
+            { status: 400 },
+          );
+        }
+
+        if (event.type === "checkout.session.completed") {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const appealId = session.metadata?.appeal_id;
+          if (!appealId) {
+            console.error("[stripe-webhook:appeal-mail] checkout.session.completed with no appeal_id in metadata.");
+            return Response.json({ received: true, skipped: true }, { status: 200 });
+          }
+
+          const paymentIntentId =
+            typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
+
+          try {
+            const result = await fulfillMailingIntent(
+              store,
+              mailMyPDFClient,
+              appealId,
+              session.id,
+              paymentIntentId,
+              "stripe-webhook",
+              "appeal-mail",
+            );
+            if (!result.success) {
+              console.error(`[stripe-webhook:appeal-mail] Fulfillment failed for appeal ${appealId}: ${result.error}`);
+            } else {
+              console.log(
+                `[stripe-webhook:appeal-mail] Fulfilled appeal ${appealId} -> ${result.providerOrderId ?? "(pending)"} (${result.status ?? "unknown"}${result.idempotent ? ", idempotent replay" : ""})`,
+              );
+            }
+          } catch (err) {
+            console.error(`[stripe-webhook:appeal-mail] Fulfillment threw for appeal ${appealId}:`, err);
+          }
+
+          return Response.json({ received: true }, { status: 200 });
+        }
+
+        if (event.type === "checkout.session.expired") {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const appealId = session.metadata?.appeal_id;
+          if (appealId) {
+            await store.updateStatus(appealId, {
+              status: "expired",
+              error_message: "Stripe checkout session expired.",
+            }).catch((err) => console.error("[stripe-webhook:appeal-mail] Failed to mark expired:", err));
+          }
+          return Response.json({ received: true }, { status: 200 });
+        }
+
+        if (event.type === "payment_intent.payment_failed") {
+          console.log(`[stripe-webhook:appeal-mail] Payment failed: ${(event.data.object as Stripe.PaymentIntent).id}`);
+        } else if (event.type === "charge.refunded") {
+          const charge = event.data.object as Stripe.Charge;
+          const appealId = (charge.metadata as Record<string, string> | undefined)?.appeal_id;
+          if (appealId) {
+            await store.updateStatus(appealId, {
+              status: "refunded",
+              error_message: "Payment refunded by Stripe.",
+            }).catch((err) => console.error("[stripe-webhook:appeal-mail] Failed to mark refunded:", err));
+          } else {
+            console.log(`[stripe-webhook:appeal-mail] Charge refunded (no appeal_id in charge metadata): ${charge.id}`);
+          }
+        } else {
+          console.log(`[stripe-webhook:appeal-mail] Unhandled Stripe event: ${event.type}`);
+        }
+
+        return Response.json({ received: true }, { status: 200 });
+      },
+    },
+  },
+});

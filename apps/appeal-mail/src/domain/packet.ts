@@ -1,10 +1,19 @@
 import { z } from "zod";
 import type { Evidence } from "./evidence";
 import { generateExhibitIndex } from "./evidence";
+import { hashDraft, hashRecipient } from "@mailmypdf/payment-fulfillment";
 
 /* ─────────────────────────────────────────────
    Packet — the assembled appeal package ready
    for mailing: letter + exhibits + index.
+
+   This is the immutable "approved artifact": once assembled at
+   approval time, approvedDraftHash / approvedRecipientHash freeze
+   the exact letter text and recipient that were reviewed. The
+   fulfillment engine (@mailmypdf/payment-fulfillment) re-hashes the
+   stored packet at mailing time and refuses to mail if it drifted —
+   e.g. because the underlying appeal.draft was edited after approval
+   but before payment completed.
    ───────────────────────────────────────────── */
 
 export const exhibitEntrySchema = z.object({
@@ -31,6 +40,9 @@ export const appealPacketSchema = z.object({
   mailingMethod: z.enum(["standard", "certified", "registered"]),
   pageCount: z.number().default(1),
   assembledAt: z.string(),
+  // Approval-time integrity hashes — see fulfillment engine verifyIntegrity().
+  approvedDraftHash: z.string().optional(),
+  approvedRecipientHash: z.string().optional(),
 });
 export type AppealPacket = z.infer<typeof appealPacketSchema>;
 
@@ -61,6 +73,15 @@ export function assemblePacket(params: {
     mailingMethod: params.mailingMethod,
     pageCount: 1 + params.evidence.filter((e) => e.type !== "excerpt").length,
     assembledAt: new Date().toISOString(),
+    approvedDraftHash: hashDraft(params.finalLetter),
+    approvedRecipientHash: hashRecipient({
+      name: params.recipient.name,
+      address1: params.recipient.address1,
+      address2: params.recipient.address2,
+      city: params.recipient.city,
+      state: params.recipient.state,
+      zip: params.recipient.zip,
+    }),
   });
 }
 
