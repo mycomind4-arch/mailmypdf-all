@@ -1,22 +1,46 @@
 # MailMyPDF Monorepo Build Status
 
-**Last verified:** 2026-08-28
+**Last baseline verification:** 2026-08-28
+**Repository topology migration:** 2026-08-31
 
-## Build Results — All 11 Apps
+## Build Baseline — 11 Apps
 
 | # | App | Framework | Status | Source Files |
 |---|-----|-----------|--------|-------------|
-| 00 | Core (mailmypdf) | TanStack Start | ✅ Builds | 488 |
-| 01 | Notice Respond | TanStack Start | ✅ Builds | 285 |
-| 02 | Appeal Mail | TanStack Start | ✅ Builds | 443 |
-| 03 | Immigration Mail | TanStack Start | ✅ Builds | 233 |
-| 04 | Dispute Mail | TanStack Start | ✅ Builds | 117 |
-| 05 | Small Business | Vite SPA | ✅ Builds | 113 |
-| 06 | Records Request | Next.js | ✅ Builds | 182 |
-| 07 | Code Enforcement | Next.js | ✅ Builds | 105 |
-| 08 | Benefits Appeal | Next.js | ✅ Builds | 252 |
-| 09 | Private Office | TanStack Start | ✅ Builds | 130 |
-| 10 | Insurance Claims | Next.js | ✅ Builds | 39 |
+| 00 | MailMyPDF host (formerly Core) | TanStack Start | ✅ Builds (baseline) | 488 |
+| 01 | Notice Respond | TanStack Start | ✅ Builds (baseline) | 285 |
+| 02 | Appeal Mail | TanStack Start | ✅ Builds (baseline) | 443 |
+| 03 | Immigration Mail | TanStack Start | ✅ Builds (baseline) | 233 |
+| 04 | Dispute Mail | TanStack Start | ✅ Builds (baseline) | 117 |
+| 05 | Small Business | Vite SPA | ✅ Builds (baseline) | 113 |
+| 06 | Records Request | Next.js | ✅ Builds (baseline) | 182 |
+| 07 | Code Enforcement | Next.js | ✅ Builds (baseline) | 105 |
+| 08 | Benefits Appeal | Next.js | ✅ Builds (baseline) | 252 |
+| 09 | Private Office | TanStack Start | ✅ Builds (baseline) | 130 |
+| 10 | Insurance Claims | Next.js | ✅ Builds (baseline) | 39 |
+
+The baseline above is retained from the 2026-08-28 verification. Additional verticals present in the consolidated repository (`claim-proof`, `permit-reply`, and `tenant-reply`) were not included in that historical 11-app baseline and are therefore not represented as newly verified here.
+
+## Current Application Topology
+
+The repository now has one canonical host application and one normalized vertical namespace:
+
+- `apps/mailmypdf` — canonical MailMyPDF host application
+- `apps/verticals/appeal-mail`
+- `apps/verticals/benefits-appeal`
+- `apps/verticals/claim-proof`
+- `apps/verticals/code-enforcement`
+- `apps/verticals/dispute-mail`
+- `apps/verticals/immigration-mail`
+- `apps/verticals/insurance-claims`
+- `apps/verticals/notice-respond`
+- `apps/verticals/permit-reply`
+- `apps/verticals/private-office`
+- `apps/verticals/records-request`
+- `apps/verticals/small-business`
+- `apps/verticals/tenant-reply`
+
+The former `apps/core` and top-level vertical directories were moved intact; their implementation trees were not deleted or rewritten during the topology migration.
 
 ## Shared Packages — 17 packages from mailmypdf-platform
 
@@ -45,18 +69,19 @@
 - **Package manager:** pnpm with workspace protocol
 - **Node linker:** hoisted (`.npmrc`)
 - **Turbo:** configured for parallel builds
-- **Core fix:** tslib alias in `apps/core/vite.config.ts` → resolves to monorepo root `node_modules/tslib/tslib.es6.mjs`
+- **Workspace globs:** `packages/*`, `apps/*`, and `apps/verticals/*`
+- **Core fix:** tslib alias in `apps/mailmypdf/vite.config.ts` → resolves to monorepo root `node_modules/tslib/tslib.es6.mjs`
 - **Package resolution:** All `@mailmypdf/*` deps use `workspace:*`
 - **Package main/types:** All packages point to `src/index.ts` for dev resolution
 
-## Framework Distribution
+## Deployment Architecture
 
-- **TanStack Start** (6 apps): core, notice-respond, appeal-mail, immigration-mail, dispute-mail, private-office
-- **Next.js** (4 apps): records-request, code-enforcement, benefits-appeal, insurance-claims
-- **Vite SPA** (1 app): small-business
+The repository is now organized for one MailMyPDF public host with path-based verticals. No unconfirmed production hostname is encoded in the repo.
 
-## Deployment Targets
+- `/` → `apps/mailmypdf`
+- `/<vertical>/*` → matching `apps/verticals/<vertical>` application
+- Shared payment, fulfillment, pricing, AI, workflow, and document capabilities remain in `packages/*`
 
-- TanStack Start → Cloudflare Workers (via Nitro `cloudflare-pages` preset)
-- Next.js → Cloudflare Workers (via `@opennextjs/cloudflare`)
-- Vite SPA → Cloudflare Pages (static)
+The actual production hostname and DNS configuration remain intentionally unset until a MailMyPDF domain is established.
+
+See `MAILMYPDF_APPLICATION_TOPOLOGY.md` for the canonical routing and ownership rules.
