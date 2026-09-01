@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Home, ArrowRight, Stamp, Mail } from "lucide-react";
+import { Home, ArrowRight, Stamp } from "lucide-react";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -37,44 +37,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
-    </html>
-  );
+  return <html lang="en"><head><HeadContent /></head><body>{children}<Scripts /></body></html>;
 }
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}><AuthProvider><ProtectedWorkflowContent /></AuthProvider></QueryClientProvider>;
+}
+
+function ProtectedWorkflowContent() {
+  const { user, loading, isConfigured } = useAuth();
+  const location = useLocation();
+  const path = location.pathname;
+  const workflowPath = path.startsWith("/workflows/");
+  const isHub = path === "/workflows" || path === "/workflows/";
+  const isLanding = /^\/workflows\/[^/]+\/?$/.test(path);
+  const requiresAccount = workflowPath && !isHub && !isLanding;
+
+  if (!requiresAccount) return <Outlet />;
+  if (loading) return <AuthGate message="Loading your MailMyPDF Account…" />;
+  if (!isConfigured || !user) return <AuthGate />;
+  return <Outlet />;
+}
+
+function AuthGate({ message }: { message?: string }) {
+  const location = useLocation();
+  const returnTo = encodeURIComponent(location.pathname + location.search);
+  return <div className="min-h-screen bg-cream"><SiteHeader /><main className="mx-auto max-w-3xl px-6 py-24 text-center"><div className="postmark mx-auto w-fit">MailMyPDF Account</div><h1 className="mt-6 font-serif text-4xl">{message || "Sign in to start this workflow."}</h1><p className="mt-3 mx-auto max-w-xl text-sm leading-6 text-muted-foreground">Workflow intake, uploaded documents, drafts, and mailing records are private to your account. Sign in or create an account to begin.</p>{!message && <Link to={`/auth?returnTo=${returnTo}` as never} className="mt-8 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper">Sign in or create an account <ArrowRight size={16} className="ml-2" /></Link>}</main><SiteFooter /></div>;
 }
 
 function NotFoundPage() {
-  return (
-    <main className="min-h-screen bg-cream">
-      <SiteHeader />
-      <section className="py-20 md:py-32">
-        <div className="container max-w-lg text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl" style={{ background: "color-mix(in oklab, var(--stamp) 10%, transparent)" }}>
-            <Stamp size={36} className="text-stamp" />
-          </div>
-          <h1 className="mt-8 text-6xl" style={{ fontFamily: "var(--font-serif)" }}>404</h1>
-          <h2 className="mt-2 text-xl font-semibold text-ink-soft">This ruling is being appealed elsewhere</h2>
-          <p className="mt-3 text-sm text-muted-foreground">The page you're looking for doesn't exist or has moved. Let's get you back on track.</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/" className="btn-primary"><Home size={16} /> Back to home</Link>
-            <Link to="/workflows/denied-claim" className="btn-amber">Start an appeal <ArrowRight size={16} /></Link>
-          </div>
-        </div>
-      </section>
-      <SiteFooter />
-    </main>
-  );
+  return <main className="min-h-screen bg-cream"><SiteHeader /><section className="py-20 md:py-32"><div className="container max-w-lg text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl" style={{ background: "color-mix(in oklab, var(--stamp) 10%, transparent)" }}><Stamp size={36} className="text-stamp" /></div><h1 className="mt-8 text-6xl" style={{ fontFamily: "var(--font-serif)" }}>404</h1><h2 className="mt-2 text-xl font-semibold text-ink-soft">This ruling is being appealed elsewhere</h2><p className="mt-3 text-sm text-muted-foreground">The page you're looking for doesn't exist or has moved. Let's get you back on track.</p><div className="mt-8 flex flex-wrap justify-center gap-3"><Link to="/" className="btn-primary"><Home size={16} /> Back to home</Link><Link to="/workflows/denied-claim" className="btn-amber">View an appeal workflow <ArrowRight size={16} /></Link></div></div></section><SiteFooter /></main>;
 }
