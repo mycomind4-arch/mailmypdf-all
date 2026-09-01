@@ -1,4 +1,5 @@
 import type { MailingOrderDraft, MailingProvider, MailingStatus } from "@/domain/mailing";
+import { normalizeMailMyPDFStatus } from "@mailmypdf/fulfillment";
 import {
   createCommunication,
   getCommunication,
@@ -18,28 +19,7 @@ function mapMailType(method: MailingOrderDraft["method"]): MailType {
 }
 
 export function mapStatus(status: unknown): MailingStatus["state"] {
-  switch (status) {
-    case "created":
-    case "submitted":
-      return "submitted";
-    case "mailed":
-    case "sent":
-      return "mailed";
-    case "in_transit":
-    case "in-transit":
-      return "in_transit";
-    case "delivered":
-      return "delivered";
-    case "failed":
-      return "failed";
-    case "cancelled":
-    case "canceled":
-      return "cancelled";
-    case "refunded":
-      return "refunded";
-    default:
-      throw new Error(`Unknown MailMyPDF fulfillment status: ${String(status)}`);
-  }
+  return normalizeMailMyPDFStatus(status) as MailingStatus["state"];
 }
 
 export class MailMyPDFProvider implements MailingProvider {
