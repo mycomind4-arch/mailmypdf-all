@@ -19,14 +19,14 @@ export type NoticeWorkflow = {
  * The workflow catalog is the executable source of truth for the directory.
  * SEO aliases are intentionally excluded from internal navigation. They may
  * remain as public compatibility URLs, but the application must always link
- * to the canonical executable route.
+ * to a dedicated workflow landing page first.
  */
 function catalogToDirectoryEntry(def: MasterWorkflowDefinition): NoticeWorkflow | null {
   if (!def.directory) return null;
 
   return {
     slug: def.id,
-    route: def.searchIntent.canonicalPath,
+    route: `/workflows/${def.id}/landing`,
     title: def.directory.seoTitle ?? def.title,
     searchIntent: def.searchIntent.primary,
     category: def.directory.category,
@@ -48,7 +48,7 @@ function buildWorkflowList(): NoticeWorkflow[] {
     const entry = catalogToDirectoryEntry(def);
     if (!entry) continue;
 
-    // Never render duplicate workflow identities or duplicate canonical routes.
+    // Never render duplicate workflow identities or duplicate landing routes.
     if (seenIds.has(entry.slug) || seenRoutes.has(entry.route)) continue;
 
     entries.push(entry);
