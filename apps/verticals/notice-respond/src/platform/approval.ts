@@ -1,9 +1,7 @@
 /**
- * Notice Respond approval helpers.
- *
- * Re-exports the shared approval contract from @mailmypdf/payment-fulfillment.
+ * Notice Respond approval compatibility shim.
+ * Canonical hashing/integrity helpers live in @mailmypdf/payment-fulfillment.
  */
-
 export {
   sha256,
   hashDraft,
@@ -11,4 +9,4 @@ export {
   verifyIntegrity,
   type MailingIntent,
   type MailingRecipient,
-} from "@/platform/payment-fulfillment";
+} from "@mailmypdf/payment-fulfillment";
