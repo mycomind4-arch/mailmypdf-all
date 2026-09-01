@@ -1,8 +1,5 @@
-import type {
-  MailingOrderDraft,
-  MailingProvider,
-  MailingStatus,
-} from "@/domain/mailing";
+import type { MailingOrderDraft, MailingProvider, MailingStatus } from "@/domain/mailing";
+import { normalizeMailMyPDFStatus } from "@mailmypdf/fulfillment";
 import {
   createCommunication,
   getCommunication,
@@ -12,46 +9,15 @@ import {
 
 function mapMailType(method: MailingOrderDraft["method"]): MailType {
   switch (method) {
-    case "certified":
-      return "certified";
-    case "registered":
-      return "registered";
-    default:
-      return "first_class";
-  }
-}
-
-function mapStatus(status: unknown): MailingStatus["state"] {
-  switch (status) {
-    case "created":
-      return "submitted";
-    case "submitted":
-      return "submitted";
-    case "mailed":
-    case "sent":
-      return "mailed";
-    case "in_transit":
-    case "in-transit":
-      return "in_transit";
-    case "delivered":
-      return "delivered";
-    case "failed":
-      return "failed";
-    case "cancelled":
-    case "canceled":
-      return "cancelled";
-    case "refunded":
-      return "refunded";
-    default:
-      return "submitted";
+    case "certified": return "certified";
+    case "registered": return "registered";
+    default: return "first_class";
   }
 }
 
 export class MailMyPDFProvider implements MailingProvider {
   async createLetter(input: MailingOrderDraft): Promise<{ providerOrderId: string }> {
-    if (!input.documentId) {
-      throw new Error("MailMyPDF submission requires a documentId");
-    }
+    if (!input.documentId) throw new Error("MailMyPDF submission requires a documentId");
 
     const idempotencyKey = input.idempotencyKey ?? `${input.workflowId}:${input.documentId}`;
     const communicationInput: CreateImmigrationCommunicationInput = {
@@ -96,16 +62,14 @@ export class MailMyPDFProvider implements MailingProvider {
 
   async getStatus(providerOrderId: string): Promise<MailingStatus> {
     const communication = await getCommunication(providerOrderId);
-    const updatedAt = typeof communication.updated_at === "string"
-      ? communication.updated_at
-      : new Date().toISOString();
-
     return {
-      state: mapStatus(communication.status),
+      state: normalizeMailMyPDFStatus(communication.status),
       trackingNumber: typeof communication.tracking_number === "string"
         ? communication.tracking_number
         : undefined,
-      updatedAt,
+      updatedAt: typeof communication.updated_at === "string"
+        ? communication.updated_at
+        : new Date().toISOString(),
     };
   }
 }
