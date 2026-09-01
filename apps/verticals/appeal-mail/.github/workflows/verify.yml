@@ -1,0 +1,46 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test-output.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload test failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log
+          if-no-files-found: error
+
+      - name: Production build
+        run: npm run build
