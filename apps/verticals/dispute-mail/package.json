@@ -12,6 +12,7 @@
     "verify:launch": "npm test && npm run build"
   },
   "dependencies": {
+    "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
