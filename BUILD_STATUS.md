@@ -1,7 +1,8 @@
 # MailMyPDF Monorepo Build Status
 
-**Last baseline verification:** 2026-08-28
-**Repository topology migration:** 2026-08-31
+**Last baseline verification:** 2026-08-28  
+**Repository topology migration:** 2026-08-31  
+**Payment/fulfillment consolidation pass:** 2026-09-01
 
 ## Build Baseline — 11 Apps
 
@@ -20,6 +21,28 @@
 | 10 | Insurance Claims | Next.js | ✅ Builds (baseline) | 39 |
 
 The baseline above is retained from the 2026-08-28 verification. Additional verticals present in the consolidated repository (`claim-proof`, `permit-reply`, and `tenant-reply`) were not included in that historical 11-app baseline and are therefore not represented as newly verified here.
+
+## 2026-09-01 Consolidation Reconciliation
+
+The following production-path payment/fulfillment migrations have been reconciled in the codebase:
+
+- **Notice Respond** — canonical `@mailmypdf/payment-fulfillment` and `@mailmypdf/mailing-client`; obsolete local payment-fulfillment implementation removed.
+- **Immigration Mail** — Stripe webhook and browser-return fulfillment use the canonical payment/fulfillment engine; local MailMyPDF HTTP client is now a compatibility shim; schema translation remains in the vertical adapter.
+- **Dispute Mail** — browser-return fulfillment and MailMyPDF client use the shared platform; vertical-only dispute-case synchronization remains in the adapter.
+- **Appeal Mail** — Stripe fulfillment already uses the canonical payment/fulfillment engine and the shared mailing client contract; its vertical-specific adapter remains the integration boundary.
+- **Fulfillment status vocabulary** — canonical provider-status normalization now lives in `@mailmypdf/fulfillment`.
+
+These changes were pushed directly to `main`. No fresh monorepo build or test run has been certified after the consolidation changes because the execution environment could not clone the repository from GitHub.
+
+## Remaining Repo Integrity Issue
+
+The current `pnpm-workspace.yaml` correctly declares:
+
+- `packages/*`
+- `apps/*`
+- `apps/verticals/*`
+
+However, `pnpm-lock.yaml` still contains importer entries using the pre-topology paths such as `apps/appeal-mail`, `apps/dispute-mail`, `apps/immigration-mail`, and `apps/core`. Those importer paths and their relative `link:` targets need to be regenerated from the current workspace before treating a frozen-lockfile installation as production-ready.
 
 ## Current Application Topology
 
@@ -71,7 +94,7 @@ The former `apps/core` and top-level vertical directories were moved intact; the
 - **Turbo:** configured for parallel builds
 - **Workspace globs:** `packages/*`, `apps/*`, and `apps/verticals/*`
 - **Core fix:** tslib alias in `apps/mailmypdf/vite.config.ts` → resolves to monorepo root `node_modules/tslib/tslib.es6.mjs`
-- **Package resolution:** All `@mailmypdf/*` deps use `workspace:*`
+- **Package resolution:** All `@mailmypdf/*` deps use `workspace:*` in the consolidated package manifests where migrated
 - **Package main/types:** All packages point to `src/index.ts` for dev resolution
 
 ## Deployment Architecture
