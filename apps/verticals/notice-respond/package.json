@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@mailmypdf/document-intelligence": "workspace:*",
+    "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
