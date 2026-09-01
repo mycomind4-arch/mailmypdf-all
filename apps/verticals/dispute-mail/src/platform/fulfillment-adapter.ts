@@ -1,16 +1,12 @@
 /**
- * Dispute Mail adapter for @mailmypdf/payment-fulfillment
+ * Dispute Mail adapter for @mailmypdf/payment-fulfillment.
  *
- * Bridges the shared fulfillment contract to Dispute Mail's
- * Supabase-backed MailingIntentStore and MailMyPDF client.
- *
- * This adapter enables dispute-mail to use the same canonical
- * payment → intent → fulfillment pipeline as notice-respond
- * and immigration-mail, including Stripe webhook support.
+ * The adapter owns only Dispute Mail's persistence/schema mapping and its
+ * dispute_case synchronization. Payment integrity, idempotency, and provider
+ * submission remain in the shared platform packages.
  */
-
 import { createClient } from "@supabase/supabase-js";
-import { uploadDocument, createCommunication } from "./mailmypdf";
+import { uploadDocument, createCommunication } from "@mailmypdf/mailing-client";
 import type {
   MailingIntent,
   MailingIntentStore,
@@ -18,7 +14,16 @@ import type {
   MailingRecipient,
   MailType,
   LegalReference,
-} from "@/platform/payment-fulfillment";
+} from "@mailmypdf/payment-fulfillment";
+import {
+  handleStripeWebhookEvent,
+  fulfillFromBrowserReturn,
+  fulfillMailingIntent,
+  verifyIntegrity,
+  hashDraft,
+  hashRecipient,
+  sha256,
+} from "@mailmypdf/payment-fulfillment";
 
 function serviceSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -65,49 +70,26 @@ function rowToIntent(row: Record<string, unknown>): MailingIntent {
 
 export function createSupabaseIntentStore(): MailingIntentStore {
   const supabase = serviceSupabase();
-
   return {
-    async load(intentId: string): Promise<MailingIntent | null> {
-      const { data, error } = await supabase
-        .from("mailing_intents")
-        .select("*")
-        .eq("id", intentId)
-        .single();
-      if (error || !data) return null;
-      return rowToIntent(data as Record<string, unknown>);
+    async load(intentId) {
+      const { data, error } = await supabase.from("mailing_intents").select("*").eq("id", intentId).single();
+      return error || !data ? null : rowToIntent(data as Record<string, unknown>);
     },
-
-    async loadByStripeSession(sessionId: string): Promise<MailingIntent | null> {
-      const { data, error } = await supabase
-        .from("mailing_intents")
-        .select("*")
-        .eq("stripe_session_id", sessionId)
-        .single();
-      if (error || !data) return null;
-      return rowToIntent(data as Record<string, unknown>);
+    async loadByStripeSession(sessionId) {
+      const { data, error } = await supabase.from("mailing_intents").select("*").eq("stripe_session_id", sessionId).single();
+      return error || !data ? null : rowToIntent(data as Record<string, unknown>);
     },
-
-    async updateStatus(
-      intentId: string,
-      update: Partial<Pick<MailingIntent,
-        "status" | "stripe_session_id" | "stripe_payment_intent_id"
-        | "provider_order_id" | "tracking_number" | "error_message"
-      >>,
-    ): Promise<void> {
+    async updateStatus(intentId, update) {
       const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (update.status) updateData.status = update.status;
+      if (update.status !== undefined) updateData.status = update.status;
       if (update.stripe_session_id !== undefined) updateData.stripe_session_id = update.stripe_session_id;
       if (update.stripe_payment_intent_id !== undefined) updateData.stripe_payment_intent_id = update.stripe_payment_intent_id;
       if (update.provider_order_id !== undefined) updateData.provider_order_id = update.provider_order_id;
       if (update.tracking_number !== undefined) updateData.tracking_number = update.tracking_number;
       if (update.error_message !== undefined) updateData.error_message = update.error_message;
 
-      await supabase
-        .from("mailing_intents")
-        .update(updateData)
-        .eq("id", intentId);
+      await supabase.from("mailing_intents").update(updateData).eq("id", intentId);
 
-      // Also update the dispute_case if linked
       const { data: intent } = await supabase
         .from("mailing_intents")
         .select("case_id, owner_id")
@@ -116,35 +98,17 @@ export function createSupabaseIntentStore(): MailingIntentStore {
 
       if (intent?.case_id) {
         if (update.status === "submitted" && update.provider_order_id) {
-          await supabase
-            .from("dispute_cases")
-            .update({
-              status: "submitted",
-              provider_order_id: update.provider_order_id,
-              tracking_number: update.tracking_number ?? null,
-              submitted_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", intent.case_id)
-            .eq("owner_id", intent.owner_id);
+          await supabase.from("dispute_cases").update({
+            status: "submitted",
+            provider_order_id: update.provider_order_id,
+            tracking_number: update.tracking_number ?? null,
+            submitted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
         } else if (update.status === "failed") {
-          await supabase
-            .from("dispute_cases")
-            .update({
-              status: "failed",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", intent.case_id)
-            .eq("owner_id", intent.owner_id);
+          await supabase.from("dispute_cases").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
         } else if (update.status === "expired") {
-          await supabase
-            .from("dispute_cases")
-            .update({
-              status: "expired",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", intent.case_id)
-            .eq("owner_id", intent.owner_id);
+          await supabase.from("dispute_cases").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
         }
       }
     },
@@ -153,22 +117,12 @@ export function createSupabaseIntentStore(): MailingIntentStore {
 
 export function createMailMyPDFClient(): MailMyPDFClient {
   return {
-    async uploadDocument(content: string, filename: string, mimeType: string): Promise<{ id: string }> {
+    async uploadDocument(content, filename, mimeType) {
       const file = new File([content], filename, { type: mimeType });
       const doc = await uploadDocument(file);
       return { id: doc.id };
     },
-
-    async createCommunication(params: {
-      document_id: string;
-      recipient: MailingRecipient;
-      mail_type: MailType;
-      matter_reference: string;
-      matter_type: string;
-      legal_reference: LegalReference;
-      metadata: Record<string, unknown>;
-      idempotency_key: string;
-    }): Promise<{ id: string; tracking_number?: string; status?: string }> {
+    async createCommunication(params) {
       const comm = await createCommunication({
         document_id: params.document_id,
         recipient: {
@@ -183,25 +137,13 @@ export function createMailMyPDFClient(): MailMyPDFClient {
         mail_type: params.mail_type,
         matter_reference: params.matter_reference,
         matter_type: params.matter_type,
+        legal_reference: params.legal_reference,
         metadata: params.metadata,
         idempotency_key: params.idempotency_key,
       });
-      return {
-        id: comm.id,
-        tracking_number: comm.tracking_number,
-        status: comm.status,
-      };
+      return { id: comm.id, tracking_number: comm.tracking_number, status: comm.status };
     },
   };
 }
 
-// Re-export the shared fulfillment engine functions
-export {
-  handleStripeWebhookEvent,
-  fulfillFromBrowserReturn,
-  fulfillMailingIntent,
-  verifyIntegrity,
-  hashDraft,
-  hashRecipient,
-  sha256,
-} from "@/platform/payment-fulfillment";
+export { handleStripeWebhookEvent, fulfillFromBrowserReturn, fulfillMailingIntent, verifyIntegrity, hashDraft, hashRecipient, sha256 };
