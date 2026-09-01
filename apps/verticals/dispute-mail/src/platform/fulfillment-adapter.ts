@@ -1,9 +1,8 @@
 /**
  * Dispute Mail adapter for @mailmypdf/payment-fulfillment.
- *
- * The adapter owns only Dispute Mail's persistence/schema mapping and its
- * dispute_case synchronization. Payment integrity, idempotency, and provider
- * submission remain in the shared platform packages.
+ * The adapter owns only Dispute Mail persistence/schema translation and
+ * dispute_case synchronization. Payment integrity, idempotency, and
+ * provider submission remain in the shared platform.
  */
 import { createClient } from "@supabase/supabase-js";
 import { uploadDocument, createCommunication } from "@mailmypdf/mailing-client";
@@ -87,29 +86,24 @@ export function createSupabaseIntentStore(): MailingIntentStore {
       if (update.provider_order_id !== undefined) updateData.provider_order_id = update.provider_order_id;
       if (update.tracking_number !== undefined) updateData.tracking_number = update.tracking_number;
       if (update.error_message !== undefined) updateData.error_message = update.error_message;
-
       await supabase.from("mailing_intents").update(updateData).eq("id", intentId);
 
-      const { data: intent } = await supabase
-        .from("mailing_intents")
-        .select("case_id, owner_id")
-        .eq("id", intentId)
-        .single();
-
-      if (intent?.case_id) {
-        if (update.status === "submitted" && update.provider_order_id) {
-          await supabase.from("dispute_cases").update({
-            status: "submitted",
-            provider_order_id: update.provider_order_id,
-            tracking_number: update.tracking_number ?? null,
-            submitted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
-        } else if (update.status === "failed") {
-          await supabase.from("dispute_cases").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
-        } else if (update.status === "expired") {
-          await supabase.from("dispute_cases").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
-        }
+      const { data: intent } = await supabase.from("mailing_intents").select("case_id, owner_id").eq("id", intentId).single();
+      if (!intent?.case_id) return;
+      if (update.status === "submitted" && update.provider_order_id) {
+        await supabase.from("dispute_cases").update({
+          status: "submitted",
+          provider_order_id: update.provider_order_id,
+          tracking_number: update.tracking_number ?? null,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", intent.case_id).eq("owner_id", intent.owner_id);
+      } else if (update.status === "failed") {
+        await supabase.from("dispute_cases").update({ status: "failed", updated_at: new Date().toISOString() })
+          .eq("id", intent.case_id).eq("owner_id", intent.owner_id);
+      } else if (update.status === "expired") {
+        await supabase.from("dispute_cases").update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("id", intent.case_id).eq("owner_id", intent.owner_id);
       }
     },
   };
@@ -128,7 +122,7 @@ export function createMailMyPDFClient(): MailMyPDFClient {
         recipient: {
           name: params.recipient.name,
           address_line1: params.recipient.address1,
-          address_line2: params.recipient.address2 || null,
+          address_line2: params.recipient.address2 ?? null,
           city: params.recipient.city,
           state: params.recipient.state.toUpperCase(),
           postal_code: params.recipient.zip,
