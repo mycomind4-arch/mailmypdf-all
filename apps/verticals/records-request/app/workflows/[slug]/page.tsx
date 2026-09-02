@@ -1,7 +1,6 @@
 import { EcosystemFooter } from '@/app/components/EcosystemFooter'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { recordsWorkflows } from '@/src/workflows'
 import { workflows } from '../workflow-data'
 
 export function generateStaticParams() { return workflows.map(({ slug }) => ({ slug })) }
@@ -23,14 +22,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-const aiWorkflowSlugs = new Set(recordsWorkflows.map((w: { id: string }) => w.id))
+function startPath(slug: string) {
+  if (slug === 'police-records' || slug === 'planning-records') return `/workflows/${slug}/builder`
+  return `/workflows/${slug}/builder`
+}
 
 export default async function WorkflowPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const workflow = workflows.find(item => item.slug === slug)
   if (!workflow) notFound()
 
-  const builderPath = aiWorkflowSlugs.has(slug) ? `/workflows/${slug}/builder` : '/dashboard'
+  const builderPath = startPath(slug)
   const faqs = workflow.seo?.faqs ?? []
   const related = workflows.filter(item => item.slug !== slug && (item.category === workflow.category || item.bestFor.some(value => workflow.bestFor.includes(value)))).slice(0, 3)
 
