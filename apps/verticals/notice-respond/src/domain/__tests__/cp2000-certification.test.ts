@@ -19,7 +19,8 @@ import { buildDraftProvenance } from "../draft-provenance";
 import { classifyContent, validateTextInput } from "../security";
 import { createVersionedDraft, addDraftVersion, approveCurrentVersion, isApprovalValid, setVersionValidation } from "../draft-versioning";
 import { canTransition, transition, AUDIT_EVENTS, createAuditEvent, type WorkflowState } from "../cp2000-state-machine";
-import { hashDraft, hashRecipient, sha256, verifyIntegrity, type MailingIntent, type MailingRecipient } from "@/platform/payment-fulfillment";
+import { hashDraft, hashRecipient, sha256, verifyIntegrity } from "@/platform/fulfillment-adapter";
+import type { MailingIntent, MailingRecipient } from "@mailmypdf/mailing-client";
 
 // ── Test fixtures ─────────────────────────────────────────────
 

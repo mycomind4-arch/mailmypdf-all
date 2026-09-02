@@ -114,9 +114,10 @@ function LandingPage() {
             },
           ]}
         />
+        <AuthorityStrip />
         <CategorySection />
+        <PopularWorkflows />
         <HowItWorks />
-        <WorkflowDiscovery />
         <ProofSection />
         <Pricing />
         <TrustSection />
@@ -160,14 +161,13 @@ function Hero() {
       <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-28">
         {/* Left: copy */}
         <div className="animate-fade-up">
-          <div className="postmark w-fit">The mailing layer for important documents</div>
+          <div className="postmark w-fit">Professional document delivery, proven</div>
           <h1 className="mt-6 max-w-3xl text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">
-            Turn documents into documented action.
+            Mail important documents. Get real results.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-soft sm:text-xl">
-            Upload your PDF, choose how you want it delivered, and create a professional record of
-            the communication. MailMyPDF keeps the document, mailing choice, tracking, and proof
-            together.
+            Send finished documents with proof of delivery. MailMyPDF provides the mailing layer for
+            agencies, law firms, and individuals who need reliable correspondence with documented proof.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
@@ -377,53 +377,49 @@ function HowItWorks() {
   const steps = [
     {
       number: "01",
-      title: "Upload",
-      text: "Drag in your PDF. Up to 10 pages, under 10MB. No account required to start.",
+      icon: FileText,
+      title: "Answer Questions",
+      text: "We ask a few simple questions about your situation.",
     },
     {
       number: "02",
-      title: "Prepare",
-      text: "Enter the recipient address. We verify it before the mailing goes out.",
+      icon: FileText,
+      title: "We Build Your Documents",
+      text: "Our AI creates professional, personalized documents for you.",
     },
     {
       number: "03",
-      title: "Review",
-      text: "See the document, address, mailing service, and total price before you pay.",
+      icon: FileText,
+      title: "You Approve",
+      text: "Review your documents and approve with confidence.",
     },
     {
       number: "04",
-      title: "Send",
-      text: "We print and mail it through the U.S. mail. You don't need a printer.",
-    },
-    {
-      number: "05",
-      title: "Track",
-      text: "Follow delivery status when you choose Certified or Registered Mail.",
-    },
-    {
-      number: "06",
-      title: "Prove",
-      text: "Your order keeps the document, recipient, service, and mailing record together.",
+      icon: FileText,
+      title: "We Mail & You Get Proof",
+      text: "We print, package, and mail your documents with tracking.",
     },
   ];
 
   return (
-    <section className="border-b border-rule/60">
+    <section className="border-b border-rule/60 bg-ink">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <SectionHeader
-          eyebrow="How MailMyPDF works"
-          title="From file to proof in six steps."
-          subtitle="A signature process that turns a document on your screen into a properly mailed, documented piece of correspondence."
-        />
-        <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-12 text-center">
+          <h2 className="font-serif text-3xl leading-tight text-white sm:text-4xl md:text-5xl">
+            How MailMyPDF Works
+          </h2>
+        </div>
+        <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
-            <div key={i} className="envelope-card envelope-card-hover p-7">
-              <div className="flex items-baseline gap-3">
-                <span className="font-mono text-sm font-medium text-cobalt">{step.number}</span>
-                <span className="h-px flex-1 bg-rule" />
+            <div key={i} className="flex flex-col items-center text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-brass/40">
+                <span className="font-serif text-2xl text-brass">{step.number}</span>
               </div>
-              <h3 className="mt-4 font-serif text-2xl">{step.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.text}</p>
+              {i < steps.length - 1 && (
+                <div className="mt-4 mb-4 hidden h-12 w-px bg-brass/20 lg:block" />
+              )}
+              <h3 className="mt-6 font-serif text-lg text-white">{step.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-white/60">{step.text}</p>
             </div>
           ))}
         </div>
@@ -600,6 +596,89 @@ function ProofSection() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Authority Strip ───────────────────────────────────────────────────────── */
+
+function AuthorityStrip() {
+  const authorities = [
+    "Government agencies",
+    "Law firms & paralegals",
+    "Immigration attorneys",
+    "Nonprofits",
+    "Appeals advocates",
+  ];
+
+  return (
+    <section className="border-b border-rule/60 bg-paper-deep/30">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <div className="flex flex-col items-center gap-6 sm:gap-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Used by
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+            {authorities.map((auth) => (
+              <div key={auth} className="flex items-center gap-2 text-sm text-ink-soft">
+                <div className="h-1.5 w-1.5 rounded-full bg-brass" />
+                {auth}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Popular Workflows ─────────────────────────────────────────────────────── */
+
+function PopularWorkflows() {
+  // Select 5 featured workflows strategically based on mockup
+  // These represent the most common use cases: tax, immigration, code enforcement, and disputes
+  const featuredSlugs = [
+    "notice-respond",           // IRS CP2000 & CP14 Response
+    "immigration-mail",         // USCIS I-797 Response
+    "records-request",          // Code Enforcement Records Request
+    "dispute-mail",             // Dispute a Debt
+    "appeal-reply",             // Appeals (5th featured workflow)
+  ];
+
+  const workflows = ECOSYSTEM_VERTICALS.filter((v) =>
+    featuredSlugs.includes(v.slug)
+  );
+
+  return (
+    <section className="border-b border-rule/60">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <SectionHeader
+            eyebrow="Popular workflows"
+            title="Specialized workflows for document problems."
+            subtitle="When you need more than document delivery, choose a purpose-built workflow for complex correspondence."
+          />
+          <Link
+            to="/ecosystem"
+            className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80"
+          >
+            See all workflows <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {workflows.map((vertical) => (
+            <WorkflowCard
+              key={vertical.slug}
+              href={vertical.href}
+              label={vertical.label}
+              title={vertical.title}
+              description={vertical.description}
+              capabilities={vertical.capabilities}
+            />
+          ))}
         </div>
       </div>
     </section>

@@ -17,6 +17,7 @@
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
+    "@mailmypdf/workflows": "workspace:*",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.101.1",

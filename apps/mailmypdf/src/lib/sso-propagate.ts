@@ -27,3 +27,12 @@ export function propagateSSOSession(accessToken: string, refreshToken: string, e
     document.body.appendChild(iframe);
   }
 }
+
+export function redirectToHubSSO(redirect?: string): void {
+  if (typeof window === "undefined") return;
+  const hubUrl = new URL("https://mailmypdf-etc.pages.dev/auth");
+  if (redirect) {
+    hubUrl.searchParams.set("redirect", redirect);
+  }
+  window.location.href = hubUrl.toString();
+}

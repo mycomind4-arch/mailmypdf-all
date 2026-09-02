@@ -5,7 +5,7 @@
  * Approval binds to the exact draft content via SHA-256 hash.
  */
 
-import { sha256 } from "@/platform/payment-fulfillment";
+import { sha256 } from "@/platform/fulfillment-adapter";
 
 export interface DraftVersion {
   id: string;

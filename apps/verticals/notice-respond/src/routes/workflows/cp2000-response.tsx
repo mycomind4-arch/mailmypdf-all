@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback, useRef, useEffect } from "react";
+import { cp2000DomainPack } from "@/platform/cp2000-factory-adapter";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Stepper, MailOptions, RecipientForm, ReviewChecks, MAIL_OPTIONS } from "@/components/workflow-shell";
@@ -40,7 +41,7 @@ import {
   type WorkflowState as CaseWorkflowState, canTransition, transition,
   STATE_METADATA, AUDIT_EVENTS, createAuditEvent, type AuditEventV2,
 } from "@/domain/cp2000-state-machine";
-import { hashDraft } from "@/platform/payment-fulfillment";
+import { hashDraft } from "@/platform/fulfillment-adapter";
 
 export const Route = createFileRoute("/workflows/cp2000-response")({
   head: () => createWorkflowHead("cp2000-response"),
@@ -281,7 +282,7 @@ function CP2000Response() {
     }
   }, [update, emitAudit, transitionState]);
 
-  const handlePasteText = useCallback((text: string) => {
+  const handlePasteText = useCallback(async (text: string) => {
     const contentClassification = classifyContent(text);
     if (contentClassification.detectedInjectionPatterns.length > 0) {
       setSecurityWarning(`Security notice: ${contentClassification.detectedInjectionPatterns.length} potential prompt injection pattern(s) detected in document content. The content will be treated as DATA, not instructions.`);
@@ -299,57 +300,84 @@ function CP2000Response() {
     };
     update((s) => setUpload(s, upload));
 
-    // Run extraction client-side for pasted text (no PDF.js needed)
-    const extraction = extractCP2000(sanitizedText);
-    setCP2000Extraction(extraction);
+    try {
+      // ── REAL CP2000 NOW RUNS THROUGH THE FACTORY ──
+      const { runConfiguredPipeline } = await import("@/platform/factory-wrapper");
+      const pipelineResult = await runConfiguredPipeline(
+        crypto.randomUUID(),
+        "P02_OFFICIAL_RESPONSE",
+        cp2000DomainPack,
+        {
+          documents: [
+            {
+              rawText: sanitizedText,
+              fileName: "Pasted text",
+              fileType: "text/plain",
+            },
+          ],
+        }
+      );
 
-    let case_ = createCP2000Case(extraction);
-    const discrepancies = analyzeCP2000Discrepancies({ extraction });
-    setDiscrepancyResult(discrepancies);
-    const checklist = buildCP2000EvidenceChecklist({
-      extraction,
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-    });
-    setEvidenceChecklist(checklist);
-    case_ = setCaseAnalysis(case_, {
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-      evidence: checklist.items,
-    });
-    const researchPack = getCP2000ResearchPack();
-    case_ = setCaseResearch(case_, researchPack);
-    const strategy = generateCP2000Strategy({
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-      evidence: checklist.items,
-      hasDeadline: !!extraction.responseDeadline,
-      extractionConfident: extraction.isCP2000,
-    });
-    setCP2000Strategy(strategy);
-    case_ = setCaseStrategy(case_, strategy);
-    setCP2000Case(case_);
-    setCaseId(case_.id);
+      // Extract results from factory stages
+      const extractionStage = pipelineResult.stages.find(s => s.stage === "extract");
+      const discrepancyStage = pipelineResult.stages.find(s => s.stage === "discrepancies");
+      const evidenceStage = pipelineResult.stages.find(s => s.stage === "evidence");
+      const strategyStage = pipelineResult.stages.find(s => s.stage === "strategy");
 
-    const classification = classifyNoticeType(sanitizedText);
-    update((s) => setExtraction(s, {
-      noticeType: classification.type,
-      classificationConfidence: classification.confidence,
-      facts: extraction.facts,
-      deadlines: [],
-      agency: "IRS",
-      referenceNumber: extraction.noticeNumber ?? undefined,
-      noticeDate: extraction.noticeDate ?? undefined,
-      rawText: sanitizedText,
-      extractionConfidence: extraction.classificationConfidence,
-    }));
+      if (!extractionStage?.data) {
+        throw new Error("Factory failed to extract CP2000 notice");
+      }
 
-    transitionState("document_processed", "system");
-    transitionState("classified", "system");
-    transitionState("analyzed", "system");
+      const extraction = extractionStage.data as CP2000Extraction;
+      setCP2000Extraction(extraction);
 
-    llmAnalysis.analyzeWithLLM(null, sanitizedText);
-  }, [update, transitionState, llmAnalysis]);
+      const discrepancies = discrepancyStage?.data as DiscrepancyResult || { discrepancies: [], findings: [] };
+      setDiscrepancyResult(discrepancies);
+
+      const checklist = evidenceStage?.data as EvidenceChecklistResult || { items: [] };
+      setEvidenceChecklist(checklist);
+
+      const strategy = strategyStage?.data as CP2000ResponseStrategy || { position: "unknown" };
+      setCP2000Strategy(strategy);
+
+      // Build case state with factory results
+      let case_ = createCP2000Case(extraction);
+      case_ = setCaseAnalysis(case_, {
+        discrepancies: discrepancies.discrepancies || [],
+        findings: discrepancies.findings || [],
+        evidence: checklist.items || [],
+      });
+      const researchPack = getCP2000ResearchPack();
+      case_ = setCaseResearch(case_, researchPack);
+      case_ = setCaseStrategy(case_, strategy);
+      setCP2000Case(case_);
+      setCaseId(case_.id);
+
+      const classification = classifyNoticeType(sanitizedText);
+      update((s) => setExtraction(s, {
+        noticeType: classification.type,
+        classificationConfidence: classification.confidence,
+        facts: extraction.facts,
+        deadlines: [],
+        agency: "IRS",
+        referenceNumber: extraction.noticeNumber ?? undefined,
+        noticeDate: extraction.noticeDate ?? undefined,
+        rawText: sanitizedText,
+        extractionConfidence: extraction.classificationConfidence,
+      }));
+
+      transitionState("document_processed", "system");
+      transitionState("classified", "system");
+      transitionState("analyzed", "system");
+
+      llmAnalysis.analyzeWithLLM(null, sanitizedText);
+      emitAudit("CP2000_FACTORY_ANALYSIS", { factoryStatus: pipelineResult.status, stagesExecuted: pipelineResult.stages.length });
+    } catch (error) {
+      console.error("Factory analysis failed:", error);
+      setExtractionError(`Failed to analyze document: ${error instanceof Error ? error.message : "Unknown error"}`);
+      transitionState("extraction_failed", "system", error instanceof Error ? error.message : "Unknown error");
+    }
+  }, [update, transitionState, llmAnalysis, emitAudit]);
 
   // ── Draft generation with versioning ──────────────────────
   const handleGenerateDraft = useCallback(() => {

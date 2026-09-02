@@ -74,6 +74,7 @@ import { Route as ApiCasesCaseIdRouteImport } from './routes/api/cases/$caseId'
 import { Route as ApiCasesCp2000RouteImport } from './routes/api/cases/cp2000'
 import { Route as ApiCasesCreateRouteImport } from './routes/api/cases/create'
 import { Route as ApiDocumentsExtractRouteImport } from './routes/api/documents/extract'
+import { Route as WorkflowsWorkflowIdLandingRouteImport } from './routes/workflows/$workflowId/landing'
 import { Route as ApiCasesCaseIdApproveRouteImport } from './routes/api/cases/$caseId/approve'
 import { Route as ApiCasesCaseIdEvidenceRouteImport } from './routes/api/cases/$caseId/evidence'
 
@@ -425,6 +426,12 @@ const ApiDocumentsExtractRoute = ApiDocumentsExtractRouteImport.update({
   path: '/extract',
   getParentRoute: () => ApiDocumentsRoute,
 } as any)
+const WorkflowsWorkflowIdLandingRoute =
+  WorkflowsWorkflowIdLandingRouteImport.update({
+    id: '/workflows/$workflowId/landing',
+    path: '/workflows/$workflowId/landing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCasesCaseIdApproveRoute = ApiCasesCaseIdApproveRouteImport.update({
   id: '/approve',
   path: '/approve',
@@ -501,6 +508,7 @@ export interface FileRoutesByFullPath {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
   '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
@@ -570,6 +578,7 @@ export interface FileRoutesByTo {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
   '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
@@ -640,6 +649,7 @@ export interface FileRoutesById {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
   '/api/cases/$caseId/evidence': typeof ApiCasesCaseIdEvidenceRoute
@@ -711,6 +721,7 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
     | '/api/cases/$caseId/evidence'
@@ -780,6 +791,7 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/workflows/$workflowId/landing'
     | '/api/cases'
     | '/api/cases/$caseId/approve'
     | '/api/cases/$caseId/evidence'
@@ -849,6 +861,7 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
     | '/api/cases/$caseId/evidence'
@@ -918,6 +931,7 @@ export interface RootRouteChildren {
   ApiCasesCaseIdRoute: typeof ApiCasesCaseIdRouteWithChildren
   ApiCasesCp2000Route: typeof ApiCasesCp2000Route
   ApiCasesCreateRoute: typeof ApiCasesCreateRoute
+  WorkflowsWorkflowIdLandingRoute: typeof WorkflowsWorkflowIdLandingRoute
   ApiCasesIndexRoute: typeof ApiCasesIndexRoute
 }
 
@@ -1378,6 +1392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDocumentsExtractRouteImport
       parentRoute: typeof ApiDocumentsRoute
     }
+    '/workflows/$workflowId/landing': {
+      id: '/workflows/$workflowId/landing'
+      path: '/workflows/$workflowId/landing'
+      fullPath: '/workflows/$workflowId/landing'
+      preLoaderRoute: typeof WorkflowsWorkflowIdLandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cases/$caseId/approve': {
       id: '/api/cases/$caseId/approve'
       path: '/approve'
@@ -1488,6 +1509,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCasesCaseIdRoute: ApiCasesCaseIdRouteWithChildren,
   ApiCasesCp2000Route: ApiCasesCp2000Route,
   ApiCasesCreateRoute: ApiCasesCreateRoute,
+  WorkflowsWorkflowIdLandingRoute: WorkflowsWorkflowIdLandingRoute,
   ApiCasesIndexRoute: ApiCasesIndexRoute,
 }
 export const routeTree = rootRouteImport
