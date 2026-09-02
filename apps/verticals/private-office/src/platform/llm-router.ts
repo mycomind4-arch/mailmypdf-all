@@ -2,7 +2,7 @@
  * LLM Provider Router / Orchestrator
  *
  * Responsibilities:
- *   - Choose default provider (Gemini)
+ *   - Choose Claude as the default provider and Gemini as first fallback
  *   - Honor explicit provider configuration
  *   - Enforce allowed providers
  *   - Handle provider availability / fallback
@@ -34,7 +34,7 @@ import type {
   LLMRuntimeConfig,
   FallbackChainEntry,
 } from "./llm-types";
-import { ALL_PROVIDERS } from "./llm-types";
+import { ALL_PROVIDERS, PROVIDER_FALLBACK_ORDER } from "./llm-types";
 import { getLLMConfig } from "./llm-config";
 import type { ProviderConfig } from "./llm-types";
 
@@ -170,7 +170,9 @@ export async function routeLLMRequest(
     config.fallbackEnabled && !options.noFallback;
 
   const fallbackProviders = enableFallback
-    ? configuredProviders.filter((p) => p !== requestedProvider)
+    ? PROVIDER_FALLBACK_ORDER.filter(
+        (provider) => provider !== requestedProvider && configuredProviders.includes(provider),
+      )
     : [];
 
   const providersToTry = [requestedProvider, ...fallbackProviders];

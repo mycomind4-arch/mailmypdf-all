@@ -5,7 +5,8 @@
  * configuration, and structured-output metadata needed for a production-grade
  * multi-provider intelligence layer.
  *
- * Gemini is the default provider, but the domain is provider-neutral.
+ * Claude is the primary provider, Gemini is the first fallback, and the
+ * domain remains provider-neutral.
  */
 
 // ── Provider Identity ───────────────────────────────────────────────────
@@ -18,7 +19,12 @@ export const ALL_PROVIDERS: readonly LLMProviderId[] = [
   "anthropic",
 ] as const;
 
-export const DEFAULT_PROVIDER: LLMProviderId = "gemini";
+export const DEFAULT_PROVIDER: LLMProviderId = "anthropic";
+
+export const PROVIDER_FALLBACK_ORDER: readonly LLMProviderId[] = [
+  "gemini",
+  "openai",
+] as const;
 
 // ── Extended Provenance ──────────────────────────────────────────────────
 
@@ -93,22 +99,22 @@ export const MODE_STRATEGIES: Record<
   }
 > = {
   standard: {
-    providers: ["gemini"],
+    providers: ["anthropic", "gemini"],
     consensus: false,
     fallback: false,
   },
   enhanced: {
-    providers: ["gemini"],
+    providers: ["anthropic", "gemini"],
     consensus: false,
     fallback: true,
   },
   consensus: {
-    providers: ["gemini", "openai"],
+    providers: ["anthropic", "gemini"],
     consensus: true,
     fallback: true,
   },
   "maximum-assurance": {
-    providers: ["gemini", "openai", "anthropic"],
+    providers: ["anthropic", "gemini", "openai"],
     consensus: true,
     fallback: true,
   },

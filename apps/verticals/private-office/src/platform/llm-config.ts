@@ -2,7 +2,7 @@
  * LLM runtime configuration — environment-driven provider setup,
  * intelligence modes, and operation-level cost policies.
  *
- * Gemini is the default provider. Provider selection is configurable
+ * Claude is the primary provider and Gemini is the first fallback. Provider selection is configurable
  * through environment variables without requiring workflow code changes.
  */
 
@@ -31,7 +31,7 @@ export function buildProviderConfigs(): Partial<
 > {
   const configs: Partial<Record<LLMProviderId, ProviderConfig>> = {};
 
-  // Gemini (default)
+  // Gemini (first fallback)
   const geminiKey =
     process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
   if (geminiKey) {
@@ -72,12 +72,13 @@ export function buildLLMConfig(): LLMRuntimeConfig {
   const providers = buildProviderConfigs();
   const configuredProviders = Object.keys(providers) as LLMProviderId[];
 
-  const defaultProvider = (
-    process.env.LLM_PROVIDER as LLMProviderId | undefined
-  ) ?? DEFAULT_PROVIDER;
+  const requestedProvider = process.env.LLM_PROVIDER as LLMProviderId | undefined;
+  const defaultProvider = requestedProvider
+    ?? (providers.anthropic ? "anthropic" : providers.gemini ? "gemini" : DEFAULT_PROVIDER);
 
-  // Validate default provider is configured
-  if (configuredProviders.length > 0 && !providers[defaultProvider]) {
+  // An explicit override must be configured. Without one, a Gemini-only
+  // environment can operate as the documented fallback-only mode.
+  if (requestedProvider && configuredProviders.length > 0 && !providers[defaultProvider]) {
     throw new Error(
       `Default LLM provider "${defaultProvider}" is not configured. ` +
         `Configured providers: ${configuredProviders.join(", ")}`,
