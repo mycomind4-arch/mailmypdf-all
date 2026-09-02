@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { propagateSSOSession } from "./sso-propagate";
 
 /* ═══════════════════════════════════════════════════════════
    MailMyPDF Account — Authentication Context
@@ -9,6 +10,10 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
    across all MailMyPDF products.
 
    Uses Supabase Auth as the identity provider.
+
+   Config is fetched from /api/auth/config at runtime so that
+   Cloudflare Pages secrets (runtime-only) work without needing
+   build-time environment variables.
    ═══════════════════════════════════════════════════════════ */
 
 export interface MailMyPDFUser {
@@ -60,13 +65,43 @@ interface SupabaseAuthUser {
   user_metadata?: { full_name?: string; role?: string; is_admin?: boolean };
 }
 
+/* ── Runtime config cache ── */
+let cachedConfig: { url: string; anonKey: string } | null | undefined;
+
+async function fetchSupabaseConfig(): Promise<{ url: string; anonKey: string } | null> {
+  if (cachedConfig !== undefined) return cachedConfig;
+
+  // Try import.meta.env first (works in dev and if build-time vars are set)
+  const envUrl = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL;
+  const envKey = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY;
+  if (envUrl && envKey) {
+    cachedConfig = { url: envUrl, anonKey: envKey };
+    return cachedConfig;
+  }
+
+  // Fall back to runtime config endpoint (works with Cloudflare Pages secrets)
+  try {
+    const res = await fetch("/api/auth/config");
+    if (!res.ok) { cachedConfig = null; return null; }
+    const data = await res.json() as { configured: boolean; url: string | null; anonKey: string | null };
+    if (data.configured && data.url && data.anonKey) {
+      cachedConfig = { url: data.url, anonKey: data.anonKey };
+      return cachedConfig;
+    }
+  } catch {
+    // network or parse error
+  }
+
+  cachedConfig = null;
+  return null;
+}
+
 async function loadSupabase(): Promise<SupabaseClient | null> {
-  const url = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL;
-  const anonKey = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
+  const config = await fetchSupabaseConfig();
+  if (!config) return null;
   try {
     const { createClient } = await import("@supabase/supabase-js");
-    return createClient(url, anonKey) as SupabaseClient;
+    return createClient(config.url, config.anonKey) as SupabaseClient;
   } catch {
     return null;
   }
@@ -101,7 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }).catch(() => setLoading(false));
 
-      const { data } = client.auth.onAuthStateChange((_event, session) => {
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (session && event === "SIGNED_IN" && session.access_token && session.refresh_token) {
+          propagateSSOSession(session.access_token, session.refresh_token, session.expires_in ?? 3600);
+        }
         if (session?.user) setUser(mapUser(session.user));
         else setUser(null);
         setLoading(false);
