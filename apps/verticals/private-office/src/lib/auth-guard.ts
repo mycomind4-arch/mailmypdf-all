@@ -1,4 +1,5 @@
 import { createClient, type User } from "@supabase/supabase-js";
+import { requireWorkflowBuildAdmin } from "./workflow-build-admin";
 
 export class PrivateOfficeAuthError extends Error {
   constructor(
@@ -38,6 +39,20 @@ export async function requireAuthenticatedUser(request: Request): Promise<User> 
     throw new PrivateOfficeAuthError(401, "Invalid or expired authentication token.", "AUTH_INVALID");
 
   return data.user;
+}
+
+export async function requireWorkflowBuildAdministrator(request: Request): Promise<User> {
+  const user = await requireAuthenticatedUser(request);
+  try {
+    requireWorkflowBuildAdmin(user);
+  } catch {
+    throw new PrivateOfficeAuthError(
+      403,
+      "Workflow Builder administrator access is required.",
+      "WORKFLOW_BUILD_ADMIN_REQUIRED",
+    );
+  }
+  return user;
 }
 
 export function authErrorResponse(error: unknown): Response {
