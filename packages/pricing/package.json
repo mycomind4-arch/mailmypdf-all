@@ -1,6 +1,6 @@
 {
   "name": "@mailmypdf/pricing",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "private": false,
   "type": "module",
   "main": "./src/index.ts",
