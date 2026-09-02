@@ -208,3 +208,163 @@ export const submitOrderToLobFn = createServerFn({ method: "POST" })
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
   });
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* ENTITLEMENTS MANAGEMENT                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Search for users by email or name.
+ */
+export const searchUsers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ query: z.string().min(2) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: users } = await supabaseAdmin
+      .from("auth.users")
+      .select("id, email")
+      .ilike("email", `%${data.query}%`)
+      .limit(10);
+
+    if (!users) return [];
+
+    // Enrich with profile data
+    const { data: profiles } = await supabaseAdmin
+      .from("user_profiles")
+      .select("id, full_name")
+      .in("id", users.map((u) => u.id));
+
+    return users.map((user) => {
+      const profile = profiles?.find((p) => p.id === user.id);
+      return {
+        type: "user" as const,
+        id: user.id,
+        name: profile?.full_name || user.email,
+        email: user.email,
+      };
+    });
+  });
+
+/**
+ * Search for organizations by name or slug.
+ */
+export const searchOrganizations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ query: z.string().min(2) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: orgs } = await supabaseAdmin
+      .from("organizations")
+      .select("id, name, slug")
+      .or(
+        `name.ilike.%${data.query}%,slug.ilike.%${data.query}%`
+      )
+      .limit(10);
+
+    if (!orgs) return [];
+
+    // Get member counts
+    const { data: members } = await supabaseAdmin
+      .from("organization_members")
+      .select("organization_id")
+      .in("organization_id", orgs.map((o) => o.id));
+
+    return orgs.map((org) => {
+      const memberCount = members?.filter((m) => m.organization_id === org.id).length || 0;
+      return {
+        type: "organization" as const,
+        id: org.id,
+        name: org.name,
+        memberCount,
+      };
+    });
+  });
+
+/**
+ * Get all entitlements for a user or organization.
+ */
+export const getEntitlements = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    type: z.enum(["user", "organization"]),
+    id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const whereClause = data.type === "user"
+      ? { user_id: data.id }
+      : { organization_id: data.id };
+
+    const { data: assignments } = await supabaseAdmin
+      .from("entitlement_assignments")
+      .select("*, entitlement_policies(slug, name), pricing_profiles(name)")
+      .match(whereClause)
+      .order("assigned_at", { ascending: false });
+
+    if (!assignments) return [];
+
+    return assignments.map((a) => ({
+      id: a.id,
+      policySlug: a.entitlement_policies?.slug,
+      policyName: a.entitlement_policies?.name,
+      profileName: a.pricing_profiles?.name,
+      status: a.status,
+      expiresAt: a.expires_at,
+      assignedBy: a.assigned_by,
+      assignedAt: a.assigned_at,
+    }));
+  });
+
+/**
+ * Get audit trail for a user or organization.
+ */
+export const getAuditLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    type: z.enum(["user", "organization"]),
+    id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const whereClause = data.type === "user"
+      ? { user_id: data.id }
+      : { organization_id: data.id };
+
+    const { data: logs } = await supabaseAdmin
+      .from("entitlements_audit_log")
+      .select("*")
+      .match(whereClause)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!logs) return [];
+
+    // Enrich with actor email
+    const actorIds = [...new Set(logs.map((l) => l.actor_user_id))];
+    const { data: actors } = await supabaseAdmin
+      .from("auth.users")
+      .select("id, email")
+      .in("id", actorIds);
+
+    return logs.map((log) => {
+      const actor = actors?.find((a) => a.id === log.actor_user_id);
+      return {
+        id: log.id,
+        action: log.action,
+        resourceType: log.resource_type,
+        resourceId: log.resource_id,
+        actorEmail: actor?.email || "Unknown",
+        newValues: log.new_values,
+        createdAt: log.created_at,
+      };
+    });
+  });
