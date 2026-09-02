@@ -1,0 +1,4 @@
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import { useAuth } from '../lib/auth'
+export const Route=createFileRoute('/dashboard')({component:Dashboard})
+function Dashboard(){const{user,loading}=useAuth();if(!loading&&!user)throw redirect({to:'/auth',search:{returnTo:'/dashboard'}});return <main className="shell"><div className="page-head"><div><div className="eyebrow">PRIVATE WORKSPACE</div><h1>Your Code Enforcement workspace</h1><p className="muted lead">Authenticated case work belongs here. Select a workflow from the public catalog to create a workflow-specific case.</p></div><Link className="btn" to="/workflows">Browse workflows</Link></div><div className="card"><h2>Signed-in account</h2><p className="muted">{user?.email??'Loading…'}</p><p className="muted">No generic workflow start is used by the migrated application.</p></div></main>}
