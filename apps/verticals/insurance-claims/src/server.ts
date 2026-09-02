@@ -1,0 +1,1 @@
+type ServerEntry={fetch:(request:Request,env:unknown,ctx:unknown)=>Promise<Response>|Response};let entry:Promise<ServerEntry>|undefined;async function get(){return entry??=(import('@tanstack/react-start/server-entry').then((m:any)=>(m.default??m) as ServerEntry))}export default{async fetch(request:Request,env:unknown,ctx:unknown){return (await get()).fetch(request,env,ctx)}}
