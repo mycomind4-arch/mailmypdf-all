@@ -48,7 +48,11 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
             {workflow.requiresReview && <span style={{fontSize:12,color:'#94a3b8'}}>Human review required</span>}
           </div>
           <h1 style={{fontSize:'clamp(36px,6vw,64px)',lineHeight:1.05,fontWeight:800,letterSpacing:'-.02em',margin:'0 0 20px',maxWidth:900}}>{workflow.name}</h1>
-          <p style={{fontSize:'clamp(18px,2.5vw,22px)',lineHeight:1.6,color:'#94a3b8',maxWidth:760,margin:'0 0 32px'}}>{workflow.description}</p>
+          <p style={{fontSize:'clamp(18px,2.5vw,22px)',lineHeight:1.6,color:'#94a3b8',maxWidth:760,margin:'0 0 28px'}}>{workflow.description}</p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:28}}>
+            <Link href={`/workflows/${workflow.id}/start`} style={{display:'inline-flex',alignItems:'center',padding:'0.85rem 1.35rem',borderRadius:'0.55rem',background:'#a78bfa',color:'#111827',fontWeight:700,textDecoration:'none'}}>Start this workflow →</Link>
+            <Link href="/workflows" style={{display:'inline-flex',alignItems:'center',padding:'0.85rem 1.35rem',borderRadius:'0.55rem',border:'1px solid rgba(255,255,255,.12)',color:'#e2e8f0',fontWeight:600,textDecoration:'none'}}>Browse workflows</Link>
+          </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14,maxWidth:680}}>
             <div className="stat-card"><div className="muted" style={{fontSize:12}}>Monthly searches</div><div style={{fontSize:24,fontWeight:700,marginTop:4}}>{workflow.monthlySearches.toLocaleString()}</div></div>
             <div className="stat-card"><div className="muted" style={{fontSize:12}}>CPC</div><div style={{fontSize:24,fontWeight:700,marginTop:4}}>${workflow.cpc.toFixed(2)}</div></div>
@@ -138,13 +142,14 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
 
       <section className="section-tight" style={{borderTop:'1px solid rgba(255,255,255,.08)'}}>
         <div className="container">
-          <div className="card" style={{padding:28,borderColor:'rgba(251,191,36,.2)',background:'rgba(251,191,36,.03)'}}>
-            <strong style={{color:'#fcd34d'}}>Execution status:</strong>
-            <span className="muted"> This vertical is still being implemented. The directory and search-intent page are live, but the interactive workflow is not yet presented as production-ready.</span>
+          <div className="card" style={{padding:28,borderColor:'rgba(167,139,250,.25)',background:'rgba(167,139,250,.05)',textAlign:'center'}}>
+            <strong style={{color:'#c4b5fd'}}>Ready to start?</strong>
+            <p className="muted" style={{margin:'8px auto 18px',maxWidth:620}}>Open the workflow-specific intake. Authentication must be completed before private case work begins.</p>
+            <Link href={`/workflows/${workflow.id}/start`} style={{display:'inline-flex',alignItems:'center',padding:'0.85rem 1.35rem',borderRadius:'0.55rem',background:'#a78bfa',color:'#111827',fontWeight:700,textDecoration:'none'}}>Start {workflow.name} →</Link>
           </div>
         </div>
       </section>
 
-      </main>
+    </main>
   )
 }
