@@ -34,6 +34,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { AuthenticatedSidebar } from "@/components/authenticated-sidebar";
 import {
   getWorkflowHubData,
   searchWorkflows,
@@ -110,7 +111,16 @@ function WorkflowHub() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-paper flex">
+      {/* Sidebar */}
+      <AuthenticatedSidebar
+        user={user}
+        userRole="member"
+        organizationName="MailMyPDF"
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
@@ -262,6 +272,7 @@ function WorkflowHub() {
           )}
         </div>
       </main>
+      </div>
     </div>
   );
 }

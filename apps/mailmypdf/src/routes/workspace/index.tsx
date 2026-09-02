@@ -17,6 +17,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Plus, Mail, FileText, Clock, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { AuthenticatedSidebar } from "@/components/authenticated-sidebar";
 import { getUserEntitlementDetails } from "@/lib/entitlements.functions";
 import { getUserRecentActivity } from "@/lib/activity.functions";
 
@@ -49,7 +50,16 @@ function WorkspaceDashboard() {
   const greeting = getGreeting();
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-paper flex">
+      {/* Sidebar */}
+      <AuthenticatedSidebar
+        user={user}
+        userRole="member"
+        organizationName="MailMyPDF"
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
       {/* Header */}
       <header className="border-b border-rule/60 bg-paper sticky top-0 z-40">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
@@ -173,6 +183,7 @@ function WorkspaceDashboard() {
           </section>
         </div>
       </main>
+      </div>
     </div>
   );
 }
