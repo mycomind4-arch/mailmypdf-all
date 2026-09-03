@@ -2,6 +2,14 @@
  * Admin Dashboard
  *
  * Shows authenticated admin interface with agent controls
+ *
+ * MailMyPDF Small Business Design System:
+ * - paper: #f7f2e8 (background)
+ * - card: #fcfaf5 (card background)
+ * - ink: #273449 (text)
+ * - ink-soft: #697386 (secondary text)
+ * - stamp: #b14d42 (accent/buttons)
+ * - rule: #ddd4c5 (borders)
  */
 
 import { useEffect, useState } from "react";
@@ -177,55 +185,55 @@ function AdminDashboardComponent() {
 
   if (!admin) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-paper">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-stamp mx-auto mb-4" />
+          <p className="text-ink-soft">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-card border-b border-rule sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Zap className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-stamp/10 rounded-lg">
+              <Zap className="w-6 h-6 text-stamp" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">MailMyPDF Admin</h1>
-              <p className="text-xs text-gray-500">AI-Powered Platform Management</p>
+              <h1 className="text-2xl font-serif font-bold text-ink">MailMyPDF Admin</h1>
+              <p className="text-xs text-ink-soft">AI-Powered Platform Management</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">{admin.email}</p>
-              <p className="text-xs text-green-600">✓ Authenticated</p>
+              <p className="text-sm font-medium text-ink">{admin.email}</p>
+              <p className="text-xs text-stamp">✓ Authenticated</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-paper rounded-lg transition"
               title="Logout"
             >
-              <LogOut className="w-5 h-5 text-gray-600" />
+              <LogOut className="w-5 h-5 text-ink-soft hover:text-stamp transition" />
             </button>
           </div>
         </div>
       </header>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-card border-b border-rule">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab("dashboard")}
             className={`px-4 py-3 font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === "dashboard"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+                ? "border-stamp text-stamp"
+                : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
             Dashboard
@@ -234,8 +242,8 @@ function AdminDashboardComponent() {
             onClick={() => setActiveTab("entitlements")}
             className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === "entitlements"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+                ? "border-stamp text-stamp"
+                : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
             <Users className="w-4 h-4" />
@@ -245,8 +253,8 @@ function AdminDashboardComponent() {
             onClick={() => setActiveTab("analytics")}
             className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === "analytics"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+                ? "border-stamp text-stamp"
+                : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -256,8 +264,8 @@ function AdminDashboardComponent() {
             onClick={() => setActiveTab("audit")}
             className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === "audit"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+                ? "border-stamp text-stamp"
+                : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
             <Activity className="w-4 h-4" />
@@ -267,8 +275,8 @@ function AdminDashboardComponent() {
             onClick={() => setActiveTab("settings")}
             className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === "settings"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+                ? "border-stamp text-stamp"
+                : "border-transparent text-ink-soft hover:text-ink"
             }`}
           >
             <Key className="w-4 h-4" />
@@ -281,50 +289,50 @@ function AdminDashboardComponent() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "entitlements" ? (
           // Entitlements Tab
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-card rounded-lg shadow overflow-hidden">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-ink mb-4 flex items-center gap-2">
                 <Users className="w-6 h-6" />
                 User Entitlements
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-paper border-b border-rule">
                     <tr>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Email</th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Plan</th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Status</th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Quota</th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Used</th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">Actions</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Email</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Plan</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Status</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Quota</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Used</th>
+                      <th className="px-6 py-3 text-left font-medium text-ink">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {entitlements.map((row) => (
-                      <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900">{row.email}</td>
-                        <td className="px-6 py-4 text-gray-900">{row.plan}</td>
+                      <tr key={row.id} className="border-b border-rule hover:bg-paper">
+                        <td className="px-6 py-4 text-ink">{row.email}</td>
+                        <td className="px-6 py-4 text-ink">{row.plan}</td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             row.status === "active" ? "bg-green-100 text-green-800" :
                             row.status === "suspended" ? "bg-red-100 text-red-800" :
-                            "bg-gray-100 text-gray-800"
+                            "bg-paper text-gray-800"
                           }`}>
                             {row.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-gray-900">{row.quota} GB</td>
+                        <td className="px-6 py-4 text-ink">{row.quota} GB</td>
                         <td className="px-6 py-4">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-paper rounded-full h-2">
                             <div
-                              className="bg-blue-600 h-2 rounded-full"
+                              className="bg-stamp h-2 rounded-full"
                               style={{ width: `${(row.used / row.quota) * 100}%` }}
                             />
                           </div>
-                          <span className="text-xs text-gray-600">{row.used} GB</span>
+                          <span className="text-xs text-ink-soft">{row.used} GB</span>
                         </td>
                         <td className="px-6 py-4">
-                          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <button className="text-stamp hover:text-blue-800 text-sm font-medium">
                             Edit
                           </button>
                         </td>
@@ -339,31 +347,31 @@ function AdminDashboardComponent() {
           // Analytics Tab
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-card rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Total Users</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">1,234</p>
+                    <p className="text-sm text-ink-soft">Total Users</p>
+                    <p className="text-3xl font-bold text-ink mt-1">1,234</p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-green-600" />
                 </div>
                 <p className="text-xs text-green-600 mt-2">+12% from last month</p>
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-card rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Storage Used</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">2.8 TB</p>
+                    <p className="text-sm text-ink-soft">Storage Used</p>
+                    <p className="text-3xl font-bold text-ink mt-1">2.8 TB</p>
                   </div>
-                  <BarChart3 className="w-8 h-8 text-blue-600" />
+                  <BarChart3 className="w-8 h-8 text-stamp" />
                 </div>
-                <p className="text-xs text-gray-600 mt-2">Of 10 TB available</p>
+                <p className="text-xs text-ink-soft mt-2">Of 10 TB available</p>
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-card rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Revenue</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">$42.5K</p>
+                    <p className="text-sm text-ink-soft">Revenue</p>
+                    <p className="text-3xl font-bold text-ink mt-1">$42.5K</p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-amber-600" />
                 </div>
@@ -371,23 +379,23 @@ function AdminDashboardComponent() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Usage Trends</h3>
-              <div className="h-64 bg-gray-50 rounded flex items-center justify-center text-gray-500">
+            <div className="bg-card rounded-lg shadow p-6">
+              <h3 className="text-lg font-bold text-ink mb-4">Usage Trends</h3>
+              <div className="h-64 bg-paper rounded flex items-center justify-center text-ink-soft">
                 [Chart Placeholder - Add Recharts integration here]
               </div>
             </div>
           </div>
         ) : activeTab === "audit" ? (
           // Audit Log Tab
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5" />
               Audit Trail
             </h2>
             <div className="space-y-3">
               {auditLogs.map((log) => (
-                <div key={log.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                <div key={log.id} className="border border-rule rounded-lg p-4 hover:bg-paper">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -398,11 +406,11 @@ function AdminDashboardComponent() {
                         }`}>
                           {log.action}
                         </span>
-                        <span className="text-sm font-medium text-gray-900">{log.resource}</span>
-                        <span className="text-xs text-gray-500">{log.timestamp}</span>
+                        <span className="text-sm font-medium text-ink">{log.resource}</span>
+                        <span className="text-xs text-ink-soft">{log.timestamp}</span>
                       </div>
-                      <p className="text-sm text-gray-600">{log.details}</p>
-                      <p className="text-xs text-gray-500 mt-1">By: {log.user}</p>
+                      <p className="text-sm text-ink-soft">{log.details}</p>
+                      <p className="text-xs text-ink-soft mt-1">By: {log.user}</p>
                     </div>
                   </div>
                 </div>
@@ -411,21 +419,21 @@ function AdminDashboardComponent() {
           </div>
         ) : activeTab === "settings" ? (
           // Settings Tab - LLM Secrets Management
-          <div className="bg-white rounded-lg shadow p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+          <div className="bg-card rounded-lg shadow p-8">
+            <h2 className="text-2xl font-bold text-ink mb-2 flex items-center gap-2">
               <Key className="w-6 h-6" />
               LLM API Keys & Secrets
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-ink-soft mb-6">
               Manage API keys for LLM services used throughout the platform and workflows.
               These are stored securely and encrypted.
             </p>
 
             <div className="space-y-6">
               {/* OpenAI API Key */}
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border border-rule rounded-lg p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-gray-900">OpenAI API Key</label>
+                  <label className="text-sm font-medium text-ink">OpenAI API Key</label>
                   {savedKeys.includes("openai_api_key") && (
                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                       ✓ Configured
@@ -444,31 +452,31 @@ function AdminDashboardComponent() {
                   />
                   <button
                     onClick={() => toggleSecretVisibility("openai_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                   >
                     {visibleSecrets.openai_api_key ? (
-                      <EyeOff className="w-4 h-4 text-gray-600" />
+                      <EyeOff className="w-4 h-4 text-ink-soft" />
                     ) : (
-                      <Eye className="w-4 h-4 text-gray-600" />
+                      <Eye className="w-4 h-4 text-ink-soft" />
                     )}
                   </button>
                   <button
                     onClick={() => copyToClipboard("openai_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                     title="Copy to clipboard"
                   >
-                    <Copy className="w-4 h-4 text-gray-600" />
+                    <Copy className="w-4 h-4 text-ink-soft" />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-ink-soft mt-2">
                   Used for: GPT-4, Chat completions, Embeddings
                 </p>
               </div>
 
               {/* Anthropic API Key */}
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border border-rule rounded-lg p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-gray-900">
+                  <label className="text-sm font-medium text-ink">
                     Anthropic API Key (Claude)
                   </label>
                   {savedKeys.includes("anthropic_api_key") && (
@@ -489,31 +497,31 @@ function AdminDashboardComponent() {
                   />
                   <button
                     onClick={() => toggleSecretVisibility("anthropic_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                   >
                     {visibleSecrets.anthropic_api_key ? (
-                      <EyeOff className="w-4 h-4 text-gray-600" />
+                      <EyeOff className="w-4 h-4 text-ink-soft" />
                     ) : (
-                      <Eye className="w-4 h-4 text-gray-600" />
+                      <Eye className="w-4 h-4 text-ink-soft" />
                     )}
                   </button>
                   <button
                     onClick={() => copyToClipboard("anthropic_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                     title="Copy to clipboard"
                   >
-                    <Copy className="w-4 h-4 text-gray-600" />
+                    <Copy className="w-4 h-4 text-ink-soft" />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-ink-soft mt-2">
                   Used for: Claude AI agent, Advanced reasoning, Autonomous workflows
                 </p>
               </div>
 
               {/* Replicate API Key */}
-              <div className="border border-gray-200 rounded-lg p-6">
+              <div className="border border-rule rounded-lg p-6">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-gray-900">
+                  <label className="text-sm font-medium text-ink">
                     Replicate API Key
                   </label>
                   {savedKeys.includes("replicate_api_key") && (
@@ -534,37 +542,37 @@ function AdminDashboardComponent() {
                   />
                   <button
                     onClick={() => toggleSecretVisibility("replicate_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                   >
                     {visibleSecrets.replicate_api_key ? (
-                      <EyeOff className="w-4 h-4 text-gray-600" />
+                      <EyeOff className="w-4 h-4 text-ink-soft" />
                     ) : (
-                      <Eye className="w-4 h-4 text-gray-600" />
+                      <Eye className="w-4 h-4 text-ink-soft" />
                     )}
                   </button>
                   <button
                     onClick={() => copyToClipboard("replicate_api_key")}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    className="p-2 hover:bg-paper rounded-lg transition"
                     title="Copy to clipboard"
                   >
-                    <Copy className="w-4 h-4 text-gray-600" />
+                    <Copy className="w-4 h-4 text-ink-soft" />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-ink-soft mt-2">
                   Used for: Image generation, ML models, Workflow automation
                 </p>
               </div>
 
               {/* Save Button */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <div className="flex gap-3 pt-4 border-t border-rule">
                 <button
                   onClick={handleSaveSecrets}
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                  className="inline-flex items-center gap-2 px-6 py-2 bg-stamp text-white rounded-lg hover:bg-stamp hover:brightness-110 transition font-medium"
                 >
                   <Save className="w-4 h-4" />
                   Save Secrets
                 </button>
-                <p className="text-xs text-gray-500 self-center">
+                <p className="text-xs text-ink-soft self-center">
                   ⚠️ Secrets are encrypted before storage. Never share API keys.
                 </p>
               </div>
@@ -575,35 +583,35 @@ function AdminDashboardComponent() {
             {/* Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           {/* Agent Status */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Agent Status</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">Online</p>
+                <p className="text-sm text-ink-soft">Agent Status</p>
+                <p className="text-2xl font-bold text-ink mt-1">Online</p>
               </div>
               <CheckCircle2 className="w-8 h-8 text-green-600" />
             </div>
           </div>
 
           {/* Active Tasks */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Tasks</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-sm text-ink-soft">Active Tasks</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {agentStatus?.taskCount || 0}
                 </p>
               </div>
-              <Clock className="w-8 h-8 text-blue-600" />
+              <Clock className="w-8 h-8 text-stamp" />
             </div>
           </div>
 
           {/* Pending Approvals */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending Approvals</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-sm text-ink-soft">Pending Approvals</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {agentStatus?.pendingApprovals || 0}
                 </p>
               </div>
@@ -612,11 +620,11 @@ function AdminDashboardComponent() {
           </div>
 
           {/* Autonomous Mode */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Autonomy Level</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">20%</p>
+                <p className="text-sm text-ink-soft">Autonomy Level</p>
+                <p className="text-2xl font-bold text-ink mt-1">20%</p>
               </div>
               <Zap className="w-8 h-8 text-orange-600" />
             </div>
@@ -625,22 +633,22 @@ function AdminDashboardComponent() {
 
         {/* Agent Capabilities */}
         {agentStatus && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-lg shadow p-6 mb-8">
+            <h2 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
               <Settings className="w-5 h-5" />
               Agent Capabilities
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="font-medium text-gray-900 mb-3">Enabled Features</h3>
+                <h3 className="font-medium text-ink mb-3">Enabled Features</h3>
                 <ul className="space-y-2">
                   {Object.entries(agentStatus.capabilities).map(
                     ([key, enabled]: [string, any]) =>
                       enabled && (
                         <li key={key} className="flex items-center gap-2 text-sm">
                           <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          <span className="text-gray-700">
+                          <span className="text-ink">
                             {key.replace(/([A-Z])/g, " $1").trim()}
                           </span>
                         </li>
@@ -650,7 +658,7 @@ function AdminDashboardComponent() {
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-900 mb-3">Permissions</h3>
+                <h3 className="font-medium text-ink mb-3">Permissions</h3>
                 <ul className="space-y-2">
                   {Object.entries(agentStatus.permissions).map(
                     ([key, value]: [string, any]) => (
@@ -660,7 +668,7 @@ function AdminDashboardComponent() {
                         ) : (
                           <AlertCircle className="w-4 h-4 text-red-600" />
                         )}
-                        <span className={value ? "text-gray-700" : "text-gray-500"}>
+                        <span className={value ? "text-ink" : "text-ink-soft"}>
                           {key.replace(/([A-Z])/g, " $1").trim()}
                         </span>
                       </li>
@@ -673,7 +681,7 @@ function AdminDashboardComponent() {
         )}
 
             {/* Chat Agent */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-card rounded-lg shadow overflow-hidden">
               <AdminChatAgent />
             </div>
           </>
