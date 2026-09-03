@@ -75,7 +75,7 @@ function hasCompletedReview(state: WorkflowState): boolean {
 
 export function canAdvance(state: WorkflowState, definition: MasterWorkflowDefinition): boolean {
   switch (state.phase) {
-    case "document": return true;
+    case "document": return state.extraction !== null;
     case "extraction": return state.extraction !== null;
     case "facts": return state.userFacts.trim().length > 0;
     case "objective": return state.userObjective.trim().length > 0;

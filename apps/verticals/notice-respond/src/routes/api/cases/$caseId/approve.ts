@@ -16,8 +16,12 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
-import { hashDraft, hashRecipient, sha256 } from "@/platform/fulfillment-adapter";
 import type { MailingRecipient } from "@mailmypdf/mailing-client";
+
+// NOTE: fulfillment-adapter.server pulls in node:crypto. routeTree.gen.ts
+// statically imports every route file, including this one, so a top-level
+// import here would leak node:crypto into the client bundle and crash the app.
+// The handler body only ever runs on the server, so load it lazily there.
 
 export const Route = createFileRoute("/api/cases/$caseId/approve")({
   server: {
@@ -58,6 +62,9 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
           }
 
           // ── Compute approval hashes ──────────────────────────
+          const { hashDraft, hashRecipient, sha256 } = await import(
+            "@/platform/fulfillment-adapter.server"
+          );
           const draftHash = hashDraft(body.draftContent);
           const recipientHash = hashRecipient(body.recipient);
 

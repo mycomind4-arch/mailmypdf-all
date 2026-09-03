@@ -73,22 +73,30 @@ export function createCP2000DomainPack(): DomainPack {
       try {
         const doc = (input.documents?.[0] as any);
         const text = doc?.rawText || "";
-        const type = classifyNoticeType(text);
+        // classifyNoticeType returns { type, confidence, ... }, and its CP2000
+        // discriminant is the NoticeType literal "irs_cp2000".
+        const classification = classifyNoticeType(text);
 
-        if (type !== "CP2000") {
+        if (classification.type !== "irs_cp2000") {
           return {
             stage: "classification",
             status: "warning",
-            data: { detectedType: type, isCP2000: false },
-            messages: [`Detected as ${type}, not CP2000`],
+            data: { detectedType: classification.type, isCP2000: false },
+            messages: [`Detected as ${classification.type}, not CP2000`],
           };
         }
 
         return {
           stage: "classification",
           status: "passed",
-          data: { detectedType: "CP2000", isCP2000: true },
-          messages: ["Identified as CP2000 notice"],
+          data: {
+            detectedType: classification.type,
+            isCP2000: true,
+            confidence: classification.confidence,
+          },
+          messages: [
+            `Identified as CP2000 notice (${(classification.confidence * 100).toFixed(0)}% confidence)`,
+          ],
         };
       } catch (error) {
         return {

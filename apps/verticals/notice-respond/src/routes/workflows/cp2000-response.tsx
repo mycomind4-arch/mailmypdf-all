@@ -41,7 +41,6 @@ import {
   type WorkflowState as CaseWorkflowState, canTransition, transition,
   STATE_METADATA, AUDIT_EVENTS, createAuditEvent, type AuditEventV2,
 } from "@/domain/cp2000-state-machine";
-import { hashDraft } from "@/platform/fulfillment-adapter";
 
 export const Route = createFileRoute("/workflows/cp2000-response")({
   head: () => createWorkflowHead("cp2000-response"),
@@ -319,8 +318,8 @@ function CP2000Response() {
       );
 
       // Extract results from factory stages
-      const extractionStage = pipelineResult.stages.find(s => s.stage === "extract");
-      const discrepancyStage = pipelineResult.stages.find(s => s.stage === "discrepancies");
+      const extractionStage = pipelineResult.stages.find(s => s.stage === "extraction");
+      const discrepancyStage = pipelineResult.stages.find(s => s.stage === "discrepancy");
       const evidenceStage = pipelineResult.stages.find(s => s.stage === "evidence");
       const strategyStage = pipelineResult.stages.find(s => s.stage === "strategy");
 
@@ -366,6 +365,7 @@ function CP2000Response() {
         extractionConfidence: extraction.classificationConfidence,
       }));
 
+      // Follow the state machine sequence: uploaded → processed → classified → analyzed
       transitionState("document_processed", "system");
       transitionState("classified", "system");
       transitionState("analyzed", "system");

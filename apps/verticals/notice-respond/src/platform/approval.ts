@@ -1,12 +1,7 @@
 /**
  * Notice Respond approval compatibility shim.
- * Canonical hashing/integrity helpers live in @mailmypdf/payment-fulfillment.
+ *
+ * This file previously re-exported types from @mailmypdf/payment-fulfillment,
+ * but they are now imported directly from @mailmypdf/mailing-client to avoid
+ * bundling the payment-fulfillment module on the client side.
  */
-export {
-  sha256,
-  hashDraft,
-  hashRecipient,
-  verifyIntegrity,
-  type MailingIntent,
-  type MailingRecipient,
-} from "@mailmypdf/payment-fulfillment";

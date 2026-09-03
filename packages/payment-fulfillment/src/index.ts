@@ -15,6 +15,10 @@
  * This package provides the types, the fulfillment engine, and the Stripe
  * webhook handler factory. Verticals supply their own MailingIntentStore
  * and MailMyPDF client adapter.
+ *
+ * SERVER ONLY. This module imports node:crypto and must never be pulled into a
+ * client bundle. Import it from `.server.ts` files or server route handlers.
+ * Client code that needs a content hash should use @noble/hashes instead.
  */
 
 import { createHash } from "node:crypto";

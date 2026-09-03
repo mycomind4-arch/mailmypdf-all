@@ -5,7 +5,21 @@
  * Approval binds to the exact draft content via SHA-256 hash.
  */
 
-import { sha256 } from "@/platform/fulfillment-adapter";
+import { sha256 as nobleSha256 } from "@noble/hashes/sha256";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
+
+/**
+ * SHA-256 of the draft content, hex encoded.
+ *
+ * Must stay byte-identical to the server's node:crypto SHA-256 in
+ * @mailmypdf/payment-fulfillment — approval binds the draft to this hash, and
+ * the server re-verifies it before mailing. @noble/hashes is used here because
+ * it is synchronous and isomorphic; node:crypto cannot be bundled for the
+ * browser and WebCrypto's digest() is async.
+ */
+function sha256(text: string): string {
+  return bytesToHex(nobleSha256(utf8ToBytes(text)));
+}
 
 export interface DraftVersion {
   id: string;

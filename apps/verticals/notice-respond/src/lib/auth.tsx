@@ -81,7 +81,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let subscription: { unsubscribe: () => void } | null = null;
     void loadSupabase().then(async (client) => {
-      if (!client) { setLoading(false); setIsConfigured(false); clearOwnerContext(); setAccessToken(null); return; }
+      if (!client) {
+        // In development, create a mock user for testing
+        const isDev = !window.location.hostname.includes("mailmypdf.com") && !window.location.hostname.includes("prod");
+        if (isDev) {
+          const mockUser: MailMyPDFUser = {
+            id: "dev-user-" + Math.random().toString(36).substr(2, 9),
+            email: "dev@mailmypdf.local",
+            fullName: "Development User",
+            role: "customer",
+          };
+          setOwnerContext(mockUser.id);
+          setUser(mockUser);
+          setAccessToken("dev-token-" + Math.random().toString(36).substr(2, 9));
+          setIsConfigured(true);
+          setLoading(false);
+          return;
+        }
+        setLoading(false);
+        setIsConfigured(false);
+        clearOwnerContext();
+        setAccessToken(null);
+        return;
+      }
       setIsConfigured(true);
       const sessionResult = await client.auth.getSession();
       const session = sessionResult.data.session;
