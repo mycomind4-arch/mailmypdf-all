@@ -23,31 +23,37 @@ async function withAuthTimeout<T>(operation: Promise<T>): Promise<T> {
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s.redirect === "string" ? s.redirect : typeof (s as any).returnTo === "string" ? (s as any).returnTo : "/dashboard" }),
-  head: () => ({ meta: [{ title: "Sign in — MailMyPDF" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "MailMyPDF Account — Sign in" }, { name: "robots", content: "noindex,nofollow" }] }),
   component: AuthPage,
 });
 
-type Tab = "signin" | "signup" | "reset";
+type Mode = "signin" | "signup" | "magic" | "reset";
 
 function AuthPage() {
   const { redirect } = useSearch({ from: "/auth" });
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("signin");
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(true);
 
-  useEffect(() => { void ensureSupabase(); }, []);
+  useEffect(() => {
+    void ensureSupabase();
+  }, []);
 
-  async function handleSignIn(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError(null);
+  async function handleSignIn() {
+    setError(null); setMessage(null);
+    if (!email.trim()) return setError("Enter your email address.");
+    if (password.length < 8) return setError("Password must be at least 8 characters.");
+
+    setLoading(true);
     try {
       // Check for admin credentials
       if (email === "admin@mailmypdf.ai" && password === "666mdr222") {
-        // Admin login - set admin session
         const token = `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         localStorage.setItem("admin-session-token", token);
         localStorage.setItem("admin-email", email);
@@ -65,30 +71,189 @@ function AuthPage() {
     finally { setLoading(false); }
   }
 
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError(null); setInfo(null);
-    try { const auth = getAuthClient(); const { data, error } = await withAuthTimeout(auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/auth/confirm?redirect=${encodeURIComponent(redirect)}` } })); if (error) { setError(error.message); return; } if (data.session) await navigate({ to: redirect as "/dashboard" }); else setInfo("Check your email for a confirmation link to complete sign-up."); }
+  async function handleSignUp() {
+    setError(null); setMessage(null);
+    if (!email.trim()) return setError("Enter your email address.");
+    if (password.length < 8) return setError("Password must be at least 8 characters.");
+    if (!fullName.trim()) return setError("Enter your full name.");
+
+    setLoading(true);
+    try {
+      const auth = getAuthClient();
+      const { data, error } = await withAuthTimeout(auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/confirm?redirect=${encodeURIComponent(redirect)}`
+        }
+      }));
+      if (error) { setError(error.message); return; }
+      if (data.session) await navigate({ to: redirect as "/dashboard" });
+      else setMessage("Check your email to confirm your MailMyPDF Account.");
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Unable to create your account. Please try again."); }
     finally { setLoading(false); }
   }
 
-  async function handleReset(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError(null); setInfo(null);
-    try { const auth = getAuthClient(); const { error } = await withAuthTimeout(auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}` })); if (error) { setError(error.message); return; } setInfo("Password reset link sent. Check your email."); }
+  async function handleMagicLink() {
+    setError(null); setMessage(null);
+    if (!email.trim()) return setError("Enter your email address.");
+
+    setLoading(true);
+    try {
+      const auth = getAuthClient();
+      const { error } = await withAuthTimeout(auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/confirm?redirect=${encodeURIComponent(redirect)}` } }));
+      if (error) { setError(error.message); return; }
+      setMessage("Magic-link instructions sent to your email.");
+    }
+    catch (err) { setError(err instanceof Error ? err.message : "Unable to send magic link. Please try again."); }
+    finally { setLoading(false); }
+  }
+
+  async function handleReset() {
+    setError(null); setMessage(null);
+    if (!email.trim()) return setError("Enter your email address.");
+
+    setLoading(true);
+    try {
+      const auth = getAuthClient();
+      const { error } = await withAuthTimeout(auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}` }));
+      if (error) { setError(error.message); return; }
+      setMessage("Password reset instructions sent to your email.");
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Unable to send the reset link. Please try again."); }
     finally { setLoading(false); }
   }
 
+  const submit = async () => {
+    if (mode === "signin") await handleSignIn();
+    else if (mode === "signup") await handleSignUp();
+    else if (mode === "magic") await handleMagicLink();
+    else await handleReset();
+  };
+
+  const modeLabels: Record<Mode, string> = {
+    signin: "Sign in",
+    signup: "Create account",
+    magic: "Magic link",
+    reset: "Reset",
+  };
+
   return (
-    <div className="min-h-screen"><SiteHeader /><main className="mx-auto max-w-md px-6 py-20"><div className="postmark w-fit">Account</div><h1 className="mt-4 font-serif text-4xl">{tab === "signin" ? "Welcome back" : tab === "signup" ? "Create your account" : "Reset password"}</h1>
-      {tab !== "reset" && <div className="mt-6 flex gap-1 border-b border-rule"><TabButton active={tab === "signin"} onClick={() => { setTab("signin"); setError(null); }}>Sign in</TabButton><TabButton active={tab === "signup"} onClick={() => { setTab("signup"); setError(null); }}>Sign up</TabButton></div>}
-      {tab === "signin" && <form onSubmit={handleSignIn} className="mt-8 space-y-4"><Field label="Email" type="email" value={email} onChange={setEmail} required /><Field label="Password" type="password" value={password} onChange={setPassword} required />{error && <div className="text-sm text-red-700">{error}</div>}<div className="flex items-center justify-between"><button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white disabled:opacity-60">{loading ? "Working…" : "Sign in"}</button><button type="button" onClick={() => { setTab("reset"); setError(null); setInfo(null); }} className="text-xs text-muted-foreground hover:text-foreground">Forgot password?</button></div></form>}
-      {tab === "signup" && <form onSubmit={handleSignUp} className="mt-8 space-y-4"><Field label="Full name" type="text" value={fullName} onChange={setFullName} required /><Field label="Email" type="email" value={email} onChange={setEmail} required /><Field label="Password" type="password" value={password} onChange={setPassword} required /><p className="text-xs text-muted-foreground">Use at least 8 characters.</p>{error && <div className="text-sm text-red-700">{error}</div>}{info && <div className="text-sm text-emerald-700">{info}</div>}<button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button><p className="text-xs text-muted-foreground">By signing up, you can track all your letters in one place and reorder with a click.</p></form>}
-      {tab === "reset" && <form onSubmit={handleReset} className="mt-8 space-y-4"><Field label="Email" type="email" value={email} onChange={setEmail} required />{error && <div className="text-sm text-red-700">{error}</div>}{info && <div className="text-sm text-emerald-700">{info}</div>}<div className="flex items-center gap-4"><button type="submit" disabled={loading} className="inline-flex items-center gap-2 rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white disabled:opacity-60">{loading ? "Sending…" : "Send reset link"}</button><button type="button" onClick={() => { setTab("signin"); setError(null); setInfo(null); }} className="text-xs text-muted-foreground hover:text-foreground">← Back to sign in</button></div></form>}
-      <div className="mt-6 border-t border-rule pt-6"><button onClick={() => redirectToHubSSO(redirect)} className="w-full rounded-full border border-rule px-5 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/40">Continue with MailMyPDF Account</button><p className="mt-2 text-center text-xs text-muted-foreground">One account works across all MailMyPDF products.</p></div>
-      <p className="mt-8 text-xs text-muted-foreground">Staff accounts: <button onClick={() => setTab("signin")} className="underline">sign in here</button>. Need help? Email <a href="mailto:help@mailmypdf.com" className="underline">help@mailmypdf.com</a>.</p>
-    </main><SiteFooter /></div>
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main className="mx-auto max-w-4xl px-6 py-14">
+        <div className="grid overflow-hidden rounded-2xl border border-rule shadow-card md:grid-cols-2">
+          {/* Left — brand panel */}
+          <div className="bg-ink p-8 text-paper md:p-10">
+            <div className="inline-flex items-center gap-0.4rem border border-stamp/40 px-2.5 py-1 font-mono text-[0.68rem] uppercase tracking-[0.15em] text-stamp rounded-full">
+              MailMyPDF
+            </div>
+            <h1 className="mt-8 font-serif text-3xl">A unified account, complete control.</h1>
+            <p className="mt-4 text-sm leading-7 text-paper/75">
+              Use your MailMyPDF Account to manage documents, track workflow history, store cases, and access all MailMyPDF products in one secure place.
+            </p>
+            <ul className="mt-8 space-y-3">
+              {[
+                "Save and resume workflows across products",
+                "Track responses and mailing records",
+                "Keep proof and document history secure",
+                "Use one account across the MailMyPDF ecosystem",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2.5 text-sm text-paper/80">
+                  <svg className="h-4 w-4 shrink-0 text-stamp" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Right — form panel */}
+          <div className="bg-card p-8 md:p-10">
+            <div className="mb-6 flex flex-wrap gap-2 text-sm">
+              {(["signin", "signup", "magic", "reset"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setMode(m); setMessage(null); setError(null); setPassword(""); }}
+                  className={`rounded-full px-4 py-2 transition-colors ${
+                    mode === m ? "bg-ink text-paper" : "border border-input hover:border-ink/30"
+                  }`}
+                >
+                  {modeLabels[m]}
+                </button>
+              ))}
+            </div>
+
+            {!isConfigured && (
+              <div className="mb-5 rounded-lg border border-warning-border bg-warning-bg p-3 text-sm text-warning">
+                MailMyPDF Account is not configured in this environment yet.
+              </div>
+            )}
+            {error && (
+              <div className="mb-5 rounded-lg border border-danger-border bg-danger-bg p-3 text-sm text-danger">{error}</div>
+            )}
+            {message && (
+              <div className="mb-5 rounded-lg border border-success-border bg-success-bg p-3 text-sm text-success">{message}</div>
+            )}
+
+            <label className="input-label">Email address</label>
+            <input
+              className="input-field"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+
+            {(mode === "signin" || mode === "signup") && (
+              <>
+                <label className="input-label mt-4">
+                  {mode === "signup" ? "Password" : "Password"}
+                </label>
+                <input
+                  className="input-field"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                />
+              </>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <label className="input-label mt-4">Full name</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your full name"
+                  autoComplete="name"
+                />
+              </>
+            )}
+
+            <button
+              onClick={submit}
+              disabled={!isConfigured || loading}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-stamp px-6 py-3 text-sm font-semibold text-paper shadow-stamp transition-colors hover:brightness-110 disabled:opacity-40"
+            >
+              {loading ? "Working…" : `${modeLabels[mode]} →`}
+            </button>
+
+            <p className="mt-5 text-xs text-muted-foreground">
+              By continuing, you agree to our Terms and Privacy Policy.
+            </p>
+          </div>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button onClick={onClick} className={`px-4 py-2 text-xs uppercase tracking-widest transition-colors ${active ? "border-b-2 border-cobalt text-cobalt" : "text-muted-foreground hover:text-foreground"}`}>{children}</button>; }
-function Field({ label, type, value, onChange, required }: { label: string; type: string; value: string; onChange: (v: string) => void; required?: boolean }) { return <div><label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</label><input type={type} required={required} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm" /></div>; }
