@@ -24,7 +24,7 @@ import { validateCP2000Draft } from "@/domain/cp2000-validation";
 import { createCP2000Case, setCaseAnalysis, setCaseStrategy, setCaseDraft, setCaseValidation, setCaseUserInput, setCaseResearch, type CP2000Case } from "@/domain/cp2000-case";
 import { getCP2000ResearchPack } from "@/domain/cp2000-research";
 import { classifyContent, validateTextInput, validateFilename, validateFileSize, validateMimeType } from "@/domain/security";
-import "@/domain/cp2000-packs";
+// NOTE: cp2000-packs registration moved inline below to avoid import-time side effects
 import { buildDraftProvenance, type DraftProvenance } from "@/domain/draft-provenance";
 import { createWorkflowHead } from "@/domain/enhanced-head";
 import { useCombinedAnalysis } from "@/domain/use-combined-analysis";
@@ -59,7 +59,18 @@ interface EvidenceAttachment {
   status: "provided" | "verified" | "rejected";
 }
 
+// Lazy registration to avoid import-time side effects
+let pairsRegistered = false;
+function ensurePacksRegistered() {
+  if (!pairsRegistered) {
+    import("@/domain/cp2000-packs");
+    pairsRegistered = true;
+  }
+}
+
 function CP2000Response() {
+  ensurePacksRegistered();
+
   const definition = getWorkflowById("cp2000-response")!;
   const steps = definition.ux?.steps ?? [];
   const [state, setState] = useState<RuntimeState>(() => createWorkflowState(definition));
@@ -866,7 +877,7 @@ function CP2000Response() {
                           ? `✓ Draft validation passed (${state.draftValidation.warnings} warning(s))`
                           : `✗ Draft validation failed — ${state.draftValidation.errors} error(s), ${state.draftValidation.warnings} warning(s)`}
                       </div>
-                      {state.draftValidation.findings.filter((f) => !f.passed).length > 0 && (
+                      {state.draftValidation.findings && state.draftValidation.findings.filter((f) => !f.passed).length > 0 && (
                         <ul className="mt-2 space-y-1">
                           {state.draftValidation.findings.filter((f) => !f.passed).map((f, i) => (
                             <li key={i} className={`text-xs ${f.severity === "error" ? "text-destructive" : "text-amber-600"}`}>
