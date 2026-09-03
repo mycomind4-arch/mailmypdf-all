@@ -1,0 +1,4 @@
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { recordsWorkflows } from '../workflows'
+export const Route=createFileRoute('/workflows')({component:Workflows})
+function Workflows(){return <main className="shell"><div className="page-head"><div><div className="eyebrow">{recordsWorkflows.length} workflows</div><h1>Records request workflows</h1><p className="lead muted">Choose a focused workflow instead of starting from a generic request.</p></div><Link className="btn" to="/">Home</Link></div><div className="workflow-grid">{recordsWorkflows.map(w=><Link key={w.id} className="workflow-card" to="/workflows/$slug" params={{slug:w.id}}><div className="eyebrow">{w.capabilities.join(' · ')}</div><h2>{w.name}</h2><p className="muted">{w.description}</p><span className="arrow">View workflow →</span></Link>)}</div></main>}
