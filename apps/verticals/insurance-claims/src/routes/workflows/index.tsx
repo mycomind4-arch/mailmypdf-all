@@ -1,0 +1,4 @@
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { INSURANCE_WORKFLOWS } from '@/domain/insurance-workflows'
+export const Route=createFileRoute('/workflows/')({component:Hub})
+function Hub(){const families=[...new Set(INSURANCE_WORKFLOWS.map(w=>w.family))];return <main className="container section"><div className="eyebrow">Workflow Hub · {INSURANCE_WORKFLOWS.length} total</div><h1>Choose what you need to do.</h1>{families.map(f=><section className="family" key={f}><h2>{f}</h2><div className="grid">{INSURANCE_WORKFLOWS.filter(w=>w.family===f).map(w=><Link className="card" to="/workflows/$workflowId" params={{workflowId:w.id}} key={w.id}><span className="badge">{w.risk}</span><h3>{w.name}</h3><p className="muted">{w.description}</p><b>View workflow →</b></Link>)}</div></section>)}</main>}
