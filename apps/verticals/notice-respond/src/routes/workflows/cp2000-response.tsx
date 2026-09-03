@@ -1012,7 +1012,7 @@ function CP2000Response() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-4 text-sm text-muted-foreground">Required evidence: {definition.evidence.filter(e => e.required).map(e => e.label).join(", ")}</div>
+                  <div className="mt-4 text-sm text-muted-foreground">Required evidence: {definition.evidence && definition.evidence.filter(e => e.required).map(e => e.label).join(", ")}</div>
                 </div>
               )}
 
