@@ -24,7 +24,7 @@ import {
   Activity,
   BarChart3,
 } from "lucide-react";
-import { AdminChatAgent } from "~/components/admin-chat-agent";
+import { AdminChatAgent } from "@/components/admin-chat-agent";
 
 // Type definitions for data tables
 interface EntitlementRow {
