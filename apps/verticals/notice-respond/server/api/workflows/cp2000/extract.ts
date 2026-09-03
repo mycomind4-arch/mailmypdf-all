@@ -1,34 +1,34 @@
 /**
- * POST /api/workflows/eviction/extract
- * Extracts structured data from uploaded eviction notice
+ * POST /api/workflows/cp2000/extract
+ * Extracts structured data from uploaded CP2000 notice
  */
 
 import { createError, defineEventHandler, readBody, type H3Event } from "h3";
-import { extractEvictionNotice } from "../../../../src/domain/workflows/eviction/extraction";
-import type { EvictionNoticeExtraction } from "../../../../src/domain/workflows/eviction/types";
+import { extractCP2000Notice } from "../../../../src/domain/workflows/cp2000/extraction";
+import type { CP2000NoticeExtraction } from "../../../../src/domain/workflows/cp2000/types";
 
-interface ExtractEvictionRequest {
+interface ExtractCP2000Request {
   noticeText: string;
   provider?: "claude" | "gemini" | "openai";
 }
 
-interface ExtractEvictionResponse {
+interface ExtractCP2000Response {
   success: boolean;
-  extraction?: EvictionNoticeExtraction;
+  extraction?: CP2000NoticeExtraction;
   error?: string;
   code?: string;
   provider?: string;
   model?: string;
 }
 
-export default defineEventHandler(async (event: H3Event): Promise<ExtractEvictionResponse> => {
+export default defineEventHandler(async (event: H3Event): Promise<ExtractCP2000Response> => {
   if (event.method !== "POST") {
     throw createError({ statusCode: 405, statusMessage: "Method not allowed" });
   }
 
-  let req: ExtractEvictionRequest;
+  let req: ExtractCP2000Request;
   try {
-    req = await readBody<ExtractEvictionRequest>(event);
+    req = await readBody<ExtractCP2000Request>(event);
   } catch (e) {
     throw createError({
       statusCode: 400,
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event: H3Event): Promise<ExtractEvictio
   }
 
   try {
-    const extraction = await extractEvictionNotice(req.noticeText);
+    const extraction = await extractCP2000Notice(req.noticeText, req.provider);
 
     return {
       success: true,

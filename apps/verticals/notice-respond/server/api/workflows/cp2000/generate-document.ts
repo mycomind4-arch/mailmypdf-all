@@ -1,27 +1,38 @@
 /**
- * POST /api/workflows/eviction/generate-document
- * Generates response letters, declarations, and proof of service documents
+ * POST /api/workflows/cp2000/generate-document
+ * Generates response letters and supporting documents for CP2000 notices
  */
 
 import { createError, defineEventHandler, readBody, type H3Event } from "h3";
 import {
-  generatePaymentProposalLetter,
-  generateContestLetter,
-  generateDeclaration,
-  generateProofOfService,
-} from "../../../../src/domain/workflows/eviction/document-generation";
+  generateAgreementLetter,
+  generateDisagreementLetter,
+  generatePartialAgreementLetter,
+  generateAppealRequest,
+  generateExtensionRequest,
+  generateAttorneyReferral,
+} from "../../../../src/domain/workflows/cp2000/document-generation";
 import type {
   GeneratedDocument,
-  PaymentProposalPayload,
-  ContestDefensePayload,
-  EvictionIntakeConfirmation,
-} from "../../../../src/domain/workflows/eviction/types";
+  AgreementResponsePayload,
+  DisagreementResponsePayload,
+  PartialAgreementPayload,
+  AppealRequestPayload,
+  ExtensionRequestPayload,
+  CP2000IntakeConfirmation,
+} from "../../../../src/domain/workflows/cp2000/types";
 
-type DocumentType = "payment-letter" | "contest-letter" | "declaration" | "proof-of-service";
+type DocumentType =
+  | "agreement-letter"
+  | "disagreement-letter"
+  | "partial-agreement-letter"
+  | "appeal-request"
+  | "extension-request"
+  | "attorney-referral";
 
 interface GenerateDocumentRequest {
   type: DocumentType;
-  intake: EvictionIntakeConfirmation;
+  intake: CP2000IntakeConfirmation;
   payload: Record<string, unknown>;
 }
 
@@ -66,26 +77,28 @@ export default defineEventHandler(
       let document: GeneratedDocument;
 
       switch (req.type) {
-        case "payment-letter":
-          document = generatePaymentProposalLetter(req.payload as PaymentProposalPayload);
+        case "agreement-letter":
+          document = generateAgreementLetter(req.payload as AgreementResponsePayload);
           break;
 
-        case "contest-letter":
-          document = generateContestLetter(req.payload as ContestDefensePayload);
+        case "disagreement-letter":
+          document = generateDisagreementLetter(req.payload as DisagreementResponsePayload);
           break;
 
-        case "declaration":
-          const statements = (req.payload as Record<string, Record<string, string>>).statements ||
-            {};
-          document = generateDeclaration(req.intake, statements);
+        case "partial-agreement-letter":
+          document = generatePartialAgreementLetter(req.payload as PartialAgreementPayload);
           break;
 
-        case "proof-of-service":
-          const serviceMethod = (req.payload as { method: string }).method as
-            | "usps-certified"
-            | "hand-delivery"
-            | "email";
-          document = generateProofOfService(req.intake, serviceMethod);
+        case "appeal-request":
+          document = generateAppealRequest(req.payload as AppealRequestPayload);
+          break;
+
+        case "extension-request":
+          document = generateExtensionRequest(req.payload as ExtensionRequestPayload);
+          break;
+
+        case "attorney-referral":
+          document = generateAttorneyReferral(req.intake);
           break;
 
         default:
