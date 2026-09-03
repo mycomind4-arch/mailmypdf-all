@@ -204,6 +204,7 @@ await llmProvider.sendMessage(messages, {
 
 ```bash
 # Workflow Intelligence - LLM Configuration
+# Replace with your actual API keys from Anthropic and Google
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 GEMINI_API_KEY=your-gemini-api-key-here
 ANTHROPIC_MODEL=claude-opus-5

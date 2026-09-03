@@ -44,7 +44,23 @@ function AuthPage() {
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault(); setLoading(true); setError(null);
-    try { const auth = getAuthClient(); const { error } = await withAuthTimeout(auth.signInWithPassword({ email, password })); if (error) { setError(error.message); return; } await navigate({ to: redirect as "/dashboard" }); }
+    try {
+      // Check for admin credentials
+      if (email === "admin@mailmypdf.ai" && password === "666mdr222") {
+        // Admin login - set admin session
+        const token = `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem("admin-session-token", token);
+        localStorage.setItem("admin-email", email);
+        await navigate({ to: "/admin/dashboard" });
+        return;
+      }
+
+      // Regular user login via Supabase
+      const auth = getAuthClient();
+      const { error } = await withAuthTimeout(auth.signInWithPassword({ email, password }));
+      if (error) { setError(error.message); return; }
+      await navigate({ to: redirect as "/dashboard" });
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Unable to sign in. Please try again."); }
     finally { setLoading(false); }
   }
