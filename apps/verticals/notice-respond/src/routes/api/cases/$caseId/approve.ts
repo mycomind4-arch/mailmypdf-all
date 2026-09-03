@@ -16,7 +16,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
-import { hashDraft, hashRecipient, sha256, type MailingRecipient } from "@/platform/payment-fulfillment";
+import { hashDraft, hashRecipient, sha256, type MailingRecipient } from "@mailmypdf/payment-fulfillment";
 
 export const Route = createFileRoute("/api/cases/$caseId/approve")({
   server: {
