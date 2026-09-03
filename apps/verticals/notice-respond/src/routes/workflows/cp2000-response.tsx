@@ -40,7 +40,7 @@ import {
   type WorkflowState as CaseWorkflowState, canTransition, transition,
   STATE_METADATA, AUDIT_EVENTS, createAuditEvent, type AuditEventV2,
 } from "@/domain/cp2000-state-machine";
-import { hashDraft } from "@/platform/payment-fulfillment";
+import { hashDraft } from "@mailmypdf/payment-fulfillment";
 
 export const Route = createFileRoute("/workflows/cp2000-response")({
   head: () => createWorkflowHead("cp2000-response"),
