@@ -10,8 +10,7 @@
  * 6. Export/send results
  */
 
-import { createServerFn } from "@tanstack/start";
-import { getRequest } from "vinxi/http";
+import { createServerFn } from "./compatibility/create-server-fn";
 import {
   validateInput,
   logger,

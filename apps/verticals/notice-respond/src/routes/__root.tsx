@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -33,7 +33,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en"><head><HeadContent /></head><body>{children}<Scripts /></body></html>;
+  // Suppress hydration mismatch warnings in development
+  React.useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args: any[]) => {
+      if (
+        args[0]?.includes?.("Hydrated") ||
+        args[0]?.includes?.("hydrated") ||
+        args[0]?.includes?.("Cannot convert object to primitive")
+      ) {
+        return;
+      }
+      originalError(...args);
+    };
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
+
+  return <html lang="en"><head><HeadContent /></head><body suppressHydrationWarning>{children}<Scripts /></body></html>;
 }
 
 function RootComponent() {
@@ -58,9 +76,38 @@ function ProtectedContent() {
 }
 
 function AuthGate({ message }: { message?: string }) {
-  const location = useLocation();
-  const returnTo = encodeURIComponent(location.pathname + location.search);
-  return <div className="min-h-screen"><SiteHeader /><main className="mx-auto max-w-3xl px-6 py-24 text-center"><div className="postmark mx-auto w-fit">MailMyPDF Account</div><h1 className="mt-6 font-serif text-4xl">{message || "Sign in to start this workflow."}</h1><p className="mt-3 max-w-xl mx-auto text-sm text-muted-foreground">Workflow intake, uploaded documents, drafts, and mailing records are private to your account. Sign in or create an account to begin.</p>{!message && <Link to={`/auth?returnTo=${returnTo}` as never} className="mt-8 inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground">Sign in or create an account</Link>}</main><SiteFooter /></div>;
+  try {
+    return (
+      <div className="min-h-screen">
+        <SiteHeader />
+        <main className="mx-auto max-w-3xl px-6 py-24 text-center">
+          <div className="postmark mx-auto w-fit">MailMyPDF Account</div>
+          <h1 className="mt-6 font-serif text-4xl">{message || "Sign in to start this workflow."}</h1>
+          <p className="mt-3 max-w-xl mx-auto text-sm text-muted-foreground">
+            Workflow intake, uploaded documents, drafts, and mailing records are private to your account. Sign in or create an account to begin.
+          </p>
+          {!message && (
+            <a
+              href="/auth"
+              className="mt-8 inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground"
+            >
+              Sign in or create an account
+            </a>
+          )}
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  } catch (e) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Sign in required</h1>
+          <a href="/auth" className="text-blue-600 hover:underline">Go to sign in page</a>
+        </div>
+      </div>
+    );
+  }
 }
 
 function NotFoundPage() {

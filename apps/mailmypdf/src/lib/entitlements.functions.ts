@@ -5,7 +5,7 @@
  * Called from dashboard and workflow pages.
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "./compatibility/create-server-fn";
 import { withAdmin } from "./supabase-admin.server";
 
 /**

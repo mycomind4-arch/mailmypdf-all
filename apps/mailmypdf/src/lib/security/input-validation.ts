@@ -4,26 +4,20 @@
  * Centralized validation for all user inputs across MailMyPDF.
  * Prevents SQL injection, XSS, command injection, and other attacks.
  */
-
 import { z } from "zod";
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* VALIDATION SCHEMAS                                                          */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Common field validators
  */
 export const CommonSchemas = {
   // UUID validation
   uuid: z.string().uuid("Invalid UUID format"),
-
   // Email validation
   email: z.string().email("Invalid email format").max(255),
-
   // URL validation (safe)
   url: z.string().url("Invalid URL format").max(2048),
-
   // Safe string (no SQL injection, XSS)
   safeString: z
     .string()
@@ -37,7 +31,6 @@ export const CommonSchemas = {
       (val) => !hasXSSVectors(val),
       "Input contains invalid characters"
     ),
-
   // Safe filename
   filename: z
     .string()
@@ -48,40 +41,34 @@ export const CommonSchemas = {
       (val) => !val.includes(".."),
       "Path traversal not allowed"
     ),
-
   // Slug (URL-safe identifier)
   slug: z
     .string()
     .min(1)
     .max(100)
     .regex(/^[a-z0-9\-]+$/, "Invalid slug format"),
-
   // Phone number (basic)
   phone: z
     .string()
     .regex(/^[\d\-\+\(\)\s]+$/, "Invalid phone format")
     .min(10)
     .max(20),
-
   // Zip code
   zipCode: z
     .string()
     .regex(/^[\d\-]+$/, "Invalid zip code format")
     .min(5)
     .max(10),
-
   // Pagination
   limit: z.number().min(1).max(1000).default(25),
   offset: z.number().min(0).default(0),
 };
-
 /**
  * Workflow input validation
  */
 export const WorkflowSchemas = {
   workflowId: CommonSchemas.uuid,
   workflowSlug: CommonSchemas.slug,
-
   searchQuery: z
     .string()
     .min(1)
@@ -90,7 +77,6 @@ export const WorkflowSchemas = {
       (val) => !hasSQLInjection(val),
       "Invalid search query"
     ),
-
   category: z.enum([
     "government",
     "appeals",
@@ -107,7 +93,6 @@ export const WorkflowSchemas = {
     "code-enforcement",
     "mail",
   ]),
-
   workflowStatus: z.enum([
     "draft",
     "in_progress",
@@ -117,17 +102,15 @@ export const WorkflowSchemas = {
     "archived",
   ]),
 };
-
 /**
  * User input validation
  */
 export const UserSchemas = {
   userId: CommonSchemas.uuid,
   email: CommonSchemas.email,
-  name: CommonSchemas.safeString.max(100),
+  name: CommonSchemas.safeString,
   phone: CommonSchemas.phone.optional(),
 };
-
 /**
  * Document validation
  */
@@ -143,7 +126,6 @@ export const DocumentSchemas = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ]),
 };
-
 /**
  * Payment/entitlement validation
  */
@@ -152,11 +134,9 @@ export const EntitlementSchemas = {
   currency: z.enum(["USD", "EUR", "GBP"]),
   policyId: CommonSchemas.uuid.optional(),
 };
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* INJECTION DETECTION                                                         */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Detect SQL injection patterns
  */
@@ -175,10 +155,8 @@ export function hasSQLInjection(input: string): boolean {
     /(\/\*.*\*\/)/,
     /(xp_|sp_)/i,
   ];
-
   return sqlPatterns.some((pattern) => pattern.test(input));
 }
-
 /**
  * Detect XSS vectors
  */
@@ -193,10 +171,8 @@ export function hasXSSVectors(input: string): boolean {
     /(<img[^>]*on\w+)/gi,
     /(<svg[^>]*on\w+)/gi,
   ];
-
   return xssPatterns.some((pattern) => pattern.test(input));
 }
-
 /**
  * Detect command injection patterns
  */
@@ -206,14 +182,11 @@ export function hasCommandInjection(input: string): boolean {
     /\.\.\//,
     /\x00/,
   ];
-
   return cmdPatterns.some((pattern) => pattern.test(input));
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* VALIDATION UTILITIES                                                        */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Validate and parse input with schema
  */
@@ -232,7 +205,6 @@ export function validateInput<T>(
     return { success: false, error: "Validation failed" };
   }
 }
-
 /**
  * Sanitize string input for safe display
  */
@@ -245,7 +217,6 @@ export function sanitizeForDisplay(input: string): string {
     .replace(/'/g, "&#x27;")
     .replace(/\//g, "&#x2F;");
 }
-
 /**
  * Sanitize filename (remove path traversal attempts)
  */
@@ -255,7 +226,6 @@ export function sanitizeFilename(filename: string): string {
     .replace(/[^\w\-. ]/g, "")
     .substring(0, 255);
 }
-
 /**
  * Validate UUID format
  */
@@ -263,7 +233,6 @@ export function isValidUUID(value: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(value);
 }
-
 /**
  * Validate email format
  */
@@ -271,7 +240,6 @@ export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email) && email.length <= 255;
 }
-
 /**
  * Validate array doesn't exceed max length
  */
@@ -281,7 +249,6 @@ export function validateArrayLength<T>(
 ): boolean {
   return Array.isArray(arr) && arr.length <= maxLength;
 }
-
 /**
  * Validate request body size (bytes)
  */
@@ -293,11 +260,9 @@ export function validateRequestSize(
   const bytes = parseInt(contentLength, 10);
   return !isNaN(bytes) && bytes <= maxBytes;
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* VALIDATION MIDDLEWARE HELPERS                                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Validate path parameter
  */
@@ -314,7 +279,6 @@ export function validatePathParam(
   }
   return result.data as string;
 }
-
 /**
  * Validate query parameters
  */
@@ -328,7 +292,6 @@ export function validateQueryParams<T>(
   }
   return result.data;
 }
-
 /**
  * Validate request body
  */
@@ -342,7 +305,6 @@ export function validateRequestBody<T>(
   }
   return result.data;
 }
-
 /**
  * Custom validation error
  */

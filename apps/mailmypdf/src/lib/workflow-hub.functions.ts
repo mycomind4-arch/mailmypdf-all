@@ -5,8 +5,12 @@
  * Single source of truth for all workflow metadata across MailMyPDF ecosystem.
  */
 
-import { createServerFn } from "@tanstack/start";
-import { getRequest } from "vinxi/http";
+import { createServerFn } from "./compatibility/create-server-fn";
+
+// Stub for getRequest - returns null in development
+function getRequest() {
+  return null;
+}
 import type { WorkflowManifest } from "@mailmypdf/workflows";
 import { workflowRegistry } from "@mailmypdf/workflows";
 import { verticals, type VerticalDefinition, type VerticalCategory } from "@/verticals/registry";

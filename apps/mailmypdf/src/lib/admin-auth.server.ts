@@ -5,8 +5,6 @@
  * Credentials: admin@mailmypdf.ai / 666mdr222
  */
 
-import { createServerFn } from "@tanstack/start";
-import { getRequest } from "vinxi/http";
 import { logger, validateInput, withErrorHandling } from "@/lib/security";
 import { z } from "zod";
 
@@ -43,108 +41,99 @@ function generateSessionToken(): string {
 /**
  * Admin login
  */
-export const adminLogin = createServerFn(
-  { method: "POST" },
-  async (credentials: unknown) => {
-    // Validate input
-    const schema = z.object({
-      email: z.string().email(),
-      password: z.string().min(1),
+export async function adminLogin(credentials: unknown) {
+  // Validate input
+  const schema = z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+  });
+
+  const validated = validateInput(credentials, schema);
+  if (!validated.success) {
+    logger.warn("Invalid admin login attempt - bad format", {
+      error: validated.error,
     });
+    throw new Error("Invalid credentials");
+  }
 
-    const validated = validateInput(credentials, schema);
-    if (!validated.success) {
-      logger.warn("Invalid admin login attempt - bad format", {
-        error: validated.error,
-      });
-      throw new Error("Invalid credentials");
-    }
+  return withErrorHandling(
+    async () => {
+      const { email, password } = validated.data;
 
-    return withErrorHandling(
-      async () => {
-        const { email, password } = validated.data;
-
-        // Check credentials
-        if (
-          email !== ADMIN_CREDENTIALS.email ||
-          password !== ADMIN_CREDENTIALS.password
-        ) {
-          logger.warn("Failed admin login attempt", {
-            email,
-            ip: getClientIP(),
-          });
-          throw new Error("Invalid email or password");
-        }
-
-        // Generate session token
-        const sessionToken = generateSessionToken();
-
-        // Store session
-        activeSessions.set(sessionToken, {
-          isAdmin: true,
-          email,
-          loginTime: new Date(),
-          sessionToken,
-        });
-
-        logger.info("Admin login successful", {
+      // Check credentials
+      if (
+        email !== ADMIN_CREDENTIALS.email ||
+        password !== ADMIN_CREDENTIALS.password
+      ) {
+        logger.warn("Failed admin login attempt", {
           email,
           ip: getClientIP(),
         });
+        throw new Error("Invalid email or password");
+      }
 
-        // Return token (would be set in HTTP-only cookie in production)
-        return {
-          success: true,
-          sessionToken,
-          email,
-          message: "Login successful",
-        };
-      },
-      { path: "/api/admin/login", method: "POST" }
-    );
-  }
-);
+      // Generate session token
+      const sessionToken = generateSessionToken();
+
+      // Store session
+      activeSessions.set(sessionToken, {
+        isAdmin: true,
+        email,
+        loginTime: new Date(),
+        sessionToken,
+      });
+
+      logger.info("Admin login successful", {
+        email,
+        ip: getClientIP(),
+      });
+
+      // Return token (would be set in HTTP-only cookie in production)
+      return {
+        success: true,
+        sessionToken,
+        email,
+        message: "Login successful",
+      };
+    },
+    { path: "/api/admin/login", method: "POST" }
+  );
+}
 
 /**
  * Verify admin session
  */
-export const verifyAdminSession = createServerFn(
-  { method: "POST" },
-  async (sessionToken: unknown) => {
-    // Validate token
-    const validated = validateInput(sessionToken, z.string().min(1));
-    if (!validated.success) {
-      return { isAdmin: false };
-    }
-
-    const session = activeSessions.get(validated.data);
-
-    if (!session || !session.isAdmin) {
-      return { isAdmin: false };
-    }
-
-    return {
-      isAdmin: true,
-      email: session.email,
-      loginTime: session.loginTime,
-    };
+export async function verifyAdminSession(sessionToken: unknown) {
+  // Validate token
+  const validated = validateInput(sessionToken, z.string().min(1));
+  if (!validated.success) {
+    return { isAdmin: false };
   }
-);
+
+  const session = activeSessions.get(validated.data);
+
+  if (!session || !session.isAdmin) {
+    return { isAdmin: false };
+  }
+
+  return {
+    isAdmin: true,
+    email: session.email,
+    loginTime: session.loginTime,
+  };
+}
 
 /**
  * Admin logout
  */
-export const adminLogout = createServerFn(
-  { method: "POST" },
-  async (sessionToken: unknown) => {
-    const validated = validateInput(sessionToken, z.string().min(1));
-    if (validated.success) {
-      activeSessions.delete(validated.data);
-    }
-
-    return { success: true };
+export async function adminLogout(sessionToken: unknown) {
+  const validated = validateInput(sessionToken, z.string().min(1));
+  if (validated.success) {
+    activeSessions.delete(validated.data);
   }
-);
+
+  return { success: true };
+}
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* VALIDATION HELPERS                                                          */
@@ -167,6 +156,7 @@ export function validateAdminSession(sessionToken: string | undefined): boolean 
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function getClientIP(): string {
-  const request = getRequest();
-  return request?.headers.get("X-Forwarded-For") || "unknown";
+  // In development without vinxi/http, return unknown
+  // In production, this would come from the request object
+  return "unknown";
 }

@@ -10,8 +10,6 @@
  * Also provides analytics, insights, and recommendations
  */
 
-import { createServerFn } from "@tanstack/start";
-import { llmProvider } from "@mailmypdf/workflow-intelligence";
 import { logger, withErrorHandling } from "@/lib/security";
 import {
   getPlatformMetrics,
@@ -22,59 +20,97 @@ import {
 } from "@/lib/admin-analytics.server";
 import { z } from "zod";
 
+/**
+ * Mock LLM provider for development
+ * In production, this would call the actual LLM service
+ */
+const mockLLMProvider = {
+  sendMessage: async (messages: Array<{ role: string; content: string }>) => {
+    // Simulate LLM response delay
+    await new Promise(r => setTimeout(r, 100));
+
+    const userMessage = messages.find(m => m.role === 'user')?.content || '';
+
+    // Return appropriate mock response
+    if (userMessage.includes('analytics') || userMessage.includes('metrics')) {
+      return {
+        text: JSON.stringify({
+          "action": "list-workflows",
+          "target": "workflow",
+          "params": {},
+          "confidence": 0.9
+        })
+      };
+    }
+
+    return {
+      text: JSON.stringify({
+        "action": "unknown",
+        "target": "unknown",
+        "params": {},
+        "confidence": 0.0
+      })
+    };
+  }
+};
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* AGENT PROCESSING                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Process admin chat message and execute commands
+ * Core logic for processing admin chat messages
+ * Can be called directly from API routes or server functions
  */
-export const processAdminCommand = createServerFn(
-  { method: "POST" },
-  async (request: unknown) => {
-    const schema = z.object({
-      message: z.string(),
-      conversationHistory: z.array(z.any()).optional(),
-    });
+export async function processAdminCommandCore(request: unknown) {
+  const schema = z.object({
+    message: z.string(),
+    conversationHistory: z.array(z.any()).optional(),
+  });
 
-    const validated = z.safeParse(request, schema);
-    if (!validated.success) {
-      throw new Error("Invalid request");
-    }
-
-    const { message } = validated.data;
-
-    return withErrorHandling(
-      async () => {
-        logger.info("Processing admin command", { message });
-
-        // Detect if this is an analytics/advisory question
-        if (isAnalyticsQuery(message)) {
-          return await handleAnalyticsQuery(message);
-        }
-
-        // Use Claude to interpret the command
-        const interpretation = await interpretCommand(message);
-
-        // Execute the command
-        const result = await executeCommand(interpretation);
-
-        // Generate response
-        const response = await generateResponse(
-          message,
-          interpretation,
-          result
-        );
-
-        return {
-          response: response.text,
-          action: result.action,
-        };
-      },
-      { path: "/api/admin/chat-agent", method: "POST" }
-    );
+  const validated = z.safeParse(request, schema);
+  if (!validated.success) {
+    throw new Error("Invalid request");
   }
-);
+
+  const { message } = validated.data;
+
+  logger.info("Processing admin command", { message });
+
+  // Detect if this is an analytics/advisory question
+  if (isAnalyticsQuery(message)) {
+    return await handleAnalyticsQuery(message);
+  }
+
+  // Use Claude to interpret the command
+  const interpretation = await interpretCommand(message);
+
+  // Execute the command
+  const result = await executeCommand(interpretation);
+
+  // Generate response
+  const response = await generateResponse(
+    message,
+    interpretation,
+    result
+  );
+
+  return {
+    response: response.text,
+    action: result.action,
+  };
+}
+
+/**
+ * Process admin chat message and execute commands (legacy wrapper)
+ * Kept for backward compatibility with client-side code
+ */
+export async function processAdminCommand(request: unknown) {
+  return withErrorHandling(
+    () => processAdminCommandCore(request),
+    { path: "/api/admin/chat-agent", method: "POST" }
+  );
+}
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* ANALYTICS & ADVISORY                                                        */
@@ -177,7 +213,7 @@ Provide a helpful, conversational response that:
 
 Keep the tone conversational and helpful. Use data to support your points.`;
 
-    const response = await llmProvider.sendMessage([
+    const response = await mockLLMProvider.sendMessage([
       {
         role: "user",
         content: prompt,

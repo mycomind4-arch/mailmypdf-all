@@ -4,13 +4,9 @@
  * Prevents API abuse, brute force attacks, and DoS attempts.
  * Implements token bucket algorithm with IP-based and user-based limits.
  */
-
-import { getRequest } from "vinxi/http";
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* TYPES                                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 export interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
   maxRequests: number; // Max requests per window
@@ -19,18 +15,15 @@ export interface RateLimitConfig {
   skipFailedRequests?: boolean;
   onLimitReached?: (key: string, limit: RateLimitConfig) => void;
 }
-
 export interface TokenBucket {
   tokens: number;
   lastRefilled: number;
   requestCount: number;
   blockedUntil?: number;
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* RATE LIMITER IMPLEMENTATION                                                */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * In-memory rate limiter with token bucket algorithm
  *
@@ -41,27 +34,23 @@ class RateLimiter {
   private buckets = new Map<string, TokenBucket>();
   private config: RateLimitConfig;
   private cleanupInterval?: NodeJS.Timeout;
-
   constructor(config: RateLimitConfig) {
     this.config = {
       skipSuccessfulRequests: false,
       skipFailedRequests: false,
       ...config,
     };
-
     // Cleanup expired buckets every 5 minutes
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, 5 * 60 * 1000);
   }
-
   /**
    * Check if request should be allowed
    */
   async isAllowed(key: string): Promise<boolean> {
     const now = Date.now();
     let bucket = this.buckets.get(key);
-
     // Initialize new bucket
     if (!bucket) {
       bucket = {
@@ -71,40 +60,32 @@ class RateLimiter {
       };
       this.buckets.set(key, bucket);
     }
-
     // Check if currently blocked
     if (bucket.blockedUntil && now < bucket.blockedUntil) {
       return false;
     }
-
     // Refill tokens based on elapsed time
     const elapsedMs = now - bucket.lastRefilled;
     const tokensToAdd =
       (elapsedMs / this.config.windowMs) * this.config.maxRequests;
-
     bucket.tokens = Math.min(
       this.config.maxRequests,
       bucket.tokens + tokensToAdd
     );
     bucket.lastRefilled = now;
-
     // Check if token available
     if (bucket.tokens >= 1) {
       bucket.tokens -= 1;
       bucket.requestCount += 1;
       return true;
     }
-
     // Block for remaining time in window
     bucket.blockedUntil = now + this.config.windowMs;
-
     if (this.config.onLimitReached) {
       this.config.onLimitReached(key, this.config);
     }
-
     return false;
   }
-
   /**
    * Get current status for key
    */
@@ -117,38 +98,32 @@ class RateLimiter {
         resetTime: Date.now() + this.config.windowMs,
       };
     }
-
     return {
       remaining: Math.floor(bucket.tokens),
       limit: this.config.maxRequests,
       resetTime: bucket.lastRefilled + this.config.windowMs,
     };
   }
-
   /**
    * Reset rate limit for key
    */
   reset(key: string) {
     this.buckets.delete(key);
   }
-
   /**
    * Cleanup expired buckets
    */
   private cleanup() {
     const now = Date.now();
     const expired: string[] = [];
-
     for (const [key, bucket] of this.buckets.entries()) {
       // Remove buckets older than 1 hour
       if (now - bucket.lastRefilled > 60 * 60 * 1000) {
         expired.push(key);
       }
     }
-
     expired.forEach((key) => this.buckets.delete(key));
   }
-
   /**
    * Destroy limiter
    */
@@ -159,11 +134,9 @@ class RateLimiter {
     this.buckets.clear();
   }
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* KEY GENERATORS                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Get client IP address from request
  */
@@ -173,23 +146,19 @@ export function getClientIP(request: Request): string {
   if (forwarded) {
     return forwarded.split(",")[0].trim();
   }
-
   const realIP = request.headers.get("x-real-ip");
   if (realIP) {
     return realIP;
   }
-
   // Fallback (this won't work in all environments)
   return "unknown";
 }
-
 /**
  * IP-based key generator
  */
 export function ipKeyGenerator(req: Request): string {
   return `ip:${getClientIP(req)}`;
 }
-
 /**
  * User ID-based key generator
  */
@@ -201,7 +170,6 @@ export function userKeyGenerator(userId: string | null) {
     return `user:${userId}`;
   };
 }
-
 /**
  * Combined IP + User key generator
  */
@@ -214,7 +182,6 @@ export function combinedKeyGenerator(userId: string | null) {
     return `combined:${userId}:${ip}`;
   };
 }
-
 /**
  * Endpoint-specific key generator
  */
@@ -226,11 +193,9 @@ export function endpointKeyGenerator(endpoint: string, userId: string | null) {
     return `endpoint:${endpoint}:${userId}`;
   };
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* PREDEFINED LIMITS                                                           */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 export const RateLimits = {
   /**
    * Strict limit for authentication endpoints (login, signup)
@@ -239,7 +204,6 @@ export const RateLimits = {
     windowMs: 15 * 60 * 1000, // 15 minutes
     maxRequests: 5, // 5 attempts
   },
-
   /**
    * Moderate limit for API endpoints
    */
@@ -247,7 +211,6 @@ export const RateLimits = {
     windowMs: 1 * 60 * 1000, // 1 minute
     maxRequests: 100, // 100 requests per minute
   },
-
   /**
    * Generous limit for authenticated users
    */
@@ -255,7 +218,6 @@ export const RateLimits = {
     windowMs: 1 * 60 * 1000, // 1 minute
     maxRequests: 500, // 500 requests per minute
   },
-
   /**
    * Very strict limit for search (prevents scraping)
    */
@@ -263,7 +225,6 @@ export const RateLimits = {
     windowMs: 1 * 60 * 1000, // 1 minute
     maxRequests: 30, // 30 searches per minute
   },
-
   /**
    * Strict limit for file uploads
    */
@@ -271,7 +232,6 @@ export const RateLimits = {
     windowMs: 5 * 60 * 1000, // 5 minutes
     maxRequests: 10, // 10 uploads per 5 minutes
   },
-
   /**
    * Strict limit for payment endpoints
    */
@@ -279,7 +239,6 @@ export const RateLimits = {
     windowMs: 1 * 60 * 1000, // 1 minute
     maxRequests: 5, // 5 requests per minute
   },
-
   /**
    * Limit for webhook endpoints
    */
@@ -288,11 +247,9 @@ export const RateLimits = {
     maxRequests: 100, // 100 per 10 seconds
   },
 };
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* RESPONSE HEADERS                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Create rate limit headers for response
  */
@@ -304,7 +261,6 @@ export function getRateLimitHeaders(
   const status = limiter.getStatus(key);
   const now = Date.now();
   const resetSeconds = Math.ceil((status.resetTime - now) / 1000);
-
   return {
     "RateLimit-Limit": limit.toString(),
     "RateLimit-Remaining": Math.max(0, status.remaining).toString(),
@@ -312,7 +268,6 @@ export function getRateLimitHeaders(
     "Retry-After": resetSeconds.toString(),
   };
 }
-
 /**
  * Create 429 Too Many Requests response
  */
@@ -322,7 +277,6 @@ export function createTooManyRequestsResponse(
   limit: number
 ): Response {
   const headers = getRateLimitHeaders(limiter, key, limit);
-
   return new Response(
     JSON.stringify({
       error: "Too Many Requests",
@@ -338,13 +292,10 @@ export function createTooManyRequestsResponse(
     }
   );
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* EXPORTS                                                                     */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 export { RateLimiter };
-
 /**
  * Create rate limiter instance
  */

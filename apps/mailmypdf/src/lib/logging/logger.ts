@@ -5,8 +5,6 @@
  * All sensitive information is redacted from logs.
  */
 
-import { createServerFn } from "@tanstack/start";
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* TYPES                                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -185,44 +183,41 @@ export const logger = new Logger();
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Server function to log audit events
+ * Log audit events
  * NOTE: This should persist to immutable audit table in Supabase
  */
-export const logAuditEvent = createServerFn(
-  { method: "POST" },
-  async (
-    userId: string | null,
-    action: string,
-    resource: string,
-    resourceId: string,
-    changes: Record<string, unknown>,
-    status: "success" | "failure",
-    errorMessage?: string,
-    ip?: string,
-    userAgent?: string
-  ) => {
-    const entry: AuditLogEntry = {
-      timestamp: new Date().toISOString(),
-      userId,
-      action,
-      resource,
-      resourceId,
-      changes: redactSensitive(changes) as Record<string, unknown>,
-      status,
-      ip: ip || "unknown",
-      userAgent: userAgent || "unknown",
-      ...(errorMessage && { errorMessage }),
-    };
+export async function logAuditEvent(
+  userId: string | null,
+  action: string,
+  resource: string,
+  resourceId: string,
+  changes: Record<string, unknown>,
+  status: "success" | "failure",
+  errorMessage?: string,
+  ip?: string,
+  userAgent?: string
+): Promise<AuditLogEntry> {
+  const entry: AuditLogEntry = {
+    timestamp: new Date().toISOString(),
+    userId,
+    action,
+    resource,
+    resourceId,
+    changes: redactSensitive(changes) as Record<string, unknown>,
+    status,
+    ip: ip || "unknown",
+    userAgent: userAgent || "unknown",
+    ...(errorMessage && { errorMessage }),
+  };
 
-    // Log to server logs
-    logger.info(`Audit: ${action}`, entry);
+  // Log to server logs
+  logger.info(`Audit: ${action}`, entry);
 
-    // In production, persist to audit table
-    // await supabase.from('audit_log').insert(entry);
+  // In production, persist to audit table
+  // await supabase.from('audit_log').insert(entry);
 
-    return entry;
-  }
-);
+  return entry;
+}
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* REQUEST LOGGING                                                             */

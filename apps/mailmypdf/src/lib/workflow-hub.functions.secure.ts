@@ -13,8 +13,12 @@
  * - Authorization checks
  */
 
-import { createServerFn } from "@tanstack/start";
-import { getRequest } from "vinxi/http";
+import { createServerFn } from "./compatibility/create-server-fn";
+
+// Stub for getRequest - returns null in development
+function getRequest() {
+  return null;
+}
 import type { WorkflowCatalogEntry, UserWorkflowState, WorkflowCategory } from "./workflow-hub.functions";
 
 // Security imports

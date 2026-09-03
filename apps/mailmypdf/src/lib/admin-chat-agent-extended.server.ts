@@ -8,7 +8,7 @@
  * - Full tool access and automation
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "./compatibility/create-server-fn";
 import { llmProvider } from "@mailmypdf/workflow-intelligence";
 import { logger, withErrorHandling } from "@/lib/security";
 import {

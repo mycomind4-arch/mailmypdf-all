@@ -6,7 +6,7 @@
  * are captured and integrated into the workflow logic.
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "./compatibility/create-server-fn";
 import { v4 as uuid } from "uuid";
 import {
   validateInput,

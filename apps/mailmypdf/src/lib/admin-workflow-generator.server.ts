@@ -5,7 +5,7 @@
  * Used by admin dashboard to create new workflows
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "./compatibility/create-server-fn";
 import { llmProvider } from "@mailmypdf/workflow-intelligence";
 import {
   generateWorkflow,

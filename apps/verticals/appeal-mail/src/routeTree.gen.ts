@@ -28,6 +28,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
 import { Route as AppealSlugRouteImport } from './routes/appeal/$slug'
+import { Route as AuthSsoCallbackRouteImport } from './routes/auth/sso-callback'
 import { Route as ResourcesIndexRouteImport } from './routes/resources/index'
 import { Route as ResourcesSlugRouteImport } from './routes/resources/$slug'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
@@ -71,6 +72,7 @@ import { Route as ApiAdminAppealsRouteImport } from './routes/api/admin/appeals'
 import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
 import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiControlPlaneAiRouteImport } from './routes/api/control-plane/ai'
+import { Route as WorkflowsWorkflowIdStartRouteImport } from './routes/workflows/$workflowId/start'
 import { Route as ApiWorkflowsWorkflowIdAnalyzeRouteImport } from './routes/api/workflows/$workflowId/analyze'
 import { Route as ApiWorkflowsWorkflowIdDraftRouteImport } from './routes/api/workflows/$workflowId/draft'
 import { Route as ApiWorkflowsAdministrativeDecisionAppealAnalyzeRouteImport } from './routes/api/workflows/administrative-decision-appeal/analyze'
@@ -305,6 +307,11 @@ const AppealSlugRoute = AppealSlugRouteImport.update({
   id: '/appeal/$slug',
   path: '/appeal/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSsoCallbackRoute = AuthSsoCallbackRouteImport.update({
+  id: '/sso-callback',
+  path: '/sso-callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const ResourcesIndexRoute = ResourcesIndexRouteImport.update({
   id: '/resources/',
@@ -547,6 +554,12 @@ const ApiControlPlaneAiRoute = ApiControlPlaneAiRouteImport.update({
   path: '/api/control-plane/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkflowsWorkflowIdStartRoute =
+  WorkflowsWorkflowIdStartRouteImport.update({
+    id: '/start',
+    path: '/start',
+    getParentRoute: () => WorkflowsWorkflowIdRoute,
+  } as any)
 const ApiWorkflowsWorkflowIdAnalyzeRoute =
   ApiWorkflowsWorkflowIdAnalyzeRouteImport.update({
     id: '/api/workflows/$workflowId/analyze',
@@ -1388,7 +1401,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/appeal-a-decision': typeof AppealADecisionRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
@@ -1402,8 +1415,9 @@ export interface FileRoutesByFullPath {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/appeal/$slug': typeof AppealSlugRoute
+  '/auth/sso-callback': typeof AuthSsoCallbackRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/administrative-decision': typeof WorkflowsAdministrativeDecisionRoute
   '/workflows/administrative-decision-appeal': typeof WorkflowsAdministrativeDecisionAppealRoute
   '/workflows/car-insurance-appeal': typeof WorkflowsCarInsuranceAppealRoute
@@ -1445,6 +1459,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
   '/api/workflows/administrative-decision-appeal/analyze': typeof ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute
@@ -1591,7 +1606,7 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/appeal-a-decision': typeof AppealADecisionRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
@@ -1604,8 +1619,9 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/appeal/$slug': typeof AppealSlugRoute
+  '/auth/sso-callback': typeof AuthSsoCallbackRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/administrative-decision': typeof WorkflowsAdministrativeDecisionRoute
   '/workflows/administrative-decision-appeal': typeof WorkflowsAdministrativeDecisionAppealRoute
   '/workflows/car-insurance-appeal': typeof WorkflowsCarInsuranceAppealRoute
@@ -1647,6 +1663,7 @@ export interface FileRoutesByTo {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
   '/api/workflows/administrative-decision-appeal/analyze': typeof ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute
@@ -1794,7 +1811,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/appeal-a-decision': typeof AppealADecisionRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
@@ -1808,8 +1825,9 @@ export interface FileRoutesById {
   '/workflows': typeof WorkflowsRouteWithChildren
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/appeal/$slug': typeof AppealSlugRoute
+  '/auth/sso-callback': typeof AuthSsoCallbackRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/administrative-decision': typeof WorkflowsAdministrativeDecisionRoute
   '/workflows/administrative-decision-appeal': typeof WorkflowsAdministrativeDecisionAppealRoute
   '/workflows/car-insurance-appeal': typeof WorkflowsCarInsuranceAppealRoute
@@ -1851,6 +1869,7 @@ export interface FileRoutesById {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
   '/api/workflows/administrative-decision-appeal/analyze': typeof ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute
@@ -2013,6 +2032,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/stripe-webhook'
     | '/appeal/$slug'
+    | '/auth/sso-callback'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/workflows/administrative-decision'
@@ -2056,6 +2076,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
     | '/api/workflows/administrative-decision-appeal/analyze'
@@ -2215,6 +2236,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/stripe-webhook'
     | '/appeal/$slug'
+    | '/auth/sso-callback'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/workflows/administrative-decision'
@@ -2258,6 +2280,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
     | '/api/workflows/administrative-decision-appeal/analyze'
@@ -2418,6 +2441,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/stripe-webhook'
     | '/appeal/$slug'
+    | '/auth/sso-callback'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/workflows/administrative-decision'
@@ -2461,6 +2485,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
     | '/api/workflows/administrative-decision-appeal/analyze'
@@ -2608,7 +2633,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRoute
   AppealADecisionRoute: typeof AppealADecisionRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   FaqRoute: typeof FaqRoute
@@ -2903,6 +2928,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/appeal/$slug'
       preLoaderRoute: typeof AppealSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/sso-callback': {
+      id: '/auth/sso-callback'
+      path: '/sso-callback'
+      fullPath: '/auth/sso-callback'
+      preLoaderRoute: typeof AuthSsoCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/resources/': {
       id: '/resources/'
@@ -3204,6 +3236,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/control-plane/ai'
       preLoaderRoute: typeof ApiControlPlaneAiRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/workflows/$workflowId/start': {
+      id: '/workflows/$workflowId/start'
+      path: '/start'
+      fullPath: '/workflows/$workflowId/start'
+      preLoaderRoute: typeof WorkflowsWorkflowIdStartRouteImport
+      parentRoute: typeof WorkflowsWorkflowIdRoute
     }
     '/api/workflows/$workflowId/analyze': {
       id: '/api/workflows/$workflowId/analyze'
@@ -4181,8 +4220,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthRouteChildren {
+  AuthSsoCallbackRoute: typeof AuthSsoCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthSsoCallbackRoute: AuthSsoCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface WorkflowsWorkflowIdRouteChildren {
+  WorkflowsWorkflowIdStartRoute: typeof WorkflowsWorkflowIdStartRoute
+}
+
+const WorkflowsWorkflowIdRouteChildren: WorkflowsWorkflowIdRouteChildren = {
+  WorkflowsWorkflowIdStartRoute: WorkflowsWorkflowIdStartRoute,
+}
+
+const WorkflowsWorkflowIdRouteWithChildren =
+  WorkflowsWorkflowIdRoute._addFileChildren(WorkflowsWorkflowIdRouteChildren)
+
 interface WorkflowsRouteChildren {
-  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
+  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRouteWithChildren
   WorkflowsAdministrativeDecisionRoute: typeof WorkflowsAdministrativeDecisionRoute
   WorkflowsAdministrativeDecisionAppealRoute: typeof WorkflowsAdministrativeDecisionAppealRoute
   WorkflowsCarInsuranceAppealRoute: typeof WorkflowsCarInsuranceAppealRoute
@@ -4222,7 +4282,7 @@ interface WorkflowsRouteChildren {
 }
 
 const WorkflowsRouteChildren: WorkflowsRouteChildren = {
-  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
+  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRouteWithChildren,
   WorkflowsAdministrativeDecisionRoute: WorkflowsAdministrativeDecisionRoute,
   WorkflowsAdministrativeDecisionAppealRoute:
     WorkflowsAdministrativeDecisionAppealRoute,
@@ -4278,7 +4338,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   AdminRoute: AdminRoute,
   AppealADecisionRoute: AppealADecisionRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   FaqRoute: FaqRoute,

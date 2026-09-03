@@ -6,7 +6,7 @@
  * The client can NEVER override pricing decisions.
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "./compatibility/create-server-fn";
 import { z } from "zod";
 import { calculateQuote, acceptQuote, getQuote, type PricingQuote } from "@mailmypdf/pricing";
 import { getSupabaseAdmin } from "./supabase-admin.server";

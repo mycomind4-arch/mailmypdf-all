@@ -5,16 +5,16 @@
  * These run server-side with full access to database and Stripe API.
  */
 
-import { createServerFn } from "@tanstack/start";
 import { z } from "zod";
 import { withAdmin } from "./supabase-admin.server";
+import { createServerFn } from "./compatibility/create-server-fn";
 
 /**
  * Get a pricing quote by ID for display on checkout page.
  */
 export const getPricingQuote = createServerFn({
   method: "POST",
-  async handler(ctx) {
+  async handler(ctx: any) {
     const body = z.object({ quoteId: z.string().uuid() }).parse(ctx.data);
 
     const data = await withAdmin(async (db) => {
@@ -62,7 +62,7 @@ export const getPricingQuote = createServerFn({
  */
 export const getCheckoutSession = createServerFn({
   method: "POST",
-  async handler(ctx) {
+  async handler(ctx: any) {
     const userEmail = ctx.request?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("User email not found");
@@ -106,7 +106,7 @@ export const getCheckoutSession = createServerFn({
  */
 export const verifyPaymentAndAcceptQuote = createServerFn({
   method: "POST",
-  async handler(ctx) {
+  async handler(ctx: any) {
     const body = z.object({
       quoteId: z.string().uuid(),
       paymentIntentId: z.string(),
@@ -136,7 +136,7 @@ export const verifyPaymentAndAcceptQuote = createServerFn({
  */
 export const getOrderAfterPayment = createServerFn({
   method: "POST",
-  async handler(ctx) {
+  async handler(ctx: any) {
     const userEmail = ctx.request?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("Unauthorized");
@@ -178,7 +178,7 @@ export const getOrderAfterPayment = createServerFn({
  */
 export const cancelOrderAndReverseQuote = createServerFn({
   method: "POST",
-  async handler(ctx) {
+  async handler(ctx: any) {
     const userEmail = ctx.request?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("Unauthorized");

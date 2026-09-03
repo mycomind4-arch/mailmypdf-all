@@ -4,7 +4,6 @@
  * Drop-in wrappers for integrating security into your Tanstack Start routes.
  * Use these to wrap your route loaders and actions with security hardening.
  */
-
 import { redirect } from "@tanstack/react-router";
 import {
   extractSecurityContext,
@@ -18,11 +17,9 @@ import {
 } from "@/lib/logging/logger";
 import { RateLimits } from "./rate-limiting";
 import { getClientIP } from "./rate-limiting";
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* ROUTE LOADER WRAPPERS                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Wrap a route loader with security middleware
  *
@@ -49,16 +46,13 @@ export function withAuthGuard<T>(
           message: "Unauthenticated access attempt",
           userAgent: opts.request?.headers.get("User-Agent"),
         });
-
         throw redirect({ to: "/auth" });
       }
-
       // Log successful access
       logger.info("Route accessed by authenticated user", {
         userId: opts.context.user.id,
         path: opts.location.pathname,
       });
-
       return loader(opts);
     } catch (error) {
       if (error instanceof Response) {
@@ -69,7 +63,6 @@ export function withAuthGuard<T>(
     }
   };
 }
-
 /**
  * Require specific role for route access
  *
@@ -92,11 +85,9 @@ export function withRoleGuard<T>(
       if (!opts.context.user) {
         throw redirect({ to: "/auth" });
       }
-
       // Check role
       if (opts.context.user.role !== requiredRole && opts.context.user.role !== "admin") {
         const context = extractSecurityContext(opts.request);
-
         logAuthorizationFailure(
           opts.context.user.id,
           opts.location.pathname,
@@ -104,16 +95,13 @@ export function withRoleGuard<T>(
           context.ip,
           context.userAgent
         );
-
         throw redirect({ to: "/" });
       }
-
       logger.info(`${requiredRole.toUpperCase()} route accessed`, {
         userId: opts.context.user.id,
         role: opts.context.user.role,
         path: opts.location.pathname,
       });
-
       return loader(opts);
     } catch (error) {
       if (error instanceof Response) {
@@ -124,7 +112,6 @@ export function withRoleGuard<T>(
     }
   };
 }
-
 /**
  * Wrap route action with security middleware
  *
@@ -151,19 +138,15 @@ export function withSecureAction<T>(
         upload: RateLimits.UPLOAD,
         payment: RateLimits.PAYMENT,
       }[limiterType];
-
       let result: T | Response;
-
       await applySecurityMiddleware(
         request,
         async (context) => {
           result = await handler(context);
-
           // Convert to response if needed
           if (result instanceof Response) {
             return result;
           }
-
           return new Response(JSON.stringify(result), {
             status: 200,
             headers: { "Content-Type": "application/json" },
@@ -171,7 +154,6 @@ export function withSecureAction<T>(
         },
         limiterConfig
       );
-
       return result as T;
     } catch (error) {
       logger.error("Secure action error", { error: (error as Error).message });
@@ -179,11 +161,9 @@ export function withSecureAction<T>(
     }
   };
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* COMPONENT WRAPPER UTILITIES                                                 */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Hook to check authentication in components
  *
@@ -206,7 +186,6 @@ export function useAuthRequired() {
     isLoading: false,
   };
 }
-
 /**
  * Wrapper for protected components
  *
@@ -224,11 +203,9 @@ export function withAuthRequired<P extends object>(
     return <Component {...props} />;
   };
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* API ENDPOINT PROTECTORS                                                     */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Protect a server function with rate limiting
  *
@@ -250,7 +227,6 @@ export function protectServerFn<T extends (...args: any[]) => any>(
   // This is a placeholder - actual implementation would depend on your server framework
   return serverFn;
 }
-
 /**
  * Create a protected API route
  *
@@ -278,25 +254,20 @@ export function createProtectedRoute(
         upload: RateLimits.UPLOAD,
         payment: RateLimits.PAYMENT,
       }[limiterType];
-
       let response: Response;
-
       await applySecurityMiddleware(
         request,
         async (context) => {
           // Extract user from request
           const user = null; // Would come from auth header
-
           response = await handler(request, user);
           return response;
         },
         limiterConfig
       );
-
       return response!;
     } catch (error) {
       logger.error("Protected route error", { error: (error as Error).message });
-
       return new Response(
         JSON.stringify({
           error: "Internal server error",
@@ -307,11 +278,9 @@ export function createProtectedRoute(
     }
   };
 }
-
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* QUICK START TEMPLATES                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
 /**
  * Template for a protected route handler
  *
@@ -339,7 +308,6 @@ export const PROTECTED_ROUTE_TEMPLATE = `
 import { createFileRoute } from '@tanstack/react-router';
 import { withAuthGuard } from '@/lib/security/route-middleware';
 import { logger } from '@/lib/security';
-
 export const Route = createFileRoute('/my-route')({
   component: MyComponent,
   beforeLoad: withAuthGuard(async ({ context }) => {
@@ -347,12 +315,10 @@ export const Route = createFileRoute('/my-route')({
     // Your logic here
   })
 });
-
 function MyComponent() {
   // Your component here
 }
 `;
-
 /**
  * Template for a protected server function
  *
@@ -380,9 +346,7 @@ function MyComponent() {
  * ```
  */
 export const PROTECTED_SERVER_FN_TEMPLATE = `
-import { createServerFn } from '@tanstack/start';
 import { logger, validateInput, CommonSchemas } from '@/lib/security';
-
 export const myServerFn = createServerFn(
   { method: 'POST' },
   async (input: unknown) => {
@@ -391,10 +355,8 @@ export const myServerFn = createServerFn(
     if (!validated.success) {
       throw new Error(validated.error);
     }
-
     // Your logic
     logger.info('Server function executed');
-
     return { success: true };
   }
 );

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { setOwnerContext, clearOwnerContext } from "@/platform/owner-context";
 
 export type UserRole = "customer" | "admin" | "super_admin";
@@ -70,8 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
     let subscription: { unsubscribe: () => void } | null = null;
     void loadSupabase().then(async (client) => {
       if (!client) { setLoading(false); setIsConfigured(false); clearOwnerContext(); setAccessToken(null); return; }
@@ -105,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription = data.subscription;
     });
     return () => subscription?.unsubscribe();
-  }, []);
+  }, [isHydrated]);
 
   const signUp = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     const client = await loadSupabase();
@@ -165,7 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, []);
 
-  return <AuthContext.Provider value={{ user, accessToken, loading, isConfigured, signUp, signIn, signInWithMagicLink, resetPassword, signOut, updateProfile }}>{children}</AuthContext.Provider>;
+  const contextValue = useMemo(() => ({ user, accessToken, loading, isConfigured, signUp, signIn, signInWithMagicLink, resetPassword, signOut, updateProfile }), [user, accessToken, loading, isConfigured, signUp, signIn, signInWithMagicLink, resetPassword, signOut, updateProfile]);
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
