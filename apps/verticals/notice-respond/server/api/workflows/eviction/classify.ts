@@ -4,12 +4,12 @@
  */
 
 import { createError, defineEventHandler, readBody, type H3Event } from "h3";
-import { classifyEvictionResponse } from "../../../src/domain/workflows/eviction/classification";
+import { classifyEvictionResponse } from "../../../../src/domain/workflows/eviction/classification";
 import type {
   EvictionIntakeConfirmation,
   EvictionClassificationRequest,
   EvictionClassificationResult,
-} from "../../../src/domain/workflows/eviction/types";
+} from "../../../../src/domain/workflows/eviction/types";
 
 interface ClassifyEvictionRequest {
   intake: EvictionIntakeConfirmation;
