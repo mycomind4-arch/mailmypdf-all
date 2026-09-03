@@ -17,7 +17,7 @@ export const Route = createFileRoute("/faq")({
       { q: "Is Benefits Appeal a law firm?", a: "No. Benefits Appeal provides document preparation and mailing assistance. It is not a law firm and does not provide legal advice." },
       { q: "Can Benefits Appeal guarantee my appeal will win?", a: "No. We never promise an outcome. We help you organize your evidence and build a factual, source-grounded appeal. The decision is made by the agency or hearing officer." },
       { q: "What types of benefits denials can I appeal?", a: "SSDI, SSI, Social Security, unemployment, EDD, Medicaid, SNAP/food stamps, VA benefits, housing benefits, disability benefits, overpayment notices, and general reconsideration requests." },
-      { q: "How much does it cost?", a: "Mailing starts at $4.99 for Standard mail ($14.94 Certified, $32.49 Registered). Workflow preparation is separate and starts at $14.99. No subscription required." },
+      { q: "How much does it cost?", a: "Mailing starts at $4.99 for Standard mail ($14.94 Certified, $32.49 Registered). The final total is shown after review and before payment. No subscription required." },
       { q: "How do I know my deadline?", a: "Upload your denial letter. The system extracts the decision date and deadline. Always verify against the source document — deadlines are strict and vary by program." },
       { q: "Does the AI invent facts or medical evidence?", a: "No. AI never invents facts, eligibility, diagnoses, or outcomes. Every claim in your appeal is traced to a source document you provide." },
       { q: "Can I review the draft before it's mailed?", a: "Yes. You review and approve the appeal letter word by word. Nothing is mailed until you explicitly approve it." },

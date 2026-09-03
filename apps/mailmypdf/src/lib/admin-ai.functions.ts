@@ -62,6 +62,30 @@ export const upsertAIProvider = createServerFn({ method: 'POST' }).middleware([r
   return { ok: true, id: result.data.id };
 });
 
+export const configureSsdiClaude = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => z.object({ apiKey: z.string().min(1), model: z.string().min(1).max(150).default('claude-sonnet-4-5-20250929') }).parse(d)).handler(async ({ data, context }) => {
+  await assertAdmin(context.userId);
+  const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+  const db = supabaseAdmin as any;
+  const providerPayload = {
+    provider: 'anthropic', label: 'Claude', api_base_url: null, default_model: data.model,
+    enabled: true, metadata: { configured_for: 'appeal-mail/ssdi-denial,appeal-mail/ssi-denial' },
+    encrypted_api_key: await encryptConfigSecret(data.apiKey), updated_by: context.userId, updated_at: new Date().toISOString(),
+  };
+  const existing = await db.from('ai_provider_configs').select('id').eq('provider', 'anthropic').eq('label', 'Claude').maybeSingle();
+  const providerResult = existing.data?.id
+    ? await db.from('ai_provider_configs').update(providerPayload).eq('id', existing.data.id).select('id').single()
+    : await db.from('ai_provider_configs').insert({ ...providerPayload, created_by: context.userId }).select('id').single();
+  if (providerResult.error) throw new Error(providerResult.error.message);
+  for (const workflowSlug of ['ssdi-denial', 'ssi-denial']) {
+    for (const task of ['analysis', 'draft', 'validation'] as const) {
+      const routeResult = await db.from('ai_workflow_routes').upsert({ vertical_slug: 'appeal-mail', workflow_slug: workflowSlug, task, provider_id: providerResult.data.id, model_override: null, prompt_override: null, fallback_provider_id: null, enabled: true, updated_at: new Date().toISOString() }, { onConflict: 'vertical_slug,workflow_slug,task' }).select('id').single();
+      if (routeResult.error) throw new Error(routeResult.error.message);
+    }
+  }
+  await db.from('ecosystem_config_audit').insert({ actor_user_id: context.userId, action: 'configure', resource_type: 'ssdi_claude_setup', resource_id: providerResult.data.id, metadata: { model: data.model } });
+  return { ok: true };
+});
+
 export const upsertAIWorkflowRoute = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => z.object({ id: z.string().uuid().optional(), ...routeInput.shape }).parse(d)).handler(async ({ data, context }) => {
   await assertAdmin(context.userId);
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');

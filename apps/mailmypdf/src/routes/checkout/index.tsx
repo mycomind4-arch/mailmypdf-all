@@ -17,7 +17,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { loadStripe } from "@stripe/js";
+import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Mail, AlertCircle, Lock } from "lucide-react";
 import { getCheckoutSession, getPricingQuote } from "@/lib/checkout.functions";

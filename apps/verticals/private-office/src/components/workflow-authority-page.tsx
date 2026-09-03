@@ -70,7 +70,7 @@ export function WorkflowAuthorityPage({
   }
 
   const pricingExample = [
-    { item: "Workflow preparation", price: `$${profile.pricing.preparationFee.toFixed(2)}` },
+    { item: "Workflow work", price: "Included" },
     { item: `${profile.pricing.includedResponsePages} response pages included`, price: "Included" },
     { item: "Certified mail with return receipt", price: profile.pricing.certifiedReturnReceipt ? `$${profile.pricing.certifiedReturnReceipt.toFixed(2)}` : "—" },
     { item: "Estimated total", price: `$${(profile.pricing.preparationFee + (profile.pricing.certifiedReturnReceipt ?? 0)).toFixed(2)}`, bold: true },

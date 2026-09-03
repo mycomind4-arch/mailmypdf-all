@@ -74,7 +74,7 @@ const steps = [
 
 const stats = [
   { value: "3–5", label: "Business day delivery" },
-  { value: `$${(PRICES.standard / 100).toFixed(2)}`, label: "Starting price for workflow preparation" },
+  { value: `$${(PRICES.standard / 100).toFixed(2)}`, label: "Starting price for mailing" },
   { value: "100%", label: "You control the facts" },
   { value: "0", label: "Printers needed" },
 ];
@@ -101,7 +101,7 @@ const faqItems = [
   { q: "What types of issues can I dispute?", a: "Credit report errors with the three bureaus, debt validation requests to collectors, medical and utility billing errors, and unauthorized charges with your card issuer or bank." },
   { q: "How does the mailing work?", a: "Your final document is printed, placed in an envelope, and mailed via USPS. You can choose first-class, certified, or certified with return receipt for proof of delivery." },
   { q: "Is my data secure?", a: "All documents are stored with encryption, never shared with third parties, and never used for marketing. You can request full deletion at any time." },
-  { q: "What does it cost?", a: "You pay for the workflow preparation (starting at $14.99 for simple disputes), then choose your mailing service ($4.99 standard, $14.94 certified, $32.49 registered). No subscription required." },
+  { q: "What does it cost?", a: "You review the final packet total before payment, then choose your mailing service ($4.99 standard, $14.94 certified, $32.49 registered). No subscription required." },
 ];
 
 function HomePage() {

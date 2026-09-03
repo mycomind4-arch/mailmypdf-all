@@ -8,10 +8,13 @@ import { createServerFn } from "@tanstack/react-start";
 export async function getSupabaseServer() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !serviceKey) {
-    throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+    throw new Error(
+      "Supabase is not configured. Set VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
   }
 
   return createClient(url, serviceKey, {
@@ -23,7 +26,9 @@ export async function getSupabaseServer() {
 export async function getSupabaseClient() {
   const { createClient } = await import("@supabase/supabase-js");
   const url = import.meta.env.VITE_SUPABASE_URL;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const anonKey =
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !anonKey) {
     return null;
@@ -44,7 +49,8 @@ export async function requireAuthenticatedUser(request: Request) {
 
   const supabase = await getSupabaseServer();
   const { data, error } = await supabase.auth.getUser(match[1]);
-  if (error || !data.user) throw new Error("Invalid or expired authentication token");
+  if (error || !data.user)
+    throw new Error("Invalid or expired authentication token");
 
   return data.user;
 }

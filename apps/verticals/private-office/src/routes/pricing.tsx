@@ -7,7 +7,7 @@ export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Pricing — Private Office" },
-      { name: "description", content: "Pay for the matter preparation, then choose your mailing. Preparation starts at $24.99. Mailing from $4.99." },
+      { name: "description", content: "Matter preparation is calculated from the approved packet. Choose a mailing service after review." },
     ],
   }),
   component: PricingPage,
@@ -48,7 +48,7 @@ function PricingPage() {
           </div>
           <div className="mt-8 rounded-xl border border-rule bg-ivory-deep p-6">
             <p className="text-sm leading-relaxed text-charcoal-soft">
-              <span className="font-medium text-charcoal">Preparation fee: $24.99</span> per document. Includes document analysis, guided response drafting, and review. Additional response pages and supporting documents are priced per sheet.
+              <span className="font-medium text-charcoal">Preparation estimate</span> is calculated from document analysis, guided response drafting, review, additional response pages, and supporting documents.
             </p>
             <p className="mt-3 text-xs leading-relaxed text-stone">
               Payment confirms your selected mailing service. Mailing remains subject to the required approval and fulfillment checks. The exact price is calculated from your final approved packet before payment.

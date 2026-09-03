@@ -73,19 +73,18 @@ export const CATEGORY_ORDER: AppealCategory[] = [
 ];
 
 export const CATEGORY_DESCRIPTIONS: Record<AppealCategory, string> = {
-  "Insurance":
+  Insurance:
     "Denied insurance claims, health coverage, prior authorizations, out-of-network, timely filing, Medicare, and dental appeals.",
   "Disability & Social Security":
     "SSI, SSDI, Social Security reconsideration, overpayment, and Appeals Council appeals.",
-  "Unemployment":
+  Unemployment:
     "Unemployment benefit denials, EDD appeals, and state-specific unemployment decision appeals.",
   "Government Benefits":
     "Medicaid, SNAP/food stamp, and general benefits denial appeals.",
   "Workers' Compensation":
     "Workers' compensation claim denials and disputed benefit decisions.",
-  "Veterans":
-    "VA claim appeals under the Appeals Modernization Act.",
-  "Administrative":
+  Veterans: "VA claim appeals under the Appeals Modernization Act.",
+  Administrative:
     "Agency decisions, administrative rulings, licensing, and regulatory appeals.",
 };
 
@@ -151,7 +150,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/insurance-claim-denial",
-        cta: "Start Appeal",
+    cta: "Start Appeal",
   },
   {
     slug: "health-insurance",
@@ -203,7 +202,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/medical-insurance-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "prior-authorization",
@@ -254,7 +253,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/prior-authorization-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "out-of-network",
@@ -304,7 +303,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/out-of-network-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "timely-filing",
@@ -353,7 +352,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/insurance-claim-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "medicare",
@@ -402,7 +401,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/medical-insurance-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "dental-insurance",
@@ -450,7 +449,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Insurance Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/dental-insurance-appeal",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── DISABILITY & SOCIAL SECURITY ── */
@@ -507,7 +506,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Disability Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/ssi-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "ssdi",
@@ -562,7 +561,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Disability Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/ssdi-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "social-security-reconsideration",
@@ -609,7 +608,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Disability Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/reconsideration",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "social-security-overpayment",
@@ -657,7 +656,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Disability Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/social-security-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "appeals-council",
@@ -705,7 +704,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Disability Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/social-security-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── UNEMPLOYMENT ── */
@@ -763,7 +762,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Unemployment Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/unemployment-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "edd",
@@ -811,7 +810,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Unemployment Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/edd-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── GOVERNMENT BENEFITS ── */
@@ -867,7 +866,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Benefits Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/medicaid-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "snap",
@@ -916,7 +915,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Benefits Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/medicaid-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── WORKERS' COMPENSATION ── */
@@ -972,7 +971,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Workers Compensation Engine",
     executable: true,
     workflowRoute: "/workflows/insurance-claim-denial",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── VETERANS ── */
@@ -1023,7 +1022,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Veterans Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/government-decision",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
 
   /* ── ADMINISTRATIVE ── */
@@ -1073,7 +1072,7 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Administrative Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/government-decision",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   {
     slug: "licensing",
@@ -1121,25 +1120,54 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     engine: "Administrative Appeal Engine",
     executable: true,
     workflowRoute: "/workflows/license-suspension-appeal",
-        cta: "Join the workflow",
+    cta: "Join the workflow",
   },
   /* ── EDUCATION & FINANCIAL AID ── */
   {
     slug: "financial-aid-appeal",
     title: "Financial Aid Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a financial aid decision with changed circumstances or new information.",
-    longDescription: "Financial aid appeals can adjust your aid package when circumstances change — job loss, medical expenses, or family changes. A strong appeal documents the change and connects it to the aid formula.",
-    intendedUser: "Students and families appealing a financial aid award or denial.",
-    problemSolved: "Financial aid offices can adjust awards when circumstances change, but only if you document the change and connect it to the aid formula.",
-    whatWeAnalyze: ["The original aid decision and award letter", "Stated reasons for the aid amount", "Deadline and process for appeal", "Supporting documentation for changed circumstances"],
-    whatYouNeed: ["Financial aid award letter or denial", "Documentation of changed circumstances", "Tax returns or income documentation", "Any correspondence with the financial aid office"],
-    whatWeIdentify: ["Gaps between your circumstances and the aid formula", "Missing documentation", "Deadline and process errors", "Grounds for professional judgment review"],
-    whatAppealAddresses: ["Documented change in circumstances", "Request for professional judgment review", "Specific adjustment requested", "Supporting evidence"],
+    shortDescription:
+      "Appeal a financial aid decision with changed circumstances or new information.",
+    longDescription:
+      "Financial aid appeals can adjust your aid package when circumstances change — job loss, medical expenses, or family changes. A strong appeal documents the change and connects it to the aid formula.",
+    intendedUser:
+      "Students and families appealing a financial aid award or denial.",
+    problemSolved:
+      "Financial aid offices can adjust awards when circumstances change, but only if you document the change and connect it to the aid formula.",
+    whatWeAnalyze: [
+      "The original aid decision and award letter",
+      "Stated reasons for the aid amount",
+      "Deadline and process for appeal",
+      "Supporting documentation for changed circumstances",
+    ],
+    whatYouNeed: [
+      "Financial aid award letter or denial",
+      "Documentation of changed circumstances",
+      "Tax returns or income documentation",
+      "Any correspondence with the financial aid office",
+    ],
+    whatWeIdentify: [
+      "Gaps between your circumstances and the aid formula",
+      "Missing documentation",
+      "Deadline and process errors",
+      "Grounds for professional judgment review",
+    ],
+    whatAppealAddresses: [
+      "Documented change in circumstances",
+      "Request for professional judgment review",
+      "Specific adjustment requested",
+      "Supporting evidence",
+    ],
     seoTitle: "Financial Aid Appeal — Appeal Mail",
-    seoDescription: "Appeal a financial aid decision with documented changed circumstances and supporting evidence.",
+    seoDescription:
+      "Appeal a financial aid decision with documented changed circumstances and supporting evidence.",
     primaryKeyword: "financial aid appeal",
-    relatedKeywords: ["financial aid appeal letter", "FAFSA appeal", "college financial aid appeal"],
+    relatedKeywords: [
+      "financial aid appeal letter",
+      "FAFSA appeal",
+      "college financial aid appeal",
+    ],
     route: "/appeal/financial-aid-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1151,18 +1179,47 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "financial-aid-suspension",
     title: "Financial Aid Suspension Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a financial aid suspension for unsatisfactory academic progress.",
-    longDescription: "Financial aid suspension often results from not meeting SAP (Satisfactory Academic Progress) requirements. A successful appeal documents the circumstances that caused the academic issues and shows a plan to regain good standing.",
-    intendedUser: "Students whose financial aid has been suspended due to unsatisfactory academic progress.",
-    problemSolved: "SAP appeals require documenting mitigating circumstances and presenting a remediation plan.",
-    whatWeAnalyze: ["The SAP policy and requirements", "Your academic record vs. SAP thresholds", "Stated grounds for suspension", "Appeal deadline and process"],
-    whatYouNeed: ["SAP suspension notice", "Academic transcript", "Documentation of mitigating circumstances", "Academic improvement plan"],
-    whatWeIdentify: ["Whether the SAP calculation is correct", "Mitigating circumstances documentation", "Gaps in the appeal record", "Deadline compliance"],
-    whatAppealAddresses: ["Documented mitigating circumstances", "Academic improvement plan", "Request for reinstatement", "Specific relief sought"],
+    shortDescription:
+      "Appeal a financial aid suspension for unsatisfactory academic progress.",
+    longDescription:
+      "Financial aid suspension often results from not meeting SAP (Satisfactory Academic Progress) requirements. A successful appeal documents the circumstances that caused the academic issues and shows a plan to regain good standing.",
+    intendedUser:
+      "Students whose financial aid has been suspended due to unsatisfactory academic progress.",
+    problemSolved:
+      "SAP appeals require documenting mitigating circumstances and presenting a remediation plan.",
+    whatWeAnalyze: [
+      "The SAP policy and requirements",
+      "Your academic record vs. SAP thresholds",
+      "Stated grounds for suspension",
+      "Appeal deadline and process",
+    ],
+    whatYouNeed: [
+      "SAP suspension notice",
+      "Academic transcript",
+      "Documentation of mitigating circumstances",
+      "Academic improvement plan",
+    ],
+    whatWeIdentify: [
+      "Whether the SAP calculation is correct",
+      "Mitigating circumstances documentation",
+      "Gaps in the appeal record",
+      "Deadline compliance",
+    ],
+    whatAppealAddresses: [
+      "Documented mitigating circumstances",
+      "Academic improvement plan",
+      "Request for reinstatement",
+      "Specific relief sought",
+    ],
     seoTitle: "Financial Aid Suspension Appeal — Appeal Mail",
-    seoDescription: "Appeal a financial aid suspension for unsatisfactory academic progress with documented mitigating circumstances.",
+    seoDescription:
+      "Appeal a financial aid suspension for unsatisfactory academic progress with documented mitigating circumstances.",
     primaryKeyword: "financial aid suspension appeal",
-    relatedKeywords: ["SAP appeal", "financial aid reinstatement", "academic progress appeal"],
+    relatedKeywords: [
+      "SAP appeal",
+      "financial aid reinstatement",
+      "academic progress appeal",
+    ],
     route: "/appeal/financial-aid-suspension",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1174,18 +1231,47 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "financial-aid-reinstatement",
     title: "Financial Aid Reinstatement Appeal",
     category: "Administrative",
-    shortDescription: "Request reinstatement of financial aid after suspension or loss of eligibility.",
-    longDescription: "Reinstatement appeals focus on showing that the circumstances that caused the suspension have been resolved and that you are now positioned to meet academic requirements.",
-    intendedUser: "Students seeking reinstatement of financial aid after a suspension period.",
-    problemSolved: "Reinstatement requires demonstrating that prior issues are resolved and future success is likely.",
-    whatWeAnalyze: ["The original suspension decision", "Current academic standing", "Prior appeal history", "Reinstatement requirements"],
-    whatYouNeed: ["Original suspension letter", "Current transcript", "Documentation of resolved circumstances", "Academic plan"],
-    whatWeIdentify: ["Whether reinstatement criteria are met", "Evidence of changed circumstances", "Academic progress since suspension", "Gaps in documentation"],
-    whatAppealAddresses: ["Evidence of resolved circumstances", "Academic plan for success", "Request for reinstatement", "Supporting documentation"],
+    shortDescription:
+      "Request reinstatement of financial aid after suspension or loss of eligibility.",
+    longDescription:
+      "Reinstatement appeals focus on showing that the circumstances that caused the suspension have been resolved and that you are now positioned to meet academic requirements.",
+    intendedUser:
+      "Students seeking reinstatement of financial aid after a suspension period.",
+    problemSolved:
+      "Reinstatement requires demonstrating that prior issues are resolved and future success is likely.",
+    whatWeAnalyze: [
+      "The original suspension decision",
+      "Current academic standing",
+      "Prior appeal history",
+      "Reinstatement requirements",
+    ],
+    whatYouNeed: [
+      "Original suspension letter",
+      "Current transcript",
+      "Documentation of resolved circumstances",
+      "Academic plan",
+    ],
+    whatWeIdentify: [
+      "Whether reinstatement criteria are met",
+      "Evidence of changed circumstances",
+      "Academic progress since suspension",
+      "Gaps in documentation",
+    ],
+    whatAppealAddresses: [
+      "Evidence of resolved circumstances",
+      "Academic plan for success",
+      "Request for reinstatement",
+      "Supporting documentation",
+    ],
     seoTitle: "Financial Aid Reinstatement — Appeal Mail",
-    seoDescription: "Request financial aid reinstatement after suspension with evidence of resolved circumstances and an academic plan.",
+    seoDescription:
+      "Request financial aid reinstatement after suspension with evidence of resolved circumstances and an academic plan.",
     primaryKeyword: "financial aid reinstatement",
-    relatedKeywords: ["financial aid reinstatement appeal", "aid reinstatement letter", "FAFSA reinstatement"],
+    relatedKeywords: [
+      "financial aid reinstatement appeal",
+      "aid reinstatement letter",
+      "FAFSA reinstatement",
+    ],
     route: "/appeal/financial-aid-reinstatement",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1197,18 +1283,47 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "financial-aid-special-circumstances",
     title: "Financial Aid Special Circumstances Appeal",
     category: "Administrative",
-    shortDescription: "Request a financial aid adjustment for special circumstances not reflected in FAFSA.",
-    longDescription: "Special circumstances appeals ask the financial aid office to use professional judgment to adjust your aid based on circumstances not captured in the FAFSA — such as loss of income, medical expenses, or family changes.",
-    intendedUser: "Students whose financial situation has changed since filing the FAFSA.",
-    problemSolved: "The FAFSA uses prior-prior year tax data. If your circumstances have changed, a special circumstances appeal can adjust your aid.",
-    whatWeAnalyze: ["The original aid calculation", "Stated special circumstances", "Documentation supporting the adjustment", "Professional judgment criteria"],
-    whatYouNeed: ["FAFSA submission summary", "Documentation of special circumstances", "Updated income or expense documentation", "Prior aid award letter"],
-    whatWeIdentify: ["Whether circumstances qualify for professional judgment", "Documentation gaps", "Impact on aid calculation", "Missing evidence"],
-    whatAppealAddresses: ["Documented special circumstances", "Request for professional judgment adjustment", "Specific financial impact", "Supporting evidence"],
+    shortDescription:
+      "Request a financial aid adjustment for special circumstances not reflected in FAFSA.",
+    longDescription:
+      "Special circumstances appeals ask the financial aid office to use professional judgment to adjust your aid based on circumstances not captured in the FAFSA — such as loss of income, medical expenses, or family changes.",
+    intendedUser:
+      "Students whose financial situation has changed since filing the FAFSA.",
+    problemSolved:
+      "The FAFSA uses prior-prior year tax data. If your circumstances have changed, a special circumstances appeal can adjust your aid.",
+    whatWeAnalyze: [
+      "The original aid calculation",
+      "Stated special circumstances",
+      "Documentation supporting the adjustment",
+      "Professional judgment criteria",
+    ],
+    whatYouNeed: [
+      "FAFSA submission summary",
+      "Documentation of special circumstances",
+      "Updated income or expense documentation",
+      "Prior aid award letter",
+    ],
+    whatWeIdentify: [
+      "Whether circumstances qualify for professional judgment",
+      "Documentation gaps",
+      "Impact on aid calculation",
+      "Missing evidence",
+    ],
+    whatAppealAddresses: [
+      "Documented special circumstances",
+      "Request for professional judgment adjustment",
+      "Specific financial impact",
+      "Supporting evidence",
+    ],
     seoTitle: "Financial Aid Special Circumstances — Appeal Mail",
-    seoDescription: "Request a financial aid adjustment for special circumstances not reflected in your FAFSA.",
+    seoDescription:
+      "Request a financial aid adjustment for special circumstances not reflected in your FAFSA.",
     primaryKeyword: "financial aid special circumstances",
-    relatedKeywords: ["special circumstances appeal", "professional judgment appeal", "FAFSA special circumstances"],
+    relatedKeywords: [
+      "special circumstances appeal",
+      "professional judgment appeal",
+      "FAFSA special circumstances",
+    ],
     route: "/appeal/financial-aid-special-circumstances",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1220,18 +1335,47 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "sap-appeal",
     title: "SAP Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a Satisfactory Academic Progress (SAP) determination affecting financial aid.",
-    longDescription: "SAP appeals challenge a financial aid suspension or warning based on not meeting academic progress standards. A successful appeal documents the circumstances and presents a plan to regain compliance.",
-    intendedUser: "Students facing financial aid loss due to SAP non-compliance.",
-    problemSolved: "SAP standards require minimum GPA, completion rate, and maximum timeframe. Appeals document why these were not met.",
-    whatWeAnalyze: ["The SAP policy and thresholds", "Your academic record vs. requirements", "Stated grounds for non-compliance", "Appeal process and deadline"],
-    whatYouNeed: ["SAP determination letter", "Academic transcript", "Documentation of mitigating circumstances", "Academic success plan"],
-    whatWeIdentify: ["Whether the SAP calculation is correct", "Mitigating circumstances", "Plan feasibility", "Deadline compliance"],
-    whatAppealAddresses: ["Documented mitigating circumstances", "Academic success plan", "Request for continued aid", "Specific relief sought"],
+    shortDescription:
+      "Appeal a Satisfactory Academic Progress (SAP) determination affecting financial aid.",
+    longDescription:
+      "SAP appeals challenge a financial aid suspension or warning based on not meeting academic progress standards. A successful appeal documents the circumstances and presents a plan to regain compliance.",
+    intendedUser:
+      "Students facing financial aid loss due to SAP non-compliance.",
+    problemSolved:
+      "SAP standards require minimum GPA, completion rate, and maximum timeframe. Appeals document why these were not met.",
+    whatWeAnalyze: [
+      "The SAP policy and thresholds",
+      "Your academic record vs. requirements",
+      "Stated grounds for non-compliance",
+      "Appeal process and deadline",
+    ],
+    whatYouNeed: [
+      "SAP determination letter",
+      "Academic transcript",
+      "Documentation of mitigating circumstances",
+      "Academic success plan",
+    ],
+    whatWeIdentify: [
+      "Whether the SAP calculation is correct",
+      "Mitigating circumstances",
+      "Plan feasibility",
+      "Deadline compliance",
+    ],
+    whatAppealAddresses: [
+      "Documented mitigating circumstances",
+      "Academic success plan",
+      "Request for continued aid",
+      "Specific relief sought",
+    ],
     seoTitle: "SAP Appeal — Appeal Mail",
-    seoDescription: "Appeal a Satisfactory Academic Progress determination with documented circumstances and an academic plan.",
+    seoDescription:
+      "Appeal a Satisfactory Academic Progress determination with documented circumstances and an academic plan.",
     primaryKeyword: "SAP appeal",
-    relatedKeywords: ["satisfactory academic progress appeal", "SAP appeal letter", "financial aid SAP appeal"],
+    relatedKeywords: [
+      "satisfactory academic progress appeal",
+      "SAP appeal letter",
+      "financial aid SAP appeal",
+    ],
     route: "/appeal/sap-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1243,18 +1387,47 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "fafsa-appeal",
     title: "FAFSA Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a FAFSA determination or request a dependency override or income adjustment.",
-    longDescription: "FAFSA appeals include dependency overrides, income adjustments, and special circumstance requests that adjust the Student Aid Index calculation.",
-    intendedUser: "Students who need to adjust their FAFSA-based aid calculation.",
-    problemSolved: "The FAFSA does not capture all circumstances. Appeals can adjust the calculation through professional judgment.",
-    whatWeAnalyze: ["The FAFSA submission and SAI calculation", "Stated grounds for appeal", "Documentation supporting adjustment", "Financial aid office process"],
-    whatYouNeed: ["FAFSA confirmation", "Documentation of circumstances", "Income or expense documentation", "Prior aid award"],
-    whatWeIdentify: ["Whether the SAI calculation can be adjusted", "Documentation gaps", "Eligibility for dependency override", "Missing evidence"],
-    whatAppealAddresses: ["Documented circumstances", "Request for SAI adjustment or dependency override", "Financial impact documentation", "Supporting evidence"],
+    shortDescription:
+      "Appeal a FAFSA determination or request a dependency override or income adjustment.",
+    longDescription:
+      "FAFSA appeals include dependency overrides, income adjustments, and special circumstance requests that adjust the Student Aid Index calculation.",
+    intendedUser:
+      "Students who need to adjust their FAFSA-based aid calculation.",
+    problemSolved:
+      "The FAFSA does not capture all circumstances. Appeals can adjust the calculation through professional judgment.",
+    whatWeAnalyze: [
+      "The FAFSA submission and SAI calculation",
+      "Stated grounds for appeal",
+      "Documentation supporting adjustment",
+      "Financial aid office process",
+    ],
+    whatYouNeed: [
+      "FAFSA confirmation",
+      "Documentation of circumstances",
+      "Income or expense documentation",
+      "Prior aid award",
+    ],
+    whatWeIdentify: [
+      "Whether the SAI calculation can be adjusted",
+      "Documentation gaps",
+      "Eligibility for dependency override",
+      "Missing evidence",
+    ],
+    whatAppealAddresses: [
+      "Documented circumstances",
+      "Request for SAI adjustment or dependency override",
+      "Financial impact documentation",
+      "Supporting evidence",
+    ],
     seoTitle: "FAFSA Appeal — Appeal Mail",
-    seoDescription: "Appeal a FAFSA determination with documented circumstances and request an adjustment to your aid calculation.",
+    seoDescription:
+      "Appeal a FAFSA determination with documented circumstances and request an adjustment to your aid calculation.",
     primaryKeyword: "FAFSA appeal",
-    relatedKeywords: ["FAFSA appeal letter", "dependency override", "FAFSA adjustment appeal"],
+    relatedKeywords: [
+      "FAFSA appeal letter",
+      "dependency override",
+      "FAFSA adjustment appeal",
+    ],
     route: "/appeal/fafsa-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1266,18 +1439,46 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "scholarship-appeal",
     title: "Scholarship Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a scholarship denial, reduction, or revocation decision.",
-    longDescription: "Scholarship appeals challenge decisions to deny, reduce, or revoke scholarship funding based on academic performance, eligibility disputes, or changed circumstances.",
+    shortDescription:
+      "Appeal a scholarship denial, reduction, or revocation decision.",
+    longDescription:
+      "Scholarship appeals challenge decisions to deny, reduce, or revoke scholarship funding based on academic performance, eligibility disputes, or changed circumstances.",
     intendedUser: "Students appealing a scholarship decision.",
-    problemSolved: "Scholarship decisions can sometimes be reversed with additional documentation or evidence of qualifying circumstances.",
-    whatWeAnalyze: ["The scholarship decision and criteria", "Your eligibility record", "Stated grounds for the decision", "Appeal process"],
-    whatYouNeed: ["Scholarship decision letter", "Academic transcript", "Documentation of circumstances", "Scholarship criteria documentation"],
-    whatWeIdentify: ["Whether the decision aligns with scholarship criteria", "Documentation gaps", "Eligibility disputes", "Missing evidence"],
-    whatAppealAddresses: ["Documented eligibility or circumstances", "Request for reconsideration", "Specific relief sought", "Supporting evidence"],
+    problemSolved:
+      "Scholarship decisions can sometimes be reversed with additional documentation or evidence of qualifying circumstances.",
+    whatWeAnalyze: [
+      "The scholarship decision and criteria",
+      "Your eligibility record",
+      "Stated grounds for the decision",
+      "Appeal process",
+    ],
+    whatYouNeed: [
+      "Scholarship decision letter",
+      "Academic transcript",
+      "Documentation of circumstances",
+      "Scholarship criteria documentation",
+    ],
+    whatWeIdentify: [
+      "Whether the decision aligns with scholarship criteria",
+      "Documentation gaps",
+      "Eligibility disputes",
+      "Missing evidence",
+    ],
+    whatAppealAddresses: [
+      "Documented eligibility or circumstances",
+      "Request for reconsideration",
+      "Specific relief sought",
+      "Supporting evidence",
+    ],
     seoTitle: "Scholarship Appeal — Appeal Mail",
-    seoDescription: "Appeal a scholarship denial, reduction, or revocation with documented evidence.",
+    seoDescription:
+      "Appeal a scholarship denial, reduction, or revocation with documented evidence.",
     primaryKeyword: "scholarship appeal",
-    relatedKeywords: ["scholarship appeal letter", "scholarship denial appeal", "merit scholarship appeal"],
+    relatedKeywords: [
+      "scholarship appeal letter",
+      "scholarship denial appeal",
+      "merit scholarship appeal",
+    ],
     route: "/appeal/scholarship-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1289,18 +1490,48 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "life-insurance-denial",
     title: "Life Insurance Denial Appeal",
     category: "Insurance",
-    shortDescription: "Appeal a denied life insurance claim with policy evidence and beneficiary documentation.",
-    longDescription: "Life insurance claim denials often cite policy exclusions, misrepresentation, or eligibility disputes. A successful appeal addresses each denial reason with policy provisions and supporting evidence.",
+    shortDescription:
+      "Appeal a denied life insurance claim with policy evidence and beneficiary documentation.",
+    longDescription:
+      "Life insurance claim denials often cite policy exclusions, misrepresentation, or eligibility disputes. A successful appeal addresses each denial reason with policy provisions and supporting evidence.",
     intendedUser: "Beneficiaries of a denied life insurance claim.",
-    problemSolved: "Life insurance denials can be reversed when the appeal addresses the specific policy language and provides evidence contradicting the denial rationale.",
-    whatWeAnalyze: ["The stated denial reason", "Policy provisions cited", "Claim and policy reference numbers", "Beneficiary documentation", "Whether the denial cites correct policy language"],
-    whatYouNeed: ["Denial letter", "Life insurance policy", "Death certificate", "Beneficiary documentation", "Any correspondence with the insurer"],
-    whatWeIdentify: ["Policy provisions that may not support the denial", "Factual discrepancies in the denial", "Evidence not considered", "Procedural errors"],
-    whatAppealAddresses: ["Each denial reason with evidence", "Policy provisions supporting coverage", "Procedural errors", "Request for reconsideration"],
+    problemSolved:
+      "Life insurance denials can be reversed when the appeal addresses the specific policy language and provides evidence contradicting the denial rationale.",
+    whatWeAnalyze: [
+      "The stated denial reason",
+      "Policy provisions cited",
+      "Claim and policy reference numbers",
+      "Beneficiary documentation",
+      "Whether the denial cites correct policy language",
+    ],
+    whatYouNeed: [
+      "Denial letter",
+      "Life insurance policy",
+      "Death certificate",
+      "Beneficiary documentation",
+      "Any correspondence with the insurer",
+    ],
+    whatWeIdentify: [
+      "Policy provisions that may not support the denial",
+      "Factual discrepancies in the denial",
+      "Evidence not considered",
+      "Procedural errors",
+    ],
+    whatAppealAddresses: [
+      "Each denial reason with evidence",
+      "Policy provisions supporting coverage",
+      "Procedural errors",
+      "Request for reconsideration",
+    ],
     seoTitle: "Life Insurance Denial Appeal — Appeal Mail",
-    seoDescription: "Appeal a denied life insurance claim with policy evidence and beneficiary documentation.",
+    seoDescription:
+      "Appeal a denied life insurance claim with policy evidence and beneficiary documentation.",
     primaryKeyword: "life insurance denial appeal",
-    relatedKeywords: ["life insurance claim denial", "life insurance appeal letter", "contested life insurance claim"],
+    relatedKeywords: [
+      "life insurance claim denial",
+      "life insurance appeal letter",
+      "contested life insurance claim",
+    ],
     route: "/appeal/life-insurance-denial",
     status: "IMPLEMENTED",
     engine: "Insurance Appeal Engine",
@@ -1312,18 +1543,49 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "car-insurance-appeal",
     title: "Car Insurance Appeal",
     category: "Insurance",
-    shortDescription: "Appeal a denied auto insurance claim with accident evidence and policy analysis.",
-    longDescription: "Auto insurance claim denials often involve coverage disputes, liability determinations, or damage assessments. A strong appeal addresses the specific denial reason with accident reports, photos, and policy language.",
+    shortDescription:
+      "Appeal a denied auto insurance claim with accident evidence and policy analysis.",
+    longDescription:
+      "Auto insurance claim denials often involve coverage disputes, liability determinations, or damage assessments. A strong appeal addresses the specific denial reason with accident reports, photos, and policy language.",
     intendedUser: "Drivers appealing a denied auto insurance claim.",
-    problemSolved: "Auto claim denials can be reversed with evidence showing coverage applies, liability is incorrect, or damage assessments are wrong.",
-    whatWeAnalyze: ["The stated denial reason", "Policy coverage provisions", "Liability determination", "Damage assessment", "Accident report facts"],
-    whatYouNeed: ["Denial letter", "Auto insurance policy", "Accident report", "Photos of damage", "Repair estimates", "Any witness statements"],
-    whatWeIdentify: ["Coverage provisions supporting the claim", "Liability disputes", "Damage assessment errors", "Evidence not considered"],
-    whatAppealAddresses: ["Each denial reason with evidence", "Policy provisions supporting coverage", "Liability or damage corrections", "Request for reconsideration"],
+    problemSolved:
+      "Auto claim denials can be reversed with evidence showing coverage applies, liability is incorrect, or damage assessments are wrong.",
+    whatWeAnalyze: [
+      "The stated denial reason",
+      "Policy coverage provisions",
+      "Liability determination",
+      "Damage assessment",
+      "Accident report facts",
+    ],
+    whatYouNeed: [
+      "Denial letter",
+      "Auto insurance policy",
+      "Accident report",
+      "Photos of damage",
+      "Repair estimates",
+      "Any witness statements",
+    ],
+    whatWeIdentify: [
+      "Coverage provisions supporting the claim",
+      "Liability disputes",
+      "Damage assessment errors",
+      "Evidence not considered",
+    ],
+    whatAppealAddresses: [
+      "Each denial reason with evidence",
+      "Policy provisions supporting coverage",
+      "Liability or damage corrections",
+      "Request for reconsideration",
+    ],
     seoTitle: "Car Insurance Appeal — Appeal Mail",
-    seoDescription: "Appeal a denied auto insurance claim with accident evidence and policy analysis.",
+    seoDescription:
+      "Appeal a denied auto insurance claim with accident evidence and policy analysis.",
     primaryKeyword: "car insurance appeal letter",
-    relatedKeywords: ["auto insurance appeal", "car insurance claim denial appeal", "auto claim dispute"],
+    relatedKeywords: [
+      "auto insurance appeal",
+      "car insurance claim denial appeal",
+      "auto claim dispute",
+    ],
     route: "/appeal/car-insurance-appeal",
     status: "IMPLEMENTED",
     engine: "Insurance Appeal Engine",
@@ -1335,18 +1597,46 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "drivers-license-suspension",
     title: "Driver's License Suspension Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a driver's license suspension with evidence and hardship documentation.",
-    longDescription: "Driver's license suspensions can affect employment and daily life. An appeal may challenge the suspension grounds or request a hardship or restricted license.",
+    shortDescription:
+      "Appeal a driver's license suspension with evidence and hardship documentation.",
+    longDescription:
+      "Driver's license suspensions can affect employment and daily life. An appeal may challenge the suspension grounds or request a hardship or restricted license.",
     intendedUser: "Drivers appealing a license suspension.",
-    problemSolved: "Suspension appeals can challenge the grounds for suspension or request a restricted/hardship license.",
-    whatWeAnalyze: ["The suspension notice and stated grounds", "Your driving record", "Eligibility for hardship/restricted license", "Appeal deadline and process"],
-    whatYouNeed: ["Suspension notice", "Driving record", "Hardship documentation (employment, medical, education)", "Any court orders"],
-    whatWeIdentify: ["Whether the suspension grounds are supported", "Hardship eligibility", "Procedural errors", "Missing documentation"],
-    whatAppealAddresses: ["Challenge to suspension grounds", "Hardship/restricted license request", "Documentation of need", "Request for hearing"],
+    problemSolved:
+      "Suspension appeals can challenge the grounds for suspension or request a restricted/hardship license.",
+    whatWeAnalyze: [
+      "The suspension notice and stated grounds",
+      "Your driving record",
+      "Eligibility for hardship/restricted license",
+      "Appeal deadline and process",
+    ],
+    whatYouNeed: [
+      "Suspension notice",
+      "Driving record",
+      "Hardship documentation (employment, medical, education)",
+      "Any court orders",
+    ],
+    whatWeIdentify: [
+      "Whether the suspension grounds are supported",
+      "Hardship eligibility",
+      "Procedural errors",
+      "Missing documentation",
+    ],
+    whatAppealAddresses: [
+      "Challenge to suspension grounds",
+      "Hardship/restricted license request",
+      "Documentation of need",
+      "Request for hearing",
+    ],
     seoTitle: "Driver's License Suspension Appeal — Appeal Mail",
-    seoDescription: "Appeal a driver's license suspension with evidence and hardship documentation.",
+    seoDescription:
+      "Appeal a driver's license suspension with evidence and hardship documentation.",
     primaryKeyword: "drivers license suspension appeal",
-    relatedKeywords: ["license suspension appeal", "hardship license appeal", "DMV suspension appeal"],
+    relatedKeywords: [
+      "license suspension appeal",
+      "hardship license appeal",
+      "DMV suspension appeal",
+    ],
     route: "/appeal/drivers-license-suspension",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1358,18 +1648,46 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "license-revocation-appeal",
     title: "License Revocation Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a license revocation with evidence of compliance or rehabilitation.",
-    longDescription: "License revocation appeals challenge the revocation decision or demonstrate that circumstances warrant reinstatement.",
+    shortDescription:
+      "Appeal a license revocation with evidence of compliance or rehabilitation.",
+    longDescription:
+      "License revocation appeals challenge the revocation decision or demonstrate that circumstances warrant reinstatement.",
     intendedUser: "Individuals or businesses appealing a license revocation.",
-    problemSolved: "Revocation can be reversed by challenging the grounds or showing rehabilitation or compliance.",
-    whatWeAnalyze: ["The revocation order and grounds", "Compliance or rehabilitation evidence", "Procedural requirements", "Appeal deadline"],
-    whatYouNeed: ["Revocation order", "Compliance documentation", "Rehabilitation evidence", "Prior license history"],
-    whatWeIdentify: ["Whether revocation grounds are supported", "Rehabilitation or compliance evidence", "Procedural errors", "Missing documentation"],
-    whatAppealAddresses: ["Challenge to revocation grounds", "Evidence of rehabilitation", "Request for reinstatement", "Specific relief sought"],
+    problemSolved:
+      "Revocation can be reversed by challenging the grounds or showing rehabilitation or compliance.",
+    whatWeAnalyze: [
+      "The revocation order and grounds",
+      "Compliance or rehabilitation evidence",
+      "Procedural requirements",
+      "Appeal deadline",
+    ],
+    whatYouNeed: [
+      "Revocation order",
+      "Compliance documentation",
+      "Rehabilitation evidence",
+      "Prior license history",
+    ],
+    whatWeIdentify: [
+      "Whether revocation grounds are supported",
+      "Rehabilitation or compliance evidence",
+      "Procedural errors",
+      "Missing documentation",
+    ],
+    whatAppealAddresses: [
+      "Challenge to revocation grounds",
+      "Evidence of rehabilitation",
+      "Request for reinstatement",
+      "Specific relief sought",
+    ],
     seoTitle: "License Revocation Appeal — Appeal Mail",
-    seoDescription: "Appeal a license revocation with evidence of compliance or rehabilitation.",
+    seoDescription:
+      "Appeal a license revocation with evidence of compliance or rehabilitation.",
     primaryKeyword: "license revocation appeal",
-    relatedKeywords: ["license revocation hearing", "license reinstatement appeal", "professional license revocation"],
+    relatedKeywords: [
+      "license revocation hearing",
+      "license reinstatement appeal",
+      "professional license revocation",
+    ],
     route: "/appeal/license-revocation-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1381,18 +1699,46 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
     slug: "registration-suspension-appeal",
     title: "Registration Suspension Appeal",
     category: "Administrative",
-    shortDescription: "Appeal a vehicle registration suspension with evidence and hardship documentation.",
-    longDescription: "Vehicle registration suspensions can result from unpaid fines, insurance lapses, or emissions failures. An appeal can challenge the grounds or request a hardship exception.",
+    shortDescription:
+      "Appeal a vehicle registration suspension with evidence and hardship documentation.",
+    longDescription:
+      "Vehicle registration suspensions can result from unpaid fines, insurance lapses, or emissions failures. An appeal can challenge the grounds or request a hardship exception.",
     intendedUser: "Vehicle owners appealing a registration suspension.",
-    problemSolved: "Registration suspensions can be reversed by addressing the underlying cause or demonstrating hardship.",
-    whatWeAnalyze: ["The suspension notice and grounds", "Underlying cause status", "Hardship documentation", "Appeal process"],
-    whatYouNeed: ["Suspension notice", "Proof of compliance (insurance, emissions, payment)", "Hardship documentation", "Vehicle records"],
-    whatWeIdentify: ["Whether the suspension grounds are resolved", "Hardship eligibility", "Procedural errors", "Missing documentation"],
-    whatAppealAddresses: ["Proof of compliance", "Hardship request", "Request for reinstatement", "Specific relief sought"],
+    problemSolved:
+      "Registration suspensions can be reversed by addressing the underlying cause or demonstrating hardship.",
+    whatWeAnalyze: [
+      "The suspension notice and grounds",
+      "Underlying cause status",
+      "Hardship documentation",
+      "Appeal process",
+    ],
+    whatYouNeed: [
+      "Suspension notice",
+      "Proof of compliance (insurance, emissions, payment)",
+      "Hardship documentation",
+      "Vehicle records",
+    ],
+    whatWeIdentify: [
+      "Whether the suspension grounds are resolved",
+      "Hardship eligibility",
+      "Procedural errors",
+      "Missing documentation",
+    ],
+    whatAppealAddresses: [
+      "Proof of compliance",
+      "Hardship request",
+      "Request for reinstatement",
+      "Specific relief sought",
+    ],
     seoTitle: "Registration Suspension Appeal — Appeal Mail",
-    seoDescription: "Appeal a vehicle registration suspension with evidence and hardship documentation.",
+    seoDescription:
+      "Appeal a vehicle registration suspension with evidence and hardship documentation.",
     primaryKeyword: "registration suspension appeal",
-    relatedKeywords: ["vehicle registration suspension", "registration appeal", "DMV registration appeal"],
+    relatedKeywords: [
+      "vehicle registration suspension",
+      "registration appeal",
+      "DMV registration appeal",
+    ],
     route: "/appeal/registration-suspension-appeal",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
@@ -1404,16 +1750,25 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
 
 /* ── Helper functions ── */
 
-export function getWorkflowBySlug(slug: string): AppealWorkflowEntry | undefined {
+export function getWorkflowBySlug(
+  slug: string,
+): AppealWorkflowEntry | undefined {
   return APPEAL_CATALOG.find((w) => w.slug === slug);
 }
 
-export function getWorkflowsByCategory(category: AppealCategory): AppealWorkflowEntry[] {
+export function getWorkflowsByCategory(
+  category: AppealCategory,
+): AppealWorkflowEntry[] {
   return APPEAL_CATALOG.filter((w) => w.category === category);
 }
 
 export function getImplementedWorkflows(): AppealWorkflowEntry[] {
   return APPEAL_CATALOG.filter((w) => w.status === "IMPLEMENTED");
+}
+
+// Keep the public launch surface limited to workflows with a verified end-to-end path.
+export function isLaunchReadyWorkflow(slug: string): boolean {
+  return slug === "ssdi-denial";
 }
 
 export function getComingSoonWorkflows(): AppealWorkflowEntry[] {
@@ -1436,7 +1791,8 @@ export function searchWorkflows(query: string): AppealWorkflowEntry[] {
 export function getCatalogStats() {
   return {
     total: APPEAL_CATALOG.length,
-    implemented: APPEAL_CATALOG.filter((w) => w.status === "IMPLEMENTED").length,
+    implemented: APPEAL_CATALOG.filter((w) => w.status === "IMPLEMENTED")
+      .length,
     comingSoon: APPEAL_CATALOG.filter((w) => w.status === "COMING_SOON").length,
     categories: CATEGORY_ORDER.length,
   };
@@ -1484,11 +1840,15 @@ export function validateCatalog(): { valid: boolean; errors: string[] } {
 
     // COMING_SOON entries must not be executable
     if (entry.status === "COMING_SOON" && entry.executable) {
-      errors.push(`Workflow "${entry.slug}" is COMING_SOON but marked executable`);
+      errors.push(
+        `Workflow "${entry.slug}" is COMING_SOON but marked executable`,
+      );
     }
     // IMPLEMENTED entries must be executable
     if (entry.status === "IMPLEMENTED" && !entry.executable) {
-      errors.push(`Workflow "${entry.slug}" is IMPLEMENTED but not marked executable`);
+      errors.push(
+        `Workflow "${entry.slug}" is IMPLEMENTED but not marked executable`,
+      );
     }
   }
 
@@ -1500,18 +1860,22 @@ export function validateCatalog(): { valid: boolean; errors: string[] } {
    ═══════════════════════════════════════════════════════════ */
 
 export const CATEGORY_SLUGS: Record<AppealCategory, string> = {
-  "Insurance": "insurance",
+  Insurance: "insurance",
   "Disability & Social Security": "disability",
-  "Unemployment": "unemployment",
+  Unemployment: "unemployment",
   "Government Benefits": "benefits",
   "Workers' Compensation": "workers-comp",
-  "Veterans": "veterans",
-  "Administrative": "administrative",
+  Veterans: "veterans",
+  Administrative: "administrative",
 };
 
-export const SLUG_TO_CATEGORY: Record<string, AppealCategory> = Object.fromEntries(
-  Object.entries(CATEGORY_SLUGS).map(([cat, slug]) => [slug, cat as AppealCategory])
-);
+export const SLUG_TO_CATEGORY: Record<string, AppealCategory> =
+  Object.fromEntries(
+    Object.entries(CATEGORY_SLUGS).map(([cat, slug]) => [
+      slug,
+      cat as AppealCategory,
+    ]),
+  );
 
 export function getCategoryBySlug(slug: string): AppealCategory | undefined {
   return SLUG_TO_CATEGORY[slug];

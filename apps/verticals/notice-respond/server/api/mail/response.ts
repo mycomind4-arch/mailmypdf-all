@@ -21,7 +21,7 @@ import {
   fulfillFromBrowserReturn,
   createSupabaseIntentStore,
   createMailMyPDFClient,
-} from "../../../src/platform/fulfillment-adapter";
+} from "../../../src/platform/fulfillment-adapter.server";
 
 function authRequest(event: H3Event): Request {
   return new Request(getRequestURL(event).toString(), { headers: getRequestHeaders(event) as HeadersInit });

@@ -35,6 +35,14 @@ export type MailType = "first_class" | "certified" | "certified_return_receipt" 
 
 export type MailClass = "standard" | "certified" | "registered";
 
+/** Beta policy: workflow work is free by default; mailing remains billable. */
+export function isWorkflowPreparationFree(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  if (env?.NODE_ENV === "test") return false;
+  const override = env?.MAILMYPDF_FREE_WORKFLOW_PREPARATION;
+  return override !== "false" && override !== "0" && override !== "paid";
+}
+
 export type PricingBand =
   | "FREE"
   | "ESSENTIAL"
@@ -1154,18 +1162,22 @@ export function calculateQuote(input: QuoteInput): Quote {
   const actualPages = Math.max(0, Math.floor(input.actualPages));
   const supportingPages = Math.max(0, Math.floor(input.supportingPages ?? 0));
 
-  // Base price from profile
-  const basePriceCents = profile.basePriceCents;
+  // Beta policy removes workflow charges while preserving mailing charges.
+  const preparationFree = isWorkflowPreparationFree();
+  const basePriceCents = preparationFree ? 0 : profile.basePriceCents;
 
   // Included mail value
-  const includedMailValue = profile.includedMail === "standard" ? PRICES.standard : 0;
+  // During beta, preparation is free but mailing must still be charged even
+  // for profiles that historically bundled standard mail into the workflow fee.
+  const includesStandardMail = !preparationFree && profile.includedMail === "standard";
+  const includedMailValue = includesStandardMail ? PRICES.standard : 0;
 
   // Extra page charges (only for pages beyond included)
-  const extraPages = profile.basePriceCents > 0 ? Math.max(0, actualPages - profile.includedPages) : 0;
+  const extraPages = !preparationFree && profile.basePriceCents > 0 ? Math.max(0, actualPages - profile.includedPages) : 0;
   const extraPageCost = extraPages * profile.extraPageRateCents;
 
   // Supporting page charges (always additional)
-  const supportingPageCost = profile.basePriceCents > 0 ? supportingPages * profile.supportingPageRateCents : 0;
+  const supportingPageCost = !preparationFree && profile.basePriceCents > 0 ? supportingPages * profile.supportingPageRateCents : 0;
 
   // Mail service selection
   let mailService: MailClass | "none" = "none";
@@ -1175,7 +1187,7 @@ export function calculateQuote(input: QuoteInput): Quote {
   if (input.mailClass && profile.availableMailServices.includes(input.mailClass)) {
     mailService = input.mailClass;
 
-    if (profile.includedMail === "standard" && input.mailClass === "standard") {
+    if (includesStandardMail && input.mailClass === "standard") {
       // Standard mail is included — no additional charge
       mailServiceCost = 0;
       mailUpgradeCost = 0;
@@ -1185,16 +1197,16 @@ export function calculateQuote(input: QuoteInput): Quote {
       mailUpgradeCost = 0;
     } else if (input.mailClass === "certified") {
       // Certified: standard price + certified surcharge
-      const base = profile.includedMail === "standard" ? 0 : PRICES.standard;
+      const base = includesStandardMail ? 0 : PRICES.standard;
       mailServiceCost = base + profile.certifiedMailSurchargeCents;
       mailUpgradeCost = profile.certifiedMailSurchargeCents;
     } else if (input.mailClass === "registered") {
       // Registered: standard price + registered surcharge
-      const base = profile.includedMail === "standard" ? 0 : PRICES.standard;
+      const base = includesStandardMail ? 0 : PRICES.standard;
       mailServiceCost = base + profile.registeredMailSurchargeCents;
       mailUpgradeCost = profile.registeredMailSurchargeCents;
     }
-  } else if (profile.includedMail === "standard" && !input.mailClass) {
+  } else if (includesStandardMail && !input.mailClass) {
     // Default to included standard mail if no class selected
     mailService = "standard";
     mailServiceCost = 0;

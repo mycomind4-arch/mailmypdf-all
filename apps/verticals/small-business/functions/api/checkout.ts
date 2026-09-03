@@ -70,7 +70,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
       quoteTotalCents = quote.totalCents;
       quoteSnapshot = serializeQuote(quote);
       lineItemName = `${input.title || input.workflowId} — ${LABELS[method as keyof typeof LABELS]}`;
-      lineItemDescription = `Workflow preparation ($${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[method as keyof typeof LABELS]}`;
+      lineItemDescription = `Approved packet + ${LABELS[method as keyof typeof LABELS]}`;
     } else {
       quoteTotalCents = PRICES[method as keyof typeof PRICES];
       lineItemName = LABELS[method as keyof typeof LABELS];

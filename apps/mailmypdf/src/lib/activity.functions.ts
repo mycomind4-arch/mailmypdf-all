@@ -9,7 +9,8 @@
  * for the unified workspace dashboard.
  */
 
-import { createServerFn } from "./compatibility/create-server-fn";
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAdmin } from "./supabase-admin.server";
 
 /**
@@ -17,9 +18,9 @@ import { withAdmin } from "./supabase-admin.server";
  */
 export const getUserRecentActivity = createServerFn({
   method: "POST",
-  async handler(ctx) {
-    const userId = ctx.request?.headers.get("x-user-id");
-    const userEmail = ctx.request?.headers.get("x-user-email");
+}).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+    const userId = context.userId;
+    const userEmail = typeof context.claims?.email === "string" ? context.claims.email : null;
 
     if (!userId || !userEmail) {
       throw new Error("Unauthorized");
@@ -34,7 +35,6 @@ export const getUserRecentActivity = createServerFn({
       activeWorkflows,
       recentMailings,
     };
-  },
 });
 
 /**
@@ -97,8 +97,8 @@ async function getRecentMailings(userEmail: string) {
  */
 export const getUserRecentOrders = createServerFn({
   method: "POST",
-  async handler(ctx) {
-    const userEmail = ctx.request?.headers.get("x-user-email");
+}).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+    const userEmail = typeof context.claims?.email === "string" ? context.claims.email : null;
 
     if (!userEmail) {
       throw new Error("Unauthorized");
@@ -126,7 +126,6 @@ export const getUserRecentOrders = createServerFn({
     });
 
     return data;
-  },
 });
 
 /**
@@ -134,8 +133,8 @@ export const getUserRecentOrders = createServerFn({
  */
 export const getUserActivityStats = createServerFn({
   method: "POST",
-  async handler(ctx) {
-    const userEmail = ctx.request?.headers.get("x-user-email");
+}).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+    const userEmail = typeof context.claims?.email === "string" ? context.claims.email : null;
 
     if (!userEmail) {
       throw new Error("Unauthorized");
@@ -169,5 +168,4 @@ export const getUserActivityStats = createServerFn({
     });
 
     return data;
-  },
 });

@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Zap,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* TYPES                                                                       */
@@ -66,8 +67,9 @@ export function AdminChatAgent() {
 
   const processAgentMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      // Get session token from localStorage
-      const sessionToken = localStorage.getItem("admin-session-token");
+      const { data } = await supabase.auth.getSession();
+      const sessionToken = data.session?.access_token;
+      if (!sessionToken) throw new Error("Your session has expired. Please sign in again.");
 
       const response = await fetch("/api/admin/chat-agent", {
         method: "POST",

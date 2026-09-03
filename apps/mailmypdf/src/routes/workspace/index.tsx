@@ -17,19 +17,19 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Plus, Mail, FileText, Clock, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthenticatedSidebar } from "@/components/authenticated-sidebar";
 import { getUserEntitlementDetails } from "@/lib/entitlements.functions";
 import { getUserRecentActivity } from "@/lib/activity.functions";
 
 export const Route = createFileRoute("/workspace/")({
   component: WorkspaceDashboard,
-  // TODO: Re-enable auth check after Phase 2 testing
-  // beforeLoad: async ({ context }) => {
-  //   // Require authentication
-  //   if (!context.user) {
-  //     throw redirect({ to: "/auth" });
-  //   }
-  // },
+  beforeLoad: async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      throw redirect({ to: "/auth" });
+    }
+  },
 });
 
 function WorkspaceDashboard() {

@@ -25,7 +25,10 @@ export interface AuthenticatedUser {
 }
 
 export class AuthError extends Error {
-  constructor(message: string, public status: number) {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
     super(message);
     this.name = "AuthError";
   }
@@ -35,8 +38,9 @@ export class AuthError extends Error {
 
 export function isAuthConfigured(): boolean {
   return Boolean(
-    (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL) &&
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    ((process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL) &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY) ||
+    process.env.SUPABASE_SECRET_KEY,
   );
 }
 
@@ -51,12 +55,18 @@ export function requireAuthConfigured(): void {
 
 /* ── Resolve authenticated user from request ── */
 
-export async function requireUser(request: Request): Promise<AuthenticatedUser> {
+export async function requireUser(
+  request: Request,
+): Promise<AuthenticatedUser> {
   requireAuthConfigured();
 
   const authorization = request.headers.get("authorization");
   const match = authorization?.match(/^Bearer\s+(.+)$/i);
-  if (!match) throw new AuthError("Authentication required. Provide a valid Bearer token.", 401);
+  if (!match)
+    throw new AuthError(
+      "Authentication required. Provide a valid Bearer token.",
+      401,
+    );
 
   const supabase = await getSupabaseServer();
   const { data, error } = await supabase.auth.getUser(match[1]);
@@ -92,7 +102,8 @@ async function resolveUserRole(
       .select("role")
       .eq("user_id", userId)
       .single();
-    if (data?.role === "super_admin" || data?.role === "admin") return data.role;
+    if (data?.role === "super_admin" || data?.role === "admin")
+      return data.role;
   } catch {
     // Table may not exist yet — fall through to customer
   }
@@ -102,7 +113,9 @@ async function resolveUserRole(
 
 /* ── Require admin role ── */
 
-export async function requireAdmin(request: Request): Promise<AuthenticatedUser> {
+export async function requireAdmin(
+  request: Request,
+): Promise<AuthenticatedUser> {
   const user = await requireUser(request);
   if (user.role !== "admin" && user.role !== "super_admin") {
     throw new AuthError("Administrative access required.", 403);

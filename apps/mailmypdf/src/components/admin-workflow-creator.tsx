@@ -548,14 +548,6 @@ function AdminLoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
           </button>
         </form>
 
-        {/* Credentials hint */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-xs text-slate-600 mb-2">Demo Credentials:</p>
-          <p className="text-xs font-mono text-slate-700">
-            admin@mailmypdf.ai
-          </p>
-          <p className="text-xs font-mono text-slate-700">666mdr222</p>
-        </div>
       </div>
     </div>
   );

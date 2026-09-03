@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { Route as RouteIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -15,6 +17,8 @@ import {
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
 import { mailClassSurchargeUsd, colorPerPageUsd } from "@/lib/pricing";
+import { configureSsdiClaude } from "@/lib/admin-ai.functions";
+import { isCurrentUserAdmin } from "@/lib/admin.functions";
 import {
   SectionHeader,
   CTASection,
@@ -127,9 +131,55 @@ function LandingPage() {
           primaryCTA={{ label: "Send a Document", to: "/send" }}
           secondaryCTA={{ label: "Explore Workflows", to: "/ecosystem" }}
         />
+        <ClaudeSetup />
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function ClaudeSetup() {
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const saveClaude = useServerFn(configureSsdiClaude);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("claude-sonnet-4-5-20250929");
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    checkAdmin().then((result) => setIsAdmin(result.isAdmin)).catch(() => setIsAdmin(false));
+  }, []);
+
+  if (!isAdmin) return null;
+
+  const submit = async () => {
+    if (!apiKey.trim()) return setStatus("Enter a Claude API key.");
+    setStatus("Saving securely...");
+    try {
+      await saveClaude({ data: { apiKey: apiKey.trim(), model: model.trim() } });
+      setApiKey("");
+      setStatus("Claude is configured for the SSDI workflow.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save Claude configuration.");
+    }
+  };
+
+  return (
+    <section className="border-t border-rule bg-paper-deep py-12">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="rounded-xl border border-rule bg-card p-6 shadow-sm">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Admin setup</p>
+          <h2 className="mt-2 font-serif text-2xl text-ink">Connect Claude for SSDI testing</h2>
+          <p className="mt-2 text-sm text-muted-foreground">The key is encrypted server-side, never returned to the browser, and cleared from this form after saving.</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_18rem_auto] sm:items-end">
+            <label className="text-sm text-ink">Claude API key<input value={apiKey} onChange={(event) => setApiKey(event.target.value)} type="password" autoComplete="off" className="mt-1 w-full rounded-md border border-rule bg-paper px-3 py-2" /></label>
+            <label className="text-sm text-ink">Model<input value={model} onChange={(event) => setModel(event.target.value)} className="mt-1 w-full rounded-md border border-rule bg-paper px-3 py-2" /></label>
+            <button type="button" onClick={submit} className="rounded-full bg-cobalt px-4 py-2 text-sm font-medium text-white">Save Claude</button>
+          </div>
+          {status && <p className="mt-3 text-sm text-muted-foreground" role="status">{status}</p>}
+        </div>
+      </div>
+    </section>
   );
 }
 

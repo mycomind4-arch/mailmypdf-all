@@ -7,52 +7,42 @@
 
 import { z } from "zod";
 import { withAdmin } from "./supabase-admin.server";
-import { createServerFn } from "./compatibility/create-server-fn";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+
+const quoteInput = z.object({ quoteId: z.string().uuid() });
+
+async function loadQuote(quoteId: string) {
+  return withAdmin(async (db) => {
+    const { data: quote, error } = await db
+      .from("pricing_quotes")
+      .select("*")
+      .eq("id", quoteId)
+      .single();
+
+    if (error || !quote) throw new Error("Quote not found or expired");
+    if (quote.accepted_at) throw new Error("This quote has already been paid. Please create a new order.");
+
+    const expiresAt = new Date(quote.expires_at ?? new Date(new Date(quote.created_at).getTime() + 30 * 60 * 1000));
+    if (new Date() > expiresAt) throw new Error("Quote expired. Please request a new quote.");
+
+    return {
+      id: quote.id,
+      total: quote.total_cents,
+      lineItems: quote.line_items || [],
+      pricingPolicySlug: quote.policy_id ?? quote.entitlement_policy_id,
+      expiresAt: expiresAt.toISOString(),
+      createdAt: quote.created_at,
+    };
+  });
+}
 
 /**
  * Get a pricing quote by ID for display on checkout page.
  */
-export const getPricingQuote = createServerFn({
-  method: "POST",
-  async handler(ctx: any) {
-    const body = z.object({ quoteId: z.string().uuid() }).parse(ctx.data);
-
-    const data = await withAdmin(async (db) => {
-      const { data: quote, error } = await db
-        .from("pricing_quotes")
-        .select("*")
-        .eq("id", body.quoteId)
-        .single();
-
-      if (error || !quote) {
-        throw new Error("Quote not found or expired");
-      }
-
-      // Check if already accepted
-      if (quote.accepted_at) {
-        throw new Error("This quote has already been paid. Please create a new order.");
-      }
-
-      // Check expiration (30 minutes)
-      const createdAt = new Date(quote.created_at);
-      const expiresAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
-      if (new Date() > expiresAt) {
-        throw new Error("Quote expired. Please request a new quote.");
-      }
-
-      return {
-        id: quote.id,
-        total: quote.total_cents,
-        lineItems: quote.line_items || [],
-        pricingPolicySlug: quote.policy_id,
-        expiresAt: expiresAt.toISOString(),
-        createdAt: quote.created_at,
-      };
-    });
-
-    return data;
-  },
-});
+export const getPricingQuote = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => quoteInput.parse(data))
+  .handler(async ({ data }) => loadQuote(data.quoteId));
 
 /**
  * Create a Stripe checkout session for a quote.
@@ -60,31 +50,27 @@ export const getPricingQuote = createServerFn({
  * This generates the payment form URL that redirects to Stripe Checkout.
  * The quote ID is stored in metadata so the webhook can accept it after payment.
  */
-export const getCheckoutSession = createServerFn({
-  method: "POST",
-  async handler(ctx: any) {
-    const userEmail = ctx.request?.headers.get("x-user-email");
+export const getCheckoutSession = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ ...quoteInput.shape, totalCents: z.number().int().positive() }).parse(data))
+  .handler(async ({ data }) => {
+    const request = getRequest();
+    const userEmail = request?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("User email not found");
     }
 
-    const body = z.object({
-      quoteId: z.string().uuid(),
-      totalCents: z.number().int().positive(),
-    }).parse(ctx.data);
-
     // Validate quote exists and is still valid
-    const quote = await getPricingQuote.fetch({ quoteId: body.quoteId });
+    const quote = await loadQuote(data.quoteId);
 
-    if (quote.total !== body.totalCents) {
+    if (quote.total !== data.totalCents) {
       throw new Error("Quote amount mismatch. Please refresh and try again.");
     }
 
     // Create Stripe checkout session
     const { createCheckoutSession } = await import("./stripe.server");
     const session = await createCheckoutSession({
-      quoteId: body.quoteId,
-      totalCents: body.totalCents,
+      quoteId: data.quoteId,
+      totalCents: data.totalCents,
       userEmail,
       successUrl: `${process.env.MAILMYPDF_BASE_URL || "http://localhost:8080"}/checkout/success`,
       cancelUrl: `${process.env.MAILMYPDF_BASE_URL || "http://localhost:8080"}/checkout/cancel`,
@@ -95,8 +81,7 @@ export const getCheckoutSession = createServerFn({
       clientSecret: session.client_secret,
       userEmail,
     };
-  },
-});
+  });
 
 /**
  * Verify payment intent and accept quote.
@@ -104,20 +89,19 @@ export const getCheckoutSession = createServerFn({
  * Called after successful Stripe payment.
  * This locks the quote to the order and initiates fulfillment.
  */
-export const verifyPaymentAndAcceptQuote = createServerFn({
-  method: "POST",
-  async handler(ctx: any) {
-    const body = z.object({
+export const verifyPaymentAndAcceptQuote = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({
       quoteId: z.string().uuid(),
       paymentIntentId: z.string(),
-    }).parse(ctx.data);
+    }).parse(data))
+  .handler(async ({ data }) => {
 
     const { acceptQuoteAfterPayment } = await import("./stripe.server");
 
     const result = await acceptQuoteAfterPayment({
-      quoteId: body.quoteId,
-      stripePaymentIntentId: body.paymentIntentId,
-      userEmail: ctx.request?.headers.get("x-user-email") || "",
+      quoteId: data.quoteId,
+      stripePaymentIntentId: data.paymentIntentId,
+      userEmail: getRequest()?.headers.get("x-user-email") || "",
     });
 
     return {
@@ -126,31 +110,40 @@ export const verifyPaymentAndAcceptQuote = createServerFn({
       total: result.order.price_cents,
       status: "accepted",
     };
-  },
-});
+  });
 
 /**
  * Get order details after successful payment.
  *
  * Used on success page to show order confirmation.
  */
-export const getOrderAfterPayment = createServerFn({
-  method: "POST",
-  async handler(ctx: any) {
-    const userEmail = ctx.request?.headers.get("x-user-email");
+export const getOrderAfterPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ orderId: z.string() }).parse(data))
+  .handler(async ({ data }) => {
+    const userEmail = getRequest()?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("Unauthorized");
     }
 
-    const body = z.object({ orderId: z.string() }).parse(ctx.data);
-
-    const data = await withAdmin(async (db) => {
-      const { data: order, error } = await db
+    const result = await withAdmin(async (db) => {
+      const { data: orderById, error: idError } = await db
         .from("orders")
         .select("*")
-        .eq("id", body.orderId)
+        .eq("id", data.orderId)
         .eq("email", userEmail)
-        .single();
+        .maybeSingle();
+
+      let order = orderById;
+      if (!order && !idError) {
+        const { data: orderByPaymentIntent, error: paymentError } = await db
+          .from("orders")
+          .select("*")
+          .filter("metadata->>stripe_payment_intent_id", "eq", data.orderId)
+          .eq("email", userEmail)
+          .maybeSingle();
+        if (paymentError) throw paymentError;
+        order = orderByPaymentIntent;
+      }
 
       if (error || !order) {
         throw new Error("Order not found");
@@ -166,9 +159,8 @@ export const getOrderAfterPayment = createServerFn({
       };
     });
 
-    return data;
-  },
-});
+    return result;
+  });
 
 /**
  * Cancel an order and reverse the quote.
@@ -176,27 +168,22 @@ export const getOrderAfterPayment = createServerFn({
  * Called when user wants to refund after payment.
  * Stripe webhook also triggers this on charge.refunded.
  */
-export const cancelOrderAndReverseQuote = createServerFn({
-  method: "POST",
-  async handler(ctx: any) {
-    const userEmail = ctx.request?.headers.get("x-user-email");
+export const cancelOrderAndReverseQuote = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ orderId: z.string(), reason: z.string().optional() }).parse(data))
+  .handler(async ({ data }) => {
+    const userEmail = getRequest()?.headers.get("x-user-email");
     if (!userEmail) {
       throw new Error("Unauthorized");
     }
 
-    const body = z.object({
-      orderId: z.string(),
-      reason: z.string().optional(),
-    }).parse(ctx.data);
-
     const { handleRefund } = await import("./stripe.server");
 
-    const data = await withAdmin(async (db) => {
+    const result = await withAdmin(async (db) => {
       // Get order
       const { data: order, error: orderError } = await db
         .from("orders")
         .select("*")
-        .eq("id", body.orderId)
+        .eq("id", data.orderId)
         .eq("email", userEmail)
         .single();
 
@@ -216,22 +203,21 @@ export const cancelOrderAndReverseQuote = createServerFn({
 
       await handleRefund({
         stripePaymentIntentId: metadata.stripe_payment_intent_id,
-        reason: body.reason || "Customer requested refund",
+        reason: data.reason || "Customer requested refund",
       });
 
       // Update order status
       const { error: updateError } = await db
         .from("orders")
         .update({ status: "refunded" })
-        .eq("id", body.orderId);
+        .eq("id", data.orderId);
 
       if (updateError) {
         throw new Error(`Failed to update order: ${updateError.message}`);
       }
 
-      return { orderId: body.orderId, status: "refunded" };
+      return { orderId: data.orderId, status: "refunded" };
     });
 
-    return data;
-  },
-});
+    return result;
+  });

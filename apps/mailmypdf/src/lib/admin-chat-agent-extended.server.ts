@@ -56,7 +56,7 @@ export const processAdminCommandExtended = createServerFn(
       conversationHistory: z.array(z.any()).optional(),
     });
 
-    const validated = z.safeParse(request, schema);
+    const validated = schema.safeParse(request);
     if (!validated.success) {
       throw new Error("Invalid request");
     }
@@ -319,7 +319,7 @@ export const executeAgentTool = createServerFn(
       parameters: z.record(z.any()),
     });
 
-    const validated = z.safeParse(request, schema);
+    const validated = schema.safeParse(request);
     if (!validated.success) {
       throw new Error("Invalid request");
     }

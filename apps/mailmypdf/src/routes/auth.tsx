@@ -52,16 +52,7 @@ function AuthPage() {
 
     setLoading(true);
     try {
-      // Check for admin credentials
-      if (email === "admin@mailmypdf.ai" && password === "666mdr222") {
-        const token = `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem("admin-session-token", token);
-        localStorage.setItem("admin-email", email);
-        await navigate({ to: "/admin/dashboard" });
-        return;
-      }
-
-      // Regular user login via Supabase
+      // Admins and customers use the same Supabase authentication flow.
       const auth = getAuthClient();
       const { error } = await withAuthTimeout(auth.signInWithPassword({ email, password }));
       if (error) { setError(error.message); return; }

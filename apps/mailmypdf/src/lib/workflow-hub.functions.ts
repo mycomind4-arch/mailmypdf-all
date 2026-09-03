@@ -5,12 +5,8 @@
  * Single source of truth for all workflow metadata across MailMyPDF ecosystem.
  */
 
-import { createServerFn } from "./compatibility/create-server-fn";
-
-// Stub for getRequest - returns null in development
-function getRequest() {
-  return null;
-}
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { WorkflowManifest } from "@mailmypdf/workflows";
 import { workflowRegistry } from "@mailmypdf/workflows";
 import { verticals, type VerticalDefinition, type VerticalCategory } from "@/verticals/registry";
@@ -345,25 +341,17 @@ function extractTags(workflow: WorkflowManifest): string[] {
 /**
  * Fetch workflow catalog for discovery
  */
-export const getWorkflowCatalog = createServerFn(
-  { method: "GET" },
-  async () => {
-    return buildWorkflowCatalog();
-  }
-);
+export const getWorkflowCatalog = createServerFn({ method: "GET" }).handler(async () => {
+  return buildWorkflowCatalog();
+});
 
 /**
  * Fetch complete workflow hub data for authenticated user
  */
-export const getWorkflowHubData = createServerFn(
-  { method: "GET" },
-  async () => {
-    const request = getRequest();
-    const userId = request?.headers.get("x-user-id");
-
-    if (!userId) {
-      throw new Error("Authentication required");
-    }
+export const getWorkflowHubData = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = context.userId;
 
     // 1. Get workflow catalog
     const workflows = buildWorkflowCatalog();
@@ -471,15 +459,14 @@ export const getWorkflowHubData = createServerFn(
     });
 
     return hubData;
-  }
-);
+  });
 
 /**
  * Search workflows by query
  */
-export const searchWorkflows = createServerFn(
-  { method: "GET" },
-  async (query: string) => {
+export const searchWorkflows = createServerFn({ method: "GET" })
+  .validator((query: string) => query)
+  .handler(async ({ data: query }) => {
     const catalog = buildWorkflowCatalog();
     const q = query.toLowerCase();
 
@@ -491,32 +478,27 @@ export const searchWorkflows = createServerFn(
         w.tags.some((t) => t.toLowerCase().includes(q)) ||
         w.aliases.some((a) => a.toLowerCase().includes(q))
     );
-  }
-);
+  });
 
 /**
  * Get workflows by category
  */
-export const getWorkflowsByCategory = createServerFn(
-  { method: "GET" },
-  async (category: WorkflowCategory) => {
+export const getWorkflowsByCategory = createServerFn({ method: "GET" })
+  .validator((category: WorkflowCategory) => category)
+  .handler(async ({ data: category }) => {
     const catalog = buildWorkflowCatalog();
     return catalog.filter((w) => w.categories.includes(category));
-  }
-);
+  });
 
 /**
  * Toggle workflow favorite for authenticated user
  */
-export const toggleWorkflowFavorite = createServerFn(
-  { method: "POST" },
-  async (workflowId: string, isFavorite: boolean) => {
-    const request = getRequest();
-    const userId = request?.headers.get("x-user-id");
-
-    if (!userId) {
-      throw new Error("Authentication required");
-    }
+export const toggleWorkflowFavorite = createServerFn({ method: "POST" })
+  .validator((data: { workflowId: string; isFavorite: boolean }) => data)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { workflowId, isFavorite } = data;
+    const userId = context.userId;
 
     await withAdmin(async (supabase) => {
       if (isFavorite) {
@@ -540,15 +522,12 @@ export const toggleWorkflowFavorite = createServerFn(
     });
 
     return { success: true };
-  }
-);
+  });
 
 /**
  * Get category taxonomy with counts
  */
-export const getWorkflowCategories = createServerFn(
-  { method: "GET" },
-  async () => {
+export const getWorkflowCategories = createServerFn({ method: "GET" }).handler(async () => {
     const catalog = buildWorkflowCatalog();
     const categories: WorkflowCategoryMetadata[] = [];
 
@@ -563,8 +542,7 @@ export const getWorkflowCategories = createServerFn(
     }
 
     return categories.sort((a, b) => b.count - a.count);
-  }
-);
+});
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* HELPERS                                                                     */

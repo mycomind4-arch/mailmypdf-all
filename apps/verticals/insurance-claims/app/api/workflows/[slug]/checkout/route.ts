@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           currency: 'usd',
           product_data: {
             name: `${profile.band} — ${LABELS[methodRaw as keyof typeof LABELS]}`,
-            description: `Workflow preparation ($${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[methodRaw as keyof typeof LABELS]}${quote.extraPageCost > 0 ? ` + extra pages` : ''}`,
+            description: `Approved packet + ${LABELS[methodRaw as keyof typeof LABELS]}`,
           },
           unit_amount: quote.totalCents,
         },

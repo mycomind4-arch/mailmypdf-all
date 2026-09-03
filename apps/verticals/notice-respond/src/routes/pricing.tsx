@@ -6,7 +6,7 @@ import { LABELS, BAND_LABELS, getProductionPricingProfiles, getPricingProfilesBy
 export const Route = createFileRoute("/pricing")({
   head: () => ({ meta: [
     { title: "Pricing — Notice Respond" },
-    { name: "description", content: "Transparent pricing: pay for the workflow preparation, then choose your mailing service. Preparation starts at $24.99. Mailing from $4.99." },
+    { name: "description", content: "Workflow work is included during the beta. Choose a mailing service after your packet is approved." },
   ] }),
   component: PricingPage,
 });
@@ -17,7 +17,7 @@ const mailingTiers = [
   { type: "Registered", price: `$${(3249 / 100).toFixed(2)}`, desc: "Highest security for sensitive documents", features: ["5–10 business days", "Secure handling + tracking", "Insured delivery", "Signature required"] },
 ];
 
-// Show representative preparation fees by band
+// Show representative workflow bands without advertising fixed preparation amounts.
 const noticeProfiles = getPricingProfilesByVertical("notice-respond");
 const bandExamples: { band: PricingBand; label: string; price: string; desc: string }[] = [];
 const seenBands = new Set<string>();
@@ -28,7 +28,7 @@ for (const p of noticeProfiles) {
   bandExamples.push({
     band: p.band,
     label: BAND_LABELS[p.band],
-    price: p.basePriceCents === 0 ? "Free" : `$${(p.basePriceCents / 100).toFixed(2)}`,
+    price: "Included",
     desc: p.pricingRationale?.split("—")[0]?.trim() || p.band,
   });
 }
@@ -38,12 +38,12 @@ bandExamples.sort((a, b) => {
 });
 
 const faqs = [
-  { q: "How does pricing work?", a: "You pay for the workflow preparation — the AI-assisted analysis, document drafting, and review — then choose how you want to send it. Mailing is a separate service." },
+  { q: "How does pricing work?", a: "You review the completed packet and final total, then choose how you want to send it. Mailing is a separate service." },
   { q: "Is there a subscription?", a: "No. You pay per workflow — no monthly fee, no commitment." },
   { q: "What payment methods do you accept?", a: "All major credit and debit cards via Stripe." },
   { q: "Can I get a refund?", a: "If your mailing hasn't been submitted for processing yet, you can request a full refund." },
   { q: "Does the mailing price include postage?", a: "Yes. Printing, paper, envelope, and USPS postage are all included in the mailing price." },
-  { q: "Why are different workflows priced differently?", a: "Some workflows involve more complex analysis — IRS notices, court summons, and high-stakes appeals require deeper evidence review than a simple records request. The preparation fee reflects the actual work performed." },
+  { q: "Why are different workflows priced differently?", a: "Some workflows involve more complex analysis and larger packets. The final total reflects the approved work and selected mailing service." },
 ];
 
 function PricingPage() {
@@ -54,13 +54,13 @@ function PricingPage() {
         <section className="border-b border-rule/60"><div className="mx-auto max-w-4xl px-6 py-20">
           <div className="postmark w-fit">Pricing</div>
           <h1 className="mt-4 font-serif text-4xl md:text-5xl">Pay for the work, then choose your mailing.</h1>
-          <p className="mt-4 text-muted-foreground">Every workflow has a preparation fee based on its complexity. Mailing is separate — you choose how to send it.</p>
+          <p className="mt-4 text-muted-foreground">Workflow work is included during the beta. Mailing is separate — you choose how to send it.</p>
         </div></section>
 
-        {/* Preparation fees by band */}
+        {/* Workflow options by complexity band */}
         <section className="border-b border-rule/60 bg-paper-deep/20"><div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="font-serif text-2xl mb-2">Workflow preparation</h2>
-          <p className="text-muted-foreground mb-6">The preparation fee covers document analysis, response drafting, and your review before anything is sent. Different workflows have different complexity, so prices vary.</p>
+          <h2 className="font-serif text-2xl mb-2">Workflow options</h2>
+          <p className="text-muted-foreground mb-6">The final total reflects document analysis, response drafting, review, packet size, and the selected mailing service.</p>
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
             {bandExamples.map((b) => (
               <div key={b.band} className="envelope-card p-5">

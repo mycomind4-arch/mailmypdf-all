@@ -26,6 +26,12 @@ importers:
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
+      '@mailmypdf/workflow-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/workflow-intelligence
+      '@mailmypdf/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.20(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -763,6 +769,9 @@ importers:
       '@mailmypdf/workflows':
         specifier: workspace:*
         version: link:../../../packages/workflows
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@supabase/supabase-js':
         specifier: ^2.110.0
         version: 2.114.0(@opentelemetry/api@1.9.1)

@@ -8,7 +8,7 @@
  * client-supplied values. This closes the approval-bypass gap.
  *
  * PRICING: Uses the canonical @mailmypdf/pricing engine to calculate
- * the full quote (workflow preparation fee + mailing service + extra pages).
+ * the full quote (approved packet work + mailing service).
  * The server resolves the workflow and calculates the amount — the client
  * never controls price.
  */
@@ -118,7 +118,7 @@ export default defineEventHandler(async (event) => {
 
     const workflowTitle = input?.workflowTitle?.trim() || workflowId;
     stripeLineItemName = `${workflowTitle} — ${LABELS[method]}`;
-    stripeLineItemDescription = `Workflow preparation (${profile.band}: $${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[method]}${quote.extraPageCost > 0 ? ` + ${Math.max(0, actualPages - profile.includedPages)} extra pages` : ""}`;
+    stripeLineItemDescription = `Approved packet (${profile.band}) + ${LABELS[method]}`;
   } else {
     quoteTotalCents = PRICES[method];
     stripeLineItemName = LABELS[method];

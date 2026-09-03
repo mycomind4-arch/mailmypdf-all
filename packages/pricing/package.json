@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "MAILMYPDF_FREE_WORKFLOW_PREPARATION=false NODE_ENV=test node --test",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

@@ -6,10 +6,10 @@ export const metadata = {
 }
 
 const WORKFLOW_PRICING = [
-  { id: 'appeal-code-enforcement-decision', name: 'Appeal Code Enforcement Decision', band: 'ADVANCED', price: '$49.99', mail: 'none' },
-  { id: 'request-administrative-hearing', name: 'Request Administrative Hearing', band: 'STANDARD', price: '$29.99', mail: 'none' },
-  { id: 'respond-to-abatement-notice', name: 'Respond to Abatement Notice', band: 'STANDARD', price: '$24.99', mail: 'none' },
-  { id: 'dispute-code-enforcement-fine', name: 'Dispute Code Enforcement Fine/Penalty', band: 'STANDARD', price: '$29.99', mail: 'none' },
+  { id: 'appeal-code-enforcement-decision', name: 'Appeal Code Enforcement Decision', band: 'ADVANCED', price: 'Calculated after review', mail: 'none' },
+  { id: 'request-administrative-hearing', name: 'Request Administrative Hearing', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'respond-to-abatement-notice', name: 'Respond to Abatement Notice', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'dispute-code-enforcement-fine', name: 'Dispute Code Enforcement Fine/Penalty', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
 ]
 
 const MAIL_PRICING = [
@@ -40,7 +40,7 @@ export default function PricingPage() {
         borderBottom: '1px solid oklch(0.88 0.012 82)',
         paddingBottom: '0.5rem',
       }}>
-        Workflow Preparation Fees
+        Workflow Estimates
       </h2>
       <div style={{ overflowX: 'auto', marginBottom: '2.5rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -48,7 +48,7 @@ export default function PricingPage() {
             <tr style={{ borderBottom: '1px solid oklch(0.88 0.012 82)' }}>
               <th style={thStyle}>Workflow</th>
               <th style={thStyle}>Tier</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Estimate</th>
               <th style={thStyle}>Mail Included</th>
             </tr>
           </thead>

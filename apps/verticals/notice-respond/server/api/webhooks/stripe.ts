@@ -10,7 +10,7 @@ import {
   handleStripeWebhookEvent,
   createSupabaseIntentStore,
   createMailMyPDFClient,
-} from "../../../src/platform/fulfillment-adapter";
+} from "../../../src/platform/fulfillment-adapter.server";
 
 export default defineEventHandler(async (event: H3Event) => {
   if (event.method !== "POST") throw createError({ statusCode: 405, statusMessage: "Method not allowed." });

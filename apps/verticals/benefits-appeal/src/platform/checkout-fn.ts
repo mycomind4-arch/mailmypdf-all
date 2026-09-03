@@ -83,7 +83,7 @@ export const createCheckoutSession = createServerFn()
       });
       quoteTotalCents = quote.totalCents;
       lineItemName = `Benefits Appeal — ${LABELS[data.mailingMethod]}`;
-      lineItemDescription = `Workflow preparation ($${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[data.mailingMethod]}`;
+      lineItemDescription = `Approved packet + ${LABELS[data.mailingMethod]}`;
     } else {
       // Fallback: mailing-only (should not happen for production workflows)
       quoteTotalCents = 0;

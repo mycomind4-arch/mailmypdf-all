@@ -1,7 +1,7 @@
 /**
  * Admin Login Page
  *
- * Login for admin@mailmypdf.ai with password 666mdr222
+ * Supabase-backed administrator login.
  */
 
 import { useState } from "react";
@@ -9,29 +9,33 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { Lock, LogIn, AlertCircle } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { ensureSupabase, supabase } from "@/integrations/supabase/client";
+import { isCurrentUserAdmin } from "@/lib/admin.functions";
 
 function AdminLoginComponent() {
   const navigate = useNavigate({ from: "/admin/login" });
-  const [email, setEmail] = useState("admin@mailmypdf.ai");
-  const [password, setPassword] = useState("666mdr222");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      // Check for admin credentials
-      if (credentials.email === "admin@mailmypdf.ai" && credentials.password === "666mdr222") {
-        const token = `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        return { success: true, sessionToken: token, email: credentials.email };
+      await ensureSupabase();
+      const { data, error } = await supabase.auth.signInWithPassword(credentials);
+      if (error || !data.user) throw new Error(error?.message || "Invalid credentials");
+
+      const { isAdmin } = await checkAdmin();
+      if (!isAdmin) {
+        await supabase.auth.signOut();
+        throw new Error("This account does not have administrator access.");
       }
-      throw new Error("Invalid credentials");
+
+      return { success: true, email: data.user.email || credentials.email };
     },
     onSuccess: (result) => {
-      if (result.success && result.sessionToken) {
-        // Store session token in localStorage
-        localStorage.setItem("admin-session-token", result.sessionToken);
-        localStorage.setItem("admin-email", result.email || "");
-
-        // Redirect to dashboard
+      if (result.success) {
         navigate({ to: "/admin/dashboard" });
       }
     },
@@ -58,17 +62,6 @@ function AdminLoginComponent() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Admin Login</h1>
           <p className="text-gray-600 mt-2">MailMyPDF Platform Management</p>
-        </div>
-
-        {/* Demo Credentials Notice */}
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-900">
-            <strong>Demo Credentials:</strong>
-            <br />
-            Email: admin@mailmypdf.ai
-            <br />
-            Password: 666mdr222
-          </p>
         </div>
 
         {/* Login Form */}

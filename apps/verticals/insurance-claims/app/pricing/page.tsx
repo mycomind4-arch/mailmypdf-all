@@ -6,17 +6,17 @@ export const metadata = {
 }
 
 const WORKFLOW_PRICING = [
-  { id: 'denied-insurance-claim', name: 'Denied Insurance Claim', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'appeal-insurance-denial', name: 'Appeal Insurance Denial', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'health-insurance-denial', name: 'Health Insurance Denial', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'medical-necessity-appeal', name: 'Medical Necessity Appeal', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'prior-authorization-denial', name: 'Prior Authorization Denial', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'insurance-coverage-denial', name: 'Insurance Coverage Denial', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'insurance-denial-letter', name: 'Insurance Denial Letter', band: 'STANDARD', price: '$29.99', mail: 'none' },
-  { id: 'out-of-network-denial', name: 'Out-of-Network Denial', band: 'STANDARD', price: '$39.99', mail: 'none' },
-  { id: 'life-insurance-denial', name: 'Life Insurance Denial', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'dental-insurance-appeal', name: 'Dental Insurance Appeal', band: 'STANDARD', price: '$39.99', mail: 'none' },
-  { id: 'car-insurance-appeal', name: 'Auto Insurance Appeal', band: 'STANDARD', price: '$39.99', mail: 'none' },
+  { id: 'denied-insurance-claim', name: 'Denied Insurance Claim', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'appeal-insurance-denial', name: 'Appeal Insurance Denial', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'health-insurance-denial', name: 'Health Insurance Denial', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'medical-necessity-appeal', name: 'Medical Necessity Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'prior-authorization-denial', name: 'Prior Authorization Denial', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'insurance-coverage-denial', name: 'Insurance Coverage Denial', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'insurance-denial-letter', name: 'Insurance Denial Letter', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'out-of-network-denial', name: 'Out-of-Network Denial', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'life-insurance-denial', name: 'Life Insurance Denial', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'dental-insurance-appeal', name: 'Dental Insurance Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'car-insurance-appeal', name: 'Auto Insurance Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
 ]
 
 const MAIL_PRICING = [
@@ -30,12 +30,12 @@ export default function PricingPage() {
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '3rem 1.5rem' }}>
       <h1 style={{ fontFamily: 'Instrument Serif, Georgia, serif', fontSize: '2.5rem', fontWeight: 400, marginBottom: '0.5rem' }}>Pricing</h1>
       <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2.5rem' }}>Pay per workflow plus mailing costs. No subscriptions.</p>
-      <h2 style={sectionLabel}>Workflow Preparation Fees</h2>
+      <h2 style={sectionLabel}>Workflow Estimates</h2>
       <div style={{ overflowX: 'auto', marginBottom: '2.5rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <th style={thStyle}>Workflow</th><th style={thStyle}>Tier</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Price</th><th style={thStyle}>Mail Included</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Estimate</th><th style={thStyle}>Mail Included</th>
           </tr></thead>
           <tbody>{WORKFLOW_PRICING.map((w) => (
             <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

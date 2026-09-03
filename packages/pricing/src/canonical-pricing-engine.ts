@@ -16,6 +16,13 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+function isWorkflowPreparationFree(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  if (env?.NODE_ENV === "test") return false;
+  const override = env?.MAILMYPDF_FREE_WORKFLOW_PREPARATION;
+  return override !== "false" && override !== "0" && override !== "paid";
+}
+
 export interface CalculateQuoteRequest {
   userId: string;
   organizationId?: string;
@@ -111,21 +118,22 @@ export async function calculateQuote(
   // 3. Calculate pricing
 
   // Workflow pricing
-  let workflowPrice = request.baseWorkflowPriceCents;
+  const preparationFree = isWorkflowPreparationFree();
+  let workflowPrice = preparationFree ? 0 : request.baseWorkflowPriceCents;
   let workflowDiscount = 0;
 
-  if (pricingProfile.workflow_discount_percent > 0) {
+  if (!preparationFree && pricingProfile.workflow_discount_percent > 0) {
     workflowDiscount = Math.floor(
       (request.baseWorkflowPriceCents * pricingProfile.workflow_discount_percent) / 100
     );
     workflowPrice = request.baseWorkflowPriceCents - workflowDiscount;
-  } else if (pricingProfile.workflow_discount_cents !== null) {
+  } else if (!preparationFree && pricingProfile.workflow_discount_cents !== null) {
     workflowDiscount = pricingProfile.workflow_discount_cents;
     workflowPrice = Math.max(0, request.baseWorkflowPriceCents - workflowDiscount);
   }
 
   // Apply AI processing free
-  if (policy.ai_processing_free) {
+  if (!preparationFree && policy.ai_processing_free) {
     workflowPrice = 0;
     workflowDiscount = request.baseWorkflowPriceCents;
   }
@@ -162,7 +170,7 @@ export async function calculateQuote(
   // 4. Build line items for display
   const lineItems: PricingLineItem[] = [
     {
-      label: "Base workflow price",
+      label: preparationFree ? "Workflow work (included)" : "Base workflow price",
       amount: request.baseWorkflowPriceCents,
     },
   ];

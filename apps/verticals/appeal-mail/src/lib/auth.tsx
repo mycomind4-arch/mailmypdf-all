@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { propagateSSOSession } from "./sso-propagate";
 
 /* ═══════════════════════════════════════════════════════════
@@ -46,19 +53,51 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 type SupabaseClient = {
   auth: {
-    getSession: () => Promise<{ data: { session: SupabaseSession | null }; error: unknown }>;
-    getUser: () => Promise<{ data: { user: SupabaseAuthUser | null }; error: unknown }>;
-    onAuthStateChange: (cb: (event: string, session: SupabaseSession | null) => void) => { data: { subscription: { unsubscribe: () => void } } };
-    signUp: (args: { email: string; password: string; options?: { emailRedirectTo?: string } }) => Promise<{ data: { session: SupabaseSession | null }; error: { message: string } | null }>;
-    signInWithPassword: (args: { email: string; password: string }) => Promise<{ data: { session: SupabaseSession | null }; error: { message: string } | null }>;
-    signInWithOtp: (args: { email: string; options?: { emailRedirectTo?: string } }) => Promise<{ data: unknown; error: { message: string } | null }>;
-    resetPasswordForEmail: (email: string, opts?: { redirectTo?: string }) => Promise<{ data: unknown; error: { message: string } | null }>;
+    getSession: () => Promise<{
+      data: { session: SupabaseSession | null };
+      error: unknown;
+    }>;
+    getUser: () => Promise<{
+      data: { user: SupabaseAuthUser | null };
+      error: unknown;
+    }>;
+    onAuthStateChange: (
+      cb: (event: string, session: SupabaseSession | null) => void,
+    ) => { data: { subscription: { unsubscribe: () => void } } };
+    signUp: (args: {
+      email: string;
+      password: string;
+      options?: { emailRedirectTo?: string };
+    }) => Promise<{
+      data: { session: SupabaseSession | null };
+      error: { message: string } | null;
+    }>;
+    signInWithPassword: (args: {
+      email: string;
+      password: string;
+    }) => Promise<{
+      data: { session: SupabaseSession | null };
+      error: { message: string } | null;
+    }>;
+    signInWithOtp: (args: {
+      email: string;
+      options?: { emailRedirectTo?: string };
+    }) => Promise<{ data: unknown; error: { message: string } | null }>;
+    resetPasswordForEmail: (
+      email: string,
+      opts?: { redirectTo?: string },
+    ) => Promise<{ data: unknown; error: { message: string } | null }>;
     signOut: () => Promise<void>;
-    updateUser: (data: { data?: Record<string, unknown> }) => Promise<{ data: unknown; error: { message: string } | null }>;
+    updateUser: (data: {
+      data?: Record<string, unknown>;
+    }) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
 };
 
-interface SupabaseSession { user?: SupabaseAuthUser; access_token?: string }
+interface SupabaseSession {
+  user?: SupabaseAuthUser;
+  access_token?: string;
+}
 interface SupabaseAuthUser {
   id: string;
   email?: string;
@@ -68,12 +107,18 @@ interface SupabaseAuthUser {
 /* ── Runtime config cache ── */
 let cachedConfig: { url: string; anonKey: string } | null | undefined;
 
-async function fetchSupabaseConfig(): Promise<{ url: string; anonKey: string } | null> {
+async function fetchSupabaseConfig(): Promise<{
+  url: string;
+  anonKey: string;
+} | null> {
   if (cachedConfig !== undefined) return cachedConfig;
 
   // Try import.meta.env first (works in dev and if build-time vars are set)
-  const envUrl = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL;
-  const envKey = (import.meta as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY;
+  const envUrl = (import.meta as { env?: Record<string, string> }).env
+    ?.VITE_SUPABASE_URL;
+  const env = (import.meta as { env?: Record<string, string> }).env;
+  const envKey =
+    env?.VITE_SUPABASE_ANON_KEY || env?.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (envUrl && envKey) {
     cachedConfig = { url: envUrl, anonKey: envKey };
     return cachedConfig;
@@ -82,8 +127,15 @@ async function fetchSupabaseConfig(): Promise<{ url: string; anonKey: string } |
   // Fall back to runtime config endpoint (works with Cloudflare Pages secrets)
   try {
     const res = await fetch("/api/auth/config");
-    if (!res.ok) { cachedConfig = null; return null; }
-    const data = await res.json() as { configured: boolean; url: string | null; anonKey: string | null };
+    if (!res.ok) {
+      cachedConfig = null;
+      return null;
+    }
+    const data = (await res.json()) as {
+      configured: boolean;
+      url: string | null;
+      anonKey: string | null;
+    };
     if (data.configured && data.url && data.anonKey) {
       cachedConfig = { url: data.url, anonKey: data.anonKey };
       return cachedConfig;
@@ -128,17 +180,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let listener: { unsubscribe: () => void } | null = null;
     loadSupabase().then((client) => {
-      if (!client) { setLoading(false); setIsConfigured(false); return; }
+      if (!client) {
+        setLoading(false);
+        setIsConfigured(false);
+        return;
+      }
       setIsConfigured(true);
 
-      client.auth.getSession().then(({ data }) => {
-        if (data.session?.user) setUser(mapUser(data.session.user));
-        setLoading(false);
-      }).catch(() => setLoading(false));
+      client.auth
+        .getSession()
+        .then(({ data }) => {
+          if (data.session?.user) setUser(mapUser(data.session.user));
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
 
       const { data } = client.auth.onAuthStateChange((event, session) => {
-        if (session && event === "SIGNED_IN" && session.access_token && session.refresh_token) {
-          propagateSSOSession(session.access_token, session.refresh_token, session.expires_in ?? 3600);
+        if (
+          session &&
+          event === "SIGNED_IN" &&
+          session.access_token &&
+          session.refresh_token
+        ) {
+          propagateSSOSession(
+            session.access_token,
+            session.refresh_token,
+            session.expires_in ?? 3600,
+          );
         }
         if (session?.user) setUser(mapUser(session.user));
         else setUser(null);
@@ -147,37 +215,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       listener = data.subscription;
     });
 
-    return () => { listener?.unsubscribe(); };
+    return () => {
+      listener?.unsubscribe();
+    };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<AuthResult> => {
-    const client = await loadSupabase();
-    if (!client) return { error: "MailMyPDF Account is not yet configured." };
-    const { data, error } = await client.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
-    if (error) return { error: error.message };
-    return { error: null, needsConfirmation: !data.session };
-  }, []);
+  const signUp = useCallback(
+    async (email: string, password: string): Promise<AuthResult> => {
+      const client = await loadSupabase();
+      if (!client) return { error: "MailMyPDF Account is not yet configured." };
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) return { error: error.message };
+      return { error: null, needsConfirmation: !data.session };
+    },
+    [],
+  );
 
-  const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
-    const client = await loadSupabase();
-    if (!client) return { error: "MailMyPDF Account is not yet configured." };
-    const { error } = await client.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<AuthResult> => {
+      const client = await loadSupabase();
+      if (!client) return { error: "MailMyPDF Account is not yet configured." };
+      const { error } = await client.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error: error?.message ?? null };
+    },
+    [],
+  );
 
-  const signInWithMagicLink = useCallback(async (email: string): Promise<AuthResult> => {
-    const client = await loadSupabase();
-    if (!client) return { error: "MailMyPDF Account is not yet configured." };
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
-    return { error: error?.message ?? null };
-  }, []);
+  const signInWithMagicLink = useCallback(
+    async (email: string): Promise<AuthResult> => {
+      const client = await loadSupabase();
+      if (!client) return { error: "MailMyPDF Account is not yet configured." };
+      const { error } = await client.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      return { error: error?.message ?? null };
+    },
+    [],
+  );
 
-  const resetPassword = useCallback(async (email: string): Promise<AuthResult> => {
-    const client = await loadSupabase();
-    if (!client) return { error: "MailMyPDF Account is not yet configured." };
-    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth?mode=reset` });
-    return { error: error?.message ?? null };
-  }, []);
+  const resetPassword = useCallback(
+    async (email: string): Promise<AuthResult> => {
+      const client = await loadSupabase();
+      if (!client) return { error: "MailMyPDF Account is not yet configured." };
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+      return { error: error?.message ?? null };
+    },
+    [],
+  );
 
   const signOut = useCallback(async () => {
     const client = await loadSupabase();
@@ -186,17 +280,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (data: { fullName?: string }): Promise<AuthResult> => {
-    const client = await loadSupabase();
-    if (!client) return { error: "MailMyPDF Account is not yet configured." };
-    const { error } = await client.auth.updateUser({ data: { full_name: data.fullName } });
-    if (error) return { error: error.message };
-    setUser((prev) => prev ? { ...prev, fullName: data.fullName } : prev);
-    return { error: null };
-  }, []);
+  const updateProfile = useCallback(
+    async (data: { fullName?: string }): Promise<AuthResult> => {
+      const client = await loadSupabase();
+      if (!client) return { error: "MailMyPDF Account is not yet configured." };
+      const { error } = await client.auth.updateUser({
+        data: { full_name: data.fullName },
+      });
+      if (error) return { error: error.message };
+      setUser((prev) => (prev ? { ...prev, fullName: data.fullName } : prev));
+      return { error: null };
+    },
+    [],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, loading, isConfigured, signUp, signIn, signInWithMagicLink, resetPassword, signOut, updateProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isConfigured,
+        signUp,
+        signIn,
+        signInWithMagicLink,
+        resetPassword,
+        signOut,
+        updateProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

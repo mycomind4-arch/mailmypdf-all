@@ -40,6 +40,28 @@ export const getAdminConfig = createServerFn({ method: "GET" })
     };
   });
 
+export const getPolicies = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("entitlement_policies")
+      .select("id, slug, name, description, scope, pricing_profiles(name)")
+      .order("name", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).map((policy) => ({
+      id: policy.id,
+      slug: policy.slug,
+      name: policy.name,
+      description: policy.description,
+      scope: policy.scope,
+      profileName: policy.pricing_profiles?.name ?? "Unknown profile",
+    }));
+  });
+
 export const listFulfillmentQueue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

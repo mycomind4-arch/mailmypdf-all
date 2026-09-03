@@ -10,8 +10,7 @@ import {
   searchWorkflows,
   getCatalogStats,
   getImplementedWorkflows,
-  getComingSoonWorkflows,
-  type AppealWorkflowEntry,
+  isLaunchReadyWorkflow,
 } from "../src/domain/appeal-catalog";
 
 /* ═══════════════════════════════════════════════════════════
@@ -44,7 +43,7 @@ describe("Workflow Catalog Integrity", () => {
     for (const w of APPEAL_CATALOG) {
       assert.ok(
         w.route.startsWith("/appeal/"),
-        `Route "${w.route}" for "${w.slug}" should start with /appeal/`
+        `Route "${w.route}" for "${w.slug}" should start with /appeal/`,
       );
     }
   });
@@ -53,7 +52,7 @@ describe("Workflow Catalog Integrity", () => {
     for (const w of APPEAL_CATALOG) {
       assert.ok(
         w.status === "IMPLEMENTED" || w.status === "COMING_SOON",
-        `Invalid status "${w.status}" for "${w.slug}"`
+        `Invalid status "${w.status}" for "${w.slug}"`,
       );
     }
   });
@@ -61,13 +60,19 @@ describe("Workflow Catalog Integrity", () => {
   test("all entries have SEO title and description", () => {
     for (const w of APPEAL_CATALOG) {
       assert.ok(w.seoTitle.length > 5, `Missing SEO title for "${w.slug}"`);
-      assert.ok(w.seoDescription.length > 20, `Missing SEO description for "${w.slug}"`);
+      assert.ok(
+        w.seoDescription.length > 20,
+        `Missing SEO description for "${w.slug}"`,
+      );
     }
   });
 
   test("all entries have a primary keyword", () => {
     for (const w of APPEAL_CATALOG) {
-      assert.ok(w.primaryKeyword.length > 2, `Missing primary keyword for "${w.slug}"`);
+      assert.ok(
+        w.primaryKeyword.length > 2,
+        `Missing primary keyword for "${w.slug}"`,
+      );
     }
   });
 
@@ -75,7 +80,7 @@ describe("Workflow Catalog Integrity", () => {
     for (const w of APPEAL_CATALOG) {
       assert.ok(
         CATEGORY_ORDER.includes(w.category),
-        `Category "${w.category}" for "${w.slug}" not in CATEGORY_ORDER`
+        `Category "${w.category}" for "${w.slug}" not in CATEGORY_ORDER`,
       );
     }
   });
@@ -88,10 +93,22 @@ describe("Workflow Catalog Integrity", () => {
 
   test("all entries have content arrays", () => {
     for (const w of APPEAL_CATALOG) {
-      assert.ok(w.whatWeAnalyze.length > 0, `Missing whatWeAnalyze for "${w.slug}"`);
-      assert.ok(w.whatYouNeed.length > 0, `Missing whatYouNeed for "${w.slug}"`);
-      assert.ok(w.whatWeIdentify.length > 0, `Missing whatWeIdentify for "${w.slug}"`);
-      assert.ok(w.whatAppealAddresses.length > 0, `Missing whatAppealAddresses for "${w.slug}"`);
+      assert.ok(
+        w.whatWeAnalyze.length > 0,
+        `Missing whatWeAnalyze for "${w.slug}"`,
+      );
+      assert.ok(
+        w.whatYouNeed.length > 0,
+        `Missing whatYouNeed for "${w.slug}"`,
+      );
+      assert.ok(
+        w.whatWeIdentify.length > 0,
+        `Missing whatWeIdentify for "${w.slug}"`,
+      );
+      assert.ok(
+        w.whatAppealAddresses.length > 0,
+        `Missing whatAppealAddresses for "${w.slug}"`,
+      );
     }
   });
 });
@@ -100,7 +117,11 @@ describe("Implemented vs Coming Soon", () => {
   test("COMING_SOON workflows are not executable", () => {
     for (const w of APPEAL_CATALOG) {
       if (w.status === "COMING_SOON") {
-        assert.equal(w.executable, false, `"${w.slug}" is COMING_SOON but executable`);
+        assert.equal(
+          w.executable,
+          false,
+          `"${w.slug}" is COMING_SOON but executable`,
+        );
       }
     }
   });
@@ -108,17 +129,24 @@ describe("Implemented vs Coming Soon", () => {
   test("IMPLEMENTED workflows are executable", () => {
     for (const w of APPEAL_CATALOG) {
       if (w.status === "IMPLEMENTED") {
-        assert.equal(w.executable, true, `"${w.slug}" is IMPLEMENTED but not executable`);
+        assert.equal(
+          w.executable,
+          true,
+          `"${w.slug}" is IMPLEMENTED but not executable`,
+        );
       }
     }
   });
 
-  test("coming soon count is greater than implemented count", () => {
+  test("launch-ready workflows are a subset of implemented workflows", () => {
     const implemented = getImplementedWorkflows();
-    const comingSoon = getComingSoonWorkflows();
+    const launchReady = APPEAL_CATALOG.filter((w) =>
+      isLaunchReadyWorkflow(w.slug),
+    );
     assert.ok(
-      comingSoon.length >= implemented.length,
-      "Expected more coming soon than implemented in this milestone"
+      launchReady.every((w) =>
+        implemented.some((item) => item.slug === w.slug),
+      ),
     );
   });
 });
@@ -138,7 +166,10 @@ describe("Category Structure", () => {
   test("all catalog entries have categories in CATEGORY_ORDER", () => {
     const validCategories = new Set(CATEGORY_ORDER);
     for (const w of APPEAL_CATALOG) {
-      assert.ok(validCategories.has(w.category), `"${w.slug}" has unknown category "${w.category}"`);
+      assert.ok(
+        validCategories.has(w.category),
+        `"${w.slug}" has unknown category "${w.category}"`,
+      );
     }
   });
 });
@@ -190,6 +221,14 @@ describe("Catalog Stats", () => {
     const stats = getCatalogStats();
     assert.equal(stats.total, APPEAL_CATALOG.length);
     assert.equal(stats.implemented + stats.comingSoon, stats.total);
+  });
+});
+
+describe("Launch readiness", () => {
+  test("only the verified SSDI workflow is launch-ready", () => {
+    assert.equal(isLaunchReadyWorkflow("ssdi-denial"), true);
+    assert.equal(isLaunchReadyWorkflow("ssi-denial"), false);
+    assert.equal(isLaunchReadyWorkflow("insurance-claim"), false);
   });
 });
 

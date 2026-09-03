@@ -9,7 +9,7 @@ const FAQS = [
   { q: 'How does the AI analysis work?', a: 'We analyze your denial decision to identify the denial reasons, appeal grounds, deadlines, and missing evidence. Every AI output is classified as fact, inference, unknown, rule, or recommendation. You review everything before anything is sent.' },
   { q: 'What is certified mail and why does it matter?', a: 'Certified mail provides proof of mailing and delivery. For appeal deadlines, this creates a legal record that your appeal was submitted on time. We use Lob to print, stamp, and mail your documents with tracking.' },
   { q: 'Do you guarantee my appeal will succeed?', a: 'No. We help you prepare a well-organized, evidence-backed appeal and prove it was mailed. The outcome depends on the agency, the evidence, and the merits of your case.' },
-  { q: 'How much does it cost?', a: 'Each workflow has a preparation fee ($29.99–$69.99 depending on complexity) plus mailing costs ($4.99 standard, $14.94 certified, $32.49 registered). There are no subscription fees.' },
+  { q: 'How much does it cost?', a: 'Workflow work is included during the beta. You only pay the mailing cost ($4.99 standard, $14.94 certified, or $32.49 registered). There are no subscription fees.' },
   { q: 'What about deadlines?', a: 'Appeal deadlines vary by program and jurisdiction. We extract deadlines from your denial letter when available. Always verify the deadline independently — missing an appeal deadline can forfeit your rights.' },
   { q: 'Is my data secure?', a: 'Your documents are encrypted, access-controlled, and audit-logged. We never share your data with third parties. Proof packets are sealed and permanently archived for your records.' },
 ]

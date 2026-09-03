@@ -7,7 +7,7 @@ export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Pricing — Immigration Mail" },
-      { name: "description", content: "Pay for the workflow preparation, then choose your mailing. Preparation starts at $12.99. Mailing from $4.99." },
+      { name: "description", content: "Workflow work is included during the beta. Choose a mailing service after your packet is approved." },
     ],
   }),
   component: PricingPage,
@@ -20,7 +20,7 @@ const tiers = [
 ];
 
 const faqs = [
-  { q: "How does pricing work?", a: "You pay for the workflow preparation — the analysis, document drafting, and review — then choose how to send it. Mailing is a separate service." },
+  { q: "How does pricing work?", a: "You review the completed packet and final total, then choose how to send it. Mailing is a separate service." },
   { q: "What payment methods do you accept?", a: "All major credit and debit cards via Stripe." },
   { q: "Can I get a refund?", a: "If your mailing hasn't been submitted for processing yet, you can request a full refund." },
   { q: "Does the price include postage?", a: "Yes. Printing, paper, envelope, and USPS postage are all included." },
@@ -35,7 +35,7 @@ function PricingPage() {
           <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-20">
             <div className="postmark w-fit">Pricing</div>
             <h1 className="mt-4 font-serif text-3xl sm:text-4xl md:text-5xl">Pay for the work, then choose your mailing.</h1>
-            <p className="mt-4 text-sm text-muted-foreground sm:text-base">Every workflow has a preparation fee based on its complexity. Mailing is separate.</p>
+            <p className="mt-4 text-sm text-muted-foreground sm:text-base">The final packet total is shown after review. Mailing is separate.</p>
           </div>
         </section>
         <section className="border-b border-rule/60 bg-paper-deep/20">

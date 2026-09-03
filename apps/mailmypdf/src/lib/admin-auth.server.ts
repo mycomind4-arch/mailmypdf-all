@@ -1,162 +1,25 @@
-/**
- * Admin Authentication
- *
- * Simple admin login system for workflow creator access
- * Credentials: admin@mailmypdf.ai / 666mdr222
- */
+import { createClient } from "@supabase/supabase-js";
 
-import { logger, validateInput, withErrorHandling } from "@/lib/security";
-import { z } from "zod";
+export async function validateAdminSession(sessionToken: string | undefined): Promise<boolean> {
+  if (!sessionToken || sessionToken.split(".").length !== 3) return false;
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* ADMIN CREDENTIALS                                                           */
-/* ─────────────────────────────────────────────────────────────────────────── */
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return false;
 
-const ADMIN_CREDENTIALS = {
-  email: "admin@mailmypdf.ai",
-  password: "666mdr222",
-};
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* SESSION MANAGEMENT                                                          */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-interface AdminSession {
-  isAdmin: boolean;
-  email?: string;
-  loginTime?: Date;
-  sessionToken?: string;
-}
-
-// In-memory session store (in production, use database)
-const activeSessions = new Map<string, AdminSession>();
-
-/**
- * Generate session token
- */
-function generateSessionToken(): string {
-  return `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Admin login
- */
-export async function adminLogin(credentials: unknown) {
-  // Validate input
-  const schema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
+  const authClient = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${sessionToken}` } },
   });
+  const { data, error } = await authClient.auth.getUser(sessionToken);
+  if (error || !data.user) return false;
 
-  const validated = validateInput(credentials, schema);
-  if (!validated.success) {
-    logger.warn("Invalid admin login attempt - bad format", {
-      error: validated.error,
-    });
-    throw new Error("Invalid credentials");
-  }
-
-  return withErrorHandling(
-    async () => {
-      const { email, password } = validated.data;
-
-      // Check credentials
-      if (
-        email !== ADMIN_CREDENTIALS.email ||
-        password !== ADMIN_CREDENTIALS.password
-      ) {
-        logger.warn("Failed admin login attempt", {
-          email,
-          ip: getClientIP(),
-        });
-        throw new Error("Invalid email or password");
-      }
-
-      // Generate session token
-      const sessionToken = generateSessionToken();
-
-      // Store session
-      activeSessions.set(sessionToken, {
-        isAdmin: true,
-        email,
-        loginTime: new Date(),
-        sessionToken,
-      });
-
-      logger.info("Admin login successful", {
-        email,
-        ip: getClientIP(),
-      });
-
-      // Return token (would be set in HTTP-only cookie in production)
-      return {
-        success: true,
-        sessionToken,
-        email,
-        message: "Login successful",
-      };
-    },
-    { path: "/api/admin/login", method: "POST" }
-  );
-}
-
-/**
- * Verify admin session
- */
-export async function verifyAdminSession(sessionToken: unknown) {
-  // Validate token
-  const validated = validateInput(sessionToken, z.string().min(1));
-  if (!validated.success) {
-    return { isAdmin: false };
-  }
-
-  const session = activeSessions.get(validated.data);
-
-  if (!session || !session.isAdmin) {
-    return { isAdmin: false };
-  }
-
-  return {
-    isAdmin: true,
-    email: session.email,
-    loginTime: session.loginTime,
-  };
-}
-
-/**
- * Admin logout
- */
-export async function adminLogout(sessionToken: unknown) {
-  const validated = validateInput(sessionToken, z.string().min(1));
-  if (validated.success) {
-    activeSessions.delete(validated.data);
-  }
-
-  return { success: true };
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* VALIDATION HELPERS                                                          */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-/**
- * Validate admin session token (for API routes)
- */
-export function validateAdminSession(sessionToken: string | undefined): boolean {
-  if (!sessionToken) {
-    return false;
-  }
-
-  const session = activeSessions.get(sessionToken);
-  return session !== undefined && session.isAdmin === true;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* HELPERS                                                                     */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-function getClientIP(): string {
-  // In development without vinxi/http, return unknown
-  // In production, this would come from the request object
-  return "unknown";
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: role, error: roleError } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", data.user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !roleError && !!role;
 }

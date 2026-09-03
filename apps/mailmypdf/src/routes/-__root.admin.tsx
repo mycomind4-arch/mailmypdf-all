@@ -7,28 +7,31 @@
 
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { isCurrentUserAdmin } from "@/lib/admin.functions";
 
 export function AdminLoginWidget() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
 
   useEffect(() => {
-    // Check if user is logged in as admin
-    const token = localStorage.getItem("admin-session-token");
-    const email = localStorage.getItem("admin-email");
-
-    if (token && email) {
-      setIsAdmin(true);
-      setAdminEmail(email);
-    }
-  }, []);
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user && (await checkAdmin()).isAdmin) {
+        setIsAdmin(true);
+        setAdminEmail(data.user.email || null);
+      }
+    })();
+  }, [checkAdmin]);
 
   const handleLogout = () => {
-    localStorage.removeItem("admin-session-token");
-    localStorage.removeItem("admin-email");
-    setIsAdmin(false);
-    setAdminEmail(null);
-    window.location.href = "/";
+    void supabase.auth.signOut().then(() => {
+      setIsAdmin(false);
+      setAdminEmail(null);
+      window.location.href = "/";
+    });
   };
 
   if (isAdmin && adminEmail) {

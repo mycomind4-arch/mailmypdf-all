@@ -5,7 +5,8 @@
  * Called from dashboard and workflow pages.
  */
 
-import { createServerFn } from "./compatibility/create-server-fn";
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAdmin } from "./supabase-admin.server";
 
 /**
@@ -14,11 +15,8 @@ import { withAdmin } from "./supabase-admin.server";
  */
 export const getUserEntitlementDetails = createServerFn({
   method: "POST",
-  async handler(ctx) {
-    const userId = ctx.request?.headers.get("x-user-id");
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+}).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+    const userId = context.userId;
 
     const data = await withAdmin(async (db) => {
       // Get user's active entitlement
@@ -92,7 +90,6 @@ export const getUserEntitlementDetails = createServerFn({
     });
 
     return data;
-  },
 });
 
 /**
@@ -101,7 +98,7 @@ export const getUserEntitlementDetails = createServerFn({
  */
 export const getUserVisibleBenefits = createServerFn({
   method: "POST",
-  async handler(ctx) {
+}).middleware([requireSupabaseAuth]).handler(async () => {
     const details = await getUserEntitlementDetails.fetch();
 
     if (!details) {
@@ -151,7 +148,6 @@ export const getUserVisibleBenefits = createServerFn({
       policyName: details.policyName,
       expiresAt: details.expiresAt,
     };
-  },
 });
 
 /**
@@ -160,13 +156,8 @@ export const getUserVisibleBenefits = createServerFn({
  */
 export const hasFeature = createServerFn({
   method: "POST",
-  async handler(ctx) {
-    const body = ctx.data as { feature: "private-office" | "premium-workflows" | "ai-free" | "research" };
-    const userId = ctx.request?.headers.get("x-user-id");
-
-    if (!userId) {
-      return false;
-    }
+}).validator((data: { feature: "private-office" | "premium-workflows" | "ai-free" | "research" }) => data)
+  .middleware([requireSupabaseAuth]).handler(async ({ data }) => {
 
     const details = await getUserEntitlementDetails.fetch();
 
@@ -182,5 +173,4 @@ export const hasFeature = createServerFn({
     };
 
     return featureMap[body.feature] || false;
-  },
 });

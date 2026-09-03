@@ -216,10 +216,10 @@ describe("Commercial status gating", () => {
     }), /not available for purchase/);
   });
 
-  it("test workflows throw", () => {
+  it("unavailable workflows throw", () => {
     assert.throws(() => calculateQuote({
-      workflowId: "records-request",
-      verticalId: "records-requests",
+      workflowId: "govreply",
+      verticalId: "gov-reply",
       actualPages: 1,
     }), /not available for purchase/);
   });

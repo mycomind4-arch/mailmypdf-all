@@ -33,6 +33,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import { AdminChatAgent } from "@/components/admin-chat-agent";
+import { supabase } from "@/integrations/supabase/client";
+import { isCurrentUserAdmin } from "@/lib/admin.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 // Type definitions for data tables
 interface EntitlementRow {
@@ -57,6 +60,7 @@ interface AuditLogRow {
 
 function AdminDashboardComponent() {
   const navigate = useNavigate({ from: "/admin/dashboard" });
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
   const [admin, setAdmin] = useState<{ email: string } | null>(null);
   const [agentStatus, setAgentStatus] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "entitlements" | "analytics" | "audit" | "settings">("dashboard");
@@ -125,20 +129,17 @@ function AdminDashboardComponent() {
     },
   ]);
 
-  // Check authentication on mount
   useEffect(() => {
-    const email = localStorage.getItem("admin-email");
-    const token = localStorage.getItem("admin-session-token");
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user || !(await checkAdmin()).isAdmin) {
+        await supabase.auth.signOut();
+        await navigate({ to: "/admin/login" });
+        return;
+      }
 
-    if (!email || !token) {
-      navigate({ to: "/admin/login" });
-      return;
-    }
-
-    setAdmin({ email });
-
-    // In production, fetch actual agent status
-    setAgentStatus({
+      setAdmin({ email: data.user.email || "" });
+      setAgentStatus({
       agentId: "agent-demo-001",
       capabilities: {
         webAccess: true,
@@ -158,13 +159,12 @@ function AdminDashboardComponent() {
       },
       taskCount: 3,
       pendingApprovals: 1,
-    });
+      });
+    })();
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("admin-session-token");
-    localStorage.removeItem("admin-email");
-    navigate({ to: "/admin/login" });
+    void supabase.auth.signOut().then(() => navigate({ to: "/admin/login" }));
   };
 
   const handleSaveSecrets = () => {

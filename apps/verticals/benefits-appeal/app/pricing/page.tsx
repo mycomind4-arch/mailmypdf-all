@@ -6,17 +6,17 @@ export const metadata = {
 }
 
 const WORKFLOW_PRICING = [
-  { id: 'ssdi-denial', name: 'SSDI Denial Appeal', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'ssdi-appeal', name: 'SSDI Formal Appeal', band: 'ADVANCED', price: '$69.99', mail: 'standard' },
-  { id: 'ssi-denial', name: 'SSI Denial Appeal', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'social-security-denial', name: 'Social Security Denial Appeal', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'medicaid-denial', name: 'Medicaid Denial Appeal', band: 'ADVANCED', price: '$59.99', mail: 'standard' },
-  { id: 'unemployment-denial', name: 'Unemployment Denial Appeal', band: 'STANDARD', price: '$39.99', mail: 'none' },
-  { id: 'edd-denial', name: 'EDD Denial Appeal', band: 'STANDARD', price: '$39.99', mail: 'none' },
-  { id: 'financial-aid-appeal', name: 'Financial Aid Appeal', band: 'STANDARD', price: '$29.99', mail: 'none' },
-  { id: 'sap-appeal', name: 'SAP Appeal', band: 'STANDARD', price: '$29.99', mail: 'none' },
-  { id: 'fafsa-appeal', name: 'FAFSA Appeal', band: 'STANDARD', price: '$29.99', mail: 'none' },
-  { id: 'scholarship-appeal', name: 'Scholarship Appeal', band: 'STANDARD', price: '$29.99', mail: 'none' },
+  { id: 'ssdi-denial', name: 'SSDI Denial Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'ssdi-appeal', name: 'SSDI Formal Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'ssi-denial', name: 'SSI Denial Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'social-security-denial', name: 'Social Security Denial Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'medicaid-denial', name: 'Medicaid Denial Appeal', band: 'ADVANCED', price: 'Calculated after review', mail: 'standard' },
+  { id: 'unemployment-denial', name: 'Unemployment Denial Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'edd-denial', name: 'EDD Denial Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'financial-aid-appeal', name: 'Financial Aid Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'sap-appeal', name: 'SAP Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'fafsa-appeal', name: 'FAFSA Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
+  { id: 'scholarship-appeal', name: 'Scholarship Appeal', band: 'STANDARD', price: 'Calculated after review', mail: 'none' },
 ]
 
 const MAIL_PRICING = [
@@ -35,14 +35,14 @@ export default function PricingPage() {
         Pay per workflow plus mailing costs. No subscriptions, no hidden fees.
       </p>
 
-      <h2 style={sectionLabel}>Workflow Preparation Fees</h2>
+      <h2 style={sectionLabel}>Workflow Estimates</h2>
       <div style={{ overflowX: 'auto', marginBottom: '2.5rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <th style={thStyle}>Workflow</th>
               <th style={thStyle}>Tier</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Estimate</th>
               <th style={thStyle}>Mail Included</th>
             </tr>
           </thead>

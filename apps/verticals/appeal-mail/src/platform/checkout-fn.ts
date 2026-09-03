@@ -20,7 +20,7 @@ import {
 
    PRICING: Uses canonical @mailmypdf/pricing engine.
    The server resolves the workflow and calculates the
-   full quote (preparation + mailing + extra pages).
+   full quote (approved packet work + mailing).
    The client never controls price.
    ───────────────────────────────────────────────────── */
 
@@ -96,7 +96,7 @@ export const createCheckoutSession = createServerFn()
       quoteTotalCents = quote.totalCents;
       quoteSnapshot = serializeQuote(quote);
       stripeLineItemName = `${data.recipientName} — ${LABELS[method]}`;
-      stripeLineItemDescription = `Workflow preparation (${profile.band}: $${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[method]}${quote.extraPageCost > 0 ? ` + ${Math.max(0, actualPages - profile.includedPages)} extra pages` : ""}`;
+      stripeLineItemDescription = `Approved packet (${profile.band}) + ${LABELS[method]}`;
     } else {
       // Fallback: use the appeal's packet pricing if available (appeal-mail has its own pricing)
       const packetTotal = (appeal as any)?.packet?.pricing?.total;

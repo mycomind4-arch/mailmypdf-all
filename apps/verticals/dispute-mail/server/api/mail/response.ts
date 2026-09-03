@@ -4,6 +4,7 @@
  * Authenticated browser-return fallback for Dispute Mail.
  * Payment/session authorization is performed here; the canonical fulfillment
  * engine owns integrity checks, idempotency, artifact use, and submission.
+ * stripe: the session is re-read server-side before fulfillment.
  */
 import { createError, defineEventHandler, getRequestHeaders, getRequestURL, readBody, type H3Event } from "h3";
 import { requireAuthenticatedUser } from "../../../src/lib/auth-guard";

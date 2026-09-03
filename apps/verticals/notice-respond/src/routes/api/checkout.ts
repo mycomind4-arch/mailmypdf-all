@@ -63,7 +63,7 @@ export const Route = createFileRoute("/api/checkout")({
             });
             quoteTotalCents = quote.totalCents;
             lineItemName = `${input.workflowTitle || input.workflowId} — ${LABELS[mailClass]}`;
-            lineItemDescription = `Workflow preparation ($${(quote.basePriceCents / 100).toFixed(2)}) + ${LABELS[mailClass]}`;
+            lineItemDescription = `Approved packet + ${LABELS[mailClass]}`;
           } else {
             quoteTotalCents = 0;
             lineItemName = input.workflowTitle || input.workflowId;
