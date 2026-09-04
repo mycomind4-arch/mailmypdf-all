@@ -14,6 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_drafts: {
+        Row: {
+          id: string
+          case_id: string
+          owner_id: string
+          version: number
+          body_text: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          case_id: string
+          owner_id: string
+          version: number
+          body_text: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          case_id?: string
+          owner_id?: string
+          version?: number
+          body_text?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_drafts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_cases: {
+        Row: {
+          id: string
+          owner_id: string
+          workflow_id: string
+          vertical_id: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          workflow_id: string
+          vertical_id: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          workflow_id?: string
+          vertical_id?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      case_documents: {
+        Row: {
+          id: string
+          case_id: string
+          document_id: string
+          owner_id: string
+          role: string
+          evidence_kind: string | null
+          page_count: number | null
+          included: boolean
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          case_id: string
+          document_id: string
+          owner_id: string
+          role: string
+          evidence_kind?: string | null
+          page_count?: number | null
+          included?: boolean
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          case_id?: string
+          document_id?: string
+          owner_id?: string
+          role?: string
+          evidence_kind?: string | null
+          page_count?: number | null
+          included?: boolean
+          position?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "secure_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_approvals: {
+        Row: {
+          id: string
+          case_id: string
+          owner_id: string
+          packet_sha256: string
+          manifest: Json
+          response_pages: number
+          supporting_pages: number
+          recipient: Json
+          mail_class: string
+          quote: Json
+          approved_at: string
+        }
+        Insert: {
+          id?: string
+          case_id: string
+          owner_id: string
+          packet_sha256: string
+          manifest: Json
+          response_pages: number
+          supporting_pages: number
+          recipient: Json
+          mail_class: string
+          quote: Json
+          approved_at?: string
+        }
+        Update: {
+          id?: string
+          case_id?: string
+          owner_id?: string
+          packet_sha256?: string
+          manifest?: Json
+          response_pages?: number
+          supporting_pages?: number
+          recipient?: Json
+          mail_class?: string
+          quote?: Json
+          approved_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_approvals_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_provider_configs: {
         Row: {
           id: string
@@ -1051,6 +1220,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      case_packet_documents: {
+        Args: {
+          p_case_id: string
+        }
+        Returns: {
+          document_id: string
+          role: string
+          evidence_kind: string | null
+          page_count: number | null
+          position: number
+          sha256: string
+          storage_path: string
+          safe_filename: string
+          mime_type: string
+        }[]
+      }
+      approve_case_packet: {
+        Args: {
+          p_case_id: string
+          p_packet_sha256: string
+          p_manifest: Json
+          p_response_pages: number
+          p_supporting_pages: number
+          p_recipient: Json
+          p_mail_class: string
+          p_quote: Json
+        }
+        Returns: Database["public"]["Tables"]["case_approvals"]["Row"]
+      }
       claim_secure_documents_for_scan: {
         Args: {
           batch_limit?: number
