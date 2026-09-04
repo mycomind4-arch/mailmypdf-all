@@ -107,6 +107,7 @@ function TemplatesPage() {
           <p className="text-sm text-muted-foreground">Don't see what you need?</p>
           <Link
             to="/write"
+            search={{ template: undefined }}
             className="mt-3 inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
           >
             Write from scratch →

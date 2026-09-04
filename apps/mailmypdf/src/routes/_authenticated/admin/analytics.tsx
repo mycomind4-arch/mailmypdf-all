@@ -21,13 +21,18 @@ function Bars({ items }: { items: [string, number][] }) {
 }
 
 function AnalyticsPage() {
-  const [days, setDays] = useState(30);
   const checkAdmin = useServerFn(isCurrentUserAdmin);
-  const getData = useServerFn(getAnalyticsDashboard);
   const { data: admin } = useSuspenseQuery({ queryKey: ["analytics-admin"], queryFn: () => checkAdmin(), retry: false });
-  const { data } = useSuspenseQuery({ queryKey: ["analytics-dashboard", days], queryFn: () => getData({ data: { days } }), enabled: !!admin.isAdmin });
 
   if (!admin.isAdmin) return <div className="min-h-screen"><SiteHeader /><main className="mx-auto max-w-6xl px-6 py-12"><div className="envelope-card p-8"><h1 className="font-serif text-3xl">Not authorized</h1><p className="mt-2 text-sm text-muted-foreground">Analytics is restricted to administrators.</p></div></main><SiteFooter /></div>;
+
+  return <AnalyticsDashboard />;
+}
+
+function AnalyticsDashboard() {
+  const [days, setDays] = useState(30);
+  const getData = useServerFn(getAnalyticsDashboard);
+  const { data } = useSuspenseQuery({ queryKey: ["analytics-dashboard", days], queryFn: () => getData({ data: { days } }) });
 
   const d = data;
   return <div className="min-h-screen"><SiteHeader /><main className="mx-auto max-w-7xl px-6 py-10">

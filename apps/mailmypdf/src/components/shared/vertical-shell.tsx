@@ -103,6 +103,7 @@ export function VerticalShell({ vertical, children }: VerticalShellProps) {
                   </Link>
                   <Link
                     to="/write"
+                    search={{ template: undefined }}
                     className="inline-flex items-center rounded-md border border-rule px-6 py-3 text-sm font-medium transition-colors hover:bg-muted"
                   >
                     Write a letter

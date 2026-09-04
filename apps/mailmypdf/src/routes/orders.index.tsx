@@ -124,7 +124,7 @@ function OrderIdForm() {
     try {
       const result = await lookupOrder({ data: { email: email.trim(), orderId: orderId.trim() } });
       if ("error" in result) { setError(result.error); return; }
-      navigate({ to: "/orders/$id", params: { id: orderId.trim() }, search: { token: result.token } });
+      navigate({ to: "/orders/$id", params: { id: orderId.trim() }, search: { token: result.token, paid: false } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -157,4 +157,3 @@ function OrderIdForm() {
     </form>
   );
 }
-

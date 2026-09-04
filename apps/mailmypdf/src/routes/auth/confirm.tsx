@@ -89,7 +89,7 @@ function ConfirmEmailPage() {
         <p className="mt-5 text-sm leading-6 text-muted-foreground">{message}</p>
         {status === "error" && (
           <div className="mt-8 flex justify-center gap-3">
-            <button onClick={() => void navigate({ to: "/auth" })} className="rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white">Back to sign in</button>
+            <button onClick={() => void navigate({ to: "/auth", search: { redirect: "/dashboard" } })} className="rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white">Back to sign in</button>
             <button onClick={() => window.location.reload()} className="rounded-full border border-rule px-5 py-2 text-sm">Try again</button>
           </div>
         )}

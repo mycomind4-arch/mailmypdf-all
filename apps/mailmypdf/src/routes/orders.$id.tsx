@@ -37,6 +37,22 @@ const STATUS_LABEL: Record<StatusKey, string> = {
   refunded: "Refunded",
 };
 
+interface OrderPageData {
+  order: {
+    id: string;
+    status: string;
+    mail_class?: string | null;
+    created_at: string;
+    file_name: string;
+    page_count: number;
+    recipient_name: string;
+    recipient_city: string;
+    recipient_state: string;
+    price_cents: number;
+  };
+  events: Array<{ type: string; label: string; created_at: string; metadata?: unknown }>;
+}
+
 export const Route = createFileRoute("/orders/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
     token: (search.token as string) ?? "",
@@ -93,9 +109,9 @@ function LoadingBlock() {
 
 function OrderBody({ id, token, paid }: { id: string; token: string; paid: boolean }) {
   const getOrder = useServerFn(getOrderByToken);
-  const { data } = useSuspenseQuery({
+  const { data } = useSuspenseQuery<OrderPageData>({
     queryKey: ["order", id, token],
-    queryFn: () => getOrder({ data: { id, token } }),
+    queryFn: async () => (await getOrder({ data: { id, token } })) as OrderPageData,
     retry: false,
     // Poll every 2s while we're waiting for the webhook to confirm payment.
     refetchInterval: (q) => {
