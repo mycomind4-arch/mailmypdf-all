@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_analyses: {
+        Row: {
+          id: string
+          case_id: string
+          owner_id: string
+          document_id: string
+          version: number
+          model: string
+          result: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          case_id: string
+          owner_id: string
+          document_id: string
+          version: number
+          model: string
+          result: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          case_id?: string
+          owner_id?: string
+          document_id?: string
+          version?: number
+          model?: string
+          result?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_analyses_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_analyses_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "secure_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_drafts: {
         Row: {
           id: string
@@ -1220,6 +1268,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      record_case_analysis: {
+        Args: {
+          p_case_id: string
+          p_document_id: string
+          p_model: string
+          p_result: Json
+        }
+        Returns: Database["public"]["Tables"]["case_analyses"]["Row"]
+      }
       case_packet_documents: {
         Args: {
           p_case_id: string
