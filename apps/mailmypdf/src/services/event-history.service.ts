@@ -10,13 +10,16 @@
  * consistent structure and deduplication support.
  */
 
+import type { Json } from "@/integrations/supabase/types";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface EventRecord {
   orderId: string;
   type: string;
   label: string;
-  metadata?: Record<string, unknown>;
+  /** Persisted to order_events.metadata (jsonb), so it must be serialisable. */
+  metadata?: Record<string, Json>;
 }
 
 export interface EventQueryResult {

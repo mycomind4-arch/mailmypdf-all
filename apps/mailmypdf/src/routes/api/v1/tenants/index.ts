@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/v1/tenants/")({
           return errorResponse(403, "forbidden", "Platform key required for tenant creation", "FORBIDDEN");
         }
 
-        const parsed = await parseJsonBody(request, (data) => {
+        const parsed = await parseJsonBody<z.infer<typeof createTenantSchema>>(request, (data) => {
           const result = createTenantSchema.safeParse(data);
           if (!result.success) {
             const firstError = result.error.issues[0];

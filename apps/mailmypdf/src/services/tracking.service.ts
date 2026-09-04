@@ -105,8 +105,8 @@ export class TrackingService {
       metadata: {
         lob_status: event.lobStatus,
         letter_id: event.letterId,
-        external_id: event.externalEventId ?? undefined,
-        signature_image_url: event.signatureImageUrl ?? undefined,
+        external_id: event.externalEventId ?? null,
+        signature_image_url: event.signatureImageUrl ?? null,
         ...event.metadata,
       },
       extraUpdate,

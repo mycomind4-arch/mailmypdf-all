@@ -25,16 +25,20 @@ import {
   InvalidTransitionError,
 } from "@/lib/order-state-machine";
 import { EventHistoryService } from "./event-history.service";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+/** Only real order columns may ride along with a status change. */
+type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface TransitionParams {
   /** Who or what triggered the transition. */
   triggeredBy: TransitionContext["triggeredBy"];
-  /** Additional metadata to store with the event. */
-  metadata?: Record<string, unknown>;
+  /** Additional metadata to store with the event; persisted as jsonb. */
+  metadata?: Record<string, Json>;
   /** Additional fields to update alongside the status (e.g., lob_letter_id). */
-  extraUpdate?: Record<string, unknown>;
+  extraUpdate?: OrderUpdate;
   /** Optional label override (defaults to the state machine's label). */
   labelOverride?: string;
 }
@@ -123,7 +127,7 @@ export class StateMachineService {
     }
 
     // 3. Conditional update (atomic — only succeeds if status hasn't changed)
-    const updatePayload: Record<string, unknown> = {
+    const updatePayload: OrderUpdate = {
       status: to,
       ...params.extraUpdate,
     };

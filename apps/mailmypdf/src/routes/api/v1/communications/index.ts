@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/v1/communications/")({
         if ("error" in auth) return auth.error;
         const { tenant, supabaseAdmin } = auth;
 
-        const parsed = await parseJsonBody(request, (data) => {
+        const parsed = await parseJsonBody<z.infer<typeof createCommunicationSchema>>(request, (data) => {
           const result = createCommunicationSchema.safeParse(data);
           if (!result.success) {
             const firstError = result.error.issues[0];

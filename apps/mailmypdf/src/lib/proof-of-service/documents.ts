@@ -54,9 +54,13 @@ export async function uploadProofDocument(
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucketName}/${storagePath}`;
 
-  const fileBody = params.file_data instanceof Uint8Array
+  // fetch's body needs a view over a real ArrayBuffer; a Uint8Array over the
+  // wider ArrayBufferLike (e.g. a Node Buffer's pooled storage) is not one.
+  const source = params.file_data instanceof Uint8Array
     ? params.file_data
     : new Uint8Array(params.file_data);
+  const fileBody = new Uint8Array(new ArrayBuffer(source.byteLength));
+  fileBody.set(source);
 
   const uploadResponse = await fetch(uploadUrl, {
     method: "POST",

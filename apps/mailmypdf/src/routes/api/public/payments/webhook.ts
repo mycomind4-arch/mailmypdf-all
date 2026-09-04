@@ -466,7 +466,7 @@ async function handleRefundEvent(
           metadata: {
             refund_id: refund.id,
             amount: refund.amount,
-            reason: refund.reason,
+            reason: refund.reason ?? null,
             external_id: eventId,
           },
         },

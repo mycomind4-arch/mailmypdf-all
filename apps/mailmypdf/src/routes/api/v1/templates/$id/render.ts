@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/v1/templates/$id/render")({
         }
 
         // 2. Parse input
-        const parsed = await parseJsonBody(request, (data) => {
+        const parsed = await parseJsonBody<z.infer<typeof renderSchema>>(request, (data) => {
           const result = renderSchema.safeParse(data);
           if (!result.success) {
             return { error: result.error.issues[0].message, field: "variables" };

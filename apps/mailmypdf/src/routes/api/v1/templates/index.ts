@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/v1/templates/")({
         if ("error" in auth) return auth.error;
         const { tenant, supabaseAdmin } = auth;
 
-        const parsed = await parseJsonBody(request, (data) => {
+        const parsed = await parseJsonBody<z.infer<typeof createTemplateSchema>>(request, (data) => {
           const result = createTemplateSchema.safeParse(data);
           if (!result.success) {
             const firstError = result.error.issues[0];
