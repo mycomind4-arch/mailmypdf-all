@@ -21,7 +21,7 @@ export interface CreateCheckoutParams {
   color: boolean;
   mailClass: MailClass;
   fileName: string;
-  /** Base URL for return URLs (e.g., https://mailmypdf.mailmypdf.workers.dev) */
+  /** Base URL for return URLs (e.g., https://mailmypdf.mycomind4.workers.dev) */
   baseUrl: string;
 }
 

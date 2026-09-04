@@ -80,7 +80,7 @@ async function handleScheduled(
   }
 
   // Determine the base URL — use the env var or fall back to the deployed URL
-  const baseUrl = env.MAILMYPDF_BASE_URL || "https://mailmypdf.mailmypdf.workers.dev";
+  const baseUrl = env.MAILMYPDF_BASE_URL || "https://mailmypdf.mycomind4.workers.dev";
 
   console.log(`[scheduled] cron "${controller.cron}" fired — calling proof-processor`);
 

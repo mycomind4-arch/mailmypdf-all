@@ -279,6 +279,12 @@ export function SsdiDenialWorkflow() {
     if (!workflowCase || !staged.length) return;
     setBusy(true);
     setError(null);
+    // Track what actually reached the case. If the run fails partway, the
+    // staged list must keep only what did not attach — otherwise a retry
+    // uploads a second copy of every earlier file, and because the server
+    // prices supporting pages from the pages actually enclosed, the duplicates
+    // are both mailed and charged for.
+    const attached = new Set<string>();
     try {
       let latest = documents;
       for (const item of staged) {
@@ -289,13 +295,13 @@ export function SsdiDenialWorkflow() {
           evidence_kind: item.kind,
           position: latest.filter((document) => document.role === "evidence").length + 1,
         });
+        attached.add(item.id);
         setDocuments(latest);
       }
-      setDocuments(latest);
-      setStaged([]);
     } catch (cause) {
       setError(messageFrom(cause));
     } finally {
+      setStaged((current) => current.filter((item) => !attached.has(item.id)));
       setBusy(false);
     }
   }
