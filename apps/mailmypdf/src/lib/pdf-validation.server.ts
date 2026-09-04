@@ -36,35 +36,49 @@ function latin1(bytes: Uint8Array): string {
   return new TextDecoder("latin1").decode(bytes);
 }
 
+/**
+ * Reports the first structurally unsafe feature in a PDF, or null if there is
+ * none. Size is deliberately not checked here: the mailing path and the
+ * document vault allow different sizes, so the caller decides.
+ *
+ * Exported so the malware scanner can apply the same rules. A signature scanner
+ * has no opinion about an /OpenAction that launches a file, and this is a
+ * document that will later be merged into a packet and mailed.
+ */
+export function findUnsafePdfFeature(bytes: Uint8Array): string | null {
+  if (bytes.byteLength < 16) return "TooSmall";
+  if (latin1(bytes.slice(0, 5)) !== "%PDF-") return "MissingHeader";
+
+  const trailer = latin1(bytes.slice(Math.max(0, bytes.byteLength - TRAILER_SCAN_BYTES)));
+  if (!trailer.includes("%%EOF")) return "MissingEndOfFile";
+
+  const source = latin1(bytes);
+  if (/\/Encrypt\b/.test(source)) return "Encrypted";
+
+  for (const token of FORBIDDEN_PDF_TOKENS) {
+    if (source.includes(token)) return `ActiveContent${token.replace("/", ".")}`;
+  }
+
+  const indirectObjectCount = source.match(/\b\d+\s+\d+\s+obj\b/g)?.length ?? 0;
+  if (indirectObjectCount > MAX_INDIRECT_OBJECTS) return "TooManyObjects";
+
+  return null;
+}
+
 function assertStaticPdfStructure(bytes: Uint8Array): void {
   if (bytes.byteLength < 16 || bytes.byteLength > MAX_PDF_BYTES) {
     throw new PdfValidationError("PDF size is outside the supported range.");
   }
 
-  if (latin1(bytes.slice(0, 5)) !== "%PDF-") {
-    throw new PdfValidationError("File does not have a valid PDF header.");
-  }
-
-  const trailer = latin1(bytes.slice(Math.max(0, bytes.byteLength - TRAILER_SCAN_BYTES)));
-  if (!trailer.includes("%%EOF")) {
-    throw new PdfValidationError("PDF is missing its end-of-file marker.");
-  }
-
-  const source = latin1(bytes);
-  if (/\/Encrypt\b/.test(source)) {
+  const unsafe = findUnsafePdfFeature(bytes);
+  if (unsafe === null) return;
+  if (unsafe === "MissingHeader") throw new PdfValidationError("File does not have a valid PDF header.");
+  if (unsafe === "MissingEndOfFile") throw new PdfValidationError("PDF is missing its end-of-file marker.");
+  if (unsafe === "Encrypted") {
     throw new PdfValidationError("Encrypted or password-protected PDFs are not supported.");
   }
-
-  for (const token of FORBIDDEN_PDF_TOKENS) {
-    if (source.includes(token)) {
-      throw new PdfValidationError("PDF contains active or embedded content that cannot be mailed safely.");
-    }
-  }
-
-  const indirectObjectCount = source.match(/\b\d+\s+\d+\s+obj\b/g)?.length ?? 0;
-  if (indirectObjectCount > MAX_INDIRECT_OBJECTS) {
-    throw new PdfValidationError("PDF contains too many internal objects.");
-  }
+  if (unsafe === "TooManyObjects") throw new PdfValidationError("PDF contains too many internal objects.");
+  throw new PdfValidationError("PDF contains active or embedded content that cannot be mailed safely.");
 }
 
 export async function validatePdfForMailing(bytes: Uint8Array): Promise<ValidatedPdf> {

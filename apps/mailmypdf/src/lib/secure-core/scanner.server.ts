@@ -73,13 +73,36 @@ async function scan(content: Uint8Array, mimeType: string): Promise<ScannerVerdi
   return result as ScannerVerdict;
 }
 
+/**
+ * Signature scanning plus structural rules for PDFs.
+ *
+ * ClamAV has no opinion about a PDF that carries /JavaScript or an /OpenAction
+ * that launches a file — those are legitimate PDF features, not malware
+ * signatures. This is a document that will be merged into a packet and mailed,
+ * so a clean signature verdict is necessary but not sufficient.
+ */
+async function scanWithPdfHardening(content: Uint8Array, mimeType: string): Promise<ScannerVerdict> {
+  const verdict = await scan(content, mimeType);
+  if (verdict.status !== "clean" || mimeType !== "application/pdf") return verdict;
+
+  const { findUnsafePdfFeature } = await import("@/lib/pdf-validation.server");
+  const unsafe = findUnsafePdfFeature(content);
+  if (!unsafe) return verdict;
+
+  return {
+    status: "infected",
+    engine: `${verdict.engine} + mailmypdf-pdf-safety`,
+    signature: `Pdf.${unsafe}`,
+    definitionsVersion: verdict.definitionsVersion,
+  };
+}
+
 export async function scanQuarantinedDocuments(batchSize = DEFAULT_BATCH_SIZE) {
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 25) {
     throw new Error("Scanner batch size must be between 1 and 25");
   }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // Generated database types will be refreshed when this migration is applied.
-  const admin = supabaseAdmin as any;
+  const admin = supabaseAdmin;
   const { data, error } = await admin.rpc("claim_secure_documents_for_scan", {
     batch_limit: batchSize,
   });
@@ -95,7 +118,7 @@ export async function scanQuarantinedDocuments(batchSize = DEFAULT_BATCH_SIZE) {
       const content = new Uint8Array(await stored.arrayBuffer());
       if (computeSha256(content) !== document.sha256) throw new Error("Quarantined object hash mismatch");
 
-      const verdict = await scan(content, document.mime_type);
+      const verdict = await scanWithPdfHardening(content, document.mime_type);
       const securityStatus = document.deletion_requested_at
         ? "deleting"
         : verdict.status === "clean" ? "clean" : "rejected";

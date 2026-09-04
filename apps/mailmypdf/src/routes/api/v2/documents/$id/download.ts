@@ -29,8 +29,7 @@ export const Route = createFileRoute("/api/v2/documents/$id/download")({
 
           // Recheck every authorization condition with the privileged client.
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          // Generated database types will be refreshed when this migration is applied.
-          const admin = supabaseAdmin as any;
+          const admin = supabaseAdmin;
           const { data: document } = await admin
             .from("secure_documents")
             .select("storage_path")

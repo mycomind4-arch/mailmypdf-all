@@ -1214,6 +1214,7 @@ importers:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@26.4.1)(lightningcss@1.33.0)(terser@5.16.9)
 
+  services/malware-scanner: {}
   packages/agent-runtime:
     dependencies:
       '@mailmypdf/core':

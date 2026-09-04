@@ -38,8 +38,7 @@ export async function purgeExpiredSecureDocuments(batchSize = DEFAULT_BATCH_SIZE
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // Generated database types will be refreshed when this migration is applied.
-  const admin = supabaseAdmin as any;
+  const admin = supabaseAdmin;
   const { data, error } = await admin.rpc("claim_secure_documents_for_deletion", {
     batch_limit: batchSize,
   });

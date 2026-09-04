@@ -51,7 +51,7 @@ export const Route = createFileRoute("/api/v2/privacy/export")({
           }
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const admin = supabaseAdmin as any;
+          const admin = supabaseAdmin;
           const { error: auditError } = await admin.from("security_events").insert({
             owner_id: context.user.id,
             document_id: null,
