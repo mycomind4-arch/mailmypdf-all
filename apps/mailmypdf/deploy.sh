@@ -1,16 +1,33 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 # ── MailMyPDF Deploy Script ──────────────────────────────────────────────────
-# Builds the app, adds cron triggers, and deploys to Cloudflare Workers.
+# Builds the app and deploys it to Cloudflare WORKERS with a cron trigger.
 #
-# The scheduled handler in src/server.ts is compiled into the build by Nitro
-# automatically — no post-build patching needed.
+# Workers, not Pages, is deliberate: src/server.ts exports a `scheduled`
+# handler, and Cloudflare Pages never fires scheduled events. Under the Pages
+# preset this script cannot run at all — Pages emits
+# dist/_worker.js/wrangler.json rather than .output/server/wrangler.json — and
+# the proof jobs silently never run. The guard below fails loudly rather than
+# letting that recur as a confusing `cd` error.
 #
 # Cron: every 5 minutes → POST /api/internal/proof-processor
 # Auth: Bearer MAILMYPDF_CLEANUP_SECRET
 #
+# The secure-core jobs (document scanning, retention) are scheduled separately
+# in .github/workflows/secure-core-jobs.yml, so they keep running regardless of
+# where this app is hosted.
+#
 # Usage: ./deploy.sh
+
+set -euo pipefail
+
+if ! grep -q 'preset: "cloudflare_module"' vite.config.ts; then
+  echo "❌ vite.config.ts is not on the Cloudflare Workers preset." >&2
+  echo "   This script deploys a Worker with cron triggers. On the Pages" >&2
+  echo "   preset the build emits no Worker config and scheduled events" >&2
+  echo "   never fire. Read the header of this file before changing it." >&2
+  exit 1
+fi
 
 echo "📦 Building..."
 npm run build

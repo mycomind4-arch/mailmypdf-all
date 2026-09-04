@@ -8,11 +8,12 @@ const WORKFLOW = new URL(".github/workflows/secure-core-jobs.yml", repoRoot);
 /* ═══════════════════════════════════════════════════════════
    The secure-core jobs must actually be invoked
 
-   Both jobs had endpoints and nothing called them. The deploy
-   target is Cloudflare Pages, which has no cron triggers, so
-   without an external schedule uploaded documents stay
-   quarantined forever and expired documents are never deleted —
-   the retention promise silently not kept.
+   Both jobs had endpoints and nothing called them. The Worker's
+   own cron covers proof-processor only, and while the build sat
+   on the Pages preset it fired nothing at all, because Pages has
+   no scheduled events. Without an external schedule, uploaded
+   documents stay quarantined forever and expired documents are
+   never deleted — the retention promise silently not kept.
    ═══════════════════════════════════════════════════════════ */
 
 describe("scheduling", () => {
@@ -73,16 +74,28 @@ describe("job endpoints that still have no schedule", () => {
       .map((f) => f.replace(/\.ts$/, ""))
       .filter((name) => name !== "health");
 
+    // Coverage is measured from actual call sites, not from any mention of a
+    // job name — a comment referring to a job must not read as scheduling it.
     const yaml = await readFile(WORKFLOW, "utf8");
-    const unscheduled = endpoints.filter((name) => !yaml.includes(name));
+    const serverEntry = await readFile(new URL("../src/server.ts", import.meta.url), "utf8");
+    const calledIn = (source) =>
+      new Set([...source.matchAll(/\/api\/internal\/([a-z-]+)/g)].map((m) => m[1]));
 
-    // These have side effects — dispatching webhooks, submitting to a mailing
-    // provider — so turning them on is a business decision, not a code one.
-    // This list is a record of that, and fails if a new job appears unnoticed.
-    assert.deepEqual(unscheduled.sort(), [
+    const byWorkflow = calledIn(yaml);
+    const byWorkerCron = calledIn(serverEntry);
+    const covered = new Set([...byWorkflow, ...byWorkerCron]);
+
+    assert.ok(byWorkflow.has("scan-documents"), "the workflow must call the scanner job");
+    assert.ok(byWorkflow.has("purge-secure-documents"), "the workflow must call the retention job");
+    assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
+
+    // These dispatch webhooks and submit to a mailing provider, so turning them
+    // on is a business decision rather than a code one. This list records that,
+    // and fails if a new job appears unnoticed.
+    const unscheduled = endpoints.filter((name) => !covered.has(name)).sort();
+    assert.deepEqual(unscheduled, [
       "cleanup-drafts",
       "process-scheduled",
-      "proof-processor",
       "proof-webhook-retries",
       "proof-window-expiry",
     ]);

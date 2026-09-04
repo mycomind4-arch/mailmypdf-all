@@ -14,7 +14,10 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    preset: "cloudflare-pages",
+    // Workers, not Pages: src/server.ts exports a `scheduled` handler and
+    // Cloudflare Pages never fires scheduled events, so on Pages the cron in
+    // deploy.sh is inert and the proof jobs silently never run.
+    preset: "cloudflare_module",
   },
   vite: {
     resolve: {
