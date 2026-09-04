@@ -49,8 +49,8 @@ const BREADCRUMB_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://mailmypdf.com/" },
-    { "@type": "ListItem", position: 2, name: "Certified Mail Guide", item: "https://mailmypdf.com/certified-mail-guide" },
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://mailmypdf.ai/" },
+    { "@type": "ListItem", position: 2, name: "Certified Mail Guide", item: "https://mailmypdf.ai/certified-mail-guide" },
   ],
 };
 

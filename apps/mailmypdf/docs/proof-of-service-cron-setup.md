@@ -30,7 +30,7 @@ Authorization: Bearer <MAILMYPDF_CLEANUP_SECRET>
 
 1. Create a monitor/job for:
    ```
-   POST https://mailmypdf.com/api/internal/proof-processor
+   POST https://mailmypdf.ai/api/internal/proof-processor
    Authorization: Bearer <MAILMYPDF_CLEANUP_SECRET>
    ```
 2. Set interval to 5 minutes
@@ -47,7 +47,7 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $$
     SELECT net.http_post(
-      url := 'https://mailmypdf.com/api/internal/proof-processor',
+      url := 'https://mailmypdf.ai/api/internal/proof-processor',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
         'Authorization', 'Bearer ' || current_setting('app.cleanup_secret')
@@ -76,7 +76,7 @@ jobs:
           curl -s -o /dev/null -w "%{http_code}" \
             -X POST \
             -H "Authorization: Bearer ${{ secrets.MAILMYPDF_CLEANUP_SECRET }}" \
-            https://mailmypdf.com/api/internal/proof-processor
+            https://mailmypdf.ai/api/internal/proof-processor
 ```
 
 ### Option 4: Vercel Cron (if deployed on Vercel)
@@ -128,7 +128,7 @@ Ensure these are set in the MailMyPDF deployment:
 Point Lob's webhook to the extended endpoint:
 
 ```
-https://mailmypdf.com/api/public/lob-webhook-v2
+https://mailmypdf.ai/api/public/lob-webhook-v2
 ```
 
 This endpoint handles both consumer orders (existing flow) and

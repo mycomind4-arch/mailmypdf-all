@@ -82,7 +82,7 @@ const baseConfig: PipelineConfig = {
   deployment: new DryRunDeployment(),
   registry: new DryRunRegistry(),
   framework: 'static',
-  domainTemplate: (id: string) => `${id}.mailmypdf.com`,
+  domainTemplate: (id: string) => `${id}.mailmypdf.ai`,
   repository: 'mycomind4-arch/foundry-verticals',
   createPR: false,
 }
@@ -104,8 +104,8 @@ test('M75-A: multiple verticals pass through pipeline independently', async () =
 })
 
 test('M75-B: generated code for each vertical is distinct and valid', () => {
-  const code1 = generateVerticalCode({ candidate: invoiceMailer, framework: 'static', domain: 'invoice-mailer.mailmypdf.com' })
-  const code2 = generateVerticalCode({ candidate: legalNoticeMailer, framework: 'static', domain: 'legal-notice-mailer.mailmypdf.com' })
+  const code1 = generateVerticalCode({ candidate: invoiceMailer, framework: 'static', domain: 'invoice-mailer.mailmypdf.ai' })
+  const code2 = generateVerticalCode({ candidate: legalNoticeMailer, framework: 'static', domain: 'legal-notice-mailer.mailmypdf.ai' })
 
   const html1 = code1.files.find(f => f.path === 'index.html')!
   const html2 = code2.files.find(f => f.path === 'index.html')!
@@ -114,8 +114,8 @@ test('M75-B: generated code for each vertical is distinct and valid', () => {
   assert.ok(!html1.content.includes('Legal Notice Mailer'))
   assert.ok(html2.content.includes('Legal Notice Mailer'))
   assert.ok(!html2.content.includes('Invoice Mailer'))
-  assert.ok(html1.content.includes('invoice-mailer.mailmypdf.com'))
-  assert.ok(html2.content.includes('legal-notice-mailer.mailmypdf.com'))
+  assert.ok(html1.content.includes('invoice-mailer.mailmypdf.ai'))
+  assert.ok(html2.content.includes('legal-notice-mailer.mailmypdf.ai'))
 })
 
 test('M75-C: cost tracking accumulates across multiple vertical runs', async () => {
@@ -209,7 +209,7 @@ test('M75-E: production approval gate gates deployment of pipeline output', asyn
   })
 
   // Grant approval
-  gate.grantApproval(approval.id, 'shane@mailmypdf.com')
+  gate.grantApproval(approval.id, 'shane@mailmypdf.ai')
 
   // Should now be authorized
   const postApproval = gate.canDeployToProduction(manifest)
@@ -309,14 +309,14 @@ test('M75-I: portfolio tracks multiple verticals with different statuses', async
   portfolio.add({
     verticalId: 'certified-mail-from-pdf',
     name: 'Certified Mail from PDF',
-    domain: 'certified-mail-from-pdf.mailmypdf.com',
+    domain: 'certified-mail-from-pdf.mailmypdf.ai',
     repository: 'mycomind4-arch/foundry-verticals',
     status: 'production',
     gateCount: 6,
     allGatesPassed: true,
     capabilities: ['certified-mail', 'tracking'],
     previewUrl: 'https://preview.pages.dev/certified',
-    productionUrl: 'https://certified-mail-from-pdf.mailmypdf.com',
+    productionUrl: 'https://certified-mail-from-pdf.mailmypdf.ai',
   })
 
   assert.equal(portfolio.list().length, 2)
@@ -387,7 +387,7 @@ test('M75-K: full system acceptance — all subsystems work together', async () 
     branch: pipelineResult.manifest.branch,
     reason: 'Full acceptance test — all gates passed',
   })
-  gate.grantApproval(approval.id, 'shane@mailmypdf.com')
+  gate.grantApproval(approval.id, 'shane@mailmypdf.ai')
   assert.ok(gate.canDeployToProduction(pipelineResult.manifest).authorized)
 
   // 7. Portfolio dashboard

@@ -128,7 +128,7 @@ Sincerely,
           <div className="absolute inset-0 bg-gradient-to-b from-paper-deep/40 via-paper to-paper" aria-hidden="true" />
           <div className="relative mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20 md:py-28">
             <nav className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-label="Breadcrumb">
-              <a href="https://mailmypdf.com" className="hover:text-stamp transition-colors">MailMyPDF</a>
+              <a href="https://mailmypdf.ai" className="hover:text-stamp transition-colors">MailMyPDF</a>
               <span className="text-rule">/</span>
               <span className="text-ink-soft">Permit Reply</span>
             </nav>
@@ -483,7 +483,7 @@ Sincerely,
               <RelatedCard href="https://tenant-reply.pages.dev" title="Tenant Reply" desc="Tenant responses to eviction notices, repair demands, and lease violations" />
               <RelatedCard href="https://claim-proof.pages.dev" title="Claim Proof" desc="Evidence-first claim documentation and proof packages" />
             </div>
-            <div className="mt-6"><a href="https://mailmypdf.com/products" className="text-sm text-stamp hover:text-ink transition-colors">Browse all products →</a></div>
+            <div className="mt-6"><a href="https://mailmypdf.ai/products" className="text-sm text-stamp hover:text-ink transition-colors">Browse all products →</a></div>
           </div>
         </section>
 

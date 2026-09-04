@@ -3,7 +3,7 @@ import { getWorkflow } from "@/domain/workflows";
 import { requireAuthenticatedUser } from "@/platform/supabase";
 
 async function resolveGemini(task: "draft" | "validation") {
-  const base = process.env.MAILMYPDF_CONTROL_PLANE_URL || "https://mailmypdf.com";
+  const base = process.env.MAILMYPDF_CONTROL_PLANE_URL || "https://mailmypdf.ai";
   const token = process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
   if (!token) throw new Error("MailMyPDF control-plane token is not configured.");
   const response = await fetch(`${base.replace(/\/$/, "")}/api/control-plane/ai`, {

@@ -27,7 +27,7 @@ export function EnterpriseHeader() {
         </nav>
         <div className="flex items-center gap-3">
           <a
-            href="mailto:hello@mailmypdf.com?subject=Proof-of-Service%20Enterprise%20Inquiry"
+            href="mailto:hello@mailmypdf.ai?subject=Proof-of-Service%20Enterprise%20Inquiry"
             className="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-slate-800 hover:-translate-y-0.5"
           >
             Contact Sales

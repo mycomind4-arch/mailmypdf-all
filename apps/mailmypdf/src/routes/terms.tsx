@@ -58,7 +58,7 @@ function TermsPage() {
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Contact</h2>
-            <p className="mt-3">Questions about these terms? Email <a href="mailto:hello@mailmypdf.com" className="text-cobalt hover:underline">hello@mailmypdf.com</a>.</p>
+            <p className="mt-3">Questions about these terms? Email <a href="mailto:hello@mailmypdf.ai" className="text-cobalt hover:underline">hello@mailmypdf.ai</a>.</p>
           </section>
         </div>
       </main>

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { workflows } from './workflows/workflow-data'
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.com'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.ai'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

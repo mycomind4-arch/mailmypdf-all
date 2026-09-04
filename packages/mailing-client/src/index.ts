@@ -8,7 +8,7 @@
  * near-identical copies of mailmypdf.ts across the ecosystem.
  *
  * Configuration via environment variables:
- *   MAILMYPDF_API_URL  — base URL (e.g. https://mailmypdf.com)
+ *   MAILMYPDF_API_URL  — base URL (e.g. https://mailmypdf.ai)
  *   MAILMYPDF_API_KEY  — bearer token
  *
  * The client automatically handles:

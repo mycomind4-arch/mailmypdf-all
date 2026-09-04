@@ -6,4 +6,4 @@ Disallow: /admin
 Disallow: /auth
 Disallow: /api/
 
-Sitemap: https://mailmypdf.com/sitemap.xml
+Sitemap: https://mailmypdf.ai/sitemap.xml

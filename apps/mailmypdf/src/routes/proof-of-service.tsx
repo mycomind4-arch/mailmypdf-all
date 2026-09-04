@@ -74,7 +74,7 @@ function Hero() {
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <a
-                href="mailto:hello@mailmypdf.com?subject=Proof-of-Service%20Enterprise%20Inquiry"
+                href="mailto:hello@mailmypdf.ai?subject=Proof-of-Service%20Enterprise%20Inquiry"
                 className="inline-flex items-center gap-2 rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-100 hover:-translate-y-0.5"
               >
                 Request API Access
@@ -738,8 +738,8 @@ function SecuritySection() {
             <span className="font-semibold text-slate-900">Need a security review?</span> We provide
             architecture documentation, data flow diagrams, and a DPA template for Enterprise
             tenants. Contact us at{" "}
-            <a href="mailto:hello@mailmypdf.com?subject=Proof-of-Service%20Security%20Review" className="font-medium text-blue-600 hover:text-blue-700">
-              hello@mailmypdf.com
+            <a href="mailto:hello@mailmypdf.ai?subject=Proof-of-Service%20Security%20Review" className="font-medium text-blue-600 hover:text-blue-700">
+              hello@mailmypdf.ai
             </a>.
           </p>
         </div>
@@ -824,7 +824,7 @@ function FinalCTA() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <a
-            href="mailto:hello@mailmypdf.com?subject=Proof-of-Service%20Enterprise%20Inquiry"
+            href="mailto:hello@mailmypdf.ai?subject=Proof-of-Service%20Enterprise%20Inquiry"
             className="inline-flex items-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-100 hover:-translate-y-0.5"
           >
             Contact Sales

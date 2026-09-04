@@ -1,6 +1,6 @@
 # Proof-of-Service API Reference
 
-Base URL: `https://mailmypdf.com/api/v1`
+Base URL: `https://mailmypdf.ai/api/v1`
 
 Authentication: `Authorization: Bearer sk_live_...` (all endpoints except `/verify`)
 

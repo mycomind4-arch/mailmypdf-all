@@ -63,7 +63,7 @@ test('M77: deployment events are recorded', () => {
   mgr.create('test-vertical')
 
   mgr.recordDeployment('test-vertical', 'https://preview.pages.dev/test', 'preview')
-  mgr.recordDeployment('test-vertical', 'https://test.mailmypdf.com', 'production')
+  mgr.recordDeployment('test-vertical', 'https://test.mailmypdf.ai', 'production')
 
   const deployEvents = mgr.get('test-vertical')!.events.filter(e => e.type === 'deployed')
   assert.equal(deployEvents.length, 2)
@@ -105,7 +105,7 @@ test('M77: happy path simulates full lifecycle', async () => {
   const mgr = new LifecycleManager()
   const history = await mgr.runHappyPath('happy-vertical', {
     previewUrl: 'https://preview.pages.dev/happy',
-    productionUrl: 'https://happy.mailmypdf.com',
+    productionUrl: 'https://happy.mailmypdf.ai',
     registryId: 'reg-happy-001',
   })
 
@@ -160,7 +160,7 @@ test('M77: lifecycle serializes for audit', async () => {
   const mgr = new LifecycleManager()
   const history = await mgr.runHappyPath('audit-vertical', {
     previewUrl: 'https://preview.pages.dev/audit',
-    productionUrl: 'https://audit.mailmypdf.com',
+    productionUrl: 'https://audit.mailmypdf.ai',
     registryId: 'reg-audit-001',
   })
 

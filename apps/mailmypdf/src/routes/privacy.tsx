@@ -43,7 +43,7 @@ function PrivacyPage() {
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Your rights</h2>
-            <p className="mt-3">You can request access to, correction of, or deletion of your personal data at any time by contacting <a href="mailto:hello@mailmypdf.com" className="text-cobalt hover:underline">hello@mailmypdf.com</a>. If you are in the EU or California, you have additional rights under GDPR and CCPA respectively.</p>
+            <p className="mt-3">You can request access to, correction of, or deletion of your personal data at any time by contacting <a href="mailto:hello@mailmypdf.ai" className="text-cobalt hover:underline">hello@mailmypdf.ai</a>. If you are in the EU or California, you have additional rights under GDPR and CCPA respectively.</p>
           </section>
 
           <section>
@@ -53,7 +53,7 @@ function PrivacyPage() {
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Contact</h2>
-            <p className="mt-3">Questions about privacy? Email <a href="mailto:hello@mailmypdf.com" className="text-cobalt hover:underline">hello@mailmypdf.com</a>.</p>
+            <p className="mt-3">Questions about privacy? Email <a href="mailto:hello@mailmypdf.ai" className="text-cobalt hover:underline">hello@mailmypdf.ai</a>.</p>
           </section>
         </div>
       </main>

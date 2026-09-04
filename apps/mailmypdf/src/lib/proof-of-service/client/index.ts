@@ -8,7 +8,7 @@
  *   import { ProofOfServiceClient } from "@/lib/proof-of-service/client";
  *
  *   const client = new ProofOfServiceClient({
- *     baseUrl: "https://mailmypdf.com/api/v1",
+ *     baseUrl: "https://mailmypdf.ai/api/v1",
  *     apiKey: process.env.PROOF_OF_SERVICE_API_KEY,
  *   });
  *
@@ -351,7 +351,7 @@ export class ProofOfServiceClient {
  * Expects PROOF_OF_SERVICE_BASE_URL and PROOF_OF_SERVICE_API_KEY.
  */
 export function createProofOfServiceClient(): ProofOfServiceClient {
-  const baseUrl = process.env.PROOF_OF_SERVICE_BASE_URL ?? "https://mailmypdf.com/api/v1";
+  const baseUrl = process.env.PROOF_OF_SERVICE_BASE_URL ?? "https://mailmypdf.ai/api/v1";
   const apiKey = required("PROOF_OF_SERVICE_API_KEY");
 
   return new ProofOfServiceClient({ baseUrl, apiKey });

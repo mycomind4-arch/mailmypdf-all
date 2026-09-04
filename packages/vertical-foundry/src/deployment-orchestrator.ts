@@ -93,8 +93,8 @@ export async function runPromotionChecklist(
   const contentValid = healthCheck.checks.find(c => c.name === 'Content Validation')?.passed ?? false
   const noMixedContent = healthCheck.checks.find(c => c.name === 'No Mixed Content')?.passed ?? false
 
-  // Domain resolution check — in rehearsal mode, assume valid for *.mailmypdf.com
-  const domainResolves = productionDomain.endsWith('.mailmypdf.com') || productionDomain.endsWith('.foundry.io') ||
+  // Domain resolution check — in rehearsal mode, assume valid for *.mailmypdf.ai
+  const domainResolves = productionDomain.endsWith('.mailmypdf.ai') || productionDomain.endsWith('.foundry.io') ||
                          productionDomain.endsWith('.pages.dev') ||
                          productionDomain.includes('localhost')
 
@@ -111,7 +111,7 @@ export class DeploymentOrchestrator {
 
   constructor(config: Partial<DeploymentOrchestratorConfig> = {}) {
     this.config = {
-      productionDomainTemplate: config.productionDomainTemplate ?? ((id: string) => `${id}.mailmypdf.com`),
+      productionDomainTemplate: config.productionDomainTemplate ?? ((id: string) => `${id}.mailmypdf.ai`),
       healthCheckTimeoutMs: config.healthCheckTimeoutMs ?? 30000,
       requireApproval: config.requireApproval ?? true,
     }

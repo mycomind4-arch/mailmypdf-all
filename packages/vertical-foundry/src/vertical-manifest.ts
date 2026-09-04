@@ -89,8 +89,8 @@ export function validateManifest(manifest: VerticalManifest, originalRepository:
   if (manifest.repository.includes('/mailmypdf')) {
     throw new Error('Repository path containing "mailmypdf" is outside autonomous vertical scope')
   }
-  if (manifest.domain === 'mailmypdf.com') {
-    throw new Error('The mailmypdf.com domain is outside autonomous vertical scope')
+  if (manifest.domain === 'mailmypdf.ai') {
+    throw new Error('The mailmypdf.ai domain is outside autonomous vertical scope')
   }
 
   // The target repository must not be in the exclusion list (contradictory).

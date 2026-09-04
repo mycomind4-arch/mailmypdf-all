@@ -16,7 +16,7 @@ const config: PipelineConfig = {
   deployment: new DryRunDeployment(),
   registry: new DryRunRegistry(),
   framework: 'static',
-  domainTemplate: (id: string) => `${id}.mailmypdf.com`,
+  domainTemplate: (id: string) => `${id}.mailmypdf.ai`,
   repository: 'mycomind4-arch/foundry-verticals',
   createPR: false,
 }

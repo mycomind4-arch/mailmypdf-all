@@ -153,7 +153,7 @@ export function getConfig(): AppConfig {
   const appBaseUrl = optional("MAILMYPDF_BASE_URL")
     ?? optional("PUBLIC_APP_URL")
     ?? optional("APP_URL")
-    ?? "https://mailmypdf.com";
+    ?? "https://mailmypdf.ai";
   // Validate URL format
   try { new URL(appBaseUrl); } catch {
     throw new Error(`[config] Invalid MAILMYPDF_BASE_URL: ${appBaseUrl}`);
@@ -184,8 +184,8 @@ export function getConfig(): AppConfig {
     },
     email: {
       resendApiKey,
-      fromAddress: optional("RESEND_FROM_ADDRESS") ?? "MailMyPDF <mail@mailmypdf.com>",
-      supportEmail: optional("RESEND_SUPPORT_EMAIL") ?? "support@mailmypdf.com",
+      fromAddress: optional("RESEND_FROM_ADDRESS") ?? "MailMyPDF <mail@mailmypdf.ai>",
+      supportEmail: optional("RESEND_SUPPORT_EMAIL") ?? "support@mailmypdf.ai",
     },
     storage: {
       bucketName: "order-pdfs",

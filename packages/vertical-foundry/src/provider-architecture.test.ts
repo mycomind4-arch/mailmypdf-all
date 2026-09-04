@@ -45,11 +45,11 @@ test('manifest rejects original MailMyPDF repository', () => {
   assert.throws(() => validateManifest(manifest), /original MailMyPDF repository as a vertical target/)
 })
 
-test('manifest rejects mailmypdf.com domain', () => {
+test('manifest rejects mailmypdf.ai domain', () => {
   const manifest = createManifest({
     id: 'test',
     name: 'Test',
-    domain: 'mailmypdf.com',
+    domain: 'mailmypdf.ai',
     repository: 'org/test-repo',
     branch: 'main',
     capabilities: [],

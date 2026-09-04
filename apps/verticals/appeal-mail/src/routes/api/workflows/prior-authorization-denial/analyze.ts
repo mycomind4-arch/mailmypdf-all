@@ -12,7 +12,7 @@ function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   throw new Error("Please upload a PDF, PNG, or JPEG document.");
 }
 async function resolveGemini() {
-  const base=process.env.MAILMYPDF_CONTROL_PLANE_URL||"https://mailmypdf.com"; const token=process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
+  const base=process.env.MAILMYPDF_CONTROL_PLANE_URL||"https://mailmypdf.ai"; const token=process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
   if(!token) throw new Error("MailMyPDF control-plane token is not configured.");
   const r=await fetch(`${base.replace(/\/$/,"")}/api/control-plane/ai`,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${token}`},body:JSON.stringify({verticalSlug:"appeal-mail",workflowSlug:"prior-authorization-denial",task:"analysis"})});
   const p=await r.json().catch(()=>null) as {provider?:string;apiKey?:string;model?:string;promptOverride?:string}|null;

@@ -107,7 +107,7 @@ describe("Document Safety", () => {
   describe("URL Validation (SSRF Prevention)", () => {
     test("allows https URLs to public domains", () => {
       assert.equal(isSafeUrl("https://example.com"), true);
-      assert.equal(isSafeUrl("https://api.mailmypdf.com"), true);
+      assert.equal(isSafeUrl("https://api.mailmypdf.ai"), true);
     });
 
     test("blocks http URLs", () => {

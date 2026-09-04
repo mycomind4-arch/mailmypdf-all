@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.com'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.ai'
 
 export default function robots(): MetadataRoute.Robots {
   return {

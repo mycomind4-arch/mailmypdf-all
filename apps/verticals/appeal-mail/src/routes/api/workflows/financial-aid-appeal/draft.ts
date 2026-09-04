@@ -4,7 +4,7 @@ import { getWorkflow } from "@/domain/workflows";
 import { validateAppealDraft } from "@/domain/draft-validator";
 
 async function resolveGemini(task: "draft" | "validation") {
-  const base = process.env.MAILMYPDF_CONTROL_PLANE_URL || "https://mailmypdf.com";
+  const base = process.env.MAILMYPDF_CONTROL_PLANE_URL || "https://mailmypdf.ai";
   const token = process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
   if (!token) throw new Error("MailMyPDF control-plane token is not configured.");
   const response = await fetch(`${base.replace(/\/$/, "")}/api/control-plane/ai`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ verticalSlug: "appeal-mail", workflowSlug: "financial-aid-appeal", task }) });

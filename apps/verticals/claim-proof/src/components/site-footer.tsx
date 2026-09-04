@@ -23,7 +23,7 @@ export function SiteFooter() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><a href="https://notice-respond.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Notice Respond</a></li>
               <li><a href="https://benefits-appeal.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Benefits Appeal</a></li>
-              <li><a href="https://mailmypdf.com" className="text-ink-soft transition-colors hover:text-stamp">MailMyPDF</a></li>
+              <li><a href="https://mailmypdf.ai" className="text-ink-soft transition-colors hover:text-stamp">MailMyPDF</a></li>
             </ul>
           </div>
         </div>

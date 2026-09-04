@@ -1,7 +1,7 @@
 import './globals.css'
 import EcosystemNav from './components/EcosystemNav'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.com'
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.ai'
 
 export const metadata = {
   metadataBase: new URL(siteUrl),

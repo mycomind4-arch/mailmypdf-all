@@ -23,7 +23,7 @@ const baseDraft: MailingOrderDraft = {
 };
 
 function mockConfig() {
-  process.env.MAILMYPDF_API_URL = "https://api.mailmypdf.com";
+  process.env.MAILMYPDF_API_URL = "https://api.mailmypdf.ai";
   process.env.MAILMYPDF_API_KEY = "test-api-key";
 }
 

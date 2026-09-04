@@ -214,7 +214,7 @@ describe("ProofOfService Client", () => {
   test("verification URL is built without API key", () => {
     const trackingNumber = "94055036993000000000000";
     const documentHash = "a3f5b2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1";
-    const url = `https://mailmypdf.com/api/v1/verify/${encodeURIComponent(trackingNumber)}?document_hash=${documentHash}`;
+    const url = `https://mailmypdf.ai/api/v1/verify/${encodeURIComponent(trackingNumber)}?document_hash=${documentHash}`;
 
     ok(url.includes(`/verify/${trackingNumber}`));
     ok(url.includes(`document_hash=${documentHash}`));

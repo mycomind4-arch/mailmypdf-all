@@ -38,7 +38,7 @@ test('M80: normal scheduling succeeds for qualified candidate', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
   const candidate = makeCandidate('invoice-mailer', 85)
-  const decision = scheduler.evaluate(candidate, 1.50, 'mycomind4-arch/foundry-invoice-mailer', 'invoice-mailer.mailmypdf.com')
+  const decision = scheduler.evaluate(candidate, 1.50, 'mycomind4-arch/foundry-invoice-mailer', 'invoice-mailer.mailmypdf.ai')
 
   assert.ok(decision.approved, `Expected approval, got: ${decision.reason}`)
   assert.equal(decision.checks.length, 11)
@@ -51,16 +51,16 @@ test('M80: scheduling updates state when scheduled', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
   const candidate = makeCandidate('test-v1')
-  const decision = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-test-v1', 'test-v1.mailmypdf.com')
+  const decision = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-test-v1', 'test-v1.mailmypdf.ai')
 
   assert.ok(decision.approved)
-  scheduler.schedule(decision, 'mycomind4-arch/foundry-test-v1', 'test-v1.mailmypdf.com', 1.00)
+  scheduler.schedule(decision, 'mycomind4-arch/foundry-test-v1', 'test-v1.mailmypdf.ai', 1.00)
 
   const state = scheduler.getState()
   assert.equal(state.activeBuilds, 1)
   assert.equal(state.launchedToday, 1)
   assert.equal(state.spentTodayUsd, 1.00)
-  assert.ok(state.usedDomains.includes('test-v1.mailmypdf.com'))
+  assert.ok(state.usedDomains.includes('test-v1.mailmypdf.ai'))
   assert.ok(state.usedRepositories.includes('mycomind4-arch/foundry-test-v1'))
 })
 
@@ -70,13 +70,13 @@ test('M80: capacity exhaustion blocks new builds', () => {
 
   // Schedule 2 (max concurrent)
   for (let i = 0; i < 2; i++) {
-    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`)
+    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`)
     assert.ok(d.approved)
-    scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`, 1.00)
+    scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`, 1.00)
   }
 
   // 3rd should fail on concurrency
-  const d3 = scheduler.evaluate(makeCandidate('v-3'), 1.00, 'mycomind4-arch/foundry-v-3', 'v-3.mailmypdf.com')
+  const d3 = scheduler.evaluate(makeCandidate('v-3'), 1.00, 'mycomind4-arch/foundry-v-3', 'v-3.mailmypdf.ai')
   assert.ok(!d3.approved)
   assert.ok(d3.checks.some(c => c.name === 'concurrent_builds' && !c.passed))
 })
@@ -86,15 +86,15 @@ test('M80: completing a build frees a slot', () => {
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
   for (let i = 0; i < 2; i++) {
-    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`)
-    scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`, 1.00)
+    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`)
+    scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`, 1.00)
   }
 
   scheduler.completeBuild()
   assert.equal(scheduler.getState().activeBuilds, 1)
 
   // Now we can schedule another
-  const d3 = scheduler.evaluate(makeCandidate('v-3'), 1.00, 'mycomind4-arch/foundry-v-3', 'v-3.mailmypdf.com')
+  const d3 = scheduler.evaluate(makeCandidate('v-3'), 1.00, 'mycomind4-arch/foundry-v-3', 'v-3.mailmypdf.ai')
   assert.ok(d3.approved, `Expected approval after completion, got: ${d3.reason}`)
 })
 
@@ -104,12 +104,12 @@ test('M80: budget exhaustion blocks new builds', () => {
 
   // Schedule enough to exhaust budget
   for (let i = 0; i < 3; i++) {
-    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`)
-    if (d.approved) scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.com`, 1.00)
+    const d = scheduler.evaluate(makeCandidate(`v-${i}`), 1.00, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`)
+    if (d.approved) scheduler.schedule(d, `mycomind4-arch/foundry-v-${i}`, `v-${i}.mailmypdf.ai`, 1.00)
   }
 
   // 4th should fail on budget
-  const d4 = scheduler.evaluate(makeCandidate('v-4'), 1.00, 'mycomind4-arch/foundry-v-4', 'v-4.mailmypdf.com')
+  const d4 = scheduler.evaluate(makeCandidate('v-4'), 1.00, 'mycomind4-arch/foundry-v-4', 'v-4.mailmypdf.ai')
   assert.ok(!d4.approved)
   assert.ok(d4.checks.some(c => c.name === 'budget_limit' && !c.passed))
 })
@@ -118,11 +118,11 @@ test('M80: duplicate domain is rejected', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
-  const d1 = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/foundry-v-1', 'dup.mailmypdf.com')
+  const d1 = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/foundry-v-1', 'dup.mailmypdf.ai')
   assert.ok(d1.approved)
-  scheduler.schedule(d1, 'mycomind4-arch/foundry-v-1', 'dup.mailmypdf.com', 1.00)
+  scheduler.schedule(d1, 'mycomind4-arch/foundry-v-1', 'dup.mailmypdf.ai', 1.00)
 
-  const d2 = scheduler.evaluate(makeCandidate('v-2'), 1.00, 'mycomind4-arch/foundry-v-2', 'dup.mailmypdf.com')
+  const d2 = scheduler.evaluate(makeCandidate('v-2'), 1.00, 'mycomind4-arch/foundry-v-2', 'dup.mailmypdf.ai')
   assert.ok(!d2.approved)
   assert.ok(d2.checks.some(c => c.name === 'domain_unique' && !c.passed))
 })
@@ -131,11 +131,11 @@ test('M80: duplicate repository is rejected', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
-  const d1 = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/foundry-dup-repo', 'v-1.mailmypdf.com')
+  const d1 = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/foundry-dup-repo', 'v-1.mailmypdf.ai')
   assert.ok(d1.approved)
-  scheduler.schedule(d1, 'mycomind4-arch/foundry-dup-repo', 'v-1.mailmypdf.com', 1.00)
+  scheduler.schedule(d1, 'mycomind4-arch/foundry-dup-repo', 'v-1.mailmypdf.ai', 1.00)
 
-  const d2 = scheduler.evaluate(makeCandidate('v-2'), 1.00, 'mycomind4-arch/foundry-dup-repo', 'v-2.mailmypdf.com')
+  const d2 = scheduler.evaluate(makeCandidate('v-2'), 1.00, 'mycomind4-arch/foundry-dup-repo', 'v-2.mailmypdf.ai')
   assert.ok(!d2.approved)
   assert.ok(d2.checks.some(c => c.name === 'repository_unique' && !c.passed))
 })
@@ -144,7 +144,7 @@ test('M80: protected repository is rejected', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
-  const d = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/mailmypdf', 'v-1.mailmypdf.com')
+  const d = scheduler.evaluate(makeCandidate('v-1'), 1.00, 'mycomind4-arch/mailmypdf', 'v-1.mailmypdf.ai')
   assert.ok(!d.approved)
   assert.ok(d.checks.some(c => c.name === 'protected_repository' && !c.passed))
   assert.ok(d.checks.some(c => c.name === 'repository_pattern' && !c.passed))
@@ -158,7 +158,7 @@ test('M80: rejected lifecycle state blocks scheduling', () => {
   lifecycle.transition('rejected-v', 'rejected', 'Quality failure')
 
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
-  const d = scheduler.evaluate(makeCandidate('rejected-v'), 1.00, 'mycomind4-arch/foundry-rejected', 'rejected.mailmypdf.com')
+  const d = scheduler.evaluate(makeCandidate('rejected-v'), 1.00, 'mycomind4-arch/foundry-rejected', 'rejected.mailmypdf.ai')
   assert.ok(!d.approved)
   assert.ok(d.checks.some(c => c.name === 'lifecycle_state' && !c.passed))
 })
@@ -167,7 +167,7 @@ test('M80: low-quality candidate is rejected', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
   const candidate = makeCandidate('low-quality', 45)
-  const d = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-low', 'low.mailmypdf.com')
+  const d = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-low', 'low.mailmypdf.ai')
   assert.ok(!d.approved)
   assert.ok(d.checks.some(c => c.name === 'quality_threshold' && !c.passed))
 })
@@ -176,7 +176,7 @@ test('M80: low-score candidate fails approval eligibility', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
   const candidate = makeCandidate('borderline', 65) // Above minQuality but below approval threshold
-  const d = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-borderline', 'borderline.mailmypdf.com')
+  const d = scheduler.evaluate(candidate, 1.00, 'mycomind4-arch/foundry-borderline', 'borderline.mailmypdf.ai')
   assert.ok(!d.approved)
   assert.ok(d.checks.some(c => c.name === 'approval_eligible' && !c.passed))
 })
@@ -186,14 +186,14 @@ test('M80: independent candidates execute without interference', () => {
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
   // Schedule two independent candidates
-  const d1 = scheduler.evaluate(makeCandidate('a'), 1.00, 'mycomind4-arch/foundry-a', 'a.mailmypdf.com')
-  const d2 = scheduler.evaluate(makeCandidate('b'), 1.00, 'mycomind4-arch/foundry-b', 'b.mailmypdf.com')
+  const d1 = scheduler.evaluate(makeCandidate('a'), 1.00, 'mycomind4-arch/foundry-a', 'a.mailmypdf.ai')
+  const d2 = scheduler.evaluate(makeCandidate('b'), 1.00, 'mycomind4-arch/foundry-b', 'b.mailmypdf.ai')
 
   assert.ok(d1.approved)
   assert.ok(d2.approved)
 
-  scheduler.schedule(d1, 'mycomind4-arch/foundry-a', 'a.mailmypdf.com', 1.00)
-  scheduler.schedule(d2, 'mycomind4-arch/foundry-b', 'b.mailmypdf.com', 1.00)
+  scheduler.schedule(d1, 'mycomind4-arch/foundry-a', 'a.mailmypdf.ai', 1.00)
+  scheduler.schedule(d2, 'mycomind4-arch/foundry-b', 'b.mailmypdf.ai', 1.00)
 
   // Complete one
   scheduler.completeBuild()
@@ -207,8 +207,8 @@ test('M80: all scheduling decisions are auditable', () => {
   const lifecycle = new LifecycleManager()
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
-  scheduler.evaluate(makeCandidate('a'), 1.00, 'mycomind4-arch/foundry-a', 'a.mailmypdf.com')
-  scheduler.evaluate(makeCandidate('b', 50), 1.00, 'mycomind4-arch/foundry-b', 'b.mailmypdf.com')
+  scheduler.evaluate(makeCandidate('a'), 1.00, 'mycomind4-arch/foundry-a', 'a.mailmypdf.ai')
+  scheduler.evaluate(makeCandidate('b', 50), 1.00, 'mycomind4-arch/foundry-b', 'b.mailmypdf.ai')
 
   const decisions = scheduler.getDecisions()
   assert.equal(decisions.length, 2)
@@ -222,11 +222,11 @@ test('M80: repository pattern matching works', () => {
   const scheduler = new ProductionScheduler(baseConfig, lifecycle)
 
   // Matches pattern
-  const d1 = scheduler.evaluate(makeCandidate('v1'), 1.00, 'mycomind4-arch/foundry-v1', 'v1.mailmypdf.com')
+  const d1 = scheduler.evaluate(makeCandidate('v1'), 1.00, 'mycomind4-arch/foundry-v1', 'v1.mailmypdf.ai')
   assert.ok(d1.approved, `Pattern match failed: ${d1.reason}`)
 
   // Doesn't match pattern
-  const d2 = scheduler.evaluate(makeCandidate('v2'), 1.00, 'some-other-org/v2', 'v2.mailmypdf.com')
+  const d2 = scheduler.evaluate(makeCandidate('v2'), 1.00, 'some-other-org/v2', 'v2.mailmypdf.ai')
   assert.ok(!d2.approved)
   assert.ok(d2.checks.some(c => c.name === 'repository_pattern' && !c.passed))
 })

@@ -42,7 +42,7 @@ describe("Config Validation", () => {
 
   it("falls back to default app URL", () => {
     const url = undefined;
-    const fallback = "https://mailmypdf.com";
+    const fallback = "https://mailmypdf.ai";
     const resolved = url ?? fallback;
     assert.equal(resolved, fallback);
   });

@@ -113,7 +113,7 @@ export function webPageSchema({
     publisher: {
       "@type": "Organization",
       name: "MailMyPDF",
-      url: "https://mailmypdf.com",
+      url: "https://mailmypdf.ai",
     },
   };
   if (about) data["about"] = about;
@@ -146,7 +146,7 @@ export function webAppSchema({
     publisher: {
       "@type": "Organization",
       name: "MailMyPDF",
-      url: "https://mailmypdf.com",
+      url: "https://mailmypdf.ai",
     },
   };
 }

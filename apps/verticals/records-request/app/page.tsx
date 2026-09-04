@@ -55,7 +55,7 @@ export default function Home() {
         "@type": "WebSite",
         name: "Records Requests",
         description: "Build precise public-records and government-records requests, track agency responses, organize productions, and audit what you actually received.",
-        url: "https://records.mailmypdf.com",
+        url: "https://records.mailmypdf.ai",
         publisher: { "@type": "Organization", name: "MailMyPDF" },
         hasPart: workflows.map((w) => ({ "@type": "WebPage", name: w.title, url: '/workflows/' + w.slug })),
       }) }} />

@@ -8,7 +8,7 @@ If you discover a security vulnerability in MailMyPDF, please report it responsi
 
 ### How to Report
 
-1. Email **security@mailmypdf.com** with a description of the vulnerability
+1. Email **security@mailmypdf.ai** with a description of the vulnerability
 2. Include steps to reproduce, proof of concept, and potential impact
 3. Do not publicly disclose the vulnerability until it has been addressed
 
@@ -21,7 +21,7 @@ If you discover a security vulnerability in MailMyPDF, please report it responsi
 
 ### Scope
 
-- The MailMyPDF web application (mailmypdf.com)
+- The MailMyPDF web application (mailmypdf.ai)
 - The Proof-of-Service API (api/v1)
 - Payment processing (Stripe integration)
 - Document handling and storage

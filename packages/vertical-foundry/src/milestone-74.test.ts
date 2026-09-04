@@ -96,7 +96,7 @@ const pipelineConfig: PipelineConfig = {
   deployment: new DryRunDeployment(),
   registry: new DryRunRegistry(),
   framework: 'static',
-  domainTemplate: (id: string) => `${id}.mailmypdf.com`,
+  domainTemplate: (id: string) => `${id}.mailmypdf.ai`,
   repository: 'mycomind4-arch/foundry-verticals',
   createPR: false,
 }
@@ -140,7 +140,7 @@ test('M74: pipeline produces a valid manifest with all gates', async () => {
 
   assert.equal(manifest.id, 'certified-mail-from-pdf')
   assert.equal(manifest.name, 'Certified Mail from PDF')
-  assert.ok(manifest.domain.includes('mailmypdf.com'))
+  assert.ok(manifest.domain.includes('mailmypdf.ai'))
   assert.ok(manifest.previewUrl)
   assert.ok(manifest.registrationId)
   assert.ok(allGatesPassed(manifest))
@@ -163,7 +163,7 @@ test('M74: generated code contains real, deployable HTML', async () => {
   assert.ok(indexHtml!.content.includes('<!DOCTYPE html>'))
   assert.ok(indexHtml!.content.includes('Certified Mail from PDF'))
   assert.ok(indexHtml!.content.includes('USPS Certified Mail'))
-  assert.ok(indexHtml!.content.includes('mailmypdf.com'))
+  assert.ok(indexHtml!.content.includes('mailmypdf.ai'))
 
   // Verify _headers file for security
   const headersFile = codeGen.files.find(f => f.path === '_headers')
@@ -183,7 +183,7 @@ test('M74: generated files written to disk are valid', () => {
   const codeGen = generateVerticalCode({
     candidate: certifiedMailCandidate,
     framework: 'static',
-    domain: 'certified-mail-from-pdf.mailmypdf.com',
+    domain: 'certified-mail-from-pdf.mailmypdf.ai',
   })
 
   mkdirSync(VERTICAL_OUTPUT_DIR, { recursive: true })

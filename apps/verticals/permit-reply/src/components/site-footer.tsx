@@ -24,7 +24,7 @@ export function SiteFooter() {
               <li><a href="https://notice-respond.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Notice Respond</a></li>
               <li><a href="https://tenant-reply.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Tenant Reply</a></li>
               <li><a href="https://claim-proof.pages.dev" className="text-ink-soft transition-colors hover:text-stamp">Claim Proof</a></li>
-              <li><a href="https://mailmypdf.com" className="text-ink-soft transition-colors hover:text-stamp">MailMyPDF</a></li>
+              <li><a href="https://mailmypdf.ai" className="text-ink-soft transition-colors hover:text-stamp">MailMyPDF</a></li>
             </ul>
           </div>
         </div>

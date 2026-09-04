@@ -20,7 +20,7 @@ import {
 } from './deployment-orchestrator.js'
 
 const config: DeploymentOrchestratorConfig = {
-  productionDomainTemplate: (id: string) => `${id}.mailmypdf.com`,
+  productionDomainTemplate: (id: string) => `${id}.mailmypdf.ai`,
   healthCheckTimeoutMs: 5000,
   requireApproval: true,
 }
@@ -37,7 +37,7 @@ test('M76: health check passes for valid preview URL', async () => {
 
 test('M76: promotion checklist passes for healthy preview', async () => {
   const healthCheck = await runHealthCheck('https://preview.pages.dev/test', config)
-  const checklist = await runPromotionChecklist(healthCheck, 'test.mailmypdf.com')
+  const checklist = await runPromotionChecklist(healthCheck, 'test.mailmypdf.ai')
   assert.ok(checklist.sslValid)
   assert.ok(checklist.securityHeadersPresent)
   assert.ok(checklist.contentValid)
@@ -58,12 +58,12 @@ test('M76: promotion succeeds with approval and healthy preview', async () => {
   const orchestrator = new DeploymentOrchestrator(config)
   const manifest = orchestrator.createInitialManifest('invoice-mailer', 'https://preview.pages.dev/invoice')
 
-  const result = await orchestrator.promoteToProduction(manifest, 'shane@mailmypdf.com')
+  const result = await orchestrator.promoteToProduction(manifest, 'shane@mailmypdf.ai')
 
   assert.equal(result.state, 'promoted')
-  assert.equal(result.productionUrl, 'https://invoice-mailer.mailmypdf.com')
+  assert.equal(result.productionUrl, 'https://invoice-mailer.mailmypdf.ai')
   assert.ok(result.promotedAt)
-  assert.equal(result.promotedBy, 'shane@mailmypdf.com')
+  assert.equal(result.promotedBy, 'shane@mailmypdf.ai')
   assert.ok(result.healthCheck)
   assert.ok(result.checklist)
 })
@@ -95,7 +95,7 @@ test('M76: deployment manifest tracks state transitions', async () => {
 
   assert.equal(manifest.state, 'preview')
 
-  const result = await orchestrator.promoteToProduction(manifest, 'admin@mailmypdf.com')
+  const result = await orchestrator.promoteToProduction(manifest, 'admin@mailmypdf.ai')
 
   assert.notEqual(result.state, 'preview') // Should transition
   assert.ok(result.healthCheck) // Should have health check
@@ -110,7 +110,7 @@ test('M76: custom domain template works', async () => {
   const orchestrator = new DeploymentOrchestrator(customConfig)
   const manifest = orchestrator.createInitialManifest('custom-domain', 'https://preview.pages.dev/custom')
 
-  const result = await orchestrator.promoteToProduction(manifest, 'admin@mailmypdf.com')
+  const result = await orchestrator.promoteToProduction(manifest, 'admin@mailmypdf.ai')
 
   assert.equal(result.productionUrl, 'https://custom-domain.foundry.io')
 })
@@ -119,7 +119,7 @@ test('M76: full promotion flow produces complete audit record', async () => {
   const orchestrator = new DeploymentOrchestrator(config)
   const manifest = orchestrator.createInitialManifest('audited-vertical', 'https://preview.pages.dev/audited')
 
-  const result = await orchestrator.promoteToProduction(manifest, 'auditor@mailmypdf.com')
+  const result = await orchestrator.promoteToProduction(manifest, 'auditor@mailmypdf.ai')
 
   const auditRecord = JSON.stringify({
     verticalId: result.verticalId,
