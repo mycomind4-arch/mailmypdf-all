@@ -8,10 +8,13 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@mailmypdf/core": "workspace:*",
     "@mailmypdf/agent-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }
