@@ -14,6 +14,8 @@ import type {
   MailType,
   Recipient,
   CustodyEvent,
+  CustodyEventType,
+  CommunicationStatus,
 } from "./types";
 
 export interface CreateCommunicationParams {
@@ -130,10 +132,10 @@ export async function createCommunication(
 export interface AppendCustodyEventParams {
   communication_id: string;
   tenant_id: string;
-  event_type: string;
+  event_type: CustodyEventType;
   description: string;
   carrier_event_id?: string | null;
-  new_status?: string;
+  new_status?: CommunicationStatus;
   sent_at?: string | null;
   delivered_at?: string | null;
   tracking_number?: string | null;
@@ -281,7 +283,7 @@ export async function listCommunications(
     if (!acc[commId]) acc[commId] = [];
     acc[commId].push({
       timestamp: e.timestamp as string,
-      event_type: e.event_type as string,
+      event_type: e.event_type as CustodyEventType,
       description: e.description as string,
       carrier_event_id: e.carrier_event_id as string | null,
       event_hash: e.event_hash as string,

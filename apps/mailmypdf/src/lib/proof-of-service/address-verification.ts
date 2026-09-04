@@ -203,8 +203,16 @@ export async function verifyAndRecord(
   const result = await verifyRecipientAddress(recipient, options);
 
   // Record as a custody event in the chain
+  // proof_custody_events has no metadata column, so anything not in the
+  // description is not recorded. These details belong in the hashed chain.
+  const details = [
+    `deliverable=${result.is_deliverable}`,
+    result.corrections?.length ? `corrections=${result.corrections.length}` : null,
+    result.warnings?.length ? `warnings=${result.warnings.length}` : null,
+  ].filter(Boolean).join(", ");
+
   const description = result.api_succeeded
-    ? `Recipient address verified via Lob: ${result.deliverability}`
+    ? `Recipient address verified via Lob: ${result.deliverability} (${details})`
     : "Address verification attempted but API unavailable";
 
   await appendCustodyEvent(
@@ -214,12 +222,6 @@ export async function verifyAndRecord(
       event_type: "address_verified",
       description,
       new_status: undefined, // don't change the communication status
-      metadata: {
-        deliverability: result.deliverability,
-        is_deliverable: result.is_deliverable,
-        corrections: result.corrections,
-        warnings: result.warnings,
-      },
     },
     deps,
   ).catch(() => {

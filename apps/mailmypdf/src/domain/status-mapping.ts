@@ -32,6 +32,7 @@ const ORDER_TO_MAILJOB: Record<OrderStatus, MailJobStatus> = {
   failed: "failed",
   failed_payment: "failed",
   failed_fulfillment: "failed",
+  failed_provider_submission: "failed",
   cancelled: "cancelled",
   refunded: "refunded",
   returned: "completed",            // returned mail = completed (with return evidence)

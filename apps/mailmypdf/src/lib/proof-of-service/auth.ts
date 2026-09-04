@@ -23,6 +23,7 @@
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { encryptSecret, decryptSecret } from "./encryption";
+import { embeddedOne } from "./embedded";
 
 export interface AuthenticatedTenant {
   id: string;
@@ -114,7 +115,8 @@ export async function validateApiKey(
   // Legacy keys (no bcrypt hash): the SHA-256 lookup already verified the key.
   // This is acceptable for existing keys; new keys always get bcrypt.
 
-  const tenant = keyRecord.proof_tenants as Record<string, unknown>;
+  const tenant = embeddedOne<Record<string, unknown>>(keyRecord.proof_tenants);
+  if (!tenant) return null;
 
   // Decrypt tenant secrets at rest
   let webhookSecret = tenant.webhook_secret as string | null;

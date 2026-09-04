@@ -26,9 +26,21 @@ import { withRetry } from "@/lib/retry";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/**
+ * A single-order checkout carries orderId. A bulk checkout carries isBulk,
+ * orderIds and bulkOrderId instead — see the metadata written in
+ * src/lib/bulk-orders.functions.ts. Stripe metadata values are always strings.
+ */
+interface CheckoutSessionMetadata {
+  orderId?: string;
+  isBulk?: string;
+  orderIds?: string;
+  bulkOrderId?: string;
+}
+
 interface StripeCheckoutSession {
   id: string;
-  metadata: { orderId?: string } | null;
+  metadata: CheckoutSessionMetadata | null;
   amount_total: number | null;
   payment_intent?: string | null;
   last_payment_error?: { message?: string } | null;

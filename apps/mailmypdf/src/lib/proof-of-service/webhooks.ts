@@ -8,6 +8,7 @@
 
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
+import { embeddedOne } from "./embedded";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -182,6 +183,7 @@ export async function processPendingRetries(
       event_type,
       payload,
       attempts,
+      tenant_id,
       proof_tenants!inner (webhook_url, webhook_secret)
     `)
     .eq("status", "retrying")
@@ -192,9 +194,9 @@ export async function processPendingRetries(
 
   let processed = 0;
   for (const record of pending) {
-    const tenant = record.proof_tenants as Record<string, unknown>;
-    const webhookUrl = tenant.webhook_url as string;
-    const webhookSecret = tenant.webhook_secret as string | null;
+    const tenant = embeddedOne<Record<string, unknown>>(record.proof_tenants);
+    const webhookUrl = tenant?.webhook_url as string | undefined;
+    const webhookSecret = (tenant?.webhook_secret ?? null) as string | null;
 
     if (!webhookUrl) continue;
 

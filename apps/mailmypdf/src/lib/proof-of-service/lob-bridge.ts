@@ -22,7 +22,7 @@ import { getConfig } from "@/config";
 import { appendCustodyEvent } from "./communications";
 import { computeResponseWindowEnds } from "./proof-bundle";
 import { dispatchWebhook } from "./webhooks";
-import type { CommunicationRecord, MailType } from "./types";
+import type { CommunicationRecord, MailType, CustodyEventType, CommunicationStatus } from "./types";
 
 /**
  * Map proof-of-service MailType to Lob's extra_service parameter.
@@ -191,7 +191,7 @@ export async function sendCommunicationViaLob(
           data: {
             communication_id: comm.id,
             status: "sent",
-            tracking_number: lobLetter.tracking_number,
+            tracking_number: lobLetter.tracking_number ?? undefined,
           },
         },
         comm.tenant_id,
@@ -207,7 +207,7 @@ export async function sendCommunicationViaLob(
 
   return {
     lob_letter_id: lobLetter.id,
-    tracking_number: lobLetter.tracking_number,
+    tracking_number: lobLetter.tracking_number ?? null,
     sent_at: now,
   };
 }
@@ -218,7 +218,7 @@ export async function sendCommunicationViaLob(
  */
 export function mapLobStatusToCustodyEvent(
   lobStatus: string,
-): { eventType: string; description: string; newStatus: string } | null {
+): { eventType: CustodyEventType; description: string; newStatus: CommunicationStatus } | null {
   switch (lobStatus) {
     case "created":
     case "rendered":
