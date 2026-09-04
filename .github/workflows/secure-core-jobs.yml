@@ -1,0 +1,125 @@
+# Scheduled invocation of the secure-core jobs.
+#
+# The deployment target is Cloudflare Pages, which has no cron triggers — only
+# Workers do — so the schedule lives here. Without it nothing ever calls these
+# endpoints, which means uploaded documents stay quarantined forever and expired
+# documents are never actually deleted.
+#
+# Required repository secrets:
+#   MAILMYPDF_APP_URL              https origin of the deployed app
+#   MAILMYPDF_SCANNER_JOB_SECRET   matches the app's env of the same name
+#   MAILMYPDF_RETENTION_JOB_SECRET matches the app's env of the same name
+#
+# Until those are set, every run skips quietly rather than failing on a
+# schedule and mailing the repository owner every few minutes.
+
+name: Secure core jobs
+
+on:
+  schedule:
+    # Scanning: quarantined uploads are unusable until a scan clears them, so a
+    # user is waiting on this. GitHub's scheduler is best-effort and can lag.
+    - cron: "*/10 * * * *"
+    # Retention: deletion is a daily obligation, not a latency-sensitive one.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which job to run
+        required: true
+        default: scan
+        type: choice
+        options: [scan, purge, both]
+
+concurrency:
+  # Never let two scan passes overlap. The database claims rows with
+  # FOR UPDATE SKIP LOCKED so overlap is safe, but it wastes scanner capacity.
+  group: secure-core-jobs
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan quarantined documents
+    runs-on: ubuntu-latest
+    if: github.event.schedule != '17 3 * * *' && (github.event_name != 'workflow_dispatch' || inputs.job != 'purge')
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
+            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the scanner job
+        if: steps.config.outputs.configured == 'true'
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          # --fail-with-body so an auth failure or a job error is a red run,
+          # not a green one that quietly scanned nothing.
+          status=$(curl --silent --show-error --fail-with-body \
+            --max-time 120 --retry 2 --retry-delay 5 \
+            --output "$body" --write-out '%{http_code}' \
+            -X POST "${APP_URL%/}/api/internal/scan-documents?limit=25" \
+            -H "Authorization: Bearer ${JOB_SECRET}" \
+            -H "Content-Length: 0")
+          echo "HTTP $status"
+          # The body reports claimed/clean/rejected counts and never contains
+          # document content, so it is safe to surface in the run summary.
+          {
+            echo "### Scan pass"
+            echo '```json'
+            cat "$body"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  purge:
+    name: Purge expired documents
+    runs-on: ubuntu-latest
+    if: github.event.schedule != '*/10 * * * *' && (github.event_name != 'workflow_dispatch' || inputs.job != 'scan')
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
+            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the retention job
+        if: steps.config.outputs.configured == 'true'
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          status=$(curl --silent --show-error --fail-with-body \
+            --max-time 300 --retry 2 --retry-delay 10 \
+            --output "$body" --write-out '%{http_code}' \
+            -X POST "${APP_URL%/}/api/internal/purge-secure-documents?limit=100" \
+            -H "Authorization: Bearer ${JOB_SECRET}" \
+            -H "Content-Length: 0")
+          echo "HTTP $status"
+          {
+            echo "### Retention pass"
+            echo '```json'
+            cat "$body"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
