@@ -158,6 +158,34 @@ export function isDangerousMimeType(mimeType: string): boolean {
   return DANGEROUS_MIME_TYPES.includes(mimeType);
 }
 
+/**
+ * Detect the small allowlisted set of binary formats from their signatures.
+ * Browser-supplied MIME types and filename extensions are untrusted.
+ */
+export function detectMimeType(content: Uint8Array): string | null {
+  if (content.length >= 5 && new TextDecoder("latin1").decode(content.slice(0, 5)) === "%PDF-") {
+    return "application/pdf";
+  }
+  if (
+    content.length >= 8 &&
+    content[0] === 0x89 && content[1] === 0x50 && content[2] === 0x4e && content[3] === 0x47 &&
+    content[4] === 0x0d && content[5] === 0x0a && content[6] === 0x1a && content[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (content.length >= 3 && content[0] === 0xff && content[1] === 0xd8 && content[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    content.length >= 4 &&
+    ((content[0] === 0x49 && content[1] === 0x49 && content[2] === 0x2a && content[3] === 0x00) ||
+      (content[0] === 0x4d && content[1] === 0x4d && content[2] === 0x00 && content[3] === 0x2a))
+  ) {
+    return "image/tiff";
+  }
+  return null;
+}
+
 // ── PDF Security ──────────────────────────────────────────────────────────────
 
 export const FORBIDDEN_PDF_TOKENS: readonly string[] = [
@@ -452,6 +480,16 @@ export function validateDocument(input: DocumentValidationInput): ValidationResu
     ));
   }
 
+  if (input.content && !input.mimeType.startsWith("text/")) {
+    const detectedMimeType = detectMimeType(input.content);
+    if (!detectedMimeType || detectedMimeType !== input.mimeType) {
+      return err(new ValidationError(
+        "Declared MIME type does not match the file signature",
+        { declaredMimeType: input.mimeType, detectedMimeType },
+      ));
+    }
+  }
+
   // ── Size (varies by type) ───────────────────────────────────────────────────
   let maxBytes = MAX_PDF_BYTES;
   if (input.mimeType === "application/pdf") maxBytes = MAX_PDF_BYTES;
@@ -686,5 +724,4 @@ export function setClassification(
 export type { Confidence, PlatformId, ValidationResult } from "@mailmypdf/core";
 
 // ── Local Result type alias (matches core's Result) ───────────────────────────
-
 

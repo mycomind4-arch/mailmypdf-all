@@ -6,6 +6,7 @@ import {
   canTransition,
   transition,
   validateDocument,
+  detectMimeType,
   sanitizeFilename,
   isSafeFilename,
   isSafeUrl,
@@ -76,6 +77,25 @@ function makeDoc(overrides?: Partial<DocumentRecord>): DocumentRecord {
     ...overrides,
   } as DocumentRecord;
 }
+
+describe("File signature detection", () => {
+  test("detects the allowlisted binary formats", () => {
+    assert.equal(detectMimeType(MINIMAL_PDF), "application/pdf");
+    assert.equal(detectMimeType(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), "image/png");
+    assert.equal(detectMimeType(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0])), "image/jpeg");
+    assert.equal(detectMimeType(Uint8Array.from([0x49, 0x49, 0x2a, 0x00])), "image/tiff");
+  });
+
+  test("rejects content whose signature does not match its declared MIME type", () => {
+    const result = validateDocument(makeValidInput({
+      mimeType: "application/pdf",
+      content: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    }));
+
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error.message, /file signature/i);
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DOCUMENT CREATION
