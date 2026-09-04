@@ -72,7 +72,6 @@ export const Route = createFileRoute("/api/v1/dispute-mail/draft")({
               facts: factsConfirmed ? facts : undefined,
               userInstructions,
             },
-            verticalSlug: "dispute-mail",
             userInstructions,
           });
 

@@ -12,6 +12,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/lib/request-id";
 import { getConfig } from "@/config";
+import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -81,7 +82,7 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
                   event_id: `evt_${comm.id}_window_expired`,
                   event_type: "response_window.expired",
                   timestamp: now,
-                  data: { communication_id: comm.id, status: comm.status },
+                  data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
                 },
                 comm.tenant_id,
                 tenant.webhook_url,

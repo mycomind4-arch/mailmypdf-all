@@ -57,7 +57,6 @@ export const Route = createFileRoute("/api/v1/dispute-mail/analyze-file")({
               documentText,
               ...context,
             },
-            verticalSlug: "dispute-mail",
           });
 
           return Response.json(result);

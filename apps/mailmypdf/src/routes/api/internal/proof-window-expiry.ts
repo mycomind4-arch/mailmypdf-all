@@ -13,6 +13,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/lib/request-id";
 import { getConfig } from "@/config";
+import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 
 export const Route = createFileRoute("/api/internal/proof-window-expiry")({
   server: {
@@ -101,7 +102,7 @@ export const Route = createFileRoute("/api/internal/proof-window-expiry")({
                 timestamp: now,
                 data: {
                   communication_id: comm.id,
-                  status: comm.status,
+                  status: comm.status as CommunicationStatus,
                 },
               },
               comm.tenant_id,

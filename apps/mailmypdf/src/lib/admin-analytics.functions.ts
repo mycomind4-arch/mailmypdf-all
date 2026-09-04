@@ -56,7 +56,8 @@ export const getAnalyticsDashboard = createServerFn({ method: "GET" })
       daily[day] = (daily[day] ?? 0) + 1;
     }
 
-    const latestVisitors = Array.from(new Set(rows.map(r => r.visitor_id))).slice(0, 100).map(visitorId => {
+    const identifiedVisitors = rows.map(r => r.visitor_id).filter((id): id is string => !!id);
+    const latestVisitors = Array.from(new Set(identifiedVisitors)).slice(0, 100).map(visitorId => {
       const visitorRows = rows.filter(r => r.visitor_id === visitorId).slice(0, 100);
       const last = visitorRows[0];
       return {

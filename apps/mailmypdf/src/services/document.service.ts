@@ -120,7 +120,7 @@ export class DocumentService {
    * Used for proof-of-service document registration.
    */
   async computeHash(bytes: Uint8Array): Promise<string> {
-    const { computeSha256 } = await import("@/lib/proof-of-service/hashing");
-    return computeSha256(bytes);
+    const { hashDocument } = await import("@/lib/proof-of-service/hashing");
+    return hashDocument(bytes);
   }
 }

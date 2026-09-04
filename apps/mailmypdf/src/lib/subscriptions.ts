@@ -89,13 +89,26 @@ export async function getSubscriptionStatus(
       };
     }
 
-    const periodStart = new Date(sub.current_period_start * 1000);
+    // The billing period lives on the subscription item, not the subscription,
+    // in this Stripe API version. Reading it off `sub` yielded undefined, so
+    // new Date(NaN).toISOString() threw and the catch below reported every Pro
+    // member as having no subscription at all.
+    const item = sub.items.data[0];
+    if (!item) {
+      logger.error("Active subscription has no items", { subscriptionId: sub.id });
+      return {
+        isActive: false, plan: "none", currentPeriodEnd: null,
+        canceledAt: null, lettersUsedThisPeriod: 0, lettersRemaining: 0,
+      };
+    }
+
+    const periodStart = new Date(item.current_period_start * 1000);
     const used = await getLettersUsedThisPeriod(supabaseAdmin, email, periodStart);
     const remaining = Math.max(0, PRO_FREE_LETTERS_PER_MONTH - used);
 
     return {
       isActive: true, plan: "pro",
-      currentPeriodEnd: sub.current_period_end,
+      currentPeriodEnd: item.current_period_end,
       canceledAt: sub.canceled_at,
       lettersUsedThisPeriod: used,
       lettersRemaining: remaining,

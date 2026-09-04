@@ -59,7 +59,6 @@ async function checkLob(): Promise<HealthCheck> {
   return { name: "lob", status: "healthy", message: "Configured" };
 }
 
-// @ts-expect-error — TanStack Router route type generation
 export const Route = createFileRoute("/api/internal/health")({
   server: {
     handlers: {
