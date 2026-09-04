@@ -4,7 +4,6 @@ import { Stamp, ArrowRight, CheckCircle2, Loader2, AlertCircle, Mail } from "luc
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { useAuth } from "@/lib/auth";
-import { redirectToHubSSO } from "@/lib/sso-propagate";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [
@@ -87,7 +86,6 @@ function AuthPage() {
                     <button onClick={handleSubmit} disabled={loading || !email.trim()} className="btn-amber mt-5 w-full justify-center">{loading ? <><Loader2 size={16} className="animate-spin" /> Please wait…</> : <>{mode === "signup" ? "Create account" : mode === "signin" ? "Sign in" : "Send reset link"}<ArrowRight size={16} /></>}</button>
                     {mode === "signin" && <button onClick={() => setMode("reset")} className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors">Forgot your password?</button>}
                     {mode === "reset" && <button onClick={() => setMode("signin")} className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors">Back to sign in</button>}
-                    {mode !== "reset" && <div className="mt-6"><div className="relative flex items-center gap-3"><div className="h-px flex-1 bg-rule/60" /><span className="text-xs text-muted-foreground">or</span><div className="h-px flex-1 bg-rule/60" /></div><button onClick={() => redirectToHubSSO(searchParams?.returnTo || window.location.origin + "/dashboard")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/50"><Mail size={16} /> Continue with MailMyPDF Account</button><p className="mt-2 text-center text-xs text-muted-foreground">One account works across all MailMyPDF products.</p></div>}
                     <p className="mt-5 text-xs text-muted-foreground">By continuing, you agree to our{" "}<Link to="/terms" className="text-stamp hover:underline">Terms</Link> and{" "}<Link to="/privacy" className="text-stamp hover:underline">Privacy Policy</Link>.</p>
                   </div>
                 </>

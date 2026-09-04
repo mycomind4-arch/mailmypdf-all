@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { propagateSSOSession } from "./sso-propagate";
 
 /* ═══════════════════════════════════════════════════════════
    MailMyPDF Account — Authentication Context
@@ -137,9 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => setLoading(false));
 
       const { data } = client.auth.onAuthStateChange((event, session) => {
-        if (session && event === "SIGNED_IN" && session.access_token && session.refresh_token) {
-          propagateSSOSession(session.access_token, session.refresh_token, session.expires_in ?? 3600);
-        }
         if (session?.user) setUser(mapUser(session.user));
         else setUser(null);
         setLoading(false);
