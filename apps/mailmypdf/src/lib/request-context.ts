@@ -6,14 +6,17 @@
  */
 
 import { createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { getClientIp } from "@/lib/rate-limit";
 
 /**
  * Middleware that attaches client IP to the server function context.
  * Use this in the `functionMiddleware` array in start.ts.
  */
-export const clientIpMiddleware = createMiddleware().server(async ({ next, request }) => {
-  const clientIp = getClientIp(request);
+export const clientIpMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
+  // Function middleware is not handed the raw Request; getRequest() is how the
+  // rest of the app reaches it (see integrations/supabase/auth-middleware.ts).
+  const clientIp = getClientIp(getRequest());
   return next({ context: { clientIp } });
 });
 

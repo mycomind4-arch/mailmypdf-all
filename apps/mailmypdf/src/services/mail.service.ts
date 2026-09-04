@@ -23,6 +23,7 @@ import { DocumentService } from "./document.service";
 import { PricingService } from "./pricing.service";
 import { BillingService } from "./billing.service";
 import type { MailClass } from "@/lib/pricing";
+import type { Database } from "@/integrations/supabase/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,9 +72,20 @@ export interface CreateLetterOrderParams {
   clientIp?: string;
 }
 
+type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
+type OrderEventRow = Pick<
+  Database["public"]["Tables"]["order_events"]["Row"],
+  "type" | "label" | "created_at" | "metadata"
+>;
+
+/**
+ * getOrder selects * from orders, so the row is the generated Row type rather
+ * than an opaque bag. Callers get real field types, and the server function's
+ * response stays serialisable.
+ */
 export interface OrderWithEvents {
-  order: Record<string, unknown>;
-  events: Array<{ type: string; label: string; created_at: string; metadata?: unknown }>;
+  order: OrderRow;
+  events: OrderEventRow[];
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
