@@ -66,12 +66,12 @@ export const RESERVED_WORKFLOW_AUTHORITY_PAGES: readonly WorkflowAuthorityPage[]
   reserve("claim-documentation", "claim", "Claim Documentation", "P10_CLAIM_PROOF", "claim-documentation", "claim documentation"),
   reserve("claim-submission-package", "claim", "Claim Submission Package", "P10_CLAIM_PROOF", "claim-submission-package", "claim submission package"),
 
-  // Government response
-  reserve("government-notice-response", "govreply", "Government Notice Response", "P02_OFFICIAL_RESPONSE", "government-notice-response", "government notice response"),
-  reserve("government-letter-response", "govreply", "Government Letter Response", "P02_OFFICIAL_RESPONSE", "government-letter-response", "government letter response"),
-  reserve("agency-request-response", "govreply", "Agency Request Response", "P02_OFFICIAL_RESPONSE", "agency-request-response", "agency request response"),
-  reserve("government-evidence-package", "govreply", "Government Evidence Package", "P10_CLAIM_PROOF", "government-evidence-package", "government evidence package"),
-  reserve("deadline-compliance-response", "govreply", "Deadline and Compliance Response", "P02_OFFICIAL_RESPONSE", "deadline-compliance-response", "government deadline compliance response"),
+  // General government response workflows belong to Notice Respond.
+  reserve("government-notice-response", "notice", "Government Notice Response", "P02_OFFICIAL_RESPONSE", "government-notice-response", "government notice response"),
+  reserve("government-letter-response", "notice", "Government Letter Response", "P02_OFFICIAL_RESPONSE", "government-letter-response", "government letter response"),
+  reserve("agency-request-response", "notice", "Agency Request Response", "P02_OFFICIAL_RESPONSE", "agency-request-response", "agency request response"),
+  reserve("government-evidence-package", "notice", "Government Evidence Package", "P10_CLAIM_PROOF", "government-evidence-package", "government evidence package"),
+  reserve("deadline-compliance-response", "notice", "Deadline and Compliance Response", "P02_OFFICIAL_RESPONSE", "deadline-compliance-response", "government deadline compliance response"),
 
   // Future ecosystem discovery / expansion
   reserve("code-enforcement-response", "future", "Code Enforcement Response", "P09_REGULATORY", "code-enforcement-response", "code enforcement response"),

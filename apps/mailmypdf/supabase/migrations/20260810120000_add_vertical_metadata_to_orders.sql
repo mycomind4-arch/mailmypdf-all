@@ -1,5 +1,5 @@
 -- Add vertical metadata columns to orders table.
--- Allows any vertical (DisputeMail, GovReply, etc.) to tag orders
+-- Allows any vertical (Dispute Mail, Notice Respond, etc.) to tag orders
 -- with their origin vertical and store vertical-specific context
 -- without creating separate tables per vertical.
 

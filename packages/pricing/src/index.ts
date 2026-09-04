@@ -612,7 +612,6 @@ const smallBusinessProfiles: WorkflowPricingProfile[] = [
 // ── Proposed (not yet production) ────────────────────────────────────────────
 
 const proposedProfiles: WorkflowPricingProfile[] = [
-  profile("govreply", "gov-reply", "ESSENTIAL", 1299, { commercialStatus: "disabled", pricingRationale: "Generic government reply — placeholder" }),
   profile("tenant-reply", "tenant-reply", "STANDARD", 2999, { commercialStatus: "disabled", pricingRationale: "Tenant reply with housing domain — placeholder" }),
   profile("permit-reply", "permit-response", "ESSENTIAL", 1299, { commercialStatus: "disabled", pricingRationale: "Permit response — placeholder" }),
 ];

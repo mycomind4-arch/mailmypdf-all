@@ -8,7 +8,6 @@ const registry = fs.readFileSync(path.join(root, "src/verticals/registry.ts"), "
 const ecosystem = fs.readFileSync(path.join(root, "src/lib/ecosystem.ts"), "utf8");
 
 const canonicalRoutes = {
-  "gov-reply": "/govreply",
   "appeal-reply": "/appeal-reply",
   "notice-response": "/notice-response",
   "claim-proof": "/claim-proof",
@@ -33,10 +32,8 @@ test("BureaucracyOS is not a user-facing ecosystem vertical", () => {
 });
 
 test("solutions compatibility routes point back to canonical verticals", () => {
-  const govAlias = fs.readFileSync(path.join(root, "src/routes/solutions/gov-reply.tsx"), "utf8");
   const appealAlias = fs.readFileSync(path.join(root, "src/routes/solutions/appeal-reply.tsx"), "utf8");
   const dynamicAlias = fs.readFileSync(path.join(root, "src/routes/solutions/$verticalSlug.tsx"), "utf8");
-  assert.match(govAlias, /redirect\(\{ to: "\/govreply" \}\)/);
   assert.match(appealAlias, /redirect\(\{ to: "\/appeal-reply" \}\)/);
   assert.match(dynamicAlias, /redirect\(\{ to: vertical\?\.route \?\? "\/solutions" \}\)/);
 });
@@ -55,6 +52,6 @@ test("vertical navigation does not send users to legacy deployment domains", () 
     "src/components/site-chrome.tsx",
   ].map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
 
-  assert.doesNotMatch(navigationSources, /(?:appeal-mail|notice-respond|immigration-mail|dispute-mail|benefits-appeal|govreply)\.pages\.dev/i);
+  assert.doesNotMatch(navigationSources, /(?:appeal-mail|notice-respond|immigration-mail|dispute-mail|benefits-appeal)\.pages\.dev/i);
   assert.doesNotMatch(navigationSources, /mycomind4-arch-mailmypdf-(?:smallbusiness|private-office)\.pages\.dev/i);
 });

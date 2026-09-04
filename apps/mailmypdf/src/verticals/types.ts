@@ -116,13 +116,13 @@ export interface VerticalSeo {
  * by navigation, routing, SEO, and analytics.
  */
 export interface VerticalDefinition {
-  /** Unique identifier (kebab-case, e.g., "gov-reply") */
+  /** Unique identifier (kebab-case, e.g., "notice-response") */
   id: string;
-  /** URL slug (e.g., "gov-reply" -> /solutions/gov-reply) */
+  /** URL slug (e.g., "notice-response") */
   slug: string;
-  /** Full display name (e.g., "GovReply") */
+  /** Full display name (e.g., "NoticeResponse") */
   name: string;
-  /** Short name for compact UI (e.g., "GovReply") */
+  /** Short name for compact UI (e.g., "NoticeResponse") */
   shortName: string;
   /** One-line tagline for navigation */
   tagline: string;
@@ -134,13 +134,13 @@ export interface VerticalDefinition {
   status: VerticalStatus;
   /** Gold Standard execution certification, independent from navigation status */
   executionState: VerticalExecutionState;
-  /** Route path (e.g., "/solutions/gov-reply") */
+  /** Root-level route path (e.g., "/notice-response") */
   route: string;
   /** Lucide icon name for navigation (string, resolved in component) */
   icon: string;
   /** SEO metadata */
   seo: VerticalSeo;
-  /** Primary CTA label (e.g., "Start a GovReply") */
+  /** Primary CTA label (e.g., "Start a Response") */
   primaryCTA: string;
   /** Whether this vertical is enabled (combines status + feature flags) */
   enabled: boolean;

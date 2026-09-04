@@ -16,7 +16,6 @@ The gateway is responsible for resolving planned product/workflow routes even wh
 - Permit
 - Benefits
 - Claim
-- GovReply
 - Future
 
 ## Placeholder UX

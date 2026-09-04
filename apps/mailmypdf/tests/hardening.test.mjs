@@ -206,6 +206,20 @@ describe("Single-origin Authentication Boundary", () => {
   it("does not retain the iframe token propagation helper", () => {
     assert.equal(existsSync("src/lib/sso-propagate.ts"), false);
   });
+
+  it("does not expose the unauthenticated GovReply recovery-token workflow", () => {
+    const retiredPaths = [
+      "src/routes/govreply.new.tsx",
+      "src/routes/govreply.cases.$id.tsx",
+      "src/routes/govreply.cases.$id.review.tsx",
+      "src/routes/govreply.cases.$id.response.tsx",
+      "src/routes/govreply.cases.$id.mail.tsx",
+      "src/lib/govreply.functions.ts",
+      "src/services/govreply.service.ts",
+      "src/services/govreply.response.service.ts",
+    ];
+    for (const path of retiredPaths) assert.equal(existsSync(path), false, `${path} must remain retired`);
+  });
 });
 
 // ── Retention Policy (#24) ───────────────────────────────────────────────────

@@ -43,7 +43,7 @@ All public SEO value consolidates under `mailmypdf.ai`.
 Core routes include `/`, `/send`, `/write`, `/templates`, `/ecosystem`, `/how-it-works`, `/resources`, `/pricing`.
 
 Product families:
-`/appeal/*`, `/notice/*`, `/immigration/*`, `/dispute/*`, `/business/*`, `/records/*`, `/tenant/*`, `/permit/*`, `/benefits/*`, `/claim/*`, `/govreply/*`, `/future/*`.
+`/appeal/*`, `/notice/*`, `/immigration/*`, `/dispute/*`, `/business/*`, `/records/*`, `/tenant/*`, `/permit/*`, `/benefits/*`, `/claim/*`, `/future/*`.
 
 Prelaunch indexing is disabled until the owner's launch switch. One ecosystem sitemap is served from `mailmypdf.ai/sitemap.xml`.
 
@@ -169,7 +169,6 @@ Catalog presence does not mean executable. Unknown remains unknown. AI output is
 - Permit Reply -> P09
 - Benefits Appeal -> P03
 - Claim Proof -> P10
-- GovReply -> P02; evidence-heavy variants may add P10
 
 ## Domain adapter rule
 

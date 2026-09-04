@@ -16,8 +16,12 @@ const stageToMethod: Record<string, keyof DomainPack> = {
   security: "security",
   classification: "classify",
   extraction: "extract",
+  understand: "understand",
+  facts: "facts",
   provenance: "provenance",
+  timeline: "timeline",
   deadline: "deadlines",
+  requirements: "requirements",
   contradiction: "contradictions",
   findings: "findings",
   discrepancy: "discrepancies",
@@ -67,7 +71,7 @@ describe("gold-standard pipeline", () => {
     const result = await runGoldStandardPipeline("fixture", pack, { documents: [] });
     assert.equal(result.status, "blocked");
     assert.deepEqual(result.stages.map((stage) => stage.stage), [
-      ...GOLD_STANDARD_PIPELINE_STAGES.slice(0, 15),
+      ...GOLD_STANDARD_PIPELINE_STAGES.slice(0, 19),
       "blockingGate",
     ]);
   });

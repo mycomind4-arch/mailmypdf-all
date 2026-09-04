@@ -29,7 +29,6 @@ MailMyPDF is a multi-repository ecosystem for guided document-response workflows
        +-- Benefits Appeal
        +-- Permit Response
        +-- Code Enforcement
-       +-- GovReply
 ```
 
 ---
@@ -166,7 +165,6 @@ Each vertical owns its domain logic, workflows, and user experience.
 | insurance-claims | 0 (assigned to appeal-mail) | research | none |
 | benefits-appeal | 0 (assigned to appeal-mail) | research | none |
 | permit-response | 0 | research | none |
-| gov-reply | 0 | research | none |
 | debt-defense | 0 (assigned to dispute-mail) | research | none |
 
 ---

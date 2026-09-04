@@ -2366,7 +2366,7 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     ],
     authorityNote: "Keep the certified mail receipt and tracking number as proof of timely submission.",
   },
-  "govreply/government-notice-response": {
+  "notice/government-notice-response": {
     overview: "A workflow for responding to a government notice. Reads the notice to identify required actions, and prepares a formal response.",
     whenToUse: [
       "You received a formal government notice",
@@ -2394,7 +2394,7 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     ],
     authorityNote: "Government notices often have strict deadlines. Missing a deadline can result in penalties or loss of rights.",
   },
-  "govreply/government-letter-response": {
+  "notice/government-letter-response": {
     overview: "A workflow for responding to a government letter. Reads the letter to identify the purpose, and prepares a formal reply.",
     whenToUse: [
       "You received a formal letter from a government agency",
@@ -2421,7 +2421,7 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     ],
     authorityNote: "Government letters may not always state a deadline, but prompt response is recommended to avoid escalation.",
   },
-  "govreply/agency-request-response": {
+  "notice/agency-request-response": {
     overview: "A workflow for responding to an agency request for information. Reads the request, and prepares a response with the requested documentation.",
     whenToUse: [
       "A government agency requested information from you",
@@ -2449,7 +2449,7 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     ],
     authorityNote: "Verify the identity and authority of the requesting agency before providing sensitive information.",
   },
-  "govreply/evidence-package": {
+  "notice/evidence-package": {
     overview: "A workflow for assembling an evidence package for a government agency. Reads the agency requirements, and prepares a comprehensive evidence file.",
     whenToUse: [
       "A government agency requested evidence or documentation",
@@ -2477,7 +2477,7 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     ],
     authorityNote: "Keep copies of all evidence submitted to government agencies and the certified mail receipt as proof of delivery.",
   },
-  "govreply/deadline-compliance": {
+  "notice/deadline-compliance": {
     overview: "A workflow for ensuring deadline compliance in government correspondence. Reads the deadline and required actions, and prepares a compliance package.",
     whenToUse: [
       "You have a government deadline approaching",

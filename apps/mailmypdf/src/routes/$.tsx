@@ -12,7 +12,6 @@ const PRODUCT_FAMILIES: Record<string, { product: string; title: string; descrip
   permit: { product: "Permit Reply", title: "Permit response workflow", description: "Prepare a permit, licensing, or regulatory response with requirement-aware review." },
   benefits: { product: "Benefits Appeal", title: "Benefits appeal workflow", description: "Prepare a benefits-related appeal using source documents, evidence, deadlines, and review." },
   claim: { product: "Claim Proof", title: "Claim proof workflow", description: "Organize claim evidence and preserve a traceable proof package." },
-  govreply: { product: "GovReply", title: "Government response workflow", description: "Prepare a response to a government notice, request, or agency action." },
   future: { product: "MailMyPDF", title: "MailMyPDF workflow", description: "This reserved MailMyPDF URL is part of the canonical future workflow graph." },
 };
 

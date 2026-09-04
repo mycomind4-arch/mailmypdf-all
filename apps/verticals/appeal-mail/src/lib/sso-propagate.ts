@@ -26,7 +26,6 @@ const ALL_DOMAINS = [
   "https://notice-respond.pages.dev",
   "https://dispute-mail.pages.dev",
   "https://immigration-mail.pages.dev",
-  "https://govreply.pages.dev",
   "https://code-enforcement.pages.dev",
   "https://mycomind4-arch-mailmypdf-smallbusiness.pages.dev",
   "https://mycomind4-arch-mailmypdf-private-office.pages.dev",

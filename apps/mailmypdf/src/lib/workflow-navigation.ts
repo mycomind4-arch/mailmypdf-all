@@ -77,6 +77,11 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
       { label: "Court Summons", href: "/notice/court-summons", pipeline: "P04" },
       { label: "Agency Action", href: "/notice/agency-action", pipeline: "P02" },
       { label: "File an Appeal", href: "/notice/file-appeal", pipeline: "P03" },
+      { label: "Government Notice Response", href: "/notice/government-notice-response", pipeline: "P02" },
+      { label: "Government Letter Response", href: "/notice/government-letter-response", pipeline: "P02" },
+      { label: "Agency Request Response", href: "/notice/agency-request-response", pipeline: "P02" },
+      { label: "Government Evidence Package", href: "/notice/evidence-package", pipeline: "P10" },
+      { label: "Deadline / Compliance Response", href: "/notice/deadline-compliance", pipeline: "P02" },
     ],
   },
   {
@@ -181,18 +186,6 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
       { label: "Claim Evidence Package", href: "/claim/evidence-package", pipeline: "P10" },
       { label: "Claim Documentation", href: "/claim/documentation", pipeline: "P10" },
       { label: "Claim Submission Package", href: "/claim/submission-package", pipeline: "P10" },
-    ],
-  },
-  {
-    product: "GovReply",
-    href: "/govreply",
-    description: "Government and agency response workflows",
-    workflows: [
-      { label: "Government Notice Response", href: "/govreply/government-notice-response", pipeline: "P02" },
-      { label: "Government Letter Response", href: "/govreply/government-letter-response", pipeline: "P02" },
-      { label: "Agency Request Response", href: "/govreply/agency-request-response", pipeline: "P02" },
-      { label: "Evidence Package", href: "/govreply/evidence-package", pipeline: "P10" },
-      { label: "Deadline / Compliance Response", href: "/govreply/deadline-compliance", pipeline: "P02" },
     ],
   },
 ];

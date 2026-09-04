@@ -7,7 +7,6 @@ export const ECOSYSTEM_PRODUCTS = [
   { product: "Dispute Mail", href: "https://dispute-mail.pages.dev", description: "Debt, credit, billing, collections, and consumer disputes" },
   { product: "Small Business Mail", href: "https://mycomind4-arch-mailmypdf-smallbusiness.pages.dev", description: "Business correspondence, reminders, demands, and compliance" },
   { product: "Private Office", href: "https://mycomind4-arch-mailmypdf-private-office.pages.dev", description: "Professional correspondence, provably delivered" },
-  { product: "GovReply", href: "https://govreply.pages.dev", description: "Government correspondence, handled" },
 ] as const;
 
 export const ECOSYSTEM_PAGE_URL = "https://mailmypdf-etc.pages.dev/products";

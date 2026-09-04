@@ -109,7 +109,6 @@ Admin only:
 - `/benefits/appeal`
 - `/claim`
 - `/claim/proof`
-- `/govreply`
 - `/future`
 
 ## Placeholder behavior

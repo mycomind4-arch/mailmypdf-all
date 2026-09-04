@@ -1040,9 +1040,9 @@
       "lastReviewed": null
     },
     {
-      "id": "govreply/government-notice-response",
-      "vertical": "govreply",
-      "route": "/govreply/government-notice-response",
+      "id": "notice/government-notice-response",
+      "vertical": "notice",
+      "route": "/notice/government-notice-response",
       "maturity": "placeholder",
       "hasGoldContent": true,
       "hasApiEndpoint": false,
@@ -1051,9 +1051,9 @@
       "lastReviewed": null
     },
     {
-      "id": "govreply/government-letter-response",
-      "vertical": "govreply",
-      "route": "/govreply/government-letter-response",
+      "id": "notice/government-letter-response",
+      "vertical": "notice",
+      "route": "/notice/government-letter-response",
       "maturity": "placeholder",
       "hasGoldContent": true,
       "hasApiEndpoint": false,
@@ -1062,9 +1062,9 @@
       "lastReviewed": null
     },
     {
-      "id": "govreply/agency-request-response",
-      "vertical": "govreply",
-      "route": "/govreply/agency-request-response",
+      "id": "notice/agency-request-response",
+      "vertical": "notice",
+      "route": "/notice/agency-request-response",
       "maturity": "placeholder",
       "hasGoldContent": true,
       "hasApiEndpoint": false,
@@ -1073,9 +1073,9 @@
       "lastReviewed": null
     },
     {
-      "id": "govreply/evidence-package",
-      "vertical": "govreply",
-      "route": "/govreply/evidence-package",
+      "id": "notice/evidence-package",
+      "vertical": "notice",
+      "route": "/notice/evidence-package",
       "maturity": "placeholder",
       "hasGoldContent": true,
       "hasApiEndpoint": false,
@@ -1084,9 +1084,9 @@
       "lastReviewed": null
     },
     {
-      "id": "govreply/deadline-compliance",
-      "vertical": "govreply",
-      "route": "/govreply/deadline-compliance",
+      "id": "notice/deadline-compliance",
+      "vertical": "notice",
+      "route": "/notice/deadline-compliance",
       "maturity": "placeholder",
       "hasGoldContent": true,
       "hasApiEndpoint": false,

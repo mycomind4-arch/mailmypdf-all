@@ -85,15 +85,15 @@ The README's "Repository map" lists only `case-model`, `policy-engine`, `audit-e
 
 **508/519 pass, 11 fail.** Failures are a half-finished route migration:
 
-- Some verticals (`dispute-mail`, `gov-reply`, `appeal-reply`, `debt-defense`, `private-office`, `small-business-mail`) still point at external `*.pages.dev` domains
+- Some verticals (`dispute-mail`, `appeal-reply`, `debt-defense`, `private-office`, `small-business-mail`) still point at external `*.pages.dev` domains
 - Others (`claim-proof`, `tenant-reply`, `permit-reply`, `benefits-appeal`, `records-request`) have migrated to root-relative canonical routes
 - Registry-architecture and routing-integrity tests correctly catch the inconsistency
 
 ### Critical gap: `code-enforcement` and `records-requests` absent from vertical registry
 
-Grepped `src/verticals/registry.ts` directly. The 12 registered verticals:
+Grepped `src/verticals/registry.ts` directly. The registered verticals at the time included:
 
-`dispute-mail`, `gov-reply`, `appeal-reply`, `notice-response`, `claim-proof`, `tenant-reply`, `permit-reply`, `benefits-appeal`, `debt-defense`, `records-request` (singular — different id than the `records-requests` repo), `private-office`, `small-business-mail`.
+`dispute-mail`, `appeal-reply`, `notice-response`, `claim-proof`, `tenant-reply`, `permit-reply`, `benefits-appeal`, `debt-defense`, `records-request` (singular — different id than the `records-requests` repo), `private-office`, `small-business-mail`.
 
 **Neither `code-enforcement` nor `records-requests` appears.** Phase 4/5 is not currently plumbed at the registry level — needs to be an explicit build task.
 
@@ -117,7 +117,7 @@ README: *"Archived: PermitSignal legacy implementation... Canonical repository: 
 
 ## 5. Not yet audited this pass
 
-`notice-respond` (42 test files), `permit-response` (1 test file), `mailmypdf-backup`, `mailmypdf-private-office`, `mailmypdf-smallbusiness`, `insurance-claims`, `immigration-mail`, `dispute-mail`, `benefits-appeal`, `appeal-mail`, `debt-defense`, `gov-reply` verticals, `fairprocess-ai`'s Cloudflare Worker (`agents.js`).
+`notice-respond` (42 test files), `permit-response` (1 test file), `mailmypdf-backup`, `mailmypdf-private-office`, `mailmypdf-smallbusiness`, `insurance-claims`, `immigration-mail`, `dispute-mail`, `benefits-appeal`, `appeal-mail`, `debt-defense` verticals, `fairprocess-ai`'s Cloudflare Worker (`agents.js`).
 
 ---
 

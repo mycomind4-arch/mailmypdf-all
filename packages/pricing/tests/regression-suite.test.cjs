@@ -97,7 +97,7 @@ describe('Universal Pricing Regression Suite', () => {
 
   describe('Commercial-status drift detection', () => {
     it('disabled workflows throw when quoting', () => {
-      assert.throws(() => calculateQuote({ workflowId: 'govreply', verticalId: 'gov-reply', actualPages: 1 }), /not available for purchase/i);
+      assert.throws(() => calculateQuote({ workflowId: 'tenant-reply', verticalId: 'tenant-reply', actualPages: 1 }), /not available for purchase/i);
     });
 
     it('FREE workflow quotes 0 and with mail charges only mail', () => {

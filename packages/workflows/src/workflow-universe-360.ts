@@ -1,5 +1,5 @@
 /**
- * MailMyPDF 360-workflow planning universe.
+ * MailMyPDF workflow planning universe.
  * Keyword-informed catalog target: 30 workflows per product family.
  * This is the planning/source catalog; execution maturity remains independent.
  */
@@ -44,9 +44,6 @@ export const WORKFLOW_UNIVERSE_360: readonly WorkflowUniverseFamily[] = [
   ] },
   { id: "claim", name: "Claim Proof", defaultPipeline: "P10_CLAIM_PROOF", workflows: [
     "Insurance Claim Documentation","Medical Insurance Claim Package","Health Insurance Claim Package","Medicare Claim Package","Dental Claim Package","Vision Claim Package","Disability Claim Evidence Package","Life Insurance Claim Package","Auto Insurance Claim Package","Home Insurance Claim Package","Property Damage Claim Package","Accident Claim Package","Travel Claim Package","Short-Term Disability Claim Package","Long-Term Disability Claim Package","Hospital Indemnity Claim Package","Reimbursement Claim Package","Claim Supporting Documents","Claim Proof Package","Claim Timeline Package","Claim Evidence Checklist","Claim Denial Evidence Package","Claim Reconsideration Package","Claim Appeal Evidence Package","Provider Claim Submission Package","Medical Necessity Evidence Package","Prior Authorization Evidence Package","Out-of-Network Evidence Package","Claim Follow-Up Package","Claim Record / Proof-of-Submission Package"
-  ] },
-  { id: "govreply", name: "GovReply", defaultPipeline: "P02_OFFICIAL_RESPONSE", workflows: [
-    "Government Letter Response","Government Notice Response","Agency Request Response","Government Document Request Response","Government Evidence Submission","Government Explanation Letter","Government Deadline Response","Government Compliance Response","Administrative Response","Regulatory Agency Response","Licensing Agency Response","Benefits Agency Response","Tax Agency Response","State Revenue Agency Response","County Agency Response","Municipal Agency Response","Permit Agency Response","Code Enforcement Response","Public Records Response","FOIA Response","Agency Follow-Up Letter","Government No-Response Follow-Up","Government Reconsideration Request","Government Appeal Letter","Administrative Hearing Response","Government Complaint Response","Government Supporting-Document Submission","Government Evidence Package","Government Mailing / Proof Package","Agency Escalation Correspondence"
   ] },
 ];
 

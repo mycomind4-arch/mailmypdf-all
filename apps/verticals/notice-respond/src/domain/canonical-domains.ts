@@ -175,18 +175,6 @@ export const CANONICAL_DOMAINS: Record<string, CanonicalDomain> = {
     repoExists: true,
     status: "research",
   },
-  "gov-reply": {
-    id: "gov-reply",
-    name: "GovReply",
-    canonicalRepo: "gov-reply",
-    description:
-      "Umbrella/discovery/product layer for government correspondence. Not a dumping ground for every government workflow.",
-    primaryEngines: ["document-action", "jurisdictional"],
-    ownershipRule:
-      "Discovery and product layer for government response workflows. Individual workflows belong in their canonical vertical (notice-respond, immigration-mail, etc.) unless they are genuinely cross-cutting.",
-    repoExists: true,
-    status: "research",
-  },
 };
 
 // ── Domain Validation ─────────────────────────────────────────

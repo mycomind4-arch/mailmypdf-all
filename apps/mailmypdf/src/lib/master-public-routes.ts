@@ -55,7 +55,6 @@ export const MASTER_PUBLIC_ROUTES: readonly MasterPublicRoute[] = [
   { path: "/permit", title: "Permit Reply", description: "Prepare permit-related replies.", kind: "product", product: "permit" },
   { path: "/benefits", title: "Benefits Appeal", description: "Prepare benefits appeals.", kind: "product", product: "benefits" },
   { path: "/claim", title: "Claim Proof", description: "Prepare claim-proof correspondence.", kind: "product", product: "claim" },
-  { path: "/govreply", title: "GovReply", description: "Prepare government responses.", kind: "product", product: "govreply" },
   { path: "/future", title: "Future Mail", description: "Additional MailMyPDF workflows.", kind: "product", product: "future" },
 ];
 
@@ -72,5 +71,4 @@ export const PRODUCT_FAMILY_NAV = [
   { label: "Permit Reply", href: "/permit" },
   { label: "Benefits Appeal", href: "/benefits" },
   { label: "Claim Proof", href: "/claim" },
-  { label: "GovReply", href: "/govreply" },
 ] as const;

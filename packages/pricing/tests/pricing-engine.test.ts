@@ -216,12 +216,12 @@ describe("Commercial status gating", () => {
     }), /not available for purchase/);
   });
 
-  it("test workflows throw", () => {
+  it("unknown workflows throw", () => {
     assert.throws(() => calculateQuote({
-      workflowId: "records-request",
+      workflowId: "workflow-that-does-not-exist",
       verticalId: "records-requests",
       actualPages: 1,
-    }), /not available for purchase/);
+    }), /pricing profile/i);
   });
 });
 

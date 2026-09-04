@@ -53,7 +53,6 @@ export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
   { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "planned" },
   { name: "Small Business Mail", slug: "small-business-mail", href: "/small-business-mail", description: "Business correspondence, reminders, demands, and compliance", category: "Business", status: "planned" },
   { name: "Private Office", slug: "private-office", href: "/private-office", description: "Professional correspondence, provably delivered", category: "Private Office", status: "live" },
-  { name: "GovReply", slug: "govreply", href: "/govreply", description: "Government correspondence, handled", category: "Government / Official", status: "planned" },
 ];
 
 export const ECOSYSTEM_PAGE_URL = "/products";

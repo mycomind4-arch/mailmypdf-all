@@ -18,7 +18,6 @@
 | mail | 8 | 8 | ✅ Complete |
 | business | 5 | 5 | ✅ Complete |
 | benefits | 5 | 5 | ✅ Complete |
-| govreply | 5 | 5 | ✅ Complete |
 | notice | 5 | 5 | ✅ Complete |
 | immigration | 3 | 3 | ✅ Complete |
 | records | 4 | 4 | ✅ Complete |
