@@ -41,22 +41,22 @@ export interface EcosystemProduct {
 }
 
 export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
-  { name: "MailMyPDF", slug: "mailmypdf", href: "https://mailmypdf-etc.pages.dev", description: "Core document and letter mailing workflows", category: "Core", status: "live" },
-  { name: "Notice Respond", slug: "notice-respond", href: "https://notice-respond.pages.dev", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
-  { name: "Immigration Mail", slug: "immigration-mail", href: "https://immigration-mail.pages.dev", description: "Immigration notices, evidence packages, and explanation letters", category: "Immigration", status: "live" },
-  { name: "Appeal Mail", slug: "appeal-mail", href: "https://appeal-mail.pages.dev", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
-  { name: "Dispute Mail", slug: "dispute-mail", href: "https://dispute-mail.pages.dev", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
-  { name: "Tenant Reply", slug: "tenant-reply", href: "https://mailmypdf-etc.pages.dev/tenant-reply", description: "Tenant notices, repair correspondence, and housing responses", category: "Housing", status: "planned" },
-  { name: "Benefits Appeal", slug: "benefits-appeal", href: "https://benefits-appeal.pages.dev", description: "Benefits denials, reconsideration, and review preparation", category: "Appeals / Claims", status: "planned" },
-  { name: "Claim Proof", slug: "claim-proof", href: "https://mailmypdf-etc.pages.dev/claim-proof", description: "Evidence-first claim documentation and proof packages", category: "Appeals / Claims", status: "planned" },
-  { name: "Records Request", slug: "records-request", href: "https://mailmypdf-etc.pages.dev/records-request", description: "Records and public-information request workflows", category: "Records / Information", status: "planned" },
-  { name: "Permit Reply", slug: "permit-reply", href: "https://mailmypdf-etc.pages.dev/permit-reply", description: "Permit, licensing, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "planned" },
-  { name: "Small Business Mail", slug: "small-business-mail", href: "https://mycomind4-arch-mailmypdf-smallbusiness.pages.dev", description: "Business correspondence, reminders, demands, and compliance", category: "Business", status: "planned" },
-  { name: "Private Office", slug: "private-office", href: "https://mycomind4-arch-mailmypdf-private-office.pages.dev", description: "Professional correspondence, provably delivered", category: "Private Office", status: "live" },
-  { name: "GovReply", slug: "govreply", href: "https://govreply.pages.dev", description: "Government correspondence, handled", category: "Government / Official", status: "planned" },
+  { name: "MailMyPDF", slug: "mailmypdf", href: "/", description: "Core document and letter mailing workflows", category: "Core", status: "live" },
+  { name: "Notice Respond", slug: "notice-respond", href: "/notice-response", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
+  { name: "Immigration Mail", slug: "immigration-mail", href: "/immigration", description: "Immigration notices, evidence packages, and explanation letters", category: "Immigration", status: "live" },
+  { name: "Appeal Mail", slug: "appeal-mail", href: "/appeal-reply", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
+  { name: "Dispute Mail", slug: "dispute-mail", href: "/dispute-mail", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
+  { name: "Tenant Reply", slug: "tenant-reply", href: "/tenant-reply", description: "Tenant notices, repair correspondence, and housing responses", category: "Housing", status: "planned" },
+  { name: "Benefits Appeal", slug: "benefits-appeal", href: "/benefits-appeal", description: "Benefits denials, reconsideration, and review preparation", category: "Appeals / Claims", status: "planned" },
+  { name: "Claim Proof", slug: "claim-proof", href: "/claim-proof", description: "Evidence-first claim documentation and proof packages", category: "Appeals / Claims", status: "planned" },
+  { name: "Records Request", slug: "records-request", href: "/records-request", description: "Records and public-information request workflows", category: "Records / Information", status: "planned" },
+  { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "planned" },
+  { name: "Small Business Mail", slug: "small-business-mail", href: "/small-business-mail", description: "Business correspondence, reminders, demands, and compliance", category: "Business", status: "planned" },
+  { name: "Private Office", slug: "private-office", href: "/private-office", description: "Professional correspondence, provably delivered", category: "Private Office", status: "live" },
+  { name: "GovReply", slug: "govreply", href: "/govreply", description: "Government correspondence, handled", category: "Government / Official", status: "planned" },
 ];
 
-export const ECOSYSTEM_PAGE_URL = "https://mailmypdf-etc.pages.dev/products";
+export const ECOSYSTEM_PAGE_URL = "/products";
 
 /* ── Shell Config ───────────────────────────────────────────────────────── */
 

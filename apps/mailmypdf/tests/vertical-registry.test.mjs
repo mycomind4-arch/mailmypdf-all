@@ -8,22 +8,23 @@ const registrySource = fs.readFileSync(path.join(root, "src/verticals/registry.t
 const typesSource = fs.readFileSync(path.join(root, "src/verticals/types.ts"), "utf8");
 
 describe("Vertical Registry — Architecture", () => {
-  it("registry exports all 10 canonical verticals", () => {
+  it("registry exports all 12 canonical verticals", () => {
     const ids = [
       "dispute-mail", "gov-reply", "appeal-reply", "notice-response", "claim-proof",
       "tenant-reply", "permit-reply", "benefits-appeal", "debt-defense", "records-request",
+      "private-office", "small-business-mail",
     ];
     for (const id of ids) assert.ok(registrySource.includes(`id: "${id}"`), `Missing vertical: ${id}`);
   });
 
   it("verticals are marked with explicit product lifecycle status", () => {
     const statusMatches = registrySource.match(/status: "[^"]+"/g) ?? [];
-    assert.ok(statusMatches.length >= 10, "All canonical verticals need an explicit product lifecycle status");
+    assert.equal(statusMatches.length, 12, "All canonical verticals need an explicit product lifecycle status");
   });
 
   it("every vertical declares an independent Gold execution state", () => {
     const executionMatches = registrySource.match(/executionState: "[^"]+"/g) ?? [];
-    assert.equal(executionMatches.length, 10, "All canonical verticals need an explicit executionState");
+    assert.equal(executionMatches.length, 12, "All canonical verticals need an explicit executionState");
     assert.ok(typesSource.includes("VerticalExecutionState"));
   });
 
@@ -48,7 +49,7 @@ describe("Vertical Registry — Architecture", () => {
 
   it("all canonical verticals use root-level routes, never /solutions/", () => {
     const routeMatches = registrySource.match(/route: "\/[^"]+"/g) ?? [];
-    assert.equal(routeMatches.length, 10, "All 10 canonical verticals need routes");
+    assert.equal(routeMatches.length, 12, "All 12 canonical verticals need routes");
     for (const match of routeMatches) {
       assert.ok(!match.includes("/solutions/"), `Canonical vertical route must not be under /solutions/: ${match}`);
     }
@@ -61,7 +62,7 @@ describe("Vertical Registry — Architecture", () => {
 
   it("every vertical has capabilities defined", () => {
     const capabilityMatches = registrySource.match(/capabilities: \{/g) ?? [];
-    assert.ok(capabilityMatches.length >= 10, "Every vertical needs capabilities");
+    assert.equal(capabilityMatches.length, 12, "Every vertical needs capabilities");
   });
 
   it("registry has lookup helpers", () => {

@@ -227,71 +227,22 @@ describe("DisputeMail — API Endpoints", () => {
   });
 });
 
-// ── Integration: DisputeMail → Canonical Order Flow ───────────────────────────
+// ── DisputeMail catalog boundary ─────────────────────────────────────────────
 
-describe("DisputeMail — Canonical Order Integration", () => {
-  it("route uses canonical pricing (calculateTotalPrice)", () => {
-    const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
-      "utf-8",
-    );
-    assert.ok(
-      routeSource.includes('from "@/lib/pricing"'),
-      "Must import from canonical pricing module",
-    );
-    assert.ok(
-      routeSource.includes("calculateTotalPrice"),
-      "Must use calculateTotalPrice",
-    );
-    assert.ok(
-      routeSource.includes("MAIL_CLASS_LABELS"),
-      "Must use canonical mail class labels",
-    );
+describe("DisputeMail — Catalog Boundary", () => {
+  it("keeps the root route internal and explicitly prelaunch", () => {
+    const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
+    assert.ok(routeSource.includes('createFileRoute("/dispute-mail")'));
+    assert.ok(routeSource.includes('product="Dispute Mail"'));
+    assert.ok(routeSource.includes('content: "noindex,nofollow"'));
+    assert.ok(!routeSource.includes("window.location.replace"));
   });
 
-  it("route uses canonical checkout (createCheckoutForOrder)", () => {
-    const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
-      "utf-8",
-    );
-    assert.ok(
-      routeSource.includes('from "@/lib/orders.functions"'),
-      "Must import from canonical orders functions",
-    );
-    assert.ok(
-      routeSource.includes("createCheckoutForOrder"),
-      "Must use canonical checkout function",
-    );
-  });
-
-  it("route uses canonical Stripe client (getStripe)", () => {
-    const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
-      "utf-8",
-    );
-    assert.ok(
-      routeSource.includes('from "@/lib/stripe"'),
-      "Must import from canonical stripe module",
-    );
-    assert.ok(
-      routeSource.includes("getStripe"),
-      "Must use getStripe",
-    );
-  });
-
-  it("route passes vertical metadata to pricing", () => {
-    const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
-      "utf-8",
-    );
-    assert.ok(
-      routeSource.includes('vertical_slug: "dispute-mail"'),
-      "Must pass vertical_slug to pricing",
-    );
-    assert.ok(
-      routeSource.includes('workflow: "dispute"'),
-      "Must pass workflow type to pricing",
-    );
+  it("does not mount payment or fulfillment in the prelaunch catalog", () => {
+    const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
+    assert.ok(!routeSource.includes("createCheckoutForOrder"));
+    assert.ok(!routeSource.includes("getStripe"));
+    assert.ok(!routeSource.includes("calculateTotalPrice"));
   });
 });
 
@@ -310,15 +261,14 @@ describe("DisputeMail — Copy Audit", () => {
     assert.ok(!routeSource.match(/[Ww]e provide legal advice/), "No legal advice claims");
   });
 
-  it("route includes required trust copy", () => {
+  it("route does not claim an unfinished fulfillment experience", () => {
     const routeSource = readFileSync(
       join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
       "utf-8",
     );
-    assert.ok(routeSource.includes("review"), "Must mention review");
-    assert.ok(routeSource.includes("Certified Mail"), "Must mention Certified Mail");
-    assert.ok(routeSource.includes("proof of delivery"), "Must mention proof of delivery");
-    assert.ok(routeSource.includes("not a law firm"), "Must state it is not a law firm");
+    assert.ok(routeSource.includes("ProductFamilyPage"), "Must render the shared prelaunch catalog");
+    assert.ok(!routeSource.includes("Start checkout"), "Must not advertise unavailable checkout");
+    assert.ok(!routeSource.includes("Ready to mail"), "Must not advertise unavailable fulfillment");
   });
 
   it("no FairProcess/FairProcessMaps references in any DisputeMail file", () => {

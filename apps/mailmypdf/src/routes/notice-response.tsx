@@ -1,21 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ProductFamilyPage } from "@/components/product-family-page";
 
-/** This vertical now lives at its own domain. */
 export const Route = createFileRoute("/notice-response")({
-  head: () => ({
-    meta: [
-      { name: "robots", content: "noindex,nofollow" },
-    ],
-  }),
-  component: () => {
-    if (typeof window !== "undefined") {
-      window.location.replace("https://notice-respond.pages.dev");
-    }
-    return (
-      <div className="min-h-screen grid place-items-center p-8">
-        <p className="text-sm text-muted-foreground">Redirecting…</p>
-        <a href="https://notice-respond.pages.dev" className="mt-2 text-sm underline text-cobalt">Click here if not redirected</a>
-      </div>
-    );
-  },
+  head: () => ({ meta: [{ title: "Notice Respond | MailMyPDF" }, { name: "robots", content: "noindex,nofollow" }] }),
+  component: () => <ProductFamilyPage product="Notice Respond" route="/notice-response" description="Official notices, agency actions, summonses, and formal responses." />,
 });

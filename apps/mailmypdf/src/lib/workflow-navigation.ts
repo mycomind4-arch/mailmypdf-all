@@ -29,7 +29,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "Appeal Mail",
-    href: "https://appeal-mail.pages.dev/",
+    href: "/appeal-reply",
     description: "Appeals, reconsiderations, denials, and adverse decisions",
     workflows: [
       { label: "Appeal a Denied Claim", href: "/appeal/denied-claim", pipeline: "P03" },
@@ -69,7 +69,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "Notice Respond",
-    href: "https://notice-respond.pages.dev",
+    href: "/notice-response",
     description: "Official notices, agency actions, summonses, and formal responses",
     workflows: [
       { label: "IRS Notice", href: "/notice/irs-notice", pipeline: "P02" },
@@ -81,7 +81,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "Immigration Mail",
-    href: "https://immigration-mail.pages.dev",
+    href: "/immigration",
     description: "Immigration notices, evidence packages, and explanation letters",
     workflows: [
       { label: "Respond to a Notice", href: "/immigration/respond-to-notice", pipeline: "P05" },
@@ -91,7 +91,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "Dispute Mail",
-    href: "https://dispute-mail.pages.dev",
+    href: "/dispute-mail",
     description: "Debt, credit, billing, collections, and consumer disputes",
     workflows: [
       { label: "Debt Collection Dispute", href: "/dispute/debt-collection-dispute", pipeline: "P06" },
@@ -117,7 +117,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "Small Business Mail",
-    href: "https://mycomind4-arch-mailmypdf-smallbusiness.pages.dev/",
+    href: "/small-business-mail",
     description: "Business correspondence, reminders, demands, and compliance workflows",
     workflows: [
       { label: "Payment Reminder", href: "/business/payment-reminder", pipeline: "P07" },
@@ -185,7 +185,7 @@ export const WORKFLOW_NAV_GROUPS: readonly WorkflowNavGroup[] = [
   },
   {
     product: "GovReply",
-    href: "https://govreply.pages.dev/",
+    href: "/govreply",
     description: "Government and agency response workflows",
     workflows: [
       { label: "Government Notice Response", href: "/govreply/government-notice-response", pipeline: "P02" },

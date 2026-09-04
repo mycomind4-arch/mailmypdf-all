@@ -62,11 +62,11 @@ export function SiteFooter() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link to="/products" className="text-ink-soft transition-colors hover:text-foreground">All Products</Link></li>
               <li><Link to="/ecosystem" className="text-ink-soft transition-colors hover:text-foreground">Ecosystem</Link></li>
-              <li><a href="https://appeal-mail.pages.dev" className="text-ink-soft transition-colors hover:text-foreground">Appeal Mail</a></li>
-              <li><a href="https://notice-respond.pages.dev" className="text-ink-soft transition-colors hover:text-foreground">Notice Respond</a></li>
-              <li><a href="https://dispute-mail.pages.dev" className="text-ink-soft transition-colors hover:text-foreground">Dispute Mail</a></li>
-              <li><a href="https://immigration-mail.pages.dev" className="text-ink-soft transition-colors hover:text-foreground">Immigration Mail</a></li>
-              <li><a href="https://mycomind4-arch-mailmypdf-private-office.pages.dev" className="text-ink-soft transition-colors hover:text-foreground">Private Office</a></li>
+              <li><Link to="/appeal-reply" className="text-ink-soft transition-colors hover:text-foreground">Appeal Mail</Link></li>
+              <li><Link to="/notice-response" className="text-ink-soft transition-colors hover:text-foreground">Notice Respond</Link></li>
+              <li><Link to="/dispute-mail" className="text-ink-soft transition-colors hover:text-foreground">Dispute Mail</Link></li>
+              <li><Link to="/immigration" className="text-ink-soft transition-colors hover:text-foreground">Immigration Mail</Link></li>
+              <li><Link to="/private-office" className="text-ink-soft transition-colors hover:text-foreground">Private Office</Link></li>
             </ul>
           </div>
 

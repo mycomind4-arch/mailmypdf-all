@@ -192,6 +192,22 @@ describe("Dead Code Removal (P3 #50)", () => {
   });
 });
 
+// ── Cross-domain token relay removal ────────────────────────────────────────
+
+describe("Single-origin Authentication Boundary", () => {
+  it("does not expose an access-token SSO relay route", () => {
+    assert.equal(existsSync("src/routes/auth/sso.tsx"), false);
+  });
+
+  it("does not expose a silent session-token relay route", () => {
+    assert.equal(existsSync("src/routes/auth/sso-silent.tsx"), false);
+  });
+
+  it("does not retain the iframe token propagation helper", () => {
+    assert.equal(existsSync("src/lib/sso-propagate.ts"), false);
+  });
+});
+
 // ── Retention Policy (#24) ───────────────────────────────────────────────────
 
 describe("Data Retention Policy (#24)", () => {

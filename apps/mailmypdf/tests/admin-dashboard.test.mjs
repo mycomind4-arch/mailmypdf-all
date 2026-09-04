@@ -251,7 +251,7 @@ describe("Admin Dashboard — Revenue Calculation", () => {
   it("filters revenue by time period (today, 7d, 30d)", () => {
     const now = new Date("2026-07-25T17:00:00Z");
     const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
+    todayStart.setUTCHours(0, 0, 0, 0);
 
     const orders = [
       { price_cents: 299, paid_at: "2026-07-25T10:00:00Z" }, // today

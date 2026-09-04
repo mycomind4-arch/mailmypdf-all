@@ -1,21 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ProductFamilyPage } from "@/components/product-family-page";
 
-/** This vertical now lives at its own domain. */
 export const Route = createFileRoute("/appeal-reply")({
-  head: () => ({
-    meta: [
-      { name: "robots", content: "noindex,nofollow" },
-    ],
-  }),
-  component: () => {
-    if (typeof window !== "undefined") {
-      window.location.replace("https://appeal-mail.pages.dev/");
-    }
-    return (
-      <div className="min-h-screen grid place-items-center p-8">
-        <p className="text-sm text-muted-foreground">Redirecting…</p>
-        <a href="https://appeal-mail.pages.dev/" className="mt-2 text-sm underline text-cobalt">Click here if not redirected</a>
-      </div>
-    );
-  },
+  head: () => ({ meta: [{ title: "Appeal Mail | MailMyPDF" }, { name: "robots", content: "noindex,nofollow" }] }),
+  component: () => <ProductFamilyPage product="Appeal Mail" route="/appeal-reply" description="Appeals, reconsiderations, denials, and adverse decisions." />,
 });

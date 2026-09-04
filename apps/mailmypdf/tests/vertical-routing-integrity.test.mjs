@@ -41,8 +41,20 @@ test("solutions compatibility routes point back to canonical verticals", () => {
   assert.match(dynamicAlias, /redirect\(\{ to: vertical\?\.route \?\? "\/solutions" \}\)/);
 });
 
-test("legacy BureaucracyOS route redirects into the ecosystem", () => {
-  const legacy = fs.readFileSync(path.join(root, "src/routes/bureaucracyos.tsx"), "utf8");
-  assert.match(legacy, /redirect\(\{ to: "\/products" \}\)/);
-  assert.doesNotMatch(legacy, /BureaucracyOS is the operating system/);
+test("retired BureaucracyOS route is removed", () => {
+  assert.equal(fs.existsSync(path.join(root, "src/routes/bureaucracyos.tsx")), false);
+});
+
+test("vertical navigation does not send users to legacy deployment domains", () => {
+  const navigationSources = [
+    "src/verticals/registry.ts",
+    "src/lib/ecosystem.ts",
+    "src/lib/workflow-navigation.ts",
+    "src/lib/master-public-routes.ts",
+    "src/components/ecosystem-shell.tsx",
+    "src/components/site-chrome.tsx",
+  ].map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
+
+  assert.doesNotMatch(navigationSources, /(?:appeal-mail|notice-respond|immigration-mail|dispute-mail|benefits-appeal|govreply)\.pages\.dev/i);
+  assert.doesNotMatch(navigationSources, /mycomind4-arch-mailmypdf-(?:smallbusiness|private-office)\.pages\.dev/i);
 });

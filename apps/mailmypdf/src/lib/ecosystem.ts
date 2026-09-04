@@ -30,7 +30,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Appeal & Reply",
     label: "Advanced Appeal Workflow",
     description: "A master workspace for decisions, reconsiderations, appeals, evidence, deadlines, and formal replies.",
-    href: "https://appeal-mail.pages.dev/",
+    href: "/appeal-reply",
     capabilities: ["ai", "documents", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -45,7 +45,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Notice Respond",
     label: "Advanced Notice Workflow",
     description: "A master workspace for official notices, deadlines, requested actions, evidence, research, and responses.",
-    href: "https://notice-respond.pages.dev",
+    href: "/notice-response",
     capabilities: ["ai", "documents", "research", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -62,7 +62,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Immigration Mail",
     label: "Immigration Workflow",
     description: "A master workspace for USCIS notices, RFE and NOID responses, immigration records requests, refusals, supporting letters, review, and mailing with proof.",
-    href: "https://immigration-mail.pages.dev",
+    href: "/immigration",
     capabilities: ["ai", "documents", "research", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -115,7 +115,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Private Office",
     label: "Professional Correspondence",
     description: "A master workspace for high-stakes correspondence — contractor disputes, property insurance claims, bank and wire transfer disputes, trust beneficiary notices, and security deposit disputes with evidence, approval gates, and certified mailing.",
-    href: "https://mycomind4-arch-mailmypdf-private-office.pages.dev/",
+    href: "/private-office",
     capabilities: ["ai", "documents", "research", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -131,7 +131,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Dispute Mail",
     label: "Consumer Dispute Workflow",
     description: "A master workspace for credit report disputes, debt validation requests, billing errors, and unauthorized charges — with deadline awareness, certified mailing, and proof of timely submission.",
-    href: "https://dispute-mail.pages.dev",
+    href: "/dispute-mail",
     capabilities: ["ai", "documents", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -146,7 +146,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Small Business Mail",
     label: "Business Correspondence OS",
     description: "A master workspace for business correspondence — create, schedule, track, and prove the documents your business sends with team approvals, templates, automation, and a permanent proof archive.",
-    href: "https://mycomind4-arch-mailmypdf-smallbusiness.pages.dev/",
+    href: "/small-business-mail",
     capabilities: ["ai", "documents", "mailing"],
     requiresAccount: true,
     workflows: [
