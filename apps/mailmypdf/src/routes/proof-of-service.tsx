@@ -39,7 +39,6 @@ function ProofOfServicePage() {
       <Hero />
       <TrustBar />
       <WhatItDoes />
-      <WorkflowPipeline />
       <HowItWorks />
       <APIEndpoints />
       <Verticals />

@@ -22,6 +22,9 @@ export const Route = createFileRoute("/records-request")({
   component: RecordsRequestPage,
 });
 
+const ACCENT = "#0891b2";
+const ACCENT_LIGHT = "#ecfeff";
+
 const steps = ["Request", "Review", "Mail"] as const;
 
 type Address = { name: string; line1: string; line2: string; city: string; state: string; postalCode: string };

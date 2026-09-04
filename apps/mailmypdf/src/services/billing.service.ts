@@ -9,6 +9,7 @@
  */
 
 import type { MailClass } from "@/lib/pricing";
+import type { OrderStatus } from "@/lib/order-state-machine";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

@@ -13,6 +13,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getMailService } from "@/services";
+import type { OrderStatus } from "@/lib/order-state-machine";
 
 // ── Shared Schemas ─────────────────────────────────────────────────────────────
 
