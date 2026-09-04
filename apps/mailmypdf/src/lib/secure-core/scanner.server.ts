@@ -60,7 +60,7 @@ async function scan(content: Uint8Array, mimeType: string): Promise<ScannerVerdi
       "Content-Type": mimeType,
       "X-Content-SHA256": computeSha256(content),
     },
-    body: content,
+    body: Uint8Array.from(content).buffer,
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`Scanner returned HTTP ${response.status}`);
