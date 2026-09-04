@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SsiDenialWorkspace } from "@/components/workflow/ssi-denial-workspace";
+import { SsdiDenialWorkspace } from "@/components/workflow/ssdi-denial-workspace";
 import { WorkflowLandingSection, WorkflowFAQSection, RelatedWorkflowsSection, getFAQSchema } from "@/components/workflow/workflow-landing-section";
 import { SsdiDenialPricing } from "@/components/workflow/ssdi-denial-pricing";
 
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/workflows/ssdi-denial")({
     <>
       <WorkflowLandingSection workflowId={WORKFLOW_ID} />
       <SsdiDenialPricing />
-      <SsiDenialWorkspace />
+      <SsdiDenialWorkspace />
       <WorkflowFAQSection workflowId={WORKFLOW_ID} />
       <RelatedWorkflowsSection workflowId={WORKFLOW_ID} />
     </>
