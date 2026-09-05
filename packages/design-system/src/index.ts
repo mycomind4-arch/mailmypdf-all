@@ -128,3 +128,4 @@ export const workspacePrimitives = [
 export * from './public-page.js'
 export * from './workspace.js'
 export * from './workflow-hub.js'
+export * from './workflow-directory.js'
