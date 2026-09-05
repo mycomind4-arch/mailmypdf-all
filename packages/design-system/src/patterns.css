@@ -55,10 +55,109 @@
 .mmp-hero__media > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mmp-hero__overlay { position: absolute; inset: auto clamp(1rem, 4vw, 4rem) clamp(1rem, 4vw, 4rem) auto; width: min(390px, calc(100% - 2rem)); }
 
+/* Canonical public vertical hero. The host app supplies copy, actions and the
+ * actual image/crop; this component owns composition, contrast and responsive
+ * behavior so verticals never need DOM-selector image overrides. */
+.mmp-vertical-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(500px, 56vw, 720px);
+  border-bottom: 1px solid var(--mmp-border);
+  background: var(--mmp-paper-deep);
+}
+.mmp-vertical-hero__media {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+  background-color: var(--mmp-paper-deep);
+  background-repeat: no-repeat;
+}
+.mmp-vertical-hero__media > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mmp-vertical-hero__media--background { background-repeat: no-repeat; }
+.mmp-vertical-hero__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+.mmp-vertical-hero--light .mmp-vertical-hero__scrim {
+  background: linear-gradient(90deg, rgba(248,244,236,.98) 0%, rgba(248,244,236,.93) 39%, rgba(248,244,236,.68) 56%, rgba(248,244,236,.18) 76%, rgba(248,244,236,.04) 100%);
+}
+.mmp-vertical-hero--dark .mmp-vertical-hero__scrim {
+  background: linear-gradient(90deg, rgba(13,25,36,.96) 0%, rgba(13,25,36,.88) 42%, rgba(13,25,36,.58) 60%, rgba(13,25,36,.16) 82%, rgba(13,25,36,.04) 100%);
+}
+.mmp-vertical-hero__inner {
+  position: relative;
+  width: min(100% - 2rem, var(--mmp-content-max));
+  min-height: clamp(500px, 56vw, 720px);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(280px, .58fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding-block: clamp(4rem, 8vw, 7rem);
+}
+.mmp-vertical-hero__copy { max-width: 720px; }
+.mmp-vertical-hero__eyebrow {
+  font: 700 .7rem/1.2 var(--mmp-font-body);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.mmp-vertical-hero--light .mmp-vertical-hero__eyebrow { color: var(--mmp-accent); }
+.mmp-vertical-hero--dark .mmp-vertical-hero__eyebrow { color: color-mix(in srgb, var(--mmp-accent-soft) 72%, white); }
+.mmp-vertical-hero__title {
+  max-width: 12.5ch;
+  margin: .8rem 0 1.2rem;
+  font: 400 clamp(3.35rem, 5.8vw, 6.25rem)/.93 var(--mmp-font-display);
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+.mmp-vertical-hero--light .mmp-vertical-hero__title { color: var(--mmp-ink); }
+.mmp-vertical-hero--dark .mmp-vertical-hero__title { color: white; }
+.mmp-vertical-hero__lede {
+  max-width: 42rem;
+  margin: 0;
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  line-height: 1.6;
+}
+.mmp-vertical-hero--light .mmp-vertical-hero__lede { color: var(--mmp-ink-muted); }
+.mmp-vertical-hero--dark .mmp-vertical-hero__lede { color: rgba(255,255,255,.76); }
+.mmp-vertical-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-top: 1.65rem;
+}
+.mmp-vertical-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem 1.25rem;
+  margin-top: 1.25rem;
+  font-size: .78rem;
+  line-height: 1.5;
+}
+.mmp-vertical-hero--light .mmp-vertical-hero__meta { color: var(--mmp-ink-muted); }
+.mmp-vertical-hero--dark .mmp-vertical-hero__meta { color: rgba(255,255,255,.6); }
+.mmp-vertical-hero__panel {
+  align-self: end;
+  justify-self: end;
+  width: min(100%, 390px);
+  margin-bottom: clamp(.5rem, 3vw, 2rem);
+}
+
 .mmp-trust-row { border-bottom: 1px solid var(--mmp-border); background: var(--mmp-surface); }
 .mmp-trust-row__inner { width: min(100% - 2rem, var(--mmp-content-max)); margin-inline: auto; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); }
 .mmp-trust-item { min-height: 5.2rem; padding: 1.1rem 1.4rem; display: flex; align-items: center; gap: .75rem; border-right: 1px solid var(--mmp-border); }
 .mmp-trust-item:last-child { border-right: 0; }
+.mmp-trust-item__icon { width: 2rem; height: 2rem; flex: 0 0 2rem; display: grid; place-items: center; border-radius: 50%; color: var(--mmp-accent); background: var(--mmp-accent-soft); }
+.mmp-trust-item__icon svg { width: 1rem; height: 1rem; }
 .mmp-trust-item strong { display: block; font-size: .86rem; }
 .mmp-trust-item span { display: block; color: var(--mmp-ink-muted); font-size: .78rem; margin-top: .12rem; }
 
@@ -106,118 +205,11 @@
 .mmp-metric strong { display: block; font: 400 2.2rem/1 var(--mmp-font-display); }
 .mmp-metric span { display: block; margin-top: .35rem; color: var(--mmp-ink-muted); font-size: .78rem; }
 
-/*
- * Approved ecosystem hero photography.
- *
- * The six vertical apps all receive the same optimized sprite in /public and
- * select their own tile here. Keeping the selection in the canonical design
- * layer makes the imagery consistent without creating six competing hero
- * implementations. The existing route content, auth gates, and workflow
- * behavior remain untouched.
- */
-
-/* Notice Respond — courthouse / government building */
-body[data-mmp-theme="notice-respond"] main > section:first-of-type > div:first-child {
-  background-image: url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: 200% 300% !important;
-  background-position: 0% 0% !important;
-  background-repeat: no-repeat !important;
-  background-color: var(--mmp-paper) !important;
-}
-body[data-mmp-theme="notice-respond"] main > section:first-of-type > div:first-child > img {
-  opacity: 0 !important;
-}
-body[data-mmp-theme="notice-respond"] main > section:first-of-type > div:first-child > div:last-child {
-  background: linear-gradient(90deg, rgba(247,244,236,.98) 0%, rgba(247,244,236,.91) 42%, rgba(247,244,236,.48) 62%, rgba(247,244,236,.05) 82%, transparent 100%) !important;
-}
-
-/* Appeal Mail — gavel and scales */
-body[data-mmp-theme="appeal-mail"] section:has(.hero-light) > div:first-child {
-  background-image: url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: 200% 300% !important;
-  background-position: 100% 0% !important;
-  background-repeat: no-repeat !important;
-}
-body[data-mmp-theme="appeal-mail"] section:has(.hero-light) > div:nth-child(2) {
-  background: linear-gradient(90deg, rgba(27,23,21,.94) 0%, rgba(27,23,21,.82) 45%, rgba(27,23,21,.42) 67%, rgba(27,23,21,.08) 88%) !important;
-}
-body[data-mmp-theme="appeal-mail"] section:has(.hero-light) .container > .grid > div:last-child {
-  visibility: hidden !important;
-}
-
-/* Immigration Mail — Statue of Liberty */
-body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:first-child > div:last-child > div {
-  background-image: url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: 200% 300% !important;
-  background-position: 0% 50% !important;
-  background-repeat: no-repeat !important;
-  background-color: var(--mmp-paper-deep) !important;
-}
-body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:first-child > div:last-child > div > img {
-  opacity: 0 !important;
-}
-body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:last-child {
-  background-image: url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: 200% 300% !important;
-  background-position: 0% 50% !important;
-  background-repeat: no-repeat !important;
-  border-radius: .75rem;
-  overflow: hidden;
-}
-body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:last-child > img {
-  opacity: 0 !important;
-}
-
-/* Dispute Mail — premium pen over dispute documents */
-body[data-mmp-theme="dispute-mail"] section:has(.btn-rose) {
-  background-image:
-    linear-gradient(90deg, rgba(18,19,24,.95) 0%, rgba(18,19,24,.82) 43%, rgba(18,19,24,.42) 66%, rgba(18,19,24,.08) 88%),
-    url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: cover, 200% 300% !important;
-  background-position: center, 100% 50% !important;
-  background-repeat: no-repeat !important;
-}
-body[data-mmp-theme="dispute-mail"] section:has(.btn-rose) > div:first-child {
-  display: none !important;
-}
-body[data-mmp-theme="dispute-mail"] section:has(.btn-rose) .container > .grid > div:last-child {
-  visibility: hidden !important;
-}
-
-/* Records Requests — physical records and organized file folders */
-[data-mmp-theme="records-request"] .shell > .hero {
-  position: relative;
-  overflow: hidden;
-  background-image:
-    linear-gradient(90deg, rgba(247,244,236,.98) 0%, rgba(247,244,236,.93) 43%, rgba(247,244,236,.52) 64%, rgba(247,244,236,.08) 84%),
-    url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: cover, 200% 300% !important;
-  background-position: center, 0% 100% !important;
-  background-repeat: no-repeat !important;
-  min-height: clamp(390px, 44vw, 560px);
-}
-[data-mmp-theme="records-request"] .shell > .hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Private Office — warm executive office */
-body[data-mmp-theme="private-office"] main.bg-ivory > section:first-of-type .container > .grid > div:last-child > div {
-  background-image: url("/ecosystem-hero-sprite.jpg") !important;
-  background-size: 200% 300% !important;
-  background-position: 100% 100% !important;
-  background-repeat: no-repeat !important;
-  background-color: var(--mmp-paper-deep) !important;
-  aspect-ratio: 16 / 9 !important;
-}
-body[data-mmp-theme="private-office"] main.bg-ivory > section:first-of-type .container > .grid > div:last-child > div > img {
-  opacity: 0 !important;
-}
-
 @media (max-width: 1100px) {
   .mmp-site-nav { display: none; }
   .mmp-hero__inner { grid-template-columns: 1fr; }
   .mmp-hero__media { min-height: 460px; }
+  .mmp-vertical-hero__inner { grid-template-columns: minmax(0, 1fr) minmax(220px, .42fr); }
   .mmp-workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .mmp-process-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .mmp-process-step { border-bottom: 1px solid var(--mmp-border); }
@@ -231,6 +223,12 @@ body[data-mmp-theme="private-office"] main.bg-ivory > section:first-of-type .con
   .mmp-hero__copy { padding-inline: 1.25rem; }
   .mmp-hero__title { font-size: clamp(3rem, 16vw, 4.6rem); }
   .mmp-hero__media { min-height: 360px; }
+  .mmp-vertical-hero { min-height: 560px; }
+  .mmp-vertical-hero__inner { min-height: 560px; grid-template-columns: 1fr; align-items: end; padding-block: 3.5rem 2.4rem; }
+  .mmp-vertical-hero__title { font-size: clamp(3rem, 15vw, 4.7rem); }
+  .mmp-vertical-hero__panel { display: none; }
+  .mmp-vertical-hero--light .mmp-vertical-hero__scrim { background: linear-gradient(180deg, rgba(248,244,236,.1) 0%, rgba(248,244,236,.46) 34%, rgba(248,244,236,.96) 64%, rgba(248,244,236,.99) 100%); }
+  .mmp-vertical-hero--dark .mmp-vertical-hero__scrim { background: linear-gradient(180deg, rgba(13,25,36,.1) 0%, rgba(13,25,36,.48) 34%, rgba(13,25,36,.93) 66%, rgba(13,25,36,.98) 100%); }
   .mmp-trust-row__inner,
   .mmp-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .mmp-trust-item:nth-child(2) { border-right: 0; }
@@ -240,13 +238,4 @@ body[data-mmp-theme="private-office"] main.bg-ivory > section:first-of-type .con
   .mmp-process-grid { grid-template-columns: 1fr; }
   .mmp-process-step { border-right: 0; }
   .mmp-workspace-content { width: min(100% - 2rem, 1280px); }
-
-  /* Keep the selected hero tile deterministic on narrow screens. */
-  body[data-mmp-theme="notice-respond"] main > section:first-of-type > div:first-child,
-  body[data-mmp-theme="appeal-mail"] section:has(.hero-light) > div:first-child,
-  body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:first-child > div:last-child > div,
-  body[data-mmp-theme="immigration-mail"] section:has([data-testid="concierge-headline"]) > div:last-child,
-  body[data-mmp-theme="private-office"] main.bg-ivory > section:first-of-type .container > .grid > div:last-child > div {
-    background-size: 200% 300% !important;
-  }
 }
