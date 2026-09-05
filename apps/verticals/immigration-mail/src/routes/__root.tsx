@@ -3,6 +3,7 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useNavi
 import { useEffect, useRef, type ReactNode } from "react";
 import "../../../../../packages/design-system/src/tokens.css";
 import "../../../../../packages/design-system/src/patterns.css";
+import "../../../../../packages/design-system/src/workspace.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -73,7 +74,7 @@ function CheckoutReturnHandler() {
     if (checkout === "cancelled") { processed.current = true; navigate({ to: "/dashboard", search: { mailing: "cancelled" } as never }); return; }
     if (checkout !== "success" || !sessionId) return;
     processed.current = true;
-    void fetch("/api/mail/response", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ stripeSessionId: sessionId }) }).then(async (response) => { const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload?.error || `Mailing submission failed (${response.status}).`); navigate({ to: "/dashboard", search: { mailing: "success", order: payload.providerOrderId || "" } as never); }).catch((error) => { navigate({ to: "/dashboard", search: { mailing: "error", message: error instanceof Error ? error.message : "Mailing submission failed." } as never }); });
+    void fetch("/api/mail/response", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ stripeSessionId: sessionId }) }).then(async (response) => { const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload?.error || `Mailing submission failed (${response.status}).`); navigate({ to: "/dashboard", search: { mailing: "success", order: payload.providerOrderId || "" } as never }); }).catch((error) => { navigate({ to: "/dashboard", search: { mailing: "error", message: error instanceof Error ? error.message : "Mailing submission failed." } as never }); });
   }, [user, accessToken, navigate]);
   return null;
 }
