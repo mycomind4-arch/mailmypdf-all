@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProductPlaceholderPage } from "@/components/product-placeholder-page";
 import { WorkflowAuthorityPage } from "@/components/workflow-authority-page";
+import { WorkflowAuthorityRichPage } from "@/components/workflow-authority-rich-page";
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry";
 
 const PRODUCT_FAMILIES: Record<string, { product: string; title: string; description: string }> = {
@@ -14,6 +15,10 @@ const PRODUCT_FAMILIES: Record<string, { product: string; title: string; descrip
   permit: { product: "Permit Reply", title: "Permit response workflow", description: "Prepare a permit, licensing, or regulatory response with requirement-aware review." },
   benefits: { product: "Benefits Appeal", title: "Benefits appeal workflow", description: "Prepare a benefits-related appeal using source documents, evidence, deadlines, and review." },
   claim: { product: "Claim Proof", title: "Claim proof workflow", description: "Organize claim evidence and preserve a traceable proof package." },
+  "code-enforcement": { product: "Code Enforcement", title: "Code enforcement workflow", description: "Understand and respond to code enforcement notices, inspections, evidence requests, and follow-up actions." },
+  insurance: { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
+  "insurance-claims": { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
+  "private-office": { product: "Private Office", title: "Private Office workflow", description: "Prepare high-stakes private correspondence and controlled document records." },
   mail: { product: "MailMyPDF", title: "Mailing workflow", description: "Prepare, review, and mail important documents while keeping the mailing record together." },
   future: { product: "MailMyPDF", title: "MailMyPDF workflow", description: "This reserved MailMyPDF URL is part of the canonical future workflow graph." },
 };
@@ -31,7 +36,7 @@ function workflowHead(path: string) {
   const page = workflowAuthorityForPath(path);
   if (!page) return null;
 
-  const title = `${page.title} | ${page.product} | MailMyPDF`;
+  const title = page.seoTitle;
   const breadcrumb = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -51,7 +56,7 @@ function workflowHead(path: string) {
     about: page.pipeline,
     dateModified: page.reviewedAt ?? undefined,
   };
-  const faq = page.faqPairs.length
+  const faq = page.indexable && page.faqPairs.length
     ? {
         "@context": "https://schema.org",
         "@type": "FAQPage",
@@ -105,6 +110,10 @@ function ReservedPublicRoute() {
   const { _splat } = Route.useParams();
   const path = normalizePath(_splat);
   const workflowPage = workflowAuthorityForPath(path);
+
+  if (workflowPage?.authority) {
+    return <WorkflowAuthorityRichPage page={{ ...workflowPage, authority: workflowPage.authority }} />;
+  }
 
   if (workflowPage) {
     return <WorkflowAuthorityPage page={workflowPage} />;
