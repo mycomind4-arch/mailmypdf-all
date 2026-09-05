@@ -3,14 +3,14 @@ import { Route as RouteIcon } from "lucide-react";
 import {
   ArrowRight,
   Check,
+  Eye,
   FileText,
   Mail,
   MapPin,
+  Send,
   ShieldCheck,
   Stamp,
   Upload,
-  Eye,
-  Send,
 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
@@ -22,6 +22,8 @@ import {
   WorkflowCard,
 } from "@/components/shared/design-system";
 
+const WORKFLOW_VERTICALS = ECOSYSTEM_VERTICALS.filter((vertical) => vertical.slug !== "mail-pdf");
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -29,13 +31,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Upload a PDF or write a letter, prepare the mailing, choose your service, and send it through the U.S. mail. Certified and Registered options, tracking where applicable, and a clear mailing record — plus specialized workflows for complex document problems.",
+          "Mail a PDF online, respond to important notices, or complete a specialized document workflow. Prepare, review, approve, send, track, and keep proof of important correspondence with MailMyPDF.",
       },
       { property: "og:title", content: "MailMyPDF — Turn documents into documented action" },
       {
         property: "og:description",
         content:
-          "Upload a document, prepare your mailing, and send it through the mail with tracking and a clear record of what you sent.",
+          "Mail a finished PDF or use a specialized workflow to prepare, review, send, track, and keep proof of important correspondence.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "/" },
@@ -54,7 +56,7 @@ export const Route = createFileRoute("/")({
           "@type": "Service",
           name: "MailMyPDF",
           description:
-            "Online print-and-mail service for important documents and specialized document workflows.",
+            "Online print-and-mail service for important documents with specialized workflows for notices, appeals, immigration correspondence, disputes, records requests, business correspondence, and other document problems.",
           areaServed: "US",
           offers: [
             { "@type": "Offer", name: "Mail a document", price: "4.99", priceCurrency: "USD" },
@@ -79,6 +81,20 @@ export const Route = createFileRoute("/")({
           ],
         }),
       },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "MailMyPDF specialized workflow products",
+          itemListElement: WORKFLOW_VERTICALS.map((vertical, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: vertical.title,
+            url: vertical.href,
+          })),
+        }),
+      },
     ],
   }),
   component: LandingPage,
@@ -94,37 +110,39 @@ function LandingPage() {
           items={[
             {
               icon: <Upload className="h-4 w-4" />,
-              label: "Documents",
-              description: "Upload or write",
+              label: "No printer required",
+              description: "Upload and mail online",
             },
             {
-              icon: <Mail className="h-4 w-4" />,
-              label: "Mailing",
-              description: "Printed and mailed",
+              icon: <Eye className="h-4 w-4" />,
+              label: "Approval before mailing",
+              description: "Review what will be sent",
             },
             {
               icon: <RouteIcon className="h-4 w-4" />,
-              label: "Tracking",
-              description: "Where applicable",
+              label: "Tracking & proof",
+              description: "Available by mailing service",
             },
             {
               icon: <ShieldCheck className="h-4 w-4" />,
-              label: "Proof",
-              description: "Mailing record",
+              label: "Security controls",
+              description: "Protected workflows are owner-scoped",
             },
           ]}
         />
-        <CategorySection />
-        <HowItWorks />
+        <WaysToUseMailMyPDF />
+        <CoreMailingSection />
         <WorkflowDiscovery />
-        <ProofSection />
+        <ProblemClusterSection />
+        <HowItWorks />
+        <SecuritySection />
         <Pricing />
-        <TrustSection />
+        <ProofSection />
         <CTASection
-          title="Ready to send?"
-          subtitle="Start with a finished document. If you need help with the problem behind the document, explore the specialized workflows."
-          primaryCTA={{ label: "Send a Document", to: "/send" }}
-          secondaryCTA={{ label: "Explore Workflows", to: "/ecosystem" }}
+          title="Turn your document into action today."
+          subtitle="Mail a finished PDF, or find the specialized workflow built for the situation behind it."
+          primaryCTA={{ label: "Mail a PDF", to: "/mail-a-pdf" }}
+          secondaryCTA={{ label: "Find a Workflow", to: "/ecosystem" }}
         />
       </main>
       <SiteFooter />
@@ -137,7 +155,6 @@ function LandingPage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-rule/60">
-      {/* Premium generated background */}
       <div
         className="absolute inset-0 opacity-[0.12]"
         aria-hidden
@@ -147,50 +164,47 @@ function Hero() {
           backgroundPosition: "center",
         }}
       />
-      {/* Gradient wash for depth */}
       <div
         className="absolute inset-0"
         aria-hidden
         style={{
           background:
-            "linear-gradient(180deg, color-mix(in oklab, var(--paper) 85%, transparent) 0%, color-mix(in oklab, var(--paper) 60%, transparent) 30%, color-mix(in oklab, var(--paper) 90%, transparent) 100%), radial-gradient(circle at 75% 25%, color-mix(in oklab, var(--cobalt) 6%, transparent), transparent 35%)",
+            "linear-gradient(180deg, color-mix(in oklab, var(--paper) 86%, transparent) 0%, color-mix(in oklab, var(--paper) 61%, transparent) 30%, color-mix(in oklab, var(--paper) 92%, transparent) 100%), radial-gradient(circle at 75% 25%, color-mix(in oklab, var(--cobalt) 6%, transparent), transparent 35%)",
         }}
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-28">
-        {/* Left: copy */}
+      <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-24">
         <div className="animate-fade-up">
-          <div className="postmark w-fit">The mailing layer for important documents</div>
+          <div className="postmark w-fit">Mail a document. Respond. Complete the workflow.</div>
           <h1 className="mt-6 max-w-3xl text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">
             Turn documents into documented action.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-soft sm:text-xl">
-            Upload your PDF, choose how you want it delivered, and create a professional record of
-            the communication. MailMyPDF keeps the document, mailing choice, tracking, and proof
-            together.
+            Mail a finished PDF, respond to an important document, or complete a specialized
+            workflow. MailMyPDF helps you prepare, review, approve, send, track, and keep proof of
+            important correspondence.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              to="/send"
+              to="/mail-a-pdf"
               className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3.5 text-base font-medium text-white shadow-stamp transition-all duration-200 hover:-translate-y-0.5 hover:bg-cobalt/90"
             >
-              Send a Document <ArrowRight className="h-4 w-4" />
+              Mail a PDF <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/ecosystem"
               className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-5 py-3.5 text-sm font-medium transition-colors hover:border-ink/20 hover:bg-paper-deep"
             >
-              Explore Workflows
+              Find a Workflow
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs uppercase tracking-widest text-muted-foreground">
-            <span>From $4.99</span>
+            <span>Mail from $4.99</span>
             <span>U.S. domestic mail</span>
             <span>No printer required</span>
           </div>
         </div>
 
-        {/* Right: hero image + product visual stack */}
         <div className="relative animate-fade-up" style={{ animationDelay: "0.08s" }}>
           <HeroImageVisual />
         </div>
@@ -202,166 +216,182 @@ function Hero() {
 function HeroImageVisual() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:max-w-lg">
-      {/* Hero photograph */}
-      <div className="relative overflow-hidden rounded-lg border border-rule/40 shadow-xl">
-        <img
-          src="/hero-document.jpg"
-          alt="Documents becoming professional correspondence"
-          className="aspect-[16/10] w-full object-cover"
-          loading="eager"
-          width={1024}
-          height={576}
-        />
-        {/* Subtle ivory wash at bottom for text legibility */}
+      <div className="relative overflow-hidden rounded-xl border border-rule/40 shadow-xl">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hero-document-mobile.jpg" />
+          <img
+            src="/hero-document.jpg"
+            alt="Important documents prepared for physical mailing"
+            className="aspect-[16/10] w-full object-cover"
+            loading="eager"
+            width={1024}
+            height={576}
+          />
+        </picture>
         <div
           className="absolute inset-0"
           aria-hidden
           style={{
             background:
-              "linear-gradient(180deg, transparent 55%, color-mix(in oklab, var(--paper) 75%, transparent) 100%)",
+              "linear-gradient(180deg, transparent 52%, color-mix(in oklab, var(--paper) 68%, transparent) 100%)",
           }}
         />
-        {/* Proof badge */}
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full border border-rule bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+        <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full border border-rule bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
           <ShieldCheck className="h-3.5 w-3.5 text-cobalt" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-soft">
-            Proof of mailing
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-soft">
+            Review before mailing
           </span>
         </div>
       </div>
 
-      {/* Mailing flow card overlapping below */}
       <div className="relative -mt-8 mx-auto w-[88%]">
-        <MailingFlow />
+        <ActionFlow />
       </div>
     </div>
   );
 }
 
-function MailingFlow() {
+function ActionFlow() {
   const steps: [string, string, typeof FileText][] = [
-    ["PDF", "Your document", FileText],
-    ["Mail", "Printed & sent", Mail],
-    ["Track", "Follow delivery", RouteIcon],
-    ["Proof", "Mailing record", ShieldCheck],
+    ["Upload", "Add your document", Upload],
+    ["Choose", "Mail it or use a workflow", FileText],
+    ["Review", "Check the exact packet", Eye],
+    ["Send", "Print, address, and mail", Send],
+    ["Proof", "Keep tracking and records", ShieldCheck],
   ];
 
   return (
-    <div
-      className="relative mx-auto w-full max-w-md animate-fade-up"
-      style={{ animationDelay: "0.1s" }}
-    >
-      {/* Floating stamp label */}
-      <div className="absolute -right-3 -top-5 z-10 rotate-6 rounded-full border border-cobalt/25 bg-card px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-cobalt shadow-sm">
-        MailMyPDF
+    <div className="relative mx-auto w-full max-w-md animate-fade-up" style={{ animationDelay: "0.1s" }}>
+      <div className="absolute -right-3 -top-5 z-10 rotate-3 rounded-full border border-cobalt/25 bg-card px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-cobalt shadow-sm">
+        From screen to mailbox
       </div>
-
-      <div
-        className="envelope-card overflow-hidden p-6 sm:p-8"
-        style={{ transform: "rotate(1deg)" }}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-rule pb-5">
+      <div className="envelope-card overflow-hidden p-5 sm:p-6" style={{ transform: "rotate(0.5deg)" }}>
+        <div className="flex items-center justify-between border-b border-rule pb-4">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              Your document
+              Document to action
             </div>
-            <div className="mt-2 text-lg font-semibold">Important correspondence.pdf</div>
-            <div className="mt-1 text-xs text-muted-foreground">4 pages · ready to mail</div>
-          </div>
-          <div className="rounded-full border border-rule p-2 text-cobalt">
-            <FileText className="h-5 w-5" />
-          </div>
-        </div>
-
-        {/* Flow steps */}
-        <div className="py-6">
-          {steps.map(([label, detail, Icon], index) => (
-            <div key={label} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                    index === 3
-                      ? "bg-cobalt text-white"
-                      : index === 2
-                        ? "bg-ink text-paper"
-                        : "border border-rule bg-card text-muted-foreground"
-                  }`}
-                >
-                  {index + 1}
-                </div>
-                {index < 3 && (
-                  <div className={`h-10 w-px ${index < 2 ? "bg-rule" : "bg-cobalt/30"}`} />
-                )}
-              </div>
-              <div className="pb-4">
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-cobalt" />
-                  <div className="text-sm font-semibold">{label}</div>
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">{detail}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-rule pt-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-cobalt" /> Mailing record kept together
+            <div className="mt-1 text-sm font-semibold">You approve what moves forward.</div>
           </div>
           <Stamp className="h-5 w-5 text-cobalt" />
+        </div>
+        <div className="mt-4 grid gap-2">
+          {steps.map(([label, detail, Icon], index) => (
+            <div key={label} className="flex items-center gap-3 rounded-lg border border-rule/70 bg-card/70 px-3 py-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-paper-deep text-cobalt">
+                <Icon className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold">{label}</div>
+                <div className="text-[11px] text-muted-foreground">{detail}</div>
+              </div>
+              {index !== 1 && <Check className="h-3.5 w-3.5 text-cobalt" />}
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Category Section ──────────────────────────────────────────────────────── */
+/* ── Three ways to use MailMyPDF ───────────────────────────────────────────── */
 
-function CategorySection() {
+function WaysToUseMailMyPDF() {
+  const paths = [
+    {
+      icon: Mail,
+      eyebrow: "MailMyPDF Core",
+      title: "Mail a finished document",
+      text: "Already have the PDF? Upload it, confirm the address and mailing service, approve the order, and we handle the physical mail.",
+      href: "/mail-a-pdf",
+      cta: "Mail a PDF",
+    },
+    {
+      icon: FileText,
+      eyebrow: "Document response",
+      title: "Respond to something you received",
+      text: "Start from an official notice, denial, request, dispute, or other document and move into the workflow built for that problem.",
+      href: "/ecosystem",
+      cta: "Find the right response",
+    },
+    {
+      icon: RouteIcon,
+      eyebrow: "Specialized workflows",
+      title: "Complete a document-driven process",
+      text: "Use guided workflows for appeals, immigration correspondence, records requests, disputes, business mail, and other serious matters.",
+      href: "/ecosystem",
+      cta: "Explore workflows",
+    },
+  ];
+
   return (
     <section className="border-b border-rule/60">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <SectionHeader
+          eyebrow="One platform, three ways to move forward"
+          title="Start with the document you have — or the problem behind it."
+          subtitle="Simple mailing stays simple. More complicated document problems open into purpose-built workflows without leaving the MailMyPDF ecosystem."
+        />
+        <div className="mt-10 grid gap-4 lg:grid-cols-3">
+          {paths.map(({ icon: Icon, eyebrow, title, text, href, cta }) => (
+            <article key={title} className="envelope-card envelope-card-hover flex h-full flex-col p-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-rule bg-paper-deep text-cobalt">
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="mt-5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                {eyebrow}
+              </div>
+              <h3 className="mt-2 font-serif text-2xl">{title}</h3>
+              <p className="mt-3 flex-1 text-sm leading-6 text-muted-foreground">{text}</p>
+              <Link to={href} className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80">
+                {cta} <ArrowRight className="h-4 w-4" />
+              </Link>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Core mailing ──────────────────────────────────────────────────────────── */
+
+function CoreMailingSection() {
+  const steps = [
+    [Upload, "Upload your PDF", "Start with a finished document."],
+    [Eye, "Review & approve", "Confirm the file, recipient, service, and price."],
+    [Mail, "We print & address", "MailMyPDF prepares the physical piece."],
+    [Send, "We mail it", "The order keeps the mailing record together."],
+  ] as const;
+
+  return (
+    <section className="border-b border-rule/60 bg-paper-deep/20">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
           <div>
-            <SectionHeader
-              eyebrow="The category"
-              title="Email sends information. MailMyPDF creates a record."
-              subtitle="A digital document becomes physical correspondence — tracked, documented, and preserved as a durable communication record."
-            />
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-cobalt">MailMyPDF Core</div>
+            <h2 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">Mail a document from $4.99.</h2>
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+              The simple way to print and mail a PDF online without a printer. Choose the mailing service you need and approve the exact order before it is sent.
+            </p>
+            <Link
+              to="/mail-a-pdf"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
+            >
+              Mail a Document <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <div className="grid gap-4">
-            {[
-              {
-                icon: FileText,
-                title: "Digital document",
-                text: "Upload a finished PDF or write a letter from scratch.",
-              },
-              {
-                icon: Mail,
-                title: "Physical correspondence",
-                text: "We print and mail it through the U.S. mail — no printer needed.",
-              },
-              {
-                icon: RouteIcon,
-                title: "Tracking",
-                text: "Follow delivery status when you choose Certified or Registered Mail.",
-              },
-              {
-                icon: ShieldCheck,
-                title: "Proof",
-                text: "Keep the document, recipient, service, and mailing record together in one place.",
-              },
-            ].map((item, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rule bg-card text-cobalt">
-                  <item.icon className="h-5 w-5" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {steps.map(([Icon, title, text], index) => (
+              <div key={title} className="envelope-card p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-paper-deep text-cobalt">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">0{index + 1}</span>
                 </div>
-                <div>
-                  <h3 className="font-medium">{item.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.text}</p>
-                </div>
+                <h3 className="mt-4 font-serif text-xl">{title}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{text}</p>
               </div>
             ))}
           </div>
@@ -371,39 +401,155 @@ function CategorySection() {
   );
 }
 
-/* ── How It Works ──────────────────────────────────────────────────────────── */
+/* ── Workflow discovery ────────────────────────────────────────────────────── */
+
+function WorkflowDiscovery() {
+  return (
+    <section className="border-b border-rule/60">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <SectionHeader
+            eyebrow="Specialized workflows"
+            title="Purpose-built help for real document problems."
+            subtitle="Each product uses the same MailMyPDF account, document, approval, mailing, tracking, and proof foundation while specializing the workflow for the situation."
+          />
+          <Link
+            to="/ecosystem"
+            className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80"
+          >
+            View all workflows <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {WORKFLOW_VERTICALS.map((vertical) => (
+            <WorkflowCard
+              key={vertical.slug}
+              href={vertical.href}
+              label={vertical.label}
+              title={vertical.title}
+              description={vertical.description}
+              capabilities={vertical.capabilities}
+            />
+          ))}
+        </div>
+        <p className="mt-5 max-w-3xl text-xs leading-5 text-muted-foreground">
+          Workflow availability expands as each product reaches its planned release state. The homepage intentionally does not publish a workflow count until the launch catalog is locked.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ── SEO problem clusters ─────────────────────────────────────────────────── */
+
+function ProblemClusterSection() {
+  const clusters = [
+    {
+      title: "Respond to a government notice",
+      text: "Understand an IRS, DMV, benefits, code-enforcement, or other official notice and prepare the appropriate documented response.",
+      href: "/notice-response",
+    },
+    {
+      title: "Appeal a denial or decision",
+      text: "Organize the decision, deadlines, evidence, and written appeal or reconsideration request before mailing it with a record.",
+      href: "/appeal-reply",
+    },
+    {
+      title: "Prepare immigration correspondence",
+      text: "Work through USCIS notices, RFEs, NOIDs, supporting letters, records requests, and other immigration correspondence.",
+      href: "/immigration",
+    },
+    {
+      title: "Dispute debt, billing, credit, or charges",
+      text: "Prepare consumer dispute correspondence with the supporting facts, documents, mailing choice, and proof kept together.",
+      href: "/dispute-mail",
+    },
+    {
+      title: "Request government or public records",
+      text: "Prepare federal FOIA, state public-records, local agency, police, property, permit, and other records requests.",
+      href: "/records-request",
+    },
+    {
+      title: "Handle high-stakes private correspondence",
+      text: "Build documented correspondence for property, contractor, bank, insurance, trust, deposit, and other serious personal matters.",
+      href: "/private-office",
+    },
+    {
+      title: "Manage small-business correspondence",
+      text: "Create, approve, schedule, mail, track, and preserve business notices, reminders, demands, compliance documents, and records.",
+      href: "/small-business-mail",
+    },
+    {
+      title: "Print and mail a finished PDF",
+      text: "Upload a PDF and have it printed and mailed online with Standard, Certified, or Registered options where available.",
+      href: "/mail-a-pdf",
+    },
+  ];
+
+  return (
+    <section className="border-b border-rule/60 bg-paper-deep/20">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <SectionHeader
+          eyebrow="What can MailMyPDF help you do?"
+          title="Find the path that matches the document in front of you."
+          subtitle="MailMyPDF connects simple online mailing with specialized workflows for the situations where the document itself is only the beginning."
+        />
+        <div className="mt-10 grid gap-x-8 gap-y-2 md:grid-cols-2">
+          {clusters.map((cluster) => (
+            <Link
+              key={cluster.title}
+              to={cluster.href}
+              className="group border-b border-rule/70 py-5 transition-colors hover:border-cobalt/40"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-xl group-hover:text-cobalt">{cluster.title}</h3>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{cluster.text}</p>
+                </div>
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-cobalt" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── How it works ──────────────────────────────────────────────────────────── */
 
 function HowItWorks() {
   const steps = [
     {
       number: "01",
-      title: "Upload",
-      text: "Drag in your PDF. Up to 10 pages, under 10MB. No account required to start.",
+      title: "Start with the document",
+      text: "Upload a finished PDF for simple mailing, or enter a specialized workflow with the notice, denial, request, or problem you need to handle.",
     },
     {
       number: "02",
       title: "Prepare",
-      text: "Enter the recipient address. We verify it before the mailing goes out.",
+      text: "Add the recipient and the information the selected mailing or workflow needs. Specialized workflows keep the important facts and supporting material organized.",
     },
     {
       number: "03",
       title: "Review",
-      text: "See the document, address, mailing service, and total price before you pay.",
+      text: "Review the document, packet, recipient, mailing service, and price before anything moves forward.",
     },
     {
       number: "04",
-      title: "Send",
-      text: "We print and mail it through the U.S. mail. You don't need a printer.",
+      title: "Approve",
+      text: "Consequential actions stay approval-gated. You decide what is ready to be mailed.",
     },
     {
       number: "05",
-      title: "Track",
-      text: "Follow delivery status when you choose Certified or Registered Mail.",
+      title: "Mail & track",
+      text: "MailMyPDF prints and mails the approved packet. Tracking is kept with the order when the selected service supports it.",
     },
     {
       number: "06",
-      title: "Prove",
-      text: "Your order keeps the document, recipient, service, and mailing record together.",
+      title: "Keep proof",
+      text: "Keep the document, recipient, mailing service, status, tracking information, and available proof together as a durable record.",
     },
   ];
 
@@ -412,12 +558,12 @@ function HowItWorks() {
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <SectionHeader
           eyebrow="How MailMyPDF works"
-          title="From file to proof in six steps."
-          subtitle="A signature process that turns a document on your screen into a properly mailed, documented piece of correspondence."
+          title="From document to action, with you in control."
+          subtitle="The exact workflow changes with the situation. The review, approval, mailing, tracking, and proof principles stay consistent across the ecosystem."
         />
         <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {steps.map((step, i) => (
-            <div key={i} className="envelope-card envelope-card-hover p-7">
+          {steps.map((step) => (
+            <div key={step.number} className="envelope-card envelope-card-hover p-7">
               <div className="flex items-baseline gap-3">
                 <span className="font-mono text-sm font-medium text-cobalt">{step.number}</span>
                 <span className="h-px flex-1 bg-rule" />
@@ -432,170 +578,62 @@ function HowItWorks() {
   );
 }
 
-/* ── Workflow Discovery ─────────────────────────────────────────────────────── */
+/* ── Security ──────────────────────────────────────────────────────────────── */
 
-function WorkflowDiscovery() {
-  const categories = [
-    {
-      title: "Disputes & Appeals",
-      description: "Challenge decisions with evidence-backed correspondence.",
-      slugs: ["appeal-reply", "dispute-mail"],
-    },
-    {
-      title: "Professional Correspondence",
-      description: "High-stakes matters — disputes, claims, and notices with evidence and approval gates.",
-      slugs: ["private-office"],
-    },
-    {
-      title: "Immigration",
-      description: "USCIS notices, RFE responses, records requests, and supporting letters.",
-      slugs: ["immigration-mail"],
-    },
-    {
-      title: "Records & FOIA",
-      description: "Federal, state, and local public-records requests with certified mailing.",
-      slugs: ["records-request"],
-    },
-    {
-      title: "Notices & Responses",
-      description: "Understand official notices and prepare documented responses.",
-      slugs: ["notice-respond"],
-    },
-    {
-      title: "Business",
-      description: "Create, schedule, track, and prove business correspondence with team approvals.",
-      slugs: ["small-business-mail"],
-    },
+function SecuritySection() {
+  const controls = [
+    "Protected workflow files are scoped to the authenticated owner",
+    "Uploads remain quarantined until the scanning gate clears them",
+    "Workflow disclosures and consequential approvals are recorded server-side",
+    "Mailing is held until the exact packet is approved",
+    "Retention and deletion controls are exposed through the account experience",
   ];
 
   return (
-    <section className="border-b border-rule/60 bg-paper-deep/20">
+    <section id="security" className="proof-surface border-y border-rule/60 scroll-mt-20">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <SectionHeader
-            eyebrow="The workflow ecosystem"
-            title="Specialized workflows for specific document problems."
-            subtitle="When the problem is more complicated than 'send this PDF,' MailMyPDF connects you to a purpose-built workflow for the job."
-          />
-          <Link
-            to="/ecosystem"
-            className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80"
-          >
-            Explore all workflows <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="mt-12 space-y-8">
-          {categories.map((category) => {
-            const verticals = category.slugs
-              .map((slug) => ECOSYSTEM_VERTICALS.find((v) => v.slug === slug))
-              .filter((v): v is NonNullable<typeof v> => Boolean(v));
-
-            return (
-              <div key={category.title}>
-                <div className="flex items-baseline justify-between gap-4">
-                  <div>
-                    <h3 className="font-serif text-2xl">{category.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{category.description}</p>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {verticals.map((vertical) => (
-                    <WorkflowCard
-                      key={vertical.slug}
-                      href={vertical.href}
-                      label={vertical.label}
-                      title={vertical.title}
-                      description={vertical.description}
-                      capabilities={vertical.capabilities}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── Proof Section ──────────────────────────────────────────────────────────── */
-
-function ProofSection() {
-  const statuses = [
-    { label: "Sent", description: "Document submitted for mailing", active: true },
-    { label: "Accepted", description: "Mailing accepted by the carrier", active: true },
-    { label: "Delivered", description: "Delivery confirmed when available", active: true },
-    { label: "Proof", description: "Mailing record preserved", active: true },
-  ];
-
-  return (
-    <section className="proof-surface border-y border-rule/60">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+        <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-brass-soft">
-              Proof
+              Security & Trust
             </div>
-            <h2
-              className="mt-5 text-3xl leading-tight sm:text-4xl md:text-5xl"
-              style={{ color: "oklch(0.95 0.008 85)" }}
-            >
-              When it matters, proof matters.
+            <h2 className="mt-5 text-3xl leading-tight sm:text-4xl md:text-5xl" style={{ color: "oklch(0.95 0.008 85)" }}>
+              Your documents deserve real protection.
             </h2>
-            <p
-              className="mt-5 max-w-xl text-base leading-7"
-              style={{ color: "oklch(0.72 0.015 85)" }}
-            >
-              Every order keeps the document, recipient, mailing service, tracking, and status
-              together. When you choose Certified or Registered Mail, delivery information is
-              preserved with your order.
+            <p className="mt-5 max-w-xl text-base leading-7" style={{ color: "oklch(0.72 0.015 85)" }}>
+              MailMyPDF uses explicit document, access, scanning, disclosure, approval, and fulfillment boundaries for protected workflows instead of vague security promises.
             </p>
-            <Link
-              to="/proof-of-mailing"
-              className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
-            >
-              Learn about proof of mailing <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                to="/privacy"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                Privacy <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/retention"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                Data Retention
+              </Link>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <div
-                className="font-mono text-[10px] uppercase tracking-[0.18em]"
-                style={{ color: "oklch(0.72 0.015 85)" }}
-              >
-                Mailing record
-              </div>
-              <Stamp className="h-5 w-5" style={{ color: "oklch(0.66 0.07 75)" }} />
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-7 backdrop-blur-sm sm:p-8">
+            <div className="space-y-4">
+              {controls.map((control) => (
+                <div key={control} className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: "oklch(0.45 0.14 255)" }}>
+                    <Check className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <p className="text-sm leading-6" style={{ color: "oklch(0.88 0.01 85)" }}>{control}</p>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1">
-              {statuses.map((step, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-                      style={{
-                        background: step.active ? "oklch(0.45 0.14 255)" : "transparent",
-                        border: step.active ? "none" : "1px solid oklch(0.35 0.02 255)",
-                        color: step.active ? "white" : "oklch(0.6 0.01 85)",
-                      }}
-                    >
-                      <Check className="h-4 w-4" />
-                    </div>
-                    {i < statuses.length - 1 && (
-                      <div className="h-12 w-px" style={{ background: "oklch(0.35 0.02 255)" }} />
-                    )}
-                  </div>
-                  <div className="pb-6">
-                    <div className="text-sm font-medium" style={{ color: "oklch(0.95 0.008 85)" }}>
-                      {step.label}
-                    </div>
-                    <div className="mt-1 text-xs" style={{ color: "oklch(0.72 0.015 85)" }}>
-                      {step.description}
-                    </div>
-                  </div>
+            <div className="mt-7 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
+              {["Owner scoped", "Scan gated", "Approval held"].map((label) => (
+                <div key={label} className="rounded-lg border border-white/10 bg-black/5 px-3 py-3 text-center font-mono text-[10px] uppercase tracking-[0.14em]" style={{ color: "oklch(0.72 0.015 85)" }}>
+                  {label}
                 </div>
               ))}
             </div>
@@ -606,7 +644,7 @@ function ProofSection() {
   );
 }
 
-/* ── Pricing ────────────────────────────────────────────────────────────────── */
+/* ── Pricing ───────────────────────────────────────────────────────────────── */
 
 function Pricing() {
   return (
@@ -614,26 +652,18 @@ function Pricing() {
       <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-24">
         <SectionHeader
           align="center"
-          eyebrow="Straightforward pricing"
+          eyebrow="Straightforward core mailing pricing"
           title="Mail a short document from $4.99."
-          subtitle="Choose the mailing service and options you need during checkout. Pricing is shown before you send — no hidden fees."
+          subtitle="Core mailing pricing is separate from specialized workflow preparation. Choose the mailing service and options you need during checkout; the price is shown before you approve the order."
         />
         <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-          <span className="rounded-full border border-rule px-3 py-1.5">
-            Certified Mail available
-          </span>
-          <span className="rounded-full border border-rule px-3 py-1.5">
-            Registered Mail available
-          </span>
-          <span className="rounded-full border border-rule px-3 py-1.5">
-            Color printing available
-          </span>
+          <span className="rounded-full border border-rule px-3 py-1.5">Standard mail</span>
+          <span className="rounded-full border border-rule px-3 py-1.5">Certified Mail available</span>
+          <span className="rounded-full border border-rule px-3 py-1.5">Registered Mail available</span>
+          <span className="rounded-full border border-rule px-3 py-1.5">Color printing available</span>
         </div>
-        <div className="mt-6">
-          <Link
-            to="/pro"
-            className="inline-flex items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80"
-          >
+        <div className="mt-7 flex justify-center gap-4">
+          <Link to="/pro" className="inline-flex items-center gap-2 text-sm font-medium text-cobalt hover:text-cobalt/80">
             See full pricing <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -642,29 +672,29 @@ function Pricing() {
   );
 }
 
-/* ── Trust / Security ──────────────────────────────────────────────────────── */
+/* ── Proof ─────────────────────────────────────────────────────────────────── */
 
-function TrustSection() {
+function ProofSection() {
   const items: [typeof ShieldCheck, string, string][] = [
     [
-      ShieldCheck,
-      "Documents handled with care",
-      "Your document is prepared and mailed with the same attention you'd give it yourself.",
-    ],
-    [
       FileText,
-      "A clear mailing record",
-      "Keep the document, recipient, mailing service, tracking, and order status together in one place.",
+      "The document",
+      "Keep the document that was prepared or uploaded with the order or matter that produced it.",
     ],
     [
       MapPin,
-      "Address verification",
-      "We verify the recipient address before the mailing goes out to reduce returns and delays.",
+      "The destination",
+      "Keep the recipient and mailing-service selection connected to the document that was approved.",
     ],
     [
-      Check,
-      "You stay in control",
-      "Review the document, address, and mailing service before you pay. Nothing is sent until you confirm.",
+      RouteIcon,
+      "Tracking when available",
+      "Certified and Registered services preserve available carrier tracking and delivery information with the mailing record.",
+    ],
+    [
+      ShieldCheck,
+      "A durable record",
+      "Keep the important mailing details together instead of reconstructing what happened from separate systems later.",
     ],
   ];
 
@@ -672,10 +702,11 @@ function TrustSection() {
     <section className="border-b border-rule/60 bg-paper-deep/20">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <SectionHeader
-          eyebrow="Built for important documents"
-          title="Trust your document to a service that takes it seriously."
+          eyebrow="Tracking & proof"
+          title="Know what was sent, where it went, and what happened next."
+          subtitle="MailMyPDF is designed to keep the document and its mailing record connected, with tracking and delivery information preserved when the selected service provides it."
         />
-        <div className="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+        <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
           {items.map(([Icon, title, text]) => (
             <div key={title} className="flex gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-rule bg-card text-cobalt">
