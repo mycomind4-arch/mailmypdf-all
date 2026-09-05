@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProductFamilyPage } from "@/components/product-family-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/notice-response")({
-  head: () => ({ meta: [{ title: "Notice Respond | MailMyPDF" }, { name: "robots", content: "noindex,nofollow" }] }),
-  component: () => <ProductFamilyPage product="Notice Respond" route="/notice-response" description="Official notices, agency actions, summonses, and formal responses." />,
+  beforeLoad: () => {
+    throw redirect({ href: "/notice-respond", statusCode: 308 });
+  },
+  component: () => null,
 });
