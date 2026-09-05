@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
-import { callLLM, getAvailableProviders } from '@/src/platform/llm-service'
-import { validateDraft } from '@/src/domain/draft-validator'
-import { getBenefitsWorkflowConfig } from '@/src/domain/workflow-engine'
+import { callLLM, getAvailableProviders } from '@/platform/llm-service'
+import { validateDraft } from '@/domain/draft-validator'
+import { getBenefitsWorkflowConfig } from '@/domain/workflow-engine'
 
 export const Route = createFileRoute('/api/workflows/$slug/draft')({
   server: {
