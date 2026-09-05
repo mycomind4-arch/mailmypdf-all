@@ -1,11 +1,16 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { ECOSYSTEM_PRODUCTS } from '@/app/lib/ecosystem'
 
 const THIS_PRODUCT = 'Insurance Claims'
 const MAIL_A_PDF = 'https://mailmypdf.pages.dev/start'
 
 export function SiteNav() {
+  const pathname = usePathname()
   const otherProducts = ECOSYSTEM_PRODUCTS.filter(p => p.product !== THIS_PRODUCT)
+  if (pathname.startsWith('/dashboard')) return null
 
   return (
     <header style={{
