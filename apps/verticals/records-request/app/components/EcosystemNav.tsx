@@ -1,7 +1,13 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { ECOSYSTEM_PAGE_URL, ECOSYSTEM_PRODUCTS, MAILMYPDF_HOME } from '../lib/ecosystem'
 
 export default function EcosystemNav() {
+  const pathname = usePathname()
+  if (pathname.startsWith('/dashboard')) return null
+
   return (
     <header className="ecosystemNav">
       <div className="ecosystemNav__inner">
