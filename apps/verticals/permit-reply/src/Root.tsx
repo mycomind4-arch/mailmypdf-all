@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import App from './App'
 import { PublicLanding } from './PublicLanding'
+import { PermitWorkflowDirectory } from './WorkflowDirectory'
 
 export default function Root() {
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const pathname = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '/'
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+  const [workspaceOpen, setWorkspaceOpen] = useState(params.get('workspace') === '1')
+  if (pathname === '/workflows') return <PermitWorkflowDirectory />
   if (workspaceOpen) return <App />
   return <PublicLanding onStart={() => setWorkspaceOpen(true)} />
 }
