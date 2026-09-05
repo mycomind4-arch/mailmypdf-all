@@ -42,17 +42,19 @@ export interface EcosystemProduct {
 
 export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
   { name: "MailMyPDF", slug: "mailmypdf", href: "/", description: "Core document and letter mailing workflows", category: "Core", status: "live" },
-  { name: "Notice Respond", slug: "notice-respond", href: "/notice-response", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
-  { name: "Immigration Mail", slug: "immigration-mail", href: "/immigration", description: "Immigration notices, evidence packages, and explanation letters", category: "Immigration", status: "live" },
-  { name: "Appeal Mail", slug: "appeal-mail", href: "/appeal-reply", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
-  { name: "Dispute Mail", slug: "dispute-mail", href: "/dispute-mail", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
-  { name: "Tenant Reply", slug: "tenant-reply", href: "/tenant-reply", description: "Tenant notices, repair correspondence, and housing responses", category: "Housing", status: "planned" },
-  { name: "Benefits Appeal", slug: "benefits-appeal", href: "/benefits-appeal", description: "Benefits denials, reconsideration, and review preparation", category: "Appeals / Claims", status: "planned" },
+  { name: "Notice Respond", slug: "notice-respond", href: "/notice-respond", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
+  { name: "Code Enforcement", slug: "code-enforcement", href: "/code-enforcement", description: "Notices, inspections, evidence, compliance, hearings, and case records", category: "Government / Official", status: "planned" },
+  { name: "Immigration Mail", slug: "immigration-mail", href: "/immigration-mail", description: "Immigration notices, evidence packages, records requests, and explanation letters", category: "Immigration", status: "live" },
+  { name: "Appeal Mail", slug: "appeal-mail", href: "/appeal-mail", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
+  { name: "Benefits Appeal", slug: "benefits-appeal", href: "/benefits-appeal", description: "Benefits denials, reconsideration, documentation, and review preparation", category: "Appeals / Claims", status: "planned" },
   { name: "Claim Proof", slug: "claim-proof", href: "/claim-proof", description: "Evidence-first claim documentation and proof packages", category: "Appeals / Claims", status: "planned" },
-  { name: "Records Request", slug: "records-request", href: "/records-request", description: "Records and public-information request workflows", category: "Records / Information", status: "planned" },
-  { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "planned" },
-  { name: "Small Business Mail", slug: "small-business-mail", href: "/small-business-mail", description: "Business correspondence, reminders, demands, and compliance", category: "Business", status: "planned" },
-  { name: "Private Office", slug: "private-office", href: "/private-office", description: "Professional correspondence, provably delivered", category: "Private Office", status: "live" },
+  { name: "Insurance Claims", slug: "insurance-claims", href: "/insurance-claims", description: "Claims, denials, underpayments, evidence, supplements, and appeals", category: "Appeals / Claims", status: "planned" },
+  { name: "Dispute Mail", slug: "dispute-mail", href: "/dispute-mail", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
+  { name: "Tenant Reply", slug: "tenant-reply", href: "/tenant-reply", description: "Tenant notices, repair correspondence, deposits, and housing responses", category: "Housing", status: "planned" },
+  { name: "Records Requests", slug: "records-request", href: "/records-request", description: "FOIA, public-records, and agency-record request workflows", category: "Records / Information", status: "planned" },
+  { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, inspection, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "planned" },
+  { name: "Small Business", slug: "small-business", href: "/small-business", description: "Business correspondence, reminders, demands, renewals, and compliance", category: "Business", status: "planned" },
+  { name: "Private Office", slug: "private-office", href: "/private-office", description: "Controlled high-stakes correspondence and document records", category: "Private Office", status: "live" },
 ];
 
 export const ECOSYSTEM_PAGE_URL = "/products";
