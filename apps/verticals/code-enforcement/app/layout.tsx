@@ -1,5 +1,6 @@
 import '../../../../packages/design-system/src/tokens.css'
 import '../../../../packages/design-system/src/patterns.css'
+import '../../../../packages/design-system/src/workspace.css'
 import '../src/ui/tokens/globals.css'
 import EcosystemNav from './components/EcosystemNav'
 
