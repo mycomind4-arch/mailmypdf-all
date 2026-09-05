@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProductFamilyPage } from "@/components/product-family-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/immigration")({
-  head: () => ({ meta: [{ title: "Immigration Mail | MailMyPDF" }, { name: "robots", content: "noindex,nofollow" }] }),
-  component: () => <ProductFamilyPage product="Immigration Mail" route="/immigration" description="Immigration notices, evidence packages, records requests, and explanation letters." />,
+  beforeLoad: () => {
+    throw redirect({ href: "/immigration-mail", statusCode: 308 });
+  },
+  component: () => null,
 });
