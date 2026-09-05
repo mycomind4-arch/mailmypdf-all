@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Bell, CalendarDays, CheckCircle2, Clock3, FileText, Inbox, LayoutDashboard, Mail, Plus, Search, Settings2, Users, Workflow, X, ShieldCheck } from 'lucide-react'
+import { Archive, CalendarDays, FileText, Inbox, LayoutDashboard, Mail, Plus, ShieldCheck, Users, Workflow, X } from 'lucide-react'
+import '../../../../packages/design-system/src/workspace.css'
 import './styles.css'
 import './checkout-return'
 import type { MailClass } from './domain/models'
@@ -8,41 +9,418 @@ import { nextOccurrence } from './services/scheduler'
 import { CommandCenter } from './ui/CommandCenter'
 import { SMALL_BUSINESS_WORKFLOWS, type SmallBusinessWorkflowId } from './domain/workflows'
 import { planWorkflowExecution } from './services/workflow-engine'
+import {
+  createWorkflowHub,
+  createWorkspaceMetrics,
+  createWorkspacePageHeader,
+  createWorkspaceShell,
+  createWorkspaceTopbar,
+  type WorkspaceLinkItem,
+} from '../../../../packages/design-system/src/index'
 
 const AUTH_KEY = 'mailmypdf_business_auth'
-const nav = [['Overview', LayoutDashboard], ['Command Center', LayoutDashboard], ['Correspondence', Mail], ['Schedule', CalendarDays], ['Contacts', Users], ['Templates', FileText], ['Automation', Workflow], ['Proof Archive', Inbox]] as const
-type Scheduled = { id: string; title: string; recipient: string; meta: string; status: 'Scheduled' | 'Approval required' | 'Draft'; at: string; mailClass: MailClass }
-const initialScheduled: Scheduled[] = [
-  { id: 'sch_1', title: 'Payment reminder', recipient: 'Acme Supply', meta: 'Standard Mail · 1 page', status: 'Scheduled', at: 'Aug 18 · 9:00 AM', mailClass: 'standard' },
-  { id: 'sch_2', title: 'Contract renewal', recipient: 'North Coast HVAC', meta: 'Certified Mail · 3 pages', status: 'Approval required', at: 'Aug 21 · 9:00 AM', mailClass: 'certified' },
-  { id: 'sch_3', title: 'Past-due notice', recipient: 'Redwood Office', meta: 'Standard Mail · 2 pages', status: 'Scheduled', at: 'Aug 22 · 9:00 AM', mailClass: 'standard' },
-]
-const events = [['Aug 14 · 10:42 AM', 'Payment demand mailed', 'Acme Supply · Certified Mail · Tracking added'], ['Aug 14 · 9:18 AM', 'Renewal sequence created', 'North Coast HVAC · 3-step sequence'], ['Aug 13 · 4:05 PM', 'Proof generated', 'Redwood Office · Delivery confirmed']]
-function getAccessToken() { try { return (JSON.parse(localStorage.getItem(AUTH_KEY) || 'null') as { access_token?: string } | null)?.access_token || '' } catch { return '' } }
+const MAILMYPDF = 'https://mailmypdf.pages.dev'
+
+const WorkspaceShell = createWorkspaceShell(createElement)
+const WorkspaceTopbar = createWorkspaceTopbar(createElement)
+const WorkspacePageHeader = createWorkspacePageHeader(createElement)
+const WorkspaceMetrics = createWorkspaceMetrics(createElement)
+const WorkflowHub = createWorkflowHub(createElement)
+
+type WorkspaceView = 'Overview' | 'Workflow Hub' | 'Command Center' | 'Correspondence' | 'Schedule' | 'Contacts' | 'Templates' | 'Automation' | 'Proof Archive'
+type Scheduled = {
+  id: string
+  title: string
+  recipient: string
+  meta: string
+  status: 'Scheduled' | 'Approval required' | 'Draft'
+  at: string
+  mailClass: MailClass
+  workflowId: SmallBusinessWorkflowId
+}
+
+type SessionShape = {
+  access_token?: string
+  user?: { email?: string }
+  email?: string
+}
+
+function readSession(): { accessToken: string; email: string } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null') as SessionShape | null
+    return {
+      accessToken: parsed?.access_token || '',
+      email: parsed?.user?.email || parsed?.email || '',
+    }
+  } catch {
+    return { accessToken: '', email: '' }
+  }
+}
 
 function App() {
-  const [active, setActive] = React.useState('Overview'); const [scheduled, setScheduled] = React.useState(initialScheduled); const [showComposer, setShowComposer] = React.useState(false); const [search, setSearch] = React.useState(''); const [showWorkflows, setShowWorkflows] = React.useState(false)
-  const visible = scheduled.filter(i => `${i.title} ${i.recipient}`.toLowerCase().includes(search.toLowerCase()))
-  async function createMailing(input: { title: string; recipient: string; date: string; time: string; mailClass: MailClass; workflowId: string; draftContent: string }) {
-    const token = getAccessToken(); if (!token) { window.alert('Please sign in before creating a mailing.'); return }
-    const response = await fetch('/api/checkout', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ businessId: 'current', workflowId: input.workflowId, title: input.title, draftContent: input.draftContent, mailClass: input.mailClass, recipient: { name: input.recipient }, mailJobId: crypto.randomUUID() }) })
-    const payload = await response.json().catch(() => ({})); if (!response.ok || !payload.checkoutUrl) { window.alert(payload.error || 'Unable to start checkout.'); return }
-    setScheduled(c => [...c, { id: payload.sessionId || crypto.randomUUID(), title: input.title, recipient: input.recipient, meta: `${input.mailClass[0].toUpperCase()+input.mailClass.slice(1)} Mail · payment required`, status: 'Draft', at: new Date(`${input.date}T${input.time}:00`).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}), mailClass: input.mailClass }]); setShowComposer(false); window.location.assign(payload.checkoutUrl)
+  const [active, setActive] = React.useState<WorkspaceView>('Overview')
+  const [scheduled, setScheduled] = React.useState<Scheduled[]>([])
+  const [showComposer, setShowComposer] = React.useState(false)
+  const [composerWorkflow, setComposerWorkflow] = React.useState<SmallBusinessWorkflowId>('payment-reminder')
+  const [session, setSession] = React.useState(() => readSession())
+  const [checkoutMessage, setCheckoutMessage] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    const onCheckout = (event: Event) => {
+      const detail = (event as CustomEvent<Record<string, unknown>>).detail || {}
+      if (detail.error) setCheckoutMessage(String(detail.error))
+      else setCheckoutMessage('Payment verified. The paid execution request has been handed to the configured mailing workflow.')
+      setSession(readSession())
+    }
+    window.addEventListener('mailmypdf:checkout', onCheckout)
+    return () => window.removeEventListener('mailmypdf:checkout', onCheckout)
+  }, [])
+
+  const approvalGated = SMALL_BUSINESS_WORKFLOWS.filter(workflow => workflow.requiresApproval || workflow.risk === 'HIGH' || workflow.risk === 'CRITICAL').length
+  const sessionApprovals = scheduled.filter(item => item.status === 'Approval required').length
+
+  function openComposer(workflowId: SmallBusinessWorkflowId = 'payment-reminder') {
+    setComposerWorkflow(workflowId)
+    setShowComposer(true)
   }
-  return <div className="app"><aside className="sidebar"><div className="brand"><div className="brand-mark">M</div><div><div className="brand-name">MailMyPDF</div><span className="brand-sub">Business</span></div></div><div className="nav-label">Workspace</div><nav className="nav">{nav.map(([label,Icon])=><button key={label} className={active===label?'active':''} onClick={()=>setActive(label)}><Icon size={16} strokeWidth={1.7}/>{label}</button>)}</nav><div className="eco-nav"><div className="nav-label">Ecosystem</div><div className="eco-links"><a href="https://mycomind4-arch-mailmypdf.mycomind4.workers.dev" className="eco-link">MailMyPDF</a><a href="https://appeal-mail.pages.dev/" className="eco-link">Appeal Mail</a><a href="https://notice-respond.pages.dev" className="eco-link">Notice Respond</a><a href="https://7c4de6f8.immigration-mail.pages.dev" className="eco-link">Immigration Mail</a><a href="https://dispute-mail.pages.dev" className="eco-link">Dispute Mail</a><a href="https://mycomind4-arch-mailmypdf-private-office.pages.dev/" className="eco-link">Private Office</a><a href="https://mycomind4-arch-code-enforcement.pages.dev" className="eco-link">Code Enforcement</a><a href="https://benefits-appeal.pages.dev" className="eco-link">Benefits Appeal</a><a href="https://insurance-claims.pages.dev" className="eco-link">Insurance Claims</a><a href="https://mycomind4-arch-mailmypdf-records-requests.pages.dev" className="eco-link">Records Requests</a><a href="https://mailmypdf-etc.pages.dev/products" className="eco-link eco-all">All products →</a></div></div><div className="sidebar-bottom"><div className="business">North Coast Services</div><div className="business-meta">Business plan · 3 team members</div></div></aside>
-    <main className="main"><header className="topbar"><div className="topbar-title">Business correspondence / {active}</div><div className="top-actions"><div className="search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search correspondence"/></div><button className="icon-btn"><Bell size={16}/></button><button className="icon-btn"><Settings2 size={16}/></button><div className="avatar">NC</div></div></header><section className="content">
-      {active==='Overview'&&<Overview onCreate={()=>setShowComposer(true)} scheduled={visible} onWorkflows={()=>setShowWorkflows(true)}/>} {active==='Command Center'&&<CommandCenter onCreateMailing={()=>setShowComposer(true)}/>} {active==='Schedule'&&<SchedulePage scheduled={visible} onCreate={()=>setShowComposer(true)}/>} {active==='Correspondence'&&<Correspondence scheduled={visible}/>} {active==='Contacts'&&<SimplePage eyebrow="Contacts" title="People your business writes to." description="Keep recipients, addresses, references, and correspondence history together."/>} {active==='Templates'&&<SimplePage eyebrow="Templates" title="Your recurring business language." description="Reusable letters become the building blocks for scheduled correspondence."/>} {active==='Automation'&&<Automation onBrowse={()=>setShowWorkflows(true)}/>} {active==='Proof Archive'&&<SimplePage eyebrow="Proof archive" title="A permanent record of what was sent." description="Every completed mailing can retain its document hash, tracking history, delivery facts, and proof bundle."/>}
-    </section></main>{showComposer&&<Composer onClose={()=>setShowComposer(false)} onCreate={createMailing}/>} {showWorkflows&&<WorkflowCatalog onClose={()=>setShowWorkflows(false)}/>}</div>
+
+  async function createMailing(input: {
+    title: string
+    recipient: string
+    date: string
+    time: string
+    mailClass: MailClass
+    workflowId: SmallBusinessWorkflowId
+    draftContent: string
+  }) {
+    const currentSession = readSession()
+    setSession(currentSession)
+    if (!currentSession.accessToken) {
+      window.alert('Sign in to your MailMyPDF Account before creating a mailing.')
+      return
+    }
+
+    const response = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${currentSession.accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        businessId: 'current',
+        workflowId: input.workflowId,
+        title: input.title,
+        draftContent: input.draftContent,
+        mailClass: input.mailClass,
+        recipient: { name: input.recipient },
+        mailJobId: crypto.randomUUID(),
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload.checkoutUrl) {
+      window.alert(payload.error || 'Unable to start checkout.')
+      return
+    }
+
+    const workflow = SMALL_BUSINESS_WORKFLOWS.find(item => item.id === input.workflowId)!
+    setScheduled(current => [...current, {
+      id: payload.sessionId || crypto.randomUUID(),
+      title: input.title,
+      recipient: input.recipient,
+      meta: `${input.mailClass[0].toUpperCase() + input.mailClass.slice(1)} Mail · checkout started`,
+      status: workflow.requiresApproval ? 'Approval required' : 'Draft',
+      at: new Date(`${input.date}T${input.time}:00`).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      mailClass: input.mailClass,
+      workflowId: input.workflowId,
+    }])
+    setShowComposer(false)
+    window.location.assign(payload.checkoutUrl)
+  }
+
+  const navSections = [
+    {
+      label: 'Workspace',
+      items: [
+        { label: 'Overview', href: '#overview', icon: <LayoutDashboard />, active: active === 'Overview' },
+        { label: 'Workflow Hub', href: '#workflow-hub', icon: <Workflow />, active: active === 'Workflow Hub' },
+        { label: 'Command Center', href: '#command-center', icon: <ShieldCheck />, active: active === 'Command Center' },
+        { label: 'Correspondence', href: '#correspondence', icon: <Mail />, active: active === 'Correspondence' },
+        { label: 'Schedule', href: '#schedule', icon: <CalendarDays />, active: active === 'Schedule' },
+        { label: 'Contacts', href: '#contacts', icon: <Users />, active: active === 'Contacts' },
+        { label: 'Templates', href: '#templates', icon: <FileText />, active: active === 'Templates' },
+        { label: 'Automation', href: '#automation', icon: <Workflow />, active: active === 'Automation' },
+        { label: 'Proof Archive', href: '#proof', icon: <Inbox />, active: active === 'Proof Archive' },
+      ],
+    },
+  ]
+
+  const accountLabel = session.email || (session.accessToken ? 'Account connected' : 'Sign in required')
+  const initials = session.email ? session.email.slice(0, 2).toUpperCase() : 'MB'
+
+  function renderWorkspaceLink(item: WorkspaceLinkItem, className: string) {
+    const matching = navSections[0].items.find(navItem => navItem.label === item.label)
+    if (!matching) return <a href={item.href} className={className}>{item.label}</a>
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={() => setActive(item.label as WorkspaceView)}
+      >
+        {item.icon ? <span className="mmp-workspace-nav__icon" aria-hidden="true">{item.icon}</span> : null}
+        <span className="mmp-workspace-nav__label">{item.label}</span>
+        {item.badge !== undefined ? <span className="mmp-workspace-nav__badge">{item.badge}</span> : null}
+      </button>
+    )
+  }
+
+  return (
+    <>
+      <WorkspaceShell
+        theme="small-business"
+        productName="MailMyPDF Business"
+        productLabel="MailMyPDF"
+        homeHref="/"
+        sections={navSections}
+        mailPdfHref={`${MAILMYPDF}/start`}
+        ecosystemHref={`${MAILMYPDF}/products`}
+        renderLink={renderWorkspaceLink}
+        footer={<><strong>{accountLabel}</strong><br />Create → Schedule → Approve → Send → Track → Prove → Archive</>}
+        topbar={
+          <WorkspaceTopbar
+            eyebrow="MailMyPDF Account"
+            title="Business"
+            subtitle="Correspondence, scheduling, approvals, mailing, and proof"
+            actions={<button className="mmp-button-primary" onClick={() => openComposer()}><Plus size={15} /> Create mailing</button>}
+            account={session.accessToken ? (
+              <a href={`${MAILMYPDF}/account`} className="mmp-workspace-account"><span className="mmp-workspace-account__avatar">{initials}</span><span>{accountLabel}</span></a>
+            ) : (
+              <a href={`${MAILMYPDF}/auth`} className="mmp-workspace-account"><span className="mmp-workspace-account__avatar">MB</span><span>Sign in</span></a>
+            )}
+          />
+        }
+      >
+        {checkoutMessage && <div className="mmp-workspace-panel" style={{ padding: '1rem 1.15rem', marginBottom: '1rem' }}>{checkoutMessage}</div>}
+
+        {active === 'Overview' && (
+          <Overview
+            scheduled={scheduled}
+            approvalCount={sessionApprovals}
+            accountConnected={Boolean(session.accessToken)}
+            approvalGated={approvalGated}
+            onCreate={() => openComposer()}
+            onWorkflows={() => setActive('Workflow Hub')}
+          />
+        )}
+        {active === 'Workflow Hub' && <BusinessWorkflowHub onStart={openComposer} />}
+        {active === 'Command Center' && <CommandCenter onCreateMailing={() => openComposer()} scheduledCount={scheduled.length} approvalCount={sessionApprovals} />}
+        {active === 'Schedule' && <SchedulePage scheduled={scheduled} onCreate={() => openComposer()} />}
+        {active === 'Correspondence' && <Correspondence scheduled={scheduled} />}
+        {active === 'Contacts' && <FoundationPage eyebrow="Contacts" title="Keep recipients attached to the business record." description="The shared workspace is ready for owner-scoped contacts, addresses, identifiers, and correspondence history. No sample contacts are displayed before persistent contact storage is connected." />}
+        {active === 'Templates' && <FoundationPage eyebrow="Templates" title="Reusable language, governed by workflow." description="Templates can become approved building blocks for repeat correspondence. This surface intentionally does not show invented templates before persistent template storage is connected." />}
+        {active === 'Automation' && <Automation onBrowse={() => setActive('Workflow Hub')} />}
+        {active === 'Proof Archive' && <FoundationPage eyebrow="Proof archive" title="Keep what was sent with the available delivery record." description="Completed mailing records can retain document identity, carrier status, and available proof. This surface remains empty until real owner-scoped proof records are connected." />}
+      </WorkspaceShell>
+
+      {showComposer && <Composer initialWorkflow={composerWorkflow} onClose={() => setShowComposer(false)} onCreate={createMailing} />}
+    </>
+  )
 }
-function Overview({onCreate,scheduled,onWorkflows}:{onCreate:()=>void;scheduled:Scheduled[];onWorkflows:()=>void}){return <><div className="header-row"><div><div className="eyebrow">Business correspondence OS</div><h1 className="serif">Everything important,<br/>sent on time.</h1><div className="subtitle">Create, schedule, track, and permanently prove the documents your business sends. MailMyPDF handles the physical mailing so your team can focus on the work.</div></div><button className="primary" onClick={onCreate}><Plus size={15}/>Create mailing</button></div><div className="deadline"><div><div className="label">Next scheduled mailing</div><strong>{scheduled[0]?.title??'Nothing scheduled'} · {scheduled[0]?.recipient??''}</strong></div><div className="deadline-right"><div className="label">{scheduled[0]?.at??'Create your first mailing'}</div><strong>{scheduled.length?'Upcoming':'Ready'}</strong></div></div><div className="stat-grid"><div className="stat"><div className="stat-value">{scheduled.length}</div><div className="stat-label">Scheduled mailings</div></div><div className="stat"><div className="stat-value">8</div><div className="stat-label">Awaiting approval</div></div><div className="stat"><div className="stat-value">37</div><div className="stat-label">In transit</div></div><div className="stat"><div className="stat-value">214</div><div className="stat-label">Delivered</div></div></div><div className="grid"><Queue scheduled={scheduled}/><Calendar/></div><div className="grid lower"><div className="card next"><div className="card-head"><div><div className="card-kicker">Next best action</div><div className="card-title">8 mailings need approval</div></div><Clock3 size={16}/></div><div className="card-body"><div className="item-title">Contract renewal · North Coast HVAC</div><div className="item-meta">Certified Mail · 3 pages · scheduled Aug 21</div><div className="action-row"><button className="primary">Review approvals</button><button className="secondary" onClick={onWorkflows}>Browse workflows</button></div></div></div><Activity/></div></>}
-function WorkflowCatalog({onClose}:{onClose:()=>void}){const[workflow,setWorkflow]=React.useState<SmallBusinessWorkflowId>('payment-demand');const[selected,setSelected]=React.useState(false);const current=SMALL_BUSINESS_WORKFLOWS.find(w=>w.id===workflow)!;const plan=selected?planWorkflowExecution({workflowId:workflow,recipientId:'demo-recipient',documentId:'demo-document',evidenceCount:current.risk==='LOW'?0:1}):null;return <div className="overlay"><div className="composer" style={{maxWidth:760}}><div className="composer-head"><div><div className="eyebrow">Workflow factory</div><h2 className="serif">Business workflows, governed by default.</h2></div><button className="icon-btn" onClick={onClose}><X size={17}/></button></div><div className="workflow-list">{SMALL_BUSINESS_WORKFLOWS.map(w=><button key={w.id} className={workflow===w.id?'workflow-choice active':'workflow-choice'} onClick={()=>{setWorkflow(w.id);setSelected(false)}}><div><strong>{w.name}</strong><span>{w.description}</span></div><span className="badge">{w.risk}</span></button>)}</div><div className="composer-preview"><span>Execution policy</span><strong>{current.requiresApproval||current.risk==='HIGH'||current.risk==='CRITICAL'?'Approval required':'Ready when inputs are complete'}</strong><small>{current.actions.length} governed actions · {current.defaultMailClass} mail</small></div>{plan&&<div className="composer-preview"><span>Dry-run result</span><strong>{plan.status}</strong><small>{plan.reasons.length?plan.reasons.join(' · '):'All policy requirements satisfied.'}</small></div>}<div className="composer-actions"><button className="secondary" onClick={onClose}>Close</button><button className="primary" onClick={()=>setSelected(true)}><ShieldCheck size={15}/>Preview governed run</button></div></div></div>}
-function Queue({scheduled}:{scheduled:Scheduled[]}){return <div className="card"><div className="card-head"><div><div className="card-kicker">Queue</div><div className="card-title">Upcoming correspondence</div></div><button className="secondary">View schedule</button></div><div className="card-body queue">{scheduled.slice(0,5).map(i=><div className="queue-item" key={i.id}><div><div className="item-title">{i.title} · {i.recipient}</div><div className="item-meta">{i.meta} · {i.at}</div></div><span className={`badge ${i.status==='Approval required'?'red':''}`}>{i.status}</span></div>)}</div></div>}
-function Calendar(){return <div className="card"><div className="card-head"><div><div className="card-kicker">This month</div><div className="card-title">Mail calendar</div></div><CalendarDays size={16}/></div><div className="card-body"><div className="calendar">{['M','T','W','T','F','S','S'].map((d,i)=><div className="day-name" key={i}>{d}</div>)}{Array.from({length:35},(_,i)=>{const n=i-3;return <div className={`day ${n<1?'muted':''}`} key={i}><div className="day-num">{n>0?n:''}</div>{[5,8,14,18,21,22,26].includes(n)&&<><div className="dot"/><div className="day-count">{n===18?'4':'1'} mail</div></>}</div>})}</div></div></div>}
-function Activity(){return <div className="card"><div className="card-head"><div><div className="card-kicker">Activity</div><div className="card-title">Recent events</div></div><CheckCircle2 size={16}/></div><div className="card-body timeline">{events.map(([date,title,meta])=><div className="event" key={title}><div className="event-date">{date}</div><div className="event-title">{title}</div><div className="event-meta">{meta}</div></div>)}</div></div>}
-function SchedulePage({scheduled,onCreate}:{scheduled:Scheduled[];onCreate:()=>void}){return <><PageHeader eyebrow="Schedule" title="Put correspondence on autopilot." description="One-time, recurring, and approval-gated mailings live here." action={onCreate}/><div className="schedule-grid">{scheduled.map(i=><div className="schedule-card" key={i.id}><div className="schedule-date"><span>{i.at.split(' · ')[0]}</span><strong>{i.at.split(' · ')[1]??''}</strong></div><div><div className="item-title">{i.title}</div><div className="item-meta">{i.recipient} · {i.meta}</div></div><span className={`badge ${i.status==='Approval required'?'red':''}`}>{i.status}</span></div>)}</div></>}
-function Correspondence({scheduled}:{scheduled:Scheduled[]}){return <><PageHeader eyebrow="Correspondence" title="Every letter in one operational view." description="Draft, scheduled, mailed, delivered, and archived correspondence."/><div className="table-card"><div className="table-head"><span>Document</span><span>Recipient</span><span>Status</span><span>Scheduled</span></div>{scheduled.map(i=><div className="table-row" key={i.id}><strong>{i.title}</strong><span>{i.recipient}</span><span><span className="badge">{i.status}</span></span><span>{i.at}</span></div>)}</div></>}
-function Automation({onBrowse}:{onBrowse:()=>void}){return <><PageHeader eyebrow="Automation" title="Turn business events into mail." description="Build sequences such as overdue invoice → reminder → demand → certified notice."/><div className="automation-card"><div className="automation-step"><span>WHEN</span><strong>Invoice becomes 14 days overdue</strong></div><div className="automation-arrow">→</div><div className="automation-step"><span>THEN</span><strong>Generate payment reminder</strong></div><div className="automation-arrow">→</div><div className="automation-step"><span>REQUIRE</span><strong>Owner approval</strong></div><div className="automation-arrow">→</div><div className="automation-step"><span>SEND</span><strong>Certified Mail</strong></div></div><button className="primary" onClick={onBrowse}>Browse governed workflows</button></>}
-function SimplePage({eyebrow,title,description}:{eyebrow:string;title:string;description:string}){return <><PageHeader eyebrow={eyebrow} title={title} description={description}/><div className="empty-feature"><FileText size={22}/><div><strong>Foundation ready</strong><p>This workspace is connected to the same vendor-neutral document, mailing, tracking, and proof concepts used by MailMyPDF.</p></div></div></>}
-function PageHeader({eyebrow,title,description,action}:{eyebrow:string;title:string;description:string;action?:()=>void}){return <div className="page-header"><div><div className="eyebrow">{eyebrow}</div><h2 className="serif">{title}</h2><p>{description}</p></div>{action&&<button className="primary" onClick={action}><Plus size={15}/>Create mailing</button>}</div>}
-function Composer({onClose,onCreate}:{onClose:()=>void;onCreate:(input:{title:string;recipient:string;date:string;time:string;mailClass:MailClass;workflowId:SmallBusinessWorkflowId;draftContent:string})=>void}){const[title,setTitle]=React.useState('Payment reminder');const[recipient,setRecipient]=React.useState('');const[date,setDate]=React.useState('2026-08-18');const[time,setTime]=React.useState('09:00');const[mailClass,setMailClass]=React.useState<MailClass>('standard');const[repeat,setRepeat]=React.useState(false);const[workflowId,setWorkflowId]=React.useState<SmallBusinessWorkflowId>('payment-reminder');const[body,setBody]=React.useState('');const workflow=SMALL_BUSINESS_WORKFLOWS.find(w=>w.id===workflowId)!;const preview=nextOccurrence({type:repeat?'recurring':'date',at:`${date}T${time}:00`,rrule:repeat?'FREQ=MONTHLY;BYMONTHDAY=1':undefined,timezone:'America/Los_Angeles'},new Date('2026-08-14T12:00:00-07:00'));return <div className="overlay"><div className="composer"><div className="composer-head"><div><div className="eyebrow">New mailing</div><h2 className="serif">Schedule correspondence.</h2></div><button className="icon-btn" onClick={onClose}><X size={17}/></button></div><label>Workflow<select value={workflowId} onChange={e=>{const id=e.target.value as SmallBusinessWorkflowId;setWorkflowId(id);const w=SMALL_BUSINESS_WORKFLOWS.find(x=>x.id===id)!;setMailClass(w.defaultMailClass);setTitle(w.name)}}>{SMALL_BUSINESS_WORKFLOWS.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label><label>What are you sending?<input value={title} onChange={e=>setTitle(e.target.value)}/></label><label>Recipient<input value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="Company or contact name"/></label><label>Document content<textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Draft the letter that will be sent after payment and any required approval." rows={5}/></label><div className="form-grid"><label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Time<input type="time" value={time} onChange={e=>setTime(e.target.value)}/></label></div><label>Mail class<select value={mailClass} onChange={e=>setMailClass(e.target.value as MailClass)}><option value="standard">Standard</option><option value="certified">Certified</option><option value="registered">Registered</option></select></label><label className="check"><input type="checkbox" checked={repeat} onChange={e=>setRepeat(e.target.checked)}/> Repeat monthly</label><div className="composer-preview"><span>Execution policy</span><strong>{workflow.requiresApproval||workflow.risk==='HIGH'||workflow.risk==='CRITICAL'?'Approval required after payment':'Ready after payment'}</strong><small>{workflow.actions.length} governed actions · {workflow.defaultMailClass} default</small></div><div className="composer-preview"><span>Next run</span><strong>{preview?preview.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—'}</strong><small>Payment is verified server-side before execution.</small></div><div className="composer-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!recipient.trim()||!body.trim()} onClick={()=>onCreate({title,recipient,date,time,mailClass,workflowId,draftContent:body})}>Continue to secure checkout</button></div></div></div>}
+
+function Overview({
+  scheduled,
+  approvalCount,
+  accountConnected,
+  approvalGated,
+  onCreate,
+  onWorkflows,
+}: {
+  scheduled: Scheduled[]
+  approvalCount: number
+  accountConnected: boolean
+  approvalGated: number
+  onCreate: () => void
+  onWorkflows: () => void
+}) {
+  return (
+    <>
+      <WorkspacePageHeader
+        eyebrow="Business correspondence workspace"
+        title="Everything important, prepared and sent through one controlled system."
+        description="MailMyPDF Business adds repeatable scheduling, approval, and automation around the same document, mailing, tracking, and proof boundaries used by the rest of MailMyPDF. Operational counts below come only from this browser session until persistent business storage is connected."
+        actions={<button className="mmp-button-primary" onClick={onCreate}><Plus size={15} /> Create mailing</button>}
+        meta={<><span>{SMALL_BUSINESS_WORKFLOWS.length} governed workflows available</span><span>{approvalGated} require approval by current workflow policy</span></>}
+      />
+
+      <WorkspaceMetrics metrics={[
+        { label: 'Available workflows', value: SMALL_BUSINESS_WORKFLOWS.length, detail: 'Current real catalog' },
+        { label: 'Approval-gated workflows', value: approvalGated, detail: 'Derived from workflow definitions' },
+        { label: 'Session mailings', value: scheduled.length, detail: 'Not presented as persisted history' },
+        { label: 'Account', value: accountConnected ? 'Connected' : 'Sign in', detail: accountConnected ? 'Bearer session detected' : 'Required before checkout' },
+      ]} />
+
+      <section className="mmp-workspace-section">
+        <div className="mmp-workspace-section__head"><h2>Next best action</h2></div>
+        <div className="mmp-workspace-panel" style={{ padding: '1.35rem' }}>
+          {approvalCount > 0 ? (
+            <><div className="mmp-eyebrow">Approval required</div><h3 style={{ margin: '.55rem 0 0', fontFamily: 'var(--mmp-font-display)', fontSize: '1.7rem', fontWeight: 400 }}>{approvalCount} session mailing{approvalCount === 1 ? '' : 's'} require approval.</h3><p style={{ color: 'var(--mmp-ink-muted)', lineHeight: 1.6 }}>Approval requirements come from the selected workflow definition. Payment and any required human approval remain separate from drafting.</p></>
+          ) : (
+            <><div className="mmp-eyebrow">Ready to begin</div><h3 style={{ margin: '.55rem 0 0', fontFamily: 'var(--mmp-font-display)', fontSize: '1.7rem', fontWeight: 400 }}>Choose the business event that needs correspondence.</h3><p style={{ color: 'var(--mmp-ink-muted)', lineHeight: 1.6 }}>Start from a payment reminder, demand, renewal, compliance notice, or customer dispute response. The workflow determines its trigger, actions, approval policy, and default mail class.</p><div style={{ display: 'flex', gap: '.65rem', flexWrap: 'wrap', marginTop: '1rem' }}><button className="mmp-button-primary" onClick={onWorkflows}>Open Workflow Hub</button><button className="mmp-button-secondary" onClick={onCreate}>Create a mailing</button></div></>
+          )}
+        </div>
+      </section>
+
+      <section className="mmp-workspace-section">
+        <div className="mmp-workspace-section__head"><h2>Session correspondence</h2><span style={{ color: 'var(--mmp-ink-muted)', fontSize: '.75rem' }}>Current browser session only</span></div>
+        {scheduled.length === 0 ? (
+          <div className="mmp-workspace-panel mmp-workspace-empty"><h3>No session mailings yet</h3><p>The old prototype populated this area with invented companies, dates, approval counts, tracking states, and delivery history. Those fixtures have been removed.</p></div>
+        ) : (
+          <SessionList scheduled={scheduled} />
+        )}
+      </section>
+    </>
+  )
+}
+
+function BusinessWorkflowHub({ onStart }: { onStart: (workflowId: SmallBusinessWorkflowId) => void }) {
+  return (
+    <>
+      <WorkspacePageHeader
+        eyebrow="Workflow Hub"
+        title="Business workflows governed by trigger, risk, approval, and mail policy."
+        description="The current catalog is deliberately small and real. Each workflow definition declares its trigger, governed actions, approval requirement, risk, and default mail class."
+      />
+      <WorkflowHub
+        title="Choose a workflow"
+        description="These five workflows are the executable catalog currently defined in the Small Business domain layer."
+        items={SMALL_BUSINESS_WORKFLOWS.map(workflow => ({
+          title: workflow.name,
+          description: workflow.description,
+          href: `#${workflow.id}`,
+          eyebrow: workflow.trigger.type === 'event' ? 'Event triggered' : 'Condition triggered',
+          badge: workflow.risk,
+          meta: `${workflow.actions.length} governed actions · ${workflow.defaultMailClass} mail · ${workflow.requiresApproval ? 'approval required' : 'workflow policy applies'}`,
+          icon: <Workflow />,
+        }))}
+        renderLink={(item, className, children) => {
+          const workflow = SMALL_BUSINESS_WORKFLOWS.find(candidate => `#${candidate.id}` === item.href)
+          return <button key={item.href} type="button" className={className} onClick={() => workflow && onStart(workflow.id)}>{children}</button>
+        }}
+      />
+    </>
+  )
+}
+
+function SchedulePage({ scheduled, onCreate }: { scheduled: Scheduled[]; onCreate: () => void }) {
+  return (
+    <>
+      <WorkspacePageHeader eyebrow="Schedule" title="Put correspondence on a deliberate clock." description="One-time and recurring scheduling belongs here once the mailing inputs, workflow policy, payment, and approval requirements are satisfied." actions={<button className="mmp-button-primary" onClick={onCreate}><Plus size={15} /> Create mailing</button>} />
+      {scheduled.length ? <SessionList scheduled={scheduled} /> : <div className="mmp-workspace-panel mmp-workspace-empty"><CalendarDays size={23} style={{ margin: '0 auto', color: 'var(--mmp-accent)' }} /><h3 style={{ marginTop: '1rem' }}>Nothing scheduled in this session</h3><p>Persistent schedules must come from authenticated business storage and the scheduling boundary. No calendar fixtures are generated here.</p></div>}
+    </>
+  )
+}
+
+function Correspondence({ scheduled }: { scheduled: Scheduled[] }) {
+  return (
+    <>
+      <WorkspacePageHeader eyebrow="Correspondence" title="Every business letter should have an accountable state." description="Draft, approval, payment, mailing, tracking, and proof are different states. This view only shows session items created from the real checkout path; persisted correspondence will replace it when storage is connected." />
+      {scheduled.length ? <SessionList scheduled={scheduled} /> : <div className="mmp-workspace-panel mmp-workspace-empty"><Mail size={23} style={{ margin: '0 auto', color: 'var(--mmp-accent)' }} /><h3 style={{ marginTop: '1rem' }}>No correspondence in this session</h3><p>Use the Workflow Hub or Create Mailing action to begin from a real workflow definition.</p></div>}
+    </>
+  )
+}
+
+function SessionList({ scheduled }: { scheduled: Scheduled[] }) {
+  return (
+    <div className="mmp-workspace-panel mmp-workspace-list">
+      {scheduled.map(item => (
+        <div className="mmp-workspace-row" key={item.id}>
+          <div className="mmp-workspace-row__main"><div className="mmp-workspace-row__title">{item.title} · {item.recipient}</div><div className="mmp-workspace-row__meta">{item.meta} · {item.at} · {item.workflowId}</div></div>
+          <span className="mmp-workflow-hub-card__badge">{item.status}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Automation({ onBrowse }: { onBrowse: () => void }) {
+  return (
+    <>
+      <WorkspacePageHeader eyebrow="Automation" title="Turn real business events into reviewable correspondence." description="The workflow layer already declares event and condition triggers. Production automation should resolve real business data, validate policy, request approval when required, then pass paid work to the mailing boundary." actions={<button className="mmp-button-secondary" onClick={onBrowse}>Browse governed workflows</button>} />
+      <div className="mmp-workspace-panel" style={{ padding: '1.4rem' }}>
+        <div className="mmp-process-grid">
+          {[
+            ['1', 'Trigger', 'A real business event or condition becomes true.'],
+            ['2', 'Prepare', 'Generate the correspondence from verified business inputs.'],
+            ['3', 'Validate', 'Check recipient, document, schedule, workflow policy, and required evidence.'],
+            ['4', 'Approve', 'Stop for human approval whenever the workflow requires it.'],
+            ['5', 'Send & prove', 'After payment and approval, execute mailing and retain available tracking and proof.'],
+          ].map(([number, title, description]) => <div className="mmp-process-step" key={number}><div className="mmp-process-step__number">{number}</div><h3>{title}</h3><p>{description}</p></div>)}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function FoundationPage({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+  return <><WorkspacePageHeader eyebrow={eyebrow} title={title} description={description} /><div className="mmp-workspace-panel mmp-workspace-empty"><Archive size={22} style={{ margin: '0 auto', color: 'var(--mmp-accent)' }} /><h3 style={{ marginTop: '1rem' }}>Shared workspace foundation ready</h3><p>Connect the owner-scoped repository for this surface before displaying operational records.</p></div></>
+}
+
+function WorkflowPolicyPreview({ workflowId }: { workflowId: SmallBusinessWorkflowId }) {
+  const [planned, setPlanned] = React.useState(false)
+  const workflow = SMALL_BUSINESS_WORKFLOWS.find(item => item.id === workflowId)!
+  const plan = planned ? planWorkflowExecution({ workflowId, recipientId: 'preview-recipient', documentId: 'preview-document', evidenceCount: workflow.risk === 'LOW' ? 0 : 1 }) : null
+
+  return (
+    <div className="composer-preview">
+      <span>Execution policy</span>
+      <strong>{workflow.requiresApproval || workflow.risk === 'HIGH' || workflow.risk === 'CRITICAL' ? 'Approval required' : 'Ready when inputs are complete'}</strong>
+      <small>{workflow.actions.length} governed actions · {workflow.defaultMailClass} default mail</small>
+      <button className="secondary" type="button" style={{ marginTop: 10 }} onClick={() => setPlanned(true)}><ShieldCheck size={14}/> Preview policy check</button>
+      {plan && <small style={{ marginTop: 8 }}>{plan.status}: {plan.reasons.length ? plan.reasons.join(' · ') : 'Current preview inputs satisfy the workflow policy.'}</small>}
+    </div>
+  )
+}
+
+function Composer({
+  initialWorkflow,
+  onClose,
+  onCreate,
+}: {
+  initialWorkflow: SmallBusinessWorkflowId
+  onClose: () => void
+  onCreate: (input: { title: string; recipient: string; date: string; time: string; mailClass: MailClass; workflowId: SmallBusinessWorkflowId; draftContent: string }) => void
+}) {
+  const initial = SMALL_BUSINESS_WORKFLOWS.find(workflow => workflow.id === initialWorkflow) ?? SMALL_BUSINESS_WORKFLOWS[0]
+  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+  const [title, setTitle] = React.useState(initial.name)
+  const [recipient, setRecipient] = React.useState('')
+  const [date, setDate] = React.useState(tomorrow)
+  const [time, setTime] = React.useState('09:00')
+  const [mailClass, setMailClass] = React.useState<MailClass>(initial.defaultMailClass)
+  const [repeat, setRepeat] = React.useState(false)
+  const [workflowId, setWorkflowId] = React.useState<SmallBusinessWorkflowId>(initial.id)
+  const [body, setBody] = React.useState('')
+  const workflow = SMALL_BUSINESS_WORKFLOWS.find(item => item.id === workflowId)!
+  const preview = nextOccurrence({ type: repeat ? 'recurring' : 'date', at: `${date}T${time}:00`, rrule: repeat ? 'FREQ=MONTHLY;BYMONTHDAY=1' : undefined, timezone: 'America/Los_Angeles' }, new Date())
+
+  return (
+    <div className="overlay">
+      <div className="composer">
+        <div className="composer-head"><div><div className="eyebrow">New mailing</div><h2 className="serif">Schedule correspondence.</h2></div><button className="icon-btn" onClick={onClose}><X size={17}/></button></div>
+        <label>Workflow<select value={workflowId} onChange={event => { const id = event.target.value as SmallBusinessWorkflowId; const next = SMALL_BUSINESS_WORKFLOWS.find(item => item.id === id)!; setWorkflowId(id); setMailClass(next.defaultMailClass); setTitle(next.name) }}>{SMALL_BUSINESS_WORKFLOWS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label>What are you sending?<input value={title} onChange={event => setTitle(event.target.value)} /></label>
+        <label>Recipient<input value={recipient} onChange={event => setRecipient(event.target.value)} placeholder="Company or contact name" /></label>
+        <label>Document content<textarea value={body} onChange={event => setBody(event.target.value)} placeholder="Draft the letter that will be sent after payment and any required approval." rows={5} /></label>
+        <div className="form-grid"><label>Date<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label><label>Time<input type="time" value={time} onChange={event => setTime(event.target.value)} /></label></div>
+        <label>Mail class<select value={mailClass} onChange={event => setMailClass(event.target.value as MailClass)}><option value="standard">Standard</option><option value="certified">Certified</option><option value="registered">Registered</option></select></label>
+        <label className="check"><input type="checkbox" checked={repeat} onChange={event => setRepeat(event.target.checked)} /> Repeat monthly</label>
+        <WorkflowPolicyPreview workflowId={workflowId} />
+        <div className="composer-preview"><span>Next run</span><strong>{preview ? preview.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</strong><small>Checkout is verified server-side before any paid execution is queued.</small></div>
+        <div className="composer-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={!recipient.trim() || !body.trim()} onClick={() => onCreate({ title, recipient, date, time, mailClass, workflowId, draftContent: body })}>Continue to secure checkout</button></div>
+      </div>
+    </div>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(<App />)
