@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProductFamilyPage } from "@/components/product-family-page";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/small-business-mail")({
-  head: () => ({ meta: [{ title: "Small Business Mail | MailMyPDF" }, { name: "robots", content: "noindex,nofollow" }] }),
-  component: () => <ProductFamilyPage product="Small Business Mail" route="/small-business-mail" description="Business correspondence, reminders, demands, and compliance workflows." />,
+  beforeLoad: () => {
+    throw redirect({ href: "/small-business", statusCode: 308 });
+  },
+  component: () => null,
 });
