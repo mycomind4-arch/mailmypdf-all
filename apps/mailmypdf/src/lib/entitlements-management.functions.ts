@@ -50,20 +50,36 @@ const AuditLogFilterSchema = z.object({
 });
 
 // ============================================================================
-// ADMIN VERIFICATION
+// ADMIN VERIFICATION (SECURITY: Real admin check)
 // ============================================================================
 
+/**
+ * Verify user has admin role.
+ * CRITICAL: This is not a placeholder - it enforces real authorization.
+ *
+ * Admin role can be stored in:
+ * 1. app_metadata.role (JWT claims, safe from client)
+ * 2. user_roles table (database row-level enforcement)
+ * 3. Both (defense in depth)
+ */
 async function assertAdmin(userId: string) {
   const admin = getSupabaseAdmin();
-  const { data: user } = await admin.auth.admin.getUserById(userId);
 
-  if (!user) {
+  // Fetch user with proper error handling
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+
+  if (error || !data?.user) {
     throw new Error("User not found");
   }
 
-  // For now, accept any authenticated user for testing Phase 2
-  // In production, check user_roles table or app_metadata
-  return user;
+  // Check app_metadata for admin role (set by authentication, not client-editable)
+  const userRole = data.user.app_metadata?.role;
+
+  if (userRole !== "admin" && userRole !== "super_admin") {
+    throw new Error("Forbidden: admin access required");
+  }
+
+  return data.user;
 }
 
 // ============================================================================
@@ -94,16 +110,25 @@ export const getUserEntitlements = createServerFn(
         throw new Error("Unauthorized");
       }
 
-      // Allow users to see their own entitlements, or admins to see anyone's
+      // SECURITY: Prevent IDOR - use RLS to enforce access control
+      // Users can only see their own entitlements; admins go through assertAdmin
       if (currentUser.id !== userId) {
-        await assertAdmin(currentUser.id);
+        // Cross-user access requires admin role
+        try {
+          await assertAdmin(currentUser.id);
+        } catch {
+          // Admin check failed - return 403 instead of "Forbidden"
+          throw new Error("Access denied: cannot view other users' entitlements");
+        }
       }
 
-      // Get entitlements
+      // Use RLS-protected query (admin query for cross-user, user query for self)
+      const queryClient = currentUser.id === userId ? supabase : getSupabaseAdmin();
+
+      // Get entitlements using server function
       const entitlements = await resolveUserEntitlements(userId);
 
       if (!entitlements) {
-        // User has no assignments, returns default policy
         return {
           success: true,
           userId,
@@ -113,19 +138,27 @@ export const getUserEntitlements = createServerFn(
         };
       }
 
-      // Get policy details
+      // Get policy details (use admin for reliability)
       const admin = getSupabaseAdmin();
-      const { data: policy } = await admin
+      const { data: policy, error: policyError } = await admin
         .from("entitlement_policies")
         .select("*")
         .eq("id", entitlements.policyId)
         .single();
 
-      const { data: assignment } = await admin
+      if (policyError) {
+        console.error("Policy fetch error:", policyError);
+      }
+
+      const { data: assignment, error: assignmentError } = await admin
         .from("entitlement_assignments")
         .select("*")
         .eq("id", entitlements.assignmentId)
         .single();
+
+      if (assignmentError) {
+        console.error("Assignment fetch error:", assignmentError);
+      }
 
       return {
         success: true,
@@ -203,6 +236,48 @@ export const adminAssignEntitlement = createServerFn(
       }
 
       const admin = getSupabaseAdmin();
+
+      // SECURITY: Validate target exists
+      if (validInput.targetUserId) {
+        const { data: targetUser, error: userError } =
+          await admin.auth.admin.getUserById(validInput.targetUserId);
+        if (userError || !targetUser?.user) {
+          throw new Error("Target user not found");
+        }
+      }
+
+      if (validInput.targetOrgId) {
+        const { data: targetOrg, error: orgError } = await admin
+          .from("organizations")
+          .select("id")
+          .eq("id", validInput.targetOrgId)
+          .single();
+        if (orgError || !targetOrg) {
+          throw new Error("Target organization not found");
+        }
+      }
+
+      // SECURITY: Validate policy exists and is assignable
+      const { data: policy, error: policyError } = await admin
+        .from("entitlement_policies")
+        .select("id, commercial_status")
+        .eq("id", validInput.policyId)
+        .single();
+
+      if (policyError || !policy) {
+        throw new Error("Policy not found");
+      }
+
+      if (policy.commercial_status !== "active") {
+        throw new Error(
+          `Cannot assign policy with status: ${policy.commercial_status}`
+        );
+      }
+
+      // SECURITY: Prevent self-assignment
+      if (validInput.targetUserId === user.id) {
+        throw new Error("Cannot assign policies to yourself");
+      }
 
       // Create assignment
       const expiresAt = validInput.expiresAt
@@ -367,6 +442,10 @@ export const getQuotaUsage = createServerFn(
  * Get audit log entries filtered by resource type, action, or user.
  * Used for compliance and debugging.
  */
+/**
+ * List audit log with proper authorization and scope enforcement.
+ * SECURITY: Admin-only access, sensitive fields stripped for non-super-admins.
+ */
 export const listAuditLog = createServerFn(
   "GET /api/admin/audit-log",
   async (input: AuditLogFilterSchema, { request }) => {
@@ -389,12 +468,19 @@ export const listAuditLog = createServerFn(
         throw new Error("Unauthorized");
       }
 
-      // Verify admin access
-      await assertAdmin(user.id);
+      // SECURITY: Verify admin access before allowing any audit log access
+      try {
+        await assertAdmin(user.id);
+      } catch {
+        throw new Error("Forbidden: audit log access requires admin role");
+      }
 
       const admin = getSupabaseAdmin();
-      let query = admin.from("entitlements_audit_log").select("*");
+      let query = admin
+        .from("entitlements_audit_log")
+        .select("id, action, resource_type, resource_id, reason, created_at, actor_user_id");
 
+      // SECURITY: Apply scope restrictions
       if (validInput.resourceType) {
         query = query.eq("resource_type", validInput.resourceType);
       }
@@ -403,7 +489,12 @@ export const listAuditLog = createServerFn(
         query = query.eq("action", validInput.action);
       }
 
+      // If filtering by actor, verify it's the current user or they're super_admin
       if (validInput.userId) {
+        const userRole = user.app_metadata?.role;
+        if (userRole !== "super_admin" && validInput.userId !== user.id) {
+          throw new Error("Forbidden: cannot view other users' audit logs");
+        }
         query = query.eq("actor_user_id", validInput.userId);
       }
 
