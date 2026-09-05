@@ -55,7 +55,11 @@ print("✅ Cron triggers added: proof-processor every 5 minutes")
 PYEOF
 
 echo "🚀 Deploying to Cloudflare Workers..."
-CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID npx wrangler deploy --config wrangler.json
+if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+  CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" npx wrangler deploy --config wrangler.json
+else
+  npx wrangler deploy --config wrangler.json
+fi
 
 echo ""
 echo "✅ Deployed! Cron: */5 * * * * → /api/internal/proof-processor"
