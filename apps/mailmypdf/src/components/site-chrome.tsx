@@ -32,7 +32,6 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <SecurityTrustBand />
         <div className="grid gap-8 sm:gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
-          {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5">
               <Logo />
@@ -44,7 +43,6 @@ export function SiteFooter() {
             </p>
           </div>
 
-          {/* Popular */}
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Popular</div>
             <ul className="mt-3 space-y-2 text-sm">
@@ -58,25 +56,27 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* Products */}
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Products</div>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link to="/products" className="text-ink-soft transition-colors hover:text-foreground">All Products</Link></li>
-              <li><Link to="/ecosystem" className="text-ink-soft transition-colors hover:text-foreground">Ecosystem</Link></li>
+              <li><Link to="/ecosystem" className="text-ink-soft transition-colors hover:text-foreground">All Workflows</Link></li>
               <li><Link to="/appeal-reply" className="text-ink-soft transition-colors hover:text-foreground">Appeal Mail</Link></li>
               <li><Link to="/notice-response" className="text-ink-soft transition-colors hover:text-foreground">Notice Respond</Link></li>
               <li><Link to="/dispute-mail" className="text-ink-soft transition-colors hover:text-foreground">Dispute Mail</Link></li>
               <li><Link to="/immigration" className="text-ink-soft transition-colors hover:text-foreground">Immigration Mail</Link></li>
+              <li><Link to="/records-request" className="text-ink-soft transition-colors hover:text-foreground">Records Request</Link></li>
               <li><Link to="/private-office" className="text-ink-soft transition-colors hover:text-foreground">Private Office</Link></li>
+              <li><Link to="/small-business-mail" className="text-ink-soft transition-colors hover:text-foreground">Small Business Mail</Link></li>
             </ul>
           </div>
 
-          {/* Mailing */}
           <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Mailing</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Trust & Mailing</div>
             <ul className="mt-3 space-y-2 text-sm">
+              <li><Link to="/mail-a-pdf" className="text-ink-soft transition-colors hover:text-foreground">Mail a PDF</Link></li>
               <li><Link to="/certified-mail-guide" className="text-ink-soft transition-colors hover:text-foreground">Certified Mail</Link></li>
+              <li><a href="/#security" className="text-ink-soft transition-colors hover:text-foreground">Security & Trust</a></li>
               <li><Link to="/pro" className="text-ink-soft transition-colors hover:text-foreground">Pricing</Link></li>
               <li><Link to="/how-it-works" className="text-ink-soft transition-colors hover:text-foreground">How It Works</Link></li>
               <li><Link to="/privacy" className="text-ink-soft transition-colors hover:text-foreground">Privacy</Link></li>
@@ -86,9 +86,9 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-rule/40 pt-6 flex flex-col sm:flex-row justify-between gap-4">
+        <div className="mt-10 flex flex-col justify-between gap-4 border-t border-rule/40 pt-6 sm:flex-row">
           <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} MailMyPDF. All rights reserved.</p>
-          <p className="text-xs text-muted-foreground">A MailMyPDF product.</p>
+          <p className="font-serif text-sm italic text-ink-soft">Documents move people forward.</p>
         </div>
       </div>
     </footer>
