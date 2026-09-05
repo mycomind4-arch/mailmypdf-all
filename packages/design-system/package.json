@@ -11,12 +11,14 @@
       "import": "./dist/index.js"
     },
     "./tokens.css": "./src/tokens.css",
-    "./patterns.css": "./src/patterns.css"
+    "./patterns.css": "./src/patterns.css",
+    "./workspace.css": "./src/workspace.css"
   },
   "files": [
     "dist",
     "src/tokens.css",
-    "src/patterns.css"
+    "src/patterns.css",
+    "src/workspace.css"
   ],
   "scripts": {
     "build": "tsc",
