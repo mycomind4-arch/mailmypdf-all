@@ -46,9 +46,28 @@ jobs:
       - name: Typecheck design system
         run: pnpm --filter @mailmypdf/design-system typecheck
 
+  authority-gate:
+    name: Workflow SEO Authority Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Reject thin or unverified indexable workflow pages
+        run: pnpm --filter ./apps/mailmypdf seo:authority:validate
+
   build-core:
     name: Build mailmypdf core
     runs-on: ubuntu-latest
+    needs: authority-gate
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
