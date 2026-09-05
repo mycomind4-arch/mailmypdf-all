@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import "../../../../../packages/design-system/src/tokens.css";
+import "../../../../../packages/design-system/src/patterns.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -33,7 +35,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="en"><head><HeadContent /></head><body>{children}<Scripts /></body></html>;
+  return <html lang="en"><head><HeadContent /></head><body data-mmp-theme="notice-respond">{children}<Scripts /></body></html>;
 }
 
 function RootComponent() {
