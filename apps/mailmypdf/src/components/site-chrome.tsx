@@ -4,7 +4,7 @@
  * SiteHeader comes from the shared ecosystem shell.
  * SiteFooter remains here (it has mailmypdf-specific content).
  */
-import { EcosystemShell } from "./ecosystem-shell";
+import { EcosystemShell, ECOSYSTEM_PRODUCTS } from "./ecosystem-shell";
 import { useShellConfig } from "./ecosystem-shell-config";
 import { Link } from "@tanstack/react-router";
 import { FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
@@ -31,7 +31,7 @@ export function SiteFooter() {
     <footer className="border-t border-rule/60">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <SecurityTrustBand />
-        <div className="grid gap-8 sm:gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="grid gap-8 sm:gap-10 md:grid-cols-[1.5fr_1fr_1.25fr_1fr]">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5">
               <Logo />
@@ -58,16 +58,14 @@ export function SiteFooter() {
 
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Products</div>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li><Link to="/products" className="text-ink-soft transition-colors hover:text-foreground">All Products</Link></li>
-              <li><Link to="/ecosystem" className="text-ink-soft transition-colors hover:text-foreground">All Workflows</Link></li>
-              <li><Link to="/appeal-reply" className="text-ink-soft transition-colors hover:text-foreground">Appeal Mail</Link></li>
-              <li><Link to="/notice-response" className="text-ink-soft transition-colors hover:text-foreground">Notice Respond</Link></li>
-              <li><Link to="/dispute-mail" className="text-ink-soft transition-colors hover:text-foreground">Dispute Mail</Link></li>
-              <li><Link to="/immigration" className="text-ink-soft transition-colors hover:text-foreground">Immigration Mail</Link></li>
-              <li><Link to="/records-request" className="text-ink-soft transition-colors hover:text-foreground">Records Request</Link></li>
-              <li><Link to="/private-office" className="text-ink-soft transition-colors hover:text-foreground">Private Office</Link></li>
-              <li><Link to="/small-business-mail" className="text-ink-soft transition-colors hover:text-foreground">Small Business Mail</Link></li>
+            <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2 md:grid-cols-1">
+              <li><Link to="/products" className="font-medium text-ink-soft transition-colors hover:text-foreground">All Products</Link></li>
+              <li><Link to="/ecosystem" className="font-medium text-ink-soft transition-colors hover:text-foreground">All Workflows</Link></li>
+              {ECOSYSTEM_PRODUCTS.filter((product) => product.slug !== "mailmypdf").map((product) => (
+                <li key={product.slug}>
+                  <a href={product.href} className="text-ink-soft transition-colors hover:text-foreground">{product.name}</a>
+                </li>
+              ))}
             </ul>
           </div>
 
