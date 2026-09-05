@@ -3,6 +3,7 @@ import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext, useLoca
 import type { ReactNode } from "react";
 import "../../../../../packages/design-system/src/tokens.css";
 import "../../../../../packages/design-system/src/patterns.css";
+import "../../../../../packages/design-system/src/workspace.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
