@@ -2,19 +2,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ProductPlaceholderPage } from "@/components/product-placeholder-page";
 import { WorkflowAuthorityPage } from "@/components/workflow-authority-page";
 import { WorkflowAuthorityRichPage } from "@/components/workflow-authority-rich-page";
+import {
+  PublicVerticalLandingPage,
+  PublicVerticalWorkflowDirectoryPage,
+  publicVerticalHead,
+} from "@/components/public-vertical-page";
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry";
+import { publicVerticalByPath } from "@/lib/public-verticals";
 
 const PRODUCT_FAMILIES: Record<string, { product: string; title: string; description: string }> = {
   appeal: { product: "Appeal Mail", title: "Appeal workflow", description: "Prepare a documented appeal with the MailMyPDF workflow engine." },
+  "appeal-mail": { product: "Appeal Mail", title: "Appeal workflow", description: "Prepare a documented appeal with the MailMyPDF workflow engine." },
   notice: { product: "Notice Respond", title: "Notice response workflow", description: "Organize a notice, understand its requirements, prepare a response, and preserve the mailing record." },
+  "notice-respond": { product: "Notice Respond", title: "Notice response workflow", description: "Organize a notice, understand its requirements, prepare a response, and preserve the mailing record." },
   immigration: { product: "Immigration Mail", title: "Immigration correspondence workflow", description: "Prepare immigration-related correspondence and supporting documents with source-grounded review." },
+  "immigration-mail": { product: "Immigration Mail", title: "Immigration correspondence workflow", description: "Prepare immigration-related correspondence and supporting documents with source-grounded review." },
   dispute: { product: "Dispute Mail", title: "Dispute workflow", description: "Build an evidence-backed dispute, review it, and preserve what you sent." },
-  business: { product: "Small Business Mail", title: "Business correspondence workflow", description: "Prepare business correspondence with approval and recordkeeping controls." },
+  "dispute-mail": { product: "Dispute Mail", title: "Dispute workflow", description: "Build an evidence-backed dispute, review it, and preserve what you sent." },
+  business: { product: "Small Business", title: "Business correspondence workflow", description: "Prepare business correspondence with approval and recordkeeping controls." },
+  "small-business": { product: "Small Business", title: "Business correspondence workflow", description: "Prepare business correspondence with approval and recordkeeping controls." },
   records: { product: "Records Requests", title: "Records request workflow", description: "Prepare a focused records or information request with recipient, scope, and proof handling." },
+  "records-request": { product: "Records Requests", title: "Records request workflow", description: "Prepare a focused records or information request with recipient, scope, and proof handling." },
   tenant: { product: "Tenant Reply", title: "Tenant response workflow", description: "Prepare a documented housing or tenant-related response." },
+  "tenant-reply": { product: "Tenant Reply", title: "Tenant response workflow", description: "Prepare a documented housing or tenant-related response." },
   permit: { product: "Permit Reply", title: "Permit response workflow", description: "Prepare a permit, licensing, or regulatory response with requirement-aware review." },
+  "permit-reply": { product: "Permit Reply", title: "Permit response workflow", description: "Prepare a permit, licensing, or regulatory response with requirement-aware review." },
   benefits: { product: "Benefits Appeal", title: "Benefits appeal workflow", description: "Prepare a benefits-related appeal using source documents, evidence, deadlines, and review." },
+  "benefits-appeal": { product: "Benefits Appeal", title: "Benefits appeal workflow", description: "Prepare a benefits-related appeal using source documents, evidence, deadlines, and review." },
   claim: { product: "Claim Proof", title: "Claim proof workflow", description: "Organize claim evidence and preserve a traceable proof package." },
+  "claim-proof": { product: "Claim Proof", title: "Claim proof workflow", description: "Organize claim evidence and preserve a traceable proof package." },
   "code-enforcement": { product: "Code Enforcement", title: "Code enforcement workflow", description: "Understand and respond to code enforcement notices, inspections, evidence requests, and follow-up actions." },
   insurance: { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
   "insurance-claims": { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
@@ -92,6 +108,9 @@ export const Route = createFileRoute("/$")({
   component: ReservedPublicRoute,
   head: ({ params }) => {
     const path = normalizePath(params._splat);
+    const vertical = publicVerticalByPath(path);
+    if (vertical) return publicVerticalHead(vertical.config.id, vertical.kind);
+
     const authorityHead = workflowHead(path);
     if (authorityHead) return authorityHead;
 
@@ -109,6 +128,16 @@ export const Route = createFileRoute("/$")({
 function ReservedPublicRoute() {
   const { _splat } = Route.useParams();
   const path = normalizePath(_splat);
+  const vertical = publicVerticalByPath(path);
+
+  if (vertical?.kind === "landing") {
+    return <PublicVerticalLandingPage id={vertical.config.id} />;
+  }
+
+  if (vertical?.kind === "directory") {
+    return <PublicVerticalWorkflowDirectoryPage id={vertical.config.id} />;
+  }
+
   const workflowPage = workflowAuthorityForPath(path);
 
   if (workflowPage?.authority) {
