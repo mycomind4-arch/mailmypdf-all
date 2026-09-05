@@ -1,7 +1,7 @@
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, Link, useLocation } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider, useAuth } from '@/src/lib/auth'
+import { AuthProvider, useAuth } from '@/lib/auth'
 import '../../../../../packages/design-system/src/tokens.css'
 import '../../../../../packages/design-system/src/patterns.css'
 import '../styles.css'
