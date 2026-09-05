@@ -5,9 +5,16 @@ import '../../../../packages/design-system/src/patterns.css'
 import { PublicLanding } from './PublicLanding'
 
 const params = new URLSearchParams(window.location.search)
-const workspaceMode = params.get('workspace') === '1' || (params.get('checkout') === 'success' && Boolean(params.get('session_id')))
+const returningFromCheckout = params.get('checkout') === 'success' && Boolean(params.get('session_id'))
+const workspaceMode = params.get('workspace') === '1' || returningFromCheckout
 
 document.body.dataset.mmpTheme = 'small-business'
+
+if (returningFromCheckout) {
+  const current = new URL(window.location.href)
+  current.searchParams.set('workspace', '1')
+  window.history.replaceState({}, '', current.toString())
+}
 
 if (workspaceMode) {
   void Promise.all([import('./ui/ux-overrides.css'), import('./main')])
