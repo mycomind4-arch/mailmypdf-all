@@ -3,7 +3,7 @@ import { ArrowRight, Eye, FileText, Mail, ShieldCheck } from 'lucide-react'
 import { createElement } from 'react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
-import { WORKFLOWS } from '@/domain/benefits-workflows'
+import { workflows } from '@/domain/workflows'
 import { createTrustStrip, createVerticalHero } from '../../../../../packages/design-system/src/index'
 
 const VerticalHero = createVerticalHero(createElement)
@@ -12,7 +12,7 @@ const SharedTrustStrip = createTrustStrip(createElement)
 export const Route = createFileRoute('/')({ component: HomePage })
 
 function HomePage() {
-  const featured = WORKFLOWS.slice(0, 6)
+  const featured = Object.values(workflows).slice(0, 6)
 
   return <main>
     <SiteHeader />
@@ -46,8 +46,8 @@ function HomePage() {
         <p className='muted' style={{ maxWidth: 720, lineHeight: 1.7, marginTop: 16 }}>Benefits Appeal keeps public workflow discovery open while protecting the private intake, uploaded documents, analysis, drafts, and mailing record behind your MailMyPDF account.</p>
         <div className='grid-workflows' style={{ marginTop: 28 }}>
           {featured.map(w => <Link key={w.id} className='card' style={{ padding: 22 }} to={`/workflows/${w.id}`}>
-            <div className='badge badge-family'>{w.family}</div>
-            <h3 style={{ margin: '14px 0 8px', fontFamily: 'var(--mmp-font-display)', fontSize: 25, fontWeight: 400 }}>{w.name}</h3>
+            <div className='badge badge-family'>Benefits Appeal</div>
+            <h3 style={{ margin: '14px 0 8px', fontFamily: 'var(--mmp-font-display)', fontSize: 25, fontWeight: 400 }}>{w.title}</h3>
             <p className='muted' style={{ lineHeight: 1.6 }}>{w.description}</p>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, color: 'var(--mmp-accent)', fontWeight: 700 }}>View workflow <ArrowRight size={14}/></span>
           </Link>)}
