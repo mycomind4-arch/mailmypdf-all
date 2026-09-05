@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createClient } from '@supabase/supabase-js'
-import { callGeminiWithDocument, getAvailableProviders } from '@/src/platform/llm-service'
-import { getBenefitsWorkflowConfig } from '@/src/domain/workflow-engine'
+import { callGeminiWithDocument, getAvailableProviders } from '@/platform/llm-service'
+import { getBenefitsWorkflowConfig } from '@/domain/workflow-engine'
 
 export const Route = createFileRoute('/api/workflows/$slug/analyze')({
   server: {
