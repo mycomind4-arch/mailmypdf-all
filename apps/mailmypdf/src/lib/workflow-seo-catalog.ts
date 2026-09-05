@@ -90,11 +90,11 @@ export type WorkflowSeoCatalogEntry = {
   route: string;
   state: WorkflowPublicationState;
   /**
-   * DRAFT inventory/spec extraction is never equivalent to an authority review.
-   * Promotion requires a deliberate individual workflow review.
+   * Migration-compatible optional fields: the topology gate treats omission as a
+   * build failure for publication. DRAFT inventory records are populated below.
    */
-  reviewStatus: WorkflowAuthorityReviewStatus;
-  provenance: readonly WorkflowSeoProvenance[];
+  reviewStatus?: WorkflowAuthorityReviewStatus;
+  provenance?: readonly WorkflowSeoProvenance[];
   content?: WorkflowSeoAuthorityContent;
   execution?: {
     /** Canonical authenticated execution entry point. */
