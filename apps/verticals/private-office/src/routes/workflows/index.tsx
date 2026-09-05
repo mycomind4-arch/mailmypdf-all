@@ -1,95 +1,55 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ShieldCheck, Building2, Home, Landmark, ScrollText, Scale } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { createElement } from "react";
 import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
-import { workflowImages } from "@/lib/workflow-images";
+import { createWorkflowDirectory } from "../../../../../../packages/design-system/src/index";
 
-export const Route = createFileRoute("/workflows/")({ component: WorkflowDirectory });
+const WorkflowDirectory = createWorkflowDirectory(createElement);
 
-const workflowIcons: Record<string, typeof ShieldCheck> = {
-  "contractor-dispute": Building2,
-  "property-insurance-claim": Home,
-  "bank-wire-dispute": Landmark,
-  "trust-beneficiary-notice": ScrollText,
-  "security-deposit-dispute": Scale,
-};
+export const Route = createFileRoute("/workflows/")({ component: WorkflowDirectoryPage });
 
-function WorkflowDirectory() {
+function WorkflowDirectoryPage() {
+  const items = Object.values(workflows).map((workflow) => {
+    const profile = workflowProfiles[workflow.id];
+    return {
+      id: workflow.id,
+      title: workflow.title,
+      category: profile.family,
+      description: profile.outcome ?? workflow.description,
+      href: `/workflows/${workflow.id}`,
+      badge: workflow.lifecycle === "gold" ? "Gold workflow" : workflow.lifecycle,
+      meta: profile.primaryKeyword,
+      keywords: [profile.primaryKeyword, ...profile.supportingKeywords],
+    };
+  });
+  const families = [...new Set(items.map((item) => item.category))];
+
   return (
     <main className="min-h-screen bg-ivory">
       <PrivateOfficeChrome />
-
-      <section className="border-b border-rule bg-paper">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16">
-          <div className="section-kicker">Private Office / Workflow Library</div>
-          <h1 className="mt-3 text-4xl leading-tight text-charcoal md:text-5xl">
-            Choose the matter.
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone">
-            Each workflow is an executable Gold Standard process with evidence, review, authorization, delivery, and proof built into the same control model.
-          </p>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-stone">
-            <ShieldCheck size={14} className="text-brass" /> Consequential actions remain approval-gated
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.values(workflows).map((wf) => {
-            const profile = workflowProfiles[wf.id];
-            const Icon = workflowIcons[wf.id] ?? ShieldCheck;
-            const image = workflowImages[wf.id];
-            return (
-              <Link
-                key={wf.id}
-                to={`/workflows/${wf.id}`}
-                className="group flex flex-col overflow-hidden rounded-xl border border-rule bg-paper transition-all duration-200 hover:border-navy/30 hover:shadow-premium"
-              >
-                {/* Image or gradient */}
-                {image ? (
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img
-                      src={image}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-ivory-deep to-paper-deep">
-                    <Icon size={40} className="text-stone-light" strokeWidth={1} />
-                  </div>
-                )}
-                {/* Content */}
-                <div className="flex flex-1 flex-col p-6">
-                  <div className="font-mono text-[10px] uppercase tracking-widest text-brass">
-                    {profile?.family ?? "Private Matter"}
-                  </div>
-                  <h3 className="mt-2 text-xl text-charcoal">{wf.title}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-stone">
-                    {profile?.outcome ?? wf.description}
-                  </p>
-                  {profile?.supportingKeywords && (
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {profile.supportingKeywords.slice(0, 3).map((kw) => (
-                        <span key={kw} className="rounded border border-rule bg-ivory-deep px-2 py-1 font-mono text-[10px] text-stone">
-                          {kw}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-5 flex items-center gap-1.5 text-sm font-medium text-navy transition-colors group-hover:text-brass">
-                    Start this matter <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      <WorkflowDirectory
+        productName="Private Office"
+        title="Choose the matter that needs a documented response."
+        description="Private Office is the high-control correspondence layer for consequential personal and financial matters. Each workflow preserves evidence, chronology, review, authorization, delivery, and proof in one matter record."
+        items={items}
+        categories={families.map((family) => ({ id: family, label: family }))}
+        searchPlaceholder="Search contractor, property insurance, bank wire, trust, security deposit…"
+        helperTitle="Not sure which Private Office matter fits?"
+        helperDescription="Start from the party you need to correspond with and the record you need to preserve. The catalog only lists governed Private Office workflows that exist today."
+        helperHref="/workflows"
+        helperLabel="Browse Private Matters"
+        steps={[
+          { title: "Choose the matter", description: "Select the governed workflow matched to the dispute, claim, trust, banking, or property matter." },
+          { title: "Build the evidence record", description: "Organize documents, chronology, facts, and source-linked evidence before drafting." },
+          { title: "Prepare & authorize", description: "Review the correspondence and consequential actions before explicit approval." },
+          { title: "Deliver & preserve proof", description: "Use MailMyPDF mailing and proof controls when the matter is ready to send." },
+        ]}
+        finalTitle="Discreet correspondence. Complete record."
+        finalDescription="Choose the matter, build the record carefully, and retain control of what gets approved and sent."
+        finalHref="/workflows"
+        finalLabel="Choose a Private Matter"
+      />
     </main>
   );
 }
-
