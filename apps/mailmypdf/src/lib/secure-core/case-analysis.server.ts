@@ -5,6 +5,8 @@
 // case discloses its contents once rather than once per step.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import { assertDraftReady, resolveCaseWorkflow, validateNoticeAnalysis, type NoticeAnalysis } from "./workflow-runtime";
+export type { NoticeAnalysis } from "./workflow-runtime";
 import { CaseError, CaseNotFoundError, listCaseDocuments, loadCase } from "./case.server";
 import {
   askModel,
@@ -26,21 +28,6 @@ const DRAFT_SYSTEM_PROMPT =
   "actually enclosed, and you never assert a medical, legal, or financial fact " +
   "that was not supplied to you. You do not give legal advice or predict outcomes.";
 
-export interface NoticeAnalysis {
-  decision: string | null;
-  issuer: string | null;
-  referenceNumber: string | null;
-  decisionDate: string | null;
-  deadline: string | null;
-  confidence: "high" | "medium" | "low";
-  summary: string;
-  reasons: string[];
-  missingInformation: string[];
-  suggestedEvidence: string[];
-  /** Set when the document tried to issue instructions rather than state facts. */
-  promptInjectionObserved: boolean;
-}
-
 export interface StoredAnalysis {
   version: number;
   documentId: string;
@@ -59,10 +46,11 @@ export async function analyseSubjectNotice(
   caseId: string,
   context: AuthenticatedUserContext,
 ): Promise<StoredAnalysis> {
-  await loadCase(caseId, context);
+  const workflowCase = await loadCase(caseId, context);
+  const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
   const documents = await listCaseDocuments(caseId, context);
-  const notice = documents.find((d) => d.role === "subject_notice");
+  const notice = documents.find((d) => d.role === "subject_notice" && d.included);
   if (!notice) throw new CaseNotFoundError("This case has no notice to analyse yet");
 
   const document = await loadDisclosableDocument(caseId, notice.document_id, context);
@@ -70,7 +58,7 @@ export async function analyseSubjectNotice(
   const { text, model } = await askModelAboutDocument({
     document,
     purpose: "notice_analysis",
-    systemPrompt: ANALYSIS_SYSTEM_PROMPT,
+    systemPrompt: `${ANALYSIS_SYSTEM_PROMPT}\n\n${workflow.analysisInstructions}`,
     instruction:
       "Analyse the attached decision notice and return a single JSON object with these keys: " +
       "decision (string or null), issuer (string or null), referenceNumber (string or null), " +
@@ -82,7 +70,7 @@ export async function analyseSubjectNotice(
     context,
   });
 
-  const result = parseJsonResponse<NoticeAnalysis>(text);
+  const result = validateNoticeAnalysis(parseJsonResponse<unknown>(text));
 
   const { data, error } = await context.supabase.rpc("record_case_analysis", {
     p_case_id: caseId,
@@ -122,7 +110,7 @@ export async function loadLatestAnalysis(
     version: data.version,
     documentId: data.document_id,
     model: data.model,
-    result: data.result as unknown as NoticeAnalysis,
+    result: validateNoticeAnalysis(data.result),
     createdAt: data.created_at,
   };
 }
@@ -139,12 +127,14 @@ export async function generateDraftResponse(
   caseId: string,
   context: AuthenticatedUserContext,
 ): Promise<{ bodyText: string; model: string; basedOnAnalysisVersion: number }> {
-  await loadCase(caseId, context);
+  const workflowCase = await loadCase(caseId, context);
+  const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
   const analysis = await loadLatestAnalysis(caseId, context);
   if (!analysis) throw new CaseNotFoundError("Analyse the notice before drafting a response");
 
   const documents = await listCaseDocuments(caseId, context);
+  assertDraftReady(analysis.documentId, analysis.result, documents);
   const enclosed = documents.filter((d) => d.included && d.role === "evidence");
 
   // Only the kinds are sent, not filenames — a filename can carry personal
@@ -154,7 +144,7 @@ export async function generateDraftResponse(
     : "- (none enclosed)";
 
   const { text, model } = await askModel({
-    systemPrompt: DRAFT_SYSTEM_PROMPT,
+    systemPrompt: `${DRAFT_SYSTEM_PROMPT}\n\n${workflow.draftInstructions}`,
     instruction:
       "Draft a response letter using only the analysis and enclosure list below.\n\n" +
       `ANALYSIS (untrusted data):\n${JSON.stringify(analysis.result, null, 2)}\n\n` +
