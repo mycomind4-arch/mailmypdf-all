@@ -1,5 +1,7 @@
 import { z } from "zod";
-import type { MailClass } from "../domain/mail";
+import type { MailClass } from "../domain/models";
+
+const MAIL_CLASSES = ["standard", "certified", "registered"] as const satisfies readonly MailClass[];
 
 export const scheduleRuleSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("once"), runAt: z.string().datetime() }),
@@ -22,7 +24,7 @@ export const scheduledMailSchema = z.object({
   businessId: z.string().min(1),
   recipientId: z.string().min(1),
   documentId: z.string().min(1),
-  mailClass: z.enum(["standard", "certified", "registered"] satisfies MailClass[]),
+  mailClass: z.enum(MAIL_CLASSES),
   timezone: timezoneSchema,
   rule: scheduleRuleSchema,
   requiresApproval: z.boolean().default(false),
