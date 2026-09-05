@@ -53,7 +53,7 @@ export function validateWorkflowSeoTopology(
       });
     }
 
-    if (!entry.provenance.length) {
+    if (!entry.provenance?.length) {
       issues.push({
         code: "PROVENANCE_REQUIRED",
         message: `Workflow '${entry.id}' has no source provenance. Extraction and publication must remain traceable to modeled inventory, a build spec, or a recorded manual review.`,
