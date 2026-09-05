@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client'
 import '../../../../packages/design-system/src/tokens.css'
 import '../../../../packages/design-system/src/patterns.css'
 import { PublicLanding } from './PublicLanding'
+import { BusinessWorkflowDirectory } from './WorkflowDirectory'
 
 const params = new URLSearchParams(window.location.search)
 const returningFromCheckout = params.get('checkout') === 'success' && Boolean(params.get('session_id'))
 const workspaceMode = params.get('workspace') === '1' || returningFromCheckout
+const pathname = window.location.pathname.replace(/\/$/, '') || '/'
 
 document.body.dataset.mmpTheme = 'small-business'
 
@@ -21,7 +23,7 @@ if (workspaceMode) {
 } else {
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <PublicLanding />
+      {pathname === '/workflows' ? <BusinessWorkflowDirectory /> : <PublicLanding />}
     </React.StrictMode>,
   )
 }
