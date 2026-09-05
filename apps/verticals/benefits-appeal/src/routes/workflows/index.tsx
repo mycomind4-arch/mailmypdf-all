@@ -1,9 +1,59 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+import { createElement } from 'react'
+import { SiteHeader } from '@/components/site-header'
+import { SiteFooter } from '@/components/site-footer'
 import { WORKFLOWS } from '@/domain/benefits-workflows'
+import { createWorkflowDirectory } from '../../../../../../packages/design-system/src/index'
 
-export const Route = createFileRoute('/workflows/')({ component: WorkflowHub })
+const WorkflowDirectory = createWorkflowDirectory(createElement)
+
+export const Route = createFileRoute('/workflows/')({
+  head: () => ({
+    meta: [
+      { title: 'Benefits Appeal Workflows | MailMyPDF' },
+      { name: 'description', content: 'Browse benefits appeal workflows for Social Security, SSDI, SSI, Medicaid, unemployment, veterans benefits, overpayments, hearings, and other benefit decisions.' },
+      { name: 'robots', content: 'index,follow' },
+    ],
+  }),
+  component: WorkflowHub,
+})
 
 function WorkflowHub() {
   const families = [...new Set(WORKFLOWS.map(w => w.family))]
-  return <main className='container section'><div className='eyebrow'>Workflow Hub</div><h1 style={{ fontFamily: 'Instrument Serif, Georgia, serif', fontSize: 64, lineHeight: 1.05, margin: '10px 0 14px' }}>Choose your benefits workflow.</h1><p className='muted' style={{ maxWidth: 760, fontSize: 18, lineHeight: 1.7 }}>Every card leads to a public workflow landing page. Starting the actual workflow requires a MailMyPDF account.</p>{families.map(family => <section key={family} className='section-tight'><h2 style={{ fontSize: 24 }}>{family}</h2><div className='grid-workflows' style={{ marginTop: 16 }}>{WORKFLOWS.filter(w => w.family === family).map(w => <Link key={w.id} to={`/workflows/${w.id}`} className='card' style={{ padding: 20 }}><span className={`badge badge-${w.risk.toLowerCase()}`}>{w.risk} risk</span><h3 style={{ margin: '12px 0 8px' }}>{w.name}</h3><p className='muted' style={{ lineHeight: 1.6, fontSize: 14 }}>{w.description}</p><div style={{ marginTop: 12, color: '#a78bfa', fontWeight: 700 }}>View landing page →</div></Link>)}</div></section>)}</main>
+  const items = WORKFLOWS.map(w => ({
+    id: w.id,
+    title: w.name,
+    category: w.family,
+    description: w.description,
+    href: `/workflows/${w.id}`,
+    badge: `${w.risk} risk`,
+    keywords: [w.name, w.family],
+  }))
+
+  return <main>
+    <SiteHeader />
+    <WorkflowDirectory
+      productName='Benefits Appeal'
+      title='Find the benefits appeal workflow that matches your decision.'
+      description='Start with the denial, overpayment, hearing notice, or benefit decision you received. Browse by benefit family or search the full catalog before entering the private workflow.'
+      items={items}
+      categories={families.map(family => ({ id: family, label: family }))}
+      searchPlaceholder='Search Social Security, Medicaid, unemployment, VA, overpayment…'
+      helperTitle='Not sure which benefits workflow fits?'
+      helperDescription='Use the agency and decision named on your notice to narrow the catalog. Starting the private intake still requires your MailMyPDF account.'
+      helperHref='/workflows'
+      helperLabel='Browse All Benefits'
+      steps={[
+        { title: 'Start with the decision', description: 'Choose the workflow that matches the benefit program and decision you received.' },
+        { title: 'Organize the record', description: 'Add the notice, dates, facts, and supporting evidence relevant to the appeal.' },
+        { title: 'Prepare and review', description: 'Build a structured appeal and review the exact packet before approval.' },
+        { title: 'Send and keep proof', description: 'Download the packet or use MailMyPDF mailing and proof options when appropriate.' },
+      ]}
+      finalTitle='Protect the record. Prepare the appeal.'
+      finalDescription='Choose the benefits workflow that matches the decision in front of you and move into the private appeal workspace.'
+      finalHref='/workflows'
+      finalLabel='Choose a Benefits Workflow'
+    />
+    <SiteFooter />
+  </main>
 }
