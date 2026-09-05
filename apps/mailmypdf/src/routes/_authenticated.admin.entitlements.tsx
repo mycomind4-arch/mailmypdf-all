@@ -12,7 +12,7 @@ import { authenticatedHeaders } from "@/lib/authenticated-client";
  */
 
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { adminListEntitlements } from "@/lib/entitlements-management.functions";
 import { adminAssignEntitlement } from "@/lib/entitlements-management.functions";
 
@@ -75,6 +75,21 @@ function EntitlementsList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPolicy, setFilterPolicy] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const result = await adminListEntitlements({
+          headers: await authenticatedHeaders(),
+          data: { limit: 100, offset: 0 },
+        });
+      if (active && result.success) setEntitlements(result.assignments ?? []);
+      if (active) setLoading(false);
+      } catch { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const filteredEntitlements = entitlements.filter((e) => {
     const matchesSearch =
@@ -151,7 +166,9 @@ function EntitlementsList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {filteredEntitlements.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading entitlements…</td></tr>
+              ) : filteredEntitlements.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
@@ -215,7 +232,7 @@ function AssignPolicyForm() {
   const [formData, setFormData] = useState({
     type: "user" as "user" | "organization",
     targetId: "",
-    policyId: "default-public",
+    policyId: "",
     expiresAt: "",
     reason: "",
   });
@@ -246,7 +263,7 @@ function AssignPolicyForm() {
         setFormData({
           type: "user",
           targetId: "",
-          policyId: "default-public",
+          policyId: "",
           expiresAt: "",
           reason: "",
         });
@@ -324,12 +341,7 @@ function AssignPolicyForm() {
               }
               className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50"
             >
-              <option value="default-public">Standard Pricing</option>
-              <option value="founders-account">Founder Account</option>
-              <option value="partner-attorney">Partner Attorney</option>
-              <option value="internal-admin">Internal Admin</option>
-              <option value="legal-aid-org">Legal Aid Organization</option>
-              <option value="beta-early-adopter">Beta Early Adopter</option>
+              <option value="">Enter the policy UUID below</option>
             </select>
           </div>
 
