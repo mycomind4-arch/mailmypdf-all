@@ -7,12 +7,14 @@ on:
       - 'packages/design-system/**'
       - 'apps/mailmypdf/**'
       - 'apps/verticals/**'
+      - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
   pull_request:
     paths:
       - 'packages/design-system/**'
       - 'apps/mailmypdf/**'
       - 'apps/verticals/**'
+      - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
   workflow_dispatch:
 
@@ -39,6 +41,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Verify canonical product topology
+        run: node scripts/verify-product-topology.mjs
       - name: Typecheck design system
         run: pnpm --filter @mailmypdf/design-system typecheck
 
