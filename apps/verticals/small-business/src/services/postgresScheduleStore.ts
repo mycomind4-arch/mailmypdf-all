@@ -2,10 +2,25 @@ import type { ScheduleStore, ScheduleRecord } from "./scheduleStore";
 
 export type PostgresLikeClient = {
   from(table: string): {
-    insert(values: Record<string, unknown>): { select(): { single(): Promise<{ data: Record<string, unknown> | null; error: Error | null }> } };
-    select(columns?: string): { eq(column: string, value: string): { maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: Error | null }> } } };
-    update(values: Record<string, unknown>): { eq(column: string, value: string): { select(): { single(): Promise<{ data: Record<string, unknown> | null; error: Error | null }> } } };
+    insert(values: Record<string, unknown>): {
+      select(): {
+        single(): Promise<{ data: Record<string, unknown> | null; error: Error | null }>;
+      };
+    };
+    select(columns?: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: Error | null }>;
+      };
+    };
+    update(values: Record<string, unknown>): {
+      eq(column: string, value: string): {
+        select(): {
+          single(): Promise<{ data: Record<string, unknown> | null; error: Error | null }>;
+        };
+      };
+    };
   };
+};
 
 function mapRow(row: Record<string, unknown>): ScheduleRecord {
   return {
