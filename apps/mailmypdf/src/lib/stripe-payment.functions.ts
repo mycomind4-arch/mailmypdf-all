@@ -11,17 +11,26 @@
  * All operations are server-only and fully audited.
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getRequest } from "@tanstack/react-start/server";
 import Stripe from "stripe";
-import type { Database } from "~/lib/supabase/types";
-import { getSupabaseServer } from "~/lib/supabase/server";
-import { getSupabaseAdmin, logAuditEntry } from "~/lib/supabase-admin.server";
+import type { Database, Json } from "@/integrations/supabase/types";
+import { getSupabaseServer } from "@/lib/user-client.server";
+import { getSupabaseAdmin, logAuditEntry } from "@/lib/supabase-admin.server";
 
-// Initialize Stripe (requires STRIPE_SECRET_KEY env var)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-04-10",
-});
+function quoteMetadata(value: Json | null): { [key: string]: Json | undefined } {
+  if (value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid quote metadata");
+  return value;
+}
+
+// Initialize only on the server when an operation actually needs Stripe.
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Payment processing is not configured");
+  return new Stripe(key);
+}
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -58,9 +67,11 @@ const CreateRefundSchema = z.object({
  *
  * Returns checkout URL for client to redirect to.
  */
-export const createCheckoutSession = createServerFn(
-  "POST /api/checkout/create-session",
-  async (input: CreateCheckoutSessionSchema, { request }) => {
+export const createCheckoutSession = createServerFn({ method: "POST" })
+  .validator(CreateCheckoutSessionSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = CreateCheckoutSessionSchema.parse(input);
 
@@ -136,7 +147,7 @@ export const createCheckoutSession = createServerFn(
         },
       ];
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await getStripe().checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         customer_email: userEmail,
@@ -168,7 +179,7 @@ export const createCheckoutSession = createServerFn(
         .from("pricing_quotes")
         .update({
           metadata: {
-            ...quote.metadata,
+            ...quoteMetadata(quote.metadata),
             stripe_session_id: session.id,
             checkout_started_at: new Date().toISOString(),
           },
@@ -201,8 +212,7 @@ export const createCheckoutSession = createServerFn(
             : "Failed to create checkout session",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // PROCESS PAYMENT (Webhook Handler)
@@ -246,7 +256,7 @@ export async function handleStripePaymentSuccess(
       status: "accepted",
       accepted_at: new Date().toISOString(),
       metadata: {
-        ...quote.metadata,
+        ...quoteMetadata(quote.metadata),
         stripe_payment_intent_id: paymentIntentId,
         payment_processed_at: new Date().toISOString(),
       },
@@ -284,9 +294,11 @@ export async function handleStripePaymentSuccess(
  *
  * Note: Assumes order has stripe_payment_intent_id in metadata
  */
-export const createRefund = createServerFn(
-  "POST /api/payments/refund",
-  async (input: CreateRefundSchema, { request }) => {
+export const createRefund = createServerFn({ method: "POST" })
+  .validator(CreateRefundSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = CreateRefundSchema.parse(input);
 
@@ -322,16 +334,16 @@ export const createRefund = createServerFn(
       }
 
       const paymentIntentId =
-        order.metadata?.stripe_payment_intent_id;
+        quoteMetadata(order.metadata).stripe_payment_intent_id;
 
-      if (!paymentIntentId) {
+      if (typeof paymentIntentId !== "string" || !paymentIntentId) {
         throw new Error("Order has no payment intent ID");
       }
 
       // Create refund via Stripe
-      const refund = await stripe.refunds.create({
+      const refund = await getStripe().refunds.create({
         payment_intent: paymentIntentId,
-        reason: validInput.reason,
+        reason: validInput.reason === "other" ? undefined : validInput.reason,
         metadata: {
           order_id: validInput.orderId,
           user_id: user.id,
@@ -345,7 +357,7 @@ export const createRefund = createServerFn(
         .update({
           status: "reversed",
           metadata: {
-            ...order.metadata,
+            ...quoteMetadata(order.metadata),
             refund_id: refund.id,
             refunded_at: new Date().toISOString(),
             refund_reason: validInput.reason,
@@ -382,8 +394,7 @@ export const createRefund = createServerFn(
           error instanceof Error ? error.message : "Failed to create refund",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // WEBHOOK HANDLER (Express endpoint)
@@ -412,7 +423,7 @@ export async function handleStripeWebhook(req: Request) {
 
   try {
     const body = await req.text();
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET || ""
@@ -471,9 +482,11 @@ export async function handleStripeWebhook(req: Request) {
  * Check payment status for a quote.
  * Used after redirect from Stripe checkout.
  */
-export const getPaymentStatus = createServerFn(
-  "GET /api/payments/status/:quoteId",
-  async ({ quoteId }, { request }) => {
+export const getPaymentStatus = createServerFn({ method: "POST" })
+  .validator(z.object({ quoteId: z.string().uuid() }))
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+    const { quoteId } = input;
     try {
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
@@ -509,8 +522,8 @@ export const getPaymentStatus = createServerFn(
         totalCents: quote.total_cents,
         acceptedAt: quote.accepted_at,
         metadata: {
-          stripeSessionId: quote.metadata?.stripe_session_id,
-          stripePaymentIntentId: quote.metadata?.stripe_payment_intent_id,
+          stripeSessionId: quoteMetadata(quote.metadata).stripe_session_id,
+          stripePaymentIntentId: quoteMetadata(quote.metadata).stripe_payment_intent_id,
         },
       };
     } catch (error) {
@@ -521,5 +534,4 @@ export const getPaymentStatus = createServerFn(
           error instanceof Error ? error.message : "Failed to get payment status",
       };
     }
-  }
-);
+  });

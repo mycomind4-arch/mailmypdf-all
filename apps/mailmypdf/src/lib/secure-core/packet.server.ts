@@ -60,7 +60,8 @@ export async function loadPacketDocuments(
   caseId: string,
   context: AuthenticatedUserContext,
 ): Promise<PacketDocumentRow[]> {
-  const { data, error } = await context.supabase.rpc("case_packet_documents", { p_case_id: caseId });
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("case_packet_documents", { p_case_id: caseId });
   if (error) throw new PacketError(error.message);
   return (data ?? []) as PacketDocumentRow[];
 }
@@ -164,6 +165,8 @@ export async function assemblePacket(
   const { PDFDocument } = await import("pdf-lib");
 
   const packet = await PDFDocument.create();
+  packet.setCreationDate(new Date(0));
+  packet.setModificationDate(new Date(0));
 
   const response = await PDFDocument.load(responseLetterPdf, {
     ignoreEncryption: false,

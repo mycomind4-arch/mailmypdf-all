@@ -136,9 +136,14 @@ export async function approveCasePacket(
   caseId: string,
   recipient: Recipient,
   mailClass: MailClass,
+  reviewed: PacketPreview,
 ): Promise<ApprovalResult> {
   return request(`/api/v2/cases/${caseId}/approve`, {
     method: "POST",
-    body: JSON.stringify({ recipient, mail_class: mailClass }),
+    body: JSON.stringify({
+      recipient, mail_class: mailClass,
+      expected_packet_sha256: reviewed.packetSha256,
+      expected_total_cents: reviewed.quote.totalCents,
+    }),
   });
 }

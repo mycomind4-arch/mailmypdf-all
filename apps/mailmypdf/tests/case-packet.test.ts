@@ -12,6 +12,7 @@ import {
   assertMailClass,
   assertRecipient,
   renderResponseLetter,
+  assertReviewedPacket,
 } from "../src/lib/secure-core/case-approval.server";
 import { CaseError } from "../src/lib/secure-core/case.server";
 
@@ -57,6 +58,13 @@ function row(over: Partial<PacketDocumentRow> & { sha256: string }): PacketDocum
 }
 
 describe("response letter rendering", () => {
+  test("uses stable PDF metadata so identical reviewed letters have identical bytes", async () => {
+    const bytes = await renderResponseLetter("Synthetic response letter.");
+    const pdf = await PDFDocument.load(bytes, { updateMetadata: false });
+    assert.equal(pdf.getCreationDate()?.getTime(), 0);
+    assert.equal(pdf.getModificationDate()?.getTime(), 0);
+    assert.deepEqual(bytes, await renderResponseLetter("Synthetic response letter."));
+  });
   test("produces a readable PDF and grows with the text", async () => {
     const short = await renderResponseLetter("Dear Administrative Law Judge,\n\nI am appealing.");
     const shortPages = (await PDFDocument.load(short)).getPageCount();
@@ -74,6 +82,14 @@ describe("response letter rendering", () => {
 });
 
 describe("packet assembly", () => {
+  test("uses stable packet metadata for exact-hash approval", async () => {
+    const letter = await renderResponseLetter("Synthetic response letter.");
+    const packet = await assemblePacket(letter, []);
+    const pdf = await PDFDocument.load(packet.bytes, { updateMetadata: false });
+    assert.equal(pdf.getCreationDate()?.getTime(), 0);
+    assert.equal(pdf.getModificationDate()?.getTime(), 0);
+    assert.equal(packet.sha256, (await assemblePacket(letter, [])).sha256);
+  });
   test("counts the pages actually enclosed, not the number of documents", async () => {
     const letter = await makePdf(2);
     const records = await makePdf(3);
@@ -172,6 +188,24 @@ describe("packet assembly", () => {
 
     assert.notEqual(first.sha256, second.sha256, "approval must not survive a changed packet");
     assert.match(first.sha256, /^[0-9a-f]{64}$/);
+  });
+});
+
+describe("approval of the reviewed packet", () => {
+  const reviewed = { packetSha256: "a".repeat(64), totalCents: 1250 };
+  test("allows the exact reviewed packet and price", () => {
+    assert.doesNotThrow(() => assertReviewedPacket(reviewed, reviewed));
+  });
+  test("rejects a changed packet even if the price stayed the same", () => {
+    assert.throws(() => assertReviewedPacket(reviewed, { ...reviewed, packetSha256: "b".repeat(64) }), PacketError);
+  });
+  test("requires renewed review when the server price changes", () => {
+    assert.throws(() => assertReviewedPacket(reviewed, { ...reviewed, totalCents: 1350 }), PacketError);
+  });
+  test("rejects missing and malformed review receipts", () => {
+    for (const value of [null, {}, { ...reviewed, totalCents: -1 }, { ...reviewed, packetSha256: "fake" }]) {
+      assert.throws(() => assertReviewedPacket(value, reviewed));
+    }
   });
 });
 

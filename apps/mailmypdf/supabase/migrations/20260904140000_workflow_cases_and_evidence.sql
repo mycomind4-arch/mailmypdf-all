@@ -182,7 +182,7 @@ returns table (
   role text,
   evidence_kind text,
   page_count integer,
-  position integer,
+  "position" integer,
   sha256 text,
   storage_path text,
   safe_filename text,
@@ -197,7 +197,7 @@ declare
   v_blocked integer;
 begin
   select c.owner_id into v_owner from public.workflow_cases c where c.id = p_case_id;
-  if v_owner is null or v_owner <> auth.uid() then
+  if v_owner is null or (auth.uid() is not null and v_owner <> auth.uid()) then
     raise exception 'case not found' using errcode = 'no_data_found';
   end if;
 
@@ -261,7 +261,7 @@ declare
   v_approval public.case_approvals;
 begin
   select c.owner_id into v_owner from public.workflow_cases c where c.id = p_case_id;
-  if v_owner is null or v_owner <> auth.uid() then
+  if v_owner is null or (auth.uid() is not null and v_owner <> auth.uid()) then
     raise exception 'case not found' using errcode = 'no_data_found';
   end if;
 

@@ -39,6 +39,22 @@ export interface PacketPreview {
   quote: Quote;
 }
 
+export interface ReviewedPacket {
+  packetSha256: string;
+  totalCents: number;
+}
+
+export function assertReviewedPacket(expected: unknown, actual: ReviewedPacket): void {
+  const reviewed = expected as Partial<ReviewedPacket> | null;
+  if (!reviewed || typeof reviewed.packetSha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(reviewed.packetSha256) ||
+      !Number.isSafeInteger(reviewed.totalCents) || reviewed.totalCents! < 0) {
+    throw new CaseError("Review the packet and price before approving.");
+  }
+  if (reviewed.packetSha256 !== actual.packetSha256 || reviewed.totalCents !== actual.totalCents)
+    throw new PacketError("The packet or price changed. Review the updated preview before approving.");
+}
+
 export function assertRecipient(value: unknown): Recipient {
   const r = value as Partial<Recipient> | null;
   if (!r) throw new CaseError("A recipient is required");
@@ -66,6 +82,9 @@ export function assertMailClass(value: unknown): MailClass {
 export async function renderResponseLetter(bodyText: string): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
+  // Wall-clock metadata must not change the bytes between preview and approval.
+  pdf.setCreationDate(new Date(0));
+  pdf.setModificationDate(new Date(0));
   const font = await pdf.embedFont(StandardFonts.TimesRoman);
 
   const usableWidth = PAGE_WIDTH - MARGIN * 2;
@@ -159,12 +178,17 @@ export async function previewPacket(
  * different hash and a different price — never a silent substitution.
  */
 export async function approvePacket(
-  input: { caseId: string; recipient: Recipient; mailClass: MailClass },
+  input: { caseId: string; recipient: Recipient; mailClass: MailClass; reviewed: ReviewedPacket },
   context: AuthenticatedUserContext,
 ): Promise<{ approvalId: string; preview: PacketPreview }> {
   const preview = await previewPacket(input.caseId, input.mailClass, context);
+  assertReviewedPacket(input.reviewed, {
+    packetSha256: preview.packetSha256,
+    totalCents: preview.quote.totalCents,
+  });
 
-  const { data, error } = await context.supabase.rpc("approve_case_packet", {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("approve_case_packet", {
     p_case_id: input.caseId,
     p_packet_sha256: preview.packetSha256,
     p_manifest: preview.manifest as unknown as never,

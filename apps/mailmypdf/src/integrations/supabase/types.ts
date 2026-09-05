@@ -14,6 +14,378 @@ export type Database = {
   }
   public: {
     Tables: {
+      pricing_quotes: {
+        Row: {
+          accepted_at: string | null
+          assignment_id: string | null
+          created_at: string
+          discount_code: string | null
+          discount_code_value_cents: number
+          expires_at: string
+          extra_page_cost_cents: number
+          id: string
+          mailing_class: string | null
+          mailing_service_cost_cents: number
+          metadata: Json | null
+          policy_id: string | null
+          profile_id: string | null
+          status: string
+          total_cents: number
+          user_id: string
+          vertical_id: string
+          workflow_base_cents: number
+          workflow_discount_cents: number
+          workflow_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          assignment_id?: string | null
+          created_at?: string
+          discount_code?: string | null
+          discount_code_value_cents?: number
+          expires_at?: string
+          extra_page_cost_cents?: number
+          id?: string
+          mailing_class?: string | null
+          mailing_service_cost_cents?: number
+          metadata?: Json | null
+          policy_id?: string | null
+          profile_id?: string | null
+          status?: string
+          total_cents: number
+          user_id: string
+          vertical_id: string
+          workflow_base_cents: number
+          workflow_discount_cents?: number
+          workflow_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          assignment_id?: string | null
+          created_at?: string
+          discount_code?: string | null
+          discount_code_value_cents?: number
+          expires_at?: string
+          extra_page_cost_cents?: number
+          id?: string
+          mailing_class?: string | null
+          mailing_service_cost_cents?: number
+          metadata?: Json | null
+          policy_id?: string | null
+          profile_id?: string | null
+          status?: string
+          total_cents?: number
+          user_id?: string
+          vertical_id?: string
+          workflow_base_cents?: number
+          workflow_discount_cents?: number
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_quotes_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_quotes_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_quotes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_profiles: {
+        Row: {
+          commercial_status: string
+          created_at: string
+          currency: string
+          effective_from: string
+          effective_until: string | null
+          id: string
+          is_active: boolean
+          mailing_markup_cents: number
+          mailing_subsidy_cents: number
+          metadata: Json | null
+          policy_id: string | null
+          service_fee_cents: number
+          superseded_by: string | null
+          version: number
+          workflow_base_cents: number
+        }
+        Insert: {
+          commercial_status?: string
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          is_active?: boolean
+          mailing_markup_cents?: number
+          mailing_subsidy_cents?: number
+          metadata?: Json | null
+          policy_id?: string | null
+          service_fee_cents?: number
+          superseded_by?: string | null
+          version?: number
+          workflow_base_cents: number
+        }
+        Update: {
+          commercial_status?: string
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          is_active?: boolean
+          mailing_markup_cents?: number
+          mailing_subsidy_cents?: number
+          metadata?: Json | null
+          policy_id?: string | null
+          service_fee_cents?: number
+          superseded_by?: string | null
+          version?: number
+          workflow_base_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_profiles_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_profiles_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "pricing_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          billing_email: string | null
+          created_at: string
+          created_by: string
+          id: string
+          metadata: Json | null
+          name: string
+          plan: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_email?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          metadata?: Json | null
+          name: string
+          plan?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_email?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          metadata?: Json | null
+          name?: string
+          plan?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entitlements_audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          changes: Json | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          reason: string | null
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: []
+      }
+      entitlement_policies: {
+        Row: {
+          commercial_status: string
+          created_at: string
+          description: string | null
+          display_name: string
+          features: Json | null
+          id: string
+          mailing_markup_cents: number | null
+          metadata: Json | null
+          monthly_free_credits: number | null
+          monthly_free_workflows: number | null
+          policy_slug: string
+          service_fee_cents: number | null
+          updated_at: string
+          workflow_discount_cents: number | null
+          workflow_discount_percent: number | null
+        }
+        Insert: {
+          commercial_status?: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          features?: Json | null
+          id?: string
+          mailing_markup_cents?: number | null
+          metadata?: Json | null
+          monthly_free_credits?: number | null
+          monthly_free_workflows?: number | null
+          policy_slug: string
+          service_fee_cents?: number | null
+          updated_at?: string
+          workflow_discount_cents?: number | null
+          workflow_discount_percent?: number | null
+        }
+        Update: {
+          commercial_status?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          features?: Json | null
+          id?: string
+          mailing_markup_cents?: number | null
+          metadata?: Json | null
+          monthly_free_credits?: number | null
+          monthly_free_workflows?: number | null
+          policy_slug?: string
+          service_fee_cents?: number | null
+          updated_at?: string
+          workflow_discount_cents?: number | null
+          workflow_discount_percent?: number | null
+        }
+        Relationships: []
+      }
+      entitlement_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          policy_id: string
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          policy_id: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          policy_id?: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entitlement_assignments_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "entitlement_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_analyses: {
         Row: {
           id: string
@@ -1268,6 +1640,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_entitlements: {
+        Args: { p_user_id: string }
+        Returns: {
+          assignment_id: string
+          expires_at: string
+          is_user_level: boolean
+          policy_id: string
+          policy_slug: string
+        }[]
+      }
       record_case_analysis: {
         Args: {
           p_case_id: string

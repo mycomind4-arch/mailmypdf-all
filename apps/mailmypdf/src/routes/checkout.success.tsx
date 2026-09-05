@@ -1,3 +1,4 @@
+import { authenticatedHeaders } from "@/lib/authenticated-client";
 /**
  * Checkout Success Page (Phase 3)
  *
@@ -9,7 +10,7 @@
 
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getPaymentStatus } from "~/lib/stripe-payment.functions";
+import { getPaymentStatus } from "@/lib/stripe-payment.functions";
 import { z } from "zod";
 
 const CheckoutSuccessSearch = z.object({
@@ -47,7 +48,7 @@ function CheckoutSuccessPage() {
 
   async function checkPaymentStatus() {
     try {
-      const result = await getPaymentStatus(search.quoteId);
+      const result = await getPaymentStatus({ data: { quoteId: search.quoteId }, headers: await authenticatedHeaders() });
 
       if (result.success) {
         setStatus(result);

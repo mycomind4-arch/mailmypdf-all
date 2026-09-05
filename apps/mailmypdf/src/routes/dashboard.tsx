@@ -11,8 +11,8 @@
 
 import { createFileRoute, useLoaderData } from "@tanstack/react-router";
 import { Suspense } from "react";
-import { getUserEntitlements } from "~/lib/entitlements-management.functions";
-import { getQuotaUsage } from "~/lib/entitlements-management.functions";
+import { getUserEntitlements } from "@/lib/entitlements-management.functions";
+import { getQuotaUsage } from "@/lib/entitlements-management.functions";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,

@@ -9,10 +9,11 @@
  * - Complete lineage is stored for compliance
  */
 
-import { createServerFn } from "@tanstack/start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { Database } from "~/lib/supabase/types";
-import { getSupabaseServer } from "~/lib/supabase/server";
+import { getRequest } from "@tanstack/react-start/server";
+import type { Database } from "@/integrations/supabase/types";
+import { getSupabaseServer } from "@/lib/user-client.server";
 import { calculateQuote as calcPricingQuote } from "@mailmypdf/pricing";
 
 // ============================================================================
@@ -55,9 +56,11 @@ const AcceptQuoteInputSchema = z.object({
  *
  * Client cannot override pricing. Quote is auditable with full lineage.
  */
-export const createPricingQuote = createServerFn(
-  "POST /api/quotes/create",
-  async (input: CreateQuoteInput, { request }) => {
+export const createPricingQuote = createServerFn({ method: "POST" })
+  .validator(CreateQuoteInputSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       // Validate input
       const validInput = CreateQuoteInputSchema.parse(input);
@@ -149,10 +152,6 @@ export const createPricingQuote = createServerFn(
 
       // Apply entitlement discounts on top of workflow pricing
       let workflowPrice = quote.basePriceCents;
-      const policy = (entitlements?.policy_id
-        ? { data: { data: { id: policyId } } }
-        : { data: { data: null } }) as any;
-
       // Load policy for discount info
       const { data: policyData } = await supabase
         .from("entitlement_policies")
@@ -161,15 +160,15 @@ export const createPricingQuote = createServerFn(
         .single();
 
       if (policyData) {
-        if (policyData.workflow_discount_percent > 0) {
+        if ((policyData.workflow_discount_percent ?? 0) > 0) {
           workflowPrice = Math.floor(
-            workflowPrice * (1 - policyData.workflow_discount_percent / 100)
+            workflowPrice * (1 - (policyData.workflow_discount_percent ?? 0) / 100)
           );
         }
-        if (policyData.workflow_discount_cents > 0) {
+        if ((policyData.workflow_discount_cents ?? 0) > 0) {
           workflowPrice = Math.max(
             0,
-            workflowPrice - policyData.workflow_discount_cents
+            workflowPrice - (policyData.workflow_discount_cents ?? 0)
           );
         }
       }
@@ -206,7 +205,7 @@ export const createPricingQuote = createServerFn(
           profile_id: profile.id,
           status: "pending",
           mailing_class: validInput.mailClass || "standard",
-          expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
           metadata: {
             source: "create_pricing_quote",
             pages: validInput.actualPages,
@@ -264,8 +263,7 @@ export const createPricingQuote = createServerFn(
           error instanceof Error ? error.message : "Failed to create quote",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // VERIFY PRICING QUOTE
@@ -279,9 +277,11 @@ export const createPricingQuote = createServerFn(
  * - Quote is owned by current user
  * - Quote is in pending status
  */
-export const verifyPricingQuote = createServerFn(
-  "POST /api/quotes/verify",
-  async (input: VerifyQuoteInputSchema, { request }) => {
+export const verifyPricingQuote = createServerFn({ method: "POST" })
+  .validator(VerifyQuoteInputSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = VerifyQuoteInputSchema.parse(input);
 
@@ -343,8 +343,7 @@ export const verifyPricingQuote = createServerFn(
           error instanceof Error ? error.message : "Failed to verify quote",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // ACCEPT PRICING QUOTE
@@ -355,9 +354,11 @@ export const verifyPricingQuote = createServerFn(
  * Marks quote as accepted and links to order.
  * Quote is now locked and immutable.
  */
-export const acceptPricingQuote = createServerFn(
-  "POST /api/quotes/accept",
-  async (input: AcceptQuoteInputSchema, { request }) => {
+export const acceptPricingQuote = createServerFn({ method: "POST" })
+  .validator(AcceptQuoteInputSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = AcceptQuoteInputSchema.parse(input);
 
@@ -390,41 +391,17 @@ export const acceptPricingQuote = createServerFn(
         throw new Error("Quote not found or access denied");
       }
 
-      // Update quote status
-      const { error: updateError } = await supabase
-        .from("pricing_quotes")
-        .update({
-          status: "accepted",
-          accepted_at: new Date().toISOString(),
-          metadata: {
-            ...quote.metadata,
-            order_id: validInput.orderId,
-            accepted_by_server_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", validInput.quoteId)
-        .eq("user_id", user.id);
-
-      if (updateError) {
-        throw new Error(`Failed to accept quote: ${updateError.message}`);
+      // A browser call cannot attest that a payment happened. Only the
+      // verified payment webhook may accept a quote.
+      if (quote.status !== "accepted") {
+        return { success: false, error: "Payment has not been verified" };
       }
-
-      // Log acceptance
-      await supabase.from("entitlements_audit_log").insert({
-        actor_user_id: user.id,
-        action: "quote_accepted",
-        resource_type: "quote",
-        resource_id: validInput.quoteId,
-        changes: { status: "accepted" },
-        reason: "Payment successful, quote locked",
-        metadata: { order_id: validInput.orderId },
-      });
 
       return {
         success: true,
         quoteId: validInput.quoteId,
         status: "accepted",
-        acceptedAt: new Date().toISOString(),
+        acceptedAt: quote.accepted_at,
       };
     } catch (error) {
       console.error("Error accepting quote:", error);
@@ -434,8 +411,7 @@ export const acceptPricingQuote = createServerFn(
           error instanceof Error ? error.message : "Failed to accept quote",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // GET PRICING QUOTE DETAILS
@@ -444,9 +420,11 @@ export const acceptPricingQuote = createServerFn(
 /**
  * Retrieve full quote details for display or auditing.
  */
-export const getPricingQuoteDetails = createServerFn(
-  "GET /api/quotes/:quoteId",
-  async ({ quoteId }, { request }) => {
+export const getPricingQuoteDetails = createServerFn({ method: "POST" })
+  .validator(VerifyQuoteInputSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+    const { quoteId } = input;
     try {
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
@@ -515,5 +493,4 @@ export const getPricingQuoteDetails = createServerFn(
             : "Failed to retrieve quote details",
       };
     }
-  }
-);
+  });

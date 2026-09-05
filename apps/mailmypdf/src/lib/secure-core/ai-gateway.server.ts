@@ -12,11 +12,15 @@
 //      content block and the system prompt says so, because a notice is an
 //      attacker-controlled file in the threat model.
 
+import { computeSha256, detectMimeType } from "@mailmypdf/documents";
 import type { AuthenticatedUserContext } from "./auth.server";
 
 const BUCKET = "secure-documents";
 const FETCH_TTL_SECONDS = 60;
 const MAX_DOCUMENT_BYTES = 24 * 1024 * 1024;
+const DOCUMENT_TIMEOUT_MS = 30_000;
+const MAX_RESPONSE_BYTES = 256 * 1024;
+const MAX_OUTPUT_TOKENS = 8192;
 const MODEL = "claude-sonnet-5";
 const ANTHROPIC_VERSION = "2023-06-01";
 const REQUEST_TIMEOUT_MS = 90_000;
@@ -30,6 +34,101 @@ export interface DisclosableDocument {
   mimeType: string;
   base64: string;
   sizeBytes: number;
+}
+
+interface DocumentMetadata {
+  id: string;
+  safe_filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  sha256: string | null;
+  security_status: string;
+  deleted_at: string | null;
+  deletion_requested_at: string | null;
+  retention_until: string;
+}
+
+// A caller cannot construct, clone, or alter the bytes that were verified by
+// this gateway. Provenance remains server-local and is never sent to a model.
+const verifiedDocuments = new WeakMap<DisclosableDocument, {
+  caseId: string;
+  ownerId: string;
+  sha256: string;
+}>();
+
+function assertDisclosable(document: DocumentMetadata): void {
+  if (document.security_status !== "clean" || document.deleted_at || document.deletion_requested_at) {
+    throw new DocumentNotDisclosableError(
+      "This document has not cleared security scanning and cannot be analysed yet",
+    );
+  }
+  if (!(Date.parse(document.retention_until) > Date.now())) {
+    throw new DocumentNotDisclosableError("This document is no longer available for analysis");
+  }
+  if (document.mime_type !== "application/pdf") {
+    throw new DocumentNotDisclosableError("Only PDF notices can be analysed");
+  }
+  if (!Number.isSafeInteger(document.size_bytes) || (document.size_bytes ?? 0) <= 0 ||
+      (document.size_bytes ?? 0) > MAX_DOCUMENT_BYTES || !/^[0-9a-f]{64}$/.test(document.sha256 ?? "")) {
+    throw new DocumentNotDisclosableError("This document has invalid analysis metadata");
+  }
+}
+
+async function loadOwnedMetadata(
+  caseId: string,
+  documentId: string,
+  context: AuthenticatedUserContext,
+): Promise<DocumentMetadata> {
+  const { data: attachment, error } = await context.supabase
+    .from("case_documents")
+    .select("document_id")
+    .eq("case_id", caseId)
+    .eq("document_id", documentId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+  if (error) throw new AiGatewayError("Unable to verify document access");
+  if (!attachment) throw new DocumentNotDisclosableError("Document not found on this case");
+
+  const { data: document, error: documentError } = await context.supabase
+    .from("secure_documents")
+    .select("id, safe_filename, mime_type, size_bytes, sha256, security_status, deleted_at, deletion_requested_at, retention_until")
+    .eq("id", documentId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+  if (documentError) throw new AiGatewayError("Unable to verify document access");
+  if (!document) throw new DocumentNotDisclosableError("Document not found");
+  assertDisclosable(document);
+  return document;
+}
+
+/** Bound the bytes while reading, including a chunked or dishonest response. */
+async function readBoundedBytes(response: Response, limit: number, limitError: AiGatewayError): Promise<Uint8Array> {
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength !== null && Number(declaredLength) > limit) {
+    await response.body?.cancel().catch(() => {});
+    throw limitError;
+  }
+  if (!response.body) throw new AiGatewayError("The response contained no data");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  let completed = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { completed = true; break; }
+      length += value.byteLength;
+      if (length > limit) throw limitError;
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return bytes;
+  } finally {
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 function apiKey(): string {
@@ -48,64 +147,74 @@ export async function loadDisclosableDocument(
   documentId: string,
   context: AuthenticatedUserContext,
 ): Promise<DisclosableDocument> {
-  const { data: attachment, error } = await context.supabase
-    .from("case_documents")
-    .select("document_id")
-    .eq("case_id", caseId)
-    .eq("document_id", documentId)
-    .eq("owner_id", context.user.id)
-    .maybeSingle();
-  if (error) throw new AiGatewayError(error.message);
-  if (!attachment) throw new DocumentNotDisclosableError("Document not found on this case");
-
-  const { data: document } = await context.supabase
-    .from("secure_documents")
-    .select("id, safe_filename, mime_type, size_bytes, security_status, deleted_at, deletion_requested_at")
-    .eq("id", documentId)
-    .eq("owner_id", context.user.id)
-    .maybeSingle();
-  if (!document) throw new DocumentNotDisclosableError("Document not found");
-  if (document.security_status !== "clean" || document.deleted_at || document.deletion_requested_at) {
-    throw new DocumentNotDisclosableError(
-      "This document has not cleared security scanning and cannot be analysed yet",
-    );
-  }
-  if (document.mime_type !== "application/pdf") {
-    throw new DocumentNotDisclosableError("Only PDF notices can be analysed");
-  }
-  if ((document.size_bytes ?? 0) > MAX_DOCUMENT_BYTES) {
-    throw new DocumentNotDisclosableError("This document is too large to analyse");
-  }
-
+  const document = await loadOwnedMetadata(caseId, documentId, context);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: path } = await supabaseAdmin
+  const { data: path, error: pathError } = await supabaseAdmin
     .from("secure_documents")
-    .select("storage_path")
+    .select("id, storage_path, safe_filename, mime_type, size_bytes, sha256, security_status, deleted_at, deletion_requested_at, retention_until")
     .eq("id", documentId)
     .eq("owner_id", context.user.id)
     .eq("security_status", "clean")
     .maybeSingle();
+  if (pathError) throw new AiGatewayError("Unable to verify document access");
   if (!path) throw new DocumentNotDisclosableError("Document not found");
+  assertDisclosable(path);
+  if (path.sha256 !== document.sha256 || path.size_bytes !== document.size_bytes ||
+      !path.storage_path.startsWith(`${context.user.id}/`)) {
+    throw new DocumentNotDisclosableError("This document changed during verification");
+  }
 
   const { data: signed, error: signError } = await supabaseAdmin.storage
     .from(BUCKET)
     .createSignedUrl(path.storage_path, FETCH_TTL_SECONDS);
   if (signError || !signed?.signedUrl) throw new AiGatewayError("Unable to read the document");
 
-  const response = await fetch(signed.signedUrl);
-  if (!response.ok) throw new AiGatewayError("Unable to read the document");
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
-    throw new DocumentNotDisclosableError("This document is too large to analyse");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOCUMENT_TIMEOUT_MS);
+  let bytes: Uint8Array;
+  try {
+    const storageUrl = new URL(signed.signedUrl, process.env.SUPABASE_URL).toString();
+    const response = await fetch(storageUrl, { signal: controller.signal, redirect: "error" });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      throw new AiGatewayError("Unable to read the document");
+    }
+    bytes = await readBoundedBytes(response, document.size_bytes!,
+      new DocumentNotDisclosableError("This document exceeds its verified size"));
+    if (bytes.byteLength !== document.size_bytes || computeSha256(bytes) !== document.sha256 ||
+        detectMimeType(bytes) !== "application/pdf") {
+      throw new DocumentNotDisclosableError("This document does not match its verified content");
+    }
+  } catch (error) {
+    if (error instanceof AiGatewayError) throw error;
+    throw new AiGatewayError("Unable to read the document");
+  } finally {
+    clearTimeout(timer);
   }
-
-  return {
+  const current = await loadOwnedMetadata(caseId, documentId, context);
+  if (current.sha256 !== document.sha256 || current.size_bytes !== document.size_bytes) {
+    throw new DocumentNotDisclosableError("This document changed during verification");
+  }
+  const verified = Object.freeze({
     documentId,
     filename: document.safe_filename ?? "document.pdf",
     mimeType: "application/pdf",
     base64: Buffer.from(bytes).toString("base64"),
     sizeBytes: bytes.byteLength,
-  };
+  });
+  verifiedDocuments.set(verified, { caseId, ownerId: context.user.id, sha256: document.sha256! });
+  return verified;
+}
+
+async function assertCurrentDisclosure(document: DisclosableDocument, context: AuthenticatedUserContext): Promise<void> {
+  const provenance = verifiedDocuments.get(document);
+  if (!provenance || provenance.ownerId !== context.user.id) {
+    throw new DocumentNotDisclosableError("The document must be verified before analysis");
+  }
+  const current = await loadOwnedMetadata(provenance.caseId, document.documentId, context);
+  if (current.sha256 !== provenance.sha256 || current.size_bytes !== document.sizeBytes) {
+    throw new DocumentNotDisclosableError("This document changed during verification");
+  }
 }
 
 /** Writes the disclosure record. Content is never included, only its shape. */
@@ -145,7 +254,16 @@ export async function askModelAboutDocument(args: {
   maxTokens?: number;
   context: AuthenticatedUserContext;
 }): Promise<{ text: string; model: string }> {
+  const key = apiKey();
+  const maxTokens = outputTokenLimit(args.maxTokens);
+  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(args.purpose)) {
+    throw new AiGatewayError("Invalid model disclosure purpose");
+  }
+  await assertCurrentDisclosure(args.document, args.context);
   await auditDisclosure(args.document, args.purpose, args.context);
+  // Audit and storage operations can take time. Recheck immediately before
+  // sending so a deletion, expiry, or detachment observed meanwhile wins.
+  await assertCurrentDisclosure(args.document, args.context);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -154,13 +272,14 @@ export async function askModelAboutDocument(args: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey(),
+        "x-api-key": key,
         "anthropic-version": ANTHROPIC_VERSION,
       },
       signal: controller.signal,
+      redirect: "error",
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: args.maxTokens ?? 4096,
+        max_tokens: maxTokens,
         temperature: 0,
         system:
           `${args.systemPrompt}\n\n` +
@@ -183,15 +302,10 @@ export async function askModelAboutDocument(args: {
       }),
     });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new AiGatewayError(`Model request failed (${response.status}): ${body.slice(0, 300)}`);
-    }
-
-    const data = (await response.json()) as { content?: Array<{ text?: string }> };
-    const text = (data.content ?? []).map((block) => block.text ?? "").join("");
-    if (!text.trim()) throw new AiGatewayError("The model returned an empty response");
-    return { text, model: MODEL };
+    return await readModelResponse(response);
+  } catch (error) {
+    if (error instanceof AiGatewayError) throw error;
+    throw new AiGatewayError(controller.signal.aborted ? "Model request timed out" : "Model request could not be completed");
   } finally {
     clearTimeout(timer);
   }
@@ -209,6 +323,8 @@ export async function askModel(args: {
   instruction: string;
   maxTokens?: number;
 }): Promise<{ text: string; model: string }> {
+  const key = apiKey();
+  const maxTokens = outputTokenLimit(args.maxTokens);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -216,13 +332,14 @@ export async function askModel(args: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey(),
+        "x-api-key": key,
         "anthropic-version": ANTHROPIC_VERSION,
       },
       signal: controller.signal,
+      redirect: "error",
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: args.maxTokens ?? 4096,
+        max_tokens: maxTokens,
         temperature: 0,
         system:
           `${args.systemPrompt}\n\n` +
@@ -232,18 +349,50 @@ export async function askModel(args: {
       }),
     });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new AiGatewayError(`Model request failed (${response.status}): ${body.slice(0, 300)}`);
-    }
-
-    const data = (await response.json()) as { content?: Array<{ text?: string }> };
-    const text = (data.content ?? []).map((block) => block.text ?? "").join("");
-    if (!text.trim()) throw new AiGatewayError("The model returned an empty response");
-    return { text, model: MODEL };
+    return await readModelResponse(response);
+  } catch (error) {
+    if (error instanceof AiGatewayError) throw error;
+    throw new AiGatewayError(controller.signal.aborted ? "Model request timed out" : "Model request could not be completed");
   } finally {
     clearTimeout(timer);
   }
+}
+
+function outputTokenLimit(value = 4096): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_OUTPUT_TOKENS) {
+    throw new AiGatewayError("Invalid model response limit");
+  }
+  return value;
+}
+
+async function readModelResponse(response: Response): Promise<{ text: string; model: string }> {
+  if (!response.ok) {
+    // Provider errors can echo notices, prompt text, or credentials. Do not
+    // consume, log, persist, or reflect the error body, even in truncated form.
+    await response.body?.cancel().catch(() => {});
+    throw new AiGatewayError(`Model request failed (${response.status})`);
+  }
+  const bytes = await readBoundedBytes(response, MAX_RESPONSE_BYTES,
+    new AiGatewayError("The model returned too much data"));
+  let data: unknown;
+  try {
+    data = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new AiGatewayError("The model did not return a usable result");
+  }
+  if (!data || typeof data !== "object" || !("content" in data) || !Array.isArray(data.content)) {
+    throw new AiGatewayError("The model did not return a usable result");
+  }
+  if (!("stop_reason" in data) || data.stop_reason !== "end_turn") {
+    throw new AiGatewayError("The model did not return a complete result");
+  }
+  const blocks = data.content;
+  if (blocks.some((block) => !block || typeof block !== "object" || block.type !== "text" || typeof block.text !== "string")) {
+    throw new AiGatewayError("The model did not return a usable result");
+  }
+  const text = blocks.map((block: { text: string }) => block.text).join("");
+  if (!text.trim()) throw new AiGatewayError("The model returned an empty response");
+  return { text, model: MODEL };
 }
 
 /**

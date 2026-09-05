@@ -1,3 +1,4 @@
+import { authenticatedHeaders } from "@/lib/authenticated-client";
 /**
  * Admin: Entitlements Manager (Phase 2)
  *
@@ -12,8 +13,8 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { adminListEntitlements } from "~/lib/entitlements-management.functions";
-import { adminAssignEntitlement } from "~/lib/entitlements-management.functions";
+import { adminListEntitlements } from "@/lib/entitlements-management.functions";
+import { adminAssignEntitlement } from "@/lib/entitlements-management.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/entitlements")({
   component: AdminEntitlementsPage,
@@ -228,13 +229,14 @@ function AssignPolicyForm() {
     try {
       // Call server function to assign entitlement
       const response = await adminAssignEntitlement({
-        targetUserId:
+        headers: await authenticatedHeaders(),
+        data: { targetUserId:
           formData.type === "user" ? formData.targetId : undefined,
         targetOrgId:
           formData.type === "organization" ? formData.targetId : undefined,
         policyId: formData.policyId,
         expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : undefined,
-        reason: formData.reason || undefined,
+        reason: formData.reason || undefined },
       });
 
       setResult(response);

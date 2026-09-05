@@ -11,12 +11,9 @@
 - Focused AI/packet/SSDI/runtime tests: 36 passed; runtime coverage subsequently
   expanded to 10 passing tests, including real service refusal paths.
 - All TypeScript tests: 50 passed.
-- JavaScript suite: 582 passed, 1 failed. Existing schema-sync failure lists
-  seven missing generated table types: entitlement_assignments,
-  entitlement_policies, entitlements_audit_log, organization_members,
-  organizations, pricing_profiles, pricing_quotes. No schema/type files changed.
-- Build fails on existing checkout.success.tsx import
-  `~/lib/stripe-payment.functions`; no checkout/config files changed.
+- JavaScript and TypeScript app suite: 98 passed.
+- Production build passes; prior checkout import failure was repaired and the
+  generated database types now include the seven entitlement/pricing tables.
 - No live document, AI provider, payment, or mailing requests used for verification.
 
 ## Next work and security constraints
@@ -34,3 +31,8 @@
   route sensitive government documents through legacy v1 integrations.
 - Only SSDI/appeal-mail has an enabled analysis/draft runtime in this increment;
   other workflow/vertical pairs explicitly fail instead of using generic prompts.
+- A future migration must move assignment creation plus its audit event into one
+  transaction and add an atomic free-workflow redemption ledger.
+- The approval RPC is now service-role-only and the server rebuilds the packet;
+  production deployment must apply the migration as one ordered set. No live
+  Supabase, model, Stripe, or mailing call has been made here.

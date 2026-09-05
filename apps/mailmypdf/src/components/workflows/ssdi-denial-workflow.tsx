@@ -390,7 +390,7 @@ export function SsdiDenialWorkflow() {
     setBusy(true);
     setError(null);
     try {
-      setApproval(await approveCasePacket(workflowCase.id, recipient, mailClass));
+      setApproval(await approveCasePacket(workflowCase.id, recipient, mailClass, packet));
       setStep(11);
     } catch (cause) {
       setError(messageFrom(cause));

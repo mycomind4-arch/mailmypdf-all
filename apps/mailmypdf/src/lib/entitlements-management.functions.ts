@@ -7,47 +7,31 @@
  * - Managing quotas and tracking usage
  * - Viewing audit logs and compliance history
  *
- * These functions enforce admin-only access.
+ * Self-service reads are limited to the authenticated user. Cross-user reads
+ * and management operations require a verified administrator.
  */
 
-import { createServerFn } from "@tanstack/start";
-import { z } from "zod";
-import type { Database } from "~/lib/supabase/types";
-import { getSupabaseServer } from "~/lib/supabase/server";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { getSupabaseServer } from "@/lib/user-client.server";
 import {
   getSupabaseAdmin,
   resolveUserEntitlements,
   logAuditEntry,
-} from "~/lib/supabase-admin.server";
+} from "@/lib/supabase-admin.server";
 
-// ============================================================================
-// VALIDATION SCHEMAS
-// ============================================================================
-
-const AdminUserIdSchema = z.object({
-  userId: z.string().uuid(),
-});
-
-const AssignEntitlementSchema = z.object({
-  targetUserId: z.string().uuid().optional(),
-  targetOrgId: z.string().uuid().optional(),
-  policyId: z.string().uuid(),
-  expiresAt: z.string().datetime().optional(),
-  reason: z.string().optional(),
-});
-
-const GetQuotaUsageSchema = z.object({
-  userId: z.string().uuid(),
-  month: z.string().regex(/^\d{4}-\d{2}$/),
-});
-
-const AuditLogFilterSchema = z.object({
-  resourceType: z.enum(["policy", "assignment", "quote", "organization", "member"]).optional(),
-  action: z.string().optional(),
-  userId: z.string().uuid().optional(),
-  limit: z.number().int().positive().default(50),
-  offset: z.number().int().nonnegative().default(0),
-});
+import {
+  AdminUserIdSchema,
+  AssignEntitlementSchema,
+  GetQuotaUsageSchema,
+  AuditLogFilterSchema,
+  EntitlementListSchema,
+  countMonthlyAcceptedQuotes,
+  fetchActiveEntitlements,
+  getAuditActorScope,
+  assertEntitlementReadAccess,
+  validateEntitlementAssignment,
+} from "@/lib/entitlements-management";
 
 // ============================================================================
 // ADMIN VERIFICATION (SECURITY: Real admin check)
@@ -90,9 +74,11 @@ async function assertAdmin(userId: string) {
  * Get user's current entitlements and pricing information.
  * Shows what policy they're on and what benefits they get.
  */
-export const getUserEntitlements = createServerFn(
-  "GET /api/entitlements/user/:userId",
-  async ({ userId }, { request }) => {
+export const getUserEntitlements = createServerFn({ method: "POST" })
+  .validator(AdminUserIdSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+    const { userId } = input;
     try {
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
@@ -106,24 +92,8 @@ export const getUserEntitlements = createServerFn(
         data: { user: currentUser },
       } = await supabase.auth.getUser();
 
-      if (!currentUser) {
-        throw new Error("Unauthorized");
-      }
-
-      // SECURITY: Prevent IDOR - use RLS to enforce access control
-      // Users can only see their own entitlements; admins go through assertAdmin
-      if (currentUser.id !== userId) {
-        // Cross-user access requires admin role
-        try {
-          await assertAdmin(currentUser.id);
-        } catch {
-          // Admin check failed - return 403 instead of "Forbidden"
-          throw new Error("Access denied: cannot view other users' entitlements");
-        }
-      }
-
-      // Use RLS-protected query (admin query for cross-user, user query for self)
-      const queryClient = currentUser.id === userId ? supabase : getSupabaseAdmin();
+      // Authorize the target before resolving it through the service-role client.
+      await assertEntitlementReadAccess(currentUser, userId, assertAdmin);
 
       // Get entitlements using server function
       const entitlements = await resolveUserEntitlements(userId);
@@ -142,22 +112,22 @@ export const getUserEntitlements = createServerFn(
       const admin = getSupabaseAdmin();
       const { data: policy, error: policyError } = await admin
         .from("entitlement_policies")
-        .select("*")
+        .select("id, policy_slug, display_name, description, workflow_discount_percent, mailing_markup_cents, service_fee_cents, monthly_free_workflows")
         .eq("id", entitlements.policyId)
         .single();
 
-      if (policyError) {
-        console.error("Policy fetch error:", policyError);
+      if (policyError || !policy) {
+        throw new Error("Entitlement policy is unavailable");
       }
 
       const { data: assignment, error: assignmentError } = await admin
         .from("entitlement_assignments")
-        .select("*")
+        .select("assigned_at, assigned_by, reason")
         .eq("id", entitlements.assignmentId)
         .single();
 
-      if (assignmentError) {
-        console.error("Assignment fetch error:", assignmentError);
+      if (assignmentError || !assignment) {
+        throw new Error("Entitlement assignment is unavailable");
       }
 
       return {
@@ -195,8 +165,7 @@ export const getUserEntitlements = createServerFn(
           error instanceof Error ? error.message : "Failed to get entitlements",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // ASSIGN ENTITLEMENTS (ADMIN)
@@ -206,12 +175,12 @@ export const getUserEntitlements = createServerFn(
  * Admin function to assign a policy to a user or organization.
  * Creates entitlement assignment and logs to audit trail.
  */
-export const adminAssignEntitlement = createServerFn(
-  "POST /api/admin/entitlements/assign",
-  async (input: AssignEntitlementSchema, { request }) => {
-    try {
-      const validInput = AssignEntitlementSchema.parse(input);
+export const adminAssignEntitlement = createServerFn({ method: "POST" })
+  .validator(AssignEntitlementSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
 
+    try {
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
         throw new Error("Unauthorized");
@@ -230,10 +199,7 @@ export const adminAssignEntitlement = createServerFn(
 
       // Verify admin access
       await assertAdmin(user.id);
-
-      if (!validInput.targetUserId && !validInput.targetOrgId) {
-        throw new Error("Must specify either targetUserId or targetOrgId");
-      }
+      const validInput = validateEntitlementAssignment(input, user.id);
 
       const admin = getSupabaseAdmin();
 
@@ -274,11 +240,6 @@ export const adminAssignEntitlement = createServerFn(
         );
       }
 
-      // SECURITY: Prevent self-assignment
-      if (validInput.targetUserId === user.id) {
-        throw new Error("Cannot assign policies to yourself");
-      }
-
       // Create assignment
       const expiresAt = validInput.expiresAt
         ? new Date(validInput.expiresAt)
@@ -298,7 +259,7 @@ export const adminAssignEntitlement = createServerFn(
         .single();
 
       if (assignError || !assignment) {
-        throw new Error(`Failed to create assignment: ${assignError?.message}`);
+        throw new Error("Failed to create assignment");
       }
 
       // Log to audit trail
@@ -329,20 +290,21 @@ export const adminAssignEntitlement = createServerFn(
           error instanceof Error ? error.message : "Failed to assign entitlement",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // GET QUOTA USAGE
 // ============================================================================
 
 /**
- * Get quota usage for a user in a specific month.
- * Tracks how many free workflows they've used vs allocated.
+ * Report accepted workflows in a UTC month against the current policy allowance.
+ * This is reporting, not an atomic reservation or redemption of free workflows.
  */
-export const getQuotaUsage = createServerFn(
-  "GET /api/entitlements/quota",
-  async (input: GetQuotaUsageSchema, { request }) => {
+export const getQuotaUsage = createServerFn({ method: "POST" })
+  .validator(GetQuotaUsageSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = GetQuotaUsageSchema.parse(input);
 
@@ -358,14 +320,7 @@ export const getQuotaUsage = createServerFn(
         data: { user: currentUser },
       } = await supabase.auth.getUser();
 
-      if (!currentUser) {
-        throw new Error("Unauthorized");
-      }
-
-      // Allow users to see their own quota
-      if (currentUser.id !== validInput.userId) {
-        await assertAdmin(currentUser.id);
-      }
+      await assertEntitlementReadAccess(currentUser, validInput.userId, assertAdmin);
 
       // Get user's entitlements
       const entitlements = await resolveUserEntitlements(validInput.userId);
@@ -385,32 +340,22 @@ export const getQuotaUsage = createServerFn(
 
       // Get policy details for monthly quota
       const admin = getSupabaseAdmin();
-      const { data: policy } = await admin
+      const { data: policy, error: policyError } = await admin
         .from("entitlement_policies")
         .select("monthly_free_workflows")
         .eq("id", entitlements.policyId)
         .single();
 
-      const monthlyQuota = policy?.monthly_free_workflows || 0;
-
-      // Count quotes created in this month (assuming accepted quotes)
-      const [year, month] = validInput.month.split("-").map(Number);
-      const startDate = new Date(year, month - 1, 1).toISOString();
-      const endDate = new Date(year, month, 1).toISOString();
-
-      const { data: quotes, error: quotesError } = await admin
-        .from("pricing_quotes")
-        .select("id")
-        .eq("user_id", validInput.userId)
-        .eq("status", "accepted")
-        .gte("created_at", startDate)
-        .lt("created_at", endDate);
-
-      if (quotesError) {
-        throw quotesError;
+      if (policyError || !policy) {
+        throw new Error("Entitlement policy is unavailable");
+      }
+      const monthlyQuota = policy.monthly_free_workflows ?? 0;
+      if (!Number.isSafeInteger(monthlyQuota) || monthlyQuota < 0) {
+        throw new Error("Entitlement quota is unavailable");
       }
 
-      const used = quotes?.length || 0;
+      // Count when accepted, using a UTC month and an exact count beyond row limits.
+      const used = await countMonthlyAcceptedQuotes(admin, validInput.userId, validInput.month);
       const remaining = Math.max(0, monthlyQuota - used);
       const percentUsed = monthlyQuota > 0 ? (used / monthlyQuota) * 100 : 0;
 
@@ -431,8 +376,7 @@ export const getQuotaUsage = createServerFn(
           error instanceof Error ? error.message : "Failed to get quota usage",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // LIST AUDIT LOG
@@ -444,11 +388,13 @@ export const getQuotaUsage = createServerFn(
  */
 /**
  * List audit log with proper authorization and scope enforcement.
- * SECURITY: Admin-only access, sensitive fields stripped for non-super-admins.
+ * SECURITY: Verified admin role and actor scope; only summary fields are returned.
  */
-export const listAuditLog = createServerFn(
-  "GET /api/admin/audit-log",
-  async (input: AuditLogFilterSchema, { request }) => {
+export const listAuditLog = createServerFn({ method: "POST" })
+  .validator(AuditLogFilterSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+
     try {
       const validInput = AuditLogFilterSchema.parse(input);
 
@@ -469,11 +415,8 @@ export const listAuditLog = createServerFn(
       }
 
       // SECURITY: Verify admin access before allowing any audit log access
-      try {
-        await assertAdmin(user.id);
-      } catch {
-        throw new Error("Forbidden: audit log access requires admin role");
-      }
+      const verifiedAdmin = await assertAdmin(user.id);
+      const actorScope = getAuditActorScope(verifiedAdmin, validInput.userId);
 
       const admin = getSupabaseAdmin();
       let query = admin
@@ -489,17 +432,13 @@ export const listAuditLog = createServerFn(
         query = query.eq("action", validInput.action);
       }
 
-      // If filtering by actor, verify it's the current user or they're super_admin
-      if (validInput.userId) {
-        const userRole = user.app_metadata?.role;
-        if (userRole !== "super_admin" && validInput.userId !== user.id) {
-          throw new Error("Forbidden: cannot view other users' audit logs");
-        }
-        query = query.eq("actor_user_id", validInput.userId);
+      if (actorScope) {
+        query = query.eq("actor_user_id", actorScope);
       }
 
       const { data: logs, error: logsError } = await query
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .range(validInput.offset, validInput.offset + validInput.limit - 1);
 
       if (logsError) {
@@ -523,8 +462,7 @@ export const listAuditLog = createServerFn(
             : "Failed to list audit log",
       };
     }
-  }
-);
+  });
 
 // ============================================================================
 // LIST ENTITLEMENTS (ADMIN)
@@ -534,9 +472,11 @@ export const listAuditLog = createServerFn(
  * Admin function to list all active entitlements in the system.
  * Useful for overview and management.
  */
-export const adminListEntitlements = createServerFn(
-  "GET /api/admin/entitlements",
-  async ({ limit = 50, offset = 0 }, { request }) => {
+export const adminListEntitlements = createServerFn({ method: "POST" })
+  .validator(EntitlementListSchema)
+  .handler(async ({ data: input }) => {
+    const request = getRequest();
+    const { limit = 50, offset = 0 } = input;
     try {
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
@@ -559,28 +499,7 @@ export const adminListEntitlements = createServerFn(
 
       const admin = getSupabaseAdmin();
 
-      // Get active assignments with related data
-      const { data: assignments, error: assignError } = await admin
-        .from("entitlement_assignments")
-        .select(
-          `
-          id,
-          user_id,
-          organization_id,
-          policy_id:entitlement_policies(policy_slug, display_name),
-          assigned_at,
-          expires_at,
-          reason
-        `
-        )
-        .is("expires_at", null)
-        .or("expires_at.gt.now()")
-        .order("assigned_at", { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (assignError) {
-        throw assignError;
-      }
+      const assignments = await fetchActiveEntitlements(admin, { limit, offset });
 
       return {
         success: true,
@@ -599,5 +518,4 @@ export const adminListEntitlements = createServerFn(
             : "Failed to list entitlements",
       };
     }
-  }
-);
+  });

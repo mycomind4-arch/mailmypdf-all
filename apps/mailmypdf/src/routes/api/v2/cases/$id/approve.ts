@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
-import { approvePacket, assertMailClass, assertRecipient } from "@/lib/secure-core/case-approval.server";
+import { approvePacket, assertMailClass, assertRecipient, assertReviewedPacket } from "@/lib/secure-core/case-approval.server";
 import { errorResponse, json, readJson, UUID_PATTERN } from "@/lib/secure-core/http.server";
 
 export const Route = createFileRoute("/api/v2/cases/$id/approve")({
@@ -14,11 +14,17 @@ export const Route = createFileRoute("/api/v2/cases/$id/approve")({
           if (!UUID_PATTERN.test(params.id)) return json(400, { error: "Invalid case ID" });
           const context = await requireAuthenticatedUser(request);
           const body = await readJson(request);
+          const reviewed = {
+            packetSha256: body.expected_packet_sha256 as string,
+            totalCents: body.expected_total_cents as number,
+          };
+          assertReviewedPacket(reviewed, reviewed);
 
           const result = await approvePacket({
             caseId: params.id,
             recipient: assertRecipient(body.recipient),
             mailClass: assertMailClass(body.mail_class),
+            reviewed,
           }, context);
 
           return json(201, {

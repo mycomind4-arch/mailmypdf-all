@@ -214,14 +214,14 @@ CREATE TABLE IF NOT EXISTS public.pricing_quotes (
   -- Metadata
   metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
-  accepted_at timestamptz,
-
-  INDEX idx_quotes_user_id (user_id),
-  INDEX idx_quotes_workflow_id (workflow_id),
-  INDEX idx_quotes_status (status),
-  INDEX idx_quotes_expires_at (expires_at),
-  INDEX idx_quotes_created_at (created_at DESC)
+  accepted_at timestamptz
 );
+
+CREATE INDEX idx_quotes_user_id ON public.pricing_quotes (user_id);
+CREATE INDEX idx_quotes_workflow_id ON public.pricing_quotes (workflow_id);
+CREATE INDEX idx_quotes_status ON public.pricing_quotes (status);
+CREATE INDEX idx_quotes_expires_at ON public.pricing_quotes (expires_at);
+CREATE INDEX idx_quotes_created_at ON public.pricing_quotes (created_at DESC);
 
 ALTER TABLE public.pricing_quotes ENABLE ROW LEVEL SECURITY;
 
@@ -265,13 +265,13 @@ CREATE TABLE IF NOT EXISTS public.entitlements_audit_log (
   reason text,
   metadata jsonb DEFAULT '{}'::jsonb,
 
-  created_at timestamptz NOT NULL DEFAULT now(),
-
-  INDEX idx_audit_action (action),
-  INDEX idx_audit_resource (resource_type, resource_id),
-  INDEX idx_audit_created_at (created_at DESC),
-  INDEX idx_audit_actor (actor_user_id)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_audit_action ON public.entitlements_audit_log (action);
+CREATE INDEX idx_audit_resource ON public.entitlements_audit_log (resource_type, resource_id);
+CREATE INDEX idx_audit_created_at ON public.entitlements_audit_log (created_at DESC);
+CREATE INDEX idx_audit_actor ON public.entitlements_audit_log (actor_user_id);
 
 ALTER TABLE public.entitlements_audit_log ENABLE ROW LEVEL SECURITY;
 

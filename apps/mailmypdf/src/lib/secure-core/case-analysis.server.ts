@@ -72,7 +72,8 @@ export async function analyseSubjectNotice(
 
   const result = validateNoticeAnalysis(parseJsonResponse<unknown>(text));
 
-  const { data, error } = await context.supabase.rpc("record_case_analysis", {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("record_case_analysis", {
     p_case_id: caseId,
     p_document_id: notice.document_id,
     p_model: model,

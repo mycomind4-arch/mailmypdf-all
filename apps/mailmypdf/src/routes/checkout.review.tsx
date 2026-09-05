@@ -1,3 +1,4 @@
+import { authenticatedHeaders } from "@/lib/authenticated-client";
 /**
  * Checkout Review Page (Phase 3)
  *
@@ -9,8 +10,8 @@
 
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getPricingQuoteDetails } from "~/lib/pricing.functions";
-import { createCheckoutSession } from "~/lib/stripe-payment.functions";
+import { getPricingQuoteDetails } from "@/lib/pricing.functions";
+import { createCheckoutSession } from "@/lib/stripe-payment.functions";
 
 const CheckoutReviewSearch = z.object({
   quoteId: z.string().uuid(),
@@ -39,7 +40,7 @@ function CheckoutReviewPage() {
   async function loadQuote() {
     try {
       setLoading(true);
-      const result = await getPricingQuoteDetails(search.quoteId);
+      const result = await getPricingQuoteDetails({ data: { quoteId: search.quoteId }, headers: await authenticatedHeaders() });
 
       if (!result.success) {
         setError(result.error || "Failed to load quote");
@@ -65,9 +66,10 @@ function CheckoutReviewPage() {
       const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
 
       const result = await createCheckoutSession({
-        quoteId: search.quoteId,
+        headers: await authenticatedHeaders(),
+        data: { quoteId: search.quoteId,
         successUrl: `${baseUrl}/checkout/success?quoteId=${search.quoteId}`,
-        cancelUrl: `${baseUrl}/checkout/cancelled?quoteId=${search.quoteId}`,
+        cancelUrl: `${baseUrl}/checkout/cancelled?quoteId=${search.quoteId}` },
       });
 
       if (!result.success) {
