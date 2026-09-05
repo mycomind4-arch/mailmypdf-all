@@ -126,3 +126,4 @@ export const workspacePrimitives = [
 ] as const;
 
 export * from './public-page.js'
+export * from './workspace.js'
