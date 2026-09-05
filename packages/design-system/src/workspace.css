@@ -53,6 +53,24 @@
 .mmp-workspace-row__meta { margin-top: .25rem; color: var(--mmp-ink-muted); font-size: .74rem; line-height: 1.5; }
 .mmp-workspace-account { display: inline-flex; align-items: center; gap: .55rem; min-height: 2.35rem; padding: .4rem .65rem; border: 1px solid var(--mmp-border); border-radius: 999px; color: var(--mmp-ink); background: var(--mmp-surface); text-decoration: none; font-size: .76rem; font-weight: 600; }
 .mmp-workspace-account__avatar { width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 50%; color: white; background: var(--mmp-brand); font-size: .66rem; font-weight: 700; }
+.mmp-workflow-hub { margin-top: 2rem; }
+.mmp-workflow-hub__header { margin-bottom: 1rem; display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; }
+.mmp-workflow-hub__header h2 { margin: .45rem 0 0; font: 400 clamp(1.9rem, 3vw, 2.8rem)/1 var(--mmp-font-display); letter-spacing: -.02em; }
+.mmp-workflow-hub__header p { max-width: 720px; margin: .55rem 0 0; color: var(--mmp-ink-muted); font-size: .86rem; line-height: 1.6; }
+.mmp-workflow-hub__actions { flex: 0 0 auto; }
+.mmp-workflow-hub__grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .9rem; }
+.mmp-workflow-hub-card { min-height: 220px; padding: 1.15rem; display: flex; flex-direction: column; border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); color: var(--mmp-ink); background: var(--mmp-surface); box-shadow: var(--mmp-shadow-sm); text-decoration: none; transition: transform var(--mmp-motion-normal), border-color var(--mmp-motion-normal), box-shadow var(--mmp-motion-normal); }
+.mmp-workflow-hub-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--mmp-accent) 34%, var(--mmp-border)); box-shadow: var(--mmp-shadow-md); }
+.mmp-workflow-hub-card__top { min-height: 1.9rem; display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.mmp-workflow-hub-card__icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; color: var(--mmp-accent); background: var(--mmp-accent-soft); }
+.mmp-workflow-hub-card__icon svg { width: 1rem; height: 1rem; }
+.mmp-workflow-hub-card__labels { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
+.mmp-workflow-hub-card__eyebrow { color: var(--mmp-accent); font-size: .61rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.mmp-workflow-hub-card__badge { padding: .18rem .45rem; border-radius: 999px; color: var(--mmp-accent); background: var(--mmp-accent-soft); font-size: .63rem; font-weight: 700; }
+.mmp-workflow-hub-card__title { margin: 1.1rem 0 .45rem; font: 400 1.55rem/1.05 var(--mmp-font-display); }
+.mmp-workflow-hub-card__description { margin: 0; color: var(--mmp-ink-muted); font-size: .82rem; line-height: 1.55; }
+.mmp-workflow-hub-card__meta { margin-top: .8rem; color: var(--mmp-ink-muted); font-size: .68rem; }
+.mmp-workflow-hub-card__action { margin-top: auto; padding-top: 1rem; color: var(--mmp-accent); font-size: .78rem; font-weight: 700; }
 @media (max-width: 1100px) {
   .mmp-workspace { grid-template-columns: 1fr; }
   .mmp-workspace-sidebar { position: static; height: auto; display: block; border-right: 0; border-bottom: 1px solid var(--mmp-border); }
@@ -63,6 +81,7 @@
   .mmp-workspace-nav__section-label, .mmp-workspace-sidebar__utilities, .mmp-workspace-sidebar__footer { display: none; }
   .mmp-workspace-nav__item { width: auto; flex: 0 0 auto; }
   .mmp-workspace-topbar { top: 0; }
+  .mmp-workflow-hub__grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 720px) {
   .mmp-workspace-topbar { align-items: flex-start; padding-inline: 1rem; }
@@ -73,4 +92,6 @@
   .mmp-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .mmp-metric:nth-child(2) { border-right: 0; }
   .mmp-metric:nth-child(-n+2) { border-bottom: 1px solid var(--mmp-border); }
+  .mmp-workflow-hub__header { align-items: flex-start; flex-direction: column; }
+  .mmp-workflow-hub__grid { grid-template-columns: 1fr; }
 }
