@@ -5,28 +5,12 @@ on:
     branches: [main]
     paths:
       - 'packages/design-system/**'
-      - 'apps/verticals/immigration-mail/**'
-      - 'apps/verticals/appeal-mail/**'
-      - 'apps/verticals/notice-respond/**'
-      - 'apps/verticals/dispute-mail/**'
-      - 'apps/verticals/records-request/**'
-      - 'apps/verticals/private-office/**'
-      - 'apps/verticals/insurance-claims/**'
-      - 'apps/verticals/code-enforcement/**'
-      - 'apps/verticals/small-business/**'
+      - 'apps/verticals/**'
       - '.github/workflows/workspace-ui-ci.yml'
   pull_request:
     paths:
       - 'packages/design-system/**'
-      - 'apps/verticals/immigration-mail/**'
-      - 'apps/verticals/appeal-mail/**'
-      - 'apps/verticals/notice-respond/**'
-      - 'apps/verticals/dispute-mail/**'
-      - 'apps/verticals/records-request/**'
-      - 'apps/verticals/private-office/**'
-      - 'apps/verticals/insurance-claims/**'
-      - 'apps/verticals/code-enforcement/**'
-      - 'apps/verticals/small-business/**'
+      - 'apps/verticals/**'
       - '.github/workflows/workspace-ui-ci.yml'
   workflow_dispatch:
 
@@ -43,12 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@9.10.0 --activate
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Typecheck design system
@@ -61,23 +47,29 @@ jobs:
       fail-fast: false
       matrix:
         app:
-          - immigration-mail
           - appeal-mail
-          - notice-respond
-          - dispute-mail
-          - records-request
-          - private-office
-          - insurance-claims
+          - benefits-appeal
+          - claim-proof
           - code-enforcement
+          - dispute-mail
+          - immigration-mail
+          - insurance-claims
+          - notice-respond
+          - permit-reply
+          - private-office
+          - records-request
           - small-business
+          - tenant-reply
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@9.10.0 --activate
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Build app
