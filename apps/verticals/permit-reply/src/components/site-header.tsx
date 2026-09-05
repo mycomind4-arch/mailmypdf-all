@@ -7,10 +7,11 @@ export function SiteHeader() {
       brand="Permit Reply"
       anchorLinks={[
         { href: 'https://mailmypdf.pages.dev/start', label: 'Mail a PDF' },
-        { href: '#how-it-works', label: 'How it works' },
-        { href: '#notice-types', label: 'Notice types' },
-        { href: '#code', label: 'Code reference' },
-        { href: '#faq', label: 'FAQ' },
+        { href: '/workflows', label: 'Workflows' },
+        { href: '/#how-it-works', label: 'How it works' },
+        { href: '/#notice-types', label: 'Notice types' },
+        { href: '/#code', label: 'Code reference' },
+        { href: '/#faq', label: 'FAQ' },
       ]}
     />
   )
