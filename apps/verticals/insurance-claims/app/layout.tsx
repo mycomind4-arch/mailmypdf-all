@@ -1,5 +1,6 @@
 import '../../../../packages/design-system/src/tokens.css'
 import '../../../../packages/design-system/src/patterns.css'
+import '../../../../packages/design-system/src/workspace.css'
 import './globals.css'
 import { SiteNav } from '@/app/components/SiteNav'
 import { EcosystemFooter } from '@/app/components/EcosystemFooter'
