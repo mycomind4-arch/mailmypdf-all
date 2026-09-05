@@ -1579,6 +1579,39 @@ export const WORKFLOW_GOLD_CONTENT: Record<string, WorkflowGoldContent> = {
     authorityNote: "A CP2000 is a proposed adjustment notice, not a bill. It shows discrepancies between the income reported on the tax return and information returns (W-2, 1099) filed by third parties. The taxpayer has 30 days to respond. If the taxpayer agrees, they sign and return the form. If they disagree, they provide documentation supporting their position. If unresolved, it may become a Statutory Notice of Deficiency (CP3219N).",
   },
 
+  "notice/cp14-response": {
+    overview: "A secure workflow for responding to an IRS CP14 balance due notice. Reads the printed pay-by date and balance breakdown, then prepares one reviewed response path without conceding liability.",
+    whenToUse: [
+      "You received a CP14 notice and need to act on the printed pay-by date.",
+      "You want to pay, request a payment arrangement, seek hardship relief, or dispute the balance.",
+      "You need to request penalty relief separately from the payment path.",
+    ],
+    whenNotToUse: [
+      "The notice is a CP2000 proposed adjustment (use the CP2000 response workflow).",
+      "You need tax or legal advice about eligibility or strategy.",
+      "You are trying to replace a missing IRS form or file an amended return.",
+    ],
+    officialSources: [
+      { title: "Understanding Your CP14 Notice", publisher: "Internal Revenue Service", url: "https://www.irs.gov/individuals/understanding-your-cp14-notice", reviewedAt: REVIEWED },
+      { title: "Responding to a Notice", publisher: "Internal Revenue Service", url: "https://www.irs.gov/individuals/responding-to-a-notice", reviewedAt: REVIEWED },
+    ],
+    checklist: [
+      "CP14 notice and the printed pay-by date",
+      "Tax year, notice date, and account identifier as shown",
+      "Chosen response path and specific requested outcome",
+      "Payment, hardship, or dispute evidence you actually have",
+      "Separate penalty relief basis when applicable",
+      "Issuing service center address from the notice",
+    ],
+    faq: [
+      "What is a CP14 notice?",
+      "Is a CP14 the same as a CP2000?",
+      "Can I request penalty relief with a CP14 response?",
+      "Where do I mail a CP14 response?",
+    ],
+    authorityNote: "A CP14 is an IRS notice and demand for an assessed balance. The pay-by date printed on the notice controls; this workflow preserves that date as extracted evidence and does not calculate a substitute deadline. Mailing remains held until you review and approve the exact packet.",
+  },
+
   "notice/court-summons": {
     overview: "A workflow for responding to a court summons. Reads the summons to identify the court, case type, response deadline, and required action, then prepares an answer or response document with the correct court formatting.",
     whenToUse: [

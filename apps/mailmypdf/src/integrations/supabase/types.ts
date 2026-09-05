@@ -499,6 +499,41 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_case_inputs: {
+        Row: {
+          id: string
+          case_id: string
+          owner_id: string
+          version: number
+          input: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          case_id: string
+          owner_id: string
+          version: number
+          input: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          case_id?: string
+          owner_id?: string
+          version?: number
+          input?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_case_inputs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_documents: {
         Row: {
           id: string

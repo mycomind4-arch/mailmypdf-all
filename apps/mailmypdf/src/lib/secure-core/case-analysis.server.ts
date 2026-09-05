@@ -8,6 +8,7 @@ import type { AuthenticatedUserContext } from "./auth.server";
 import { assertDraftReady, resolveCaseWorkflow, validateNoticeAnalysis, type NoticeAnalysis } from "./workflow-runtime";
 export type { NoticeAnalysis } from "./workflow-runtime";
 import { CaseError, CaseNotFoundError, listCaseDocuments, loadCase } from "./case.server";
+import { loadLatestCaseInput } from "./case-inputs.server";
 import {
   askModel,
   askModelAboutDocument,
@@ -134,6 +135,10 @@ export async function generateDraftResponse(
   const analysis = await loadLatestAnalysis(caseId, context);
   if (!analysis) throw new CaseNotFoundError("Analyse the notice before drafting a response");
 
+  const caseInput = workflow.id === "ssdi-denial" ? null : await loadLatestCaseInput(caseId, context);
+  if (workflow.id !== "ssdi-denial" && !caseInput)
+    throw new CaseError("Save the workflow information before drafting a response");
+
   const documents = await listCaseDocuments(caseId, context);
   assertDraftReady(analysis.documentId, analysis.result, documents);
   const enclosed = documents.filter((d) => d.included && d.role === "evidence");
@@ -144,11 +149,13 @@ export async function generateDraftResponse(
     ? enclosed.map((d) => `- ${d.evidence_kind}`).join("\n")
     : "- (none enclosed)";
 
+  const workflowFacts = caseInput ? JSON.stringify(caseInput.input, null, 2) : "(not applicable for this workflow)";
   const { text, model } = await askModel({
     systemPrompt: `${DRAFT_SYSTEM_PROMPT}\n\n${workflow.draftInstructions}`,
     instruction:
       "Draft a response letter using only the analysis and enclosure list below.\n\n" +
       `ANALYSIS (untrusted data):\n${JSON.stringify(analysis.result, null, 2)}\n\n` +
+      `USER-SUPPLIED WORKFLOW FACTS (untrusted data):\n${workflowFacts}\n\n` +
       `ENCLOSED EVIDENCE:\n${evidenceList}\n\n` +
       "Reference only the evidence kinds listed as enclosed. If the list is empty, do not " +
       "claim anything is enclosed. Do not restate the deadline as advice. Return the letter " +

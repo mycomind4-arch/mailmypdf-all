@@ -1,5 +1,16 @@
 # Workflow runtime increment
 
+## CP14 / CP2000 priority
+
+- [ ] Define separate CP14 and CP2000 runtime adapters on the shared secure case primitives.
+- [ ] Add a persisted, validated case-input contract for tax-specific facts and response choices.
+- [ ] Replace legacy notice-response model calls with scan-gated, audited v2 analysis and drafting.
+- [ ] Build the CP14 workflow UI with document upload, analysis review, response facts, draft PDF, packet approval, payment, and mailing status.
+- [ ] Build the CP2000 workflow UI with proposed-change reconciliation and agree/disagree/partial response branches.
+- [ ] Add synthetic end-to-end tests for both workflows, including stale analysis, owner isolation, quarantine, packet hash, approval, and fulfillment handoff.
+- [ ] Replace generic SEO authority cards with verified workflow-specific content and honest runtime status.
+- [ ] Audit every public page's security copy against the controls actually enforced by that route.
+
 - [x] Add failing behavior tests for analysis validation and draft readiness.
 - [x] Extract SSDI instructions behind an explicit workflow/vertical resolver.
 - [x] Wire validation and readiness checks into the existing analysis service.

@@ -10,7 +10,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Mail, Shield, Clock3, FileText, Sparkles } from "lucide-react";
-import { SiteFooter } from "./site-chrome";
+import { SecurityTrustBand, SiteFooter } from "./site-chrome";
 import type { LucideIcon } from "lucide-react";
 
 export interface VerticalFeature {
@@ -124,7 +124,7 @@ export function VerticalLanding({ config }: { config: VerticalConfig }) {
       <section className="border-b border-[#1b211e]/10">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <h2 className="text-center font-serif text-3xl md:text-4xl">What {name} does</h2>
-          <p className="mx-auto mt-3 max-w-lg text-center text-[#1b211e]/55">Built for the real world — not a chatbot, but a workflow that produces a mailed, tracked, provable document.</p>
+          <p className="mx-auto mt-3 max-w-lg text-center text-[#1b211e]/55">Built for the real world: a guided workflow that keeps the source document, review, mailing choice, and proof connected.</p>
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {features.map((feature, i) => {
               const Icon = feature.icon;
@@ -171,7 +171,7 @@ export function VerticalLanding({ config }: { config: VerticalConfig }) {
           <h2 className="mt-6 font-serif text-3xl md:text-4xl">One platform. Many verticals.</h2>
           <p className="mx-auto mt-4 max-w-lg text-[#1b211e]/60">
             {name} is built on MailMyPDF's delivery infrastructure — USPS mailing, tracking, certified mail, and proof of service.
-            {poweredBy ? ` Powered by ${poweredBy}.` : ""} Every document is printed, mailed, and tracked with evidence-grade custody.
+            {poweredBy ? ` Powered by ${poweredBy}.` : ""} Protected workflows add owner-scoped access, scan-gated document use, and explicit approval before mailing.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link to="/ecosystem" className="rounded-full border border-[#1b211e]/20 px-5 py-2.5 text-sm font-medium hover:border-[#1b211e]/40">
@@ -191,6 +191,10 @@ export function VerticalLanding({ config }: { config: VerticalConfig }) {
           </div>
         </div>
       </section>
+
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <SecurityTrustBand />
+      </div>
 
       {/* CTA */}
       <section className="bg-[#1b211e] py-20 text-center text-[#f3f1eb]">

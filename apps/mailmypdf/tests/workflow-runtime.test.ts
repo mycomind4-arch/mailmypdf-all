@@ -27,9 +27,21 @@ test("rejects malformed, incomplete and impossible-date analysis", () => {
 
 test("resolves SSDI only under its persisted vertical, never falls back for unknown workflows", () => {
   assert.equal(resolveCaseWorkflow("ssdi-denial", "appeal-mail").id, "ssdi-denial");
+  assert.equal(resolveCaseWorkflow("cp14-response", "notice-response").noticeFamily, "irs");
+  assert.deepEqual(resolveCaseWorkflow("cp2000-response", "notice-response").responseModes, ["agree", "disagree", "partial-agreement"]);
   assert.throws(() => resolveCaseWorkflow("ssdi-denial", "dispute-mail"));
   assert.throws(() => resolveCaseWorkflow("unknown", "appeal-mail"));
   assert.throws(() => resolveCaseWorkflow("toString", "appeal-mail"));
+});
+
+test("keeps CP14 and CP2000 drafting rules distinct", () => {
+  const cp14 = resolveCaseWorkflow("cp14-response", "notice-response");
+  const cp2000 = resolveCaseWorkflow("cp2000-response", "notice-response");
+  assert.match(cp14.analysisInstructions, /balance-due/);
+  assert.match(cp14.draftInstructions, /installment/);
+  assert.match(cp2000.analysisInstructions, /proposed-underreporter/);
+  assert.match(cp2000.draftInstructions, /partial-agreement/);
+  assert.notEqual(cp14.analysisInstructions, cp2000.analysisInstructions);
 });
 
 test("allows drafting from the current clean notice with no enclosures", () => {

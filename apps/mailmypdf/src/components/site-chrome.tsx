@@ -7,6 +7,7 @@
 import { EcosystemShell } from "./ecosystem-shell";
 import { useShellConfig } from "./ecosystem-shell-config";
 import { Link } from "@tanstack/react-router";
+import { FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
 
 const POPULAR_PAGES: { to: string; label: string }[] = [
   { to: "/mail-a-pdf", label: "Mail a PDF" },
@@ -29,6 +30,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-rule/60">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <SecurityTrustBand />
         <div className="grid gap-8 sm:gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           {/* Brand */}
           <div className="md:col-span-1">
@@ -37,8 +39,8 @@ export function SiteFooter() {
               <span className="font-serif text-lg">MailMyPDF</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-              Turn documents into documented action. Prepare, send, track, and prove important
-              correspondence.
+              Prepare, send, track, and prove important correspondence with clear controls around
+              document access, review, retention, and mailing.
             </p>
           </div>
 
@@ -90,6 +92,38 @@ export function SiteFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/**
+ * Shared trust copy for every public surface. It describes the controls that
+ * are enforced by protected workflow runtimes without promising that a
+ * legacy or standard mailing has the same case-level analysis path.
+ */
+export function SecurityTrustBand() {
+  return (
+    <section className="mb-10 rounded-2xl border border-rule bg-paper-deep/35 p-5 sm:p-6" aria-label="Security commitments">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cobalt/20 bg-card text-cobalt">
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Security-first document handling</p>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Protected workflows keep files owner-scoped, quarantine uploads until scanning clears
+              them, record server-side disclosures, and hold mailing until you approve the exact
+              packet.
+            </p>
+          </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-3 gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5"><LockKeyhole className="h-3.5 w-3.5 text-cobalt" aria-hidden="true" /> Owner scoped</div>
+          <div className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-cobalt" aria-hidden="true" /> Scan gated</div>
+          <div className="flex items-center gap-1.5"><FileCheck2 className="h-3.5 w-3.5 text-cobalt" aria-hidden="true" /> Approval held</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
