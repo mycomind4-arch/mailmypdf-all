@@ -124,3 +124,5 @@ export const workspacePrimitives = [
   'TrackingTimeline',
   'ProofArchive',
 ] as const;
+
+export * from './public-page.js'
