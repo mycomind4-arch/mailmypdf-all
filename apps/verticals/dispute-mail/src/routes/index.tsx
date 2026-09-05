@@ -1,6 +1,6 @@
 import { PRICES } from "@mailmypdf/pricing";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, ShieldAlert, Mail, ShieldCheck, Sparkles, Clock, PackageCheck, Lock, Send, Eye, Stamp, CreditCard, FileText, ChevronDown } from "lucide-react";
+import { ArrowRight, ShieldAlert, Mail, ShieldCheck, Sparkles, Clock, PackageCheck, Lock, Send, Eye, Stamp, CreditCard, FileText, ChevronDown } from "lucide-react";
 import { createElement, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -52,6 +52,12 @@ const features = [
   [Lock, "Account-scoped workflow", "Protected intake, drafts, and mailing records stay tied to your account context."],
 ] as const;
 
+const mailingPlans = [
+  { type: "Standard", cents: PRICES.standard, icon: Mail, description: "Standard mailing service" },
+  { type: "Certified", cents: PRICES.certified, icon: PackageCheck, description: "Delivery tracking and confirmation options" },
+  { type: "Registered", cents: PRICES.registered, icon: Stamp, description: "Higher-assurance handling and tracking" },
+] as const;
+
 const faqItems = [
   ["Is this legal advice?", "No. Dispute Mail is a correspondence tool, not a law firm. It helps prepare and send dispute documents and does not provide legal advice."],
   ["What types of issues can I dispute?", "Current workflows cover credit report errors, debt validation requests, billing errors, and unauthorized charges. Browse the workflow directory for the current catalog."],
@@ -98,11 +104,7 @@ function HomePage() {
 
       <section className="bg-cream py-16 md:py-24"><div className="container"><div className="mx-auto max-w-2xl"><div className="eyebrow">Why Dispute Mail</div><h2 className="mt-3 text-3xl font-bold text-teal-700 md:text-4xl" style={{fontFamily:"var(--font-serif)"}}>Built for documented disputes</h2><p className="mt-4 text-slate-400">Keep preparation, approval, mailing, and the resulting record in one workflow.</p></div><div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{features.map(([Icon,title,desc]) => <div key={title} className="card p-6"><div className="flex h-11 w-11 items-center justify-center rounded-lg bg-rose-50"><Icon size={22} className="text-stamp"/></div><h3 className="mt-4 font-semibold text-teal-700" style={{fontFamily:"var(--font-serif)"}}>{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{desc}</p></div>)}</div></div></section>
 
-      <section id="pricing" className="bg-white py-16 md:py-24"><div className="container"><div className="mx-auto max-w-2xl text-center"><div className="eyebrow">Mailing pricing</div><h2 className="mt-3 text-3xl font-bold text-teal-700 md:text-4xl" style={{fontFamily:"var(--font-serif)"}}>Choose the mailing service that fits the matter</h2><p className="mt-4 text-slate-400">Workflow preparation is priced separately where applicable.</p></div><div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-3">{[
-        ["Standard", PRICES.standard, Mail, "Standard mailing service"],
-        ["Certified", PRICES.certified, PackageCheck, "Delivery tracking and confirmation options"],
-        ["Registered", PRICES.registered, Stamp, "Higher-assurance handling and tracking"],
-      ].map(([type,cents,Icon,desc]) => <div key={String(type)} className="card p-6 text-center"><Icon size={28} className="mx-auto text-teal-700"/><h3 className="mt-4 font-semibold text-teal-700" style={{fontFamily:"var(--font-serif)"}}>{String(type)}</h3><p className="mt-2 text-3xl font-bold text-teal-700" style={{fontFamily:"var(--font-serif)"}}>${(Number(cents)/100).toFixed(2)}</p><p className="mt-2 text-xs text-slate-400">{String(desc)}</p></div>)}</div><div className="mt-8 text-center"><Link to="/pricing" className="btn-outline">See full pricing <ArrowRight size={16}/></Link></div></div></section>
+      <section id="pricing" className="bg-white py-16 md:py-24"><div className="container"><div className="mx-auto max-w-2xl text-center"><div className="eyebrow">Mailing pricing</div><h2 className="mt-3 text-3xl font-bold text-teal-700 md:text-4xl" style={{fontFamily:"var(--font-serif)"}}>Choose the mailing service that fits the matter</h2><p className="mt-4 text-slate-400">Workflow preparation is priced separately where applicable.</p></div><div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-3">{mailingPlans.map(({type,cents,icon:Icon,description}) => <div key={type} className="card p-6 text-center"><Icon size={28} className="mx-auto text-teal-700"/><h3 className="mt-4 font-semibold text-teal-700" style={{fontFamily:"var(--font-serif)"}}>{type}</h3><p className="mt-2 text-3xl font-bold text-teal-700" style={{fontFamily:"var(--font-serif)"}}>${(cents/100).toFixed(2)}</p><p className="mt-2 text-xs text-slate-400">{description}</p></div>)}</div><div className="mt-8 text-center"><Link to="/pricing" className="btn-outline">See full pricing <ArrowRight size={16}/></Link></div></div></section>
 
       <section className="bg-cream py-16 md:py-20"><div className="container grid gap-8 md:grid-cols-3"><div className="card p-6"><Lock size={24} className="text-stamp"/><h2 className="mt-4 text-lg font-semibold text-teal-700">Your facts stay under your control</h2><p className="mt-2 text-sm leading-6 text-slate-400">AI can assist with organization and drafting, but the final correspondence requires your review.</p></div><div className="card p-6"><Clock size={24} className="text-stamp"/><h2 className="mt-4 text-lg font-semibold text-teal-700">Dates are surfaced for review</h2><p className="mt-2 text-sm leading-6 text-slate-400">Verify any deadline against the underlying notice, account records, or correspondence before relying on it.</p></div><div className="card p-6"><ShieldAlert size={24} className="text-stamp"/><h2 className="mt-4 text-lg font-semibold text-teal-700">Know what we're not</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dispute Mail is not a law firm and does not provide legal advice.</p></div></div></section>
 
