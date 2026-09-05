@@ -1,14 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Eye, FileText, Mail, ShieldCheck } from "lucide-react";
+import { createElement } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { NOTICE_WORKFLOWS, WorkflowCard, workflowCategories } from "@/components/notice-workflow-directory";
 import { SectionHeader } from "@/components/ui-primitives";
+import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
 
 const SITE_ORIGIN = "https://notice-respond.pages.dev";
 
-const HERO_IMAGE = "https://media.base44.com/images/public/6a8bd310dfdf9ad92cf26415/06e033fed_generated_image.png";
 const WORKSPACE_IMAGE = "https://media.base44.com/images/public/6a8bd310dfdf9ad92cf26415/6263d0344_generated_image.png";
 const DOCUMENT_IMAGE = "https://media.base44.com/images/public/6a8bd310dfdf9ad92cf26415/6e68c3354_generated_image.png";
+
+const VerticalHero = createVerticalHero(createElement);
+const SharedTrustStrip = createTrustStrip(createElement);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,13 +25,13 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Notice Respond · MailMyPDF" },
       { property: "og:url", content: SITE_ORIGIN + "/" },
-      { property: "og:image", content: "https://media.base44.com/images/public/6a8bd310dfdf9ad92cf26415/06e033fed_generated_image.png" },
-      { property: "og:image:width", content: "1024" },
+      { property: "og:image", content: SITE_ORIGIN + "/ecosystem-hero-sprite.jpg" },
+      { property: "og:image:width", content: "1536" },
       { property: "og:image:height", content: "1024" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Notice Respond — Government Notice Response Workflows" },
       { name: "twitter:description", content: "Understand the notice. Prepare the response. Send it properly. Keep the proof." },
-      { name: "twitter:image", content: "https://media.base44.com/images/public/6a8bd310dfdf9ad92cf26415/06e033fed_generated_image.png" },
+      { name: "twitter:image", content: SITE_ORIGIN + "/ecosystem-hero-sprite.jpg" },
     ],
     links: [{ rel: "canonical", href: SITE_ORIGIN + "/" }],
     scripts: [{ type: "application/ld+json", children: JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "Notice Respond", description: "Specialized workflows for responding to official notices and government correspondence.", url: SITE_ORIGIN, brand: { "@type": "Brand", name: "MailMyPDF" }, hasPart: NOTICE_WORKFLOWS.map((workflow) => ({ "@type": "WebPage", name: workflow.title, url: SITE_ORIGIN + workflow.route, about: workflow.searchIntent })) }) }],
@@ -41,49 +46,46 @@ function DirectoryPage() {
     <div className="min-h-screen bg-paper">
       <SiteHeader />
       <main>
-        {/* ═══ HERO ═══ */}
-        <section className="relative overflow-hidden border-b border-rule/60">
-          <div className="absolute inset-0">
-            <img
-              src={HERO_IMAGE}
-              alt="Professional correspondence desk with organized documents"
-              className="h-full w-full object-cover"
-              loading="eager"
-              aria-hidden="true"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-paper via-paper/85 to-paper/30" />
-          </div>
-          <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28 md:py-36">
-            <div className="max-w-2xl">
-              <div className="postmark w-fit">Notice Respond · MailMyPDF</div>
-              <h1 className="mt-6 font-serif text-4xl leading-[1.1] sm:text-5xl md:text-6xl">
-                Understand the notice.<br />
-                Build the response.<br />
-                <span className="italic text-stamp">Send it with proof.</span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-ink-soft sm:text-lg">
-                Upload or provide the notice. Identify the facts, dates, and evidence that matter. Review and approve the exact response. Send through MailMyPDF with tracking and proof of delivery.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  to="/workflows/analyze"
-                  className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-medium text-paper shadow-card transition-transform hover:-translate-y-0.5"
-                >
-                  Start a Response
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </Link>
-                <Link
-                  to="/workflows"
-                  className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-6 py-3.5 text-sm font-medium transition-colors hover:border-ink/30"
-                >
-                  Explore Notice Types
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <VerticalHero
+          theme="notice-respond"
+          tone="light"
+          eyebrow="Government notices don't have to be overwhelming"
+          title="Respond to notices with confidence."
+          description="Upload your notice, identify the facts and deadlines that matter, prepare a professional response, review it, and send it through MailMyPDF with tracking and proof."
+          imageSrc="/ecosystem-hero-sprite.jpg"
+          imageAlt="Government courthouse representing official notices and agency correspondence"
+          imageBackgroundSize="200% 300%"
+          imageBackgroundPosition="0% 0%"
+          actions={
+            <>
+              <Link
+                to="/workflows/analyze"
+                className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-medium text-paper shadow-card transition-transform hover:-translate-y-0.5"
+              >
+                Start a Response
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+              <Link
+                to="/workflows"
+                className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-6 py-3.5 text-sm font-medium text-ink transition-colors hover:border-ink/30"
+              >
+                Identify My Notice
+              </Link>
+            </>
+          }
+          meta={<><span>Official notice workflows</span><span>Review before mailing</span><span>MailMyPDF fulfillment</span></>}
+        />
+
+        <SharedTrustStrip
+          items={[
+            { icon: <FileText size={16} />, title: "No printer required", description: "Prepare and mail online" },
+            { icon: <Eye size={16} />, title: "Guided response", description: "Built around the notice you received" },
+            { icon: <ShieldCheck size={16} />, title: "You approve before mailing", description: "Review the exact response first" },
+            { icon: <Mail size={16} />, title: "Tracking & proof available", description: "Keep the mailing record together" },
+          ]}
+        />
 
         {/* ═══ PROCESS OVERVIEW ═══ */}
         <section className="border-b border-rule/60 bg-paper-deep/20">
