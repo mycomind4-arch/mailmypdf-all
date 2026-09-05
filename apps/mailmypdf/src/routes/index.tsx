@@ -23,6 +23,14 @@ import {
 } from "@/components/shared/design-system";
 
 const WORKFLOW_VERTICALS = ECOSYSTEM_VERTICALS.filter((vertical) => vertical.slug !== "mail-pdf");
+const HOMEPAGE_PRODUCT_TITLES: Record<string, string> = {
+  "appeal-reply": "Appeal Mail",
+  "records-request": "Records Requests",
+};
+
+function homepageProductTitle(slug: string, fallback: string): string {
+  return HOMEPAGE_PRODUCT_TITLES[slug] ?? fallback;
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -90,7 +98,7 @@ export const Route = createFileRoute("/")({
           itemListElement: WORKFLOW_VERTICALS.map((vertical, index) => ({
             "@type": "ListItem",
             position: index + 1,
-            name: vertical.title,
+            name: homepageProductTitle(vertical.slug, vertical.title),
             url: vertical.href,
           })),
         }),
@@ -149,8 +157,6 @@ function LandingPage() {
     </div>
   );
 }
-
-/* ── Hero ──────────────────────────────────────────────────────────────────── */
 
 function Hero() {
   return (
@@ -294,8 +300,6 @@ function ActionFlow() {
   );
 }
 
-/* ── Three ways to use MailMyPDF ───────────────────────────────────────────── */
-
 function WaysToUseMailMyPDF() {
   const paths = [
     {
@@ -354,8 +358,6 @@ function WaysToUseMailMyPDF() {
   );
 }
 
-/* ── Core mailing ──────────────────────────────────────────────────────────── */
-
 function CoreMailingSection() {
   const steps = [
     [Upload, "Upload your PDF", "Start with a finished document."],
@@ -401,8 +403,6 @@ function CoreMailingSection() {
   );
 }
 
-/* ── Workflow discovery ────────────────────────────────────────────────────── */
-
 function WorkflowDiscovery() {
   return (
     <section className="border-b border-rule/60">
@@ -427,21 +427,16 @@ function WorkflowDiscovery() {
               key={vertical.slug}
               href={vertical.href}
               label={vertical.label}
-              title={vertical.title}
+              title={homepageProductTitle(vertical.slug, vertical.title)}
               description={vertical.description}
               capabilities={vertical.capabilities}
             />
           ))}
         </div>
-        <p className="mt-5 max-w-3xl text-xs leading-5 text-muted-foreground">
-          Workflow availability expands as each product reaches its planned release state. The homepage intentionally does not publish a workflow count until the launch catalog is locked.
-        </p>
       </div>
     </section>
   );
 }
-
-/* ── SEO problem clusters ─────────────────────────────────────────────────── */
 
 function ProblemClusterSection() {
   const clusters = [
@@ -517,8 +512,6 @@ function ProblemClusterSection() {
   );
 }
 
-/* ── How it works ──────────────────────────────────────────────────────────── */
-
 function HowItWorks() {
   const steps = [
     {
@@ -577,8 +570,6 @@ function HowItWorks() {
     </section>
   );
 }
-
-/* ── Security ──────────────────────────────────────────────────────────────── */
 
 function SecuritySection() {
   const controls = [
@@ -644,8 +635,6 @@ function SecuritySection() {
   );
 }
 
-/* ── Pricing ───────────────────────────────────────────────────────────────── */
-
 function Pricing() {
   return (
     <section className="border-b border-rule/60">
@@ -671,8 +660,6 @@ function Pricing() {
     </section>
   );
 }
-
-/* ── Proof ─────────────────────────────────────────────────────────────────── */
 
 function ProofSection() {
   const items: [typeof ShieldCheck, string, string][] = [
