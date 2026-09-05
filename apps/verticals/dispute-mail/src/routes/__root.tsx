@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Home, ArrowRight, ShieldAlert } from "lucide-react";
+import "../../../../../packages/design-system/src/tokens.css";
+import "../../../../../packages/design-system/src/patterns.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -37,7 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: RootComponent,
 });
 
-function RootShell({ children }: { children: ReactNode }) { return <html lang="en"><head><HeadContent /></head><body>{children}<Scripts /></body></html>; }
+function RootShell({ children }: { children: ReactNode }) { return <html lang="en"><head><HeadContent /></head><body data-mmp-theme="dispute-mail">{children}<Scripts /></body></html>; }
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
