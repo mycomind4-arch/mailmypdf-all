@@ -1,4 +1,14 @@
+import inventory from "../../WORKFLOW_INVENTORY.json";
+
 export type WorkflowPublicationState = "DRAFT" | "SEO_READY" | "EXECUTABLE";
+export type WorkflowAuthorityReviewStatus = "NEEDS_INDIVIDUAL_REVIEW" | "AUTHORITY_REVIEWED";
+export type WorkflowSeoProvenanceKind = "modeled-inventory" | "build-spec" | "manual-review";
+
+export type WorkflowSeoProvenance = {
+  kind: WorkflowSeoProvenanceKind;
+  sourcePath: string;
+  note: string;
+};
 
 export type WorkflowAuthoritySourceKind =
   | "official"
@@ -79,6 +89,12 @@ export type WorkflowSeoCatalogEntry = {
   vertical: string;
   route: string;
   state: WorkflowPublicationState;
+  /**
+   * DRAFT inventory/spec extraction is never equivalent to an authority review.
+   * Promotion requires a deliberate individual workflow review.
+   */
+  reviewStatus: WorkflowAuthorityReviewStatus;
+  provenance: readonly WorkflowSeoProvenance[];
   content?: WorkflowSeoAuthorityContent;
   execution?: {
     /** Canonical authenticated execution entry point. */
@@ -88,22 +104,49 @@ export type WorkflowSeoCatalogEntry = {
   };
 };
 
+type InventoryWorkflow = {
+  id: string;
+  vertical: string;
+  route: string;
+};
+
 /**
  * MASTER PUBLIC SEO CATALOG.
  *
- * This is intentionally separate from WORKFLOW_INVENTORY.json. The old inventory
- * describes the smaller set of workflows already modeled in code; it is not the
- * source of truth for the planned public acquisition surface.
+ * The existing WORKFLOW_INVENTORY is now wired into this catalog only as DRAFT
+ * topology. This does NOT endorse the old inventory's content-quality labels.
+ * Every seeded record is intentionally NEEDS_INDIVIDUAL_REVIEW and noindex until
+ * the workflow itself is reviewed and upgraded to the standard it is supposed to
+ * reach.
  *
- * Spec-defined workflows should be added here as DRAFT first. DRAFT entries can
- * have routes and relationships without being indexable. Only records carrying
- * the complete authority content contract may be promoted to SEO_READY. A record
- * may become EXECUTABLE only when its execution entry point is separately verified.
+ * Spec-only concepts live in workflow-seo-candidates.ts until canonical identity
+ * and route ownership are resolved. This prevents an incomplete build spec from
+ * silently creating an indexable page or stealing an existing route.
  *
- * The project specs are the source for the planned ~330 workflow nodes. Do not
- * invent missing workflows or bulk-fill generic prose just to increase this list.
+ * Only records carrying the complete authority content contract AND an explicit
+ * AUTHORITY_REVIEWED status may be promoted to SEO_READY. A record may become
+ * EXECUTABLE only when its execution entry point is separately verified.
+ *
+ * Do not invent missing workflows or bulk-fill generic prose to reach a target
+ * count. Extraction, normalization, individual review, authority publication, and
+ * executable certification are separate steps.
  */
-export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = [];
+export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
+  (inventory.workflows ?? []) as InventoryWorkflow[]
+).map((workflow) => ({
+  id: workflow.id,
+  vertical: workflow.vertical,
+  route: workflow.route,
+  state: "DRAFT",
+  reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
+  provenance: [
+    {
+      kind: "modeled-inventory",
+      sourcePath: "apps/mailmypdf/WORKFLOW_INVENTORY.json",
+      note: "Imported as topology only; prior maturity/content flags do not constitute authority review.",
+    },
+  ],
+}));
 
 export function defineWorkflowSeoEntry<T extends WorkflowSeoCatalogEntry>(entry: T): T {
   return entry;
