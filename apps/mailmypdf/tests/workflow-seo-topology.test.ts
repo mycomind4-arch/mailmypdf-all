@@ -4,7 +4,20 @@ import { validateWorkflowSeoTopology } from "../src/lib/workflow-seo-topology";
 import type { WorkflowSeoCatalogEntry } from "../src/lib/workflow-seo-catalog";
 
 function draft(id: string, route: string): WorkflowSeoCatalogEntry {
-  return { id, vertical: "notice", route, state: "DRAFT" };
+  return {
+    id,
+    vertical: "notice",
+    route,
+    state: "DRAFT",
+    reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
+    provenance: [
+      {
+        kind: "build-spec",
+        sourcePath: "build-specs/test.md",
+        note: "Test fixture representing source extraction only.",
+      },
+    ],
+  };
 }
 
 test("unique draft ids and routes are valid catalog topology", () => {
@@ -38,4 +51,22 @@ test("changing the route for the same modeled id requires an explicit migration"
     [{ id: "notice/example", route: "/notice/old-example" }],
   );
   assert.ok(issues.some((issue) => issue.code === "ROUTE_COLLISION"));
+});
+
+test("SEO_READY cannot bypass the individual authority review boundary", () => {
+  const entry = {
+    ...draft("notice/review-boundary", "/notice/review-boundary"),
+    state: "SEO_READY" as const,
+  };
+  const issues = validateWorkflowSeoTopology([entry]);
+  assert.ok(issues.some((issue) => issue.code === "REVIEW_REQUIRED"));
+});
+
+test("catalog records require source provenance", () => {
+  const entry = {
+    ...draft("notice/no-source", "/notice/no-source"),
+    provenance: [],
+  };
+  const issues = validateWorkflowSeoTopology([entry]);
+  assert.ok(issues.some((issue) => issue.code === "PROVENANCE_REQUIRED"));
 });
