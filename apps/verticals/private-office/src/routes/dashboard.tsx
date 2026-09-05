@@ -99,7 +99,7 @@ function DashboardPage() {
             href: `/workflows/${workflow.id}`,
             eyebrow: profile?.family ?? "Private matter",
             badge: "Controlled",
-            meta: profile?.defaultMailClass ? `${profile.defaultMailClass} mail default` : undefined,
+            meta: profile ? `${profile.evidenceRequirements.length} evidence categories` : undefined,
             icon: <BriefcaseBusiness />,
           };
         })}
