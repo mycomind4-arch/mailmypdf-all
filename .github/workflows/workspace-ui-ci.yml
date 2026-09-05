@@ -61,8 +61,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Test Authority Gate invariants
-        run: pnpm --filter ./apps/mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts
+      - name: Test Authority Gate and catalog topology invariants
+        run: pnpm --filter ./apps/mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts
       - name: Reject thin or unverified indexable workflow pages
         run: pnpm --filter ./apps/mailmypdf seo:authority:validate
 
