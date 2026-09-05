@@ -14,6 +14,7 @@ import {
   type Correspondence,
 } from "@/lib/cases";
 import {
+  createWorkflowHub,
   createWorkspaceMetrics,
   createWorkspacePageHeader,
   createWorkspaceShell,
@@ -24,6 +25,7 @@ const WorkspaceShell = createWorkspaceShell(createElement);
 const WorkspaceTopbar = createWorkspaceTopbar(createElement);
 const WorkspacePageHeader = createWorkspacePageHeader(createElement);
 const WorkspaceMetrics = createWorkspaceMetrics(createElement);
+const WorkflowHub = createWorkflowHub(createElement);
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -149,29 +151,16 @@ function DashboardPage() {
         { label: "Saved drafts", value: correspondence.length },
       ]} />
 
-      <section className="mmp-workspace-section">
-        <div className="mmp-workspace-section__head">
-          <h2>Continue your work</h2>
-          <Link to="/workflows" className="mmp-button-secondary">Open Workflow Hub</Link>
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Link to="/workflows/respond-to-notice" className="mmp-workspace-panel p-5 no-underline">
-            <div className="mmp-eyebrow">Flagship workflow</div>
-            <h3 className="mt-3 font-serif text-2xl text-foreground">Respond to a notice</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Start from the USCIS or immigration document you received and build a reviewable response record.</p>
-          </Link>
-          <Link to="/analyze" className="mmp-workspace-panel p-5 no-underline">
-            <div className="mmp-eyebrow">Document routing</div>
-            <h3 className="mt-3 font-serif text-2xl text-foreground">Identify my document</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Use the document itself to determine the relevant facts and next workflow without guessing from a blank form.</p>
-          </Link>
-          <Link to="/cases" className="mmp-workspace-panel p-5 no-underline">
-            <div className="mmp-eyebrow">Matter record</div>
-            <h3 className="mt-3 font-serif text-2xl text-foreground">Open cases</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Return to saved matters and keep documents, correspondence, mailing status, and proof connected.</p>
-          </Link>
-        </div>
-      </section>
+      <WorkflowHub
+        title="Start from the work you actually need to do."
+        description="These are live Immigration Mail workflows already present in the product. The hub is a discovery layer; the underlying workflow, review, approval, payment, mailing, and proof boundaries remain unchanged."
+        actions={<Link to="/workflows" className="mmp-button-secondary">Browse all workflows</Link>}
+        items={[
+          { title: "Respond to a Notice", description: "Start from the USCIS or immigration notice you received and build a source-linked response record.", href: "/workflows/respond-to-notice", eyebrow: "Flagship", badge: "Live", icon: <Workflow /> },
+          { title: "Supporting Documents", description: "Organize a supporting-document package around the facts and records that belong with the correspondence.", href: "/workflows/supporting-documents", eyebrow: "Evidence", badge: "Live", icon: <FolderOpen /> },
+          { title: "Explanation Letter", description: "Prepare a factual explanation letter from reviewed information without inventing facts, requirements, or legal conclusions.", href: "/workflows/explanation-letter", eyebrow: "Correspondence", badge: "Live", icon: <Mail /> },
+        ]}
+      />
 
       <section id="recent" className="mmp-workspace-section">
         <div className="mmp-workspace-section__head">
