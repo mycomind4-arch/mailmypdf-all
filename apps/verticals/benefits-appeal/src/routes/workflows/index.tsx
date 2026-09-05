@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { createElement } from 'react'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
-import { WORKFLOWS } from '@/domain/benefits-workflows'
+import { APPEAL_CATALOG } from '@/domain/appeal-catalog'
 import { createWorkflowDirectory } from '../../../../../../packages/design-system/src/index'
 
 const WorkflowDirectory = createWorkflowDirectory(createElement)
@@ -19,15 +19,15 @@ export const Route = createFileRoute('/workflows/')({
 })
 
 function WorkflowHub() {
-  const families = [...new Set(WORKFLOWS.map(w => w.family))]
-  const items = WORKFLOWS.map(w => ({
-    id: w.id,
-    title: w.name,
-    category: w.family,
-    description: w.description,
-    href: `/workflows/${w.id}`,
-    badge: `${w.risk} risk`,
-    keywords: [w.name, w.family],
+  const families = [...new Set(APPEAL_CATALOG.map(workflow => workflow.category))]
+  const items = APPEAL_CATALOG.map(workflow => ({
+    id: workflow.slug,
+    title: workflow.title,
+    category: workflow.category,
+    description: workflow.shortDescription,
+    href: `/workflows/${workflow.slug}`,
+    badge: workflow.executable ? 'Available' : 'Coming soon',
+    keywords: [workflow.title, workflow.category, workflow.primaryKeyword, ...workflow.relatedKeywords],
   }))
 
   return <main>
