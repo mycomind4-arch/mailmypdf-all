@@ -1,44 +1,93 @@
 :root {
-  --mmp-ink: #111827;
-  --mmp-ink-muted: #667085;
-  --mmp-surface: #ffffff;
-  --mmp-surface-muted: #f7f8fa;
-  --mmp-border: #e4e7ec;
-  --mmp-border-strong: #cfd4dc;
-  --mmp-brand: #315efb;
-  --mmp-brand-hover: #2449d8;
-  --mmp-brand-soft: #eef2ff;
-  --mmp-success: #16834b;
-  --mmp-warning: #b54708;
-  --mmp-danger: #b42318;
-  --mmp-focus: #84a9ff;
+  --mmp-ink: #142638;
+  --mmp-ink-muted: #5f6973;
+  --mmp-paper: #f8f4ec;
+  --mmp-paper-deep: #efe8dc;
+  --mmp-surface: #fffdf9;
+  --mmp-surface-raised: #ffffff;
+  --mmp-border: #ded6c8;
+  --mmp-border-strong: #c9bdab;
+  --mmp-brand: #10283d;
+  --mmp-brand-hover: #0b2032;
+  --mmp-brand-soft: #e8eef2;
+  --mmp-brass: #a27b3f;
+  --mmp-brass-soft: #f2e8d5;
+  --mmp-success: #26744b;
+  --mmp-success-soft: #edf7f0;
+  --mmp-warning: #a86216;
+  --mmp-warning-soft: #fff4df;
+  --mmp-danger: #a33a32;
+  --mmp-danger-soft: #fdf0ee;
+  --mmp-info: #315f88;
+  --mmp-info-soft: #edf4f9;
+  --mmp-focus: #7ba3c4;
   --mmp-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mmp-font-display: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  --mmp-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --mmp-font-display: "Instrument Serif", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --mmp-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --mmp-radius-sm: .375rem;
   --mmp-radius-md: .625rem;
   --mmp-radius-lg: .875rem;
   --mmp-radius-xl: 1.125rem;
   --mmp-radius-pill: 999px;
-  --mmp-shadow-sm: 0 1px 2px rgba(16,24,40,.06);
-  --mmp-shadow-md: 0 8px 24px rgba(16,24,40,.08);
-  --mmp-shadow-lg: 0 20px 50px rgba(16,24,40,.10);
-  --mmp-content-max: 1200px;
+  --mmp-shadow-sm: 0 1px 2px rgba(16,40,61,.05);
+  --mmp-shadow-md: 0 12px 32px -18px rgba(16,40,61,.22);
+  --mmp-shadow-lg: 0 28px 64px -28px rgba(16,40,61,.30);
+  --mmp-content-max: 1320px;
+  --mmp-reading-max: 760px;
   --mmp-sidebar-width: 256px;
   --mmp-topbar-height: 64px;
+  --mmp-section-space: clamp(4rem, 8vw, 8rem);
+  --mmp-accent: var(--mmp-brand);
+  --mmp-accent-soft: var(--mmp-brand-soft);
 }
 
-[data-mmp-theme="immigration-mail"] { --mmp-brand: #6941c6; --mmp-brand-soft: #f4f3ff; }
-[data-mmp-theme="small-business"] { --mmp-brand: #0e9384; --mmp-brand-soft: #ecfdf3; }
-[data-mmp-theme="government"] { --mmp-brand: #175cd3; --mmp-brand-soft: #eff8ff; }
+[data-mmp-theme="mailmypdf"] { --mmp-accent: #10283d; --mmp-accent-soft: #e8eef2; }
+[data-mmp-theme="appeal-mail"] { --mmp-accent: #9a6a2f; --mmp-accent-soft: #f3e9d8; }
+[data-mmp-theme="benefits-appeal"] { --mmp-accent: #7a6336; --mmp-accent-soft: #f3ecdc; }
+[data-mmp-theme="claim-proof"] { --mmp-accent: #466456; --mmp-accent-soft: #eaf1ed; }
+[data-mmp-theme="code-enforcement"] { --mmp-accent: #7b5338; --mmp-accent-soft: #f2e7df; }
+[data-mmp-theme="dispute-mail"] { --mmp-accent: #6d526f; --mmp-accent-soft: #f0e9f1; }
+[data-mmp-theme="immigration-mail"] { --mmp-accent: #8b6c39; --mmp-accent-soft: #f4ebdb; }
+[data-mmp-theme="insurance-claims"] { --mmp-accent: #3f6479; --mmp-accent-soft: #e8f0f4; }
+[data-mmp-theme="notice-respond"] { --mmp-accent: #315f75; --mmp-accent-soft: #e7f0f4; }
+[data-mmp-theme="permit-reply"] { --mmp-accent: #6d6045; --mmp-accent-soft: #f1ede4; }
+[data-mmp-theme="private-office"] { --mmp-accent: #705d48; --mmp-accent-soft: #efe9e1; }
+[data-mmp-theme="records-request"] { --mmp-accent: #426477; --mmp-accent-soft: #e7eff3; }
+[data-mmp-theme="small-business"] { --mmp-accent: #446b5b; --mmp-accent-soft: #e8f1ed; }
+[data-mmp-theme="tenant-reply"] { --mmp-accent: #76544b; --mmp-accent-soft: #f1e8e5; }
 
-.mmp-app { min-height: 100vh; color: var(--mmp-ink); background: var(--mmp-surface-muted); font-family: var(--mmp-font-body); }
+.mmp-app {
+  min-height: 100vh;
+  color: var(--mmp-ink);
+  background: var(--mmp-paper);
+  font-family: var(--mmp-font-body);
+}
 .mmp-container { width: min(100% - 2rem, var(--mmp-content-max)); margin-inline: auto; }
+.mmp-reading { width: min(100%, var(--mmp-reading-max)); }
+.mmp-display { font-family: var(--mmp-font-display); font-weight: 400; letter-spacing: -.025em; line-height: .98; }
+.mmp-eyebrow { font: 600 .72rem/1.2 var(--mmp-font-body); letter-spacing: .18em; text-transform: uppercase; color: var(--mmp-accent); }
 .mmp-card { background: var(--mmp-surface); border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); box-shadow: var(--mmp-shadow-sm); }
-.mmp-button-primary { border: 0; border-radius: var(--mmp-radius-md); background: var(--mmp-brand); color: #fff; font-weight: 600; padding: .65rem 1rem; transition: background .18s ease, transform .18s ease; }
+.mmp-button-primary,
+.mmp-button-secondary {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  border-radius: var(--mmp-radius-md);
+  padding: .7rem 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.mmp-button-primary { border: 1px solid var(--mmp-brand); background: var(--mmp-brand); color: #fff; }
 .mmp-button-primary:hover { background: var(--mmp-brand-hover); transform: translateY(-1px); }
-.mmp-button-primary:focus-visible, .mmp-focus:focus-visible { outline: 3px solid var(--mmp-focus); outline-offset: 2px; }
+.mmp-button-secondary { border: 1px solid var(--mmp-border-strong); background: color-mix(in srgb, var(--mmp-surface) 92%, transparent); color: var(--mmp-ink); }
+.mmp-button-secondary:hover { border-color: var(--mmp-ink-muted); transform: translateY(-1px); }
+.mmp-button-primary:focus-visible,
+.mmp-button-secondary:focus-visible,
+.mmp-focus:focus-visible { outline: 3px solid var(--mmp-focus); outline-offset: 2px; }
 .mmp-status { display: inline-flex; align-items: center; gap: .375rem; border-radius: var(--mmp-radius-pill); padding: .25rem .625rem; font-size: .75rem; font-weight: 600; }
-.mmp-status-success { color: var(--mmp-success); background: #ecfdf3; }
-.mmp-status-warning { color: var(--mmp-warning); background: #fffaeb; }
-.mmp-status-danger { color: var(--mmp-danger); background: #fef3f2; }
+.mmp-status-success { color: var(--mmp-success); background: var(--mmp-success-soft); }
+.mmp-status-warning { color: var(--mmp-warning); background: var(--mmp-warning-soft); }
+.mmp-status-danger { color: var(--mmp-danger); background: var(--mmp-danger-soft); }
