@@ -40,8 +40,8 @@ function DashboardPage() {
     description: workflow.description,
     href: `/workflows/${workflow.id}`,
     eyebrow: "Dispute workflow",
-    badge: "Live",
-    meta: workflow.focusAreas?.slice(0, 3).join(" · "),
+    badge: workflow.lifecycle === "gold" ? "Gold" : workflow.lifecycle === "executable" ? "Executable" : "Available",
+    meta: `${workflow.goldStandardStages.length} governed stages`,
     icon: <Workflow />,
   }));
 
