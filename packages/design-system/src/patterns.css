@@ -1,0 +1,135 @@
+/* Shared MailMyPDF visual primitives.
+ * These classes intentionally avoid router/framework dependencies so every
+ * vertical can adopt the same production shell without duplicating CSS.
+ */
+
+.mmp-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid color-mix(in srgb, var(--mmp-border) 86%, transparent);
+  background: color-mix(in srgb, var(--mmp-paper) 92%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.mmp-site-header__inner {
+  width: min(100% - 2rem, var(--mmp-content-max));
+  min-height: 4.5rem;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2rem;
+}
+
+.mmp-brand-lockup { display: inline-flex; align-items: center; gap: .7rem; color: var(--mmp-ink); text-decoration: none; }
+.mmp-brand-mark { width: 2.5rem; height: 2.5rem; border-radius: .55rem; display: grid; place-items: center; color: white; background: var(--mmp-brand); box-shadow: var(--mmp-shadow-sm); }
+.mmp-brand-copy { display: grid; gap: .08rem; }
+.mmp-brand-name { font: 400 1.45rem/1 var(--mmp-font-display); letter-spacing: -.015em; }
+.mmp-brand-product { font: 700 .67rem/1.2 var(--mmp-font-body); letter-spacing: .14em; text-transform: uppercase; }
+.mmp-site-nav { display: flex; align-items: center; justify-content: center; gap: clamp(1rem, 2vw, 2rem); }
+.mmp-site-nav a { color: var(--mmp-ink); text-decoration: none; font-size: .88rem; font-weight: 500; }
+.mmp-site-nav a:hover { color: var(--mmp-accent); }
+.mmp-site-actions { display: flex; align-items: center; gap: .65rem; }
+
+.mmp-hero {
+  position: relative;
+  overflow: clip;
+  border-bottom: 1px solid var(--mmp-border);
+  background:
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--mmp-accent-soft) 68%, transparent), transparent 36%),
+    linear-gradient(100deg, var(--mmp-paper) 0%, var(--mmp-paper) 44%, var(--mmp-surface) 100%);
+}
+.mmp-hero__inner {
+  width: min(100%, 1600px);
+  min-height: clamp(620px, 70vw, 820px);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+}
+.mmp-hero__copy { align-self: center; padding: clamp(3rem, 7vw, 7rem) clamp(1.5rem, 5vw, 5rem); }
+.mmp-hero__title { max-width: 12ch; margin: 1rem 0 1.25rem; font: 400 clamp(3.6rem, 6vw, 6.6rem)/.92 var(--mmp-font-display); letter-spacing: -.035em; text-wrap: balance; }
+.mmp-hero__lede { max-width: 42rem; margin: 0; color: var(--mmp-ink-muted); font-size: clamp(1rem, 1.35vw, 1.28rem); line-height: 1.55; }
+.mmp-hero__actions { display: flex; flex-wrap: wrap; gap: .85rem; margin-top: 1.7rem; }
+.mmp-hero__media { position: relative; min-height: 100%; background: var(--mmp-paper-deep); overflow: hidden; }
+.mmp-hero__media > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mmp-hero__overlay { position: absolute; inset: auto clamp(1rem, 4vw, 4rem) clamp(1rem, 4vw, 4rem) auto; width: min(390px, calc(100% - 2rem)); }
+
+.mmp-trust-row { border-bottom: 1px solid var(--mmp-border); background: var(--mmp-surface); }
+.mmp-trust-row__inner { width: min(100% - 2rem, var(--mmp-content-max)); margin-inline: auto; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); }
+.mmp-trust-item { min-height: 5.2rem; padding: 1.1rem 1.4rem; display: flex; align-items: center; gap: .75rem; border-right: 1px solid var(--mmp-border); }
+.mmp-trust-item:last-child { border-right: 0; }
+.mmp-trust-item strong { display: block; font-size: .86rem; }
+.mmp-trust-item span { display: block; color: var(--mmp-ink-muted); font-size: .78rem; margin-top: .12rem; }
+
+.mmp-section { padding-block: var(--mmp-section-space); }
+.mmp-section--tight { padding-block: clamp(3rem, 6vw, 5rem); }
+.mmp-section--ink { color: white; background: var(--mmp-brand); }
+.mmp-section__inner { width: min(100% - 2rem, var(--mmp-content-max)); margin-inline: auto; }
+.mmp-section-heading { display: grid; grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: clamp(2rem, 6vw, 6rem); align-items: end; margin-bottom: clamp(2rem, 4vw, 4rem); }
+.mmp-section-heading h2 { margin: .7rem 0 0; font: 400 clamp(2.7rem, 4vw, 4.7rem)/.98 var(--mmp-font-display); letter-spacing: -.025em; text-wrap: balance; }
+.mmp-section-heading p { max-width: 48rem; margin: 0; color: var(--mmp-ink-muted); line-height: 1.65; }
+.mmp-section--ink .mmp-section-heading p { color: rgba(255,255,255,.72); }
+
+.mmp-workflow-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.mmp-workflow-card { overflow: hidden; display: flex; min-height: 100%; flex-direction: column; border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); background: var(--mmp-surface); box-shadow: var(--mmp-shadow-sm); }
+.mmp-workflow-card__media { aspect-ratio: 16/9; overflow: hidden; background: var(--mmp-paper-deep); }
+.mmp-workflow-card__media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .28s ease; }
+.mmp-workflow-card:hover .mmp-workflow-card__media img { transform: scale(1.025); }
+.mmp-workflow-card__body { flex: 1; padding: 1.25rem; display: flex; flex-direction: column; gap: .7rem; }
+.mmp-workflow-card__body h3 { margin: 0; font: 400 1.45rem/1.06 var(--mmp-font-display); }
+.mmp-workflow-card__body p { margin: 0; color: var(--mmp-ink-muted); font-size: .88rem; line-height: 1.55; }
+.mmp-workflow-card__action { margin-top: auto; padding-top: .75rem; font-size: .84rem; font-weight: 700; color: var(--mmp-ink); text-decoration: none; }
+.mmp-workflow-card__action:hover { color: var(--mmp-accent); }
+
+.mmp-process-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-xl); overflow: hidden; background: var(--mmp-surface); }
+.mmp-process-step { padding: 1.5rem; border-right: 1px solid var(--mmp-border); }
+.mmp-process-step:last-child { border-right: 0; }
+.mmp-process-step__number { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; background: var(--mmp-accent-soft); color: var(--mmp-accent); font-weight: 700; font-size: .78rem; }
+.mmp-process-step h3 { margin: 1.1rem 0 .45rem; font: 400 1.25rem/1.1 var(--mmp-font-display); }
+.mmp-process-step p { margin: 0; color: var(--mmp-ink-muted); font-size: .82rem; line-height: 1.55; }
+
+.mmp-final-cta { position: relative; overflow: hidden; border-radius: var(--mmp-radius-xl); color: white; background: var(--mmp-brand); box-shadow: var(--mmp-shadow-lg); }
+.mmp-final-cta__inner { padding: clamp(2rem, 5vw, 5rem); display: grid; grid-template-columns: 1.25fr .75fr; gap: 2rem; align-items: center; }
+.mmp-final-cta h2 { max-width: 13ch; margin: 0; font: 400 clamp(2.6rem, 4vw, 4.6rem)/.96 var(--mmp-font-display); }
+.mmp-final-cta p { max-width: 42rem; color: rgba(255,255,255,.75); }
+.mmp-final-cta .mmp-button-primary { background: white; border-color: white; color: var(--mmp-brand); }
+
+.mmp-workspace { min-height: 100vh; display: grid; grid-template-columns: var(--mmp-sidebar-width) minmax(0,1fr); background: var(--mmp-paper); color: var(--mmp-ink); font-family: var(--mmp-font-body); }
+.mmp-workspace-sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; border-right: 1px solid var(--mmp-border); background: color-mix(in srgb, var(--mmp-surface) 82%, var(--mmp-paper)); }
+.mmp-workspace-main { min-width: 0; }
+.mmp-workspace-topbar { min-height: var(--mmp-topbar-height); display: flex; align-items: center; gap: 1rem; padding-inline: 1.5rem; border-bottom: 1px solid var(--mmp-border); background: color-mix(in srgb, var(--mmp-paper) 92%, transparent); backdrop-filter: blur(16px); }
+.mmp-workspace-content { width: min(100% - 3rem, 1280px); margin-inline: auto; padding-block: 2rem 5rem; }
+.mmp-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); overflow: hidden; background: var(--mmp-surface); }
+.mmp-metric { padding: 1.25rem; border-right: 1px solid var(--mmp-border); }
+.mmp-metric:last-child { border-right: 0; }
+.mmp-metric strong { display: block; font: 400 2.2rem/1 var(--mmp-font-display); }
+.mmp-metric span { display: block; margin-top: .35rem; color: var(--mmp-ink-muted); font-size: .78rem; }
+
+@media (max-width: 1100px) {
+  .mmp-site-nav { display: none; }
+  .mmp-hero__inner { grid-template-columns: 1fr; }
+  .mmp-hero__media { min-height: 460px; }
+  .mmp-workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mmp-process-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mmp-process-step { border-bottom: 1px solid var(--mmp-border); }
+  .mmp-workspace { grid-template-columns: 1fr; }
+  .mmp-workspace-sidebar { display: none; }
+}
+
+@media (max-width: 720px) {
+  .mmp-site-header__inner { grid-template-columns: 1fr auto; }
+  .mmp-site-actions .mmp-button-secondary { display: none; }
+  .mmp-hero__copy { padding-inline: 1.25rem; }
+  .mmp-hero__title { font-size: clamp(3rem, 16vw, 4.6rem); }
+  .mmp-hero__media { min-height: 360px; }
+  .mmp-trust-row__inner,
+  .mmp-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mmp-trust-item:nth-child(2) { border-right: 0; }
+  .mmp-section-heading,
+  .mmp-final-cta__inner { grid-template-columns: 1fr; }
+  .mmp-workflow-grid,
+  .mmp-process-grid { grid-template-columns: 1fr; }
+  .mmp-process-step { border-right: 0; }
+  .mmp-workspace-content { width: min(100% - 2rem, 1280px); }
+}
