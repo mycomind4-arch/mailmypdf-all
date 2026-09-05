@@ -1,7 +1,14 @@
 import type { WorkflowSeoCatalogEntry } from "./workflow-seo-catalog";
 
 export type WorkflowCatalogTopologyIssue = {
-  code: "DUPLICATE_ID" | "DUPLICATE_ROUTE" | "ROUTE_COLLISION" | "INVALID_ID" | "INVALID_ROUTE";
+  code:
+    | "DUPLICATE_ID"
+    | "DUPLICATE_ROUTE"
+    | "ROUTE_COLLISION"
+    | "INVALID_ID"
+    | "INVALID_ROUTE"
+    | "PROVENANCE_REQUIRED"
+    | "REVIEW_REQUIRED";
   message: string;
   workflowIds: string[];
 };
@@ -42,6 +49,22 @@ export function validateWorkflowSeoTopology(
       issues.push({
         code: "INVALID_ROUTE",
         message: `Workflow route '${entry.route}' is not a stable canonical public route.`,
+        workflowIds: [entry.id],
+      });
+    }
+
+    if (!entry.provenance.length) {
+      issues.push({
+        code: "PROVENANCE_REQUIRED",
+        message: `Workflow '${entry.id}' has no source provenance. Extraction and publication must remain traceable to modeled inventory, a build spec, or a recorded manual review.`,
+        workflowIds: [entry.id],
+      });
+    }
+
+    if (entry.state !== "DRAFT" && entry.reviewStatus !== "AUTHORITY_REVIEWED") {
+      issues.push({
+        code: "REVIEW_REQUIRED",
+        message: `Workflow '${entry.id}' is ${entry.state} but has not been individually authority-reviewed. Build-spec or inventory extraction alone cannot publish a workflow page.`,
         workflowIds: [entry.id],
       });
     }
