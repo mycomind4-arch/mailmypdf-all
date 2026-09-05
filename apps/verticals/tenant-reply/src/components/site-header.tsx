@@ -6,9 +6,10 @@ export function SiteHeader() {
       currentSlug="tenant-reply"
       brand="Tenant Reply"
       anchorLinks={[
+        { href: 'https://mailmypdf.pages.dev/start', label: 'Mail a PDF' },
         { href: '#how-it-works', label: 'How it works' },
         { href: '#notice-types', label: 'Notice types' },
-        { href: '#rights', label: 'Tenant rights' },
+        { href: '#trust', label: 'Trust' },
         { href: '#faq', label: 'FAQ' },
       ]}
     />
