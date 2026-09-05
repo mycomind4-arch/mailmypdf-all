@@ -10,7 +10,7 @@ const workspaceMode = params.get('workspace') === '1' || (params.get('checkout')
 document.body.dataset.mmpTheme = 'small-business'
 
 if (workspaceMode) {
-  void import('./main')
+  void Promise.all([import('./ui/ux-overrides.css'), import('./main')])
 } else {
   createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
