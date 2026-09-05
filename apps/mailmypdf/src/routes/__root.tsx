@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import "../../../../packages/design-system/src/tokens.css";
+import "../../../../packages/design-system/src/patterns.css";
 import appCss from "../styles.css?url";
 import { AnalyticsConsent } from "../components/analytics-consent";
 import { startPageTracking } from "../lib/analytics";
@@ -125,7 +127,7 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body data-mmp-theme="mailmypdf">
         {children}
         <Scripts />
       </body>
