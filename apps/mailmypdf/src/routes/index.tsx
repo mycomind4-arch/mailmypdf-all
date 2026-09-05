@@ -22,7 +22,11 @@ import {
   WorkflowCard,
 } from "@/components/shared/design-system";
 
-const WORKFLOW_VERTICALS = ECOSYSTEM_VERTICALS.filter((vertical) => vertical.slug !== "mail-pdf");
+// Lazy on purpose: the SSR bundle has an import cycle between the route-tree
+// chunk and the shared-layout chunk, so dereferencing ECOSYSTEM_VERTICALS at
+// module-evaluation time reads an uninitialized live binding and 500s every
+// request. Deferring to call time lets ESM live bindings resolve correctly.
+const workflowVerticals = () => ECOSYSTEM_VERTICALS.filter((vertical) => vertical.slug !== "mail-pdf");
 const HOMEPAGE_PRODUCT_TITLES: Record<string, string> = {
   "appeal-reply": "Appeal Mail",
   "records-request": "Records Requests",
@@ -95,7 +99,7 @@ export const Route = createFileRoute("/")({
           "@context": "https://schema.org",
           "@type": "ItemList",
           name: "MailMyPDF specialized workflow products",
-          itemListElement: WORKFLOW_VERTICALS.map((vertical, index) => ({
+          itemListElement: workflowVerticals().map((vertical, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: homepageProductTitle(vertical.slug, vertical.title),
@@ -422,7 +426,7 @@ function WorkflowDiscovery() {
         </div>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {WORKFLOW_VERTICALS.map((vertical) => (
+          {workflowVerticals().map((vertical) => (
             <WorkflowCard
               key={vertical.slug}
               href={vertical.href}
