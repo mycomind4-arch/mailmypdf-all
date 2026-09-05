@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Home, ArrowRight, ShieldAlert } from "lucide-react";
 import "../../../../../packages/design-system/src/tokens.css";
 import "../../../../../packages/design-system/src/patterns.css";
+import "../../../../../packages/design-system/src/workspace.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -53,7 +54,8 @@ function ProtectedWorkflowContent() {
   const workflowPath = path.startsWith("/workflows/");
   const isHub = path === "/workflows" || path === "/workflows/";
   const isLanding = /^\/workflows\/[^/]+\/?$/.test(path);
-  const requiresAccount = workflowPath && !isHub && !isLanding;
+  const protectedPrefixes = ["/dashboard", "/account"];
+  const requiresAccount = protectedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || (workflowPath && !isHub && !isLanding);
 
   if (!requiresAccount) return <Outlet />;
   if (loading) return <AuthGate message="Loading your MailMyPDF Account…" />;
@@ -64,7 +66,7 @@ function ProtectedWorkflowContent() {
 function AuthGate({ message }: { message?: string }) {
   const location = useLocation();
   const returnTo = encodeURIComponent(location.pathname + location.search);
-  return <div className="min-h-screen bg-cream"><SiteHeader /><main className="mx-auto max-w-3xl px-6 py-24 text-center"><div className="eyebrow">MailMyPDF Account</div><h1 className="mt-6 text-4xl" style={{ fontFamily: "var(--font-serif)" }}>{message || "Sign in to start this workflow."}</h1><p className="mt-3 mx-auto max-w-xl text-sm leading-6 text-slate-500">Workflow intake, uploaded documents, drafts, and mailing records are private to your account. Sign in or create an account to begin.</p>{!message && <Link to={`/auth?returnTo=${returnTo}` as never} className="mt-8 inline-flex items-center rounded-full bg-ink px-6 py-3 text-sm font-semibold text-paper">Sign in or create an account <ArrowRight size={16} className="ml-2" /></Link>}</main><SiteFooter /></div>;
+  return <div className="min-h-screen bg-cream"><SiteHeader /><main className="mx-auto max-w-3xl px-6 py-24 text-center"><div className="eyebrow">MailMyPDF Account</div><h1 className="mt-6 text-4xl" style={{ fontFamily: "var(--font-serif)" }}>{message || "Sign in to continue."}</h1><p className="mt-3 mx-auto max-w-xl text-sm leading-6 text-slate-500">Your dispute workspace, workflow intake, uploaded documents, drafts, and mailing records are private to your account.</p>{!message && <Link to={`/auth?returnTo=${returnTo}` as never} className="mt-8 inline-flex items-center rounded-full bg-ink px-6 py-3 text-sm font-semibold text-paper">Sign in or create an account <ArrowRight size={16} className="ml-2" /></Link>}</main><SiteFooter /></div>;
 }
 
 function CheckoutReturnHandler() {
