@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "prebuild": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build",
     "build": "vite build && node scripts/fix-ssr-chunk-cycle.mjs .output/server",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
