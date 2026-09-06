@@ -1,7 +1,7 @@
-const SITE_URL_ENV_KEYS = ["PUBLIC_APP_URL", "APP_URL"] as const;
+const SITE_URL_ENV_KEYS = ["PUBLIC_APP_URL", "APP_URL", "MAILMYPDF_BASE_URL"] as const;
 
 function configuredSiteOrigin(): string | null {
-  const raw = process.env.PUBLIC_APP_URL || process.env.APP_URL;
+  const raw = process.env.PUBLIC_APP_URL || process.env.APP_URL || process.env.MAILMYPDF_BASE_URL;
   if (!raw) return null;
 
   try {
@@ -23,7 +23,7 @@ export function getSiteOrigin(): string | null {
 
 /**
  * Use for crawler-facing endpoints where emitting the wrong host is worse
- * than failing loudly. Production must set PUBLIC_APP_URL or APP_URL.
+ * than failing loudly. Production must set one canonical site URL setting.
  */
 export function requireSiteOrigin(): string {
   const origin = configuredSiteOrigin();
