@@ -44,7 +44,6 @@ describe("DisputeMail — Categories", () => {
   });
 
   it("does not force users into legal categories", () => {
-    // There should be no categories with 'legal' in the id or label
     assert.ok(!categoriesSource.match(/id: "legal_/), "No legal_ prefixed categories");
   });
 });
@@ -227,18 +226,18 @@ describe("DisputeMail — API Endpoints", () => {
   });
 });
 
-// ── DisputeMail catalog boundary ─────────────────────────────────────────────
+// ── DisputeMail public route boundary ─────────────────────────────────────────
 
-describe("DisputeMail — Catalog Boundary", () => {
-  it("keeps the root route internal and explicitly prelaunch", () => {
+describe("DisputeMail — Public Route Boundary", () => {
+  it("renders the reviewed shared public vertical landing at the canonical route", () => {
     const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
     assert.ok(routeSource.includes('createFileRoute("/dispute-mail")'));
-    assert.ok(routeSource.includes('product="Dispute Mail"'));
-    assert.ok(routeSource.includes('content: "noindex,nofollow"'));
+    assert.ok(routeSource.includes('publicVerticalHead("dispute-mail")'));
+    assert.ok(routeSource.includes('PublicVerticalLandingPage id="dispute-mail"'));
     assert.ok(!routeSource.includes("window.location.replace"));
   });
 
-  it("does not mount payment or fulfillment in the prelaunch catalog", () => {
+  it("does not mount payment or fulfillment directly on the public landing route", () => {
     const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
     assert.ok(!routeSource.includes("createCheckoutForOrder"));
     assert.ok(!routeSource.includes("getStripe"));
@@ -261,14 +260,14 @@ describe("DisputeMail — Copy Audit", () => {
     assert.ok(!routeSource.match(/[Ww]e provide legal advice/), "No legal advice claims");
   });
 
-  it("route does not claim an unfinished fulfillment experience", () => {
+  it("route uses the shared public vertical experience without direct checkout claims", () => {
     const routeSource = readFileSync(
       join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
       "utf-8",
     );
-    assert.ok(routeSource.includes("ProductFamilyPage"), "Must render the shared prelaunch catalog");
-    assert.ok(!routeSource.includes("Start checkout"), "Must not advertise unavailable checkout");
-    assert.ok(!routeSource.includes("Ready to mail"), "Must not advertise unavailable fulfillment");
+    assert.ok(routeSource.includes("PublicVerticalLandingPage"), "Must render the shared public vertical landing");
+    assert.ok(!routeSource.includes("Start checkout"), "Must not mount checkout copy on the landing route");
+    assert.ok(!routeSource.includes("createCheckoutForOrder"), "Must not mount checkout directly on the landing route");
   });
 
   it("no FairProcess/FairProcessMaps references in any DisputeMail file", () => {
