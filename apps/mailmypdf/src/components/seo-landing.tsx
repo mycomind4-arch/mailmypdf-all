@@ -21,7 +21,7 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Do I need an account?",
-    a: "No. You can upload, pay, and send as a guest. Your order status link will be sent by email.",
+    a: "Not for a simple Mail a PDF order. Guest checkout is available for finished-document mailing. Guided workflows use sign-in so the source documents, review state, final packet, and available proof can stay connected to your matter.",
   },
   {
     q: "Is certified mail available?",
@@ -33,7 +33,7 @@ const DEFAULT_FAQ = [
   },
   {
     q: "Do you read my document?",
-    a: "No. Uploaded PDFs are processed for printing and mailing. We do not use uploaded documents for AI training.",
+    a: "Uploaded PDFs are processed only as needed to provide the mailing service. We do not use uploaded documents for AI training.",
   },
   {
     q: "What if I enter the wrong address?",
@@ -74,7 +74,7 @@ function PrimaryCta() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Link
-        to="/send"
+        to="/mail-a-pdf"
         className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3 text-base font-medium text-white shadow-stamp transition-transform hover:-translate-y-0.5"
       >
         Upload PDF <ArrowRight />
@@ -107,7 +107,7 @@ export function SeoLandingPage(props: SeoPageProps) {
           <h1 className="mt-6 text-4xl leading-[1.05] md:text-6xl">{props.h1}</h1>
           <p className="mt-6 max-w-2xl text-lg text-ink-soft">{props.intro}</p>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-            PDF only · U.S. domestic mail · No account required · Private upload
+            PDF only · U.S. domestic mail · Guest checkout for simple mailing · Private upload
           </p>
           <div className="mt-8">
             <PrimaryCta />
