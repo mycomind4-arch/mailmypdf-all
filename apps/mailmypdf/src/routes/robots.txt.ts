@@ -1,21 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireSiteOrigin } from "@/lib/site-url";
 
-export const Route = createFileRoute("/robots/txt")({
+export const Route = createFileRoute("/robots.txt")({
   server: {
     handlers: {
       GET: () => {
-        const baseUrl = process.env.PUBLIC_APP_URL || process.env.APP_URL || "https://mailmypdf-etc.pages.dev";
-
-        // Verticals use noindex,nofollow — only index the main site + SEO pages
-        const robots = `User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /admin/
-Disallow: /orders/
-Disallow: /auth
-Disallow: /verify
-
-Sitemap: ${baseUrl}/sitemap.xml`;
+        const baseUrl = requireSiteOrigin();
+        const robots = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /orders/\nDisallow: /auth\nDisallow: /verify\n\nSitemap: ${baseUrl}/sitemap.xml`;
 
         return new Response(robots, {
           headers: {
