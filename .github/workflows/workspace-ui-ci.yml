@@ -67,7 +67,7 @@ jobs:
         run: pnpm --filter ./apps/mailmypdf seo:authority:validate
 
   build-core:
-    name: Build mailmypdf core
+    name: Verify mailmypdf core launch gate
     runs-on: ubuntu-latest
     needs: authority-gate
     steps:
@@ -82,8 +82,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Build core app
-        run: pnpm --filter ./apps/mailmypdf build
+      - name: Test, lint, typecheck, validate SEO, and build core
+        run: pnpm --filter ./apps/mailmypdf verify:launch
 
   build-consumers:
     name: Build ${{ matrix.app }}
@@ -117,5 +117,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Typecheck code enforcement
+        if: matrix.app == 'code-enforcement'
+        run: pnpm --filter ./apps/verticals/code-enforcement exec tsc --noEmit
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
