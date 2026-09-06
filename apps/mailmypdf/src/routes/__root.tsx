@@ -15,6 +15,7 @@ import appCss from "../styles.css?url";
 import { AnalyticsConsent } from "../components/analytics-consent";
 import { startPageTracking } from "../lib/analytics";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { absoluteUrl } from "../lib/site-url";
 
 // Analytics domain — when set, Plausible loads. Privacy-friendly, no cookies.
 const ANALYTICS_DOMAIN = process.env.PUBLIC_PLAUSIBLE_DOMAIN || process.env.PLAUSIBLE_DOMAIN;
@@ -66,12 +67,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Try again
           </button>
-          <a
-            href="/"
+          <Link
+            to="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -84,16 +85,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "MailMyPDF — Mail a PDF letter without a printer" },
-      { name: "description", content: "Upload a PDF, enter an address, and we'll print, stamp, and mail it via USPS. U.S. domestic mail from $4.99. No account required." },
+      { name: "description", content: "Mail a finished PDF online or use a guided document workflow to prepare, review, send, track, and preserve proof of important correspondence." },
       { name: "author", content: "MailMyPDF" },
       { property: "og:title", content: "MailMyPDF — Mail a PDF letter without a printer" },
-      { property: "og:description", content: "Upload a PDF, enter an address, and we'll print, stamp, and mail it via USPS. U.S. domestic mail from $4.99. No account required." },
+      { property: "og:description", content: "Mail a finished PDF online or use a guided document workflow to prepare, review, send, track, and preserve proof of important correspondence." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "MailMyPDF — Mail a PDF letter without a printer" },
-      { name: "twitter:description", content: "Upload a PDF, enter an address, and we'll print, stamp, and mail it via USPS. U.S. domestic mail from $4.99. No account required." },
-      { property: "og:image", content: "/og-image.png" },
-      { name: "twitter:image", content: "/og-image.png" },
+      { name: "twitter:description", content: "Mail a finished PDF online or use a guided document workflow to prepare, review, send, track, and preserve proof of important correspondence." },
+      { property: "og:image", content: absoluteUrl("/og-image.png") },
+      { name: "twitter:image", content: absoluteUrl("/og-image.png") },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
