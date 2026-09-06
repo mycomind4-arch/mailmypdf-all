@@ -76,48 +76,17 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
     <div className="min-h-screen bg-paper text-foreground">
       <SiteHeader />
       <main>
-        <section className="relative overflow-hidden border-b border-rule/60">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(49,95,117,0.10),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.46),transparent_55%)]" aria-hidden />
-          <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
-            <div>
-              <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-cobalt">{config.eyebrow}</div>
-              <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">{config.heroTitle}</h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-soft">{config.description}</p>
+        <section className="relative min-h-[34rem] overflow-hidden border-b border-rule/60 bg-ink">
+          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: "url(/hero-document.jpg)" }} />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,20,35,0.92)_0%,rgba(5,20,35,0.7)_42%,rgba(5,20,35,0.2)_100%),linear-gradient(0deg,rgba(5,20,35,0.72)_0%,transparent_48%)]" aria-hidden />
+          <div className="relative mx-auto flex min-h-[34rem] max-w-6xl items-end px-4 pb-14 pt-20 sm:px-6 sm:pb-16 lg:pb-20">
+            <div className="max-w-2xl text-white">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">{config.eyebrow}</div>
+              <h1 className="mt-5 font-serif text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">{config.heroTitle}</h1>
+              <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">{config.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3.5 text-sm font-semibold text-white shadow-stamp transition hover:-translate-y-0.5">
-                  Browse {config.product} workflows <ArrowRight className="h-4 w-4" />
-                </a>
-                <a href="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-6 py-3.5 text-sm font-semibold text-foreground transition hover:bg-paper-deep">
-                  Mail a PDF
-                </a>
-              </div>
-            </div>
-
-            <div className="relative mx-auto w-full max-w-lg">
-              <div className="absolute -left-4 top-9 h-[78%] w-[82%] -rotate-3 rounded-xl border border-rule bg-card/70 shadow-sm" aria-hidden />
-              <div className="absolute -right-2 top-3 h-[82%] w-[84%] rotate-3 rounded-xl border border-rule bg-paper-deep/85 shadow-sm" aria-hidden />
-              <div className="relative overflow-hidden rounded-xl border border-rule bg-card p-6 shadow-premium sm:p-8">
-                <div className="flex items-center justify-between border-b border-rule pb-4">
-                  <div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">MailMyPDF / {config.product}</div>
-                    <div className="mt-1 font-serif text-2xl">Source document → response record</div>
-                  </div>
-                  <ShieldCheck className="h-5 w-5 text-cobalt" />
-                </div>
-                <div className="mt-5 space-y-3">
-                  {config.steps.map((step, index) => (
-                    <div key={step.title} className="flex gap-3 rounded-lg border border-rule/70 bg-paper/55 p-3.5">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cobalt text-xs font-semibold text-white">{index + 1}</div>
-                      <div>
-                        <div className="text-sm font-semibold">{step.title}</div>
-                        <div className="mt-1 text-xs leading-5 text-muted-foreground">{step.description}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 flex items-center gap-2 border-t border-rule pt-4 text-xs text-muted-foreground">
-                  <Eye className="h-4 w-4 text-cobalt" /> Review the exact output before anything is mailed.
-                </div>
+                <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition hover:-translate-y-0.5">Start a workflow <ArrowRight className="h-4 w-4" /></a>
+                <a href="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-md border border-white/50 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15">Mail a PDF</a>
               </div>
             </div>
           </div>
