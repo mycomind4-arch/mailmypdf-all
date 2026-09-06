@@ -15,6 +15,7 @@ import {
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
 import { mailClassSurchargeUsd, colorPerPageUsd } from "@/lib/pricing";
+import { absoluteUrl } from "@/lib/site-url";
 import {
   SectionHeader,
   CTASection,
@@ -52,14 +53,14 @@ export const Route = createFileRoute("/")({
           "Mail a finished PDF or use a specialized workflow to prepare, review, send, track, and keep proof of important correspondence.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/" },
-      { property: "og:image", content: "/hero-document.jpg" },
+      { property: "og:url", content: absoluteUrl("/") },
+      { property: "og:image", content: absoluteUrl("/hero-document.jpg") },
       { property: "og:image:width", content: "1024" },
       { property: "og:image:height", content: "576" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "/hero-document.jpg" },
+      { name: "twitter:image", content: absoluteUrl("/hero-document.jpg") },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/") }],
     scripts: [
       {
         type: "application/ld+json",
@@ -103,7 +104,7 @@ export const Route = createFileRoute("/")({
             "@type": "ListItem",
             position: index + 1,
             name: homepageProductTitle(vertical.slug, vertical.title),
-            url: vertical.href,
+            url: absoluteUrl(vertical.href),
           })),
         }),
       },
@@ -195,13 +196,13 @@ function Hero() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              to="/start"
+              to="/ecosystem"
               className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3.5 text-base font-medium text-white shadow-stamp transition-all duration-200 hover:-translate-y-0.5 hover:bg-cobalt/90"
             >
               Start a workflow <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/ecosystem"
+              to="/mail-a-pdf"
               className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-5 py-3.5 text-sm font-medium transition-colors hover:border-ink/20 hover:bg-paper-deep"
             >
               Mail a PDF
@@ -446,17 +447,17 @@ function ProblemClusterSection() {
     {
       title: "Respond to a government notice",
       text: "Understand an IRS, DMV, benefits, code-enforcement, or other official notice and prepare the appropriate documented response.",
-      href: "/notice-response",
+      href: "/notice-respond",
     },
     {
       title: "Appeal a denial or decision",
       text: "Organize the decision, deadlines, evidence, and written appeal or reconsideration request before mailing it with a record.",
-      href: "/appeal-reply",
+      href: "/appeal-mail",
     },
     {
       title: "Prepare immigration correspondence",
       text: "Work through USCIS notices, RFEs, NOIDs, supporting letters, records requests, and other immigration correspondence.",
-      href: "/immigration",
+      href: "/immigration-mail",
     },
     {
       title: "Dispute debt, billing, credit, or charges",
@@ -476,7 +477,7 @@ function ProblemClusterSection() {
     {
       title: "Manage small-business correspondence",
       text: "Create, approve, schedule, mail, track, and preserve business notices, reminders, demands, compliance documents, and records.",
-      href: "/small-business-mail",
+      href: "/small-business",
     },
     {
       title: "Print and mail a finished PDF",
