@@ -38,7 +38,7 @@ Adapt the FairProcessMaps property-resolution pattern. Start with address/jurisd
 
 ### 5. Procedural analysis
 
-Port only jurisdiction-aware rules that can be traced to a governing source. Findings must distinguish source facts, inferences, unknowns, and recommendations.
+Port only jurisdiction-aware rules that can be traced to a governing source. Findings must distinguish source facts, inferences, unknowns, and recommendations — see [`VOCABULARY.md`](VOCABULARY.md) for how this vertical's claim labels map onto FairProcessMaps' checkpoint-status vocabulary (`Observed` / `NotLocated` / `InsufficientEvidence` / `AwaitingTrigger` / `Satisfied`), written before any of this section's code.
 
 ### 6. Response and records workflows
 

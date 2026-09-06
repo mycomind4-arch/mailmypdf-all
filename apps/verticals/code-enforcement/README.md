@@ -63,6 +63,8 @@ The assistant is case-grounded. It must distinguish:
 
 It must never silently convert an absent record into proof that something did not happen.
 
+This label set is distinct from, and must be reconciled with, FairProcessMaps' checkpoint-status vocabulary (`Observed` / `NotLocated` / `InsufficientEvidence` / `AwaitingTrigger` / `Satisfied`) whenever the assistant describes a procedural checkpoint — see [`docs/VOCABULARY.md`](docs/VOCABULARY.md) for the crosswalk.
+
 ## Initial analysis engine
 
 The first deterministic checks should cover:
