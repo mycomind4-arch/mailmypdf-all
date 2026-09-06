@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -10,16 +11,17 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { workflowAuthorityPages, type WorkflowAuthorityPageData } from "@/lib/workflow-authority-registry";
+import { publicWorkflowAuthorityPages, type WorkflowAuthorityPageData } from "@/lib/workflow-authority-registry";
 import {
   categoryForWorkflow,
   publicVerticalById,
   type PublicVerticalConfig,
   type PublicVerticalId,
 } from "@/lib/public-verticals";
+import { absoluteUrl } from "@/lib/site-url";
 
 function pagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageData[] {
-  return workflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
+  return publicWorkflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
 }
 
 const HERO_IMAGES: Record<PublicVerticalId, string> = {
@@ -40,8 +42,7 @@ const HERO_IMAGES: Record<PublicVerticalId, string> = {
 
 function pageStatus(page: WorkflowAuthorityPageData): string {
   if (page.executionHref) return "Workflow available";
-  if (page.indexable) return "Authority guide";
-  return "Guide in review";
+  return "Guide available";
 }
 
 export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "directory" = "landing") {
@@ -49,7 +50,9 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
   if (!config) return {};
   const title = kind === "directory" ? `${config.product} Workflows | MailMyPDF` : `${config.product} | MailMyPDF`;
   const description = kind === "directory" ? config.directoryDescription : config.description;
-  const canonical = kind === "directory" ? `${config.path}/workflows` : config.path;
+  const canonicalPath = kind === "directory" ? `${config.path}/workflows` : config.path;
+  const canonical = absoluteUrl(canonicalPath);
+  const heroImage = absoluteUrl(HERO_IMAGES[config.id]);
   const itemList = kind === "directory"
     ? {
         "@context": "https://schema.org",
@@ -59,7 +62,7 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
           "@type": "ListItem",
           position: index + 1,
           name: page.title,
-          url: page.path,
+          url: absoluteUrl(page.path),
         })),
       }
     : null;
@@ -73,9 +76,11 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
       { property: "og:description", content: description },
       { property: "og:type", content: "website" },
       { property: "og:url", content: canonical },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:image", content: heroImage },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: description },
+      { name: "twitter:image", content: heroImage },
     ],
     links: [{ rel: "canonical", href: canonical }],
     scripts: itemList ? [{ type: "application/ld+json", children: JSON.stringify(itemList) }] : [],
@@ -102,7 +107,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
               <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">{config.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition hover:-translate-y-0.5">Start a workflow <ArrowRight className="h-4 w-4" /></a>
-                <a href="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-md border border-white/50 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15">Mail a PDF</a>
+                <Link to="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-md border border-white/50 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15">Mail a PDF</Link>
               </div>
             </div>
           </div>
@@ -148,8 +153,8 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
               </div>
             ) : (
               <div className="mt-10 rounded-xl border border-rule bg-card p-7">
-                <div className="font-serif text-2xl">The public directory is being populated.</div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">The product page is live while individual workflow guides remain under review. No unfinished guide is made indexable merely because its route exists.</p>
+                <div className="font-serif text-2xl">More workflow guides are being reviewed.</div>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Only reviewed, publishable workflow guides appear in the public directory.</p>
               </div>
             )}
           </div>
@@ -176,14 +181,14 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
         <section className="border-b border-rule/60">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">Authority without pretending</div>
-              <h2 className="mt-3 font-serif text-4xl">Useful before the software workflow exists.</h2>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">Built around the actual document</div>
+              <h2 className="mt-3 font-serif text-4xl">Guidance you can trace back to the record.</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <AuthorityPoint title="Individual review" text="Workflow guides remain non-indexable until they pass the MailMyPDF Authority Gate and their sources, scope, and unique value have been reviewed." />
-              <AuthorityPoint title="No invented facts" text="Public guidance must stay anchored to source documents, verified facts, and authoritative references rather than generic assumptions." />
-              <AuthorityPoint title="Execution is a separate state" text="A useful SEO authority page does not claim that its underlying workflow engine is already implemented." />
-              <AuthorityPoint title="Shared fulfillment" text="When appropriate, a finished document can flow into MailMyPDF printing, mailing, tracking, and proof without changing the informational standard of the guide." />
+              <AuthorityPoint title="Source-grounded guidance" text="Start from the notice, decision, request, agreement, or other controlling document instead of a generic template." />
+              <AuthorityPoint title="Facts stay separate" text="Verified facts, supporting evidence, and open questions remain visible so assumptions do not quietly become part of the response." />
+              <AuthorityPoint title="Review before sending" text="You can inspect the exact response or packet before anything moves into printing, mailing, or submission." />
+              <AuthorityPoint title="Proof preserved" text="When mailing is used, the approved packet stays connected to available tracking and delivery records." />
             </div>
           </div>
         </section>
@@ -196,7 +201,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
             </div>
             <div className="flex flex-wrap gap-3">
               <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-cobalt">Find a workflow <ArrowRight className="h-4 w-4" /></a>
-              <a href="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-3 text-sm font-semibold text-white">Mail a PDF</a>
+              <Link to="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-3 text-sm font-semibold text-white">Mail a PDF</Link>
             </div>
           </div>
         </section>
@@ -286,17 +291,18 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
               <div className="mt-4 rounded-xl border border-rule bg-card p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold"><FolderSearch2 className="h-4 w-4 text-cobalt" />{config.helperTitle}</div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">{config.helperDescription}</p>
-                <a href="/mail-a-pdf" className="mt-4 inline-flex text-xs font-semibold text-cobalt">Already have a finished PDF? Mail it →</a>
+                <Link to="/mail-a-pdf" className="mt-4 inline-flex text-xs font-semibold text-cobalt">Already have a finished PDF? Mail it →</Link>
               </div>
             </aside>
 
             <div>
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <label className="relative block">
+                  <span className="sr-only">Search {config.product} workflows</span>
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.product} workflows…`} className="h-12 w-full rounded-lg border border-rule bg-card pl-11 pr-4 text-sm outline-none transition focus:border-cobalt" />
+                  <input aria-label={`Search ${config.product} workflows`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.product} workflows…`} className="h-12 w-full rounded-lg border border-rule bg-card pl-11 pr-4 text-sm outline-none transition focus:border-cobalt" />
                 </label>
-                <div className="flex h-12 items-center rounded-lg border border-rule bg-card px-4 text-xs text-muted-foreground">{filtered.length} of {directoryItems.length} workflows</div>
+                <div aria-live="polite" className="flex h-12 items-center rounded-lg border border-rule bg-card px-4 text-xs text-muted-foreground">{filtered.length} of {directoryItems.length} workflows</div>
               </div>
 
               {filtered.length ? (
@@ -353,7 +359,7 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
             </div>
             <div className="flex flex-wrap gap-3">
               <a href={config.path} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-cobalt">Back to {config.product}</a>
-              <a href="/mail-a-pdf" className="rounded-full border border-white/25 px-5 py-3 text-sm font-semibold text-white">Mail a PDF</a>
+              <Link to="/mail-a-pdf" className="rounded-full border border-white/25 px-5 py-3 text-sm font-semibold text-white">Mail a PDF</Link>
             </div>
           </div>
         </section>

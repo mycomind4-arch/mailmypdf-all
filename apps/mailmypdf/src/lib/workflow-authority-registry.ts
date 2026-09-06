@@ -82,11 +82,11 @@ type ProductConfig = {
 
 const PRODUCT_BY_VERTICAL: Record<string, ProductConfig> = {
   mail: { product: "MailMyPDF", href: "/mail-a-pdf", pipeline: "Core mailing", noun: "mailing workflow" },
-  appeal: { product: "Appeal Mail", href: "/appeal-reply", pipeline: "Appeal & reconsideration", noun: "appeal workflow" },
-  notice: { product: "Notice Respond", href: "/notice-response", pipeline: "Official notice response", noun: "notice response workflow" },
-  immigration: { product: "Immigration Mail", href: "/immigration", pipeline: "Immigration correspondence", noun: "immigration correspondence workflow" },
+  appeal: { product: "Appeal Mail", href: "/appeal-mail", pipeline: "Appeal & reconsideration", noun: "appeal workflow" },
+  notice: { product: "Notice Respond", href: "/notice-respond", pipeline: "Official notice response", noun: "notice response workflow" },
+  immigration: { product: "Immigration Mail", href: "/immigration-mail", pipeline: "Immigration correspondence", noun: "immigration correspondence workflow" },
   dispute: { product: "Dispute Mail", href: "/dispute-mail", pipeline: "Documented dispute", noun: "dispute workflow" },
-  business: { product: "Small Business Mail", href: "/small-business-mail", pipeline: "Business correspondence", noun: "business correspondence workflow" },
+  business: { product: "Small Business", href: "/small-business", pipeline: "Business correspondence", noun: "business correspondence workflow" },
   records: { product: "Records Requests", href: "/records-request", pipeline: "Records & information request", noun: "records request workflow" },
   tenant: { product: "Tenant Reply", href: "/tenant-reply", pipeline: "Tenant correspondence", noun: "tenant response workflow" },
   permit: { product: "Permit Reply", href: "/permit-reply", pipeline: "Permit & regulatory response", noun: "permit response workflow" },
@@ -288,6 +288,10 @@ export function workflowAuthorityPages(): WorkflowAuthorityPageData[] {
   return WORKFLOWS.map((entry) => workflowAuthorityForPath(entry.route)).filter(
     (page): page is WorkflowAuthorityPageData => Boolean(page),
   );
+}
+
+export function publicWorkflowAuthorityPages(): WorkflowAuthorityPageData[] {
+  return workflowAuthorityPages().filter((page) => page.indexable);
 }
 
 export function workflowAuthorityCount(): number {

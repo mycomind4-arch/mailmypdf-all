@@ -8,8 +8,8 @@ const registry = fs.readFileSync(path.join(root, "src/verticals/registry.ts"), "
 const ecosystem = fs.readFileSync(path.join(root, "src/lib/ecosystem.ts"), "utf8");
 
 const canonicalRoutes = {
-  "appeal-reply": "/appeal-reply",
-  "notice-response": "/notice-response",
+  "appeal-reply": "/appeal-mail",
+  "notice-response": "/notice-respond",
   "claim-proof": "/claim-proof",
   "tenant-reply": "/tenant-reply",
   "permit-reply": "/permit-reply",
@@ -34,7 +34,7 @@ test("BureaucracyOS is not a user-facing ecosystem vertical", () => {
 test("solutions compatibility routes point back to canonical verticals", () => {
   const appealAlias = fs.readFileSync(path.join(root, "src/routes/solutions/appeal-reply.tsx"), "utf8");
   const dynamicAlias = fs.readFileSync(path.join(root, "src/routes/solutions/$verticalSlug.tsx"), "utf8");
-  assert.match(appealAlias, /redirect\(\{ to: "\/appeal-reply" \}\)/);
+  assert.match(appealAlias, /redirect\(\{ to: "\/appeal-mail" \}\)/);
   assert.match(dynamicAlias, /redirect\(\{ to: vertical\?\.route \?\? "\/solutions" \}\)/);
 });
 

@@ -27,10 +27,10 @@ export type PlatformEntitlement = {
 export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
   {
     slug: "appeal-reply",
-    title: "Appeal & Reply",
+    title: "Appeal Mail",
     label: "Advanced Appeal Workflow",
     description: "A master workspace for decisions, reconsiderations, appeals, evidence, deadlines, and formal replies.",
-    href: "/appeal-reply",
+    href: "/appeal-mail",
     capabilities: ["ai", "documents", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -45,7 +45,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Notice Respond",
     label: "Advanced Notice Workflow",
     description: "A master workspace for official notices, deadlines, requested actions, evidence, research, and responses.",
-    href: "/notice-response",
+    href: "/notice-respond",
     capabilities: ["ai", "documents", "research", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -62,7 +62,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Immigration Mail",
     label: "Immigration Workflow",
     description: "A master workspace for USCIS notices, RFE and NOID responses, immigration records requests, refusals, supporting letters, review, and mailing with proof.",
-    href: "/immigration",
+    href: "/immigration-mail",
     capabilities: ["ai", "documents", "research", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -86,7 +86,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
   },
   {
     slug: "records-request",
-    title: "Records Request",
+    title: "Records Requests",
     label: "Public Records Workflow",
     description: "A master workspace for FOIA, state and local public-records requests, agency records, evidence, review, and certified mailing with proof.",
     href: "/records-request",
@@ -143,10 +143,10 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
   },
   {
     slug: "small-business-mail",
-    title: "Small Business Mail",
+    title: "Small Business",
     label: "Business Correspondence OS",
     description: "A master workspace for business correspondence — create, schedule, track, and prove the documents your business sends with team approvals, templates, automation, and a permanent proof archive.",
-    href: "/small-business-mail",
+    href: "/small-business",
     capabilities: ["ai", "documents", "mailing"],
     requiresAccount: true,
     workflows: [
@@ -161,7 +161,7 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     title: "Mail a PDF",
     label: "Mailing",
     description: "The shared delivery workflow for turning a finished document into physical U.S. mail with tracking and proof.",
-    href: "/send",
+    href: "/mail-a-pdf",
     capabilities: ["mailing"],
     requiresAccount: false,
     workflows: [
