@@ -22,6 +22,22 @@ function pagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageData[] {
   return workflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
 }
 
+const HERO_IMAGES: Record<PublicVerticalId, string> = {
+  "notice-respond": "/heroes/notice-respond.jpg",
+  "appeal-mail": "/heroes/appeal-mail.jpg",
+  "immigration-mail": "/heroes/immigration-mail.jpg",
+  "dispute-mail": "/heroes/dispute-mail.jpg",
+  "records-request": "/heroes/records-request.jpg",
+  "private-office": "/heroes/private-office.jpg",
+  "small-business": "/heroes/small-business.jpg",
+  "insurance-claims": "/heroes/insurance-claims.jpg",
+  "code-enforcement": "/heroes/code-enforcement.jpg",
+  "benefits-appeal": "/heroes/benefits-appeal.jpg",
+  "claim-proof": "/heroes/claim-proof.jpg",
+  "permit-reply": "/heroes/permit-reply.jpg",
+  "tenant-reply": "/heroes/tenant-reply.jpg",
+};
+
 function pageStatus(page: WorkflowAuthorityPageData): string {
   if (page.executionHref) return "Workflow available";
   if (page.indexable) return "Authority guide";
@@ -77,7 +93,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
       <SiteHeader />
       <main>
         <section className="relative min-h-[34rem] overflow-hidden border-b border-rule/60 bg-ink">
-          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: "url(/hero-document.jpg)" }} />
+          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: `url(${HERO_IMAGES[config.id]})` }} />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,20,35,0.92)_0%,rgba(5,20,35,0.7)_42%,rgba(5,20,35,0.2)_100%),linear-gradient(0deg,rgba(5,20,35,0.72)_0%,transparent_48%)]" aria-hidden />
           <div className="relative mx-auto flex min-h-[34rem] max-w-6xl items-end px-4 pb-14 pt-20 sm:px-6 sm:pb-16 lg:pb-20">
             <div className="max-w-2xl text-white">
