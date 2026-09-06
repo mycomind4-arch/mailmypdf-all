@@ -82,8 +82,36 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Test, lint, typecheck, validate SEO, and build core
-        run: pnpm --filter ./apps/mailmypdf verify:launch
+      - name: Test core
+        run: pnpm --filter ./apps/mailmypdf test
+      - name: Lint core
+        id: core-lint
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter ./apps/mailmypdf lint 2>&1 | tee core-lint.log
+      - name: Upload core lint diagnostics
+        if: failure() && steps.core-lint.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mailmypdf-core-lint-diagnostics
+          path: core-lint.log
+      - name: Typecheck core
+        id: core-typecheck
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter ./apps/mailmypdf typecheck 2>&1 | tee core-typecheck.log
+      - name: Upload core typecheck diagnostics
+        if: failure() && steps.core-typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mailmypdf-core-typecheck-diagnostics
+          path: core-typecheck.log
+      - name: Validate workflow SEO authority
+        run: pnpm --filter ./apps/mailmypdf seo:authority:validate
+      - name: Build core
+        run: pnpm --filter ./apps/mailmypdf build
 
   build-consumers:
     name: Build ${{ matrix.app }}
@@ -118,7 +146,17 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Typecheck code enforcement
+        id: code-enforcement-typecheck
         if: matrix.app == 'code-enforcement'
-        run: pnpm --filter ./apps/verticals/code-enforcement exec tsc --noEmit
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter ./apps/verticals/code-enforcement typecheck 2>&1 | tee code-enforcement-typecheck.log
+      - name: Upload code enforcement typecheck diagnostics
+        if: failure() && matrix.app == 'code-enforcement' && steps.code-enforcement-typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-enforcement-typecheck-diagnostics
+          path: code-enforcement-typecheck.log
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
