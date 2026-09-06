@@ -108,17 +108,15 @@ This is the same boundary the integration doc already names
 ("Jurisdictional rules must be reviewed before activation") — this section
 just ties it to the specific label (`Rule`) that carries the obligation.
 
-## What this doc does not settle
+## The two questions this doc used to leave open
 
-Two open questions from the integration doc are explicitly out of scope
-here and still need their own decision:
+Both are now decided in [`FAIRPROCESSMAPS_INTEGRATION.md`](FAIRPROCESSMAPS_INTEGRATION.md#two-decisions-this-doc-previously-left-open):
+the Case Assistant is ported from FairProcessMaps and relabeled into this
+vocabulary via the crosswalk above, not rebuilt independently; mailing
+routes through MailMyPDF's own pipeline, not FairProcessMaps' Lob
+integration. This doc still only fixes the words — the crosswalk above is
+what the ported assistant must actually implement.
 
-1. Whether the FairProcessMaps Case Assistant is ported/relabeled into
-   this vocabulary, or rebuilt independently.
-2. Whether this vertical's mailing step routes through MailMyPDF's own
-   pipeline or FairProcessMaps' existing Lob integration.
-
-This doc only fixes the words. Implementers should treat both the Status
-table and the crosswalk table above as load-bearing once code starts
-consuming either vocabulary — changing either requires updating this file
-in the same change.
+Implementers should treat both the Status table and the crosswalk table
+above as load-bearing once code starts consuming either vocabulary —
+changing either requires updating this file in the same change.

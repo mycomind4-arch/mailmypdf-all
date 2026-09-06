@@ -6,6 +6,72 @@ FairProcessMaps is the primary architectural reference for this vertical because
 
 The Code Enforcement product will not copy either repository wholesale. It will consume the smallest proven slices needed for a functional workflow.
 
+## Two decisions this doc previously left open
+
+### Mailing: MailMyPDF's own pipeline, not FairProcessMaps' Lob integration
+
+FairProcessMaps has its own certified-mail integration via Lob
+(`src/lib/mail/lob.ts`, `case_communications`, `workflow_mailings`). This
+vertical does **not** route through it. Physical delivery and mailing proof
+go through MailMyPDF's own mail pipeline — the same one every other
+vertical in this ecosystem uses.
+
+Reasoning: mail delivery, tracking, and proof-of-delivery is MailMyPDF's
+core product, not an incidental feature. A second, parallel Lob
+integration lifted from FairProcessMaps would fragment that story across
+two independent mailing systems inside one monorepo, duplicate
+payment/compliance surface that already exists once, and give this one
+vertical a delivery-proof mechanism none of the other twelve share.
+FairProcessMaps' Lob integration stays scoped to FairProcessMaps' own
+users; nothing here depends on it.
+
+This resolves item 6 below unambiguously: "MailMyPDF handling physical
+delivery and mailing proof" means MailMyPDF's `/api/v2` mail pipeline,
+full stop — not a choice still open per response/records workflow.
+
+### Case Assistant: port FairProcessMaps' implementation, don't rebuild
+
+FairProcessMaps already has a working, tool-using Claude conversation
+scoped to one case (`src/lib/case-assistant.ts`): read tools (timeline,
+evidence, findings, property intelligence, documents, county recorder
+search) execute immediately; write tools (add/edit/remove a timeline
+event) are proposed and require explicit human approval before anything
+is written; `draft_document` executes immediately because it only
+creates a new artifact, nothing existing is touched.
+
+This vertical will **port and adapt that implementation**, not design a
+second one from scratch. Reasons:
+
+- This vertical already commits to reusing FairProcessMaps' domain model
+  (property → case → evidence → events → findings → actions, per
+  "Reuse from FairProcess / FairProcessMaps" in the README) — the same
+  tool shapes (`get_timeline`, `get_evidence`, `get_findings`,
+  `get_property_intelligence`, `get_documents`) map close to 1:1 onto
+  this vertical's own Case Command Center sections.
+- The safety-critical part of the design — reads execute immediately,
+  writes are proposed and gated behind explicit approval, drafting is
+  the one write-shaped exception — is exactly the kind of logic that's
+  easy to get subtly wrong on a rebuild. Reusing a tested implementation
+  is lower-risk than re-deriving the same guarantee independently.
+- Building a second, independently-evolving tool-grounded conversation
+  loop for the same job is the duplicate-model problem this project has
+  already flagged elsewhere as a failure mode to avoid.
+- It does not conflict with the "No fake AI chat" non-goal below — that
+  non-goal is about *ungrounded* chat. A ported, tool-grounded assistant
+  is exactly what "not fake" means here.
+
+Concretely, this means: when the Case Assistant work item comes up (it
+sits after document ingestion, the evidence model, timeline, and
+property intelligence — items 1 through 4 below — since it needs this
+vertical's own case data to be real before it has anything to read),
+start from FairProcessMaps' `case-assistant.ts` as the reference
+implementation. Swap in this vertical's own tool set as the underlying
+sections come online (e.g. a `check_permit_conflict` tool once permit
+data exists), and route every assistant-generated sentence through the
+crosswalk in [`VOCABULARY.md`](VOCABULARY.md) rather than
+FairProcessMaps' original system-prompt wording, which doesn't yet speak
+in this vertical's Fact/Inference/Unknown/Rule/Recommendation labels.
+
 ## Current functional slice
 
 The dashboard now provides a real browser-side case workspace:
@@ -42,11 +108,11 @@ Port only jurisdiction-aware rules that can be traced to a governing source. Fin
 
 ### 6. Response and records workflows
 
-A reviewed finding should be able to create either a response workflow or a records-request workflow, with MailMyPDF handling physical delivery and mailing proof.
+A reviewed finding should be able to create either a response workflow or a records-request workflow, with MailMyPDF's own mail pipeline (not FairProcessMaps' Lob integration — see "Decisions" above) handling physical delivery and mailing proof.
 
 ## Non-goals for the first release
 
-- No fake AI chat.
+- No fake AI chat — this excludes a *ported, tool-grounded* Case Assistant (see "Decisions" above); it's about not shipping an ungrounded chat as a stand-in for one.
 - No hard-coded case data presented as user data.
 - No generic nationwide legal conclusions.
 - No GIS dependency before a reliable jurisdiction/data source exists.
