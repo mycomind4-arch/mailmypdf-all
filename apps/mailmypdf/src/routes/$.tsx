@@ -9,6 +9,7 @@ import {
 } from "@/components/public-vertical-page";
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry";
 import { publicVerticalByPath } from "@/lib/public-verticals";
+import { absoluteUrl } from "@/lib/site-url";
 
 const PRODUCT_FAMILIES: Record<string, { product: string; title: string; description: string }> = {
   appeal: { product: "Appeal Mail", title: "Appeal workflow", description: "Prepare a documented appeal with the MailMyPDF workflow engine." },
@@ -53,13 +54,14 @@ function workflowHead(path: string) {
   if (!page) return null;
 
   const title = page.seoTitle;
+  const canonical = absoluteUrl(page.path);
   const breadcrumb = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "MailMyPDF", item: "/" },
-      { "@type": "ListItem", position: 2, name: page.product, item: page.productHref },
-      { "@type": "ListItem", position: 3, name: page.title, item: page.path },
+      { "@type": "ListItem", position: 1, name: "MailMyPDF", item: absoluteUrl("/") },
+      { "@type": "ListItem", position: 2, name: page.product, item: absoluteUrl(page.productHref) },
+      { "@type": "ListItem", position: 3, name: page.title, item: canonical },
     ],
   };
   const webPage = {
@@ -67,8 +69,8 @@ function workflowHead(path: string) {
     "@type": "WebPage",
     name: page.title,
     description: page.description,
-    url: page.path,
-    isPartOf: { "@type": "WebSite", name: "MailMyPDF", url: "/" },
+    url: canonical,
+    isPartOf: { "@type": "WebSite", name: "MailMyPDF", url: absoluteUrl("/") },
     about: page.pipeline,
     dateModified: page.reviewedAt ?? undefined,
   };
@@ -92,12 +94,12 @@ function workflowHead(path: string) {
       { property: "og:title", content: title },
       { property: "og:description", content: page.description },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: page.path },
+      { property: "og:url", content: canonical },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: page.description },
     ],
-    links: [{ rel: "canonical", href: page.path }],
+    links: [{ rel: "canonical", href: canonical }],
     scripts: [webPage, breadcrumb, faq]
       .filter(Boolean)
       .map((schema) => ({ type: "application/ld+json", children: JSON.stringify(schema) })),
