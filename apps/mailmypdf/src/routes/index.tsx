@@ -122,23 +122,23 @@ function LandingPage() {
           items={[
             {
               icon: <Upload className="h-4 w-4" />,
-              label: "No printer required",
-              description: "Upload and mail online",
+              label: "Private by design",
+              description: "Your documents are protected",
             },
             {
               icon: <Eye className="h-4 w-4" />,
-              label: "Approval before mailing",
-              description: "Review what will be sent",
+              label: "Guided preparation",
+              description: "Step-by-step, so you can get it right",
             },
             {
               icon: <RouteIcon className="h-4 w-4" />,
-              label: "Tracking & proof",
-              description: "Available by mailing service",
+              label: "Tracked mailing",
+              description: "Sent with USPS tracking",
             },
             {
               icon: <ShieldCheck className="h-4 w-4" />,
-              label: "Security controls",
-              description: "Protected workflows are owner-scoped",
+              label: "Proof retained",
+              description: "Delivery confirmation saved to your account",
             },
           ]}
         />
@@ -151,7 +151,7 @@ function LandingPage() {
         <Pricing />
         <ProofSection />
         <CTASection
-          title="Turn your document into action today."
+          title="The next step is clearer when everything is in one place."
           subtitle="Mail a finished PDF, or find the specialized workflow built for the situation behind it."
           primaryCTA={{ label: "Mail a PDF", to: "/mail-a-pdf" }}
           secondaryCTA={{ label: "Find a Workflow", to: "/ecosystem" }}
@@ -185,27 +185,26 @@ function Hero() {
 
       <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-24">
         <div className="animate-fade-up">
-          <div className="postmark w-fit">Mail a document. Respond. Complete the workflow.</div>
+          <div className="postmark w-fit">Upload. Prepare. Mail. Get proof.</div>
           <h1 className="mt-6 max-w-3xl text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">
-            Turn documents into documented action.
+            Turn important documents into completed action.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-soft sm:text-xl">
-            Mail a finished PDF, respond to an important document, or complete a specialized
-            workflow. MailMyPDF helps you prepare, review, approve, send, track, and keep proof of
-            important correspondence.
+            Upload your PDF, follow guided preparation, review with confidence, and we’ll mail it
+            with tracking and proof. Start with a finished document or the problem behind it.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              to="/mail-a-pdf"
+              to="/start"
               className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3.5 text-base font-medium text-white shadow-stamp transition-all duration-200 hover:-translate-y-0.5 hover:bg-cobalt/90"
             >
-              Mail a PDF <ArrowRight className="h-4 w-4" />
+              Start a workflow <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/ecosystem"
               className="inline-flex items-center gap-2 rounded-full border border-rule bg-card px-5 py-3.5 text-sm font-medium transition-colors hover:border-ink/20 hover:bg-paper-deep"
             >
-              Find a Workflow
+              Mail a PDF
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs uppercase tracking-widest text-muted-foreground">

@@ -51,7 +51,7 @@ export function useShellConfig(): EcosystemShellConfig {
 
   return {
     brand: "MailMyPDF",
-    brandTagline: "Mail a PDF. Track it. Prove it.",
+    brandTagline: "Important documents. Delivered further.",
     mailPdfUrl: "/mail-a-pdf",
     workflowsUrl: "/ecosystem",
     howItWorksUrl: "/how-it-works",

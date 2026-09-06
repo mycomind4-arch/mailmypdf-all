@@ -145,8 +145,11 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
           <NavLink to={config.howItWorksUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
             How It Works
           </NavLink>
-          <NavLink to={config.pricingUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
-            Pricing
+          <NavLink to="/#security" className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
+            Security
+          </NavLink>
+          <NavLink to="/about" className="hidden px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground lg:inline-flex">
+            About
           </NavLink>
 
           {isAuth ? (
