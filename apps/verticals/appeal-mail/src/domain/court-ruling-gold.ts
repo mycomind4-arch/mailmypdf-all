@@ -3,11 +3,13 @@ const _p = getWorkflowPricingProfile("court-ruling")!;
 export const COURT_RULING_PRICING = {
   preparationFee: (_p.basePriceCents / 100),
   includedResponsePages: _p.includedPages,
-  responsePagePrice: ((_p.extraPageCents || 0) / 100),
-  supportingPagePrice: ((_p.supportingPageCents || 0) / 100),
+  responsePagePrice: ((_p.extraPageRateCents || 0) / 100),
+  supportingPagePrice: ((_p.supportingPageRateCents || 0) / 100),
   standardMail: (PRICES.standard / 100),
   certifiedMail: (PRICES.certified / 100),
   registeredMail: (PRICES.registered / 100),
+  largePacketFee: 0,
+  largePacketThresholdSheets: 0,
 } as const;
 
 export const COURT_RULING_AUTHORITY_SOURCES = [

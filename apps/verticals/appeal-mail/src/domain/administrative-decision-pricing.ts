@@ -1,8 +1,17 @@
+import { PRICES } from "@mailmypdf/pricing";
+
+// This is the legacy "administrative-decision" workflow (distinct from the
+// canonical "administrative-decision-appeal" Gold workflow, which has its
+// own profile in @mailmypdf/pricing and its own pricing module). No
+// canonical pricing profile exists for this workflow ID, so preparation fee
+// and per-page rates stay as fixed literals here rather than being derived
+// from a (nonexistent) profile — but mail pricing still comes from the
+// shared PRICES table so it can't drift from the canonical mail rates.
 export const ADMINISTRATIVE_DECISION_PRICING = {
   preparationFee: 24.99,
   includedResponsePages: 3,
   responsePagePrice: 0.40,
-  supportingPagePrice: (_p.supportingPageCents || 0) / 100,
+  supportingPagePrice: 0.25,
   standardMail: PRICES.standard / 100,
   certifiedMail: PRICES.certified / 100,
   registeredMail: PRICES.registered / 100,

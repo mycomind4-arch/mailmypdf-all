@@ -5,8 +5,8 @@ const _p = getWorkflowPricingProfile("out-of-network-denial")!;
 export const OUT_OF_NETWORK_DENIAL_PRICING = {
   preparationFee: (_p.basePriceCents / 100),
   includedResponsePages: _p.includedPages,
-  responsePagePrice: ((_p.extraPageCents || 0) / 100),
-  supportingPagePrice: ((_p.supportingPageCents || 0) / 100),
+  responsePagePrice: ((_p.extraPageRateCents || 0) / 100),
+  supportingPagePrice: ((_p.supportingPageRateCents || 0) / 100),
   standardMail: (PRICES.standard / 100),
   certifiedMail: (PRICES.certified / 100),
   certifiedReturnReceipt: (PRICES.registered / 100),

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuthenticatedUser, getSupabaseServer } from "@/platform/supabase";
-import { calculateQuote, PRICES, LABELS, type MailClass } from "@mailmypdf/pricing";
+import { PRICES, LABELS } from "@mailmypdf/pricing";
+import { calculateSsdiDenialTotal } from "@/domain/ssdi-denial-pricing";
 
 export const Route = createFileRoute("/api/workflows/ssdi-denial/checkout")({
   server: {
@@ -21,16 +22,21 @@ export const Route = createFileRoute("/api/workflows/ssdi-denial/checkout")({
           const method = a.packet.mailingMethod;
           if (!PRICES[method]) return Response.json({ error: "Invalid mailing method." }, { status: 409 });
 
-          // ── Canonical pricing — server-authoritative quote ──────────
-          const responsePages = Math.max(1, Number(a.packet.responsePageCount || a.packet.responseSheets || a.packet.pageCount || 3));
-          const supportingPages = Math.max(0, Number(a.packet.supportingPageCount || a.packet.supportingSheets || 0));
-          const quote = calculateQuote({
-            workflowId: "ssdi-denial",
-            verticalId: "appeal-mail",
-            actualPages: responsePages,
-            supportingPages,
-            mailClass: method as MailClass,
+          // Charge exactly what approve.ts computed and stored on the
+          // approved packet (via calculateSsdiDenialTotal — this workflow's
+          // own local pricing model), not a freshly recomputed canonical
+          // quote: those two are different numbers (this workflow's
+          // preparationFee is $24.99, not the canonical "ssdi-denial"
+          // profile's $69.99), and the amount charged must match what the
+          // user actually approved.
+          const responsePages = Math.max(1, Number(a.packet.responseSheets || a.packet.pageCount || 3));
+          const supportingPages = Math.max(0, Number(a.packet.supportingSheets || 0));
+          const pricing = a.packet.pricing ?? calculateSsdiDenialTotal({
+            responseSheets: responsePages,
+            supportingSheets: supportingPages,
+            mailingMethod: method as "standard" | "certified" | "registered",
           });
+          const totalCents = Math.round(pricing.total * 100);
 
           const { default: Stripe } = await import("stripe");
           const key = process.env.STRIPE_SECRET_KEY;
@@ -48,7 +54,7 @@ export const Route = createFileRoute("/api/workflows/ssdi-denial/checkout")({
                   name: "SSDI Denial Appeal Packet",
                   description: `${responsePages} response pages + ${supportingPages} supporting pages + ${LABELS[method]}`,
                 },
-                unit_amount: quote.totalCents,
+                unit_amount: totalCents,
               },
               quantity: 1,
             }],
@@ -59,8 +65,8 @@ export const Route = createFileRoute("/api/workflows/ssdi-denial/checkout")({
               response_pages: String(responsePages),
               supporting_pages: String(supportingPages),
               owner_user_id: user.id,
-              pricing_source: "canonical",
-              quote_total_cents: String(quote.totalCents),
+              pricing_source: "approved-packet",
+              quote_total_cents: String(totalCents),
             },
             success_url: `${appUrl}/workflows/ssdi-denial?checkout=success&session_id=${encodeURIComponent("{CHECKOUT_SESSION_ID}")}`,
             cancel_url: `${appUrl}/workflows/ssdi-denial?checkout=cancelled`,

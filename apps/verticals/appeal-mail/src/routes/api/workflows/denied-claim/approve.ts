@@ -7,7 +7,7 @@ import { calculateQuote } from "@mailmypdf/pricing";
 function calculatePricing(supportingSheets:number, mailingMethod:"standard"|"certified"|"registered") {
   const responseSheets = 8;
   const quote = calculateQuote({workflowId:"denied-claim",verticalId:"appeal-mail",actualPages:responseSheets,supportingPages:supportingSheets,mailClass:mailingMethod});
-  return {preparationFee:quote.basePriceCents/100,includedResponseSheets:responseSheets,responseSheets,extraResponseSheets:Math.max(0,responseSheets-quote.includedPages),supportingSheets,mailingMethod,mailingFee:quote.mailCents/100,largePacketFee:0,total:quote.totalCents/100};
+  return {preparationFee:quote.basePriceCents/100,includedResponseSheets:responseSheets,responseSheets,extraResponseSheets:Math.max(0,responseSheets-quote.includedPages),supportingSheets,mailingMethod,mailingFee:quote.mailServiceCost/100,largePacketFee:0,total:quote.totalCents/100};
 }
 
 export const Route = createFileRoute("/api/workflows/denied-claim/approve")({ server: { handlers: { POST: async ({ request }) => {

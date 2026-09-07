@@ -1,12 +1,18 @@
-import { getWorkflowPricingProfile, PRICES } from "@mailmypdf/pricing";
+import { SSDI_DENIAL_PRICING } from "@/domain/ssdi-denial-pricing";
 
 export function SsdiDenialPricing() {
-  const profile = getWorkflowPricingProfile("ssdi-denial");
-  if (!profile) return null;
-  const base = profile.basePriceCents / 100;
-  const standard = PRICES.standard / 100;
-  const certified = PRICES.certified / 100;
-  const registered = PRICES.registered / 100;
+  // This workflow's own pricing (a separate, distinct workflow from
+  // "ssdi-appeal", which has its own canonical profile) — previously this
+  // read getWorkflowPricingProfile("ssdi-denial"), showing that canonical
+  // profile's $69.99 base here while approve.ts/checkout.ts actually
+  // approve and charge SSDI_DENIAL_PRICING's $24.99 base. Use this
+  // workflow's real pricing module so the displayed price matches what's
+  // approved and charged.
+  const base = SSDI_DENIAL_PRICING.preparationFee;
+  const includedPages = SSDI_DENIAL_PRICING.includedResponsePages;
+  const standard = SSDI_DENIAL_PRICING.standardMail;
+  const certified = SSDI_DENIAL_PRICING.certifiedMail;
+  const registered = SSDI_DENIAL_PRICING.registeredMail;
   const example = base + certified;
 
   return <section className="mx-auto max-w-6xl px-6 py-10">
@@ -16,7 +22,7 @@ export function SsdiDenialPricing() {
         <p className="text-sm text-slate-500">Starting at ${base.toFixed(2)} before mailing and extra pages</p>
       </div>
       <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[["Preparation", `$${base.toFixed(2)}`],["Included pages", `${profile.includedPages} pages`],["Standard mail", `$${standard.toFixed(2)}`],["Certified mail", `$${certified.toFixed(2)}`],["Registered mail", `$${registered.toFixed(2)}`]].map(([label,value])=><div key={label} className="rounded-2xl bg-slate-50 p-4"><div className="text-sm text-slate-500">{label}</div><div className="mt-1 font-semibold">{value}</div></div>)}
+        {[["Preparation", `$${base.toFixed(2)}`],["Included pages", `${includedPages} pages`],["Extra response page", "$0.40/sheet"],["Supporting evidence", "$0.25/sheet"],["Standard mail", `$${standard.toFixed(2)}`],["Certified mail", `$${certified.toFixed(2)}`],["Registered mail", `$${registered.toFixed(2)}`]].map(([label,value])=><div key={label} className="rounded-2xl bg-slate-50 p-4"><div className="text-sm text-slate-500">{label}</div><div className="mt-1 font-semibold">{value}</div></div>)}
       </div>
       <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
         <p><strong>Example:</strong> a typical response with Certified Mail starts at ${example.toFixed(2)} before any additional supporting-document pages.</p>

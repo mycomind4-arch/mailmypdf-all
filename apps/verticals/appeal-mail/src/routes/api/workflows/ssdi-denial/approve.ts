@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requireAuthenticatedUser, getSupabaseServer } from "@/platform/supabase";
 import { runReadinessReview } from "@/domain/review";
 import { assemblePacket } from "@/domain/packet";
-import { calculateQuote } from "@mailmypdf/pricing";
+import { calculateSsdiDenialTotal } from "@/domain/ssdi-denial-pricing";
 export const Route = createFileRoute("/api/workflows/ssdi-denial/approve")({server:{handlers:{ POST: async ({ request }) => { try {
   const user = await requireAuthenticatedUser(request); const input = await request.json() as { appealId?: string; recipient?: { name?: string; address1?: string; address2?: string; city?: string; state?: string; zip?: string }; mailingMethod?: "standard"|"certified"|"registered" };
   const appealId = input.appealId?.trim(); const r = input.recipient; if (!appealId) return Response.json({ error:"Appeal id is required."},{status:400}); if (!r?.name||!r.address1||!r.city||!r.state||!r.zip) return Response.json({error:"A complete mailing recipient is required."},{status:400}); if(!input.mailingMethod)return Response.json({error:"Mailing method is required."},{status:400});

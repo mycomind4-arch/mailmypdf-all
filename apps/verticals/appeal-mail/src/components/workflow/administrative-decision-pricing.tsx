@@ -1,12 +1,19 @@
-import { getWorkflowPricingProfile, PRICES } from "@mailmypdf/pricing";
+import { ADMINISTRATIVE_DECISION_PRICING } from "@/domain/administrative-decision-pricing";
 
 export function AdministrativeDecisionPricing() {
-  const profile = getWorkflowPricingProfile("administrative-decision-appeal");
-  if (!profile) return null;
-  const base = profile.basePriceCents / 100;
-  const standard = PRICES.standard / 100;
-  const certified = PRICES.certified / 100;
-  const registered = PRICES.registered / 100;
+  // This is the "administrative-decision" workflow's own pricing (a
+  // separate, distinct workflow from "administrative-decision-appeal", which
+  // has its own profile and pricing component) — previously this read
+  // getWorkflowPricingProfile("administrative-decision-appeal"), silently
+  // showing that *other* workflow's price ($59.99 base) here while this
+  // workflow's own checkout (see approve.ts, calculateAdministrativeDecisionTotal)
+  // actually charges $24.99 base. Use this workflow's real pricing module so
+  // the displayed price matches what checkout charges.
+  const base = ADMINISTRATIVE_DECISION_PRICING.preparationFee;
+  const includedPages = ADMINISTRATIVE_DECISION_PRICING.includedResponsePages;
+  const standard = ADMINISTRATIVE_DECISION_PRICING.standardMail;
+  const certified = ADMINISTRATIVE_DECISION_PRICING.certifiedMail;
+  const registered = ADMINISTRATIVE_DECISION_PRICING.registeredMail;
   const example = base + certified;
 
   return <section className="mx-auto max-w-6xl px-6 py-10">
@@ -16,7 +23,7 @@ export function AdministrativeDecisionPricing() {
         <p className="text-sm text-slate-500">Starting at ${base.toFixed(2)} before mailing and extra pages</p>
       </div>
       <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[["Preparation", `$${base.toFixed(2)}`],["Included pages", `${profile.includedPages} pages`],["Standard mail", `$${standard.toFixed(2)}`],["Certified mail", `$${certified.toFixed(2)}`],["Registered mail", `$${registered.toFixed(2)}`]].map(([label,value])=><div key={label} className="rounded-2xl bg-slate-50 p-4"><div className="text-sm text-slate-500">{label}</div><div className="mt-1 font-semibold">{value}</div></div>)}
+        {[["Preparation", `$${base.toFixed(2)}`],["Included pages", `${includedPages} pages`],["Extra response page", "$0.40/sheet"],["Supporting evidence", "$0.25/sheet"],["Standard mail", `$${standard.toFixed(2)}`],["Certified mail", `$${certified.toFixed(2)}`],["Registered mail", `$${registered.toFixed(2)}`]].map(([label,value])=><div key={label} className="rounded-2xl bg-slate-50 p-4"><div className="text-sm text-slate-500">{label}</div><div className="mt-1 font-semibold">{value}</div></div>)}
       </div>
       <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
         <p><strong>Example:</strong> a typical response with Certified Mail starts at ${example.toFixed(2)} before any additional supporting-document pages.</p>
