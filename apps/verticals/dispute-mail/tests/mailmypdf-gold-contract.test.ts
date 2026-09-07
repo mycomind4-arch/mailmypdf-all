@@ -5,24 +5,40 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path: string) => readFile(resolve(root, path), "utf8");
 
+// src/platform/mailmypdf.ts is now a compatibility shim that re-exports the
+// canonical @mailmypdf/mailing-client package — the HTTP/idempotency logic
+// these contract checks care about lives there now.
+const mailingClientPath = resolve(root, "../../../packages/mailing-client/src/index.ts");
+const readMailingClient = () => readFile(mailingClientPath, "utf8");
+const paymentFulfillmentPath = resolve(root, "../../../packages/payment-fulfillment/src/index.ts");
+const readPaymentFulfillment = () => readFile(paymentFulfillmentPath, "utf8");
+
 describe("Dispute Mail Gold fulfillment contract", () => {
+  it("is a thin compatibility shim over the canonical mailing client", async () => {
+    const shim = await read("src/platform/mailmypdf.ts");
+    expect(shim).toContain("@mailmypdf/mailing-client");
+  });
+
   it("uses canonical MailMyPDF endpoints and preserves multipart boundaries", async () => {
-    const source = await read("src/platform/mailmypdf.ts");
+    const source = await readMailingClient();
     expect(source).toContain("/v1/documents");
     expect(source).toContain("/v1/communications");
-    expect(source).toContain("!(init.body instanceof FormData)");
+    expect(source).toContain("instanceof FormData");
     expect(source).toContain("Idempotency-Key");
   });
 
   it("requires authentication and verified payment before physical mailing", async () => {
     const checkout = await read("server/api/checkout.ts");
     const fulfillment = await read("server/api/mail/response.ts");
+    const paymentFulfillment = await readPaymentFulfillment();
     expect(checkout).toContain("requireAuthenticatedUser");
     expect(checkout).toContain("mailing_intents");
     expect(checkout).toContain("stripe.checkout.sessions.create");
     expect(fulfillment).toContain("requireAuthenticatedUser");
     expect(fulfillment).toContain('session.payment_status !== "paid"');
-    expect(fulfillment).toContain("stripe:");
+    // Idempotency keying off the Stripe session now lives in the canonical
+    // payment-fulfillment engine (fulfillFromBrowserReturn), not this route.
+    expect(paymentFulfillment).toContain("stripe:");
   });
 
   it("locks ownership policies on dispute cases, evidence, events, and mailing intents", async () => {

@@ -67,5 +67,8 @@ export function canAuthorizeDisputeMail(params: { analysis: DisputeAnalysis; dra
 }
 export function canCompleteDisputeProof(params: { trackingNumber: string | null; proofReady: boolean }): boolean { return Boolean(params.trackingNumber) && params.proofReady; }
 export function canSubmitDispute(params: { analysis: DisputeAnalysis; draftValidated: boolean; humanApproved: boolean; recipientComplete: boolean; proofReady: boolean; paymentComplete?: boolean }): boolean {
-  return canAuthorizeDisputeMail({ analysis: params.analysis, draftValidated: params.draftValidated, humanApproved: params.humanApproved, recipientComplete: params.recipientComplete, paymentComplete: params.paymentComplete ?? false });
+  return (
+    canAuthorizeDisputeMail({ analysis: params.analysis, draftValidated: params.draftValidated, humanApproved: params.humanApproved, recipientComplete: params.recipientComplete, paymentComplete: params.paymentComplete ?? false }) &&
+    params.proofReady
+  );
 }
