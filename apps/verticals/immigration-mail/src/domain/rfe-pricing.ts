@@ -76,7 +76,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
   });
 
   const servicePrice = quote.basePriceCents / 100;
-  const postage = quote.mailCents / 100;
+  // `Quote` has no `mailCents` field (was always undefined -> NaN here);
+  // the mail service cost is `mailServiceCost`.
+  const postage = quote.mailServiceCost / 100;
   const total = quote.totalCents / 100;
 
   const tier = PRICING_TIERS[input.complexity];

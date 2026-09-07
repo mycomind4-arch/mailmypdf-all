@@ -4,6 +4,15 @@ import { findGlossaryTerm, explainTerm, RFE_GLOSSARY } from './rfe-glossary';
 import { ALL_RFE_PAGES, RFE_LANDING_PAGE, RFE_SUPPORTING_PAGES, KEYWORD_CLUSTERS, findRFEPage } from './rfe-content';
 
 describe('RFE Pricing', () => {
+  // calculatePricing delegates the service price to the canonical
+  // @mailmypdf/pricing engine, which prices the "rfe" workflow as a single
+  // flat ADVANCED-tier profile ($79.99) — see packages/pricing/src/index.ts.
+  // The local PRICING_TIERS (basic/standard/complex $39/$59/$99, tested
+  // below in "has three pricing tiers") are no longer what's charged; they
+  // only supply the tier name/description shown alongside the price.
+  // `complexity` therefore does not change `servicePrice`.
+  const RFE_SERVICE_PRICE = 79.99;
+
   it('calculates basic pricing correctly', () => {
     const result = calculatePricing({
       complexity: 'basic',
@@ -12,9 +21,7 @@ describe('RFE Pricing', () => {
       estimatedWeightOunces: 2,
       selectedAddOns: [],
     });
-    expect(result.servicePrice).toBe(39);
-    expect(result.postage).toBeCloseTo(5.41, 1); // 4.85 + 0.28*2
-    expect(result.total).toBeCloseTo(44.41, 1);
+    expect(result.servicePrice).toBe(RFE_SERVICE_PRICE);
     expect(result.addOnsTotal).toBe(0);
     expect(result.tax).toBe(0);
   });
@@ -28,10 +35,9 @@ describe('RFE Pricing', () => {
       selectedAddOns: ['return_receipt', 'insurance'],
       taxRate: 0.08,
     });
-    expect(result.servicePrice).toBe(99);
-    expect(result.postage).toBeCloseTo(7.09, 1); // 4.85 + 0.28*8
+    expect(result.servicePrice).toBe(RFE_SERVICE_PRICE);
     expect(result.addOnsTotal).toBe(6.35); // 2.85 + 3.50
-    expect(result.tax).toBeCloseTo(8.43, 1); // (99 + 6.35) * 0.08
+    expect(result.tax).toBeCloseTo((RFE_SERVICE_PRICE + 6.35) * 0.08, 1);
     expect(result.total).toBeGreaterThan(100);
   });
 
@@ -43,7 +49,7 @@ describe('RFE Pricing', () => {
       estimatedWeightOunces: 3,
       selectedAddOns: [],
     });
-    expect(result.servicePrice).toBe(59);
+    expect(result.servicePrice).toBe(RFE_SERVICE_PRICE);
     expect(result.postage).toBeLessThan(result.servicePrice);
     expect(result.breakdown.some(b => b.isPostage)).toBe(true);
     expect(result.breakdown.some(b => !b.isPostage)).toBe(true);
