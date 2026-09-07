@@ -39,7 +39,7 @@ test("license suspension Gold endpoints are present and wired to Gemini/server g
   assert.match(approve, /assemblePacket/);
   assert.match(approve, /status: ?\"ready\"/);
   assert.match(checkout, /checkout\.sessions\.create/);
-  assert.match(checkout, /status!==\"ready\"/);
+  assert.match(checkout, /status\s*!==\s*\"ready\"/);
   assert.match(workspace, /Understand it\. Build it\. Send it\./);
   assert.match(workspace, /license-suspension-appeal\/(analyze|draft|approve|checkout)/);
 });

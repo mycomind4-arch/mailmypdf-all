@@ -1,3 +1,21 @@
-import { describe,expect,it } from "vitest";
-import { PRIOR_AUTHORIZATION_DENIAL_GOLD,PRIOR_AUTHORIZATION_DENIAL_PRICING } from "../src/domain/prior-authorization-denial-gold";
-describe("Workflow #28 Gold",()=>{it("declares authority-first capabilities and workflow-specific pricing",()=>{expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.workflowId).toBe("prior-authorization-denial");expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.lifecycle).toBe("authority");expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.capabilities).toContain("independent-validation");expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.capabilities).toContain("pricing");expect(PRIOR_AUTHORIZATION_DENIAL_PRICING.preparationFee).toBe(24.99);expect(PRIOR_AUTHORIZATION_DENIAL_PRICING.includedResponsePages).toBe(3);expect(PRIOR_AUTHORIZATION_DENIAL_PRICING.certifiedMail).toBeGreaterThan(PRIOR_AUTHORIZATION_DENIAL_PRICING.standardMail);});it("refuses universal procedural assumptions",()=>{expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.authorityRules.some(x=>x.includes("Never invent authorization criteria"))).toBe(true);expect(PRIOR_AUTHORIZATION_DENIAL_GOLD.authorityRules.some(x=>x.includes("deadline"))).toBe(true);});});
+import test from "node:test";
+import assert from "node:assert/strict";
+import { PRIOR_AUTHORIZATION_DENIAL_GOLD, PRIOR_AUTHORIZATION_DENIAL_PRICING } from "../src/domain/prior-authorization-denial-gold";
+
+test("Workflow #28 Gold: declares authority-first capabilities and workflow-specific pricing", () => {
+  assert.equal(PRIOR_AUTHORIZATION_DENIAL_GOLD.workflowId, "prior-authorization-denial");
+  assert.equal(PRIOR_AUTHORIZATION_DENIAL_GOLD.lifecycle, "authority");
+  assert.ok(PRIOR_AUTHORIZATION_DENIAL_GOLD.capabilities.includes("independent-validation"));
+  assert.ok(PRIOR_AUTHORIZATION_DENIAL_GOLD.capabilities.includes("pricing"));
+  // Derived from the canonical @mailmypdf/pricing profile for
+  // "prior-authorization-denial" ($59.99 base, 8 included pages), not the
+  // pre-migration $24.99/3.
+  assert.equal(PRIOR_AUTHORIZATION_DENIAL_PRICING.preparationFee, 59.99);
+  assert.equal(PRIOR_AUTHORIZATION_DENIAL_PRICING.includedResponsePages, 8);
+  assert.ok(PRIOR_AUTHORIZATION_DENIAL_PRICING.certifiedMail > PRIOR_AUTHORIZATION_DENIAL_PRICING.standardMail);
+});
+
+test("Workflow #28 Gold: refuses universal procedural assumptions", () => {
+  assert.ok(PRIOR_AUTHORIZATION_DENIAL_GOLD.authorityRules.some((x) => x.includes("Never invent authorization criteria")));
+  assert.ok(PRIOR_AUTHORIZATION_DENIAL_GOLD.authorityRules.some((x) => x.includes("deadline")));
+});

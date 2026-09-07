@@ -190,6 +190,7 @@ describe("Workflow directory renders exact registry count", () => {
     // Strip CSS/utility classes to avoid false positives.
     const codeOnly = src
       .replace(/px-\d+|py-\d+|p-\d+|m-\d+|gap-\d+|grid-cols-\d+|max-w-\w+|min-h-\w+|h-\d+|w-\d+|border-\w+|rounded-\w+|text-\w+|bg-\w+|flex|grid/g, "")
+      .replace(/\/\d+(?=[\s"'`])/g, "") // strip Tailwind opacity modifiers like border-ink/20 (already stripped to /20)
       .replace(/20\d{2}/g, ""); // strip years like 2026
     assert.ok(
       !/\b20\b/.test(codeOnly),

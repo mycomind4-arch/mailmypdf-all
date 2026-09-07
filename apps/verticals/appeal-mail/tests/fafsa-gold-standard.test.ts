@@ -72,12 +72,12 @@ test("FAFSA approval is server-gated, readiness-scored, packetized, and owner-sc
 
 test("FAFSA checkout cannot bypass approval and preserves workflow identity", () => {
   const source = read("src/routes/api/workflows/fafsa-appeal/checkout.ts");
-  assert.match(source, /a\.user_id!==user\.id/);
-  assert.match(source, /a\.workflow_id!=="fafsa-appeal"/);
-  assert.match(source, /a\.status!=="ready"\|\|!a\.review\|\|!a\.packet/);
+  assert.match(source, /a\.user_id\s*!==\s*user\.id/);
+  assert.match(source, /a\.workflow_id\s*!==\s*"fafsa-appeal"/);
+  assert.match(source, /a\.status\s*!==\s*"ready"\s*\|\|\s*!a\.review\s*\|\|\s*!a\.packet/);
   assert.match(source, /STRIPE_SECRET_KEY/);
   assert.match(source, /checkout\.sessions\.create/);
-  assert.match(source, /workflow_id:"fafsa-appeal"/);
+  assert.match(source, /workflow_id:\s*"fafsa-appeal"/);
   assert.match(source, /metadata:/);
 });
 

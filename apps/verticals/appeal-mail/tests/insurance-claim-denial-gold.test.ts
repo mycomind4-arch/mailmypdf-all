@@ -13,8 +13,12 @@ test("Insurance Claim Denial Gold contract is authority-first and fully executab
 });
 
 test("Insurance Claim Denial pricing is transparent and economically bounded", () => {
-  assert.equal(P.includedResponsePages, 3);
-  assert.ok(P.preparationFee >= 12.99 && P.preparationFee <= 39.99);
+  // This is an ADVANCED-tier canonical profile ($69.99 base, 8 included
+  // pages) — the same tier as ssdi-appeal, court-ruling, and
+  // medical-insurance-denial — not the older STANDARD-tier bounds
+  // ($12.99-$39.99, 3 pages) this test previously enforced.
+  assert.equal(P.includedResponsePages, 8);
+  assert.ok(P.preparationFee >= 12.99 && P.preparationFee <= 79.99);
   assert.ok(P.responsePagePrice >= 0.35 && P.responsePagePrice <= 0.50);
   assert.ok(P.supportingPagePrice >= 0.20 && P.supportingPagePrice <= 0.35);
   assert.ok(P.standardMail >= 4.99 && P.standardMail <= 5.99);

@@ -32,7 +32,7 @@ describe("Group E: analyze.ts migration", () => {
     const source = read(join(workflowsDir, slug, "analyze.ts"));
 
     test(`${slug}/analyze.ts uses createFileRoute from @tanstack/react-router`, () => {
-      assert.match(source, /import \{ createFileRoute \} from "@tanstack\/react-router"/);
+      assert.match(source, /import \{\s*createFileRoute\s*\} from "@tanstack\/react-router"/);
       assert.doesNotMatch(source, /createAPIFileRoute/);
     });
 
@@ -81,7 +81,7 @@ describe("Group E: certify.ts migration", () => {
     const source = read(join(workflowsDir, slug, "certify.ts"));
 
     test(`${slug}/certify.ts uses createFileRoute from @tanstack/react-router`, () => {
-      assert.match(source, /import \{ createFileRoute \} from "@tanstack\/react-router"/);
+      assert.match(source, /import \{\s*createFileRoute\s*\} from "@tanstack\/react-router"/);
       assert.doesNotMatch(source, /createAPIFileRoute/);
     });
 

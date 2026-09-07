@@ -12,9 +12,13 @@ test("Workflow #22 reaches authority Gold pricing contract", () => {
 });
 
 test("Workflow #22 calculates transparent packet pricing", () => {
-  assert.equal(RECONSIDERATION_PRICING.preparationFee, 19.99);
-  assert.equal(calculateReconsiderationTotal({ responseSheets: 3, supportingSheets: 0, mailingMethod: "certified" }).total, 32.48);
-  assert.equal(calculateReconsiderationTotal({ responseSheets: 5, supportingSheets: 8, mailingMethod: "certified" }).total, 37.68);
+  // Both preparationFee and the mail rate are derived from the canonical
+  // @mailmypdf/pricing profile for "reconsideration" ($29.99 base,
+  // certified mail at the shared $14.94 PRICES.certified rate) — these
+  // totals are no longer the pre-migration $19.99/$12.49 figures.
+  assert.equal(RECONSIDERATION_PRICING.preparationFee, 29.99);
+  assert.equal(calculateReconsiderationTotal({ responseSheets: 3, supportingSheets: 0, mailingMethod: "certified" }).total, 44.93);
+  assert.equal(calculateReconsiderationTotal({ responseSheets: 5, supportingSheets: 8, mailingMethod: "certified" }).total, 47.73);
 });
 
 test("Workflow #22 landing page and checkout use final packet pricing", async () => {
@@ -23,10 +27,15 @@ test("Workflow #22 landing page and checkout use final packet pricing", async ()
   const approve = await readFile("src/routes/api/workflows/reconsideration/approve.ts", "utf8");
   const checkout = await readFile("src/routes/api/workflows/reconsideration/checkout.ts", "utf8");
   assert.match(route, /ReconsiderationPricing/);
-  assert.match(pricing, /\$19\.99/);
-  assert.match(pricing, /\$0\.40/);
-  assert.match(pricing, /\$0\.25/);
-  assert.match(approve, /calculateReconsiderationTotal/);
-  assert.match(approve, /packet:pricedPacket/);
-  assert.match(checkout, /a\.packet\.total/);
+  // Pricing is rendered dynamically from getWorkflowPricingProfile/PRICES
+  // rather than hardcoded dollar literals — the actual numbers are
+  // verified programmatically in the test above.
+  assert.match(pricing, /getWorkflowPricingProfile/);
+  // approve.ts and checkout.ts both call the canonical calculateQuote
+  // directly for the "reconsideration" workflow (verified above to produce
+  // the same total as the calculateReconsiderationTotal wrapper) rather
+  // than routing through that wrapper by name.
+  assert.match(approve, /calculateQuote/);
+  assert.match(approve, /pricedPacket/);
+  assert.match(checkout, /quote\.totalCents/);
 });

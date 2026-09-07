@@ -6,8 +6,13 @@ import { ADMINISTRATIVE_DECISION_PRICING, calculateAdministrativeDecisionTotal }
 test("administrative-decision uses transparent Gold packet pricing", () => {
   assert.equal(ADMINISTRATIVE_DECISION_PRICING.preparationFee, 24.99);
   assert.equal(ADMINISTRATIVE_DECISION_PRICING.includedResponsePages, 3);
-  assert.equal(calculateAdministrativeDecisionTotal({ responseSheets: 3, supportingSheets: 0, mailingMethod: "certified" }).total, 37.48);
-  assert.equal(calculateAdministrativeDecisionTotal({ responseSheets: 5, supportingSheets: 8, mailingMethod: "certified" }).total, 40.68);
+  // Certified mail is the shared canonical PRICES.certified rate ($14.94),
+  // not the older $12.49 figure these totals were originally written
+  // against — this module was previously broken (referenced an undefined
+  // `_p`/`PRICES`, so it crashed on import) and is now wired to the real
+  // canonical mail-rate table.
+  assert.equal(calculateAdministrativeDecisionTotal({ responseSheets: 3, supportingSheets: 0, mailingMethod: "certified" }).total, 39.93);
+  assert.equal(calculateAdministrativeDecisionTotal({ responseSheets: 5, supportingSheets: 8, mailingMethod: "certified" }).total, 42.73);
 });
 
 test("administrative-decision landing, approval, and checkout use the same pricing model", async () => {

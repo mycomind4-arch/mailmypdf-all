@@ -113,13 +113,17 @@ describe("Implemented vs Coming Soon", () => {
     }
   });
 
-  test("coming soon count is greater than implemented count", () => {
+  test("catalog milestone is complete: no workflows remain coming-soon", () => {
+    // This used to assert comingSoon.length >= implemented.length, tracking
+    // an earlier milestone where most of the catalog was still unimplemented.
+    // That milestone shipped — every catalog workflow is now IMPLEMENTED (see
+    // "every catalog workflow status is IMPLEMENTED or COMING_SOON" and the
+    // canonical registry's "all 33 are AVAILABLE" invariant elsewhere in this
+    // suite) — so lock in the completed state instead of the old ratio.
     const implemented = getImplementedWorkflows();
     const comingSoon = getComingSoonWorkflows();
-    assert.ok(
-      comingSoon.length >= implemented.length,
-      "Expected more coming soon than implemented in this milestone"
-    );
+    assert.equal(comingSoon.length, 0, "Expected no remaining coming-soon workflows");
+    assert.ok(implemented.length > 0, "Expected at least one implemented workflow");
   });
 });
 

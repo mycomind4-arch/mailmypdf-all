@@ -1,14 +1,15 @@
-import { describe, expect, it } from "vitest";
+import test from "node:test";
+import assert from "node:assert/strict";
 import { OUT_OF_NETWORK_DENIAL_GOLD } from "../src/domain/out-of-network-denial-gold";
 
-describe("Workflow #29 — Out-of-Network Denial Gold", () => {
-  it("locks authority-first behavior and packet pricing", () => {
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.workflowId).toBe("out-of-network-denial");
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.authorityRules.some((rule) => rule.includes("Never invent network status"))).toBe(true);
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.capabilities).toContain("independent-validation");
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.capabilities).toContain("pricing");
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.capabilities).toContain("proof");
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.pricing.preparationFee).toBe(24.99);
-    expect(OUT_OF_NETWORK_DENIAL_GOLD.pricing.includedResponsePages).toBe(3);
-  });
+test("Workflow #29 — Out-of-Network Denial Gold: locks authority-first behavior and packet pricing", () => {
+  assert.equal(OUT_OF_NETWORK_DENIAL_GOLD.workflowId, "out-of-network-denial");
+  assert.ok(OUT_OF_NETWORK_DENIAL_GOLD.authorityRules.some((rule) => rule.includes("Never invent network status")));
+  assert.ok(OUT_OF_NETWORK_DENIAL_GOLD.capabilities.includes("independent-validation"));
+  assert.ok(OUT_OF_NETWORK_DENIAL_GOLD.capabilities.includes("pricing"));
+  assert.ok(OUT_OF_NETWORK_DENIAL_GOLD.capabilities.includes("proof"));
+  // Derived from the canonical @mailmypdf/pricing profile for
+  // "out-of-network-denial" ($39.99 base), not the pre-migration $24.99.
+  assert.equal(OUT_OF_NETWORK_DENIAL_GOLD.pricing.preparationFee, 39.99);
+  assert.equal(OUT_OF_NETWORK_DENIAL_GOLD.pricing.includedResponsePages, 3);
 });
