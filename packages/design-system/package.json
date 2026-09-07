@@ -23,7 +23,10 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "tsx --test src/**/*.test.ts",
     "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }
