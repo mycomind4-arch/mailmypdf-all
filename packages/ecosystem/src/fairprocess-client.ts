@@ -17,8 +17,18 @@
  *   GET  /health                 — health check
  */
 
-const FAIRPROCESS_API_URL = import.meta.env.VITE_FAIRPROCESS_API_URL ?? "";
-const FAIRPROCESS_API_KEY = import.meta.env.VITE_FAIRPROCESS_API_KEY ?? "";
+// This package is consumed by apps on different bundlers (Vite, Next.js), so
+// env access can't assume `import.meta.env` (Vite-only, and untyped for a
+// plain `tsc`-built package like this one). Read whichever is available.
+function readEnv(key: string): string | undefined {
+  const metaEnv = (import.meta as { env?: Record<string, string | undefined> }).env;
+  if (metaEnv?.[key] !== undefined) return metaEnv[key];
+  if (typeof process !== "undefined" && process.env?.[key] !== undefined) return process.env[key];
+  return undefined;
+}
+
+const FAIRPROCESS_API_URL = readEnv("VITE_FAIRPROCESS_API_URL") ?? readEnv("FAIRPROCESS_API_URL") ?? "";
+const FAIRPROCESS_API_KEY = readEnv("VITE_FAIRPROCESS_API_KEY") ?? readEnv("FAIRPROCESS_API_KEY") ?? "";
 
 // ── Types ──────────────────────────────────────────────────────
 
