@@ -24,6 +24,11 @@ import {
   type PublicRecordsRequestBatch,
   type RecordsInvestigationTaskPlan,
 } from '../fairprocess/records-investigation'
+import {
+  buildFairProcessRecordsRequestHandoffs,
+  type FairProcessRecordsRequestHandoff,
+  type FairProcessRecordsRequestHandoffContext,
+} from '../fairprocess/records-request-handoff'
 import type { RecordsInvestigationPlan } from '../fairprocess/source-requirements'
 import type { AttorneyPacketSourceReadiness, JurisdictionPack } from '../fairprocess/types'
 
@@ -55,6 +60,11 @@ export interface CaseOrchestratorInput {
    */
   sourceRequirementPlan?: RecordsInvestigationPlan
   jurisdictionPack?: JurisdictionPack
+  /**
+   * Known case facts needed by the existing Records Request vertical. Missing
+   * required fields are surfaced as blockers; Workflow 0 never invents them.
+   */
+  recordsRequestContext?: FairProcessRecordsRequestHandoffContext
 }
 
 export interface CaseOrchestratorResult {
@@ -66,6 +76,7 @@ export interface CaseOrchestratorResult {
   recommendations: RecommendedNextWorkflow[]
   recordsInvestigation?: RecordsInvestigationTaskPlan
   publicRecordsRequestBatches?: PublicRecordsRequestBatch[]
+  recordsRequestHandoffs?: FairProcessRecordsRequestHandoff[]
   sourceReadiness?: AttorneyPacketSourceReadiness
 }
 
@@ -250,6 +261,7 @@ export function runCaseOrchestrator(input: CaseOrchestratorInput): CaseOrchestra
 
   let recordsInvestigation: RecordsInvestigationTaskPlan | undefined
   let publicRecordsRequestBatches: PublicRecordsRequestBatch[] | undefined
+  let recordsRequestHandoffs: FairProcessRecordsRequestHandoff[] | undefined
   let sourceReadiness: AttorneyPacketSourceReadiness | undefined
 
   if (input.sourceRequirementPlan && input.jurisdictionPack) {
@@ -259,6 +271,15 @@ export function runCaseOrchestrator(input: CaseOrchestratorInput): CaseOrchestra
     )
     publicRecordsRequestBatches = buildPublicRecordsRequestBatches(recordsInvestigation)
     sourceReadiness = toAttorneyPacketSourceReadiness(input.sourceRequirementPlan)
+
+    if (input.recordsRequestContext) {
+      recordsRequestHandoffs = buildFairProcessRecordsRequestHandoffs({
+        taskPlan: recordsInvestigation,
+        batches: publicRecordsRequestBatches,
+        jurisdiction: input.jurisdictionPack,
+        context: input.recordsRequestContext,
+      })
+    }
 
     const recordsRecommendation = buildFairProcessRecordsRecommendation(recordsInvestigation)
     if (recordsRecommendation) recommendations.push(recordsRecommendation)
@@ -295,6 +316,7 @@ export function runCaseOrchestrator(input: CaseOrchestratorInput): CaseOrchestra
     recommendations,
     recordsInvestigation,
     publicRecordsRequestBatches,
+    recordsRequestHandoffs,
     sourceReadiness,
   }
 }
