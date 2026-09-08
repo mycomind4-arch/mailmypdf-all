@@ -335,16 +335,21 @@ export function buildRecordsInvestigationPlan(input: {
   generatedAt: string;
   requirements: SourceRequirement[];
 }): RecordsInvestigationPlan {
-  const missing = input.requirements.filter((requirement) => requirement.status === 'missing');
+  // Requested or received records remain unresolved until the provenance layer
+  // verifies the evidence. This prevents a request submission or raw upload from
+  // silently unblocking current-case analysis or attorney handoff.
+  const unresolved = input.requirements.filter(
+    (requirement) => requirement.status !== 'verified' && requirement.status !== 'not_applicable',
+  );
 
   return {
     caseId: input.caseId,
     generatedAt: input.generatedAt,
     requirements: input.requirements,
-    criticalMissingCount: missing.filter((requirement) => requirement.priority === 'critical').length,
-    highPriorityMissingCount: missing.filter((requirement) => requirement.priority === 'high').length,
-    attorneyPacketBlocked: missing.some((requirement) => requirement.blocks.includes('attorney_packet')),
-    currentAssessmentBlocked: missing.some((requirement) => requirement.blocks.includes('current_case_assessment')),
+    criticalMissingCount: unresolved.filter((requirement) => requirement.priority === 'critical').length,
+    highPriorityMissingCount: unresolved.filter((requirement) => requirement.priority === 'high').length,
+    attorneyPacketBlocked: unresolved.some((requirement) => requirement.blocks.includes('attorney_packet')),
+    currentAssessmentBlocked: unresolved.some((requirement) => requirement.blocks.includes('current_case_assessment')),
   };
 }
 
