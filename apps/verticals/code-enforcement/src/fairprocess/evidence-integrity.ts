@@ -22,7 +22,12 @@ function asUint8Array(input: ArrayBuffer | Uint8Array): Uint8Array {
  */
 export async function sha256Bytes(input: ArrayBuffer | Uint8Array): Promise<string> {
   const bytes = asUint8Array(input);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  // Copy into an ArrayBuffer-backed view. Modern TypeScript distinguishes
+  // ArrayBuffer from SharedArrayBuffer in BufferSource, while WebCrypto expects
+  // an ArrayBuffer-backed input here.
+  const safeBytes = new Uint8Array(bytes.byteLength);
+  safeBytes.set(bytes);
+  const digest = await crypto.subtle.digest('SHA-256', safeBytes.buffer);
   return toHex(new Uint8Array(digest));
 }
 
