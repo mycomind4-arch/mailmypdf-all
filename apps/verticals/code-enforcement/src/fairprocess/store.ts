@@ -66,12 +66,24 @@ export interface FairProcessCaseRecordStore {
   listPacketExports(caseId: string): Promise<FairProcessPacketExport[]>;
 }
 
+export interface FairProcessBlobRecord {
+  key: string;
+  bytes: Uint8Array;
+  mimeType: string;
+  sha256: string;
+}
+
+export interface FairProcessBlobStore {
+  putBlob(record: FairProcessBlobRecord): Promise<void>;
+  getBlob(key: string): Promise<FairProcessBlobRecord | undefined>;
+}
+
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
 /**
- * Deterministic store used by domain tests and local composition.
+ * Deterministic metadata store used by domain tests and local composition.
  *
  * Production persistence should implement the same interface over the app's
  * chosen database/runtime. The FairProcess domain must not import D1 or Supabase
@@ -122,7 +134,7 @@ export class InMemoryFairProcessStore implements FairProcessCaseRecordStore {
     return [...this.evidence.values()]
       .filter((record) => record.caseId === caseId)
       .sort((a, b) => a.immutableAt.localeCompare(b.immutableAt))
-      .map(clone);
+      .map((record) => clone(record));
   }
 
   async withdrawEvidence(
@@ -164,7 +176,7 @@ export class InMemoryFairProcessStore implements FairProcessCaseRecordStore {
     return [...this.snapshots.values()]
       .filter((snapshot) => snapshot.caseId === caseId)
       .sort((a, b) => a.retrievedAt.localeCompare(b.retrievedAt))
-      .map(clone);
+      .map((snapshot) => clone(snapshot));
   }
 
   async putPacketExport(packet: FairProcessPacketExport): Promise<void> {
@@ -190,6 +202,34 @@ export class InMemoryFairProcessStore implements FairProcessCaseRecordStore {
     return [...this.packets.values()]
       .filter((packet) => packet.caseId === caseId)
       .sort((a, b) => a.generatedAt.localeCompare(b.generatedAt))
-      .map(clone);
+      .map((packet) => clone(packet));
+  }
+}
+
+/** In-memory R2/blob analogue with immutable content-addressed semantics. */
+export class InMemoryFairProcessBlobStore implements FairProcessBlobStore {
+  private readonly blobs = new Map<string, FairProcessBlobRecord>();
+
+  async putBlob(record: FairProcessBlobRecord): Promise<void> {
+    const existing = this.blobs.get(record.key);
+    if (existing && existing.sha256 !== record.sha256) {
+      throw new Error(
+        `Blob ${record.key} is immutable: existing SHA-256 does not match replacement content.`,
+      );
+    }
+
+    this.blobs.set(record.key, {
+      ...record,
+      bytes: new Uint8Array(record.bytes),
+    });
+  }
+
+  async getBlob(key: string): Promise<FairProcessBlobRecord | undefined> {
+    const record = this.blobs.get(key);
+    if (!record) return undefined;
+    return {
+      ...record,
+      bytes: new Uint8Array(record.bytes),
+    };
   }
 }
