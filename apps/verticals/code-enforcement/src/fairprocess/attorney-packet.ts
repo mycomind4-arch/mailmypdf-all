@@ -52,6 +52,36 @@ function buildReadiness(input: AttorneyPacketInput): AttorneyPacketReadiness {
     score -= 20;
   }
 
+  const sourceReadiness = input.sourceReadiness;
+  if (sourceReadiness) {
+    if (sourceReadiness.attorneyPacketBlocked) {
+      blockingIssues.push(
+        `Attorney handoff is blocked by ${sourceReadiness.unresolvedCriticalCount} critical and ${sourceReadiness.unresolvedHighCount} high-priority unresolved source requirement(s).`,
+      );
+      score -= Math.min(
+        35,
+        sourceReadiness.unresolvedCriticalCount * 10 + sourceReadiness.unresolvedHighCount * 4,
+      );
+    } else if (sourceReadiness.unresolvedRequirementTitles.length > 0) {
+      warnings.push(
+        `${sourceReadiness.unresolvedRequirementTitles.length} non-blocking source requirement(s) remain unresolved.`,
+      );
+      score -= Math.min(10, sourceReadiness.unresolvedRequirementTitles.length * 2);
+    }
+
+    if (sourceReadiness.currentAssessmentBlocked) {
+      warnings.push(
+        'Current-case assessment remains blocked until the required current records are verified.',
+      );
+    }
+
+    if (sourceReadiness.unresolvedRequirementTitles.length > 0) {
+      warnings.push(
+        `Open source requirements: ${sourceReadiness.unresolvedRequirementTitles.join('; ')}`,
+      );
+    }
+  }
+
   const unsourcedClaims = countUnsourcedClaims(input);
   if (unsourcedClaims > 0) {
     warnings.push(`${unsourcedClaims} fact, timeline event, or finding item(s) have no source reference.`);
@@ -106,6 +136,7 @@ function section(
 export function buildAttorneyPacketManifest(input: AttorneyPacketInput): AttorneyPacketManifest {
   const readiness = buildReadiness(input);
   const allRefs = collectSourceRefs(input);
+  const unresolvedSourceTitles = input.sourceReadiness?.unresolvedRequirementTitles ?? [];
 
   const sections: AttorneyPacketSection[] = [
     section('cover', 'Case Cover', true, 1, Boolean(input.caseName && input.caseId)),
@@ -155,6 +186,9 @@ export function buildAttorneyPacketManifest(input: AttorneyPacketInput): Attorne
       false,
       input.recordsRequests?.length ?? 0,
       true,
+      unresolvedSourceTitles.length > 0
+        ? [`${unresolvedSourceTitles.length} source requirement(s) still need acquisition or verification.`]
+        : [],
     ),
     section(
       'communications',
@@ -168,11 +202,16 @@ export function buildAttorneyPacketManifest(input: AttorneyPacketInput): Attorne
       'counsel_review',
       'Issues for Counsel to Review',
       true,
-      input.findings.filter((finding) => finding.counselReviewRequired).length,
+      input.findings.filter((finding) => finding.counselReviewRequired).length + unresolvedSourceTitles.length,
       true,
-      input.jurisdiction.allowJurisdictionSpecificLegalConclusions
-        ? []
-        : ['Jurisdiction-specific legal conclusions remain gated pending review of the active policy pack.'],
+      [
+        ...(input.jurisdiction.allowJurisdictionSpecificLegalConclusions
+          ? []
+          : ['Jurisdiction-specific legal conclusions remain gated pending review of the active policy pack.']),
+        ...(unresolvedSourceTitles.length > 0
+          ? [`Unresolved source requirements must remain visible: ${unresolvedSourceTitles.join('; ')}`]
+          : []),
+      ],
     ),
     section('exhibits', 'Indexed Exhibits', true, uniqueEvidenceIds(allRefs).length, uniqueEvidenceIds(allRefs).length > 0),
   ];
@@ -194,6 +233,7 @@ export function buildAttorneyPacketManifest(input: AttorneyPacketInput): Attorne
       'User assertions, agency assertions, verified facts, inferences, and unknowns must remain visibly distinguishable in rendered output.',
       'Citations, deadlines, jurisdiction, and legal authorities should be independently verified by counsel before reliance.',
       'Policy rules marked legal_review_required must not be rendered as controlling legal conclusions.',
+      'A missing government record is an investigation gap, not proof that the underlying event, allegation, or procedure did not occur.',
     ],
   };
 }
