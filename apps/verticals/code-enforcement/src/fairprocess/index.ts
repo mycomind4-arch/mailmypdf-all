@@ -12,6 +12,7 @@ export * from './jurisdiction-registry';
 export * from './store';
 export * from './jurisdictions/humboldt';
 export * from './jurisdictions/humboldt-connector';
+export * from './jurisdictions/humboldt-intelligence';
 
 export function ensureFairProcessJurisdictions(): void {
   registerJurisdictionPack(HUMBOLDT_FAIRPROCESS_PACK);
