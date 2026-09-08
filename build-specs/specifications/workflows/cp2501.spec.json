@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "id": "cp2501",
+    "name": "IRS CP2501 Notice of Delinquency Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP2501 Notice of Delinquency indicating failure to file or pay required taxes.",
+    "searchVolume": 2800,
+    "searchVolumeSource": "Google Ads Keyword Planner - 'CP2501 notice' + 'delinquency'",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    }
+  },
+  "extraction": {
+    "description": "Extract structured data from IRS CP2501 notice. Identifies taxpayer, tax year, reason for delinquency (failure to file or pay), amount due, and response deadline.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Jane Marie Johnson",
+        "notes": "Verify spelling matches records"
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number in XXX-XX-XXXX format.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "234-56-7890",
+        "notes": "Critical for IRS matching"
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax year for which the notice was issued.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2023,
+        "notes": "May be multiple years if combined notice"
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice issue date in YYYY-MM-DD format.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-03-10",
+        "notes": "Used to calculate response window"
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract or calculate response deadline as 30 days from notice date.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-04-09",
+        "notes": "30-day response period is statutory"
+      },
+      {
+        "name": "delinquencyReason",
+        "prompt": "Identify whether this is for failure to file (FTF) or failure to pay (FTP). Look for language like 'We have not received your return' or 'Payment is overdue'.",
+        "required": true,
+        "dataType": "string",
+        "validation": "enum: [failure-to-file, failure-to-pay, both]",
+        "example": "failure-to-file",
+        "notes": "Determines response strategy"
+      },
+      {
+        "name": "amountDue",
+        "prompt": "Extract the total amount claimed to be due, including taxes, penalties, and interest.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 5420.75,
+        "notes": "Sum of tax + penalties + interest"
+      },
+      {
+        "name": "interestRate",
+        "prompt": "Extract the current interest rate being charged, if stated.",
+        "required": false,
+        "dataType": "number",
+        "validation": "numeric",
+        "example": 8.0,
+        "notes": "Interest accrues daily; current rate important for response"
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract which IRS Service Center issued this notice.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Philadelphia Service Center",
+        "notes": "Needed for response mailing address"
+      }
+    ],
+    "notes": "CP2501 notices are typically 1-2 pages. Focus on identifying specific reason for delinquency claim and all amounts claimed due."
+  },
+  "validation": {
+    "description": "Validate response addresses delinquency claim and provides evidence of compliance or reasonable dispute.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= responseDeadline",
+        "severity": "error",
+        "message": "Response must be submitted by deadline. 30 days from notice date is critical.",
+        "example_fail": "Notice dated March 10, 2024; response submitted April 15, 2024 (6 days late)",
+        "example_pass": "Notice dated March 10, 2024; response submitted April 8, 2024 (on time)"
+      },
+      {
+        "name": "addressDelinquencyClaim",
+        "check": "response addresses the specific delinquency reason (FTF or FTP)",
+        "severity": "error",
+        "message": "Must address whether return was filed or payment was made, with evidence.",
+        "example_fail": "Response generic without addressing specific claim",
+        "example_pass": "Response explains return was filed on [date] with copy of filing receipt; or payment made on [date] with bank statement proof"
+      },
+      {
+        "name": "supportingEvidence",
+        "check": "response includes documentary evidence (return filing proof or payment receipt)",
+        "severity": "error",
+        "message": "Provide filing receipt, bank statement, check image, or other proof of compliance.",
+        "example_fail": "Claims return was filed but provides no documentation",
+        "example_pass": "Attached: IRS filing receipt showing return accepted; bank statement showing payment"
+      },
+      {
+        "name": "noAdmissionLiability",
+        "check": "!response.admits_fault_or_error",
+        "severity": "error",
+        "message": "Do not admit error, delay, or wrongdoing. State facts and provide evidence.",
+        "example_fail": "We apologize for the late filing...",
+        "example_pass": "The return was filed on [date] as documented by filing receipt"
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter AND response_addressed_to_correct_center",
+        "severity": "warning",
+        "message": "Response must be formal business letter addressed to correct service center.",
+        "example_fail": "Informal email or note",
+        "example_pass": "Professional letter to Philadelphia Service Center with date and signature"
+      }
+    ],
+    "notes": "CP2501 responses must clearly establish that delinquency claim is incorrect or has been resolved."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist skilled in responding to IRS delinquency notices. You understand IRS procedures, filing requirements, and payment documentation standards. Your role is to help taxpayers respond with clear, factual evidence that addresses the delinquency claim.",
+    "task": "Analyze the CP2501 notice and determine if the taxpayer (1) has filed the required return or (2) has made the required payment. If delinquency claim is incorrect, generate a response with evidence proving compliance. If payment arrangement exists, document it. Generate a professional response letter.",
+    "format": "Professional business letter addressed to IRS Service Center",
+    "constraints": [
+      "Do not admit error, delay, or failure",
+      "Provide only factual information with supporting evidence",
+      "Do not make assumptions about filing or payment history",
+      "Maintain respectful, professional tone",
+      "Reference specific dates and amounts",
+      "Include all required identifying information (name, SSN, tax year)"
+    ],
+    "examples": [
+      {
+        "input": {
+          "delinquencyReason": "failure-to-file",
+          "evidence": "IRS Form 1040 filed electronically on April 15, 2023; IRS transcript shows return processed"
+        },
+        "output": "Regarding the notice of delinquency for tax year 2023: Our tax return was timely filed on April 15, 2023, which is confirmed by the attached IRS filing receipt and transcript showing the return was processed and accepted."
+      }
+    ],
+    "notes": "CP2501 notices often result from IRS system errors or miscommunication. Respond promptly with clear evidence."
+  },
+  "responseTemplate": {
+    "description": "Professional response to CP2501 delinquency notice",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[Service Center Address]\n\nRE: Response to CP2501 Notice\nTax Year [Year]\nSSN: [XXX-XX-XXXX]\nNotice Date: [Date]",
+        "guidance": "Address to correct service center with all identifying information",
+        "example": "Philadelphia Service Center\n\nRE: Response to CP2501 Notice\nTax Year 2023\nSSN: 234-56-7890\nNotice Date: March 10, 2024"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing to respond to your CP2501 Notice of Delinquency dated [Date]. We do not agree with the delinquency claim and provide the following explanation.",
+        "guidance": "Brief acknowledgment and immediate statement of disagreement with claim",
+        "example": "Dear Sir or Madam:\n\nWe are writing to respond to your CP2501 Notice of Delinquency dated March 10, 2024. We do not agree with the delinquency claim and provide the following explanation."
+      },
+      {
+        "name": "responseBody",
+        "required": true,
+        "template": "If FTF: Our tax return for [year] was filed on [date]. Attached is the filing receipt confirming acceptance of the return.\n\nIf FTP: Our payment for [year] taxes was submitted on [date] in the amount of $amount. Attached is proof of payment (bank statement, check image, or payment confirmation).\n\nIf both: Both the return was filed and payment was made on respective dates, as documented in the attached evidence.",
+        "guidance": "Clearly state what action was taken (file or pay) with specific dates and supporting evidence. Drafting notes (generated, not substituted): If FTF; If FTP; If both; amount; respective dates.",
+        "example": "Our tax return for 2023 was filed electronically on April 15, 2023. The attached IRS filing receipt and transcript confirm that the return was timely received and processed by the IRS."
+      },
+      {
+        "name": "closure",
+        "required": true,
+        "template": "We respectfully request that the delinquency notice be withdrawn based on the evidence provided above.",
+        "guidance": "Simple closing requesting relief based on evidence",
+        "example": "We respectfully request that the delinquency notice be withdrawn based on the evidence provided above."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Signature]\n[Name]\n[SSN]\n\nEnclosures: [List evidence attached]",
+        "guidance": "Sign, include SSN, and list all attached evidence",
+        "example": "Sincerely,\n\nJane Marie Johnson\nJane Marie Johnson\nSSN: 234-56-7890\n\nEnclosures:\n- IRS Filing Receipt\n- IRS Account Transcript\n- Bank Statement (showing payment)"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 1,
+      "maximum": 2
+    }
+  },
+  "legalFramework": {
+    "description": "CP2501 responses governed by IRS procedural rules for delinquency notices.",
+    "authorities": [
+      "IRC Section 6213 - Right to dispute examination findings",
+      "Treasury Regulation 601.105 - IRS examination procedures",
+      "IRS Publication 556 - Examination of Returns, Appeal Rights, and Claims for Refund"
+    ],
+    "precedents": [
+      "IRS system errors can result in false delinquency notices",
+      "Taxpayer's filing/payment proof supersedes IRS delinquency claim",
+      "Electronically filed returns create irrefutable filing evidence",
+      "Payment can be proven by bank statement, canceled check, or IRS payment receipt"
+    ],
+    "criticalRules": [
+      "MUST respond within 30 days of notice date",
+      "MUST provide documentary evidence (not just assertion)",
+      "MUST address specific delinquency claim (FTF or FTP)",
+      "MUST maintain professional tone and format"
+    ],
+    "jurisdictionVariations": []
+  },
+  "testCases": {
+    "description": "Test CP2501 response for typical delinquency scenarios",
+    "cases": [
+      {
+        "name": "cp2501-false-ftf",
+        "description": "False failure-to-file claim when return was actually filed",
+        "inputDocument": "CP2501 claiming failure to file for 2023; taxpayer has e-file receipt",
+        "expectedExtraction": {
+          "delinquencyReason": "failure-to-file",
+          "taxYear": 2023,
+          "amountDue": 3200.5
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter states return was filed with attached IRS receipt and transcript proof",
+        "successCriteria": [
+          "Clearly identifies that return was filed",
+          "Provides IRS filing receipt as evidence",
+          "Does not admit error or delay",
+          "Professional business letter format"
+        ]
+      },
+      {
+        "name": "cp2501-false-ftp",
+        "description": "False failure-to-pay claim when payment was made",
+        "inputDocument": "CP2501 claiming unpaid balance; taxpayer has bank statement showing payment",
+        "expectedExtraction": {
+          "delinquencyReason": "failure-to-pay",
+          "amountDue": 5420.75
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter documents payment with bank statement and check image attached",
+        "successCriteria": [
+          "Clearly identifies payment was made on specific date",
+          "Provides bank/payment proof",
+          "Addresses exact amount claimed"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Related notice response workflows",
+    "upstream": [],
+    "downstream": [
+      "CP504 - Final Notice Response",
+      "CP505 - Notice of Intent to Levy"
+    ],
+    "alternatives": [
+      "CP2000 - Notice of Adjustment",
+      "CP90 - Notice of Deficiency"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "CP2501 is common for system errors and taxpayer confusion. Must be implemented early. Extraction of delinquency reason (FTF vs FTP) is critical.",
+    "knownChallenges": [
+      "Many false delinquency claims result from IRS system issues",
+      "Distinguishing between failure to file vs. failure to pay",
+      "Obtaining sufficient evidence when records are old"
+    ]
+  }
+}

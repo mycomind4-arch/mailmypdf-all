@@ -1,0 +1,318 @@
+{
+  "metadata": {
+    "id": "encryption-key-management",
+    "name": "Encryption & Key Management Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Comprehensive encryption and cryptographic key management system protecting all sensitive data (PDFs, PII, tax documents) at rest and in transit.",
+    "securityClassification": "critical",
+    "complianceRequirements": ["NIST SP 800-57", "FIPS 140-2", "IRS Pub 1075", "HIPAA", "GDPR"]
+  },
+
+  "purpose": {
+    "overview": "MailMyPDF processes highly sensitive documents (tax returns, immigration paperwork, legal documents, PII). Encryption is not optional — it is the foundational security control protecting user data from unauthorized access, theft, and breach.",
+    "scope": "All data handling: at-rest encryption, in-transit encryption, key generation, rotation, storage, and lifecycle management",
+    "stakeholders": "System architects, security engineers, compliance officers, backend developers"
+  },
+
+  "encryption-at-rest": {
+    "description": "All sensitive data stored in databases or file systems must be encrypted using industry-standard algorithms.",
+    "requirements": [
+      {
+        "name": "pdf-file-encryption",
+        "standard": "AES-256-GCM",
+        "keyLength": 256,
+        "authenticatedEncryption": true,
+        "implementation": "Use NaCl/libsodium or cryptography.io (Python) for AES-GCM",
+        "details": "Every PDF uploaded to MailMyPDF is encrypted before storage. File content encrypted with AES-256-GCM. Initialization vector (IV) generated randomly for each encryption. Authentication tag prevents tampering.",
+        "example": {
+          "input": "user_tax_return_2023.pdf (binary file)",
+          "process": "1. Generate random 96-bit nonce\n2. Encrypt PDF bytes with AES-256-GCM using master key\n3. Store: encrypted_bytes + nonce + auth_tag\n4. Store key reference (key_id) separately",
+          "output": "Encrypted blob stored in S3/cloud storage, unreadable without decryption key"
+        }
+      },
+      {
+        "name": "database-encryption",
+        "standard": "AES-256",
+        "scope": "PII fields: SSN, names, addresses, DOB, account numbers",
+        "implementation": "Database-level encryption (PostgreSQL pgcrypto or Transparent Data Encryption)",
+        "details": "Sensitive PII fields in database encrypted at column level using AES-256. Application-level encryption alternative if database doesn't support TDE.",
+        "fields_encrypted": [
+          "user.ssn",
+          "user.full_name",
+          "user.address",
+          "user.date_of_birth",
+          "document.taxpayer_info.ssn",
+          "document.extracted_data.pii"
+        ]
+      },
+      {
+        "name": "temporary-file-encryption",
+        "standard": "AES-256",
+        "scope": "All temp files created during PDF processing",
+        "implementation": "Encrypt temp files immediately after creation, decrypt only in memory for processing",
+        "details": "During PDF extraction/processing, temp files may be created. All temp files encrypted immediately. Secure deletion after processing complete.",
+        "secureDelete": "Use cryptographic erasure: overwrite with random data 3x before deletion, or use OS secure deletion (shred on Linux, cipher /w on Windows)"
+      },
+      {
+        "name": "backup-encryption",
+        "standard": "AES-256",
+        "scope": "All database backups and file system snapshots",
+        "implementation": "Encrypt backups before storing to S3/backup service",
+        "details": "Backups encrypted with separate backup encryption key. Backup key stored separately from application keys. Different key from production encryption enables key rotation without data loss.",
+        "keySegregation": "Backup key != application key != archive key"
+      }
+    ]
+  },
+
+  "encryption-in-transit": {
+    "description": "All data transmitted between client and server, or server to external services, encrypted using TLS.",
+    "requirements": [
+      {
+        "name": "tls-encryption",
+        "standard": "TLS 1.3",
+        "minimumVersion": "TLS 1.3 (no fallback to 1.2)",
+        "cipherSuites": "ECDHE + AES-256-GCM only (no weak ciphers)",
+        "implementation": "Nginx/HAProxy with TLS 1.3 termination, certificate pinning for mobile clients",
+        "details": "All HTTP traffic redirected to HTTPS. TLS 1.3 mandatory for all connections. Perfect forward secrecy enabled (ephemeral ECDHE keys). Cipher suites restricted to strong, authenticated encryption only.",
+        "certificateManagement": {
+          "provider": "Let's Encrypt or commercial CA",
+          "validation": "OCSP stapling enabled",
+          "rotation": "Automatic renewal 30 days before expiry",
+          "pinning": "Certificate pinning in mobile apps to prevent MITM"
+        }
+      },
+      {
+        "name": "api-authentication-encryption",
+        "standard": "TLS 1.3 + API key authentication",
+        "implementation": "Every API call requires authentication. API keys transmitted in Authorization header over TLS only.",
+        "details": "API keys never transmitted in URL parameters or unencrypted channels. Each API key has expiration date and scope (read/write/delete). Keys rotated every 90 days.",
+        "keyRotation": "Automatic rotation every 90 days with grace period for old key"
+      },
+      {
+        "name": "webhook-encryption",
+        "standard": "TLS 1.3 + HMAC-SHA256 signature",
+        "scope": "Webhooks sent to external services (Lob, payment processors, etc.)",
+        "implementation": "Webhook payloads sent over TLS 1.3, signed with HMAC-SHA256",
+        "details": "Receiver can verify webhook authenticity by checking HMAC signature. Prevents webhook spoofing attacks.",
+        "example": "Lob mailing service receives webhook: POST with body + X-Signature header containing HMAC-SHA256(body, secret_key)"
+      }
+    ]
+  },
+
+  "key-management": {
+    "description": "Cryptographic key generation, storage, rotation, and lifecycle management.",
+    "keyTypes": [
+      {
+        "name": "master-encryption-key",
+        "purpose": "Encrypts all data at rest",
+        "length": 256,
+        "algorithm": "AES-256",
+        "storage": "Hardware Security Module (HSM) or AWS KMS / Google Cloud KMS",
+        "accessControl": "Only key management service can access; application never sees raw key",
+        "rotationPolicy": "Automatic rotation every 1 year; data re-encrypted with new key"
+      },
+      {
+        "name": "database-encryption-key",
+        "purpose": "Encrypts sensitive columns in database",
+        "length": 256,
+        "algorithm": "AES-256",
+        "storage": "KMS with field-level encryption keys",
+        "accessControl": "Database server only; application uses KMS API to decrypt",
+        "rotationPolicy": "Every 6 months"
+      },
+      {
+        "name": "backup-encryption-key",
+        "purpose": "Encrypts database backups and snapshots",
+        "length": 256,
+        "algorithm": "AES-256",
+        "storage": "Separate KMS account or HSM",
+        "accessControl": "Isolated from production keys; backup system only",
+        "rotationPolicy": "Every 1 year; old backups retained with old key"
+      },
+      {
+        "name": "tls-private-key",
+        "purpose": "TLS certificate private key for HTTPS",
+        "length": 4096,
+        "algorithm": "RSA or ECDSA P-256",
+        "storage": "Certificate store (Nginx, AWS ACM, etc.)",
+        "accessControl": "Only web server; never transmitted or logged",
+        "rotationPolicy": "Automatic with certificate renewal (Let's Encrypt: 90 days)"
+      },
+      {
+        "name": "api-signing-key",
+        "purpose": "Signs API responses and webhooks",
+        "length": 256,
+        "algorithm": "HMAC-SHA256 or Ed25519",
+        "storage": "Application key store (encrypted environment variable or secrets manager)",
+        "accessControl": "Application server only",
+        "rotationPolicy": "Every 6 months with 30-day overlap period"
+      },
+      {
+        "name": "session-encryption-key",
+        "purpose": "Encrypts user session tokens",
+        "length": 256,
+        "algorithm": "AES-256",
+        "storage": "Redis/cache with encryption",
+        "accessControl": "Session middleware only",
+        "rotationPolicy": "Every 3 months"
+      }
+    ],
+    "keyGeneration": {
+      "standard": "NIST SP 800-133 / FIPS 140-2",
+      "method": "Use cryptographically secure random number generator (CSPRNG)",
+      "implementation": "Python: secrets.token_bytes(32), or libsodium's randombytes()",
+      "validation": "All keys generated using CSPRNG; no weak/predictable key material"
+    },
+    "keyStorage": {
+      "production": {
+        "option1": "Hardware Security Module (HSM): Thales, YubiHSM, or similar",
+        "option2": "Cloud KMS: AWS KMS, Google Cloud KMS, or Azure Key Vault",
+        "option3": "Encrypted key store on secure server with restricted access",
+        "recommended": "Cloud KMS (AWS KMS or GCP) for scalability and audit logging"
+      },
+      "development": {
+        "method": "Encrypted environment variables or local secrets.json (git-ignored)",
+        "warning": "Never commit keys to Git. Use secret management tools (1Password, HashiCorp Vault, etc.)"
+      }
+    },
+    "keyRotation": {
+      "policy": "All keys rotated on schedule; old keys retained for decryption of legacy data",
+      "schedule": {
+        "masterKey": "annually",
+        "databaseKey": "every 6 months",
+        "backupKey": "annually",
+        "tlsKey": "with certificate renewal (90 days)",
+        "apiSigningKey": "every 6 months",
+        "sessionKey": "every 3 months"
+      },
+      "implementation": {
+        "step1": "Generate new key with same algorithm and length",
+        "step2": "Store new key in KMS with version/timestamp",
+        "step3": "All new encryptions use new key",
+        "step4": "Schedule background job to re-encrypt old data with new key (takes weeks/months)",
+        "step5": "Old key retained in archive for decryption of old data",
+        "step6": "After grace period (1 year), old key can be destroyed if all data migrated"
+      },
+      "gracePeriod": "Minimum 1 year: old key stays active to decrypt legacy data while new key handles all new encryptions"
+    },
+    "keyRevocation": {
+      "scenario": "If key is suspected compromised",
+      "immediateActions": [
+        "Revoke key in KMS immediately",
+        "Alert all stakeholders",
+        "Initiate incident response"
+      ],
+      "recovery": [
+        "Generate new key",
+        "Re-encrypt all data with new key (priority: recent sensitive data)",
+        "Audit all data accessed since potential compromise",
+        "Force password/session reset for all users",
+        "Notify users of potential data exposure"
+      ]
+    }
+  },
+
+  "key-access-control": {
+    "principle": "Principle of Least Privilege (PoLP): No component has access to all keys",
+    "segmentation": [
+      {
+        "component": "Web application server",
+        "access": "Can request decryption from KMS; never has raw master key",
+        "workflow": "Application → KMS API (with authentication) → decrypt → get plaintext → process → forget"
+      },
+      {
+        "component": "Database server",
+        "access": "Has database encryption key; cannot access file encryption key",
+        "workflow": "Separate key for database-at-rest encryption"
+      },
+      {
+        "component": "Backup service",
+        "access": "Has backup encryption key only; cannot access production key",
+        "workflow": "Prevents backup key exposure from compromising production data"
+      },
+      {
+        "component": "Log aggregation",
+        "access": "No encryption keys; logs are encrypted but log system doesn't manage keys",
+        "workflow": "Logs transmitted over TLS to secure log storage"
+      }
+    ],
+    "authentication": {
+      "requirement": "All key access authenticated and authorized",
+      "method": "IAM policies (AWS IAM, Google Cloud IAM) or RBAC",
+      "audit": "Every key access logged: WHO requested WHAT key at WHEN and from WHERE"
+    }
+  },
+
+  "security-testing": {
+    "requirements": [
+      {
+        "name": "encryption-verification",
+        "test": "Verify all PDFs stored are encrypted (cannot read raw file content)",
+        "method": "Read stored file; verify it's unreadable binary (not valid PDF magic bytes)"
+      },
+      {
+        "name": "key-rotation-testing",
+        "test": "Verify key rotation works and old data remains accessible",
+        "method": "Rotate key; attempt to decrypt old data (should succeed); encrypt new data with new key"
+      },
+      {
+        "name": "tls-verification",
+        "test": "Verify all connections use TLS 1.3 with strong ciphers",
+        "method": "SSL Labs test; verify no fallback to TLS 1.2; verify no weak ciphers"
+      },
+      {
+        "name": "key-exposure-test",
+        "test": "Verify encryption keys never appear in logs, error messages, or memory dumps",
+        "method": "Search logs for key material; inspect error messages; memory analysis"
+      }
+    ]
+  },
+
+  "incident-response": {
+    "keyCompromise": {
+      "detection": "Unauthorized key access detected in KMS audit logs",
+      "response": [
+        "Immediately revoke compromised key",
+        "Activate incident response team",
+        "Begin re-encryption of all data with new key (high priority)",
+        "Audit all data decrypted with compromised key",
+        "Notify affected users within 24 hours",
+        "Force password reset for all users"
+      ]
+    },
+    "tlsCertificateCompromise": {
+      "response": [
+        "Immediately revoke certificate in OCSP",
+        "Generate new certificate from trusted CA",
+        "Deploy new certificate to all servers",
+        "Monitor for unauthorized use of old certificate"
+      ]
+    }
+  },
+
+  "compliance": {
+    "standards": [
+      "NIST SP 800-57: Recommendation for Key Management",
+      "FIPS 140-2: Cryptographic Module Validation",
+      "IRS Publication 1075: Safeguards for Taxpayer Data",
+      "HIPAA Technical Safeguards: Encryption",
+      "GDPR Article 32: Security of Processing",
+      "PCI DSS: Encryption of cardholder data"
+    ],
+    "validation": "Annual penetration testing and security audit of encryption implementation"
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "dependencies": "Must be implemented before ANY data storage or transmission",
+    "libraries": [
+      "Python: cryptography.io (AES-256-GCM), NaCl (libsodium)",
+      "Node.js: tweetnacl.js, crypto-js",
+      "Go: crypto/aes, golang.org/x/crypto",
+      "Cloud: AWS KMS, Google Cloud KMS, Azure Key Vault"
+    ],
+    "deployment": "Must be in place before production launch; cannot be retrofitted",
+    "testing": "100% encryption coverage: every data write must be encrypted"
+  }
+}

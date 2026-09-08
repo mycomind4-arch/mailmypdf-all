@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "id": "business-payment-plan",
+    "name": "Business Payment Plan",
+    "vertical": "business-letter",
+    "template": "business-letter",
+    "llmModel": "claude",
+    "description": "Workflow for business-payment-plan",
+    "searchVolume": 1100,
+    "searchVolumeSource": "Market Research",
+    "difficulty": "medium",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": false,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": false,
+      "requiresHighAccuracy": true
+    }
+  },
+  "extraction": {
+    "description": "Extract workflow data",
+    "fields": [
+      {
+        "name": "id",
+        "prompt": "Extract ID",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "id",
+        "notes": "ID"
+      }
+    ],
+    "notes": "Extract data"
+  },
+  "validation": {
+    "description": "Validate workflow",
+    "rules": [
+      {
+        "name": "complete",
+        "check": "all_fields_present",
+        "severity": "error",
+        "message": "Complete all fields",
+        "example_fail": "Missing",
+        "example_pass": "Complete"
+      }
+    ],
+    "notes": "Validation rules"
+  },
+  "aiPrompt": {
+    "system": "Execute workflow",
+    "task": "Execute workflow",
+    "format": "Output",
+    "constraints": [
+      "Complete"
+    ],
+    "examples": [],
+    "notes": "Execute"
+  },
+  "responseTemplate": {
+    "description": "Output",
+    "format": "Response",
+    "sections": [
+      {
+        "name": "body",
+        "required": true,
+        "template": "Output",
+        "guidance": "Output",
+        "example": "Output"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 5
+    }
+  },
+  "legalFramework": {
+    "description": "Legal framework",
+    "authorities": [],
+    "precedents": [],
+    "criticalRules": [],
+    "jurisdictionVariations": []
+  },
+  "testCases": {
+    "description": "Tests",
+    "cases": [
+      {
+        "name": "test",
+        "description": "Test",
+        "inputDocument": "Input",
+        "expectedExtraction": {},
+        "expectedValidation": "pass",
+        "expectedResponse": "Output",
+        "successCriteria": [
+          "Pass"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Related",
+    "upstream": [],
+    "downstream": [],
+    "alternatives": []
+  },
+  "implementation": {
+    "priority": "medium",
+    "notes": "Implementation",
+    "knownChallenges": []
+  }
+}

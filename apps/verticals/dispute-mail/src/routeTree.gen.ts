@@ -24,11 +24,14 @@ import { Route as ProductsRouteImport } from './routes/products'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WriteADisputeLetterRouteImport } from './routes/write-a-dispute-letter'
+import { Route as ApiApproveRouteImport } from './routes/api/approve'
 import { Route as ApiCheckoutRouteImport } from './routes/api/checkout'
 import { Route as ResourcesIndexRouteImport } from './routes/resources/index'
 import { Route as ResourcesSlugRouteImport } from './routes/resources/$slug'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
 import { Route as WorkflowsWorkflowIdRouteImport } from './routes/workflows/$workflowId'
+import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as WorkflowsWorkflowIdStartRouteImport } from './routes/workflows/$workflowId/start'
 import { Route as ApiWorkflowsWorkflowIdAnalyzeRouteImport } from './routes/api/workflows/$workflowId/analyze'
 import { Route as ApiWorkflowsWorkflowIdClaudeRouteImport } from './routes/api/workflows/$workflowId/claude'
@@ -109,6 +112,11 @@ const WriteADisputeLetterRoute = WriteADisputeLetterRouteImport.update({
   path: '/write-a-dispute-letter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiApproveRoute = ApiApproveRouteImport.update({
+  id: '/api/approve',
+  path: '/api/approve',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
   id: '/api/checkout',
   path: '/api/checkout',
@@ -132,6 +140,16 @@ const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
 const WorkflowsWorkflowIdRoute = WorkflowsWorkflowIdRouteImport.update({
   id: '/workflows/$workflowId',
   path: '/workflows/$workflowId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMailResponseRoute = ApiMailResponseRouteImport.update({
+  id: '/api/mail/response',
+  path: '/api/mail/response',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkflowsWorkflowIdStartRoute =
@@ -175,11 +193,14 @@ export interface FileRoutesByFullPath {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources/': typeof ResourcesIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/claude': typeof ApiWorkflowsWorkflowIdClaudeRoute
@@ -201,11 +222,14 @@ export interface FileRoutesByTo {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources': typeof ResourcesIndexRoute
   '/workflows': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/claude': typeof ApiWorkflowsWorkflowIdClaudeRoute
@@ -228,11 +252,14 @@ export interface FileRoutesById {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/write-a-dispute-letter': typeof WriteADisputeLetterRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/resources/$slug': typeof ResourcesSlugRoute
   '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/resources/': typeof ResourcesIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/claude': typeof ApiWorkflowsWorkflowIdClaudeRoute
@@ -256,11 +283,14 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/approve'
     | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources/'
     | '/workflows/'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/claude'
@@ -282,11 +312,14 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/approve'
     | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources'
     | '/workflows'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/claude'
@@ -308,11 +341,14 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/write-a-dispute-letter'
+    | '/api/approve'
     | '/api/checkout'
     | '/resources/$slug'
     | '/workflows/$workflowId'
     | '/resources/'
     | '/workflows/'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/claude'
@@ -335,11 +371,14 @@ export interface RootRouteChildren {
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   WriteADisputeLetterRoute: typeof WriteADisputeLetterRoute
+  ApiApproveRoute: typeof ApiApproveRoute
   ApiCheckoutRoute: typeof ApiCheckoutRoute
   ResourcesSlugRoute: typeof ResourcesSlugRoute
   WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRouteWithChildren
   ResourcesIndexRoute: typeof ResourcesIndexRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
+  ApiMailResponseRoute: typeof ApiMailResponseRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkflowsWorkflowIdAnalyzeRoute: typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   ApiWorkflowsWorkflowIdClaudeRoute: typeof ApiWorkflowsWorkflowIdClaudeRoute
   ApiWorkflowsWorkflowIdDocumentRoute: typeof ApiWorkflowsWorkflowIdDocumentRoute
@@ -452,6 +491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WriteADisputeLetterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/approve': {
+      id: '/api/approve'
+      path: '/api/approve'
+      fullPath: '/api/approve'
+      preLoaderRoute: typeof ApiApproveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/checkout': {
       id: '/api/checkout'
       path: '/api/checkout'
@@ -485,6 +531,20 @@ declare module '@tanstack/react-router' {
       path: '/workflows/$workflowId'
       fullPath: '/workflows/$workflowId'
       preLoaderRoute: typeof WorkflowsWorkflowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mail/response': {
+      id: '/api/mail/response'
+      path: '/api/mail/response'
+      fullPath: '/api/mail/response'
+      preLoaderRoute: typeof ApiMailResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows/$workflowId/start': {
@@ -545,11 +605,14 @@ const rootRouteChildren: RootRouteChildren = {
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   WriteADisputeLetterRoute: WriteADisputeLetterRoute,
+  ApiApproveRoute: ApiApproveRoute,
   ApiCheckoutRoute: ApiCheckoutRoute,
   ResourcesSlugRoute: ResourcesSlugRoute,
   WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRouteWithChildren,
   ResourcesIndexRoute: ResourcesIndexRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
+  ApiMailResponseRoute: ApiMailResponseRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkflowsWorkflowIdAnalyzeRoute: ApiWorkflowsWorkflowIdAnalyzeRoute,
   ApiWorkflowsWorkflowIdClaudeRoute: ApiWorkflowsWorkflowIdClaudeRoute,
   ApiWorkflowsWorkflowIdDocumentRoute: ApiWorkflowsWorkflowIdDocumentRoute,

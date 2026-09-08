@@ -1,0 +1,294 @@
+{
+  "metadata": {
+    "id": "cp504",
+    "name": "IRS CP504 Final Notice Before Levy Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP504 Final Notice Before Levy, the last notice before collection action begins.",
+    "searchVolume": 2600,
+    "searchVolumeSource": "Google Ads - 'CP504 notice' + 'final notice'",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    }
+  },
+  "extraction": {
+    "description": "Extract CP504 notice data: taxpayer info, total tax debt, deadline for action, Collection Due Process (CDP) rights, and mailing address.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract full taxpayer name",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Michael Joseph Davis",
+        "notes": "Verify exact spelling"
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract SSN in XXX-XX-XXXX format",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "567-89-0123",
+        "notes": "Critical for IRS matching"
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract tax year(s) for which debt exists",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2023,
+        "notes": "May be multiple years"
+      },
+      {
+        "name": "totalTaxDebt",
+        "prompt": "Extract total amount owed (taxes + penalties + interest)",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 15750.5,
+        "notes": "Total of all taxes and charges"
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract notice date in YYYY-MM-DD format",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-04-20",
+        "notes": "Triggers Collection Due Process rights"
+      },
+      {
+        "name": "cdpDeadline",
+        "prompt": "Extract deadline to request Collection Due Process hearing (typically 30 days from notice date)",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-05-20",
+        "notes": "Critical deadline for CDP request"
+      },
+      {
+        "name": "levyThreatDate",
+        "prompt": "Extract date when IRS threatens to begin levy (typically 30 days from notice date)",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-05-20",
+        "notes": "After this date, garnishment/seizure can begin"
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract IRS Service Center that issued notice",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Philadelphia Service Center",
+        "notes": "Mailing address for CDP request"
+      }
+    ],
+    "notes": "CP504 is the final notice before active collection. Must extract critical deadline for Collection Due Process (CDP) rights assertion."
+  },
+  "validation": {
+    "description": "Validate response asserts CDP rights and proposes payment arrangement before levy begins",
+    "rules": [
+      {
+        "name": "cdpDeadlineCompliance",
+        "check": "cdp_request_date <= cdpDeadline",
+        "severity": "error",
+        "message": "Collection Due Process (CDP) request must be submitted by deadline. After deadline, IRS can begin levy without further notice.",
+        "example_fail": "Notice dated April 20, 2024; CDP request submitted May 25, 2024 (5 days late)",
+        "example_pass": "Notice dated April 20, 2024; CDP request submitted May 18, 2024 (on time)"
+      },
+      {
+        "name": "cdpRightsAsserted",
+        "check": "response explicitly requests Collection Due Process hearing",
+        "severity": "error",
+        "message": "Response must clearly state taxpayer is requesting CDP hearing within 30 days of notice.",
+        "example_fail": "Response does not mention CDP or request hearing",
+        "example_pass": "Response states: 'Taxpayer requests Collection Due Process hearing pursuant to IRC 6330'"
+      },
+      {
+        "name": "paymentOptionProvided",
+        "check": "response proposes installment agreement, OIC, or payment plan",
+        "severity": "warning",
+        "message": "Response should propose how taxpayer will pay (installment agreement, lump-sum, OIC) to prevent levy.",
+        "example_fail": "No payment proposal offered",
+        "example_pass": "Response proposes: 'Taxpayer can pay $500/month starting June 1, 2024'"
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_formal_letter",
+        "severity": "warning",
+        "message": "Response must be formal business letter with proper address and signature.",
+        "example_fail": "Informal email",
+        "example_pass": "Formal letter with letterhead, date, and signature"
+      }
+    ],
+    "notes": "CP504 is final warning. Failure to respond or request CDP means IRS will begin levy (wage garnishment, bank seizure) within 30 days."
+  },
+  "aiPrompt": {
+    "system": "You are a tax collection specialist expert in Collection Due Process (CDP) rights and IRS collection procedures. You understand CP504 notices and the critical importance of the 30-day CDP deadline.",
+    "task": "Analyze CP504 notice. Prepare response asserting taxpayer's Collection Due Process rights and proposing payment arrangement. Response must be submitted before CDP deadline to prevent automatic levy.",
+    "format": "Professional business letter addressed to correct IRS Service Center",
+    "constraints": [
+      "Response must explicitly request Collection Due Process hearing",
+      "Must be submitted before CDP deadline (typically 30 days)",
+      "Propose realistic payment arrangement",
+      "Do not admit liability or wrongdoing",
+      "Maintain professional, urgent tone"
+    ],
+    "examples": [
+      {
+        "input": {
+          "taxDebt": 15000,
+          "deadline": "May 20, 2024",
+          "currentDate": "May 10, 2024"
+        },
+        "output": "Formal letter requesting Collection Due Process hearing within 30-day deadline, proposing $400/month payment arrangement beginning June 1, 2024"
+      }
+    ],
+    "notes": "CP504 deadline is absolute. Missing it eliminates Collection Due Process rights and results in automatic levy."
+  },
+  "responseTemplate": {
+    "description": "Formal response to CP504 asserting CDP rights and proposing payment plan",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[Service Center Address]\n\nRE: Collection Due Process (CDP) Request\nIRS CP504 Notice Response\nTax Year [Year]\nSSN: [XXX-XX-XXXX]\nNotice Date: [Date]",
+        "guidance": "Address to correct service center with identifying information and CDP request upfront",
+        "example": "Philadelphia Service Center\n\nRE: Collection Due Process (CDP) Request\nIRS CP504 Notice Response\nTax Year 2023\nSSN: 567-89-0123\nNotice Date: April 20, 2024"
+      },
+      {
+        "name": "cdp_request",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nPursuant to Internal Revenue Code Section 6330, we respectfully request a Collection Due Process (CDP) hearing regarding your CP504 Notice dated [Date]. This request is timely filed within 30 days of the notice date.",
+        "guidance": "Clear, formal assertion of CDP rights within 30-day deadline",
+        "example": "Dear Sir or Madam:\n\nPursuant to Internal Revenue Code Section 6330, we respectfully request a Collection Due Process (CDP) hearing regarding your CP504 Notice dated April 20, 2024. This request is timely filed within 30 days of the notice date."
+      },
+      {
+        "name": "financial_hardship",
+        "required": false,
+        "template": "We are experiencing financial hardship that makes immediate payment of the full $amount impossible. However, we are committed to resolving this tax liability.",
+        "guidance": "Briefly explain financial situation (if applicable). Drafting notes (generated, not substituted): amount.",
+        "example": "We are experiencing temporary financial hardship that makes immediate payment of the full $15,750.50 impossible. However, we are committed to resolving this tax liability through installment payment plan."
+      },
+      {
+        "name": "payment_proposal",
+        "required": true,
+        "template": "We propose the following payment arrangement:\n- Monthly payment: $amount\n- Start date: [date]\n- Term: months months until paid in full\n\nThis arrangement reflects our current financial capacity and demonstrates good faith effort to resolve this debt.",
+        "guidance": "Realistic payment proposal that demonstrates commitment to pay. Drafting notes (generated, not substituted): amount; months.",
+        "example": "We propose the following payment arrangement:\n- Monthly payment: $400\n- Start date: June 1, 2024\n- Term: 48 months until paid in full\n\nThis arrangement reflects our current financial capacity and demonstrates good faith effort to resolve this debt."
+      },
+      {
+        "name": "closure",
+        "required": true,
+        "template": "We respectfully request that you grant this Collection Due Process hearing and consider the proposed payment arrangement to avoid collection action.",
+        "guidance": "Formal closing requesting CDP hearing and consideration of payment plan",
+        "example": "We respectfully request that you grant this Collection Due Process hearing and consider the proposed payment arrangement to avoid collection action."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Signature]\n[Name]\nSSN: [XXX-XX-XXXX]\n[Address]",
+        "guidance": "Professional signature with all identifying information",
+        "example": "Sincerely,\n\nMichael Joseph Davis\nMichael Joseph Davis\nSSN: 567-89-0123\n456 Elm Street\nBoston, MA 02108"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 1,
+      "maximum": 2
+    }
+  },
+  "legalFramework": {
+    "description": "CP504 governed by IRC 6330 (Collection Due Process rights)",
+    "authorities": [
+      "Internal Revenue Code Section 6330 - Applicable procedures for third-party recordkeeper",
+      "Internal Revenue Code Section 6320 - Notice and opportunity for hearing upon filing of notice of lien",
+      "Treasury Regulation 301.6330-1 - Collection Due Process procedures",
+      "IRS Publication 1 - Your Rights as a Taxpayer"
+    ],
+    "precedents": [
+      "Taxpayer has 30 days from CP504 notice date to request CDP hearing",
+      "30-day deadline is mandatory; missing deadline results in loss of CDP rights",
+      "CDP hearing allows taxpayer to propose payment arrangement before levy begins",
+      "After CDP deadline, IRS can proceed with wage levy, bank seizure, or asset sale"
+    ],
+    "criticalRules": [
+      "NEVER miss the 30-day CDP deadline - loss of rights is permanent",
+      "MUST request CDP hearing explicitly in writing",
+      "MUST propose realistic payment arrangement",
+      "MUST submit response well before deadline (not at last minute)"
+    ],
+    "jurisdictionVariations": []
+  },
+  "testCases": {
+    "description": "Test CP504 response for CDP deadline compliance",
+    "cases": [
+      {
+        "name": "cp504-timely-cdp",
+        "description": "Timely CDP request with payment proposal",
+        "inputDocument": "CP504 dated April 20, 2024; current date May 15, 2024",
+        "expectedExtraction": {
+          "cdpDeadline": "2024-05-20",
+          "totalTaxDebt": 15750.5
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "CDP hearing request with payment proposal, submitted before deadline",
+        "successCriteria": [
+          "Explicitly requests CDP hearing",
+          "Submitted before May 20, 2024 deadline",
+          "Proposes payment arrangement",
+          "Professional business letter format"
+        ]
+      },
+      {
+        "name": "cp504-late-cdp",
+        "description": "Late CDP request after 30-day deadline",
+        "inputDocument": "CP504 dated April 20, 2024; current date May 25, 2024",
+        "expectedExtraction": {
+          "cdpDeadline": "2024-05-20"
+        },
+        "expectedValidation": "error - deadline missed",
+        "expectedResponse": "Warning: CDP deadline has passed; CDP rights lost",
+        "successCriteria": [
+          "Alerts that CDP deadline missed",
+          "Explains consequence (no CDP hearing available)",
+          "Suggests alternative: contact IRS immediately to propose payment"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Related collection notice workflows",
+    "upstream": [
+      "CP501",
+      "CP502",
+      "CP503"
+    ],
+    "downstream": [
+      "Payment Plan Management",
+      "Wage Levy Response",
+      "Bank Levy Response"
+    ],
+    "alternatives": []
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "CP504 is critical: it's the final notice before active collection. Missing the 30-day CDP deadline eliminates taxpayer rights. Must implement with emphasis on deadline tracking.",
+    "knownChallenges": [
+      "30-day deadline is absolute and mandatory",
+      "Many users don't understand CDP rights or deadline",
+      "Payment proposals must be realistic or CDP hearing will fail"
+    ]
+  }
+}

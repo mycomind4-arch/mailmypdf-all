@@ -1,0 +1,250 @@
+{
+  "metadata": {
+    "id": "notice-respond",
+    "name": "Notice Response",
+    "description": "Comprehensive vertical for responding to government and IRS notices: tax notices, collection notices, audit letters, deficiency notices, and official correspondence requiring formal response.",
+    "template": "notice-response"
+  },
+
+  "overview": {
+    "purpose": "Enable taxpayers and individuals to respond professionally and effectively to formal government notices within statutory deadlines, protecting rights and minimizing penalties.",
+    "targetUser": "Individuals and small business owners receiving IRS notices, government correspondence, or formal tax/collection letters who need professional responses.",
+    "commonProblem": "Government notices are complex, formal, and require responses within strict deadlines. Missing deadlines or inadequate responses can result in automatic acceptance of proposed adjustments, levies, or collection actions. Recipients often don't understand notice implications or response requirements.",
+    "estimatedAnnualSearches": 145000
+  },
+
+  "workflows": {
+    "description": "30 distinct notice response workflows covering IRS tax notices, collection notices, formal examination letters, deficiency notices, and collection procedures.",
+    "total": 30,
+    "list": [
+      {
+        "id": "cp2000",
+        "name": "IRS CP2000 Notice of Proposed Adjustment Response",
+        "searchVolume": 4500,
+        "description": "Respond to IRS CP2000 Correspondence Examination notice proposing adjustments to reported income or deductions."
+      },
+      {
+        "id": "cp2501",
+        "name": "IRS CP2501 Notice of Delinquency Response",
+        "searchVolume": 2800,
+        "description": "Respond to IRS CP2501 Notice of Delinquency indicating failure to file or pay required taxes."
+      },
+      {
+        "id": "cp90",
+        "name": "IRS CP90 Notice of Deficiency Response",
+        "searchVolume": 3200,
+        "description": "Respond to IRS CP90 Notice of Deficiency, which formally notifies of proposed tax deficiency and appeal rights."
+      },
+      {
+        "id": "form-656",
+        "name": "IRS Form 656 Offer in Compromise Response",
+        "searchVolume": 2200,
+        "description": "Prepare and respond to IRS Form 656 Offer in Compromise negotiations, settling tax debt for less than full amount owed."
+      },
+      {
+        "id": "cp504",
+        "name": "IRS CP504 Final Notice Before Levy Response",
+        "searchVolume": 2600,
+        "description": "Respond to IRS CP504 Final Notice Before Levy, the last notice before IRS collection action begins."
+      },
+      {
+        "id": "cp505",
+        "name": "IRS CP505 Notice of Intent to Levy Response",
+        "searchVolume": 2400,
+        "description": "Respond to IRS CP505 Notice of Intent to Levy with Collection Due Process (CDP) rights assertion."
+      },
+      {
+        "id": "cp501",
+        "name": "IRS CP501 First Notice - Balance Due Response",
+        "searchVolume": 1800,
+        "description": "Respond to IRS CP501 first notice of balance due for unpaid taxes."
+      },
+      {
+        "id": "cp502",
+        "name": "IRS CP502 Second Notice - Balance Due Response",
+        "searchVolume": 1400,
+        "description": "Respond to IRS CP502 second notice of balance due."
+      },
+      {
+        "id": "cp503",
+        "name": "IRS CP503 Third Notice - Balance Due Response",
+        "searchVolume": 1200,
+        "description": "Respond to IRS CP503 third notice of balance due."
+      },
+      {
+        "id": "ss-8",
+        "name": "IRS SS-8 Determination of Worker Status Response",
+        "searchVolume": 1900,
+        "description": "Respond to IRS Form SS-8 determination inquiry regarding employee vs. independent contractor classification."
+      },
+      {
+        "id": "form-433-a",
+        "name": "IRS Form 433-A Collection Information Statement Response",
+        "searchVolume": 1600,
+        "description": "Prepare and submit Form 433-A Collection Information Statement for IRS consideration of financial hardship."
+      },
+      {
+        "id": "cp2504",
+        "name": "IRS CP2504 Demand for Immediate Payment Response",
+        "searchVolume": 1700,
+        "description": "Respond to IRS CP2504 demanding immediate payment of tax liability."
+      },
+      {
+        "id": "cp2505c",
+        "name": "IRS CP2505C Balance Due Notice Response",
+        "searchVolume": 1300,
+        "description": "Respond to IRS CP2505C Balance Due Notice."
+      },
+      {
+        "id": "cp2506c",
+        "name": "IRS CP2506C Notice of Levy Response",
+        "searchVolume": 1450,
+        "description": "Respond to IRS CP2506C Notice of Levy on wages, bank accounts, or other assets."
+      },
+      {
+        "id": "cp512",
+        "name": "IRS CP512 Notice of Deficiency (Alternative)",
+        "searchVolume": 900,
+        "description": "Alternative notice of deficiency format with different procedural requirements."
+      },
+      {
+        "id": "cp513",
+        "name": "IRS CP513 Notice to File Delinquent Return Response",
+        "searchVolume": 1100,
+        "description": "Respond to IRS CP513 notice requiring filing of delinquent tax return."
+      },
+      {
+        "id": "cp515",
+        "name": "IRS CP515 Notice of Intent to Levy and Appeal Rights Response",
+        "searchVolume": 1250,
+        "description": "Respond to IRS CP515 Notice of Intent to Levy with assertion of Collection Due Process rights."
+      },
+      {
+        "id": "cp516",
+        "name": "IRS CP516 Notice of Adjustment to Tax Account Response",
+        "searchVolume": 800,
+        "description": "Respond to IRS CP516 Notice of Adjustment to Tax Account."
+      },
+      {
+        "id": "cp517",
+        "name": "IRS CP517 Notice of Overpayment Applied to Other Periods Response",
+        "searchVolume": 950,
+        "description": "Respond to IRS CP517 Notice when overpayment is applied to other tax periods."
+      },
+      {
+        "id": "cp2000-c",
+        "name": "IRS CP2000-C Amended Notice of Proposed Adjustment Response",
+        "searchVolume": 1300,
+        "description": "Respond to IRS CP2000-C amended notice when adjustments are modified."
+      },
+      {
+        "id": "cp2087",
+        "name": "IRS CP2087 Request for Information or Forms Response",
+        "searchVolume": 1150,
+        "description": "Respond to IRS CP2087 request for taxpayer-held records or forms."
+      },
+      {
+        "id": "cp2088",
+        "name": "IRS CP2088 Notice of Adjustment - No Tax Due Response",
+        "searchVolume": 750,
+        "description": "Respond to IRS CP2088 Notice of Adjustment with no additional tax due."
+      },
+      {
+        "id": "cp2089",
+        "name": "IRS CP2089 Notice of Adjustment with Refund Response",
+        "searchVolume": 650,
+        "description": "Respond to IRS CP2089 Notice of Adjustment resulting in refund."
+      },
+      {
+        "id": "cp2100",
+        "name": "IRS CP2100 Estimated Tax Penalty Notice Response",
+        "searchVolume": 1400,
+        "description": "Respond to IRS CP2100 Notice regarding estimated tax payment penalties."
+      },
+      {
+        "id": "cp2504b",
+        "name": "IRS CP2504B Notice of Balance Due Response",
+        "searchVolume": 850,
+        "description": "Respond to IRS CP2504B Notice of Balance Due with different format."
+      },
+      {
+        "id": "cp2505b",
+        "name": "IRS CP2505B Notice with Installment Agreement Response",
+        "searchVolume": 920,
+        "description": "Respond to IRS CP2505B offering installment agreement alternative."
+      },
+      {
+        "id": "cp55-b",
+        "name": "IRS CP55-B Estimated Tax Penalty Notice Response",
+        "searchVolume": 600,
+        "description": "Respond to IRS CP55-B Estimated Tax Penalty Notice."
+      },
+      {
+        "id": "cp88",
+        "name": "IRS CP88 Notice of Offset Response",
+        "searchVolume": 1050,
+        "description": "Respond to IRS CP88 Notice of Offset (refund applied to other debts)."
+      },
+      {
+        "id": "cp89",
+        "name": "IRS CP89 Notice of Wage Levy Response",
+        "searchVolume": 1200,
+        "description": "Respond to IRS CP89 Notice of Wage Levy on employment income."
+      },
+      {
+        "id": "state-tax-notice",
+        "name": "State Income Tax Notice Response",
+        "searchVolume": 3100,
+        "description": "Respond to state income tax examination notice or collection correspondence."
+      }
+    ],
+    "commonPatterns": [
+      "Extraction Pattern: All 30 workflows extract taxpayer identifying info (name, SSN, tax year), proposed adjustments or claims, IRS reasoning, response deadlines, and supporting evidence requirements.",
+      "Validation Pattern: Core validations across all workflows: (1) deadline compliance, (2) address all proposed adjustments/claims, (3) provide supporting evidence, (4) avoid admitting liability, (5) professional format and tone.",
+      "Response Pattern: All responses follow structured business letter format with header (addressing correct IRS center), introduction, item-by-item response to adjustments/claims, professional closure, and signature with enclosures list."
+    ]
+  },
+
+  "domainKnowledge": {
+    "description": "Notice Response vertical requires deep knowledge of IRS procedures, tax law, collection procedures, statutory deadlines, and formal business correspondence.",
+    "requirements": [
+      "Comprehensive understanding of Internal Revenue Code (IRC) Sections 6211, 6213, 6603, 7122 and Treasury Regulations",
+      "Knowledge of IRS examination procedures and Collection Due Process (CDP) rights per IRC 6330",
+      "Understanding of tax substantiation requirements and what constitutes acceptable evidence",
+      "Knowledge of statutory deadlines: 30 days for CP2000, 90 days for CP90 (Tax Court petition), etc.",
+      "Proficiency in formal business correspondence and professional tax communication",
+      "Understanding of defensive strategy vs. settlement strategy in tax disputes",
+      "Knowledge of Appeals Division procedures and when appeals are available",
+      "Understanding of Tax Court jurisdiction and petition procedures for CP90 notices",
+      "Knowledge of Reasonable Collection Potential (RCP) calculation for Offer in Compromise",
+      "Understanding of installment agreements, payment plans, and currently-not-collectible status"
+    ],
+    "resources": [
+      "IRS Publication 556 - Examination of Returns, Appeal Rights, and Claims for Refund",
+      "IRS Publication 595 - Tax Guide for Commercial Fishermen",
+      "IRS Publication 656 - Offer in Compromise",
+      "Internal Revenue Code (IRC) - Sections 6211, 6213, 6330, 6603, 7122, 7422",
+      "Treasury Regulations - Section 301.6330-1, 301.6331-1",
+      "U.S. Tax Court Rules of Practice and Procedure",
+      "Federal Rules of Civil Procedure (for federal court litigation)",
+      "State tax statutes and regulations (for state notice responses)",
+      "Appeals and Collections Process Training Materials (ACPTM)",
+      "Case law on substantiation requirements and burden of proof in tax disputes"
+    ]
+  },
+
+  "implementation": {
+    "notes": "Notice Response is the highest-priority template. It encompasses the most common and highest-volume workflows in the MailMyPDF ecosystem. All 30 workflows use the notice-response template engine but with domain-specific variations. Successful implementation requires careful attention to statutory deadlines (30 days for CP2000, 90 days for CP90, etc.) and precise extraction of IRS positions and taxpayer identifying information.",
+    "commonChallenges": [
+      "Extracting all proposed adjustments accurately when notices span multiple pages",
+      "Understanding the specific type of notice and appropriate response strategy (protest vs. appeal vs. payment arrangement)",
+      "Ensuring responses address ALL proposed adjustments - silence on even one item may be construed as agreement",
+      "Calculating statutory deadlines correctly and ensuring responses are submitted before deadline",
+      "Providing sufficient supporting evidence - assertions without documentation carry no weight",
+      "Avoiding common mistakes: admitting error, providing tax/legal advice, using aggressive tone, or missing required format elements",
+      "Coordinating responses when multiple notices are issued (e.g., CP2000 followed by CP90 after response period closes)",
+      "Understanding jurisdiction-specific variations for state tax notices",
+      "Managing complex cases with multiple adjustments, multiple tax years, or substantial amounts"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "id": "records-request",
+    "name": "records request",
+    "description": "Vertical for records-request workflows",
+    "template": "records-request"
+  },
+  "overview": {
+    "purpose": "Enable users to execute records-request workflows effectively",
+    "targetUser": "All users needing records-request services",
+    "commonProblem": "Users need structured approach to records-request tasks",
+    "estimatedAnnualSearches": 100000
+  },
+  "workflows": {
+    "description": "Workflows in this vertical",
+    "total": 1,
+    "list": [{"id": "foia-federal", "name": "foia federal", "searchVolume": 2800|foia-state}],
+    "commonPatterns": ["Extraction pattern", "Validation pattern", "Response pattern"]
+  },
+  "domainKnowledge": {
+    "description": "Required domain expertise",
+    "requirements": ["Domain-specific knowledge"],
+    "resources": ["Reference materials"]
+  },
+  "implementation": {
+    "priority": "medium",
+    "notes": "Vertical implementation guidance"
+  }
+}

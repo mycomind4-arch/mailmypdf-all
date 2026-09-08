@@ -1,0 +1,257 @@
+{
+  "metadata": {
+    "id": "incident-response",
+    "name": "Incident Response Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Complete incident response plan for detecting, responding to, and recovering from security incidents."
+  },
+
+  "incidentClassification": {
+    "sev1-critical": {
+      "definition": "Data breach, encryption key compromise, system down",
+      "responseTime": "< 15 minutes",
+      "escalation": "Page CISO, CEO, legal immediately"
+    },
+    "sev2-high": {
+      "definition": "Unauthorized access, malware detected, audit log tampering",
+      "responseTime": "< 1 hour",
+      "escalation": "Page security team + on-call engineer"
+    },
+    "sev3-medium": {
+      "definition": "Suspicious activity, rate limit exceeded, failed validation",
+      "responseTime": "< 4 hours",
+      "escalation": "Notify security team"
+    },
+    "sev4-low": {
+      "definition": "Minor security event, informational alert",
+      "responseTime": "< 24 hours",
+      "escalation": "Log and review in next security meeting"
+    }
+  },
+
+  "responseTeam": {
+    "roles": [
+      {
+        "role": "Incident Commander",
+        "responsibility": "Overall coordination, escalation, external communication",
+        "oncall": "24/7 rotation"
+      },
+      {
+        "role": "Security Engineer",
+        "responsibility": "Investigate incident, contain threat, preserve evidence",
+        "oncall": "24/7 rotation"
+      },
+      {
+        "role": "Infrastructure Engineer",
+        "responsibility": "Deploy fixes, rollback, system recovery",
+        "oncall": "24/7 rotation"
+      },
+      {
+        "role": "Legal/Compliance",
+        "responsibility": "Regulatory notification, breach notification",
+        "oncall": "Available during business hours"
+      }
+    ]
+  },
+
+  "responseProcess": {
+    "detection": {
+      "triggers": [
+        "Automated alert from monitoring system",
+        "User report of suspicious activity",
+        "Anomaly detection (unusual access patterns, data exfiltration)",
+        "External notification (law enforcement, security researcher)",
+        "Audit log review (manual)"
+      ]
+    },
+    "containment": {
+      "step1": "Isolate affected system (disconnect from network if necessary)",
+      "step2": "Preserve evidence (copy logs, memory dumps, database state)",
+      "step3": "Stop the attack (block IP, revoke credentials, shutdown service)",
+      "step4": "Communicate status (update incident board, notify stakeholders)"
+    },
+    "investigation": {
+      "step1": "Timeline: When did attack start? When was it detected?",
+      "step2": "Scope: What systems affected? What data accessed?",
+      "step3": "Root cause: How did attacker get in? What was the vulnerability?",
+      "step4": "Impact: Which users affected? What data was exposed?",
+      "step5": "Attribution: Who did it? (if possible)"
+    },
+    "recovery": {
+      "step1": "Patch vulnerability (if code issue)",
+      "step2": "Rotate compromised credentials (passwords, API keys)",
+      "step3": "Restore from backup (if data corrupted)",
+      "step4": "Deploy fix to production",
+      "step5": "Monitor for indicators of re-infection",
+      "step6": "Verify system normal (run security tests)"
+    },
+    "notification": {
+      "internal": [
+        "Notify executive leadership immediately (SEV1)",
+        "Notify affected users within 72 hours (if data exposed)",
+        "Notify board within 24 hours (if material breach)"
+      ],
+      "external": [
+        "Notify regulators: IRS (if tax data), state AG (if resident data), ICO (if GDPR)",
+        "Notify credit bureaus (if SSN exposed)",
+        "Notify law enforcement (if criminal activity suspected)",
+        "Public disclosure (if material + required by law)"
+      ]
+    },
+    "postmortem": {
+      "timing": "Within 7 days of incident",
+      "contents": [
+        "Timeline of events",
+        "Root cause analysis",
+        "Impact assessment",
+        "Immediate actions taken",
+        "Long-term preventive measures",
+        "Owner for each action item",
+        "Lessons learned"
+      ]
+    }
+  },
+
+  "commonScenarios": {
+    "dataBreachPII": {
+      "scenario": "Attacker gains access to database with SSN, addresses, DOB",
+      "immediateActions": [
+        "Take database offline if still being accessed",
+        "Preserve audit logs and evidence",
+        "Identify affected users (exact count)",
+        "Check what data was actually accessed",
+        "Notify legal/compliance immediately"
+      ],
+      "response": [
+        "Notify affected users within 24 hours",
+        "Notify credit bureaus (SSN exposed)",
+        "Offer free credit monitoring for 2 years",
+        "Notify IRS (if tax data breach, per Pub 1075)",
+        "Public press release (if > 500 users affected)"
+      ]
+    },
+    "encryptionKeyCompromise": {
+      "scenario": "Encryption key exposed or stolen",
+      "immediateActions": [
+        "Immediately revoke compromised key in KMS",
+        "Alert all stakeholders",
+        "Audit all data decrypted with key since compromise"
+      ],
+      "recovery": [
+        "Generate new encryption key",
+        "Re-encrypt all data with new key (high priority: recent sensitive data)",
+        "Destroy compromised key after retention period"
+      ]
+    },
+    "malwareInUpload": {
+      "scenario": "Malware detected in user-uploaded PDF",
+      "immediateActions": [
+        "Quarantine infected file immediately",
+        "Notify user of malware detection",
+        "Do NOT process file through system"
+      ],
+      "analysis": [
+        "Analyze malware (type, capabilities, payload)",
+        "Check if other files infected",
+        "Review when file was uploaded, who uploaded it"
+      ]
+    },
+    "ddosAttack": {
+      "scenario": "Service overwhelmed by traffic; unavailable",
+      "immediateActions": [
+        "Activate DDoS protection (AWS Shield, Cloudflare)",
+        "Block malicious IPs",
+        "Scale auto-scaling groups to handle load"
+      ],
+      "recovery": [
+        "Once attack stops, analyze traffic patterns",
+        "Implement rate limiting on affected endpoints",
+        "Review DDoS protection rules"
+      ]
+    },
+    "unauthorizedAccess": {
+      "scenario": "User accessing other users' documents (authorization bypass)",
+      "immediateActions": [
+        "Revoke attacker's access",
+        "Identify what documents were accessed",
+        "Identify affected users"
+      ],
+      "remediation": [
+        "Fix authorization logic in code",
+        "Deploy fix to production",
+        "Audit all access by attacker",
+        "Notify affected users"
+      ]
+    }
+  },
+
+  "breachNotification": {
+    "timeline": {
+      "immediate": "Alert security team, incident commander",
+      "within_1_hour": "Notify CISO, legal, compliance",
+      "within_24_hours": "Notify affected users (if data breach)",
+      "within_48_hours": "Notify regulators (if required)",
+      "within_72_hours": "Notify credit bureaus (if SSN exposed)",
+      "within_7_days": "Post-mortem completed"
+    },
+    "notificationContent": {
+      "what": "What happened? (Incident description)",
+      "when": "When was it discovered?",
+      "who": "Who is affected?",
+      "why": "Why did it happen? (Root cause)",
+      "impact": "What data was accessed?",
+      "what_doing": "What are you doing? (Mitigation steps)",
+      "what_they_do": "What should users do? (Credit monitoring, password reset, etc.)"
+    }
+  },
+
+  "testing": {
+    "drills": {
+      "frequency": "Quarterly",
+      "scenario": "Simulate data breach; test response procedures",
+      "measure": "Time to detect, contain, notify, and recover"
+    },
+    "tabletop": {
+      "frequency": "Semi-annually",
+      "participants": "Incident response team + legal + leadership",
+      "scenario": "Discuss how to handle specific incident"
+    }
+  },
+
+  "documentation": {
+    "runbooks": [
+      "Data Breach Runbook",
+      "Encryption Key Compromise Runbook",
+      "DDoS Attack Runbook",
+      "Malware Detection Runbook",
+      "Unauthorized Access Runbook"
+    ],
+    "contacts": [
+      "CISO, CEO, legal, compliance officer, insurance broker",
+      "Regulators (IRS, state AGs, ICO)",
+      "Law enforcement (FBI, local police)",
+      "Incident response vendors (if applicable)"
+    ]
+  },
+
+  "insurance": {
+    "requirement": "Cyber liability insurance covering data breach costs",
+    "coverage": [
+      "Breach notification costs (letters, credit monitoring)",
+      "Legal and regulatory fees",
+      "Business interruption",
+      "Extortion/ransomware (if applicable)"
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "preRequisites": [
+      "Audit logging system (to preserve evidence)",
+      "Incident management tool (to coordinate response)",
+      "On-call rotation (24/7 availability)",
+      "Legal agreement with incident response vendors"
+    ]
+  }
+}

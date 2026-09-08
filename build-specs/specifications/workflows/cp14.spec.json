@@ -1,0 +1,401 @@
+{
+  "metadata": {
+    "id": "cp14",
+    "name": "IRS CP14 Balance Due Notice Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP14, the first notice and demand for payment of an unpaid balance. Covers payment, installment agreements, offers in compromise, hardship status, penalty relief, and disputing an incorrect assessment.",
+    "searchVolume": 8100,
+    "searchVolumeSource": "Google Ads Keyword Planner — 'CP14 notice', 'IRS notice CP14', 'CP14 payment'",
+    "difficulty": "medium",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": false,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp14-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "CP14 is the highest-volume IRS notice. Confirmed as notice and demand under IRC 6303; the pay-by date is printed on the notice rather than fixed by statute."
+    }
+  },
+
+  "extraction": {
+    "description": "Extract the balance breakdown from a CP14. Unlike an underreporter notice there are no proposed line-item adjustments — the tax is already assessed. What matters is the composition of the balance: tax versus penalties versus interest, because each is contested and relieved differently.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "For a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format as XXX-XX-XXXX. CP14 often shows only the last four digits — if so, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated on the notice, the full number must come from the taxpayer, not be inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period the balance relates to. Look for 'Tax year' or 'Tax period' in the header. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "A CP14 covers a single period. Multiple periods generate separate notices."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right of the notice. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "Interest and the failure-to-pay penalty are computed to this date."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract the payment due date printed on the notice — usually phrased 'Pay by' or 'Amount due by'. Format YYYY-MM-DD. Do NOT compute this; CP14 prints its own date and that date controls.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-23",
+        "notes": "Typically about 21 days out. Never substitute a calculated date for the printed one."
+      },
+      {
+        "name": "taxOwed",
+        "prompt": "Extract the assessed TAX amount alone, excluding penalties and interest. Look for a line labelled 'Tax you owed' or similar in the balance breakdown.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 4200.0,
+        "notes": "Separating tax from penalty matters: penalties can be abated while the tax stands."
+      },
+      {
+        "name": "penaltyAmount",
+        "prompt": "Extract the total penalties charged. Look for 'Failure-to-pay penalty', 'Failure-to-file penalty', or a combined 'Penalties' line.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 210.0,
+        "notes": "Zero or absent is normal when the return was filed and only payment is late."
+      },
+      {
+        "name": "penaltyTypes",
+        "prompt": "Extract which penalties were assessed, as a list of labels exactly as the notice names them. Common values: 'Failure to file', 'Failure to pay', 'Estimated tax penalty'.",
+        "required": false,
+        "dataType": "array",
+        "example": ["Failure to pay"],
+        "notes": "Drives relief eligibility: First Time Abate covers failure-to-file and failure-to-pay, but not the estimated tax penalty."
+      },
+      {
+        "name": "interestAmount",
+        "prompt": "Extract the interest charged. Look for a line labelled 'Interest charges'.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 63.4,
+        "notes": "Interest on the tax is statutory and generally not abatable; interest on an abated penalty comes off with it."
+      },
+      {
+        "name": "totalAmountDue",
+        "prompt": "Extract the total amount due — the large figure the notice leads with.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 4473.4,
+        "notes": "Should equal tax + penalties + interest; a mismatch means a component was missed."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block or the payment address.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed."
+      }
+    ],
+    "notes": "CP14 is typically 2-3 pages with the balance breakdown on page 1. If the components do not sum to the stated total, re-read page 2 — an accrued amount is often listed separately."
+  },
+
+  "validation": {
+    "description": "Validate that the response commits to a concrete path, does not concede an assessment the taxpayer may contest, and does not leave available penalty relief unclaimed.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= responseDeadline",
+        "severity": "error",
+        "message": "Respond by the pay-by date printed on the notice. Penalties and interest continue to accrue past it.",
+        "example_fail": "Notice due June 23; response mailed July 10.",
+        "example_pass": "Notice due June 23; response postmarked June 16."
+      },
+      {
+        "name": "responsePathChosen",
+        "check": "response commits to payment, installment agreement, OIC, CNC, or a dispute",
+        "severity": "error",
+        "message": "Choose a path: pay in full, request an installment agreement, submit an offer, request hardship status, or dispute the assessment.",
+        "example_fail": "A letter acknowledging the balance without proposing anything.",
+        "example_pass": "A letter requesting a 36-month installment agreement with Form 9465 enclosed."
+      },
+      {
+        "name": "penaltyReliefConsidered",
+        "check": "if abatable penalties assessed: relief requested or eligibility ruled out",
+        "severity": "warning",
+        "message": "Penalties were assessed but no relief was requested. First Time Abate is not automatic and must be asked for.",
+        "example_fail": "A $210 failure-to-pay penalty is paid without asking, on an otherwise clean record.",
+        "example_pass": "The response requests First Time Abate, citing three prior years filed and paid on time."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault_or_error",
+        "severity": "error",
+        "message": "Do not admit fault. Proposing to pay is not the same as conceding the assessment is correct or that a penalty is deserved.",
+        "example_fail": "We apologize for our error in failing to pay on time.",
+        "example_pass": "We are enclosing payment for the balance shown and separately request abatement of the penalty."
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "if_contesting or requesting relief: evidence attached",
+        "severity": "error",
+        "message": "Attach proof for whatever is claimed: payment records if the balance is already paid, or evidence of the circumstances if relief is requested on reasonable cause.",
+        "example_fail": "Asserting the balance was paid, with nothing enclosed.",
+        "example_pass": "Enclosing an EFTPS confirmation and a bank statement showing the debit."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "response addressed to the issuing center with SSN and tax year referenced",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: CP14 — Tax Year 2024 — SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed letter to the Kansas City Service Center, dated and signed."
+      }
+    ],
+    "notes": "The most consequential CP14 failure is doing nothing. The second is paying a penalty that would have been abated on request."
+  },
+
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in IRS collection procedure. You write letters that commit to a specific, achievable resolution and that preserve every option the taxpayer still has. You never concede that an assessment is correct, and you never describe a penalty as deserved.",
+    "task": "Analyse the extracted CP14 data and the taxpayer's circumstances. Determine the appropriate path — payment in full, installment agreement, offer in compromise, currently-not-collectible status, or dispute — and draft the corresponding response. Where abatable penalties were assessed, include a penalty relief request stating the basis. Where the taxpayer asserts the balance is wrong or already paid, state that position with the enclosed proof and request that the account be corrected.",
+    "format": "Professional business letter addressed to the issuing IRS service center, suitable for filing.",
+    "constraints": [
+      "Never admit fault, error, or that a penalty is warranted; proposing payment is not conceding the assessment",
+      "State one clear, specific path — do not present several options for the IRS to choose between",
+      "For an installment agreement, propose a concrete monthly figure and a start date",
+      "Request penalty relief separately from any payment proposal, so paying does not undercut the request",
+      "Do not claim First Time Abate eligibility unless the taxpayer confirms three clean prior years",
+      "Cite only documents the taxpayer actually has",
+      "Do not state what the law requires; state facts and enclose proof",
+      "Reference the tax year, SSN and notice date so the response is matched to the account"
+    ],
+    "examples": [
+      {
+        "input": {
+          "totalAmountDue": 4473.4,
+          "taxOwed": 4200.0,
+          "penaltyAmount": 210.0,
+          "penaltyTypes": ["Failure to pay"],
+          "interestAmount": 63.4,
+          "taxYear": 2024,
+          "strategy": "installment",
+          "priorThreeYearsClean": true,
+          "evidence": ["Form 9465 Installment Agreement Request"]
+        },
+        "output": "We are writing in response to your CP14 notice dated June 2, 2025 regarding tax year 2024.\n\nWe are requesting an installment agreement for the balance shown. Enclosed is Form 9465 proposing monthly payments of $200, beginning July 15, 2025, by direct debit. We understand interest continues to accrue on the unpaid balance during the agreement.\n\nSeparately, we request abatement of the $210.00 failure-to-pay penalty under the First Time Abate provisions of IRM 20.1.1.3.3.2.1. Our returns for tax years 2021, 2022 and 2023 were each filed on time and the tax shown was paid in full, and no penalties were assessed for those periods. We ask that the penalty and the interest attributable to it be removed from the account.\n\nThis request is not an acknowledgement that the penalty was correctly assessed."
+      }
+    ],
+    "notes": "The single highest-value thing this workflow does is surface penalty relief. Most CP14 recipients pay the penalty without knowing First Time Abate exists, and the notice does not tell them."
+  },
+
+  "responseTemplate": {
+    "description": "Business letter responding to a CP14 balance due notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP14 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP14 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP14 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP14 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Position on the balance and the chosen resolution path]",
+        "guidance": "State the path: payment enclosed, installment agreement with a specific monthly amount and start date, offer in compromise, hardship status, or a dispute with the basis and enclosed proof. Generated from the taxpayer's stated position.",
+        "example": "We are requesting an installment agreement for the balance shown. Enclosed is Form 9465 proposing monthly payments of $200, beginning July 15, 2025, by direct debit."
+      },
+      {
+        "name": "penaltyRelief",
+        "required": false,
+        "template": "Separately, we request abatement of the penalties assessed for tax year [Tax Year]. This request is not an acknowledgement that the penalties were correctly assessed.",
+        "guidance": "Include whenever abatable penalties were assessed. Keep it separate from the payment proposal so that paying does not undercut the request. State the basis — First Time Abate, or specific reasonable-cause facts with evidence.",
+        "example": "Separately, we request abatement of the $210.00 failure-to-pay penalty under the First Time Abate provisions. Our returns for 2021, 2022 and 2023 were each filed on time and paid in full, with no penalties assessed."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly. We can be reached at the address above.",
+        "guidance": "Short close requesting confirmation and account update.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 9465 Installment Agreement Request"
+      }
+    ],
+    "pageCount": { "minimum": 1, "typical": 2, "maximum": 3 }
+  },
+
+  "legalFramework": {
+    "description": "CP14 is the notice and demand for payment required by IRC 6303 after an assessment. It starts the collection notice sequence and the running of the failure-to-pay penalty at the higher rate once a levy notice issues.",
+    "authorities": [
+      "IRC 6303 — Notice and demand for tax, required within 60 days of assessment",
+      "IRC 6601 — Interest on underpayment, compounded daily",
+      "IRC 6651(a)(2) — Failure-to-pay penalty, 0.5% per month up to 25%",
+      "IRC 6651(a)(1) — Failure-to-file penalty, 5% per month up to 25%",
+      "IRC 6159 — Installment agreements",
+      "IRC 7122 — Offers in compromise",
+      "IRM 20.1.1.3.3.2.1 — First Time Abate administrative penalty relief",
+      "IRC 6404 — Abatement authority"
+    ],
+    "precedents": [
+      "CP14 does not itself authorise levy; it begins the notice sequence that leads to CP501, CP503, CP504 and finally CP90",
+      "Requesting an installment agreement suspends levy action while the request is pending",
+      "First Time Abate is administrative relief granted on request, not automatically applied",
+      "Proposing or making payment does not waive the right to contest the underlying assessment or to seek a refund",
+      "Interest on the tax continues to accrue during an installment agreement"
+    ],
+    "criticalRules": [
+      "Do not ignore this notice. Doing nothing is the most common and most costly response — the balance advances automatically toward levy.",
+      "The pay-by date printed on the notice controls. Do not compute a substitute date.",
+      "Request penalty relief explicitly. First Time Abate is never applied on its own and the notice does not mention it exists.",
+      "Keep the penalty relief request separate from the payment proposal, so that paying does not read as agreement that the penalty was owed.",
+      "Never state or imply that the taxpayer was at fault, even while proposing to pay.",
+      "Do not claim First Time Abate without confirming the three prior years were filed and paid on time; a false claim is refused and wastes the window.",
+      "If the balance was already paid, say so and enclose the proof rather than paying twice."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "CP14 procedures are uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Taxpayers in a federally declared disaster area may have deadlines postponed under IRC 7508A. Check current IRS disaster relief announcements for the taxpayer's county before treating a deadline as missed."
+      }
+    ]
+  },
+
+  "testCases": {
+    "description": "Cover the ordinary installment path, the penalty-relief opportunity, and the case where the balance is already paid.",
+    "cases": [
+      {
+        "name": "cp14-installment-with-abatement",
+        "description": "Standard balance due with a failure-to-pay penalty and a clean prior record",
+        "inputDocument": "CP14 showing tax $4,200.00, failure-to-pay penalty $210.00, interest $63.40, total $4,473.40 for tax year 2024",
+        "expectedExtraction": {
+          "taxOwed": 4200.0,
+          "penaltyAmount": 210.0,
+          "interestAmount": 63.4,
+          "totalAmountDue": 4473.4,
+          "penaltyTypes": ["Failure to pay"],
+          "taxYear": 2024
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter requesting an installment agreement with a specific monthly amount, plus a separate First Time Abate request citing three clean prior years.",
+        "successCriteria": [
+          "All required extraction fields populated",
+          "Components sum to the stated total",
+          "A concrete monthly payment and start date are proposed",
+          "Penalty relief is requested separately from the payment proposal",
+          "No admission of fault anywhere in the letter"
+        ]
+      },
+      {
+        "name": "cp14-already-paid",
+        "description": "The taxpayer paid before the notice was generated; the payment crossed in the mail",
+        "inputDocument": "CP14 for tax year 2024 total $2,150.00, where the taxpayer holds an EFTPS confirmation dated before the notice date",
+        "expectedExtraction": { "totalAmountDue": 2150.0, "taxYear": 2024 },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter stating the balance was paid on the confirmed date, enclosing the EFTPS confirmation and bank statement, and requesting the account be corrected and any penalty and interest removed.",
+        "successCriteria": [
+          "Payment proof is enclosed and listed",
+          "The letter does not propose paying again",
+          "Removal of penalty and interest attributable to the crossed payment is requested",
+          "No admission that the balance was owed"
+        ]
+      },
+      {
+        "name": "cp14-estimated-tax-penalty",
+        "description": "Edge case: the only penalty assessed is the estimated tax penalty, which First Time Abate does not cover",
+        "inputDocument": "CP14 with an estimated tax penalty of $340.00 and no failure-to-file or failure-to-pay penalty",
+        "expectedExtraction": { "penaltyTypes": ["Estimated tax penalty"], "penaltyAmount": 340.0 },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter proposing payment without a First Time Abate request, since the estimated tax penalty is outside FTA and has its own narrow exceptions.",
+        "successCriteria": [
+          "No First Time Abate request is generated",
+          "The penalty relief rule does not fire on a non-abatable penalty",
+          "Any relief sought is framed under the estimated tax penalty exceptions instead"
+        ]
+      }
+    ]
+  },
+
+  "relatedWorkflows": {
+    "description": "CP14 sits at the head of the collection notice sequence.",
+    "upstream": [
+      "cp2000 — an underreporter adjustment that was assessed produces the balance a CP14 demands",
+      "cp3219a — an uncontested deficiency becomes an assessment and then a CP14"
+    ],
+    "downstream": [
+      "cp501 — first reminder when a CP14 goes unanswered",
+      "cp503 — second reminder",
+      "cp504 — notice of intent to levy on state tax refunds",
+      "cp90 — final notice of intent to levy with Collection Due Process rights",
+      "cp523 — installment agreement default, if an agreement is later missed"
+    ],
+    "alternatives": [
+      "form-656 — offer in compromise where the balance cannot be paid in full",
+      "form-433-a — collection information statement supporting hardship or an offer"
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "notes": "Highest-volume IRS notice by a wide margin. The workflow's distinctive value is surfacing First Time Abate, which most recipients never learn about.",
+    "knownChallenges": [
+      "Separating tax from penalty from interest when the notice presents a single total on page 1",
+      "Establishing First Time Abate eligibility, which depends on three prior years the notice says nothing about",
+      "Not generating a First Time Abate request for the estimated tax penalty, which it does not cover",
+      "Handling crossed payments, where the balance was paid before the notice was generated"
+    ]
+  }
+}

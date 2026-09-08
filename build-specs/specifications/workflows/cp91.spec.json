@@ -1,0 +1,352 @@
+{
+  "metadata": {
+    "id": "cp91",
+    "name": "IRS CP91 Final Notice \u2014 Levy on Social Security Benefits Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP91, the final notice before levy of up to 15% of Social Security benefits. Covers the Collection Due Process hearing, hardship relief, and collection alternatives.",
+    "searchVolume": 1400,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp91-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "Confirmed as the final notice before levy on Social Security benefits. Carries a 30-day CDP window."
+    }
+  },
+  "extraction": {
+    "description": "Extract identifying details and the notice-specific figures from a CP91.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "On a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format XXX-XX-XXXX. If only the last four digits are shown, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated, the full number must come from the taxpayer, never inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period this notice concerns. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "One period per notice."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "Statutory periods run from this date, not from receipt."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract the date by which the taxpayer must respond to prevent the levy \u2014 30 days from the notice date. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-07-02",
+        "notes": "The 30-day CDP window. After it, only an Equivalent Hearing remains, which carries no Tax Court review."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed. Never guess this."
+      },
+      {
+        "name": "totalBalance",
+        "prompt": "Extract the total unpaid balance the levy would collect against.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 8730.0,
+        "notes": "Drives which collection alternatives are realistic."
+      },
+      {
+        "name": "monthlyBenefitAmount",
+        "prompt": "Extract the monthly Social Security benefit amount if the notice states it.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 1640.0,
+        "notes": "15% of this is what the levy takes each month; needed to show hardship."
+      },
+      {
+        "name": "levyPercentage",
+        "prompt": "Extract the percentage of the benefit the IRS states it will levy. Usually 15.",
+        "required": false,
+        "dataType": "number",
+        "example": 15,
+        "notes": "The continuous levy under IRC 6331(h) is capped at 15% of the benefit."
+      }
+    ],
+    "notes": "Where stated figures do not reconcile, re-read the later pages before proceeding."
+  },
+  "validation": {
+    "description": "Validate that the CP91 response preserves the taxpayer's rights and commits to a concrete path.",
+    "rules": [
+      {
+        "name": "cdpDeadlineCompliance",
+        "check": "response_date <= 30 days from noticeDate",
+        "severity": "error",
+        "message": "Request the Collection Due Process hearing within 30 days. After that only an Equivalent Hearing remains, with no Tax Court review.",
+        "example_fail": "Responding 40 days after the notice.",
+        "example_pass": "Responding within 15 days with Form 12153."
+      },
+      {
+        "name": "cdpRightsAsserted",
+        "check": "CDP hearing requested explicitly",
+        "severity": "error",
+        "message": "Request the Collection Due Process hearing in terms and file Form 12153. Describing the hardship is not a request.",
+        "example_fail": "A letter explaining that the levy would cause hardship.",
+        "example_pass": "A letter requesting a CDP hearing under IRC 6330 with Form 12153 enclosed."
+      },
+      {
+        "name": "hardshipDocumented",
+        "check": "if hardship claimed: specific facts and evidence",
+        "severity": "error",
+        "message": "A levy on a fixed benefit is judged on the household budget. State monthly income and necessary expenses, with evidence.",
+        "example_fail": "The levy would be a hardship.",
+        "example_pass": "Monthly benefit $1,640 against rent $900, medications $210 and utilities $180, documented in the enclosed statements and Form 433-F."
+      },
+      {
+        "name": "paymentOptionProvided",
+        "check": "response proposes an alternative",
+        "severity": "warning",
+        "message": "Propose a collection alternative \u2014 currently not collectible status, an installment agreement, or an offer.",
+        "example_fail": "Asking only that the levy stop.",
+        "example_pass": "Requesting currently not collectible status with Form 433-F enclosed."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault",
+        "severity": "error",
+        "message": "Explain the circumstances without conceding the liability or fault.",
+        "example_fail": "We know we should have paid this years ago.",
+        "example_pass": "The enclosed Form 433-F shows monthly necessary expenses exceeding monthly income."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "addressed to issuing center with SSN and tax year",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: Tax Year 2024 \u2014 SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed, dated and signed letter."
+      }
+    ],
+    "notes": "The costliest failure is a letter that reads as a response but exercises no right."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in Collection Due Process and levies on fixed income. You understand that a levy on Social Security strikes a household with no capacity to absorb it, and that the case is made on a documented budget rather than on sentiment.",
+    "task": "Prepare a Collection Due Process hearing request that both preserves the appeal right and makes the substantive case. Where the benefit is the household's primary income, build a documented budget showing that the levy would leave necessary living expenses unmet, and request currently not collectible status or an affordable alternative on that basis.",
+    "format": "Professional business letter addressed to the issuing IRS service center.",
+    "constraints": [
+      "Request the CDP hearing in terms; describing hardship is not a request",
+      "Make the hardship case with figures \u2014 monthly income against itemised necessary expenses",
+      "Enclose Form 433-F or 433-A where hardship or an alternative is sought",
+      "Propose a specific alternative rather than asking only that the levy stop",
+      "Do not concede the liability while contesting the collection method",
+      "Cite only documents the taxpayer actually has",
+      "State facts and enclose proof; do not argue what the law requires"
+    ],
+    "examples": [
+      {
+        "input": {
+          "totalBalance": 8730.0,
+          "monthlyBenefitAmount": 1640.0,
+          "levyPercentage": 15,
+          "evidence": [
+            "Form 12153",
+            "Form 433-F",
+            "Pharmacy statement",
+            "Lease agreement"
+          ]
+        },
+        "output": "We request a Collection Due Process hearing under IRC 6330 for the periods shown. Form 12153 is enclosed.\n\nSocial Security is the sole household income, at $1,640.00 per month. Necessary monthly expenses are $900.00 rent, $210.00 prescription medications and $180.00 utilities, totalling $1,290.00 and documented in the enclosed lease, pharmacy statement and Form 433-F. A levy of 15%, or $246.00 per month, would leave $104.00 against all remaining necessities.\n\nOn that basis we request that the account be placed in currently not collectible status. This request is not an acknowledgement that the balance is correct."
+      }
+    ],
+    "notes": "Exercising the right explicitly costs nothing; omitting it forfeits something that cannot be recovered."
+  },
+  "responseTemplate": {
+    "description": "Business letter responding to a CP91 notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP91 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP91 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP91 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP91 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Hardship case and the alternative requested]",
+        "guidance": "Set out monthly income against itemised necessary expenses, then request the alternative that follows from those figures.",
+        "example": "Social Security is the sole household income at $1,640.00 per month against $1,290.00 of documented necessary expenses. A 15% levy would leave $104.00 for all remaining necessities."
+      },
+      {
+        "name": "cdpRequest",
+        "required": false,
+        "template": "We request a Collection Due Process hearing under IRC 6330 for tax year [Tax Year]. Form 12153 is enclosed.",
+        "guidance": "Include whenever the CDP right is being exercised. The request must be explicit \u2014 describing the dispute is not a request.",
+        "example": "We request a Collection Due Process hearing under IRC 6330 for tax year 2024. Form 12153 is enclosed."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly.",
+        "guidance": "Short close requesting confirmation and account update.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 12153 Request for a Collection Due Process Hearing"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "Respond to IRS CP91, the final notice before levy of up to 15% of Social Security benefits. Covers the Collection Due Process hearing, hardship relief, and collection alternatives.",
+    "authorities": [
+      "IRC 6330 \u2014 Notice and opportunity for hearing before levy",
+      "IRC 6331(h) \u2014 Continuous levy on specified payments, limited to 15%",
+      "IRC 6343(a)(1)(D) \u2014 Release of levy causing economic hardship",
+      "Treas. Reg. 301.6343-1(b)(4) \u2014 Economic hardship standard",
+      "Form 12153 \u2014 Request for a Collection Due Process or Equivalent Hearing"
+    ],
+    "precedents": [
+      "A timely CDP request suspends the levy while the hearing is pending",
+      "The 15% continuous levy applies to the benefit until the liability is resolved or the levy is released",
+      "Economic hardship requires the levy to leave the taxpayer unable to meet basic living expenses",
+      "Currently not collectible status suspends collection without extinguishing the liability",
+      "A late request may proceed as an Equivalent Hearing, which carries no right of Tax Court review"
+    ],
+    "criticalRules": [
+      "Request the CDP hearing within 30 days and file Form 12153. This is the only step that suspends the levy.",
+      "Describing the hardship is not requesting a hearing. The request must be explicit or the right lapses.",
+      "Make the hardship case with figures. A documented budget showing necessary expenses exceeding income is what supports release; a description of difficulty is not.",
+      "Enclose Form 433-F. A hardship claim without a financial statement cannot be evaluated.",
+      "Contesting the levy is not conceding the liability, and the letter should say so.",
+      "A levy on Social Security is continuous \u2014 it recurs every month until released, so the window matters more here than on a one-time levy."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "Procedure is uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Deadlines may be postponed under IRC 7508A in federally declared disaster areas. Check current IRS relief for the taxpayer's county before treating a window as closed."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Cover the ordinary path and the edge cases for CP91.",
+    "cases": [
+      {
+        "name": "cp91-hardship-cnc",
+        "description": "Social Security is the sole income and a levy would leave expenses unmet",
+        "inputDocument": "CP91 with a $8,730.00 balance against a $1,640.00 monthly benefit",
+        "expectedExtraction": {
+          "totalBalance": 8730.0,
+          "monthlyBenefitAmount": 1640.0
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "CDP hearing request with Form 12153, a documented budget, and a request for currently not collectible status.",
+        "successCriteria": [
+          "CDP hearing requested in terms",
+          "Form 12153 enclosed",
+          "Budget stated with figures and supporting documents",
+          "Currently not collectible status requested",
+          "No concession of the liability"
+        ]
+      },
+      {
+        "name": "cp91-window-closed",
+        "description": "Edge case: the notice is 40 days old",
+        "inputDocument": "CP91 dated 40 days before the response date",
+        "expectedExtraction": {
+          "noticeDate": "40 days prior"
+        },
+        "expectedValidation": "error \u2014 the 30-day CDP window has closed",
+        "expectedResponse": "Response explaining that only an Equivalent Hearing remains, which carries no Tax Court review, and pursuing hardship release under IRC 6343 in parallel.",
+        "successCriteria": [
+          "The expired window is surfaced before mailing",
+          "The Equivalent Hearing limitation is explained",
+          "A levy release request under IRC 6343 is pursued as the substantive route"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "CP91 in the collection and compliance sequence.",
+    "upstream": [
+      "cp504 \u2014 the earlier levy notice",
+      "cp14 \u2014 the original balance"
+    ],
+    "downstream": [
+      "form-433-a \u2014 financial statement supporting hardship or an alternative"
+    ],
+    "alternatives": [
+      "form-656 \u2014 offer in compromise where the balance is permanently unpayable"
+    ]
+  },
+  "implementation": {
+    "priority": "critical",
+    "notes": "Highest-stakes notice in the collection sequence for fixed-income taxpayers. The levy is continuous, so every month of delay is a further 15% taken.",
+    "knownChallenges": [
+      "Building a credible budget from what the taxpayer can document",
+      "Ensuring the CDP request is explicit rather than implied by the hardship narrative",
+      "Explaining that currently not collectible status suspends rather than cancels the liability"
+    ]
+  }
+}

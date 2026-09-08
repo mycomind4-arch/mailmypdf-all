@@ -1,0 +1,204 @@
+{
+  "metadata": {
+    "id": "secure-file-handling-pdf",
+    "name": "Secure File Handling & PDF Processing Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Comprehensive file handling, PDF processing, and document safety system preventing malware, data exfiltration, and unauthorized access.",
+    "securityClassification": "critical",
+    "complianceRequirements": ["OWASP File Upload", "NIST SP 800-86", "IRS Pub 1075"]
+  },
+
+  "fileUpload": {
+    "validation": {
+      "fileType": {
+        "requirement": "Only PDF files accepted",
+        "verification": "1. Check file extension (.pdf)\n2. Verify MIME type: application/pdf\n3. Check PDF magic bytes: %PDF-1.x at file start",
+        "implementation": "Magic number check > file extension check > MIME type check"
+      },
+      "fileSize": {
+        "maxSize": 50,
+        "unit": "MB",
+        "perUser": "500 MB/month upload quota",
+        "enforcement": "Reject uploads exceeding limits with clear error message"
+      },
+      "scanning": {
+        "malware": {
+          "method": "ClamAV or VirusTotal API",
+          "timing": "Scan immediately after upload, before storage",
+          "action": "Quarantine infected files; do not make accessible"
+        },
+        "embedded": {
+          "check": "Scan for embedded malicious content (JavaScript, Flash, etc.)",
+          "implementation": "PDFoid or similar PDF analysis tool",
+          "removal": "Remove potentially malicious elements before storing"
+        }
+      }
+    },
+    "storage": {
+      "location": "Cloud object storage (AWS S3, Google Cloud Storage, Azure Blob)",
+      "encryption": "AES-256 encryption at rest (handled by encryption core)",
+      "access": "Private by default; requires authentication to access",
+      "versioning": "Keep file versions for 30 days (enable in S3/GCS versioning)"
+    },
+    "tempFiles": {
+      "creation": "Only in encrypted temp directory (/tmp with encryption)",
+      "lifetime": "Auto-delete after processing (< 1 hour max)",
+      "cleanup": "Cryptographic erasure (overwrite 3x before deletion) or OS secure deletion",
+      "monitoring": "Alert if temp files accumulate (stale files)")
+    }
+  },
+
+  "pdfProcessing": {
+    "pdfParsing": {
+      "library": "PyPDF2, pdfplumber, or pikepdf (avoid older libraries with known vulnerabilities)",
+      "safety": {
+        "noExecute": "Never execute embedded scripts or JavaScript in PDFs",
+        "sandboxing": "Process PDFs in sandboxed environment (Docker container or VM)",
+        "timeout": "Kill processing after 30 seconds (prevents DoS via complex PDFs)",
+        "memoryLimit": "Limit memory to 2GB per PDF processing (prevent OOM attacks)"
+      }
+    },
+    "extraction": {
+      "textExtraction": {
+        "method": "Use PDF library text extraction (pdfplumber.extract_text())",
+        "fallback": "If text extraction fails, use OCR (Tesseract)",
+        "validation": "Verify extracted text doesn't contain suspicious patterns"
+      },
+      "dataExtraction": {
+        "llmUsage": "Claude API for intelligent data extraction from unstructured text",
+        "piiHandling": "Extracted PII (SSN, DOB, addresses) immediately encrypted before storage",
+        "validation": "Validate extracted data against expected patterns (e.g., SSN = 9 digits)"
+      },
+      "tableExtraction": {
+        "method": "pdfplumber for table extraction or camelot",
+        "format": "Convert to structured JSON/CSV for easier processing"
+      },
+      "errorHandling": "If extraction fails, mark document as 'requires manual review'"
+    },
+    "imageExtraction": {
+      "method": "Extract images from PDFs for signature verification or OCR",
+      "storage": "Store images separately, encrypted",
+      "cleanup": "Delete temp images after processing"
+    }
+  },
+
+  "pdfGeneration": {
+    "libraries": [
+      "ReportLab (Python): Low-level PDF generation, high control",
+      "WeasyPrint: HTML to PDF conversion (recommended for complex layouts)",
+      "Puppeteer (Node.js): Chrome automation for HTML to PDF",
+      "PDFKit (Go): Lightweight PDF generation"
+    ],
+    "security": {
+      "noExecution": "Generated PDFs contain NO executable content",
+      "noRedirect": "No external URL references that could trigger downloads",
+      "fontEmbedding": "Embed fonts in PDF to prevent substitution attacks"
+    },
+    "workflow": {
+      "step1": "Generate PDF from template using safe library",
+      "step2": "Populate with user data (escaped/sanitized)",
+      "step3": "Sign PDF digitally if required (using private key in HSM)",
+      "step4": "Encrypt PDF with AES-256",
+      "step5": "Store in S3/cloud storage",
+      "step6": "Return encrypted file reference (not file itself) to user"
+    }
+  },
+
+  "digitalSignature": {
+    "requirement": "PDFs can be digitally signed to prove authenticity and non-repudiation",
+    "implementation": {
+      "method": "PKCS#7 or PAdES (PDF Advanced Electronic Signatures)",
+      "certificate": "Use certificate from trusted CA (DigiCert, Sectigo, etc.)",
+      "storage": "Private key stored in HSM, never accessible to application",
+      "signatureTimestamp": "Include timestamp from trusted TSA (Time Stamp Authority)"
+    },
+    "verification": {
+      "requirement": "Recipient can verify signature is valid and certificate chain is trusted",
+      "validation": "PDF reader (Adobe, Foxit) validates signature cryptographically"
+    }
+  },
+
+  "downloadSecurity": {
+    "requirement": "When users download their PDF, ensure secure delivery",
+    "implementation": {
+      "step1": "Verify user is authenticated and authorized to download file",
+      "step2": "Log download event (WHO, WHAT, WHEN, WHERE)",
+      "step3": "Deliver over HTTPS (TLS 1.3)",
+      "step4": "Set proper HTTP headers to prevent caching/interception"
+    },
+    "headers": {
+      "contentDisposition": "attachment; filename=user_document.pdf",
+      "contentType": "application/pdf",
+      "cacheControl": "no-cache, no-store, must-revalidate",
+      "pragma": "no-cache",
+      "xContentTypeOptions": "nosniff (prevent MIME type sniffing)",
+      "xDownloadOptions": "noopen (prevent auto-open on Windows)",
+      "xFrameOptions": "DENY (prevent clickjacking)"
+    }
+  },
+
+  "dataExfiltration": {
+    "prevention": {
+      "noCloudSync": "PDFs never synced to personal cloud (Dropbox, OneDrive, etc.)",
+      "noScreenshots": "Optional: Disable screenshots in secure viewer",
+      "noCopy": "Optional: Disable copy/paste from PDFs",
+      "watermarking": "Optional: Add visible/invisible watermark with user ID and timestamp"
+    }
+  },
+
+  "retention": {
+    "policyDefault": {
+      "activeDocuments": "Retained while user has active account",
+      "inactiveDocuments": "Auto-delete after 90 days of inactivity",
+      "deletedDocuments": "Soft-delete for 30 days, then hard-delete (cryptographic erasure)"
+    },
+    "userControl": "Users can manually delete documents immediately (hard-delete after 24-hour grace period)",
+    "audit": "All deletions logged and auditable"
+  },
+
+  "compliance": {
+    "standards": [
+      "OWASP File Upload Security",
+      "NIST SP 800-86: PDF Security Recommendations",
+      "IRS Publication 1075: File handling safeguards",
+      "HIPAA: Secure file handling requirements"
+    ]
+  },
+
+  "testing": {
+    "requirements": [
+      {
+        "name": "malware-detection",
+        "test": "Verify malicious PDFs are detected and rejected",
+        "method": "Upload EICAR test file (scanner test file); verify rejected"
+      },
+      {
+        "name": "authorization",
+        "test": "Verify User A cannot download User B's PDF",
+        "method": "User A attempts to download User B's file ID; verify 403 Forbidden"
+      },
+      {
+        "name": "extraction-safety",
+        "test": "Verify PDF extraction doesn't execute embedded scripts",
+        "method": "Process PDF with embedded JavaScript; verify no execution"
+      },
+      {
+        "name": "encryption",
+        "test": "Verify stored PDFs are encrypted",
+        "method": "Read raw file from storage; verify not valid PDF (unreadable)"
+      }
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "libraries": [
+      "PDF Processing: PyPDF2, pdfplumber, pikepdf, camelot",
+      "Generation: ReportLab, WeasyPrint",
+      "Scanning: ClamAV, VirusTotal API",
+      "Signatures: pyHanko, M2Crypto"
+    ],
+    "deployment": "Sandboxed PDF processing (Docker containers recommended)"
+  }
+}

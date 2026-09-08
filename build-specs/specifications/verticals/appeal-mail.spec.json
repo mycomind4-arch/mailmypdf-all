@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "id": "appeal-mail",
+    "name": "appeal mail",
+    "description": "Vertical for appeal-mail workflows",
+    "template": "appeal"
+  },
+  "overview": {
+    "purpose": "Enable users to execute appeal-mail workflows effectively",
+    "targetUser": "All users needing appeal-mail services",
+    "commonProblem": "Users need structured approach to appeal-mail tasks",
+    "estimatedAnnualSearches": 100000
+  },
+  "workflows": {
+    "description": "Workflows in this vertical",
+    "total": 1,
+    "list": [{"id": "insurance-claim-appeal", "name": "insurance claim appeal", "searchVolume": 2800|unemployment-appeal}],
+    "commonPatterns": ["Extraction pattern", "Validation pattern", "Response pattern"]
+  },
+  "domainKnowledge": {
+    "description": "Required domain expertise",
+    "requirements": ["Domain-specific knowledge"],
+    "resources": ["Reference materials"]
+  },
+  "implementation": {
+    "priority": "medium",
+    "notes": "Vertical implementation guidance"
+  }
+}

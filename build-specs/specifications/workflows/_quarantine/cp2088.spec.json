@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "id": "cp2088",
+    "name": "Notice of Adjustment - No Tax Due Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to Notice of Adjustment - No Tax Due notice.",
+    "searchVolume": 750,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {"requiresLegalKnowledge": true, "requiresLegislativeResearch": true, "hasMultiplePathways": true, "hasStrictDeadlines": true, "requiresHighAccuracy": true}
+  },
+  "extraction": {
+    "description": "Extract structured data from notice",
+    "fields": [
+      {"name": "taxpayerName", "prompt": "Extract taxpayer name", "required": true, "dataType": "string", "validation": "notEmpty", "example": "John Smith", "notes": "Verify spelling"},
+      {"name": "ssn", "prompt": "Extract SSN in XXX-XX-XXXX format", "required": true, "dataType": "string", "validation": "ssn_format", "example": "123-45-6789", "notes": "Critical for matching"},
+      {"name": "taxYear", "prompt": "Extract tax year", "required": true, "dataType": "number", "validation": "year_format", "example": 2023, "notes": "Year of return"},
+      {"name": "noticeDate", "prompt": "Extract notice date in YYYY-MM-DD", "required": true, "dataType": "date", "validation": "date_format", "example": "2024-01-15", "notes": "For deadline calculation"},
+      {"name": "responseDeadline", "prompt": "Extract or calculate response deadline (30 days from notice)", "required": true, "dataType": "date", "validation": "date_format", "example": "2024-02-14", "notes": "Statutory deadline"}
+    ],
+    "notes": "Extract all required identifying information and deadlines"
+  },
+  "validation": {
+    "description": "Validate response completes workflow requirements",
+    "rules": [
+      {"name": "deadlineCompliance", "check": "response_submitted_before_deadline", "severity": "error", "message": "Response must be submitted by deadline", "example_fail": "Response submitted after deadline", "example_pass": "Response submitted before deadline"},
+      {"name": "addressNotice", "check": "response_addresses_notice", "severity": "error", "message": "Must address specific notice claims", "example_fail": "Generic response", "example_pass": "Response addresses specific notice items"}
+    ],
+    "notes": "Ensure comprehensive response to notice"
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist with expertise in IRS procedures",
+    "task": "Analyze notice and generate professional, legally sound response",
+    "format": "Professional business letter formatted for IRS filing",
+    "constraints": ["Do not admit error or liability", "Provide supporting evidence", "Address all notice items", "Maintain professional tone"],
+    "examples": [],
+    "notes": "Follow IRS correspondence standards"
+  },
+  "responseTemplate": {
+    "description": "Professional response letter to notice",
+    "format": "Business letter",
+    "sections": [
+      {"name": "header", "required": true, "template": "[IRS Service Center Address]\nRE: Response to Notice\n[Tax Year]\nSSN: [XXX-XX-XXXX]", "guidance": "Address to correct service center", "example": "Memphis Service Center\nRE: Response\nTax Year 2023\nSSN: 123-45-6789"},
+      {"name": "body", "required": true, "template": "Professional response addressing notice claims with supporting evidence", "guidance": "Address each claim methodically", "example": "We respond to your notice dated..."}
+    ],
+    "pageCount": {"minimum": 1, "typical": 2, "maximum": 4}
+  },
+  "legalFramework": {
+    "description": "Governed by IRC and Treasury Regulations",
+    "authorities": ["Internal Revenue Code Section 6213", "Treasury Regulation 601.105"],
+    "precedents": ["30-day response period", "Silence may constitute agreement"],
+    "criticalRules": ["Meet deadline", "Address all items", "Do not admit liability"],
+    "jurisdictionVariations": []
+  },
+  "testCases": {
+    "description": "Test notice response workflow",
+    "cases": [
+      {"name": "standard", "description": "Standard notice response", "inputDocument": "Sample notice", "expectedExtraction": {"taxYear": 2023}, "expectedValidation": "pass", "expectedResponse": "Professional letter addressing notice", "successCriteria": ["Addresses all items", "Professional format", "Before deadline"]}
+    ]
+  },
+  "relatedWorkflows": {"description": "Related notice workflows", "upstream": [], "downstream": [], "alternatives": []},
+  "implementation": {"priority": "high", "notes": "Notice response workflow", "knownChallenges": []}
+}

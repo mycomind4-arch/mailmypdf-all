@@ -1,0 +1,195 @@
+{
+  "metadata": {
+    "id": "deployment-infrastructure-security",
+    "name": "Deployment & Infrastructure Security Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Secure infrastructure deployment, hardening, and operational security for MailMyPDF services."
+  },
+
+  "infrastructure": {
+    "architecture": {
+      "design": "Microservices architecture with security isolation",
+      "components": [
+        "API Gateway (reverse proxy, rate limiting, WAF)",
+        "Application servers (stateless, auto-scaling)",
+        "Database (encrypted at rest, read replicas for HA)",
+        "Cache (Redis with encryption for sessions)",
+        "File storage (S3 with encryption, versioning, access logs)",
+        "Message queue (for async tasks: PDF processing, mailing)"
+      ],
+      "network": {
+        "dmz": "Bastion host for SSH access; no direct database access",
+        "separation": "App tier cannot directly access encryption keys (via KMS API only)",
+        "firewall": "Strict ingress/egress rules; allow only necessary ports"
+      }
+    },
+    "hosting": {
+      "platform": "AWS, Google Cloud, or Azure (cloud-native)",
+      "regions": "Deploy in US + EU (legal data residency requirements)",
+      "highAvailability": "Multi-AZ deployment; auto-failover; database replication"
+    }
+  },
+
+  "containerization": {
+    "requirement": "All services run in containers (Docker) for consistent, secure deployment",
+    "imageScanning": {
+      "tool": "Trivy, Anchore, or similar",
+      "frequency": "On every image build",
+      "requirement": "No high/critical vulnerabilities in base image or dependencies"
+    },
+    "baseImages": {
+      "recommendation": "Use minimal base images (Alpine Linux, Distroless)",
+      "avoidance": "Never use 'latest' tag; always pin specific version"
+    },
+    "secrets": {
+      "rule": "Never hardcode secrets in Dockerfile or image",
+      "method": "Inject via environment variables or secrets management system"
+    }
+  },
+
+  "infrastructure-as-code": {
+    "requirement": "All infrastructure defined in code (Terraform, CloudFormation)",
+    "benefits": [
+      "Reproducible infrastructure",
+      "Version control for infrastructure",
+      "Security policy enforcement via code"
+    ],
+    "securityChecks": [
+      "No hardcoded credentials in IaC files",
+      "Enforce encryption on all storage",
+      "Enforce TLS on all communication",
+      "Enforce network isolation"
+    ]
+  },
+
+  "deployment": {
+    "process": {
+      "cicd": "GitHub Actions, GitLab CI, or AWS CodePipeline",
+      "steps": [
+        "1. Code commit triggers automated tests",
+        "2. SAST scan for vulnerabilities",
+        "3. Dependency vulnerability scan",
+        "4. Build Docker image",
+        "5. Scan image for vulnerabilities",
+        "6. Deploy to staging environment",
+        "7. Run integration tests",
+        "8. Run security smoke tests",
+        "9. Manual approval for production",
+        "10. Deploy to production (canary or blue-green deployment)",
+        "11. Monitor health metrics"
+      ]
+    },
+    "approvals": {
+      "staging": "Automated: no approval needed",
+      "production": "Manual: security engineer + tech lead required",
+      "emergency": "Critical security patches: fast-track approval"
+    },
+    "rollback": "Automated rollback if health checks fail after deployment"
+  },
+
+  "serverHardening": {
+    "osUpdates": "Automatic security patches; reboot out-of-hours weekly",
+    "firewallRules": [
+      "Deny all inbound by default",
+      "Allow only: SSH (from bastion only), HTTPS (port 443), health checks"
+    ],
+    "sshAccess": {
+      "method": "SSH key authentication only; no passwords",
+      "keyManagement": "Keys rotated every 90 days",
+      "logging": "All SSH access logged",
+      "bastion": "SSH via bastion host only (jump host)"
+    },
+    "packageManagement": "Remove unnecessary packages; use minimal OS images",
+    "selinux": "Enable SELinux in enforcing mode (if using Linux)"
+  },
+
+  "networkSecurity": {
+    "tls": "TLS 1.3 on all external communication",
+    "vpc": "Private VPC with restricted egress",
+    "loadbalancing": "Application load balancer (ALB) for HA and DDoS protection",
+    "cdn": "CloudFront or similar CDN for static assets; enables geo-blocking",
+    "waf": "Web Application Firewall (AWS WAF) to block malicious requests",
+    "ddosProtection": "AWS Shield or Cloudflare DDoS protection"
+  },
+
+  "databaseSecurity": {
+    "encryption": "TLS for all connections to database",
+    "backups": {
+      "frequency": "Daily (automated)",
+      "retention": "30 days current, 7 years archived",
+      "encryption": "Encrypted with separate backup key",
+      "testing": "Monthly restore test to verify backup integrity"
+    },
+    "accessControl": {
+      "rule": "Database never directly accessible from internet",
+      "method": "Only accessible from application servers via private network",
+      "auditLogging": "Query logging enabled; slow query monitoring"
+    },
+    "patching": "Apply security patches within 30 days"
+  },
+
+  "monitoring": {
+    "metrics": [
+      "CPU, memory, disk usage",
+      "Network bandwidth and latency",
+      "Request latency and error rates",
+      "Database query performance",
+      "API rate limits and throttling"
+    ],
+    "alerts": [
+      "Disk usage > 80% → Scale storage",
+      "Error rate > 5% → Page engineer",
+      "Request latency > 1s (p95) → Investigate performance"
+    ],
+    "tools": ["Prometheus + Grafana", "Datadog", "New Relic"]
+  },
+
+  "logsAggregation": {
+    "requirement": "All logs centralized in immutable audit store",
+    "tools": ["ELK Stack", "Splunk", "Datadog"],
+    "retention": "7 years for audit logs; 30 days for application logs",
+    "masking": "PII and secrets never logged; use placeholders instead"
+  },
+
+  "incident-response-runbooks": {
+    "requirement": "Documented procedures for common incidents",
+    "examples": [
+      "High error rate detected → Investigate cause, rollback if needed",
+      "Database unavailable → Failover to read replica, notify on-call",
+      "Suspicious API traffic → Block IP, investigate logs",
+      "Disk full → Scale storage, investigate log growth"
+    ]
+  },
+
+  "testing": {
+    "requirements": [
+      {
+        "name": "ssl-test",
+        "test": "Verify TLS 1.3 with strong ciphers",
+        "method": "SSL Labs test; verify A+ rating"
+      },
+      {
+        "name": "firewall-test",
+        "test": "Verify firewall rules working",
+        "method": "Port scan; verify only expected ports open"
+      },
+      {
+        "name": "backup-test",
+        "test": "Verify backups can be restored",
+        "method": "Restore backup to test environment; verify data integrity"
+      }
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "tools": [
+      "Infrastructure: AWS, GCP, or Azure",
+      "IaC: Terraform",
+      "CI/CD: GitHub Actions, GitLab CI",
+      "Monitoring: Prometheus, Grafana, Datadog",
+      "Logging: ELK Stack or Splunk"
+    ]
+  }
+}

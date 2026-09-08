@@ -33,6 +33,13 @@ function serviceSupabase() {
 
 function rowToIntent(row: Record<string, unknown>): MailingIntent {
   const recipient = row.recipient as MailingRecipient | undefined;
+  const mailingMethodRaw = row.mailing_method as string | undefined;
+
+  // Validate mailing method is a valid MailType
+  if (mailingMethodRaw && !["first_class", "certified", "certified_return_receipt", "registered"].includes(mailingMethodRaw)) {
+    throw new Error(`Stored mailing method is invalid: ${mailingMethodRaw}`);
+  }
+
   return {
     id: row.id as string,
     owner_id: (row.owner_id as string) ?? (row.user_id as string),
@@ -49,7 +56,7 @@ function rowToIntent(row: Record<string, unknown>): MailingIntent {
       zip: (row.recipient_zip as string) ?? "",
       country: "US",
     },
-    mailing_method: row.mailing_method as MailType,
+    mailing_method: (mailingMethodRaw as MailType) ?? "first_class",
     matter_reference: row.matter_reference as string | undefined,
     matter_type: row.matter_type as string | undefined,
     legal_reference: row.legal_reference as LegalReference | undefined,

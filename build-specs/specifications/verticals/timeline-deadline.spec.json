@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "id": "timeline-deadline",
+    "name": "timeline deadline",
+    "description": "Vertical for timeline-deadline workflows",
+    "template": "timeline-deadline"
+  },
+  "overview": {
+    "purpose": "Enable users to execute timeline-deadline workflows effectively",
+    "targetUser": "All users needing timeline-deadline services",
+    "commonProblem": "Users need structured approach to timeline-deadline tasks",
+    "estimatedAnnualSearches": 100000
+  },
+  "workflows": {
+    "description": "Workflows in this vertical",
+    "total": 1,
+    "list": [{"id": "deadline-tracker", "name": "deadline tracker", "searchVolume": 2200|appeal-calendar}],
+    "commonPatterns": ["Extraction pattern", "Validation pattern", "Response pattern"]
+  },
+  "domainKnowledge": {
+    "description": "Required domain expertise",
+    "requirements": ["Domain-specific knowledge"],
+    "resources": ["Reference materials"]
+  },
+  "implementation": {
+    "priority": "medium",
+    "notes": "Vertical implementation guidance"
+  }
+}

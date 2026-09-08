@@ -1,0 +1,223 @@
+{
+  "metadata": {
+    "id": "compliance-privacy",
+    "name": "Compliance & Privacy Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Regulatory compliance framework (IRS Pub 1075, HIPAA, GDPR, CCPA) and privacy controls for sensitive document handling.",
+    "complianceRequirements": ["IRS Pub 1075", "HIPAA", "GDPR", "CCPA", "SOC 2"]
+  },
+
+  "irsPub1075": {
+    "requirement": "MailMyPDF handles taxpayer data (SSN, tax returns, financial info); must comply with IRS Publication 1075",
+    "controls": [
+      {
+        "area": "Physical Security",
+        "requirement": "Restrict physical access to servers/hardware containing taxpayer data",
+        "implementation": "Data centers with badge access, biometric locks, 24/7 surveillance"
+      },
+      {
+        "area": "Access Control",
+        "requirement": "Only authorized personnel can access taxpayer data",
+        "implementation": "Role-based access, employee background checks, least privilege"
+      },
+      {
+        "area": "Encryption",
+        "requirement": "Encrypt taxpayer data at rest and in transit",
+        "implementation": "AES-256 encryption (handled by encryption core)"
+      },
+      {
+        "area": "Audit Trail",
+        "requirement": "Log all access to taxpayer data",
+        "implementation": "Complete audit logging (see audit logging spec)"
+      },
+      {
+        "area": "Incident Response",
+        "requirement": "IRS must be notified of any breach of taxpayer data within 30 days",
+        "implementation": "Incident response procedures (see incident response spec)"
+      },
+      {
+        "area": "Employee Training",
+        "requirement": "All employees handling taxpayer data must be trained on safeguards",
+        "implementation": "Annual mandatory training on data security and privacy"
+      },
+      {
+        "area": "Secure Disposal",
+        "requirement": "Taxpayer data destroyed securely when retention period expires",
+        "implementation": "Cryptographic erasure or physical destruction"
+      }
+    ],
+    "certification": "Contractor must obtain annual IRS Safeguards certification"
+  },
+
+  "hipaa": {
+    "requirement": "If MailMyPDF processes health information (PHI), must comply with HIPAA",
+    "applicability": "If medical documents processed; if not, may not apply",
+    "controls": [
+      "Encryption of PHI at rest and in transit",
+      "Access controls and authentication",
+      "Audit logging of all PHI access",
+      "Secure deletion of PHI",
+      "Business Associate Agreement (BAA) with covered entities"
+    ]
+  },
+
+  "gdpr": {
+    "requirement": "If users are in EU, must comply with GDPR for personal data",
+    "principles": [
+      "Lawfulness, fairness, transparency",
+      "Purpose limitation (data used only for stated purpose)",
+      "Data minimization (collect only necessary data)",
+      "Accuracy (keep data up-to-date)",
+      "Storage limitation (delete when no longer needed)",
+      "Integrity and confidentiality",
+      "Accountability (demonstrate compliance)"
+    ],
+    "userRights": [
+      {
+        "name": "Right to Access",
+        "requirement": "Users can request copy of their data",
+        "implementation": "Provide data export within 30 days"
+      },
+      {
+        "name": "Right to Erasure (Right to be Forgotten)",
+        "requirement": "Users can request deletion of their data",
+        "implementation": "Delete user data within 30 days; exception for legal obligations"
+      },
+      {
+        "name": "Right to Rectification",
+        "requirement": "Users can correct inaccurate data",
+        "implementation": "Allow users to update their profile and document metadata"
+      },
+      {
+        "name": "Right to Data Portability",
+        "requirement": "Users can get their data in structured format",
+        "implementation": "Export function: JSON, CSV, PDF of all user data"
+      }
+    ],
+    "dpa": "Data Processing Agreement (DPA) required with users or their representatives"
+  },
+
+  "ccpa": {
+    "requirement": "If users are in California, must comply with CCPA for personal information",
+    "consumerRights": [
+      "Right to Know: What personal data is collected",
+      "Right to Delete: Request deletion of personal data",
+      "Right to Opt-Out: Opt-out of data sales",
+      "Right to Non-Discrimination: Cannot penalize for exercising rights"
+    ],
+    "implementation": {
+      "privacyNotice": "Provide clear privacy notice before collecting data",
+      "optOut": "Provide opt-out mechanism for data sales (if applicable)",
+      "requestProcess": "Handle consumer requests within 45 days"
+    }
+  },
+
+  "dataMinimization": {
+    "principle": "Collect and retain only data necessary for workflow execution",
+    "implementation": [
+      "Don't collect middle names unless required",
+      "Don't collect phone numbers unless necessary",
+      "Don't store extracted data longer than needed",
+      "Don't retain PDFs after processing (unless user explicitly requests)"
+    ]
+  },
+
+  "dataRetention": {
+    "default": "Delete user data after 90 days of account inactivity or explicit deletion request",
+    "workflows": {
+      "taxDocuments": "Retain for 7 years (IRS statute of limitations)",
+      "immgrationDocuments": "Retain per USCIS requirements (varies)",
+      "legalDocuments": "Retain per legal requirements (varies)",
+      "auditLogs": "Retain for 7 years for compliance"
+    },
+    "userControl": "Users can request immediate deletion of their data"
+  },
+
+  "consentManagement": {
+    "requirement": "Obtain explicit user consent for data processing",
+    "consentTypes": [
+      {
+        "type": "Privacy Policy Acceptance",
+        "requirement": "User must accept privacy policy before creating account"
+      },
+      {
+        "type": "Data Processing Consent",
+        "requirement": "User explicitly consents to processing of their documents"
+      },
+      {
+        "type": "Marketing Consent",
+        "requirement": "Separate opt-in for marketing emails (cannot be mandatory)"
+      }
+    ],
+    "storage": "Record date and method of consent; store consent logs for 7 years"
+  },
+
+  "thirdPartySharing": {
+    "principle": "Never share user data with third parties without explicit consent",
+    "exceptions": [
+      "Legal requirements (court order, law enforcement)",
+      "Service providers (e.g., Lob for mailing) under Data Processing Agreement",
+      "Explicitly user-initiated sharing (e.g., share link)"
+    ],
+    "lob": {
+      "requirement": "When mailing documents via Lob, some data shared with Lob API",
+      "data": "Recipient address, document content",
+      "dpa": "Must have DPA with Lob covering this sharing",
+      "userNotification": "Must notify user before sharing data with Lob"
+    }
+  },
+
+  "breachNotification": {
+    "requirement": "If user data breached, must notify users and regulators",
+    "timeline": {
+      "detection": "Detect breach immediately upon discovery",
+      "notification": "Notify affected users within 72 hours (GDPR) or 30 days (IRS Pub 1075)",
+      "regulators": "Notify relevant regulators (ICO for GDPR, IRS for 1075)"
+    },
+    "process": [
+      "Identify what data was exposed",
+      "Notify affected individuals",
+      "Document incident for audit",
+      "Implement remediation measures"
+    ]
+  },
+
+  "documentation": {
+    "requirement": "Maintain documentation of compliance efforts",
+    "documents": [
+      "Privacy Policy",
+      "Data Processing Agreement",
+      "Data Protection Impact Assessment (DPIA)",
+      "Consent records",
+      "Incident response logs",
+      "Audit reports"
+    ]
+  },
+
+  "testing": {
+    "requirements": [
+      {
+        "name": "user-deletion",
+        "test": "Verify user deletion removes all user data",
+        "method": "Delete user; query database; verify no traces remain"
+      },
+      {
+        "name": "consent-verification",
+        "test": "Verify cannot process data without consent",
+        "method": "Attempt to upload without accepting privacy policy; verify blocked"
+      },
+      {
+        "name": "data-export",
+        "test": "Verify data export includes all user data in portable format",
+        "method": "Export user data; verify completeness and readability"
+      }
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "dependencies": "Must be in place before launch; affects all workflows",
+    "certification": "Annual SOC 2 Type II audit; annual IRS Pub 1075 compliance review"
+  }
+}

@@ -1,0 +1,393 @@
+{
+  "metadata": {
+    "id": "cp11",
+    "name": "IRS CP11 Math Error Notice Response \u2014 Balance Due",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP11, which changed your return for a math or clerical error and left a balance owing. Covers the 60-day abatement request that preserves deficiency procedures and Tax Court access.",
+    "searchVolume": 2900,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp11-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "Confirmed as a math-error notice. The 60-day abatement window under IRC 6213(b)(2) is what preserves normal deficiency procedures."
+    }
+  },
+  "extraction": {
+    "description": "Extract the identifying details and every change made, from a CP11 notice.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "On a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format XXX-XX-XXXX. If the notice shows only the last four digits, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated on the notice, the full number must come from the taxpayer, never inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period this notice concerns. Look for 'Tax year' or 'Tax period'. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "One period per notice."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right of the notice. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "All statutory response periods run from this date, not from receipt."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract the date by which the taxpayer must respond or pay. If the notice states a 60-day period to request a change, capture that date. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-08-01",
+        "notes": "The 60-day abatement window is the one that matters, and it runs from the notice date."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed. Never guess this."
+      },
+      {
+        "name": "changesMade",
+        "prompt": "Extract every change the IRS made to the return, as a list. For each: the line or item affected, the figure as filed, and the figure as corrected. Format as objects with {lineNumber, description, taxpayerAmount, irsAmount, difference}.",
+        "required": true,
+        "dataType": "array",
+        "validation": "minLength:1",
+        "example": [
+          {
+            "lineNumber": "27",
+            "description": "Earned Income Credit",
+            "taxpayerAmount": 3200,
+            "irsAmount": 0,
+            "difference": -3200
+          }
+        ],
+        "notes": "Map these onto proposedAdjustments so the item-by-item response covers each."
+      },
+      {
+        "name": "proposedAdjustments",
+        "prompt": "Same content as changesMade, expressed as adjustment objects so each change can be answered individually.",
+        "required": true,
+        "dataType": "array",
+        "validation": "minLength:1",
+        "example": [
+          {
+            "lineNumber": "27",
+            "description": "Earned Income Credit disallowed",
+            "taxpayerAmount": 3200,
+            "irsAmount": 0,
+            "difference": -3200
+          }
+        ],
+        "notes": "Every change must be addressed; silence on one is agreement with it."
+      },
+      {
+        "name": "errorReason",
+        "prompt": "Extract the IRS's stated reason for each change \u2014 for example a dependent's SSN not matching records, a credit computed incorrectly, or a figure that does not match the attached schedule. Return an object keyed by line.",
+        "required": true,
+        "dataType": "object",
+        "validation": "notEmpty",
+        "example": {
+          "line27": "The Social Security Number for a qualifying child does not match our records."
+        },
+        "notes": "The stated reason determines what evidence rebuts it."
+      },
+      {
+        "name": "totalAmountDue",
+        "prompt": "Extract the balance now owed as a result of the changes.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3410.0,
+        "notes": "Includes any penalty and interest recomputed on the changed figures."
+      }
+    ],
+    "notes": "If the changes do not reconcile to the stated total, re-read the later pages \u2014 an item is often listed separately."
+  },
+  "validation": {
+    "description": "Validate that the CP11 response preserves the taxpayer's procedural rights and answers every change.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= 60 days from noticeDate",
+        "severity": "error",
+        "message": "Respond within 60 days. After that the math-error assessment stands and cannot be abated on request.",
+        "example_fail": "Notice dated June 2; response mailed August 20.",
+        "example_pass": "Notice dated June 2; response postmarked July 10."
+      },
+      {
+        "name": "mathErrorAbatementRequested",
+        "check": "if contesting: abatement requested in terms",
+        "severity": "error",
+        "message": "If you disagree, request abatement explicitly. Arguing the merits without requesting abatement does not preserve deficiency procedures.",
+        "example_fail": "A letter explaining the child qualifies, with no request to abate.",
+        "example_pass": "A letter requesting abatement under IRC 6213(b)(2) and enclosing the child's Social Security card."
+      },
+      {
+        "name": "allItemsAddressed",
+        "check": "every change has a stated position",
+        "severity": "error",
+        "message": "Address every change the IRS made. Silence on one is agreement with it.",
+        "example_fail": "Two changes made; the letter answers one.",
+        "example_pass": "Both changes answered, one disputed and one accepted."
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "if_contesting: evidence attached per disputed change",
+        "severity": "error",
+        "message": "Attach proof for each change you dispute \u2014 the document that shows the original figure was right.",
+        "example_fail": "Disputing a disallowed dependent with nothing enclosed.",
+        "example_pass": "Enclosing the child's Social Security card and birth certificate."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault",
+        "severity": "error",
+        "message": "Do not concede error. A math-error notice is the IRS's assertion, not a finding.",
+        "example_fail": "We apologise for the mistake on our return.",
+        "example_pass": "The Social Security Number shown on the enclosed card matches the return as filed."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "response addressed to the issuing center with SSN and tax year referenced",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: Tax Year 2024 \u2014 SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed, dated and signed letter to the issuing service center."
+      }
+    ],
+    "notes": "The costliest failure is a well-argued letter that never requests abatement."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in math-error procedure under IRC 6213(b). You understand that a math-error assessment bypasses the normal deficiency process, and that a timely abatement request is the only thing that restores it.",
+    "task": "Analyse the changes the IRS made. For each, state whether the taxpayer accepts or disputes it and why, grounded in the enclosed evidence. Where any change is disputed, the letter must request abatement of the math-error assessment explicitly so that deficiency procedures \u2014 and Tax Court access \u2014 are preserved.",
+    "format": "Professional business letter addressed to the issuing IRS service center.",
+    "constraints": [
+      "Request abatement in terms whenever any change is disputed; do not rely on the merits argument alone",
+      "Address every change; silence on one is agreement with it",
+      "Do not admit error or apologise",
+      "Cite only documents the taxpayer actually has",
+      "State facts and enclose proof; do not argue what the law requires",
+      "Note that the 60-day window runs from the notice date, not from receipt"
+    ],
+    "examples": [
+      {
+        "input": {
+          "changes": [
+            {
+              "lineNumber": "27",
+              "irsPosition": "The SSN for a qualifying child does not match our records.",
+              "taxpayerClaim": "Earned Income Credit of $3,200 as filed"
+            }
+          ],
+          "evidence": [
+            "Social Security card for Maya Smith",
+            "Birth certificate for Maya Smith"
+          ]
+        },
+        "output": "We are requesting abatement of the math-error assessment for tax year 2024 under IRC 6213(b)(2).\n\nThe notice disallowed the Earned Income Credit on the basis that a qualifying child's Social Security Number does not match your records. Enclosed is the Social Security card for Maya Smith showing SSN 987-65-4321, which is the number reported on the return as filed, together with her birth certificate.\n\nWe request that the assessment be abated and that any further adjustment proceed through normal deficiency procedures."
+      }
+    ],
+    "notes": "Requesting abatement is procedural and costs nothing; omitting it forfeits a right that cannot be recovered."
+  },
+  "responseTemplate": {
+    "description": "Business letter responding to a CP11 math error notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP11 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP11 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP11 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP11 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Position on each change, and the abatement request]",
+        "guidance": "Answer each change, then request abatement explicitly if any is disputed. Generated from the taxpayer's stated positions.",
+        "example": "**ITEM 1: Line 27 \u2014 Earned Income Credit**\n\nYour Position: The Social Security Number for a qualifying child does not match our records.\n\nOur Response: The enclosed Social Security card for Maya Smith shows SSN 987-65-4321, which is the number reported on the return as filed.\n\nSupporting Documentation:\n- Social Security card for Maya Smith\n- Birth certificate for Maya Smith"
+      },
+      {
+        "name": "abatementRequest",
+        "required": false,
+        "template": "We request abatement of the math-error assessment for tax year [Tax Year] under IRC 6213(b)(2), and that any further adjustment proceed through normal deficiency procedures.",
+        "guidance": "Include whenever any change is disputed. This is the sentence that preserves Tax Court access.",
+        "example": "We request abatement of the math-error assessment for tax year 2024 under IRC 6213(b)(2), and that any further adjustment proceed through normal deficiency procedures."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly.",
+        "guidance": "Short close requesting confirmation.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 8379 Injured Spouse Allocation"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "CP11 is a math-error notice under IRC 6213(b). The assessment is summary, and the 60-day abatement request is what restores normal deficiency procedures.",
+    "authorities": [
+      "IRC 6213(b)(1) \u2014 Summary assessment of math or clerical errors without a notice of deficiency",
+      "IRC 6213(b)(2)(A) \u2014 Taxpayer may request abatement within 60 days of the notice",
+      "IRC 6213(b)(2)(B) \u2014 On a timely request the IRS must abate and may reassess only through deficiency procedures",
+      "IRC 6213(g)(2) \u2014 Definition of a mathematical or clerical error",
+      "IRC 6404 \u2014 Abatement authority"
+    ],
+    "precedents": [
+      "A math-error assessment is summary: no notice of deficiency issues and no Tax Court right attaches unless abatement is requested",
+      "On a timely abatement request the IRS must abate; the request does not require the taxpayer to prove the underlying position",
+      "After abatement the IRS may still pursue the adjustment, but only through deficiency procedures, which restore Tax Court access",
+      "The 60-day period runs from the notice date, not from receipt"
+    ],
+    "criticalRules": [
+      "If you disagree with anything, request abatement WITHIN 60 DAYS. This is the only step that restores normal deficiency procedures and the right to petition the Tax Court before paying.",
+      "Requesting abatement does not require proving your position \u2014 the IRS must abate on a timely request. Send the request even if evidence is still being gathered.",
+      "Explaining why the IRS is wrong, without requesting abatement, does NOT preserve the right. Many taxpayers lose it this way.",
+      "Address every change. Silence on one is agreement with it.",
+      "After 60 days the assessment stands and the only remaining route is to pay the tax and file a claim for refund."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "Math-error procedure is uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Deadlines may be postponed under IRC 7508A for federally declared disaster areas. Check current IRS relief for the taxpayer's county before treating the window as closed."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Cover the disputed change, the accepted change, and the closed window for CP11.",
+    "cases": [
+      {
+        "name": "cp11-disallowed-dependent",
+        "description": "EITC disallowed over a dependent SSN mismatch, with documentation available",
+        "inputDocument": "CP11 disallowing Earned Income Credit of $3,200 for tax year 2024, balance due $3,410.00",
+        "expectedExtraction": {
+          "totalAmountDue": 3410.0,
+          "taxYear": 2024
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter answering the change with the child's Social Security card enclosed, and requesting abatement under IRC 6213(b)(2).",
+        "successCriteria": [
+          "Abatement requested in terms",
+          "The disputed change is answered with enclosed evidence",
+          "No admission of error",
+          "Response inside the 60-day window"
+        ]
+      },
+      {
+        "name": "cp11-partial-agreement",
+        "description": "Two changes, one correct and one not",
+        "inputDocument": "CP11 with a correctly disallowed credit and an incorrectly recomputed standard deduction",
+        "expectedExtraction": {
+          "proposedAdjustments": [
+            "two changes extracted"
+          ]
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter accepting one change, disputing the other with evidence, and requesting abatement as to the disputed item.",
+        "successCriteria": [
+          "Both changes addressed",
+          "Abatement requested because at least one item is disputed",
+          "Accepting one item does not read as conceding the other"
+        ]
+      },
+      {
+        "name": "cp11-window-expired",
+        "description": "Edge case: the notice is 75 days old",
+        "inputDocument": "CP11 dated 75 days before the response date",
+        "expectedExtraction": {
+          "noticeDate": "75 days prior"
+        },
+        "expectedValidation": "error \u2014 the 60-day abatement window has closed",
+        "expectedResponse": "Response explaining that the abatement route is closed and that the remaining option is to pay and file a claim for refund.",
+        "successCriteria": [
+          "The expired window is surfaced as an error before mailing",
+          "The alternative remedy is named",
+          "The letter does not imply abatement is still available"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "CP11 sits between the return as filed and the collection sequence.",
+    "upstream": [],
+    "downstream": [
+      "cp14 \u2014 the resulting balance is demanded by a CP14",
+      "cp501 \u2014 reminder if unpaid"
+    ],
+    "alternatives": [
+      "cp12 \u2014 the math-error notice where the change produces a refund instead of a balance"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "The distinctive value is the abatement request. Most recipients argue the merits and never ask for abatement, losing Tax Court access without realising it.",
+    "knownChallenges": [
+      "Recognising that arguing the merits is not the same as requesting abatement",
+      "Extracting every change when the notice presents them as a narrative rather than a table",
+      "Communicating that the 60-day window is worth using even before evidence is complete"
+    ]
+  }
+}

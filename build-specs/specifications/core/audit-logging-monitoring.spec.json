@@ -1,0 +1,266 @@
+{
+  "metadata": {
+    "id": "audit-logging-monitoring",
+    "name": "Audit Logging & Monitoring Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Comprehensive audit logging, monitoring, and alerting system for detecting unauthorized access, security incidents, and compliance violations.",
+    "complianceRequirements": ["IRS Pub 1075", "HIPAA", "GDPR", "SOC 2"]
+  },
+
+  "auditLogging": {
+    "principle": "Log everything: WHO did WHAT with WHAT data at WHEN from WHERE",
+    "events": [
+      {
+        "category": "Authentication",
+        "events": [
+          "User login (success/failure)",
+          "User logout",
+          "Session creation/expiration",
+          "MFA enabled/disabled",
+          "Password changed",
+          "API key created/rotated/revoked"
+        ]
+      },
+      {
+        "category": "DataAccess",
+        "events": [
+          "Document uploaded",
+          "Document downloaded",
+          "Document viewed",
+          "Data extracted from document",
+          "PDF generated",
+          "PDF signed",
+          "Document shared",
+          "Document deleted"
+        ]
+      },
+      {
+        "category": "Authorization",
+        "events": [
+          "User role changed",
+          "Permissions granted/revoked",
+          "Team member added/removed",
+          "Access denied (failed authorization)"
+        ]
+      },
+      {
+        "category": "Administration",
+        "events": [
+          "System configuration changed",
+          "Security settings modified",
+          "User account created/deleted",
+          "Encryption key rotated",
+          "System maintenance performed"
+        ]
+      },
+      {
+        "category": "Security",
+        "events": [
+          "Malware detected in upload",
+          "Multiple failed login attempts",
+          "Suspicious API access patterns",
+          "Encryption key access",
+          "Audit log access"
+        ]
+      }
+    ],
+    "logFormat": {
+      "required_fields": [
+        "timestamp (ISO 8601 UTC)",
+        "event_type (string)",
+        "user_id (who performed action)",
+        "resource_id (what document/object)",
+        "resource_type (document, user, etc.)",
+        "action (create, read, update, delete)",
+        "result (success/failure)",
+        "ip_address (source IP)",
+        "user_agent (source device/browser)",
+        "reason (if failed: why)",
+        "data_sensitivity (public/internal/confidential/sensitive-pii)"
+      ],
+      "example": {
+        "timestamp": "2024-06-15T14:23:45Z",
+        "event_type": "document_accessed",
+        "user_id": "usr_abc123",
+        "resource_id": "doc_xyz789",
+        "resource_type": "pdf_document",
+        "action": "download",
+        "result": "success",
+        "ip_address": "192.168.1.1",
+        "user_agent": "Mozilla/5.0...",
+        "data_sensitivity": "sensitive-pii"
+      }
+    },
+    "storage": {
+      "location": "Immutable audit log storage (AWS S3 with object lock, or equivalent)",
+      "encryption": "Encrypted at rest; access restricted to compliance team",
+      "retention": "7 years minimum (IRS requirement)",
+      "tamperDetection": "Cryptographic hash chain or append-only database to detect tampering"
+    }
+  },
+
+  "monitoring": {
+    "metrics": [
+      {
+        "name": "authentication_failures",
+        "threshold": "Alert if > 10 failed logins per user per hour",
+        "action": "Temporarily lock account; notify user"
+      },
+      {
+        "name": "api_abuse",
+        "threshold": "Alert if API key exceeds rate limit (e.g., 1000 requests/min)",
+        "action": "Throttle API key; notify user and admin"
+      },
+      {
+        "name": "unauthorized_access",
+        "threshold": "Alert on any 403 Forbidden errors (authorization failure)",
+        "action": "Log suspicious pattern; monitor for repeat attempts"
+      },
+      {
+        "name": "data_exfiltration",
+        "threshold": "Alert if single user downloads >100MB in 1 hour",
+        "action": "Temporarily restrict downloads; investigate"
+      },
+      {
+        "name": "malware_detected",
+        "threshold": "Alert on any malware detection in upload",
+        "action": "Quarantine file; notify user and admin"
+      },
+      {
+        "name": "encryption_key_access",
+        "threshold": "Alert on every encryption key access",
+        "action": "Log immediately; review in monthly audit"
+      },
+      {
+        "name": "system_errors",
+        "threshold": "Alert on error rate > 5% for any endpoint",
+        "action": "Page on-call engineer"
+      }
+    ]
+  },
+
+  "alerting": {
+    "channels": [
+      {
+        "channel": "Email",
+        "severity": "Critical incidents only",
+        "recipients": "Security team + on-call engineer"
+      },
+      {
+        "channel": "SMS",
+        "severity": "Highest priority (encryption key breach, data exfiltration)",
+        "recipients": "CISO + on-call engineer"
+      },
+      {
+        "channel": "Slack",
+        "severity": "All security events",
+        "recipients": "#security-alerts channel",
+        "automation": "Create Jira ticket automatically for investigation"
+      },
+      {
+        "channel": "PagerDuty",
+        "severity": "Critical + SEV1/SEV2",
+        "recipients": "On-call engineer via escalation policy"
+      }
+    ]
+  },
+
+  "auditReviews": {
+    "frequency": [
+      {
+        "period": "Daily",
+        "review": "Automated alerts; failed login patterns; API abuse"
+      },
+      {
+        "period": "Weekly",
+        "review": "Data access patterns; unusual geographic locations; role changes"
+      },
+      {
+        "period": "Monthly",
+        "review": "Comprehensive audit log analysis; user access review",
+        "responsibility": "Security team + compliance officer"
+      },
+      {
+        "period": "Quarterly",
+        "review": "Regression testing: verify logging is working correctly",
+        "responsibility": "Security engineer + QA"
+      },
+      {
+        "period": "Annually",
+        "review": "External audit (SOC 2, IRS Pub 1075, etc.)",
+        "responsibility": "External auditors"
+      }
+    ]
+  },
+
+  "analyticsAndReporting": {
+    "dashboards": [
+      {
+        "name": "Security Dashboard",
+        "metrics": [
+          "Failed login attempts (hourly)",
+          "API error rate (real-time)",
+          "Data access by user/document",
+          "Malware detections (count + trend)",
+          "Geographic access anomalies"
+        ],
+        "audience": "Security team, CISO"
+      },
+      {
+        "name": "Compliance Dashboard",
+        "metrics": [
+          "Audit log integrity (no gaps/tampering)",
+          "User access reviews completed (%)",
+          "Sensitive data access logs (count)",
+          "Incident response time (average)",
+          "Security training completion (%)"
+        ],
+        "audience": "Compliance officer, legal"
+      }
+    ],
+    "reports": [
+      {
+        "name": "Monthly Security Report",
+        "contents": "Incidents, metrics, trends, remediation actions",
+        "frequency": "Monthly",
+        "recipients": "Executive leadership, board"
+      },
+      {
+        "name": "Annual Compliance Report",
+        "contents": "IRS Pub 1075 compliance status, audit findings, certification",
+        "frequency": "Annually",
+        "recipients": "IRS, external auditors, leadership"
+      }
+    ]
+  },
+
+  "testing": {
+    "requirements": [
+      {
+        "name": "logging-completeness",
+        "test": "Verify all security-relevant events are logged",
+        "method": "Perform action (login, download, etc.); verify log entry created"
+      },
+      {
+        "name": "log-integrity",
+        "test": "Verify logs cannot be tampered with",
+        "method": "Attempt to modify audit log entry; verify rejected"
+      },
+      {
+        "name": "alert-accuracy",
+        "test": "Verify alerts fire when thresholds exceeded",
+        "method": "Trigger condition (>10 failed logins); verify alert sent"
+      }
+    ]
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "tools": [
+      "ELK Stack (Elasticsearch, Logstash, Kibana) for log aggregation",
+      "Datadog or New Relic for monitoring and alerting",
+      "Splunk for compliance-focused audit logging"
+    ]
+  }
+}

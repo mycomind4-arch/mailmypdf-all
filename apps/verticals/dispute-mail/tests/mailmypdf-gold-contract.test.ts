@@ -28,8 +28,8 @@ describe("Dispute Mail Gold fulfillment contract", () => {
   });
 
   it("requires authentication and verified payment before physical mailing", async () => {
-    const checkout = await read("server/api/checkout.ts");
-    const fulfillment = await read("server/api/mail/response.ts");
+    const checkout = await read("src/routes/api/checkout.ts");
+    const fulfillment = await read("src/routes/api/mail/response.ts");
     const paymentFulfillment = await readPaymentFulfillment();
     expect(checkout).toContain("requireAuthenticatedUser");
     expect(checkout).toContain("mailing_intents");

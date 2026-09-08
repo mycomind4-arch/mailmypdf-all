@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "id": "cp3219a",
+    "name": "IRS CP3219A Statutory Notice of Deficiency Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP3219A Statutory Notice of Deficiency \u2014 the 90-day letter. Opens the window to petition the U.S. Tax Court before paying the deficiency.",
+    "searchVolume": 3200,
+    "searchVolumeSource": "Google Ads - 'CP90 notice' + 'deficiency' + 'appeal'",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    }
+  },
+  "extraction": {
+    "description": "Extract data from CP90 Notice of Deficiency. This is a formal notice triggering appeal rights. Must extract all proposed adjustments, deficiency amount, and critical deadline for appeal petition.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract taxpayer name from notice header.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Robert James Wilson",
+        "notes": "Must match SSN records exactly"
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract SSN in XXX-XX-XXXX format.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "345-67-8901",
+        "notes": "Critical for identifying correct taxpayer"
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract tax year(s) under deficiency.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2023,
+        "notes": "CP90 can cover multiple years"
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract notice date in YYYY-MM-DD format.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-08-15",
+        "notes": "Triggers 90-day petition deadline"
+      },
+      {
+        "name": "petitionDeadline",
+        "prompt": "Extract or calculate 90-day petition deadline from notice date.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-11-13",
+        "notes": "CRITICAL: 90 days from notice date. After this, only payment/installment options remain."
+      },
+      {
+        "name": "proposedAdjustments",
+        "prompt": "Extract all proposed adjustments with line numbers, amounts, and IRS reasoning.",
+        "required": true,
+        "dataType": "array",
+        "validation": "minLength:1",
+        "example": [
+          {
+            "lineNumber": "1",
+            "description": "Wages",
+            "taxpayerAmount": 100000,
+            "irsAmount": 110000,
+            "difference": 10000
+          }
+        ],
+        "notes": "Every line item must be addressed in response"
+      },
+      {
+        "name": "totalDeficiency",
+        "prompt": "Extract the total proposed deficiency (sum of all adjustments).",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 25000,
+        "notes": "Total additional tax proposed"
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract IRS Service Center that issued notice.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Memphis Service Center",
+        "notes": "Needed for mailing response"
+      },
+      {
+        "name": "appealRights",
+        "prompt": "Extract statement of taxpayer appeal rights. Look for language about Tax Court petition.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "You have the right to petition the Tax Court within 90 days of this notice",
+        "notes": "This is the critical legal notification triggering petition rights"
+      }
+    ],
+    "notes": "CP90 is the most formal IRS notice and triggers critical appeal rights. The 90-day Tax Court petition deadline is absolute and cannot be extended. Extraction must be extremely careful and accurate."
+  },
+  "validation": {
+    "description": "Validate response strategy: protest deficiency, petition Tax Court, or negotiate settlement.",
+    "rules": [
+      {
+        "name": "petitionDeadlineCompliance",
+        "check": "if_petition_strategy: petition_filed_date <= 90_days_from_notice",
+        "severity": "error",
+        "message": "If petitioning Tax Court, petition must be filed within 90 days of notice date. This is a strict, non-extendable deadline.",
+        "example_fail": "Notice dated August 15, 2024; Tax Court petition filed November 20, 2024 (outside 90-day window)",
+        "example_pass": "Notice dated August 15, 2024; Tax Court petition filed November 10, 2024 (within 90-day window)"
+      },
+      {
+        "name": "strategyChosen",
+        "check": "response indicates one of: (1) Tax Court petition, (2) Appeals Division protest, (3) payment/installment arrangement",
+        "severity": "error",
+        "message": "Response must indicate chosen strategy: dispute (via Tax Court or Appeals Division) or accept (with payment arrangement).",
+        "example_fail": "Response does not indicate taxpayer's chosen course of action",
+        "example_pass": "Response states: 'We intend to petition the Tax Court within 30 days' OR 'We respectfully request reconsideration by Appeals Division'"
+      },
+      {
+        "name": "allAdjustmentsAddressed",
+        "check": "every_adjustment in proposedAdjustments has response",
+        "severity": "error",
+        "message": "Must address every proposed adjustment. Silence constitutes agreement.",
+        "example_fail": "Notice lists 4 adjustments; response only addresses 2",
+        "example_pass": "Response addresses all 4 adjustments with explanations"
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "if_contesting: evidence_attached for_each_disputed_item",
+        "severity": "warning",
+        "message": "If contesting adjustments, provide supporting documentation (W-2s, receipts, etc.)",
+        "example_fail": "Disputes wage amount but provides no W-2",
+        "example_pass": "Disputes wage amount and includes copy of Form W-2"
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_error_or_fault",
+        "severity": "error",
+        "message": "Do not admit error. Only state facts and provide evidence.",
+        "example_fail": "We admit we made a mistake...",
+        "example_pass": "Our records show..."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_formal_letter",
+        "severity": "warning",
+        "message": "CP90 response must be formal business letter or formal Tax Court petition.",
+        "example_fail": "Informal email or casual note",
+        "example_pass": "Formal letter with proper date, signature, and tax court letterhead if applicable"
+      }
+    ],
+    "notes": "CP90 is critical. Response can either protest to Appeals Division or petition Tax Court. Wrong strategy or missed deadline can be irreversible."
+  },
+  "aiPrompt": {
+    "system": "You are an expert tax attorney specializing in IRS examination procedures, appeals, and Tax Court petitions. You understand deficiency notices, appeal rights, and the critical 90-day petition deadline. Your role is to help taxpayers respond strategically to CP90 notices.",
+    "task": "Analyze the CP90 notice and determine the best response strategy: (1) Petition the Tax Court (strongest if deficiency is substantial), (2) Request Appeals Division review, or (3) Accept with installment agreement. Generate response consistent with chosen strategy.",
+    "format": "Formal business letter (protest strategy) or formal Tax Court petition (if litigation strategy chosen)",
+    "constraints": [
+      "Never miss the 90-day petition deadline if choosing Tax Court strategy",
+      "Do not admit error or liability",
+      "Address every proposed adjustment",
+      "Maintain professional, formal tone",
+      "Reference specific IRC sections and regulations only if applicable",
+      "Be clear about chosen strategy from first paragraph"
+    ],
+    "examples": [
+      {
+        "input": {
+          "deficiency": 25000,
+          "adjustments": [
+            {
+              "line": "1",
+              "irsAmount": 110000,
+              "taxpayerAmount": 100000
+            }
+          ],
+          "strategy": "tax-court-petition"
+        },
+        "output": "Formal Tax Court petition initiating litigation of deficiency with clear statement of disputed facts and legal arguments regarding wage income determination."
+      }
+    ],
+    "notes": "CP90 responses require careful strategic thinking. A wrong choice or missed deadline can be very costly. Consider hiring tax attorney."
+  },
+  "responseTemplate": {
+    "description": "Formal response to CP90 Notice of Deficiency, either protesting to Appeals or petitioning Tax Court",
+    "format": "Formal business letter or Tax Court petition",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "If protest: [IRS Appeals Division Address]\nRE: Appeal of CP90 Notice of Deficiency\nTax Year [Year]\nSSN: [XXX-XX-XXXX]\n\nIf Tax Court: U.S. Tax Court\n400 2nd Street, NW\nWashington, DC 20217\n\nPETITION\nRE: Petition of [Taxpayer Name] v. Commissioner of Internal Revenue",
+        "guidance": "Choose format based on strategy. Appeals = letter to service center. Tax Court = formal petition. Drafting notes (generated, not substituted): If Tax Court; If protest.",
+        "example": "U.S. Tax Court\n400 2nd Street, NW\nWashington, DC 20217\n\nPETITION\nRE: Petition of Robert James Wilson v. Commissioner of Internal Revenue"
+      },
+      {
+        "name": "statement_of_strategy",
+        "required": true,
+        "template": "For protest: 'We respectfully request that this matter be reviewed by the Appeals Division and that the proposed deficiency be withdrawn or reduced based on the following arguments.'\n\nFor Tax Court: 'The Petitioner hereby petitions this Court to review and reverse the Notice of Deficiency issued on [date] for tax year [year].'",
+        "guidance": "Clear statement of taxpayer's chosen strategy from opening. Drafting notes (generated, not substituted): For Tax Court; For protest.",
+        "example": "The Petitioner hereby petitions this Court to review and reverse the Notice of Deficiency issued on August 15, 2024 for tax year 2023."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "For each proposed adjustment:\n1. Restate IRS position\n2. Explain taxpayer's position\n3. Cite supporting evidence\n4. Argue legal/factual basis for disagreement",
+        "guidance": "Methodical response to every adjustment. Must include factual and legal arguments.",
+        "example": "ITEM 1: Wage Income for Tax Year 2023\n\nIRS Position: Form W-2 from Employer ABC shows wages of $110,000.\n\nTaxpayer Position: We reported $100,000 in wages, which reflects only compensation earned in 2023. The additional $10,000 represents a bonus paid in January 2024 and properly reportable in the 2024 tax year.\n\nSupporting Evidence: Attached - Employer letter confirming bonus payment date; Copy of 2024 return showing bonus income.\n\nLegal Basis: IRC Section 61 requires income to be reported in the year earned or received (cash method). The bonus was earned and received in 2024."
+      },
+      {
+        "name": "prayer_for_relief",
+        "required": true,
+        "template": "For protest: 'We respectfully request that the proposed deficiency be withdrawn or reduced based on the arguments and evidence presented above.'\n\nFor Tax Court: 'WHEREFORE, Petitioner respectfully requests that this Court determine that Petitioner is not liable for the deficiency set forth in the Notice of Deficiency issued on [date].'",
+        "guidance": "Formal closing requesting relief. Drafting notes (generated, not substituted): For Tax Court; For protest.",
+        "example": "WHEREFORE, Petitioner respectfully requests that this Court determine that Petitioner is not liable for the deficiency set forth in the Notice of Deficiency issued on August 15, 2024."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Respectfully submitted,\n\n[Signature]\n[Typed Name]\n[SSN]\n[Address]\n\n[Date]\n\nEnclosures: [List of attached evidence]",
+        "guidance": "Formal legal-style signature block with all identifying information and date",
+        "example": "Respectfully submitted,\n\nRobert James Wilson\nRobert James Wilson\nSSN: 345-67-8901\n123 Oak Avenue\nMemphis, TN 38103\n\nOctober 15, 2024\n\nEnclosures:\n- Letter from Employer ABC\n- 2024 Tax Return (page 1)\n- Bank statement showing bonus deposit"
+      }
+    ],
+    "pageCount": {
+      "minimum": 2,
+      "typical": 3,
+      "maximum": 8
+    }
+  },
+  "legalFramework": {
+    "description": "CP90 governed by IRC 6211 (notice of deficiency), IRC 6213 (restrictions on assessments and collections), and IRC 7422 (prohibited actions during deficiency period).",
+    "authorities": [
+      "Internal Revenue Code Section 6211 - Notice of deficiency",
+      "Internal Revenue Code Section 6213 - Restrictions on assessments and collections during deficiency period",
+      "Internal Revenue Code Section 6214 - Determinations by Tax Court",
+      "Internal Revenue Code Section 7422 - Prohibition of suit prior to payment",
+      "Rules of the U.S. Tax Court (if pursuing Tax Court petition)"
+    ],
+    "precedents": [
+      "Taxpayer has 90 days from CP90 notice date to petition Tax Court",
+      "90-day deadline is absolute and non-extendable",
+      "Tax Court petition suspends IRS collection activities",
+      "After 90-day period expires, only refund litigation option remains",
+      "Appeals Division review available as alternative to Tax Court",
+      "Burden of proof initially on IRS for most adjustments"
+    ],
+    "criticalRules": [
+      "The 90-day petition period is JURISDICTIONAL. The Tax Court cannot hear a late petition for any reason \u2014 not illness, not IRS delay, not an agreement between the parties.",
+      "Corresponding with the IRS during the 90 days does NOT extend it. Many taxpayers lose the window believing a phone call or letter paused the clock.",
+      "The date printed on the notice governs. IRC 6213(a) allows 150 days where the notice is addressed outside the United States.",
+      "Filing a petition suspends assessment and collection until the case is decided.",
+      "If the window is missed, the remaining route is to pay the deficiency and file a claim for refund, then sue in District Court or the Court of Federal Claims."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "CP90 procedures are purely federal and governed by IRC. No state tax variations."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Test CP90 response for both Appeals Division and Tax Court strategies",
+    "cases": [
+      {
+        "name": "cp90-appeals-strategy",
+        "description": "CP90 with moderate deficiency, response via Appeals Division",
+        "inputDocument": "CP90 notice with $15,000 deficiency from wage adjustment",
+        "expectedExtraction": {
+          "totalDeficiency": 15000,
+          "petitionDeadline": "90 days from notice date",
+          "proposedAdjustments": [
+            "wage adjustment identified"
+          ]
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter to Appeals Division explaining why wage adjustment is incorrect with supporting evidence",
+        "successCriteria": [
+          "Clearly states Appeals Division protest strategy",
+          "Addresses wage adjustment with evidence",
+          "No admission of error",
+          "Professional business letter format",
+          "Filed within 90-day window"
+        ]
+      },
+      {
+        "name": "cp90-tax-court-strategy",
+        "description": "CP90 with substantial deficiency, response via Tax Court petition",
+        "inputDocument": "CP90 notice with $50,000+ deficiency",
+        "expectedExtraction": {
+          "totalDeficiency": 50000,
+          "petitionDeadline": "within 90 days"
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Formal Tax Court petition within 90-day deadline with complete factual and legal arguments",
+        "successCriteria": [
+          "Tax Court petition filed to correct court",
+          "Meets Tax Court procedural requirements",
+          "Filed well before 90-day deadline",
+          "Clear identification of disputed adjustments",
+          "Legal arguments with supporting evidence"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Workflows related to CP90 deficiency response",
+    "upstream": [
+      "CP2000 - Notice of Adjustment",
+      "IRS Examination Notice"
+    ],
+    "downstream": [
+      "Tax Court Litigation",
+      "Appeals Division Review",
+      "Refund Litigation (if missed deadline)"
+    ],
+    "alternatives": []
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "CP90 is the most formal and critical IRS notice. It triggers federal court jurisdiction and the 90-day petition deadline is absolute. This workflow is high-complexity and should be handled with extreme care.",
+    "knownChallenges": [
+      "The 90-day deadline is non-extendable and triggers strict procedural requirements",
+      "Distinguishing between Appeals Division and Tax Court strategies",
+      "Following Tax Court procedural and substantive requirements",
+      "Handling complex factual disputes that may require expert testimony"
+    ]
+  }
+}

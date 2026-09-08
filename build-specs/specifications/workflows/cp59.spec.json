@@ -1,0 +1,363 @@
+{
+  "metadata": {
+    "id": "cp59",
+    "name": "IRS CP59 Unfiled Tax Return Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP59, which states no return is on record for a year. Covers filing the delinquent return, establishing that no return was required, and Form 15103.",
+    "searchVolume": 2200,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp59-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "Confirmed: CP59 states no record of a filed return and directs the taxpayer to Form 15103, Form 1040 Return Delinquency."
+    }
+  },
+  "extraction": {
+    "description": "Extract identifying details and the notice-specific figures from a CP59.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "On a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format XXX-XX-XXXX. If only the last four digits are shown, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated, the full number must come from the taxpayer, never inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period this notice concerns. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "One period per notice."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "Statutory periods run from this date, not from receipt."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract any date by which the taxpayer must respond. CP59 commonly asks for a response within a stated number of days; if none is given use 30 days from the notice date. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-07-02",
+        "notes": "The IRS asks for a response within roughly eight weeks before escalating; earlier is materially better."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed. Never guess this."
+      },
+      {
+        "name": "missingReturnYear",
+        "prompt": "Extract the tax year for which no return is on record. This may differ from any other year mentioned.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2022,
+        "notes": "The whole response concerns this year."
+      },
+      {
+        "name": "returnFormType",
+        "prompt": "Extract which return the IRS says is missing \u2014 usually Form 1040. Return the form number as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Form 1040",
+        "notes": "Determines which delinquency response form applies; Form 15103 accompanies Form 1040."
+      },
+      {
+        "name": "incomeReportedToIrs",
+        "prompt": "Extract any income figures the notice says third parties reported for that year, as a list of {source, amount} objects.",
+        "required": false,
+        "dataType": "array",
+        "example": [
+          {
+            "source": "Form W-2, Acme Corp",
+            "amount": 9400
+          }
+        ],
+        "notes": "These figures are what a Substitute for Return would be built from, and they show whether the filing threshold was met."
+      }
+    ],
+    "notes": "Where stated figures do not reconcile, re-read the later pages before proceeding."
+  },
+  "validation": {
+    "description": "Validate that the CP59 response preserves the taxpayer's rights and commits to a concrete path.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= responseDeadline",
+        "severity": "error",
+        "message": "Respond promptly. Once a Substitute for Return is prepared, unwinding it takes far longer than filing would have.",
+        "example_fail": "Responding six months later.",
+        "example_pass": "Responding within three weeks."
+      },
+      {
+        "name": "filingPositionStated",
+        "check": "return enclosed, or no-filing-requirement established",
+        "severity": "error",
+        "message": "State your position: either the return is enclosed, or no return was required for that year.",
+        "example_fail": "A letter asking what the notice is about.",
+        "example_pass": "Form 15103 enclosed stating gross income was below the filing threshold, with the figures."
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "evidence supports the stated position",
+        "severity": "error",
+        "message": "Support the position: the completed return, or the income figures showing you were below the filing threshold.",
+        "example_fail": "Asserting no filing was required with nothing enclosed.",
+        "example_pass": "Form 15103 with the year's total income stated and the SSA-1099 enclosed."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault",
+        "severity": "error",
+        "message": "File or explain without conceding wilfulness. Penalty exposure turns partly on that characterisation.",
+        "example_fail": "We knowingly failed to file for that year.",
+        "example_pass": "The enclosed return for 2022 is filed in response to this notice."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "addressed to issuing center with SSN and tax year",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: Tax Year 2024 \u2014 SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed, dated and signed letter."
+      }
+    ],
+    "notes": "The costliest failure is a letter that reads as a response but exercises no right."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in return delinquency procedure. You know that a Substitute for Return is computed without deductions, credits or favourable filing status, and that filing an actual return almost always produces a lower liability than accepting one.",
+    "task": "Determine whether a return was required for the year. If it was, prepare the response transmitting the completed return. If it was not, prepare Form 15103 establishing that gross income fell below the filing threshold for the taxpayer's status and age, with the figures stated. Where a refund may be due, note the three-year limit on claiming it.",
+    "format": "Professional business letter addressed to the issuing IRS service center.",
+    "constraints": [
+      "State one clear position: the return is enclosed, or no return was required",
+      "Where no return was required, give the actual income figures rather than merely asserting the threshold was not met",
+      "Do not concede wilfulness or knowledge of the obligation",
+      "Note the three-year refund limit where a refund may be due for that year",
+      "Cite only documents the taxpayer actually has",
+      "Do not state what the law requires; state facts and enclose proof"
+    ],
+    "examples": [
+      {
+        "input": {
+          "missingReturnYear": 2022,
+          "returnFormType": "Form 1040",
+          "filingRequired": false,
+          "incomeReportedToIrs": [
+            {
+              "source": "Form SSA-1099",
+              "amount": 11200
+            }
+          ],
+          "evidence": [
+            "Form 15103",
+            "Form SSA-1099 for 2022"
+          ]
+        },
+        "output": "Your notice states that no Form 1040 is on record for tax year 2022.\n\nNo return was required for that year. My only income was Social Security of $11,200.00, shown on the enclosed Form SSA-1099. As a single filer over 65 with no other gross income, I was below the filing threshold for 2022 and had no filing obligation.\n\nForm 15103 is enclosed recording this. We request that the delinquency be closed and that no Substitute for Return be prepared."
+      }
+    ],
+    "notes": "Exercising the right explicitly costs nothing; omitting it forfeits something that cannot be recovered."
+  },
+  "responseTemplate": {
+    "description": "Business letter responding to a CP59 notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP59 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP59 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP59 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP59 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Filing position and its basis]",
+        "guidance": "Either transmit the completed return, or establish that no return was required with the actual figures. Generated from the taxpayer's stated position.",
+        "example": "No return was required for 2022. My only income was Social Security of $11,200.00, shown on the enclosed Form SSA-1099, which is below the filing threshold for a single filer over 65."
+      },
+      {
+        "name": "form15103",
+        "required": false,
+        "template": "Form 15103, Form 1040 Return Delinquency, is enclosed for tax year [Tax Year].",
+        "guidance": "Form 15103 is the response form CP59 asks for. Include it whether filing the return or establishing that none was required.",
+        "example": "Form 15103, Form 1040 Return Delinquency, is enclosed for tax year 2022."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly.",
+        "guidance": "Short close requesting confirmation and account update.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 12153 Request for a Collection Due Process Hearing"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "Respond to IRS CP59, which states no return is on record for a year. Covers filing the delinquent return, establishing that no return was required, and Form 15103.",
+    "authorities": [
+      "IRC 6011 \u2014 Requirement to file returns",
+      "IRC 6012(a)(1) \u2014 Gross income thresholds requiring an individual return",
+      "IRC 6020(b) \u2014 Authority to prepare a Substitute for Return",
+      "IRC 6511(a) \u2014 Three-year limit on claiming a refund",
+      "IRC 6651(a)(1) \u2014 Failure-to-file penalty",
+      "Form 15103 \u2014 Form 1040 Return Delinquency response"
+    ],
+    "precedents": [
+      "A Substitute for Return is computed without deductions, credits or favourable filing status and generally overstates the liability",
+      "Filing an actual return after a Substitute for Return has issued will normally reduce the assessed tax",
+      "A refund for the year is lost if the return is filed more than three years after the due date",
+      "Establishing that gross income fell below the filing threshold closes the delinquency without a return"
+    ],
+    "criticalRules": [
+      "File the return, or establish that none was required. Doing nothing invites a Substitute for Return computed without any of your deductions, credits, or filing status.",
+      "If a refund is due for that year, it is lost three years after the original due date. Check the date before assuming there is time.",
+      "Use Form 15103 \u2014 it is the response form CP59 asks for, and responding without it slows the case.",
+      "Where no return was required, give the actual income figures. Asserting the threshold was not met, without numbers, will not close the delinquency.",
+      "Filing late is not an admission of wilfulness, and the letter should not characterise it as one."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "Procedure is uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Deadlines may be postponed under IRC 7508A in federally declared disaster areas. Check current IRS relief for the taxpayer's county before treating a window as closed."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Cover the ordinary path and the edge cases for CP59.",
+    "cases": [
+      {
+        "name": "cp59-below-threshold",
+        "description": "Social Security only, below the filing threshold",
+        "inputDocument": "CP59 for tax year 2022 citing Form SSA-1099 income of $11,200.00",
+        "expectedExtraction": {
+          "missingReturnYear": 2022,
+          "returnFormType": "Form 1040"
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Form 15103 establishing that gross income was below the threshold, with the SSA-1099 enclosed.",
+        "successCriteria": [
+          "Form 15103 enclosed",
+          "Actual income figures stated, not just an assertion",
+          "No admission of wilfulness",
+          "Closure of the delinquency requested"
+        ]
+      },
+      {
+        "name": "cp59-return-due",
+        "description": "A return was required and is being filed with the response",
+        "inputDocument": "CP59 for tax year 2022 citing W-2 wages of $46,000.00",
+        "expectedExtraction": {
+          "missingReturnYear": 2022
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter transmitting the completed 2022 return with Form 15103.",
+        "successCriteria": [
+          "The completed return is enclosed and listed",
+          "Form 15103 accompanies it",
+          "No concession of wilfulness"
+        ]
+      },
+      {
+        "name": "cp59-refund-expiring",
+        "description": "Edge case: a refund is due but the three-year window is nearly closed",
+        "inputDocument": "CP59 for a year whose return due date was two years and ten months ago",
+        "expectedExtraction": {
+          "missingReturnYear": 2022
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Response urging immediate filing and noting the date on which the refund claim expires.",
+        "successCriteria": [
+          "The refund expiry date is surfaced explicitly",
+          "Urgency is tied to the refund rather than to penalties",
+          "The return is transmitted rather than merely promised"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "CP59 in the collection and compliance sequence.",
+    "upstream": [],
+    "downstream": [
+      "cp515 \u2014 further delinquency notice if unanswered",
+      "cp14 \u2014 the balance demanded once a Substitute for Return is assessed"
+    ],
+    "alternatives": [
+      "cp515 \u2014 the delinquent return notice sequence"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "Distinctive value is the refund clock. A taxpayer who was owed a refund and never filed loses it three years after the due date, and the notice does not say so.",
+    "knownChallenges": [
+      "Determining whether the filing threshold was met from partial income data",
+      "Surfacing the three-year refund expiry, which the notice omits",
+      "Avoiding language that characterises the failure to file as wilful"
+    ]
+  }
+}

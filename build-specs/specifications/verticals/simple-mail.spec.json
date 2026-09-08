@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "id": "simple-mail",
+    "name": "simple mail",
+    "description": "Vertical for simple-mail workflows",
+    "template": "simple-mail"
+  },
+  "overview": {
+    "purpose": "Enable users to execute simple-mail workflows effectively",
+    "targetUser": "All users needing simple-mail services",
+    "commonProblem": "Users need structured approach to simple-mail tasks",
+    "estimatedAnnualSearches": 100000
+  },
+  "workflows": {
+    "description": "Workflows in this vertical",
+    "total": 1,
+    "list": [{"id": "mail-any-pdf", "name": "mail any pdf", "searchVolume": 5000|write-letter}],
+    "commonPatterns": ["Extraction pattern", "Validation pattern", "Response pattern"]
+  },
+  "domainKnowledge": {
+    "description": "Required domain expertise",
+    "requirements": ["Domain-specific knowledge"],
+    "resources": ["Reference materials"]
+  },
+  "implementation": {
+    "priority": "medium",
+    "notes": "Vertical implementation guidance"
+  }
+}

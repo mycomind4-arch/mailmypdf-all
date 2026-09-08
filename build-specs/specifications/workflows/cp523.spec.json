@@ -1,0 +1,357 @@
+{
+  "metadata": {
+    "id": "cp523",
+    "name": "IRS CP523 Installment Agreement Default Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP523, notice that your installment agreement is about to terminate. Covers curing the default, reinstatement, proposing revised terms, and the Collection Due Process appeal.",
+    "searchVolume": 1600,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp523-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "Confirmed as the notice of intent to terminate an installment agreement. Termination carries CDP appeal rights."
+    }
+  },
+  "extraction": {
+    "description": "Extract identifying details and the notice-specific figures from a CP523.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "On a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format XXX-XX-XXXX. If only the last four digits are shown, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated, the full number must come from the taxpayer, never inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period this notice concerns. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "One period per notice."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "Statutory periods run from this date, not from receipt."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract the date by which the taxpayer must act to prevent termination \u2014 usually 30 days from the notice date. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-07-02",
+        "notes": "Acting inside this window is what keeps the agreement alive; after termination reinstatement requires a fee and IRS agreement."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed. Never guess this."
+      },
+      {
+        "name": "defaultReason",
+        "prompt": "Extract why the agreement is defaulting \u2014 a missed payment, a new balance for a later year, an unfiled return, or a changed financial situation. Quote the notice's stated reason.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "You did not make your monthly payment due May 15, 2025.",
+        "notes": "The cure depends entirely on the reason; a new-balance default cannot be fixed by paying the missed instalment."
+      },
+      {
+        "name": "monthlyPaymentAmount",
+        "prompt": "Extract the agreed monthly payment under the existing agreement.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 200.0,
+        "notes": "Needed to propose revised terms."
+      },
+      {
+        "name": "amountToReinstate",
+        "prompt": "Extract the amount that must be paid to bring the agreement current, if the notice states one.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 400.0,
+        "notes": "Often two missed instalments."
+      },
+      {
+        "name": "totalBalance",
+        "prompt": "Extract the total balance that becomes due if the agreement terminates.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 11450.0,
+        "notes": "The full remaining liability, which is accelerated on termination."
+      }
+    ],
+    "notes": "Where stated figures do not reconcile, re-read the later pages before proceeding."
+  },
+  "validation": {
+    "description": "Validate that the CP523 response preserves the taxpayer's rights and commits to a concrete path.",
+    "rules": [
+      {
+        "name": "cdpDeadlineCompliance",
+        "check": "response_date <= 30 days from noticeDate",
+        "severity": "error",
+        "message": "Act within 30 days. After termination the full balance is due and collection resumes.",
+        "example_fail": "Responding 45 days after the notice.",
+        "example_pass": "Responding within 20 days."
+      },
+      {
+        "name": "cdpRightsAsserted",
+        "check": "if appealing: CDP hearing requested explicitly",
+        "severity": "error",
+        "message": "If you are appealing the termination, request a Collection Due Process hearing in terms and file Form 12153.",
+        "example_fail": "A letter objecting to the termination without requesting a hearing.",
+        "example_pass": "A letter requesting a CDP hearing with Form 12153 enclosed."
+      },
+      {
+        "name": "paymentOptionProvided",
+        "check": "response proposes a concrete resolution",
+        "severity": "error",
+        "message": "Propose how the agreement will be brought current or restructured \u2014 a catch-up payment, revised monthly terms, or an alternative.",
+        "example_fail": "Asking for more time with no figure.",
+        "example_pass": "Enclosing the two missed instalments and proposing a reduced $150 monthly payment."
+      },
+      {
+        "name": "hardshipDocumented",
+        "check": "if hardship claimed: specific facts and evidence",
+        "severity": "warning",
+        "message": "If the default was caused by hardship, state the specific circumstance and enclose evidence.",
+        "example_fail": "Things have been difficult financially.",
+        "example_pass": "Hours were reduced from 40 to 24 per week in March 2025; enclosed are paystubs showing the change."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault",
+        "severity": "error",
+        "message": "Explain the circumstances without conceding fault.",
+        "example_fail": "We apologise for irresponsibly missing payments.",
+        "example_pass": "The May payment was missed following a reduction in work hours, documented in the enclosed paystubs."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "addressed to issuing center with SSN and tax year",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: Tax Year 2024 \u2014 SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed, dated and signed letter."
+      }
+    ],
+    "notes": "The costliest failure is a letter that reads as a response but exercises no right."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in installment agreements under IRC 6159 and Collection Due Process. You know that a default caused by a new year's balance cannot be cured by paying the missed instalment, and you diagnose the cause before proposing a fix.",
+    "task": "Identify why the agreement is defaulting and propose the cure that actually fits that cause. A missed payment is cured by paying it; a new balance requires the agreement to be restructured to include the new period; an unfiled return requires the return. Where the default followed a genuine change in circumstances, propose revised terms supported by evidence. Where the termination is being contested, request a Collection Due Process hearing.",
+    "format": "Professional business letter addressed to the issuing IRS service center.",
+    "constraints": [
+      "Diagnose the stated default reason before proposing anything",
+      "Do not propose paying missed instalments where the default is caused by a new balance \u2014 that will not cure it",
+      "Propose a specific monthly figure and start date for any revised terms",
+      "Request a CDP hearing explicitly if the termination is being appealed",
+      "Do not concede fault while explaining the circumstances",
+      "Cite only documents the taxpayer actually has"
+    ],
+    "examples": [
+      {
+        "input": {
+          "defaultReason": "You did not make your monthly payment due May 15, 2025.",
+          "monthlyPaymentAmount": 200.0,
+          "amountToReinstate": 400.0,
+          "totalBalance": 11450.0,
+          "evidence": [
+            "Paystubs March\u2013May 2025"
+          ]
+        },
+        "output": "Your notice states that the installment agreement for tax year 2022 is being terminated because the monthly payments due April 15 and May 15, 2025 were not made.\n\nEnclosed is payment of $400.00 bringing the agreement current. The missed payments followed a reduction in my work hours from 40 to 24 per week beginning in March 2025, documented in the enclosed paystubs.\n\nBecause that reduction is ongoing, we request that the agreement be modified to monthly payments of $150.00 beginning July 15, 2025, by direct debit. We ask that the agreement remain in effect while this request is considered."
+      }
+    ],
+    "notes": "Exercising the right explicitly costs nothing; omitting it forfeits something that cannot be recovered."
+  },
+  "responseTemplate": {
+    "description": "Business letter responding to a CP523 notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP523 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP523 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP523 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP523 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Diagnosis of the default and the proposed cure]",
+        "guidance": "State the default reason, the cure that fits it, and any revised terms with a specific figure and start date.",
+        "example": "Enclosed is payment of $400.00 bringing the agreement current. Because the reduction in hours is ongoing, we request modification to $150.00 monthly beginning July 15, 2025."
+      },
+      {
+        "name": "cdpRequest",
+        "required": false,
+        "template": "We request a Collection Due Process hearing under IRC 6330 for tax year [Tax Year]. Form 12153 is enclosed.",
+        "guidance": "Include whenever the CDP right is being exercised. The request must be explicit \u2014 describing the dispute is not a request.",
+        "example": "We request a Collection Due Process hearing under IRC 6330 for tax year 2024. Form 12153 is enclosed."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly.",
+        "guidance": "Short close requesting confirmation and account update.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 12153 Request for a Collection Due Process Hearing"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "Respond to IRS CP523, notice that your installment agreement is about to terminate. Covers curing the default, reinstatement, proposing revised terms, and the Collection Due Process appeal.",
+    "authorities": [
+      "IRC 6159(b)(4) \u2014 Termination of an installment agreement on default",
+      "IRC 6159(b)(5) \u2014 Notice required before termination",
+      "IRC 6330 \u2014 Collection Due Process hearing rights",
+      "Treas. Reg. 301.6159-1 \u2014 Installment agreement procedures",
+      "IRM 5.14.11 \u2014 Defaulted agreements and reinstatement"
+    ],
+    "precedents": [
+      "Termination is not automatic; the notice provides a window in which the default can be cured",
+      "A new liability for a later period defaults an existing agreement, and paying the missed instalment does not cure that",
+      "Reinstatement after termination requires a user fee and IRS agreement, which is not guaranteed",
+      "The termination carries CDP appeal rights, and a timely appeal suspends collection"
+    ],
+    "criticalRules": [
+      "Act within 30 days. After termination the entire remaining balance becomes due at once.",
+      "Diagnose the default reason first. If a new year's balance caused it, paying the missed instalment will NOT cure it \u2014 the agreement must be restructured to cover the new period.",
+      "If an unfiled return caused the default, file the return; no payment will fix it.",
+      "If you appeal, request a Collection Due Process hearing in terms and file Form 12153. Objecting is not appealing.",
+      "Propose a specific monthly figure and start date. A request for unspecified leniency will be refused."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "Procedure is uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Deadlines may be postponed under IRC 7508A in federally declared disaster areas. Check current IRS relief for the taxpayer's county before treating a window as closed."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Cover the ordinary path and the edge cases for CP523.",
+    "cases": [
+      {
+        "name": "cp523-missed-payment",
+        "description": "Two missed instalments after a documented reduction in hours",
+        "inputDocument": "CP523 for tax year 2022, $400.00 to reinstate, $11,450.00 total balance",
+        "expectedExtraction": {
+          "amountToReinstate": 400.0,
+          "totalBalance": 11450.0
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter enclosing the catch-up payment and proposing reduced monthly terms with paystub evidence.",
+        "successCriteria": [
+          "Cure matches the stated default reason",
+          "Specific revised figure and start date proposed",
+          "Hardship documented with evidence",
+          "No admission of fault"
+        ]
+      },
+      {
+        "name": "cp523-new-balance",
+        "description": "Edge case: default caused by a new year's liability, not a missed payment",
+        "inputDocument": "CP523 stating the agreement defaulted because a balance arose for a later tax year",
+        "expectedExtraction": {
+          "defaultReason": "a new balance for a later period"
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter proposing a restructured agreement covering both periods, rather than a catch-up payment.",
+        "successCriteria": [
+          "The response does not propose paying missed instalments, which would not cure this default",
+          "A combined agreement covering both periods is proposed",
+          "The distinction is explained to the taxpayer"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "CP523 in the collection and compliance sequence.",
+    "upstream": [
+      "cp14 \u2014 the original balance",
+      "form-433-a \u2014 financial statement supporting revised terms"
+    ],
+    "downstream": [
+      "cp504 \u2014 collection resumes after termination",
+      "cp90 \u2014 final levy notice if the balance goes unresolved"
+    ],
+    "alternatives": [
+      "form-656 \u2014 offer in compromise where the balance cannot be paid at any monthly rate"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "The characteristic failure is proposing the wrong cure. A default caused by a new year's balance is common and cannot be fixed by paying the missed instalment, but that is what most people send.",
+    "knownChallenges": [
+      "Diagnosing the default cause from the notice's phrasing",
+      "Distinguishing a curable missed payment from a structural default",
+      "Proposing terms the taxpayer can actually sustain"
+    ]
+  }
+}

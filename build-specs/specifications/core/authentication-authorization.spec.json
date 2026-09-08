@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "id": "authentication-authorization",
+    "name": "Authentication & Authorization Core Infrastructure",
+    "type": "core-infrastructure",
+    "priority": "critical",
+    "description": "Complete authentication and authorization system controlling user access, preventing unauthorized document access, and maintaining security perimeter.",
+    "securityClassification": "critical",
+    "complianceRequirements": ["OAuth 2.0", "OWASP", "IRS Pub 1075", "HIPAA", "GDPR"]
+  },
+
+  "purpose": {
+    "overview": "MailMyPDF processes sensitive personal documents. Authentication verifies users are who they claim to be. Authorization ensures users can only access their own documents and workflows.",
+    "principles": [
+      "Zero Trust: Never trust, always verify",
+      "Least Privilege: Users have minimum necessary permissions",
+      "Defense in Depth: Multiple layers of security"
+    ]
+  },
+
+  "authentication": {
+    "userAuthentication": {
+      "methods": [
+        {
+          "name": "email-password",
+          "description": "Traditional email + password login",
+          "implementation": "Password hashed with bcrypt (cost factor 12+), never stored in plaintext",
+          "requirements": [
+            "Minimum 12 characters password",
+            "Complexity: uppercase + lowercase + numbers + special chars",
+            "Rate limiting: max 5 failed attempts per 15 minutes",
+            "Account lockout: 30 minutes after 5 failed attempts"
+          ]
+        },
+        {
+          "name": "oauth2-google",
+          "description": "Login with Google account",
+          "implementation": "OAuth 2.0 Authorization Code Flow with PKCE",
+          "benefits": "No password management, MFA via Google"
+        },
+        {
+          "name": "oauth2-microsoft",
+          "description": "Login with Microsoft account",
+          "implementation": "OAuth 2.0 Authorization Code Flow with PKCE",
+          "benefits": "Enterprise integration, MFA support"
+        },
+        {
+          "name": "mfa-totp",
+          "description": "Multi-Factor Authentication: Time-based One-Time Password (TOTP)",
+          "implementation": "RFC 6238 TOTP with 30-second window and 6-digit codes",
+          "requirements": "Mandatory for users with sensitive documents; optional for others",
+          "backup": "10 single-use backup codes provided during MFA setup"
+        },
+        {
+          "name": "mfa-webauthn",
+          "description": "FIDO2/WebAuthn hardware security keys (U2F)",
+          "implementation": "Passwordless MFA with hardware keys",
+          "support": "YubiKeys, Google Titan, Windows Hello"
+        }
+      ]
+    },
+    "sessionManagement": {
+      "sessionToken": {
+        "algorithm": "JWT (JSON Web Token) with HS256 or RS256 signature",
+        "lifetime": 30,
+        "lifetimeUnit": "minutes",
+        "refreshToken": {
+          "lifetime": 7,
+          "lifetimeUnit": "days",
+          "rotationPolicy": "Rotate on each use (sliding window)"
+        }
+      },
+      "storage": {
+        "client": "Secure HTTPOnly cookie (cannot be accessed via JavaScript)",
+        "sameSite": "Strict (CSRF protection)"
+      },
+      "validation": "Verify signature and expiration on every request"
+    },
+    "passwordPolicy": {
+      "minimumLength": 12,
+      "complexity": "Must contain: uppercase, lowercase, number, special character",
+      "history": "Cannot reuse last 5 passwords",
+      "expiration": "Every 90 days; user notified 14 days before expiry",
+      "resetRequired": "After first login, after password reset",
+      "breachCheck": "Compare against HaveIBeenPwned database on change"
+    },
+    "accountRecovery": {
+      "method": "Email verification link (valid 24 hours)",
+      "rateLimit": "Max 5 recovery attempts per 24 hours",
+      "verification": "Security questions (optional second factor)"
+    }
+  },
+
+  "authorization": {
+    "rbac": {
+      "description": "Role-Based Access Control (RBAC): Users assigned roles; roles have permissions",
+      "roles": [
+        {
+          "name": "system_admin",
+          "permissions": [
+            "create_users",
+            "delete_users",
+            "manage_roles",
+            "access_all_documents",
+            "view_audit_logs",
+            "configure_system",
+            "manage_encryption_keys"
+          ],
+          "limitation": "Maximum 2 system admins; 2FA mandatory"
+        },
+        {
+          "name": "document_processor",
+          "permissions": [
+            "upload_documents",
+            "process_workflows",
+            "view_own_documents",
+            "export_results",
+            "manage_own_settings"
+          ],
+          "limitation": "Can only access documents they upload or are explicitly shared"
+        },
+        {
+          "name": "compliance_officer",
+          "permissions": [
+            "view_audit_logs",
+            "generate_compliance_reports",
+            "view_user_activity",
+            "export_audit_data"
+          ],
+          "limitation": "Read-only; cannot modify any data"
+        },
+        {
+          "name": "support_agent",
+          "permissions": [
+            "view_user_documents",
+            "assist_with_processing",
+            "view_limited_audit_logs"
+          ],
+          "limitation": "Cannot delete or permanently modify documents; session recorded"
+        },
+        {
+          "name": "guest",
+          "permissions": [
+            "upload_single_document",
+            "process_single_workflow",
+            "download_result"
+          ],
+          "limitation": "One-time use; documents auto-deleted after 24 hours"
+        }
+      ]
+    },
+    "dataOwnership": {
+      "principle": "Users own their documents; cannot access others' unless explicitly shared",
+      "enforcement": "Every document query filtered by owner_id AND user's access permissions",
+      "sharing": {
+        "method": "Explicit share via link with access control",
+        "controls": [
+          "Read-only or read-write access",
+          "Expiration date (link expires after)",
+          "Password protection on shared link",
+          "Audit logging of all views by shared users"
+        ]
+      }
+    },
+    "apiAuthorization": {
+      "method": "OAuth 2.0 scopes + API key restrictions",
+      "apiKey": {
+        "format": "Prefix (mailmypdf_) + random 32-char string",
+        "storage": "Only hash stored; user can view full key once on creation",
+        "permissions": [
+          "documents:read",
+          "documents:write",
+          "documents:delete",
+          "workflows:execute",
+          "workflows:read",
+          "files:upload",
+          "files:download"
+        ],
+        "restrictions": [
+          "IP whitelist (optional)",
+          "Rate limits (calls per minute)",
+          "Expiration date",
+          "Scope limitation (cannot grant more permissions than user has)"
+        ]
+      }
+    },
+    "teamSharing": {
+      "workspaces": "Teams can create shared workspaces for multi-user access",
+      "roles": [
+        "owner (full control, can remove members)",
+        "admin (manage workspace, invite members)",
+        "editor (upload, process, edit documents)",
+        "viewer (read-only access)"
+      ],
+      "auditTrail": "Log all team member actions"
+    }
+  },
+
+  "security-testing": {
+    "requirements": [
+      {
+        "name": "authentication-bypass",
+        "test": "Verify cannot access protected resources without valid credentials",
+        "method": "Attempt API calls without token; verify 401 Unauthorized returned"
+      },
+      {
+        "name": "authorization-bypass",
+        "test": "Verify User A cannot access User B's documents",
+        "method": "User A attempts to fetch User B's document ID; verify 403 Forbidden"
+      },
+      {
+        "name": "token-forgery",
+        "test": "Verify cannot forge or tamper with JWT tokens",
+        "method": "Attempt to modify JWT payload; verify signature validation fails"
+      },
+      {
+        "name": "session-hijacking",
+        "test": "Verify session tokens cannot be stolen/used by attackers",
+        "method": "HTTPOnly cookie prevents JavaScript theft; Secure flag requires HTTPS"
+      },
+      {
+        "name": "privilege-escalation",
+        "test": "Verify users cannot escalate their own privileges",
+        "method": "Attempt to add admin permission to own role; verify rejected"
+      }
+    ]
+  },
+
+  "incident-response": {
+    "accountCompromise": {
+      "detection": "Multiple failed login attempts; unusual geographic access; API key misuse detected",
+      "response": [
+        "Immediately invalidate all active sessions for affected user",
+        "Force password reset on next login",
+        "Notify user via email and SMS",
+        "Review audit logs for unauthorized actions",
+        "If sensitive documents were accessed, notify data subjects"
+      ]
+    },
+    "keyExposure": {
+      "response": [
+        "Immediately revoke exposed API key",
+        "Rotate all other API keys for affected user",
+        "Audit all calls made with exposed key",
+        "Alert user to change password"
+      ]
+    }
+  },
+
+  "compliance": {
+    "standards": [
+      "OAuth 2.0 Authorization Framework (RFC 6749)",
+      "OpenID Connect (OIDC) for identity",
+      "OWASP Authentication Cheat Sheet",
+      "IRS Publication 1075: Authentication safeguards",
+      "HIPAA: User authentication requirements",
+      "GDPR: Access control mechanisms"
+    ],
+    "logging": "All authentication/authorization events logged: login, logout, failed attempts, privilege changes"
+  },
+
+  "implementation": {
+    "priority": "critical",
+    "libraries": [
+      "Python: Flask-Login, authlib, python-jose",
+      "Node.js: passport.js, jsonwebtoken, express-session",
+      "Cloud: AWS IAM, Google Cloud IAM, Auth0"
+    ],
+    "deployment": "Must be implemented before any user access"
+  }
+}

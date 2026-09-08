@@ -1,0 +1,379 @@
+{
+  "metadata": {
+    "id": "cp49",
+    "name": "IRS CP49 Refund Applied to Taxes Owed Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP49, which applied your refund to a tax debt. Covers disputing the underlying liability and, where a joint refund paid a spouse's separate debt, injured spouse relief on Form 8379.",
+    "searchVolume": 1900,
+    "searchVolumeSource": "Google Ads Keyword Planner",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    },
+    "verified": {
+      "source": "https://www.irs.gov/individuals/understanding-your-cp49-notice",
+      "verifiedOn": "2026-09-03",
+      "note": "Confirmed as the notice that your overpayment was applied to another federal tax liability. Offsets to non-tax debts (child support, student loans) come from the Bureau of the Fiscal Service instead and carry a different notice."
+    }
+  },
+  "extraction": {
+    "description": "Extract identifying details and the notice-specific figures from a CP49.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header, exactly as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "On a joint return both names appear; capture the primary filer first."
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number or ITIN. Format XXX-XX-XXXX. If only the last four digits are shown, return what is shown.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "If truncated, the full number must come from the taxpayer, never inferred."
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax period this notice concerns. Return the 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2024,
+        "notes": "One period per notice."
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the notice date from the top right. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-06-02",
+        "notes": "Statutory periods run from this date, not from receipt."
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract any date by which the taxpayer must respond. If none is stated, use 30 days from the notice date. Format YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2025-07-02",
+        "notes": "CP49 often states no hard deadline; the practical limit is the Form 8379 window, which runs from the original return."
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract the IRS office or service center that issued the notice, from the return address block.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Determines where the response is mailed. Never guess this."
+      },
+      {
+        "name": "refundAmount",
+        "prompt": "Extract the original overpayment before it was applied.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3840.0,
+        "notes": "The starting figure the offset came out of."
+      },
+      {
+        "name": "amountApplied",
+        "prompt": "Extract how much of the refund was applied to the other liability.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3840.0,
+        "notes": "May be the whole refund or part of it."
+      },
+      {
+        "name": "remainingRefund",
+        "prompt": "Extract any balance still being refunded to the taxpayer.",
+        "required": false,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 0.0,
+        "notes": "Zero when the whole refund was consumed."
+      },
+      {
+        "name": "appliedToTaxYear",
+        "prompt": "Extract the tax year of the liability the refund was applied to. This is usually a DIFFERENT year from the return that generated the refund.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2021,
+        "notes": "Critical: the two years differ, and confusing them produces a letter about the wrong period."
+      },
+      {
+        "name": "appliedToLiability",
+        "prompt": "Extract a description of the debt the refund satisfied \u2014 the form and period, for example 'Form 1040, tax year 2021'.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Form 1040 tax year 2021 balance",
+        "notes": "Determines whose debt it is and therefore whether Form 8379 applies."
+      }
+    ],
+    "notes": "Where stated figures do not reconcile, re-read the later pages before proceeding."
+  },
+  "validation": {
+    "description": "Validate that the CP49 response preserves the taxpayer's rights and commits to a concrete path.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= responseDeadline",
+        "severity": "error",
+        "message": "Respond promptly. Recovering an offset becomes harder as the refund statute runs.",
+        "example_fail": "Responding two years later.",
+        "example_pass": "Responding within weeks of the notice."
+      },
+      {
+        "name": "injuredSpouseConsidered",
+        "check": "if joint filing and debt is spouse's: Form 8379 raised",
+        "severity": "warning",
+        "message": "A joint refund was applied to a debt belonging solely to your spouse. Form 8379 can recover your share.",
+        "example_fail": "Accepting the offset of a joint refund against a spouse's pre-marital tax debt.",
+        "example_pass": "Filing Form 8379 allocating income and withholding between spouses."
+      },
+      {
+        "name": "responsePathChosen",
+        "check": "response commits to a path",
+        "severity": "error",
+        "message": "Choose a path: accept the offset, dispute the underlying liability, or claim injured spouse relief.",
+        "example_fail": "A letter noting the offset with no request.",
+        "example_pass": "A letter enclosing Form 8379 and requesting the taxpayer's allocated share."
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "if_contesting: evidence attached",
+        "severity": "error",
+        "message": "Attach proof: the allocation of income and withholding for an injured spouse claim, or payment records if the liability was already satisfied.",
+        "example_fail": "Claiming the older year was paid, with nothing enclosed.",
+        "example_pass": "Enclosing Form 8379 with both spouses' W-2s."
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.admits_fault",
+        "severity": "error",
+        "message": "Do not concede the underlying liability while contesting the offset.",
+        "example_fail": "We accept that we owed the 2021 balance.",
+        "example_pass": "We are claiming our allocated share of the 2024 overpayment."
+      },
+      {
+        "name": "correctAddressing",
+        "check": "addressed to issuing center with SSN and tax year",
+        "severity": "error",
+        "message": "Address the response to the issuing service center and reference your SSN and tax year so it is matched to the account.",
+        "example_fail": "Sent to a general IRS address with no account reference.",
+        "example_pass": "RE: Tax Year 2024 \u2014 SSN 123-45-6789."
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format",
+        "severity": "warning",
+        "message": "Use a formal business letter with a proper address, date and signature.",
+        "example_fail": "A handwritten note on the notice stub.",
+        "example_pass": "A typed, dated and signed letter."
+      }
+    ],
+    "notes": "The costliest failure is a letter that reads as a response but exercises no right."
+  },
+  "aiPrompt": {
+    "system": "You are a tax correspondence specialist experienced in refund offsets under IRC 6402 and injured spouse allocation. You know that the year that generated the refund and the year that consumed it are different periods, and you keep them straight.",
+    "task": "Determine why the refund was applied and whether any of it is recoverable. Where a joint refund satisfied a liability belonging solely to one spouse, prepare an injured spouse claim allocating income, withholding and credits between the spouses. Where the underlying liability was already paid or is wrong, state that with the proof enclosed.",
+    "format": "Professional business letter addressed to the issuing IRS service center.",
+    "constraints": [
+      "Keep the refund year and the offset year distinct throughout the letter",
+      "Do not concede the underlying liability while contesting the offset",
+      "Raise Form 8379 only where the debt is genuinely the spouse's alone",
+      "An injured spouse claim requires an allocation, not merely an assertion",
+      "Cite only documents the taxpayer actually has",
+      "State facts and enclose proof; do not argue what the law requires"
+    ],
+    "examples": [
+      {
+        "input": {
+          "refundAmount": 3840.0,
+          "amountApplied": 3840.0,
+          "appliedToTaxYear": 2021,
+          "filedJointly": true,
+          "offsetDebtBelongsTo": "spouse",
+          "evidence": [
+            "Form 8379 Injured Spouse Allocation",
+            "Form W-2 for Jane Smith"
+          ]
+        },
+        "output": "Your notice states that our 2024 overpayment of $3,840.00 was applied to a Form 1040 balance for tax year 2021.\n\nThe 2021 liability is attributable solely to my spouse and predates our marriage. I am therefore claiming my share of the 2024 overpayment as an injured spouse. Enclosed is Form 8379 allocating income, withholding and credits between us, together with my Form W-2 for 2024 showing $3,610.00 of withholding attributable to my earnings.\n\nWe request that my allocated share of the overpayment be refunded. This request is not an acknowledgement that the 2021 liability is correct."
+      }
+    ],
+    "notes": "Exercising the right explicitly costs nothing; omitting it forfeits something that cannot be recovered."
+  },
+  "responseTemplate": {
+    "description": "Business letter responding to a CP49 notice.",
+    "format": "Business letter",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP49 Notice Response\nTax Year [Tax Year]\nSSN: [SSN]\nNotice Date: [Notice Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n\n[Date]",
+        "guidance": "Address to the issuing service center. The RE: block is how the IRS matches the letter to the account.",
+        "example": "Internal Revenue Service\nKansas City, MO 64999-0052\n\nRE: CP49 Notice Response\nTax Year 2024\nSSN: 123-45-6789\nNotice Date: June 2, 2025\n\nJohn Michael Smith\n412 Oak Street\nSpringfield, MO 65807\n\nJune 16, 2025"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing in response to your CP49 notice dated [Notice Date] regarding tax year [Tax Year].",
+        "guidance": "One sentence identifying the notice being answered.",
+        "example": "Dear Sir or Madam:\n\nWe are writing in response to your CP49 notice dated June 2, 2025 regarding tax year 2024."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "[Position on the offset and the relief sought]",
+        "guidance": "State whether the offset is accepted, the underlying liability is disputed, or injured spouse relief is claimed. Generated from the taxpayer's stated position.",
+        "example": "The 2021 liability is attributable solely to my spouse and predates our marriage. I am claiming my share of the 2024 overpayment as an injured spouse, and Form 8379 is enclosed."
+      },
+      {
+        "name": "injuredSpouseClaim",
+        "required": false,
+        "template": "We are claiming injured spouse relief on Form 8379 for tax year [Tax Year]. This claim is not an acknowledgement that the offset liability is correct.",
+        "guidance": "Include when a joint refund paid a spouse's separate debt. Must be accompanied by an actual allocation on Form 8379.",
+        "example": "We are claiming injured spouse relief on Form 8379 for tax year 2024. This claim is not an acknowledgement that the offset liability is correct."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "Please confirm receipt of this response and update the account accordingly.",
+        "guidance": "Short close requesting confirmation and account update.",
+        "example": "Please confirm receipt of this response and update the account accordingly."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Name]\nSSN: [SSN]\n\nEnclosures:\n[List of Attached Documents]",
+        "guidance": "Sign and list every enclosure so the IRS can confirm nothing is missing.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form 12153 Request for a Collection Due Process Hearing"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "Respond to IRS CP49, which applied your refund to a tax debt. Covers disputing the underlying liability and, where a joint refund paid a spouse's separate debt, injured spouse relief on Form 8379.",
+    "authorities": [
+      "IRC 6402(a) \u2014 Authority to credit an overpayment against any tax liability",
+      "IRC 6402(b) \u2014 Crediting an overpayment against estimated tax",
+      "IRC 6511(a) \u2014 Period for filing a claim for credit or refund",
+      "Treas. Reg. 1.6015(b)-1 \u2014 Relief from joint and several liability",
+      "Form 8379 Instructions \u2014 Injured Spouse Allocation"
+    ],
+    "precedents": [
+      "The refund year and the offset year are different periods and are contested separately",
+      "An injured spouse claim recovers the non-liable spouse's share; it does not disturb the underlying liability",
+      "Form 8379 may be filed with the return or afterwards, subject to the refund statute",
+      "Injured spouse relief is distinct from innocent spouse relief under IRC 6015, which addresses liability rather than allocation"
+    ],
+    "criticalRules": [
+      "Keep the two years straight. The refund came from one year; the debt belongs to another. A letter that conflates them will be misrouted.",
+      "If the debt belongs solely to your spouse and you filed jointly, file Form 8379. The notice does not mention it and the share is often most of the refund.",
+      "Injured spouse relief is NOT innocent spouse relief. Form 8379 allocates a refund; Form 8857 addresses liability. Filing the wrong one wastes the window.",
+      "Claiming your share is not conceding the other year's liability. Say so in the letter.",
+      "If the offset liability was already paid, enclose the payment proof rather than accepting the offset."
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "Procedure is uniform nationwide under the Internal Revenue Code."
+      },
+      {
+        "jurisdiction": "Disaster area",
+        "variation": "Deadlines may be postponed under IRC 7508A in federally declared disaster areas. Check current IRS relief for the taxpayer's county before treating a window as closed."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Cover the ordinary path and the edge cases for CP49.",
+    "cases": [
+      {
+        "name": "cp49-injured-spouse",
+        "description": "Joint refund offset against a spouse's pre-marital tax debt",
+        "inputDocument": "CP49 applying a $3,840.00 overpayment from 2024 to a 2021 Form 1040 balance",
+        "expectedExtraction": {
+          "refundAmount": 3840.0,
+          "appliedToTaxYear": 2021
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter claiming injured spouse relief with Form 8379 and the allocation enclosed.",
+        "successCriteria": [
+          "Refund year and offset year kept distinct",
+          "Form 8379 raised and enclosed",
+          "No concession of the 2021 liability",
+          "Allocation supported by W-2 evidence"
+        ]
+      },
+      {
+        "name": "cp49-already-paid",
+        "description": "The offset liability had already been satisfied",
+        "inputDocument": "CP49 applying a refund to a year the taxpayer paid by cheque months earlier",
+        "expectedExtraction": {
+          "appliedToTaxYear": 2021
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter enclosing the cancelled cheque and requesting the overpayment be refunded.",
+        "successCriteria": [
+          "Payment proof enclosed",
+          "No injured spouse claim generated, since the facts do not support one",
+          "Refund of the full overpayment requested"
+        ]
+      },
+      {
+        "name": "cp49-own-debt",
+        "description": "Edge case: the debt is the taxpayer's own, so no relief is available",
+        "inputDocument": "CP49 applying a refund to the taxpayer's own prior-year balance",
+        "expectedExtraction": {
+          "appliedToTaxYear": 2022
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Brief acknowledgement; no Form 8379 claim, since injured spouse relief does not apply to one's own debt.",
+        "successCriteria": [
+          "The injured spouse rule does not fire",
+          "No Form 8379 is suggested",
+          "The letter does not manufacture a dispute"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "CP49 in the collection and compliance sequence.",
+    "upstream": [
+      "cp14 \u2014 the balance that the offset satisfied was demanded by a CP14"
+    ],
+    "downstream": [],
+    "alternatives": [
+      "form-656 \u2014 where a remaining balance cannot be paid in full"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "The distinctive value is surfacing Form 8379. A joint refund offset against one spouse's separate debt is common and the notice never mentions that the other spouse can recover their share.",
+    "knownChallenges": [
+      "Keeping the refund year and the offset year distinct",
+      "Establishing whose liability the offset paid",
+      "Not confusing injured spouse (Form 8379) with innocent spouse (Form 8857)"
+    ]
+  }
+}

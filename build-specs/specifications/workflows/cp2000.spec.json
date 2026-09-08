@@ -1,0 +1,376 @@
+{
+  "metadata": {
+    "id": "cp2000",
+    "name": "IRS CP2000 Notice Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Respond to IRS CP2000 Correspondence Examination notice proposing adjustments to reported income or deductions.",
+    "searchVolume": 4500,
+    "searchVolumeSource": "Google Ads Keyword Planner - 'CP2000 response' + related terms",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": true,
+      "requiresHighAccuracy": true
+    }
+  },
+  "extraction": {
+    "description": "Extract structured data from IRS CP2000 notice. The notice typically includes taxpayer info, tax year, adjustments proposed, and response deadline. Must extract all proposed line items and amounts.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract the full taxpayer name from the notice header. Look in the 'Name' or 'Taxpayer Information' section at the top. Return the exact name as printed.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "John Michael Smith",
+        "notes": "Must match Social Security records; verify spelling carefully"
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract the Social Security Number from the taxpayer information section. Format as XXX-XX-XXXX. If displayed as XXX-XX-XXXX in the notice, preserve that format.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "123-45-6789",
+        "notes": "Critical for IRS matching; verify all 9 digits"
+      },
+      {
+        "name": "taxYear",
+        "prompt": "Extract the tax year under examination. Look for 'Tax Year' or 'Year of Return' in the notice header. Return as 4-digit year.",
+        "required": true,
+        "dataType": "number",
+        "validation": "year_format",
+        "example": 2023,
+        "notes": "CP2000 typically covers single tax year"
+      },
+      {
+        "name": "noticeDate",
+        "prompt": "Extract the date the notice was issued. Look for 'Notice Date' or 'Date' near the top of the letter. Format as YYYY-MM-DD.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-05-15",
+        "notes": "Used to calculate 30-day response deadline"
+      },
+      {
+        "name": "responseDeadline",
+        "prompt": "Extract the response deadline date if explicitly stated, OR calculate it as 30 days from notice date. Format as YYYY-MM-DD. Look for 'by' or 'due' language.",
+        "required": true,
+        "dataType": "date",
+        "validation": "date_format",
+        "example": "2024-06-14",
+        "notes": "30-day response period is statutory; verify if extended"
+      },
+      {
+        "name": "proposedAdjustments",
+        "prompt": "Extract ALL proposed adjustments as a list. For each adjustment: (1) Line number from return (e.g., 'Line 1 - Wages'), (2) Amount taxpayer reported, (3) Amount IRS proposes, (4) Difference. Format as array of objects with {lineNumber, description, taxpayerAmount, irsAmount, difference}.",
+        "required": true,
+        "dataType": "array",
+        "validation": "minLength:1",
+        "example": [
+          {
+            "lineNumber": "1",
+            "description": "Wages, salaries, tips",
+            "taxpayerAmount": 75000,
+            "irsAmount": 78000,
+            "difference": 3000
+          }
+        ],
+        "notes": "Critical section; extract ALL items even if multiple pages"
+      },
+      {
+        "name": "irsReasoning",
+        "prompt": "Extract IRS's stated reason for each adjustment. Look for explanatory text like 'We received information from...' or 'Our examination shows...'. Capture the core reason IRS gives for each line item adjustment.",
+        "required": true,
+        "dataType": "object",
+        "validation": "notEmpty",
+        "example": {
+          "line1": "We received Form W-2 from employer showing wages of $78,000"
+        },
+        "notes": "This is the 'IRS position' you must respond to"
+      },
+      {
+        "name": "totalProposedAdjustment",
+        "prompt": "Calculate or extract the total proposed adjustment amount (sum of all line item differences). Format as number.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3700,
+        "notes": "Total additional tax IRS is proposing"
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract which IRS Service Center issued this notice. Look for 'Service Center' or location identifier. Examples: 'Kansas City', 'Philadelphia', 'Memphis'.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Kansas City Service Center",
+        "notes": "Needed for response mailing address"
+      }
+    ],
+    "notes": "CP2000 notices are typically 2-3 pages. Extract all proposed adjustments even if multiple line items. Verify numbers match across sections of the notice."
+  },
+  "validation": {
+    "description": "Validate that the response adequately addresses the IRS position and provides supporting evidence for taxpayer's claimed amounts.",
+    "rules": [
+      {
+        "name": "deadlineCompliance",
+        "check": "response_date <= responseDeadline",
+        "severity": "error",
+        "message": "Response must be submitted by the deadline date shown in the notice. You have 30 days from the notice date.",
+        "example_fail": "Notice dated May 15, 2024; response submitted June 20, 2024 (6 days late)",
+        "example_pass": "Notice dated May 15, 2024; response submitted June 10, 2024 (4 days before deadline)"
+      },
+      {
+        "name": "allItemsAddressed",
+        "check": "every adjustment in proposedAdjustments has a counter-argument in response",
+        "severity": "error",
+        "message": "You must address EVERY line item that IRS proposed. If you agree with one adjustment, state it. If you disagree, explain why.",
+        "example_fail": "Notice proposes 3 adjustments; response only addresses 2 of them",
+        "example_pass": "Notice proposes 3 adjustments; response addresses all 3 with explanations"
+      },
+      {
+        "name": "supportingDocumentation",
+        "check": "evidence_count >= proposedAdjustments.length AND every_line_item_has_evidence",
+        "severity": "error",
+        "message": "Provide supporting documentation for each line item. Examples: W-2s for wage disputes, 1099s for interest, receipts for deductions.",
+        "example_fail": "Response disputes wage amount but provides no W-2 or employment records",
+        "example_pass": "Response disputes wage amount and includes copy of employer W-2 showing correct amount"
+      },
+      {
+        "name": "noTaxAdvice",
+        "check": "!response.contains_phrases(['we believe', 'in our opinion', 'the law states', 'you should']) AND !response.claims_legal_conclusions",
+        "severity": "warning",
+        "message": "Avoid providing tax advice or legal conclusions. State facts and provide evidence. Let IRS determine tax treatment.",
+        "example_fail": "Under IRC Section 162, this deduction is clearly allowable because...",
+        "example_pass": "Attached is documentation showing this expense was ordinary and necessary business expense"
+      },
+      {
+        "name": "noLiabilityAdmission",
+        "check": "!response.contains_phrases(['we apologize', 'we made an error', 'we were wrong', 'we admit'])",
+        "severity": "error",
+        "message": "Never admit guilt, liability, or wrongdoing. Respond only to IRS position with counter-evidence.",
+        "example_fail": "We admit we made a mistake on our return and should have reported the interest",
+        "example_pass": "The interest shown on our 1099-INT form was $1,000, which we reported correctly"
+      },
+      {
+        "name": "professionalFormat",
+        "check": "response_is_business_letter_format AND response_has_proper_address AND response_has_signature",
+        "severity": "warning",
+        "message": "Response should be formatted as professional business letter with IRS address, date, and signature.",
+        "example_fail": "Email or informal note to IRS",
+        "example_pass": "Formal letter addressed to Kansas City Service Center with proper date and signature"
+      },
+      {
+        "name": "correctAddressing",
+        "check": "response_addressed_to_correct_service_center AND response_includes_correct_notice_reference",
+        "severity": "error",
+        "message": "Address response to the correct IRS Service Center. Include your name, SSN, and tax year.",
+        "example_fail": "Response sent to wrong service center address",
+        "example_pass": "Response properly addressed to Kansas City Service Center with 'RE: CP2000 Notice - Tax Year 2023 - SSN 123-45-6789'"
+      }
+    ],
+    "notes": "CP2000 responses are critical. The response must defend taxpayer's original position or agree with specific IRS findings. Incomplete responses may result in automatic acceptance of IRS adjustments."
+  },
+  "aiPrompt": {
+    "system": "You are an expert tax correspondence specialist with deep knowledge of IRS examination procedures and CP2000 notice requirements. You understand tax law, documentation requirements, and persuasive business writing. Your role is to help taxpayers respond to IRS adjustments with factual, evidence-based arguments that defend their position without admitting liability or providing legal advice.",
+    "task": "Analyze the extracted CP2000 notice data and supporting documents. For EACH proposed adjustment: (1) Restate the IRS position clearly, (2) Provide the taxpayer's counter-argument grounded in the supporting evidence, (3) Reference specific evidence (W-2s, 1099s, receipts, etc.) that supports the taxpayer's claimed amounts, (4) Explain any discrepancies between what taxpayer reported and what IRS found. Generate a professional response letter that addresses all adjustments methodically and persuasively.",
+    "format": "Professional business letter or Form 886-A (Response to Office Examination Changes). Must be formatted as official correspondence suitable for IRS filing.",
+    "constraints": [
+      "Do not admit guilt, liability, error, or wrongdoing in any form",
+      "Do not provide tax or legal advice; only state facts and provide evidence",
+      "Address EVERY proposed adjustment; silence on an item may be interpreted as agreement",
+      "Cite only taxpayer-provided evidence; do not make assumptions",
+      "Maintain professional, respectful tone throughout",
+      "Reference specific tax year, SSN, and notice information",
+      "Do not make claims about what the law requires; let IRS interpret law"
+    ],
+    "examples": [
+      {
+        "input": {
+          "adjustments": [
+            {
+              "lineNumber": "1",
+              "irsPosition": "W-2 from employer shows wages of $78,000",
+              "taxpayerClaim": "$75,000"
+            }
+          ],
+          "evidence": ["Attached: Copy of 1099-NEC showing contract income of $75,000", "Attached: Email from employer explaining $3,000 was bonus paid in 2024 tax year"]
+        },
+        "output": "The IRS referenced a Form W-2 showing wages of $78,000. Our records indicate that $3,000 of this amount represents a bonus paid in January 2024 and properly reported on our 2024 tax return. Attached is documentation from the employer confirming this bonus allocation. Our reported 2023 wage income of $75,000 reflects only compensation earned in the 2023 tax year, which is consistent with IRS guidelines for income reporting."
+      }
+    ],
+    "notes": "CP2000 responses require careful analysis. The taxpayer's original return is presumed correct until IRS proves otherwise. Responses should focus on defending the original position unless evidence clearly supports agreement with IRS."
+  },
+  "responseTemplate": {
+    "description": "Professional business letter response to CP2000 notice, formatted for IRS filing.",
+    "format": "Business letter or Form 886-A (IRS Response to Office Examination Changes)",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "[IRS Service Center Address]\n\nRE: CP2000 Notice Response\n[Tax Year]\nSSN: [XXX-XX-XXXX]\nNotice Date: [Date]\n\n[Taxpayer Name]\n[Taxpayer Address]\n[Date]",
+        "guidance": "Address letter to the correct IRS Service Center (from extracted notice). Include tax year, SSN, and notice date for IRS to match to their records.",
+        "example": "Kansas City Service Center\n[Address]\n\nRE: CP2000 Notice Response\nTax Year 2023\nSSN: 123-45-6789\nNotice Date: May 15, 2024\n\nJohn Michael Smith\n123 Main Street\nSpringfield, MO 65807\nJune 10, 2024"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "Dear Sir or Madam:\n\nWe are writing to respond to your Correspondence Examination notice dated [Date] regarding our [Tax Year] tax return. We have carefully reviewed the proposed adjustments and provide the following response.",
+        "guidance": "Brief introduction acknowledging receipt of notice and indicating we are providing a response.",
+        "example": "Dear Sir or Madam:\n\nWe are writing to respond to your Correspondence Examination notice dated May 15, 2024 regarding our 2023 tax return. We have carefully reviewed the proposed adjustments and provide the following response."
+      },
+      {
+        "name": "itemByItemResponse",
+        "required": true,
+        "template": "**ITEM 1: [Line Number] - [Description]**\n\nYour Position: [IRS stated reason for adjustment]\nOur Response: [Taxpayer counter-argument grounded in evidence]\nSupporting Documentation: [Reference to attached evidence]\n\n**ITEM 2: [Line Number] - [Description]**\n[Repeat format for each adjustment]",
+        "guidance": "Address EVERY adjustment proposed in the CP2000 notice. For each: state what IRS proposes, explain taxpayer's position, reference supporting documents. Be methodical and thorough.",
+        "example": "**ITEM 1: Line 1 - Wages, Salaries, Tips**\n\nYour Position: The Form W-2 from ABC Corporation shows total wages of $78,000.\n\nOur Response: We reported wages of $75,000 on our 2023 return. The $3,000 difference represents a bonus awarded in December 2023 but paid in January 2024. This bonus is properly reportable in the 2024 tax year, not 2023. Attached is the employer's letter confirming the bonus payment date and our amended 2024 return showing this income.\n\nSupporting Documentation: Attached - Letter from ABC Corporation dated [date] confirming bonus payment date; Copy of 2024 tax return showing bonus income; Copy of deposited check showing January 2024 date."
+      },
+      {
+        "name": "conclusion",
+        "required": true,
+        "template": "We respectfully request that the proposed adjustments be withdrawn based on the evidence and explanations provided above. Our original return accurately reported income in accordance with [applicable period] reporting requirements.",
+        "guidance": "Close by requesting rejection of adjustments and briefly reaffirming accuracy of original return.",
+        "example": "We respectfully request that the proposed adjustments be withdrawn based on the evidence and explanations provided above. Our original 2023 return accurately reported income in accordance with applicable reporting requirements for the 2023 tax year."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Taxpayer Signature]\n[Typed Name]\n[SSN]\n\nEnclosures: [List of attached documents]",
+        "guidance": "Sign response. List all attached supporting documents for IRS reference.",
+        "example": "Sincerely,\n\nJohn Michael Smith\nJohn Michael Smith\nSSN: 123-45-6789\n\nEnclosures:\n- Form W-2 from ABC Corporation\n- Letter from ABC Corporation confirming bonus payment date\n- 2024 Tax Return (Schedule 1 showing bonus income)\n- Bank statement showing January 2024 deposit"
+      }
+    ],
+    "pageCount": {
+      "minimum": 1,
+      "typical": 2,
+      "maximum": 4
+    }
+  },
+  "legalFramework": {
+    "description": "CP2000 responses are governed by IRS examination procedures and statutory deadlines. Taxpayers have the right to respond within 30 days.",
+    "authorities": [
+      "Internal Revenue Code Section 6213(a) - 30-day response period to examination findings",
+      "Internal Revenue Code Section 6603 - Deposit of money in suspense of assessment",
+      "IRS Publication 556 - Examination of Returns, Appeal Rights, and Claims for Refund",
+      "Treasury Regulation Section 601.105 - Examination procedures",
+      "IRC Section 7605(b) - Inspection of books; Examination of witnesses"
+    ],
+    "precedents": [
+      "Taxpayer has 30 days from notice date to respond or adjustments are automatically accepted",
+      "Response does NOT constitute concession of any adjustment",
+      "Silence on a proposed adjustment may be construed as agreement with that adjustment",
+      "Burden of proof is initially on the IRS to substantiate any adjustments",
+      "Taxpayer's original return is presumed correct until IRS proves otherwise"
+    ],
+    "criticalRules": [
+      "NEVER miss the 30-day response deadline - failure to respond results in automatic acceptance of all IRS adjustments",
+      "MUST address every proposed adjustment - failure to address an item may result in acceptance of that adjustment",
+      "NEVER admit error or liability - response should defend taxpayer's position, not concede points",
+      "MUST provide supporting documentation - assertions without evidence carry no weight",
+      "MUST maintain professional tone - disrespectful or emotional responses undermine credibility"
+    ],
+    "jurisdictionVariations": [
+      {
+        "jurisdiction": "Federal",
+        "variation": "All CP2000 procedures are governed by federal IRC and Treasury Regulations. Response follows standard IRS procedures regardless of state."
+      },
+      {
+        "jurisdiction": "State",
+        "variation": "State tax authorities may have their own examination procedures and deadlines that are independent of federal CP2000 response. State response may be needed separately."
+      }
+    ]
+  },
+  "testCases": {
+    "description": "Test that CP2000 response correctly extracts notice data and generates appropriate response letter.",
+    "cases": [
+      {
+        "name": "cp2000-standard",
+        "description": "Standard CP2000 with two wage/income adjustments and supporting evidence",
+        "inputDocument": "Sample CP2000 notice with adjustments on Line 1 (wages) and Line 7 (interest income)",
+        "expectedExtraction": {
+          "taxpayerName": "John Michael Smith",
+          "ssn": "123-45-6789",
+          "taxYear": 2023,
+          "noticeDate": "2024-05-15",
+          "responseDeadline": "2024-06-14",
+          "proposedAdjustments": [
+            {
+              "lineNumber": "1",
+              "description": "Wages, salaries, tips",
+              "taxpayerAmount": 75000,
+              "irsAmount": 78000,
+              "difference": 3000
+            },
+            {
+              "lineNumber": "7",
+              "description": "Interest income",
+              "taxpayerAmount": 500,
+              "irsAmount": 1200,
+              "difference": 700
+            }
+          ],
+          "totalProposedAdjustment": 3700,
+          "serviceCenter": "Kansas City Service Center"
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter addresses both proposed adjustments with supporting evidence (W-2, 1099-INT). Does not admit error. References specific documentation.",
+        "successCriteria": [
+          "All 9 extraction fields populated correctly",
+          "Response addresses both line items",
+          "No admission of liability or error",
+          "Professional business letter format",
+          "Proper address to Kansas City Service Center",
+          "All 7 validation rules pass"
+        ]
+      },
+      {
+        "name": "cp2000-edge-case",
+        "description": "CP2000 with multiple adjustments, missing evidence, and tight deadline",
+        "inputDocument": "CP2000 notice with 5 line items, 20 days until deadline, minimal supporting documentation",
+        "expectedExtraction": {
+          "proposedAdjustments": ["5 adjustments extracted with all line numbers and amounts"],
+          "responseDeadline": "within 20 days from notice date"
+        },
+        "expectedValidation": "warning - missing documentation for some adjustments",
+        "expectedResponse": "Letter explains which adjustments can be defended with available evidence, requests extension for additional documentation if needed.",
+        "successCriteria": [
+          "Addresses deadline urgency",
+          "Acknowledges incomplete documentation",
+          "Responds to items with available evidence",
+          "Requests extension for remaining items if appropriate"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Other workflows that relate to CP2000 response",
+    "upstream": [
+      "CP90 / Collection Notice Response (if CP2000 leads to assessment)"
+    ],
+    "downstream": [
+      "Appeals Council Preparation (if CP2000 response rejected)",
+      "IRS Audit Letter Response (if IRS initiates formal examination)",
+      "Tax Notice Response (generic - used for other IRS notices)"
+    ],
+    "alternatives": [
+      "IRS Notice Response (more generic workflow for other IRS notices)",
+      "Tax Audit Letter Response (formal examination response)"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "CP2000 is one of most common IRS notices and highest-volume workflow. Must be implemented early and tested thoroughly. LLM must understand IRS procedures, tax substantiation requirements, and professional correspondence standards.",
+    "knownChallenges": [
+      "Extracting all proposed adjustments when multiple pages - must be thorough",
+      "Understanding what constitutes 'supporting evidence' - varies by type of adjustment",
+      "Avoiding legal/tax advice language while remaining professional",
+      "Ensuring response is received by IRS before deadline - response deadline is hard rule"
+    ]
+  }
+}

@@ -1,0 +1,328 @@
+{
+  "metadata": {
+    "id": "form-656",
+    "name": "IRS Form 656 Offer in Compromise Response",
+    "vertical": "notice-respond",
+    "template": "notice-response",
+    "llmModel": "claude",
+    "description": "Prepare and respond to IRS Form 656 Offer in Compromise negotiations, settling tax debt for less than full amount owed.",
+    "searchVolume": 2200,
+    "searchVolumeSource": "Google Ads - 'offer in compromise' + 'IRS'",
+    "difficulty": "hard",
+    "complexity": {
+      "requiresLegalKnowledge": true,
+      "requiresLegislativeResearch": true,
+      "hasMultiplePathways": true,
+      "hasStrictDeadlines": false,
+      "requiresHighAccuracy": true
+    },
+    "initiatedBy": "taxpayer"
+  },
+  "extraction": {
+    "description": "Extract data regarding offer in compromise situation: taxpayer info, total tax debt, proposed settlement amount, financial hardship documentation, and IRS response.",
+    "fields": [
+      {
+        "name": "taxpayerName",
+        "prompt": "Extract taxpayer name.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Susan Mary Anderson",
+        "notes": "Must match IRS records"
+      },
+      {
+        "name": "ssn",
+        "prompt": "Extract SSN in XXX-XX-XXXX format.",
+        "required": true,
+        "dataType": "string",
+        "validation": "ssn_format",
+        "example": "456-78-9012",
+        "notes": "Critical identifier"
+      },
+      {
+        "name": "totalTaxDebt",
+        "prompt": "Extract total tax debt (principal + interest + penalties).",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 85000,
+        "notes": "Total amount owed to IRS"
+      },
+      {
+        "name": "proposedSettlementAmount",
+        "prompt": "Extract the amount taxpayer is offering to settle for.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 30000,
+        "notes": "Must be less than total debt"
+      },
+      {
+        "name": "settlementPercentage",
+        "prompt": "Calculate percentage: (proposedAmount / totalDebt) * 100.",
+        "required": true,
+        "dataType": "number",
+        "validation": "numeric",
+        "example": 35.3,
+        "notes": "Percent of debt being offered"
+      },
+      {
+        "name": "financialHardshipReason",
+        "prompt": "Extract the reason for financial hardship: job loss, medical emergency, business failure, etc.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Medical emergency and job loss in 2023",
+        "notes": "Justifies why full payment is impossible"
+      },
+      {
+        "name": "currentMonthlyIncome",
+        "prompt": "Extract taxpayer's current monthly income.",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3500,
+        "notes": "Used to calculate reasonable collection potential"
+      },
+      {
+        "name": "monthlyEssentialExpenses",
+        "prompt": "Extract total monthly essential living expenses (housing, food, utilities, etc.).",
+        "required": true,
+        "dataType": "number",
+        "validation": "currency_format",
+        "example": 3200,
+        "notes": "Determines how much could be paid toward tax debt"
+      },
+      {
+        "name": "serviceCenter",
+        "prompt": "Extract which IRS Offer in Compromise processing center this offer is directed to. Form 656 is filed with either the Memphis or Holtsville OIC unit depending on the taxpayer's state of residence.",
+        "required": true,
+        "dataType": "string",
+        "validation": "notEmpty",
+        "example": "Memphis Service Center",
+        "notes": "The template already addresses a processing center; without this field the address cannot be filled and the letter would carry a visible placeholder."
+      }
+    ],
+    "notes": "Offer in Compromise cases require detailed financial analysis. Must establish reasonable collection potential (RCP) showing why full payment is impossible."
+  },
+  "validation": {
+    "description": "Validate that offer is reasonable and well-documented with financial hardship evidence.",
+    "rules": [
+      {
+        "name": "offerIsLessThanDebt",
+        "check": "proposedSettlementAmount < totalTaxDebt",
+        "severity": "error",
+        "message": "Offer must be less than total debt owed.",
+        "example_fail": "Offer amount equals debt amount",
+        "example_pass": "Offer is 35% of total debt"
+      },
+      {
+        "name": "offerIsReasonable",
+        "check": "proposedSettlementAmount >= (calculated_reasonable_collection_potential * 0.8)",
+        "severity": "warning",
+        "message": "Offer should be at least 80% of calculated Reasonable Collection Potential (RCP) for best chance of acceptance.",
+        "example_fail": "Offer is 20% of calculated RCP",
+        "example_pass": "Offer is 85% of calculated RCP"
+      },
+      {
+        "name": "financialDocumentationComplete",
+        "check": "documentation_includes: [Form 433-A or 433-B, paystubs, bank statements, expense documentation]",
+        "severity": "error",
+        "message": "Must submit complete financial documentation to support offer.",
+        "example_fail": "Offer submitted without financial forms or statements",
+        "example_pass": "Submitted with Form 433-A, 3 months paystubs, bank statements, and lease documentation"
+      },
+      {
+        "name": "hardshipDocumented",
+        "check": "financial_hardship_reason is_specific AND supporting_evidence_provided",
+        "severity": "error",
+        "message": "Financial hardship must be clearly documented with evidence.",
+        "example_fail": "'Financial hardship due to personal reasons' with no documentation",
+        "example_pass": "'Job loss in June 2023 - attached: termination letter, unemployment documentation, medical bills from October 2023'"
+      },
+      {
+        "name": "paymentTermsClear",
+        "check": "offer specifies whether lump-sum or installment payment",
+        "severity": "warning",
+        "message": "Specify payment terms: lump-sum (better chance of approval) or installment.",
+        "example_fail": "No payment terms specified",
+        "example_pass": "Offer: $30,000 lump-sum payment within 60 days of acceptance"
+      }
+    ],
+    "notes": "OIC success depends on convincing IRS that offer exceeds Reasonable Collection Potential (RCP). Financial documentation is critical."
+  },
+  "aiPrompt": {
+    "system": "You are a tax settlement specialist expert in IRS Offer in Compromise procedures. You understand reasonable collection potential calculations, financial hardship documentation, and negotiation strategy. Your role is to help taxpayers submit offers that maximize acceptance likelihood.",
+    "task": "Analyze financial situation and IRS response to Form 656 offer. If offer was rejected, identify reasons and prepare response addressing IRS concerns. If offer is pending, prepare supporting documentation emphasizing financial hardship and reasonableness of settlement amount.",
+    "format": "Professional business letter responding to IRS OIC decision or supporting documentation for pending offer",
+    "constraints": [
+      "Do not minimize or misrepresent financial situation",
+      "Base offer on realistic Reasonable Collection Potential calculation",
+      "Document financial hardship with specific evidence",
+      "Be transparent about assets and income",
+      "Focus on economic reality, not sympathy"
+    ],
+    "examples": [
+      {
+        "input": {
+          "totalDebt": 85000,
+          "monthlyIncome": 3500,
+          "monthlyExpenses": 3200,
+          "proposedOffer": 30000,
+          "irsResponse": "rejected - offer too low"
+        },
+        "output": "Response explains that RCP is $36,000 ($300/month \u00d7 120 months), so offer of $30,000 is actually below what IRS could collect. Requests reconsideration emphasizing taxpayer's inability to improve financial situation."
+      }
+    ],
+    "notes": "IRS evaluates OIC based on Reasonable Collection Potential (RCP). Offers close to or exceeding RCP have much higher acceptance rates."
+  },
+  "responseTemplate": {
+    "description": "Response to IRS Offer in Compromise, either supporting pending offer or appealing rejection",
+    "format": "Professional business letter with attached financial documentation",
+    "sections": [
+      {
+        "name": "header",
+        "required": true,
+        "template": "IRS Offer in Compromise Unit\n[Appropriate Service Center Address]\n\nRE: Form 656 Offer in Compromise Response\nTaxpayer: [Name]\nSSN: [XXX-XX-XXXX]\nTotal Tax Debt: $Amount\nProposed Settlement: $Amount",
+        "guidance": "Address to appropriate OIC unit with full identifying information and financial summary upfront. Drafting notes (generated, not substituted): Amount.",
+        "example": "IRS Offer in Compromise Unit\nMemphis Service Center\n\nRE: Form 656 Offer in Compromise Response\nTaxpayer: Susan Mary Anderson\nSSN: 456-78-9012\nTotal Tax Debt: $85,000\nProposed Settlement: $30,000"
+      },
+      {
+        "name": "introduction",
+        "required": true,
+        "template": "If pending: 'We submitted Form 656 Offer in Compromise on [date] in the amount of $amount. We respectfully request consideration of this offer based on the following financial circumstances.'\n\nIf rejected: 'We respectfully request reconsideration of the rejection of our Form 656 Offer in Compromise dated [date]. The offer is reasonable based on our Reasonable Collection Potential (RCP) and documented financial hardship.'",
+        "guidance": "Clear statement of situation and respectful tone. Drafting notes (generated, not substituted): If pending; If rejected; amount.",
+        "example": "We respectfully request reconsideration of the rejection of our Form 656 Offer in Compromise dated March 15, 2024. The offer of $30,000 is reasonable based on our Reasonable Collection Potential (RCP) of $36,000 and documented financial hardship."
+      },
+      {
+        "name": "financialHardshipNarrative",
+        "required": true,
+        "template": "Describe specific circumstances that led to tax debt and current inability to pay full amount:\n- Loss of employment: Date and amount of loss\n- Medical emergency: Description and amount spent\n- Business failure: Date and impact\n- Other financial hardship: Specific details\n\nCurrent financial situation:\n- Monthly income: $Amount\n- Essential monthly expenses: $Amount\n- Monthly deficit/surplus: $Amount",
+        "guidance": "Narrative that tells the story of why taxpayer cannot pay full debt while current financial statements show impossibility of payment. Drafting notes (generated, not substituted): Amount; Date and amount of loss; Date and impact; Description and amount spent; Specific details.",
+        "example": "In June 2023, my spouse lost employment when the manufacturing plant closed. My current income as a healthcare worker is $3,500/month. Our essential monthly expenses (mortgage, utilities, food, insurance) total $3,200/month, leaving only $300/month available. Over a 120-month collection period, we could realistically pay approximately $36,000. Our proposed offer of $30,000 is actually below this RCP, demonstrating the reasonableness of the settlement."
+      },
+      {
+        "name": "rcp_calculation",
+        "required": true,
+        "template": "Reasonable Collection Potential (RCP) Calculation:\n\nMonthly income: $Amount\nLess: Essential monthly expenses: $Amount\nEquals: Monthly payment capacity: $Amount\nMultiplied by: Collection period (typically 120 months): 120\nEquals: Reasonable Collection Potential: $Amount\n\nProposed offer of $Amount represents X% of RCP.",
+        "guidance": "Show mathematical calculation proving offer is reasonable relative to RCP. Drafting notes (generated, not substituted): Amount; X.",
+        "example": "Monthly income: $3,500\nLess: Essential expenses: $3,200\nEquals: Monthly capacity: $300\nMultiplied by: 120 months\nEquals: RCP: $36,000\n\nProposed offer of $30,000 represents 83% of calculated RCP."
+      },
+      {
+        "name": "supporting_documentation",
+        "required": true,
+        "template": "Attached documentation supporting this offer:\n- Form 433-A or 433-B (Collection Information Statement)\n- Form 433-F (Form 656 supporting documents)\n- Recent paystubs (3 months)\n- Bank statements (3 months)\n- Lease/mortgage agreement\n- Unemployment documentation or job termination letter\n- Medical bills or expense documentation\n- Any other relevant financial documentation",
+        "guidance": "List all attached financial evidence supporting the offer",
+        "example": "Attached documentation:\n- Completed Form 433-A\n- Three months recent paystubs\n- Three months bank statements\n- Lease agreement showing $1,800/month\n- Spouse's termination letter from June 2023\n- Medical bills from emergency room visit ($4,200)\n- Utility bills (3 months)"
+      },
+      {
+        "name": "closure",
+        "required": true,
+        "template": "We respectfully request that our Form 656 offer be accepted as presented, or if denied, that the IRS provide specific reasons for rejection so we may provide additional information or revise our offer.",
+        "guidance": "Respectful closing requesting acceptance or at minimum constructive feedback",
+        "example": "We respectfully request that our Form 656 offer be accepted as presented. If the IRS determines the offer is insufficient, please advise what additional financial information or higher offer amount would be acceptable."
+      },
+      {
+        "name": "signature",
+        "required": true,
+        "template": "Sincerely,\n\n[Signature]\n[Typed Name]\n[SSN]\n[Address]\nPhone\n[Date]",
+        "guidance": "Professional signature with all contact information. Drafting notes (generated, not substituted): Phone.",
+        "example": "Sincerely,\n\nSusan Mary Anderson\nSusan Mary Anderson\nSSN: 456-78-9012\n234 Maple Drive\nMemphis, TN 38114\n(901) 555-1234\n\nApril 10, 2024"
+      }
+    ],
+    "pageCount": {
+      "minimum": 2,
+      "typical": 3,
+      "maximum": 6
+    }
+  },
+  "legalFramework": {
+    "description": "Offer in Compromise governed by IRC 7122 and IRS procedures in Publication 656.",
+    "authorities": [
+      "Internal Revenue Code Section 7122 - Compromises",
+      "IRS Publication 656 - Offer in Compromise",
+      "Revenue Procedure 2023-1 - IRS procedural rules for OIC",
+      "Reasonable Collection Potential (RCP) standard"
+    ],
+    "precedents": [
+      "IRS accepts OIC if offer exceeds Reasonable Collection Potential",
+      "RCP calculated as monthly payment capacity \u00d7 collection period",
+      "Financial hardship documentation is critical to OIC approval",
+      "Pending OIC stops most collection activities",
+      "Rejected OIC can be appealed or revised"
+    ],
+    "criticalRules": [
+      "Offer must be based on realistic RCP calculation",
+      "Financial documentation must be complete and accurate",
+      "Do not misrepresent financial situation",
+      "Offer typically requires 20% minimum settlement",
+      "Payment terms must be specified (lump-sum vs. installment)"
+    ],
+    "jurisdictionVariations": []
+  },
+  "testCases": {
+    "description": "Test OIC response for acceptance and rejection scenarios",
+    "cases": [
+      {
+        "name": "oic-accepted",
+        "description": "OIC with reasonable settlement offer that should be accepted",
+        "inputDocument": "Form 656 with $30,000 offer on $85,000 debt, supported by complete financial documentation",
+        "expectedExtraction": {
+          "totalTaxDebt": 85000,
+          "proposedSettlementAmount": 30000,
+          "settlementPercentage": 35.3
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter supporting offer with RCP calculation showing offer is reasonable",
+        "successCriteria": [
+          "Clear RCP calculation showing monthly payment capacity",
+          "Complete financial documentation attached",
+          "Hardship narrative with specific circumstances",
+          "Offer reasonableness demonstrated",
+          "Professional tone and format"
+        ]
+      },
+      {
+        "name": "oic-rejected-appeal",
+        "description": "OIC rejected by IRS, response appealing rejection",
+        "inputDocument": "Rejection letter explaining offer too low; taxpayer disputes calculation",
+        "expectedExtraction": {
+          "rejectionReason": "IRS calculated different RCP"
+        },
+        "expectedValidation": "pass",
+        "expectedResponse": "Letter disputing IRS RCP calculation with corrected financial analysis",
+        "successCriteria": [
+          "Addresses IRS's stated reason for rejection",
+          "Provides corrected RCP calculation",
+          "Explains why IRS calculation is incorrect",
+          "Requests reconsideration with new financial data if applicable"
+        ]
+      }
+    ]
+  },
+  "relatedWorkflows": {
+    "description": "Related collection/settlement workflows",
+    "upstream": [
+      "Collection Notice Response",
+      "Tax Debt Assessment"
+    ],
+    "downstream": [
+      "Installment Agreement Setup (if OIC rejected)",
+      "Payment Plan Management"
+    ],
+    "alternatives": [
+      "Installment Agreement",
+      "Currently Not Collectible Status"
+    ]
+  },
+  "implementation": {
+    "priority": "high",
+    "notes": "Form 656 OIC is complex but high-volume. Success depends heavily on Reasonable Collection Potential (RCP) calculation accuracy and financial documentation completeness.",
+    "knownChallenges": [
+      "Calculating RCP correctly and convincingly",
+      "Documenting financial hardship persuasively",
+      "Timing submissions to maximize approval likelihood",
+      "Understanding different offer calculation methods (lump-sum vs. installment)"
+    ]
+  }
+}
