@@ -27,6 +27,8 @@ import { Route as RespondToAUscisNoticeRouteImport } from './routes/respond-to-a
 import { Route as StartRouteImport } from './routes/start'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
+import { Route as ApiApproveRouteImport } from './routes/api/approve'
+import { Route as ApiCheckoutRouteImport } from './routes/api/checkout'
 import { Route as AppealIndexRouteImport } from './routes/appeal/index'
 import { Route as AppealSlugRouteImport } from './routes/appeal/$slug'
 import { Route as I130IndexRouteImport } from './routes/i-130/index'
@@ -47,6 +49,8 @@ import { Route as WorkflowsWorkflowSlugRouteImport } from './routes/workflows/$w
 import { Route as WorkflowsExplanationLetterRouteImport } from './routes/workflows/explanation-letter'
 import { Route as WorkflowsRespondToNoticeRouteImport } from './routes/workflows/respond-to-notice'
 import { Route as WorkflowsSupportingDocumentsRouteImport } from './routes/workflows/supporting-documents'
+import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -136,6 +140,16 @@ const TermsRoute = TermsRouteImport.update({
 const WorkflowsRoute = WorkflowsRouteImport.update({
   id: '/workflows',
   path: '/workflows',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiApproveRoute = ApiApproveRouteImport.update({
+  id: '/api/approve',
+  path: '/api/approve',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
+  id: '/api/checkout',
+  path: '/api/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppealIndexRoute = AppealIndexRouteImport.update({
@@ -241,6 +255,16 @@ const WorkflowsSupportingDocumentsRoute =
     path: '/supporting-documents',
     getParentRoute: () => WorkflowsRoute,
   } as any)
+const ApiMailResponseRoute = ApiMailResponseRouteImport.update({
+  id: '/api/mail/response',
+  path: '/api/mail/response',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -261,6 +285,8 @@ export interface FileRoutesByFullPath {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/workflows': typeof WorkflowsRouteWithChildren
+  '/api/approve': typeof ApiApproveRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/appeal/$slug': typeof AppealSlugRoute
   '/i-130/$slug': typeof I130SlugRoute
   '/noid/$slug': typeof NoidSlugRoute
@@ -281,6 +307,8 @@ export interface FileRoutesByFullPath {
   '/uscis-foia/': typeof UscisFoiaIndexRoute
   '/visa-refusal/': typeof VisaRefusalIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -300,6 +328,8 @@ export interface FileRoutesByTo {
   '/respond-to-a-uscis-notice': typeof RespondToAUscisNoticeRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
+  '/api/approve': typeof ApiApproveRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/appeal/$slug': typeof AppealSlugRoute
   '/i-130/$slug': typeof I130SlugRoute
   '/noid/$slug': typeof NoidSlugRoute
@@ -320,6 +350,8 @@ export interface FileRoutesByTo {
   '/uscis-foia': typeof UscisFoiaIndexRoute
   '/visa-refusal': typeof VisaRefusalIndexRoute
   '/workflows': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -341,6 +373,8 @@ export interface FileRoutesById {
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
   '/workflows': typeof WorkflowsRouteWithChildren
+  '/api/approve': typeof ApiApproveRoute
+  '/api/checkout': typeof ApiCheckoutRoute
   '/appeal/$slug': typeof AppealSlugRoute
   '/i-130/$slug': typeof I130SlugRoute
   '/noid/$slug': typeof NoidSlugRoute
@@ -361,6 +395,8 @@ export interface FileRoutesById {
   '/uscis-foia/': typeof UscisFoiaIndexRoute
   '/visa-refusal/': typeof VisaRefusalIndexRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -383,6 +419,8 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/workflows'
+    | '/api/approve'
+    | '/api/checkout'
     | '/appeal/$slug'
     | '/i-130/$slug'
     | '/noid/$slug'
@@ -403,6 +441,8 @@ export interface FileRouteTypes {
     | '/uscis-foia/'
     | '/visa-refusal/'
     | '/workflows/'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -422,6 +462,8 @@ export interface FileRouteTypes {
     | '/respond-to-a-uscis-notice'
     | '/start'
     | '/terms'
+    | '/api/approve'
+    | '/api/checkout'
     | '/appeal/$slug'
     | '/i-130/$slug'
     | '/noid/$slug'
@@ -442,6 +484,8 @@ export interface FileRouteTypes {
     | '/uscis-foia'
     | '/visa-refusal'
     | '/workflows'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
   id:
     | '__root__'
     | '/'
@@ -462,6 +506,8 @@ export interface FileRouteTypes {
     | '/start'
     | '/terms'
     | '/workflows'
+    | '/api/approve'
+    | '/api/checkout'
     | '/appeal/$slug'
     | '/i-130/$slug'
     | '/noid/$slug'
@@ -482,6 +528,8 @@ export interface FileRouteTypes {
     | '/uscis-foia/'
     | '/visa-refusal/'
     | '/workflows/'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -503,6 +551,8 @@ export interface RootRouteChildren {
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   WorkflowsRoute: typeof WorkflowsRouteWithChildren
+  ApiApproveRoute: typeof ApiApproveRoute
+  ApiCheckoutRoute: typeof ApiCheckoutRoute
   AppealSlugRoute: typeof AppealSlugRoute
   I130SlugRoute: typeof I130SlugRoute
   NoidSlugRoute: typeof NoidSlugRoute
@@ -518,6 +568,8 @@ export interface RootRouteChildren {
   UscisDenialIndexRoute: typeof UscisDenialIndexRoute
   UscisFoiaIndexRoute: typeof UscisFoiaIndexRoute
   VisaRefusalIndexRoute: typeof VisaRefusalIndexRoute
+  ApiMailResponseRoute: typeof ApiMailResponseRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -646,6 +698,20 @@ declare module '@tanstack/react-router' {
       path: '/workflows'
       fullPath: '/workflows'
       preLoaderRoute: typeof WorkflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/approve': {
+      id: '/api/approve'
+      path: '/api/approve'
+      fullPath: '/api/approve'
+      preLoaderRoute: typeof ApiApproveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/checkout': {
+      id: '/api/checkout'
+      path: '/api/checkout'
+      fullPath: '/api/checkout'
+      preLoaderRoute: typeof ApiCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/appeal/': {
@@ -788,6 +854,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsSupportingDocumentsRouteImport
       parentRoute: typeof WorkflowsRoute
     }
+    '/api/mail/response': {
+      id: '/api/mail/response'
+      path: '/api/mail/response'
+      fullPath: '/api/mail/response'
+      preLoaderRoute: typeof ApiMailResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -830,6 +910,8 @@ const rootRouteChildren: RootRouteChildren = {
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   WorkflowsRoute: WorkflowsRouteWithChildren,
+  ApiApproveRoute: ApiApproveRoute,
+  ApiCheckoutRoute: ApiCheckoutRoute,
   AppealSlugRoute: AppealSlugRoute,
   I130SlugRoute: I130SlugRoute,
   NoidSlugRoute: NoidSlugRoute,
@@ -845,6 +927,8 @@ const rootRouteChildren: RootRouteChildren = {
   UscisDenialIndexRoute: UscisDenialIndexRoute,
   UscisFoiaIndexRoute: UscisFoiaIndexRoute,
   VisaRefusalIndexRoute: VisaRefusalIndexRoute,
+  ApiMailResponseRoute: ApiMailResponseRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
