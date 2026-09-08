@@ -4,10 +4,13 @@ import { HUMBOLDT_FAIRPROCESS_PACK } from './jurisdictions/humboldt';
 
 export * from './types';
 export * from './attorney-packet';
+export * from './connector';
 export * from './evidence-integrity';
 export * from './investigation-adapter';
 export * from './jurisdiction-registry';
+export * from './store';
 export * from './jurisdictions/humboldt';
+export * from './jurisdictions/humboldt-connector';
 
 export function ensureFairProcessJurisdictions(): void {
   registerJurisdictionPack(HUMBOLDT_FAIRPROCESS_PACK);
