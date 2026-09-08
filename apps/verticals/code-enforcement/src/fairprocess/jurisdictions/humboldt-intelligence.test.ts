@@ -15,28 +15,30 @@ function jsonResponse(body: unknown): Response {
 }
 
 describe('Humboldt property intelligence', () => {
-  it('persists raw county responses and returns direct evidence links', async () => {
+  it('persists verified machine-readable sources and exposes direct evidence links', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes('/Building/Building_Permits/')) {
+      if (url.includes('/Parcels/Parcels/MapServer/0/')) {
         return jsonResponse({
           features: [{
             attributes: {
-              PERMIT_NUM: 'BLD-100',
-              STATUS: 'Issued',
-              APN: '123-456-789',
+              APN: '123456789',
+              APN_12: '123-456-789',
+              FULLADDR: '123 Example Rd',
+              SITCITY: 'McKinleyville',
+              ZONING: 'RS-5',
             },
           }],
         });
       }
-      if (url.includes('/Code_Enforcement/Code_Enforcement/')) {
+      if (url.includes('/Web/Housing_Public/MapServer/7/')) {
         return jsonResponse({
           features: [{
             attributes: {
-              CASE_NUM: 'CE-100',
-              STATUS: 'Open',
-              VIOLATION_TYPE: 'Unpermitted structure',
-              APN: '123-456-789',
+              RECORD_ID: 'CE-000100',
+              Type_of_Case_1: 'Building',
+              DATE_OPENED_1: '2024-10-01',
+              APN_1: '123-456-789',
             },
           }],
         });
@@ -57,10 +59,13 @@ describe('Humboldt property intelligence', () => {
       retrievedAt: '2026-09-07T22:00:00-07:00',
     });
 
-    expect(intelligence.permits[0]?.record.permitNumber).toBe('BLD-100');
-    expect(intelligence.codeEnforcementCases[0]?.record.caseNumber).toBe('CE-100');
-    expect(intelligence.permits[0]?.sourceEvidenceId).toMatch(/^evidence-source-/);
-    expect(intelligence.codeEnforcementCases[0]?.sourceEvidenceId).toMatch(/^evidence-source-/);
+    expect(intelligence.parcels[0]?.record.address).toBe('123 Example Rd');
+    expect(intelligence.historicalCodeEnforcementCases[0]?.record.caseNumber).toBe('CE-000100');
+    expect(intelligence.parcels[0]?.sourceEvidenceId).toMatch(/^evidence-source-/);
+    expect(intelligence.historicalCodeEnforcementCases[0]?.sourceEvidenceId).toMatch(/^evidence-source-/);
+    expect(intelligence.currentCodeEnforcementStatusAvailable).toBe(false);
+    expect(intelligence.permitSearch.automated).toBe(false);
+    expect(intelligence.warnings.some((warning) => warning.includes('2025-01-15'))).toBe(true);
 
     const evidence = await recordStore.listEvidence('case-1');
     const snapshots = await recordStore.listSourceSnapshots('case-1');
