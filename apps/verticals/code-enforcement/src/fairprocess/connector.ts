@@ -10,9 +10,22 @@ export interface ConnectorRequestContext {
   retrievedAt?: string;
 }
 
+export interface ConnectorRawArtifact {
+  snapshotId: string;
+  connectorId: string;
+  title: string;
+  sourceUrl: string;
+  retrievedAt: string;
+  mimeType: 'application/json';
+  rawResponse: string;
+  sha256: string;
+  query?: Record<string, unknown>;
+}
+
 export interface SourcedConnectorResult<T> {
   records: T[];
   snapshots: FairProcessSourceSnapshot[];
+  artifacts: ConnectorRawArtifact[];
   warnings: string[];
 }
 
@@ -43,6 +56,7 @@ export async function createSourceSnapshot(
 ): Promise<FairProcessSourceSnapshot> {
   const responseSha256 = await sha256Text(input.rawResponse);
   const idMaterial = [
+    input.caseId,
     input.connector.id,
     input.jurisdiction.id,
     input.retrievedAt,
@@ -64,6 +78,24 @@ export async function createSourceSnapshot(
     responseSha256,
     rawEvidenceId: input.rawEvidenceId,
     httpStatus: input.httpStatus,
+  };
+}
+
+export function createRawConnectorArtifact(
+  snapshot: FairProcessSourceSnapshot,
+  title: string,
+  rawResponse: string,
+): ConnectorRawArtifact {
+  return {
+    snapshotId: snapshot.id,
+    connectorId: snapshot.connectorId,
+    title,
+    sourceUrl: snapshot.sourceUrl,
+    retrievedAt: snapshot.retrievedAt,
+    mimeType: 'application/json',
+    rawResponse,
+    sha256: snapshot.responseSha256,
+    query: snapshot.query,
   };
 }
 
