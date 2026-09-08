@@ -14,7 +14,7 @@ import type { JurisdictionPack } from '../types';
  */
 export const HUMBOLDT_FAIRPROCESS_PACK: JurisdictionPack = {
   id: 'us-ca-humboldt',
-  version: '2026-09-07.2',
+  version: '2026-09-08.1',
   name: 'Humboldt County, California',
   country: 'United States',
   state: 'California',
@@ -85,6 +85,38 @@ export const HUMBOLDT_FAIRPROCESS_PACK: JurisdictionPack = {
       enabled: true,
       provenanceRequired: true,
       notes: 'Official Planning & Building entry point links public-records request resources. Exact request endpoints should be captured when resolved.',
+    },
+  ],
+  recordsCustodians: [
+    {
+      key: 'planning-building-code-enforcement',
+      label: 'Humboldt County Planning & Building — Code Enforcement',
+      connectorId: 'humboldt-public-records',
+      categories: [
+        'current_case_status',
+        'current_allegations',
+        'complaint_record',
+        'inspection_record',
+        'photos_and_media',
+        'agency_communications',
+        'hearing_and_appeal',
+        'abatement_and_costs',
+      ],
+      notes: 'Primary route for code-enforcement case-file records. Confirm the actual records custodian/department routing at submission time.',
+    },
+    {
+      key: 'planning-building-permits',
+      label: 'Humboldt County Planning & Building — Permit / Planning Records',
+      connectorId: 'humboldt-public-records',
+      categories: ['permit_history', 'property_identity'],
+      notes: 'Use for permit, planning, inspection-card, application, and approval records when the public Accela record is incomplete.',
+    },
+    {
+      key: 'responsible-enforcement-agency',
+      label: 'Responsible Humboldt County enforcement agency',
+      connectorId: 'humboldt-public-records',
+      categories: ['notice_and_service'],
+      notes: 'Notice and service proof should be requested from the agency responsible for issuing or serving the operative document; resolve the exact custodian before sending.',
     },
   ],
 };
