@@ -16,6 +16,15 @@ import type {
   MailType,
   LegalReference,
 } from "@mailmypdf/payment-fulfillment";
+import {
+  handleStripeWebhookEvent,
+  fulfillFromBrowserReturn,
+  fulfillMailingIntent,
+  verifyIntegrity,
+  hashDraft,
+  hashRecipient,
+  sha256,
+} from "@mailmypdf/payment-fulfillment";
 
 function serviceSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -114,3 +123,5 @@ export function createMailMyPDFClient(): MailMyPDFClient {
     },
   };
 }
+
+export { handleStripeWebhookEvent, fulfillFromBrowserReturn, fulfillMailingIntent, verifyIntegrity, hashDraft, hashRecipient, sha256 };
