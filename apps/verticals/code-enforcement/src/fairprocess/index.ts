@@ -9,6 +9,8 @@ export * from './connector-persistence';
 export * from './evidence-integrity';
 export * from './investigation-adapter';
 export * from './jurisdiction-registry';
+export * from './records-investigation';
+export * from './source-requirements';
 export * from './store';
 export * from './jurisdictions/humboldt';
 export * from './jurisdictions/humboldt-connector';
