@@ -34,6 +34,28 @@ export interface JurisdictionPolicyReference {
   notes?: string;
 }
 
+export type JurisdictionRecordsCategory =
+  | 'property_identity'
+  | 'current_case_status'
+  | 'current_allegations'
+  | 'complaint_record'
+  | 'inspection_record'
+  | 'notice_and_service'
+  | 'permit_history'
+  | 'agency_communications'
+  | 'photos_and_media'
+  | 'hearing_and_appeal'
+  | 'abatement_and_costs'
+  | 'other';
+
+export interface JurisdictionRecordsCustodianRoute {
+  key: string;
+  label: string;
+  categories: JurisdictionRecordsCategory[];
+  connectorId?: string;
+  notes?: string;
+}
+
 export interface JurisdictionPack {
   id: string;
   version: string;
@@ -46,6 +68,7 @@ export interface JurisdictionPack {
   supportedCaseTypes: string[];
   policy: JurisdictionPolicyReference;
   connectors: JurisdictionConnector[];
+  recordsCustodians?: JurisdictionRecordsCustodianRoute[];
   /**
    * A pack can exist for data discovery before its legal rules are activated.
    * This prevents an unreviewed local rule from silently becoming a legal conclusion.
@@ -108,6 +131,15 @@ export interface PacketAllegation {
   missingEvidence: string[];
 }
 
+export interface AttorneyPacketSourceReadiness {
+  attorneyPacketBlocked: boolean;
+  currentAssessmentBlocked: boolean;
+  unresolvedCriticalCount: number;
+  unresolvedHighCount: number;
+  unresolvedRequirementIds: string[];
+  unresolvedRequirementTitles: string[];
+}
+
 export interface AttorneyPacketInput {
   caseId: string;
   caseName: string;
@@ -128,6 +160,7 @@ export interface AttorneyPacketInput {
   evidence: PacketSourceRef[];
   communications?: PacketSourceRef[];
   recordsRequests?: PacketSourceRef[];
+  sourceReadiness?: AttorneyPacketSourceReadiness;
 }
 
 export type AttorneyPacketSectionId =
