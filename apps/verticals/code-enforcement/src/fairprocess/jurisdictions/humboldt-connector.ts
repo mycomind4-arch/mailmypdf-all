@@ -9,45 +9,41 @@ import {
 } from '../connector';
 import type { FairProcessSourceSnapshot } from '../store';
 
-export const HUMBOLDT_CONNECTOR_VERSION = '1.0.0';
+export const HUMBOLDT_CONNECTOR_VERSION = '1.1.0';
+export const HUMBOLDT_HISTORICAL_CE_DATA_AS_OF = '2025-01-15';
 
-export interface HumboldtPermitRecord {
-  permitNumber: string;
-  permitType: string;
-  status: string;
-  issuedDate: string | null;
-  finalizedDate: string | null;
-  expiredDate: string | null;
-  valuation: number | null;
-  description: string | null;
-  address: string | null;
+export interface HumboldtParcelRecord {
   apn: string | null;
-  applicantName: string | null;
-  contractorName: string | null;
-  squareFootage: number | null;
-  unitCount: number | null;
-  lastInspectionDate: string | null;
-  lastInspectionResult: string | null;
+  apn12: string | null;
+  address: string | null;
+  city: string | null;
+  zip: string | null;
+  acres: number | null;
+  zoning: string | null;
+  generalPlan: string | null;
+  communityPlan: string | null;
+  lotSizeSqFt: number | null;
+  buildingSqFt: number | null;
+  yearBuilt: number | null;
+  coastalZone: string | null;
+  coastalJurisdiction: string | null;
+  floodZone: string | null;
+  stateFireResponsibility: string | null;
+  supervisorDistrict: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  legalDescription: string | null;
+  jurisdiction: string | null;
+  inspectorDistrict: string | null;
   raw: Record<string, unknown>;
 }
 
-export interface HumboldtCodeEnforcementRecord {
+export interface HumboldtHistoricalCodeEnforcementRecord {
   caseNumber: string;
-  violationType: string;
-  status: string;
-  noticeServedDate: string | null;
-  complianceDeadline: string | null;
-  hearingDate: string | null;
-  hearingType: string | null;
-  abatementDate: string | null;
-  abatementCost: number | null;
-  appealDate: string | null;
-  outcome: string | null;
-  address: string | null;
+  caseType: string | null;
+  dateOpened: string | null;
   apn: string | null;
-  noticeMethod: string | null;
-  noticePeriodDays: number | null;
-  lienFiled: boolean;
+  dataAsOf: typeof HUMBOLDT_HISTORICAL_CE_DATA_AS_OF;
   raw: Record<string, unknown>;
 }
 
@@ -72,15 +68,12 @@ function normalizeApn(apn: string): { clean: string; dashed: string } {
   return { clean, dashed };
 }
 
-function apnWhereCandidates(apn: string): string[] {
+function apnWhereCandidates(apn: string, fields: string[]): string[] {
   const { clean, dashed } = normalizeApn(apn);
-  return [
-    `APN='${dashed}'`,
-    `APN='${clean}'`,
-    `APN12='${clean}'`,
-    `APN12='${dashed}'`,
-    `PARCEL_APN='${clean}'`,
-  ].filter((value, index, all) => all.indexOf(value) === index);
+  const values = clean === dashed ? [clean] : [dashed, clean];
+  return fields
+    .flatMap((field) => values.map((value) => `${field}='${value}'`))
+    .filter((value, index, all) => all.indexOf(value) === index);
 }
 
 function stringValue(record: Record<string, unknown>, ...keys: string[]): string | null {
@@ -120,14 +113,10 @@ function isoDate(record: Record<string, unknown>, ...keys: string[]): string | n
   return null;
 }
 
-function booleanValue(record: Record<string, unknown>, ...keys: string[]): boolean {
-  const value = stringValue(record, ...keys)?.toLowerCase();
-  return value === 'y' || value === 'yes' || value === '1' || value === 'true';
-}
-
 async function queryArcGisByApn(
   connectorId: string,
   apn: string,
+  apnFields: string[],
   context: ConnectorRequestContext,
   fetcher: FetchLike,
 ): Promise<{
@@ -142,7 +131,7 @@ async function queryArcGisByApn(
   const warnings: string[] = [];
   const retrievedAt = context.retrievedAt ?? new Date().toISOString();
 
-  for (const where of apnWhereCandidates(apn)) {
+  for (const where of apnWhereCandidates(apn, apnFields)) {
     const params = new URLSearchParams({
       where,
       outFields: '*',
@@ -219,86 +208,88 @@ async function queryArcGisByApn(
   return { attributes: [], snapshots, artifacts, warnings };
 }
 
-function mapPermit(raw: Record<string, unknown>): HumboldtPermitRecord {
+function mapParcel(raw: Record<string, unknown>): HumboldtParcelRecord {
   return {
-    permitNumber: stringValue(raw, 'PERMIT_NUM', 'PERMIT_NUMBER', 'PERMITNO') ?? '',
-    permitType: stringValue(raw, 'PERMIT_TYPE', 'TYPE') ?? '',
-    status: stringValue(raw, 'STATUS', 'PERMIT_STATUS') ?? '',
-    issuedDate: isoDate(raw, 'ISSUED_DATE', 'ISSUE_DATE'),
-    finalizedDate: isoDate(raw, 'FINALIZED_DATE', 'FINAL_DATE'),
-    expiredDate: isoDate(raw, 'EXPIRED_DATE', 'EXPIRATION_DATE'),
-    valuation: numberValue(raw, 'VALUATION', 'VALUE'),
-    description: stringValue(raw, 'DESCRIPTION', 'DESC'),
-    address: stringValue(raw, 'ADDRESS', 'SITE_ADDRESS'),
-    apn: stringValue(raw, 'APN', 'APN12', 'PARCEL_APN'),
-    applicantName: stringValue(raw, 'APPLICANT_NAME', 'APPLICANT'),
-    contractorName: stringValue(raw, 'CONTRACTOR_NAME', 'CONTRACTOR'),
-    squareFootage: numberValue(raw, 'SQFT', 'SQUARE_FOOTAGE'),
-    unitCount: integerValue(raw, 'NUM_UNITS', 'UNITS'),
-    lastInspectionDate: isoDate(raw, 'LAST_INSP_DATE', 'LAST_INSPECTION_DATE'),
-    lastInspectionResult: stringValue(raw, 'LAST_INSP_RESULT', 'LAST_INSPECTION_RESULT'),
+    apn: stringValue(raw, 'APN'),
+    apn12: stringValue(raw, 'APN_12', 'APN12'),
+    address: stringValue(raw, 'FULLADDR'),
+    city: stringValue(raw, 'SITCITY'),
+    zip: stringValue(raw, 'SITZIP'),
+    acres: numberValue(raw, 'ACRES'),
+    zoning: stringValue(raw, 'ZONING'),
+    generalPlan: stringValue(raw, 'GEN_PLAN'),
+    communityPlan: stringValue(raw, 'COMMPLAN'),
+    lotSizeSqFt: numberValue(raw, 'LOTSIZE'),
+    buildingSqFt: numberValue(raw, 'SP_AREA'),
+    yearBuilt: integerValue(raw, 'YEAR_BUILT'),
+    coastalZone: stringValue(raw, 'CZ'),
+    coastalJurisdiction: stringValue(raw, 'CJ'),
+    floodZone: stringValue(raw, 'FZ'),
+    stateFireResponsibility: stringValue(raw, 'SRA'),
+    supervisorDistrict: stringValue(raw, 'SUPD_DIST'),
+    latitude: numberValue(raw, 'LAT'),
+    longitude: numberValue(raw, 'LON'),
+    legalDescription: stringValue(raw, 'LEGAL'),
+    jurisdiction: stringValue(raw, 'JURIS'),
+    inspectorDistrict: stringValue(raw, 'INSP_DIST'),
     raw,
   };
 }
 
-function mapCodeEnforcement(raw: Record<string, unknown>): HumboldtCodeEnforcementRecord {
+function mapHistoricalCodeEnforcement(
+  raw: Record<string, unknown>,
+): HumboldtHistoricalCodeEnforcementRecord {
   return {
-    caseNumber: stringValue(raw, 'CASE_NUM', 'CASE_NUMBER', 'CASENO') ?? '',
-    violationType: stringValue(raw, 'VIOLATION_TYPE', 'VIOLATION', 'TYPE') ?? '',
-    status: stringValue(raw, 'STATUS', 'CASE_STATUS') ?? '',
-    noticeServedDate: isoDate(raw, 'NOTICE_SERVED_DATE', 'NOTICE_DATE'),
-    complianceDeadline: isoDate(raw, 'COMPLIANCE_DEADLINE', 'DUE_DATE'),
-    hearingDate: isoDate(raw, 'HEARING_DATE'),
-    hearingType: stringValue(raw, 'HEARING_TYPE'),
-    abatementDate: isoDate(raw, 'ABATEMENT_DATE'),
-    abatementCost: numberValue(raw, 'ABATEMENT_COST', 'COST'),
-    appealDate: isoDate(raw, 'APPEAL_DATE'),
-    outcome: stringValue(raw, 'OUTCOME', 'DISPOSITION'),
-    address: stringValue(raw, 'ADDRESS', 'SITE_ADDRESS'),
-    apn: stringValue(raw, 'APN', 'APN12', 'PARCEL_APN'),
-    noticeMethod: stringValue(raw, 'NOTICE_METHOD'),
-    noticePeriodDays: integerValue(raw, 'NOTICE_PERIOD_DAYS'),
-    lienFiled: booleanValue(raw, 'LIEN_FILED', 'LIEN'),
+    caseNumber: stringValue(raw, 'RECORD_ID') ?? '',
+    caseType: stringValue(raw, 'Type_of_Case_1'),
+    dateOpened: isoDate(raw, 'DATE_OPENED_1'),
+    apn: stringValue(raw, 'APN_1'),
+    dataAsOf: HUMBOLDT_HISTORICAL_CE_DATA_AS_OF,
     raw,
   };
 }
 
-export async function lookupHumboldtPermitsByApn(
+export async function lookupHumboldtParcelByApn(
   apn: string,
   context: ConnectorRequestContext,
   fetcher: FetchLike = fetch,
-): Promise<SourcedConnectorResult<HumboldtPermitRecord>> {
+): Promise<SourcedConnectorResult<HumboldtParcelRecord>> {
   const result = await queryArcGisByApn(
-    'humboldt-building-permits',
+    'humboldt-parcels',
     apn,
+    ['APN_12', 'APN12', 'APN'],
     context,
     fetcher,
   );
 
   return {
-    records: result.attributes.map(mapPermit),
+    records: result.attributes.map(mapParcel),
     snapshots: result.snapshots,
     artifacts: result.artifacts,
     warnings: result.warnings,
   };
 }
 
-export async function lookupHumboldtCodeEnforcementByApn(
+export async function lookupHumboldtHistoricalCodeEnforcementByApn(
   apn: string,
   context: ConnectorRequestContext,
   fetcher: FetchLike = fetch,
-): Promise<SourcedConnectorResult<HumboldtCodeEnforcementRecord>> {
+): Promise<SourcedConnectorResult<HumboldtHistoricalCodeEnforcementRecord>> {
   const result = await queryArcGisByApn(
     'humboldt-code-enforcement-cases',
     apn,
+    ['APN_1'],
     context,
     fetcher,
   );
 
   return {
-    records: result.attributes.map(mapCodeEnforcement),
+    records: result.attributes.map(mapHistoricalCodeEnforcement),
     snapshots: result.snapshots,
     artifacts: result.artifacts,
-    warnings: result.warnings,
+    warnings: [
+      'Humboldt public GIS code-enforcement data is labeled as of 2025-01-15 and must not be presented as current case status.',
+      ...result.warnings,
+    ],
   };
 }
