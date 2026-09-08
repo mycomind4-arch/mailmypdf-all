@@ -9,8 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --import tsx --test tests/*.test.ts",
-    "verify:launch": "npm test && npm run build"
+    "test": "node --import tsx --test tests/*.test.ts && pnpm test:payment",
+    "verify:launch": "npm test && npm run build",
+    "test:payment": "vitest run --config vitest.payment.config.ts"
   },
   "dependencies": {
     "@mailmypdf/fulfillment": "workspace:*",

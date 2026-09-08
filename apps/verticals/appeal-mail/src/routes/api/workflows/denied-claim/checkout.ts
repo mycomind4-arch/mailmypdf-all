@@ -18,6 +18,7 @@ export const Route = createFileRoute("/api/workflows/denied-claim/checkout")({
           if (a.workflow_id !== "denied-claim") return Response.json({ error: "Appeal workflow mismatch." }, { status: 409 });
           if (a.status !== "ready" || !a.review || !a.packet) return Response.json({ error: "Appeal is not approved and ready for payment." }, { status: 409 });
 
+          if (!a.packet.id || !a.packet.approvedDraftHash || !a.packet.approvedRecipientHash) return Response.json({ error: "Please approve the packet again before checkout." }, { status: 409 });
           const method = a.packet.mailingMethod;
           if (!PRICES[method]) return Response.json({ error: "Invalid mailing method." }, { status: 409 });
 
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/api/workflows/denied-claim/checkout")({
 
           const session = await stripe.checkout.sessions.create({
             mode: "payment",
+            payment_intent_data: { metadata: { appeal_id: a.id, workflow_id: a.workflow_id, owner_user_id: user.id } },
             payment_method_types: ["card"],
             line_items: [{
               price_data: {
@@ -54,6 +56,9 @@ export const Route = createFileRoute("/api/workflows/denied-claim/checkout")({
             }],
             metadata: {
               appeal_id: a.id,
+              packet_id: a.packet.id,
+              approved_draft_hash: a.packet.approvedDraftHash,
+              approved_recipient_hash: a.packet.approvedRecipientHash,
               workflow_id: "denied-claim",
               mailing_method: method,
               response_pages: String(responsePages),
@@ -62,9 +67,9 @@ export const Route = createFileRoute("/api/workflows/denied-claim/checkout")({
               pricing_source: "canonical",
               quote_total_cents: String(quote.totalCents),
             },
-            success_url: `${appUrl}/workflows/denied-claim?checkout=success&session_id=${encodeURIComponent("{CHECKOUT_SESSION_ID}")}`,
+            success_url: `${appUrl}/workflows/denied-claim?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${appUrl}/workflows/denied-claim?checkout=cancelled`,
-          });
+          }, { idempotencyKey: `appeal-checkout:${a.id}:${a.packet.id}` });
 
           return Response.json({ ok: true, sessionId: session.id, url: session.url });
         } catch (error) {

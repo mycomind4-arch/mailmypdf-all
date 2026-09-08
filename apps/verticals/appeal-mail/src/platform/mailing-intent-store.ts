@@ -49,14 +49,16 @@ function mapFulfillmentStatusToAppealStatus(status: string, current: string): st
 
 async function loadRows(supabase: SupabaseServer, appealId: string) {
   const { data: appeal, error } = await supabase.from("appeals").select("*").eq("id", appealId).single();
-  if (error || !appeal) return null;
-  const { data: mailing } = await supabase
+  if (error) throw new Error("Unable to load appeal.");
+  if (!appeal) return null;
+  const { data: mailing, error: mailingError } = await supabase
     .from("mailings")
     .select("*")
     .eq("appeal_id", appealId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (mailingError) throw new Error("Unable to load mailing.");
   return { appeal, mailing };
 }
 
@@ -79,7 +81,7 @@ function rowsToIntent(appeal: Record<string, any>, mailing: Record<string, any> 
     owner_id: appeal.user_id,
     workflow_id: appeal.workflow_id,
     case_id: appeal.id,
-    approval_id: null,
+    approval_id: packet.id,
     draft_content: packet.finalLetter,
     recipient: {
       name: packet.recipientName,
@@ -118,13 +120,14 @@ export function createAppealMailIntentStore(): MailingIntentStore {
 
     async loadByStripeSession(sessionId) {
       const supabase = await getSupabaseServer();
-      const { data: mailing } = await supabase
+      const { data: mailing, error: mailingError } = await supabase
         .from("mailings")
         .select("*")
         .eq("stripe_session_id", sessionId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (mailingError) throw new Error("Unable to load mailing.");
       if (!mailing?.appeal_id) return null;
       const rows = await loadRows(supabase, mailing.appeal_id);
       if (!rows) return null;
@@ -136,7 +139,7 @@ export function createAppealMailIntentStore(): MailingIntentStore {
       const { data: appeal, error } = await supabase.from("appeals").select("*").eq("id", intentId).single();
       if (error || !appeal) throw new Error(`Mailing intent (appeal) not found: ${intentId}`);
 
-      const { data: existingMailing } = await supabase
+      const { data: existingMailing, error: mailingError } = await supabase
         .from("mailings")
         .select("id")
         .eq("appeal_id", intentId)
@@ -144,6 +147,7 @@ export function createAppealMailIntentStore(): MailingIntentStore {
         .limit(1)
         .maybeSingle();
 
+      if (mailingError) throw new Error("Unable to load mailing status.");
       const nowIso = new Date().toISOString();
       const mailingPatch: Record<string, unknown> = { updated_at: nowIso };
       if (update.status) mailingPatch.status = update.status;
@@ -155,9 +159,10 @@ export function createAppealMailIntentStore(): MailingIntentStore {
 
       const packet = appeal.packet || {};
       if (existingMailing) {
-        await supabase.from("mailings").update(mailingPatch).eq("id", existingMailing.id);
+        const { error } = await supabase.from("mailings").update(mailingPatch).eq("id", existingMailing.id);
+        if (error) throw new Error("Unable to update mailing.");
       } else {
-        await supabase.from("mailings").insert({
+        const { error } = await supabase.from("mailings").insert({
           appeal_id: intentId,
           mailing_method: packet.mailingMethod || "standard",
           recipient: {
@@ -170,6 +175,7 @@ export function createAppealMailIntentStore(): MailingIntentStore {
           },
           ...mailingPatch,
         });
+        if (error) throw new Error("Unable to create mailing.");
       }
 
       if (update.status) {
@@ -195,10 +201,11 @@ export function createAppealMailIntentStore(): MailingIntentStore {
           createdAt: appeal.proof?.createdAt || nowIso,
           sealedAt: isMailedEvent ? nowIso : appeal.proof?.sealedAt,
         };
-        await supabase
+        const { error } = await supabase
           .from("appeals")
           .update({ status: nextAppealStatus, proof, updated_at: nowIso })
           .eq("id", intentId);
+        if (error) throw new Error("Unable to update appeal proof.");
       }
     },
   };

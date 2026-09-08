@@ -1,3 +1,4 @@
+import { paymentSessionError } from '@/platform/payment-session';
 import { createFileRoute } from "@tanstack/react-router";
 import { fulfillMailingIntent } from "@mailmypdf/payment-fulfillment";
 import { createAppealMailIntentStore } from "@/platform/mailing-intent-store";
@@ -18,11 +19,6 @@ import { mailMyPDFClient } from "@/platform/mailmypdf-client";
  * resubmitting) and verifies the stored draft/recipient against the
  * approval-time hashes before it will submit anything to MailMyPDF.
  *
- * Known follow-up: checkout.ts does not currently set
- * `payment_intent_data.metadata`, so `charge.refunded` events can't be
- * mapped back to an appeal id from the charge object alone. Refunds are
- * logged but not yet auto-reconciled — tracked for the next pass across
- * all 25 checkout.ts routes.
  */
 const store = createAppealMailIntentStore();
 
@@ -54,8 +50,9 @@ export const Route = createFileRoute("/api/stripe-webhook")({
           );
         }
 
-        if (event.type === "checkout.session.completed") {
+        if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
           const session = event.data.object as Stripe.Checkout.Session;
+          if (session.payment_status !== "paid") return Response.json({ received: true, skipped: true });
           const appealId = session.metadata?.appeal_id;
           if (!appealId) {
             console.error("[stripe-webhook:appeal-mail] checkout.session.completed with no appeal_id in metadata.");
@@ -66,6 +63,8 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
           try {
+            const validationError = paymentSessionError(session, await store.load(appealId));
+            if (validationError) return Response.json({ error: validationError }, { status: 409 });
             const result = await fulfillMailingIntent(
               store,
               mailMyPDFClient,
@@ -77,6 +76,7 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             );
             if (!result.success) {
               console.error(`[stripe-webhook:appeal-mail] Fulfillment failed for appeal ${appealId}: ${result.error}`);
+              return Response.json({ error: "Fulfillment failed. Please retry." }, { status: 500 });
             } else {
               console.log(
                 `[stripe-webhook:appeal-mail] Fulfilled appeal ${appealId} -> ${result.providerOrderId ?? "(pending)"} (${result.status ?? "unknown"}${result.idempotent ? ", idempotent replay" : ""})`,
@@ -84,38 +84,31 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             }
           } catch (err) {
             console.error(`[stripe-webhook:appeal-mail] Fulfillment threw for appeal ${appealId}:`, err);
+            return Response.json({ error: "Fulfillment failed. Please retry." }, { status: 500 });
           }
 
           return Response.json({ received: true }, { status: 200 });
         }
 
-        if (event.type === "checkout.session.expired") {
-          const session = event.data.object as Stripe.Checkout.Session;
-          const appealId = session.metadata?.appeal_id;
-          if (appealId) {
-            await store.updateStatus(appealId, {
-              status: "expired",
-              error_message: "Stripe checkout session expired.",
-            }).catch((err) => console.error("[stripe-webhook:appeal-mail] Failed to mark expired:", err));
+        try {
+          if (event.type === "checkout.session.expired") {
+            const session = event.data.object as Stripe.Checkout.Session;
+            const intent = await store.loadByStripeSession(session.id);
+            if (intent && intent.status === "approved" && !intent.provider_order_id) {
+              await store.updateStatus(intent.id, { status: "expired", error_message: "Stripe checkout session expired." });
+            }
+          } else if (event.type === "charge.refunded") {
+            const charge = event.data.object as Stripe.Charge;
+            const appealId = charge.metadata?.appeal_id;
+            const intent = appealId ? await store.load(appealId) : null;
+            const paymentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+            if (intent && charge.refunded && paymentId === intent.stripe_payment_intent_id) {
+              await store.updateStatus(intent.id, { status: "refunded", error_message: "Payment refunded by Stripe." });
+            }
           }
-          return Response.json({ received: true }, { status: 200 });
-        }
-
-        if (event.type === "payment_intent.payment_failed") {
-          console.log(`[stripe-webhook:appeal-mail] Payment failed: ${(event.data.object as Stripe.PaymentIntent).id}`);
-        } else if (event.type === "charge.refunded") {
-          const charge = event.data.object as Stripe.Charge;
-          const appealId = (charge.metadata as Record<string, string> | undefined)?.appeal_id;
-          if (appealId) {
-            await store.updateStatus(appealId, {
-              status: "refunded",
-              error_message: "Payment refunded by Stripe.",
-            }).catch((err) => console.error("[stripe-webhook:appeal-mail] Failed to mark refunded:", err));
-          } else {
-            console.log(`[stripe-webhook:appeal-mail] Charge refunded (no appeal_id in charge metadata): ${charge.id}`);
-          }
-        } else {
-          console.log(`[stripe-webhook:appeal-mail] Unhandled Stripe event: ${event.type}`);
+        } catch (error) {
+          console.error("[stripe-webhook:appeal-mail] Status update failed", error);
+          return Response.json({ error: "Unable to persist payment status." }, { status: 500 });
         }
 
         return Response.json({ received: true }, { status: 200 });

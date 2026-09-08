@@ -71,6 +71,7 @@ import { Route as ApiAdminAppealsRouteImport } from './routes/api/admin/appeals'
 import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
 import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiControlPlaneAiRouteImport } from './routes/api/control-plane/ai'
+import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
 import { Route as WorkflowsWorkflowIdStartRouteImport } from './routes/workflows/$workflowId/start'
 import { Route as ApiWorkflowsWorkflowIdAnalyzeRouteImport } from './routes/api/workflows/$workflowId/analyze'
 import { Route as ApiWorkflowsWorkflowIdDraftRouteImport } from './routes/api/workflows/$workflowId/draft'
@@ -546,6 +547,11 @@ const ApiAuthStatusRoute = ApiAuthStatusRouteImport.update({
 const ApiControlPlaneAiRoute = ApiControlPlaneAiRouteImport.update({
   id: '/api/control-plane/ai',
   path: '/api/control-plane/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMailResponseRoute = ApiMailResponseRouteImport.update({
+  id: '/api/mail/response',
+  path: '/api/mail/response',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkflowsWorkflowIdStartRoute =
@@ -1452,6 +1458,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -1655,6 +1662,7 @@ export interface FileRoutesByTo {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -1860,6 +1868,7 @@ export interface FileRoutesById {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -2066,6 +2075,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/api/mail/response'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2269,6 +2279,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/api/mail/response'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2473,6 +2484,7 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/api/mail/response'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2641,6 +2653,7 @@ export interface RootRouteChildren {
   ApiAdminHealthRoute: typeof ApiAdminHealthRoute
   ApiAuthStatusRoute: typeof ApiAuthStatusRoute
   ApiControlPlaneAiRoute: typeof ApiControlPlaneAiRoute
+  ApiMailResponseRoute: typeof ApiMailResponseRoute
   ApiWorkflowsWorkflowIdAnalyzeRoute: typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   ApiWorkflowsWorkflowIdDraftRoute: typeof ApiWorkflowsWorkflowIdDraftRoute
   ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute: typeof ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute
@@ -3216,6 +3229,13 @@ declare module '@tanstack/react-router' {
       path: '/api/control-plane/ai'
       fullPath: '/api/control-plane/ai'
       preLoaderRoute: typeof ApiControlPlaneAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mail/response': {
+      id: '/api/mail/response'
+      path: '/api/mail/response'
+      fullPath: '/api/mail/response'
+      preLoaderRoute: typeof ApiMailResponseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows/$workflowId/start': {
@@ -4329,6 +4349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminHealthRoute: ApiAdminHealthRoute,
   ApiAuthStatusRoute: ApiAuthStatusRoute,
   ApiControlPlaneAiRoute: ApiControlPlaneAiRoute,
+  ApiMailResponseRoute: ApiMailResponseRoute,
   ApiWorkflowsWorkflowIdAnalyzeRoute: ApiWorkflowsWorkflowIdAnalyzeRoute,
   ApiWorkflowsWorkflowIdDraftRoute: ApiWorkflowsWorkflowIdDraftRoute,
   ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute:
