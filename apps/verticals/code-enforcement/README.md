@@ -63,6 +63,8 @@ The assistant is case-grounded. It must distinguish:
 
 It must never silently convert an absent record into proof that something did not happen.
 
+This label set is distinct from, and must be reconciled with, FairProcessMaps' checkpoint-status vocabulary (`Observed` / `NotLocated` / `InsufficientEvidence` / `AwaitingTrigger` / `Satisfied`) whenever the assistant describes a procedural checkpoint — see [`docs/VOCABULARY.md`](docs/VOCABULARY.md) for the crosswalk.
+
 ## Initial analysis engine
 
 The first deterministic checks should cover:
@@ -87,4 +89,4 @@ This is evidence-management, procedural-analysis, and workflow software. It does
 
 ## Development
 
-The initial implementation targets Next.js + React + TypeScript with Cloudflare D1/R2 compatibility. Keep the architecture modular so the reusable FairProcess/FairProcessMaps engines can later be extracted into shared packages rather than copied indefinitely.
+The implementation is TanStack Start + React + TypeScript, built with Vite/Nitro and deployed to Cloudflare Pages (`src/`, matching the rest of this ecosystem's verticals). An earlier Next.js prototype (`app/`, backed by an external Base44 SaaS instance) was removed — it had been abandoned since the 2026-08-31 topology consolidation while `src/` continued to be developed, and CI was deploying that dead prototype to production instead of the real app. Keep the architecture modular so the reusable FairProcess/FairProcessMaps engines can later be extracted into shared packages rather than copied indefinitely.
