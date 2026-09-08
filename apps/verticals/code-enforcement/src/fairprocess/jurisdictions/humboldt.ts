@@ -7,10 +7,14 @@ import type { JurisdictionPack } from '../types';
  * The data connectors may be used for sourced factual discovery. The local policy
  * pack remains legal-review-required, so its rules must not be presented as
  * authoritative legal conclusions until the pack is reviewed and activated.
+ *
+ * Source URLs in this pack were re-verified against the county's public systems
+ * on 2026-09-07. Stale FairProcessMaps ArcGIS endpoints are intentionally not
+ * treated as current sources here.
  */
 export const HUMBOLDT_FAIRPROCESS_PACK: JurisdictionPack = {
   id: 'us-ca-humboldt',
-  version: '2026-09-07.1',
+  version: '2026-09-07.2',
   name: 'Humboldt County, California',
   country: 'United States',
   state: 'California',
@@ -33,22 +37,34 @@ export const HUMBOLDT_FAIRPROCESS_PACK: JurisdictionPack = {
   allowJurisdictionSpecificLegalConclusions: false,
   connectors: [
     {
-      id: 'humboldt-building-permits',
-      kind: 'permit',
-      name: 'Humboldt County Building Permits ArcGIS',
-      baseUrl: 'https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Building/Building_Permits/MapServer/0',
+      id: 'humboldt-parcels',
+      kind: 'parcel',
+      name: 'Humboldt County Parcels GIS',
+      baseUrl: 'https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Parcels/Parcels/MapServer/0',
       official: true,
       enabled: true,
       provenanceRequired: true,
+      notes: 'Current county GIS parcel layer. County cautions that GIS data should be independently verified before material reliance.',
     },
     {
       id: 'humboldt-code-enforcement-cases',
       kind: 'code_enforcement',
-      name: 'Humboldt County Code Enforcement ArcGIS',
-      baseUrl: 'https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Code_Enforcement/Code_Enforcement/MapServer/0',
+      name: 'Humboldt County Code Enforcement GIS historical snapshot',
+      baseUrl: 'https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Web/Housing_Public/MapServer/7',
       official: true,
       enabled: true,
       provenanceRequired: true,
+      notes: 'The exposed county GIS layer is titled "Code Enforcement Cases 1/15/2025". Treat it only as historical/context evidence, never as proof of current case status.',
+    },
+    {
+      id: 'humboldt-building-permits',
+      kind: 'permit',
+      name: 'Humboldt County Accela permit search',
+      baseUrl: 'https://aca-prod.accela.com/humboldt/Default.aspx',
+      official: true,
+      enabled: false,
+      provenanceRequired: true,
+      notes: 'County says permit records can be searched in Accela without logging in. Automated machine access has not been validated, so FairProcess must not invent or scrape an undocumented API.',
     },
     {
       id: 'humboldt-county-code',
@@ -58,17 +74,17 @@ export const HUMBOLDT_FAIRPROCESS_PACK: JurisdictionPack = {
       official: false,
       enabled: true,
       provenanceRequired: true,
-      notes: 'Convenience source. Controlling text should be verified against an official county source before a legal conclusion is activated.',
+      notes: 'Convenience source linked by the county. Controlling text should be verified before a legal conclusion is activated.',
     },
     {
       id: 'humboldt-public-records',
       kind: 'public_records',
       name: 'Humboldt County Public Records',
-      baseUrl: 'https://humboldtgov.org/',
+      baseUrl: 'https://humboldtgov.org/153/Building-Inspection',
       official: true,
       enabled: true,
       provenanceRequired: true,
-      notes: 'Discovery entry point. Individual department request endpoints should be stored as sourced records when resolved.',
+      notes: 'Official Planning & Building entry point links public-records request resources. Exact request endpoints should be captured when resolved.',
     },
   ],
 };
