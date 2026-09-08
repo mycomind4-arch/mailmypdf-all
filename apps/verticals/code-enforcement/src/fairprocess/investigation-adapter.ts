@@ -26,6 +26,7 @@ export interface InvestigationPacketContext {
   allegations?: PacketAllegation[];
   communications?: PacketSourceRef[];
   recordsRequests?: PacketSourceRef[];
+  sourceReadiness?: AttorneyPacketInput['sourceReadiness'];
 }
 
 function sourceForEvidence(
@@ -142,5 +143,6 @@ export function investigationToAttorneyPacketInput(
     evidence,
     communications: context.communications,
     recordsRequests: context.recordsRequests,
+    sourceReadiness: context.sourceReadiness,
   };
 }
