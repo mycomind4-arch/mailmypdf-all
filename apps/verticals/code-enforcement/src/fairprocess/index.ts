@@ -4,6 +4,7 @@ import { HUMBOLDT_FAIRPROCESS_PACK } from './jurisdictions/humboldt';
 
 export * from './types';
 export * from './attorney-packet';
+export * from './evidence-integrity';
 export * from './investigation-adapter';
 export * from './jurisdiction-registry';
 export * from './jurisdictions/humboldt';
