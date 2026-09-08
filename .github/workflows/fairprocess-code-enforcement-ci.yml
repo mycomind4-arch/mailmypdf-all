@@ -6,6 +6,7 @@ on:
       - feature/fairprocess-code-enforcement-core
     paths:
       - 'apps/verticals/code-enforcement/**'
+      - 'apps/verticals/records-request/**'
       - '.github/workflows/fairprocess-code-enforcement-ci.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -41,5 +42,19 @@ jobs:
       - name: Typecheck Code Enforcement
         run: pnpm --filter code-enforcement typecheck
 
-      - name: Run FairProcess tests
-        run: pnpm --filter code-enforcement exec vitest run src/fairprocess
+      - name: Run FairProcess and Workflow 0 tests
+        run: >-
+          pnpm --filter code-enforcement exec vitest run
+          src/fairprocess
+          src/pipeline/case-orchestrator.test.ts
+          src/pipeline/case-orchestrator-fairprocess.test.ts
+
+      - name: Typecheck Records Request
+        run: pnpm --filter records-requests typecheck
+
+      - name: Run Records Request FairProcess bridge tests
+        run: >-
+          pnpm --filter records-requests exec vitest run
+          src/workflows/fairprocess-code-enforcement-handoff.test.ts
+          src/workflows/code-enforcement-records.test.ts
+          src/workflows/code-enforcement-records-schema.test.ts
