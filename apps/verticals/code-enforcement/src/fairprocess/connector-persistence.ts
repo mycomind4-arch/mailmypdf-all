@@ -9,6 +9,7 @@ import type {
 export interface PersistedConnectorCapture {
   evidenceIds: string[];
   snapshotIds: string[];
+  evidenceBySnapshot: Record<string, string>;
 }
 
 function sourceEvidenceId(snapshotId: string): string {
@@ -31,6 +32,7 @@ export async function persistConnectorCapture<T>(
 ): Promise<PersistedConnectorCapture> {
   const evidenceIds: string[] = [];
   const snapshotIds: string[] = [];
+  const evidenceBySnapshot: Record<string, string> = {};
   const artifactsBySnapshot = new Map(
     result.artifacts.map((artifact) => [artifact.snapshotId, artifact]),
   );
@@ -90,7 +92,8 @@ export async function persistConnectorCapture<T>(
 
     evidenceIds.push(evidenceId);
     snapshotIds.push(snapshot.id);
+    evidenceBySnapshot[snapshot.id] = evidenceId;
   }
 
-  return { evidenceIds, snapshotIds };
+  return { evidenceIds, snapshotIds, evidenceBySnapshot };
 }
