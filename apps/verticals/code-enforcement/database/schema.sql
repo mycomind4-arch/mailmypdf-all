@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS cases (
   closed_at TEXT,
   priority TEXT NOT NULL DEFAULT 'normal',
   summary TEXT,
+  jurisdiction_pack_id TEXT,
+  jurisdiction_pack_version TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -35,12 +37,23 @@ CREATE TABLE IF NOT EXISTS evidence (
   source TEXT,
   source_url TEXT,
   acquired_at TEXT,
+  retrieved_at TEXT,
   document_date TEXT,
   content_hash TEXT,
+  sha256_hash TEXT,
+  mime_type TEXT,
+  size_bytes INTEGER,
+  original_filename TEXT,
+  storage_key TEXT,
   page_reference TEXT,
   extracted_text TEXT,
   provenance_json TEXT,
   review_status TEXT NOT NULL DEFAULT 'unreviewed',
+  evidence_version INTEGER NOT NULL DEFAULT 1,
+  supersedes_evidence_id TEXT REFERENCES evidence(id),
+  immutable_at TEXT,
+  withdrawn_at TEXT,
+  withdrawal_reason TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -56,6 +69,14 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS event_evidence_links (
+  event_id TEXT NOT NULL REFERENCES events(id),
+  evidence_id TEXT NOT NULL REFERENCES evidence(id),
+  relationship TEXT NOT NULL DEFAULT 'supports',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (event_id, evidence_id, relationship)
+);
+
 CREATE TABLE IF NOT EXISTS violations (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL REFERENCES cases(id),
@@ -69,6 +90,14 @@ CREATE TABLE IF NOT EXISTS violations (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS violation_evidence_links (
+  violation_id TEXT NOT NULL REFERENCES violations(id),
+  evidence_id TEXT NOT NULL REFERENCES evidence(id),
+  relationship TEXT NOT NULL CHECK (relationship IN ('supports', 'contradicts', 'context')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (violation_id, evidence_id, relationship)
+);
+
 CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL REFERENCES cases(id),
@@ -79,6 +108,12 @@ CREATE TABLE IF NOT EXISTS findings (
   evidence_ids_json TEXT NOT NULL,
   rule_id TEXT,
   policy_version TEXT,
+  policy_status TEXT,
+  citation TEXT,
+  source_url TEXT,
+  authority TEXT,
+  provisional INTEGER NOT NULL DEFAULT 1,
+  counsel_review_required INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'open',
   human_reviewed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -96,6 +131,38 @@ CREATE TABLE IF NOT EXISTS actions (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS source_snapshots (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id),
+  connector_id TEXT NOT NULL,
+  connector_version TEXT,
+  jurisdiction_pack_id TEXT NOT NULL,
+  jurisdiction_pack_version TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  query_json TEXT,
+  retrieved_at TEXT NOT NULL,
+  response_sha256 TEXT NOT NULL,
+  raw_evidence_id TEXT REFERENCES evidence(id),
+  http_status INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS packet_exports (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id),
+  packet_type TEXT NOT NULL,
+  format_version INTEGER NOT NULL,
+  renderer_version TEXT NOT NULL,
+  manifest_json TEXT NOT NULL,
+  manifest_sha256 TEXT NOT NULL,
+  readiness_score INTEGER NOT NULL,
+  pdf_evidence_id TEXT REFERENCES evidence(id),
+  exhibit_archive_evidence_id TEXT REFERENCES evidence(id),
+  generated_by TEXT,
+  generated_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id TEXT PRIMARY KEY,
   case_id TEXT REFERENCES cases(id),
@@ -110,6 +177,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
 
 CREATE INDEX IF NOT EXISTS idx_cases_property ON cases(property_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_case ON evidence(case_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_sha256 ON evidence(sha256_hash);
 CREATE INDEX IF NOT EXISTS idx_events_case_date ON events(case_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_findings_case_status ON findings(case_id, status);
 CREATE INDEX IF NOT EXISTS idx_actions_case_due ON actions(case_id, due_at);
+CREATE INDEX IF NOT EXISTS idx_source_snapshots_case ON source_snapshots(case_id, retrieved_at);
+CREATE INDEX IF NOT EXISTS idx_source_snapshots_hash ON source_snapshots(response_sha256);
+CREATE INDEX IF NOT EXISTS idx_packet_exports_case ON packet_exports(case_id, generated_at);
