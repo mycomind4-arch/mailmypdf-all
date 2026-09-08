@@ -38,9 +38,17 @@ alter table public.mailing_intents add column if not exists quote_snapshot jsonb
 alter table public.mailing_intents add column if not exists draft text;
 alter table public.mailing_intents add column if not exists recipient jsonb;
 
--- Fix status default and add constraint for valid statuses
+-- Fix status default (new rows will use 'draft'; existing 'pending' rows are unchanged)
 alter table public.mailing_intents alter column status set default 'draft';
 
 -- Add check constraint for mailing_method to ensure it's a valid MailType
 -- Valid values: 'first_class' | 'certified' | 'certified_return_receipt' | 'registered'
-alter table public.mailing_intents add constraint mailing_method_valid check (mailing_method in ('first_class', 'certified', 'certified_return_receipt', 'registered'));
+alter table public.mailing_intents
+  add constraint if not exists mailing_method_valid
+  check (mailing_method in ('first_class', 'certified', 'certified_return_receipt', 'registered'));
+
+-- Add check constraint for status to document valid states
+-- Note: This allows both 'draft' and 'pending' for backward compatibility with existing data
+alter table public.mailing_intents
+  add constraint if not exists mailing_intent_status_valid
+  check (status in ('draft', 'pending', 'approved', 'paid', 'submitted', 'tracking', 'delivered', 'failed', 'expired', 'refunded'));
