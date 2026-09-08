@@ -1,6 +1,8 @@
 import {
+  createRawConnectorArtifact,
   createSourceSnapshot,
   requireConnectorFromPack,
+  type ConnectorRawArtifact,
   type ConnectorRequestContext,
   type FetchLike,
   type SourcedConnectorResult,
@@ -131,10 +133,12 @@ async function queryArcGisByApn(
 ): Promise<{
   attributes: Record<string, unknown>[];
   snapshots: FairProcessSourceSnapshot[];
+  artifacts: ConnectorRawArtifact[];
   warnings: string[];
 }> {
   const connector = requireConnectorFromPack(context.jurisdiction, connectorId);
   const snapshots: FairProcessSourceSnapshot[] = [];
+  const artifacts: ConnectorRawArtifact[] = [];
   const warnings: string[] = [];
   const retrievedAt = context.retrievedAt ?? new Date().toISOString();
 
@@ -163,18 +167,24 @@ async function queryArcGisByApn(
       continue;
     }
 
-    snapshots.push(
-      await createSourceSnapshot({
-        connector,
-        connectorVersion: HUMBOLDT_CONNECTOR_VERSION,
-        jurisdiction: context.jurisdiction,
-        caseId: context.caseId,
-        sourceUrl: requestUrl,
-        query: { where, outFields: '*', returnGeometry: false, resultRecordCount: 100 },
-        retrievedAt,
+    const snapshot = await createSourceSnapshot({
+      connector,
+      connectorVersion: HUMBOLDT_CONNECTOR_VERSION,
+      jurisdiction: context.jurisdiction,
+      caseId: context.caseId,
+      sourceUrl: requestUrl,
+      query: { where, outFields: '*', returnGeometry: false, resultRecordCount: 100 },
+      retrievedAt,
+      rawResponse,
+      httpStatus: response.status,
+    });
+    snapshots.push(snapshot);
+    artifacts.push(
+      createRawConnectorArtifact(
+        snapshot,
+        `${connector.name} response (${where})`,
         rawResponse,
-        httpStatus: response.status,
-      }),
+      ),
     );
 
     if (!response.ok) {
@@ -202,11 +212,11 @@ async function queryArcGisByApn(
       .filter((value): value is Record<string, unknown> => Boolean(value));
 
     if (attributes.length > 0) {
-      return { attributes, snapshots, warnings };
+      return { attributes, snapshots, artifacts, warnings };
     }
   }
 
-  return { attributes: [], snapshots, warnings };
+  return { attributes: [], snapshots, artifacts, warnings };
 }
 
 function mapPermit(raw: Record<string, unknown>): HumboldtPermitRecord {
@@ -268,6 +278,7 @@ export async function lookupHumboldtPermitsByApn(
   return {
     records: result.attributes.map(mapPermit),
     snapshots: result.snapshots,
+    artifacts: result.artifacts,
     warnings: result.warnings,
   };
 }
@@ -287,6 +298,7 @@ export async function lookupHumboldtCodeEnforcementByApn(
   return {
     records: result.attributes.map(mapCodeEnforcement),
     snapshots: result.snapshots,
+    artifacts: result.artifacts,
     warnings: result.warnings,
   };
 }
