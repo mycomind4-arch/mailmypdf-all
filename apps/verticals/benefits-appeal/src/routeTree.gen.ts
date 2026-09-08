@@ -57,6 +57,9 @@ import { Route as ApiAdminAppealsRouteImport } from './routes/api/admin/appeals'
 import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
 import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiControlPlaneAiRouteImport } from './routes/api/control-plane/ai'
+import { Route as WorkflowsWorkflowIdStartRouteImport } from './routes/workflows/$workflowId/start'
+import { Route as ApiWorkflowsSlugAnalyzeRouteImport } from './routes/api/workflows/$slug/analyze'
+import { Route as ApiWorkflowsSlugDraftRouteImport } from './routes/api/workflows/$slug/draft'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -307,6 +310,22 @@ const ApiControlPlaneAiRoute = ApiControlPlaneAiRouteImport.update({
   path: '/api/control-plane/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkflowsWorkflowIdStartRoute =
+  WorkflowsWorkflowIdStartRouteImport.update({
+    id: '/start',
+    path: '/start',
+    getParentRoute: () => WorkflowsWorkflowIdRoute,
+  } as any)
+const ApiWorkflowsSlugAnalyzeRoute = ApiWorkflowsSlugAnalyzeRouteImport.update({
+  id: '/api/workflows/$slug/analyze',
+  path: '/api/workflows/$slug/analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkflowsSlugDraftRoute = ApiWorkflowsSlugDraftRouteImport.update({
+  id: '/api/workflows/$slug/draft',
+  path: '/api/workflows/$slug/draft',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -335,7 +354,7 @@ export interface FileRoutesByFullPath {
   '/appeal/unemployment': typeof AppealUnemploymentRoute
   '/appeal/veterans': typeof AppealVeteransRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/benefits-reconsideration': typeof WorkflowsBenefitsReconsiderationRoute
   '/workflows/disability-benefits-denial': typeof WorkflowsDisabilityBenefitsDenialRoute
   '/workflows/edd-denial': typeof WorkflowsEddDenialRoute
@@ -357,6 +376,9 @@ export interface FileRoutesByFullPath {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
+  '/api/workflows/$slug/analyze': typeof ApiWorkflowsSlugAnalyzeRoute
+  '/api/workflows/$slug/draft': typeof ApiWorkflowsSlugDraftRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -384,7 +406,7 @@ export interface FileRoutesByTo {
   '/appeal/unemployment': typeof AppealUnemploymentRoute
   '/appeal/veterans': typeof AppealVeteransRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/benefits-reconsideration': typeof WorkflowsBenefitsReconsiderationRoute
   '/workflows/disability-benefits-denial': typeof WorkflowsDisabilityBenefitsDenialRoute
   '/workflows/edd-denial': typeof WorkflowsEddDenialRoute
@@ -406,6 +428,9 @@ export interface FileRoutesByTo {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
+  '/api/workflows/$slug/analyze': typeof ApiWorkflowsSlugAnalyzeRoute
+  '/api/workflows/$slug/draft': typeof ApiWorkflowsSlugDraftRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -435,7 +460,7 @@ export interface FileRoutesById {
   '/appeal/unemployment': typeof AppealUnemploymentRoute
   '/appeal/veterans': typeof AppealVeteransRoute
   '/resources/$slug': typeof ResourcesSlugRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
+  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRouteWithChildren
   '/workflows/benefits-reconsideration': typeof WorkflowsBenefitsReconsiderationRoute
   '/workflows/disability-benefits-denial': typeof WorkflowsDisabilityBenefitsDenialRoute
   '/workflows/edd-denial': typeof WorkflowsEddDenialRoute
@@ -457,6 +482,9 @@ export interface FileRoutesById {
   '/api/admin/health': typeof ApiAdminHealthRoute
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
+  '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
+  '/api/workflows/$slug/analyze': typeof ApiWorkflowsSlugAnalyzeRoute
+  '/api/workflows/$slug/draft': typeof ApiWorkflowsSlugDraftRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -509,6 +537,9 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
+    | '/api/workflows/$slug/analyze'
+    | '/api/workflows/$slug/draft'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -558,6 +589,9 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
+    | '/api/workflows/$slug/analyze'
+    | '/api/workflows/$slug/draft'
   id:
     | '__root__'
     | '/'
@@ -608,6 +642,9 @@ export interface FileRouteTypes {
     | '/api/admin/health'
     | '/api/auth/status'
     | '/api/control-plane/ai'
+    | '/workflows/$workflowId/start'
+    | '/api/workflows/$slug/analyze'
+    | '/api/workflows/$slug/draft'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -642,6 +679,8 @@ export interface RootRouteChildren {
   ApiAdminHealthRoute: typeof ApiAdminHealthRoute
   ApiAuthStatusRoute: typeof ApiAuthStatusRoute
   ApiControlPlaneAiRoute: typeof ApiControlPlaneAiRoute
+  ApiWorkflowsSlugAnalyzeRoute: typeof ApiWorkflowsSlugAnalyzeRoute
+  ApiWorkflowsSlugDraftRoute: typeof ApiWorkflowsSlugDraftRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -982,11 +1021,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiControlPlaneAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workflows/$workflowId/start': {
+      id: '/workflows/$workflowId/start'
+      path: '/start'
+      fullPath: '/workflows/$workflowId/start'
+      preLoaderRoute: typeof WorkflowsWorkflowIdStartRouteImport
+      parentRoute: typeof WorkflowsWorkflowIdRoute
+    }
+    '/api/workflows/$slug/analyze': {
+      id: '/api/workflows/$slug/analyze'
+      path: '/api/workflows/$slug/analyze'
+      fullPath: '/api/workflows/$slug/analyze'
+      preLoaderRoute: typeof ApiWorkflowsSlugAnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/workflows/$slug/draft': {
+      id: '/api/workflows/$slug/draft'
+      path: '/api/workflows/$slug/draft'
+      fullPath: '/api/workflows/$slug/draft'
+      preLoaderRoute: typeof ApiWorkflowsSlugDraftRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface WorkflowsWorkflowIdRouteChildren {
+  WorkflowsWorkflowIdStartRoute: typeof WorkflowsWorkflowIdStartRoute
+}
+
+const WorkflowsWorkflowIdRouteChildren: WorkflowsWorkflowIdRouteChildren = {
+  WorkflowsWorkflowIdStartRoute: WorkflowsWorkflowIdStartRoute,
+}
+
+const WorkflowsWorkflowIdRouteWithChildren =
+  WorkflowsWorkflowIdRoute._addFileChildren(WorkflowsWorkflowIdRouteChildren)
+
 interface WorkflowsRouteChildren {
-  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
+  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRouteWithChildren
   WorkflowsBenefitsReconsiderationRoute: typeof WorkflowsBenefitsReconsiderationRoute
   WorkflowsDisabilityBenefitsDenialRoute: typeof WorkflowsDisabilityBenefitsDenialRoute
   WorkflowsEddDenialRoute: typeof WorkflowsEddDenialRoute
@@ -1006,7 +1077,7 @@ interface WorkflowsRouteChildren {
 }
 
 const WorkflowsRouteChildren: WorkflowsRouteChildren = {
-  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
+  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRouteWithChildren,
   WorkflowsBenefitsReconsiderationRoute: WorkflowsBenefitsReconsiderationRoute,
   WorkflowsDisabilityBenefitsDenialRoute:
     WorkflowsDisabilityBenefitsDenialRoute,
@@ -1062,6 +1133,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminHealthRoute: ApiAdminHealthRoute,
   ApiAuthStatusRoute: ApiAuthStatusRoute,
   ApiControlPlaneAiRoute: ApiControlPlaneAiRoute,
+  ApiWorkflowsSlugAnalyzeRoute: ApiWorkflowsSlugAnalyzeRoute,
+  ApiWorkflowsSlugDraftRoute: ApiWorkflowsSlugDraftRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

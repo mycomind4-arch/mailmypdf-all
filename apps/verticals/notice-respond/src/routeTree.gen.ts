@@ -25,6 +25,7 @@ import { Route as ProductsRouteImport } from './routes/products'
 import { Route as RespondToAGovernmentNoticeRouteImport } from './routes/respond-to-a-government-notice'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiApproveRouteImport } from './routes/api/approve'
 import { Route as ApiCheckoutRouteImport } from './routes/api/checkout'
 import { Route as ApiDocumentsRouteImport } from './routes/api/documents'
 import { Route as ResourcesIndexRouteImport } from './routes/resources/index'
@@ -74,6 +75,8 @@ import { Route as ApiCasesCaseIdRouteImport } from './routes/api/cases/$caseId'
 import { Route as ApiCasesCp2000RouteImport } from './routes/api/cases/cp2000'
 import { Route as ApiCasesCreateRouteImport } from './routes/api/cases/create'
 import { Route as ApiDocumentsExtractRouteImport } from './routes/api/documents/extract'
+import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as WorkflowsWorkflowIdLandingRouteImport } from './routes/workflows/$workflowId/landing'
 import { Route as ApiCasesCaseIdApproveRouteImport } from './routes/api/cases/$caseId/approve'
 import { Route as ApiCasesCaseIdEvidenceRouteImport } from './routes/api/cases/$caseId/evidence'
@@ -157,6 +160,11 @@ const StartRoute = StartRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiApproveRoute = ApiApproveRouteImport.update({
+  id: '/api/approve',
+  path: '/api/approve',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCheckoutRoute = ApiCheckoutRouteImport.update({
@@ -426,6 +434,16 @@ const ApiDocumentsExtractRoute = ApiDocumentsExtractRouteImport.update({
   path: '/extract',
   getParentRoute: () => ApiDocumentsRoute,
 } as any)
+const ApiMailResponseRoute = ApiMailResponseRouteImport.update({
+  id: '/api/mail/response',
+  path: '/api/mail/response',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowsWorkflowIdLandingRoute =
   WorkflowsWorkflowIdLandingRouteImport.update({
     id: '/workflows/$workflowId/landing',
@@ -460,6 +478,7 @@ export interface FileRoutesByFullPath {
   '/respond-to-a-government-notice': typeof RespondToAGovernmentNoticeRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
@@ -508,6 +527,8 @@ export interface FileRoutesByFullPath {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -530,6 +551,7 @@ export interface FileRoutesByTo {
   '/respond-to-a-government-notice': typeof RespondToAGovernmentNoticeRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
@@ -578,6 +600,8 @@ export interface FileRoutesByTo {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -601,6 +625,7 @@ export interface FileRoutesById {
   '/respond-to-a-government-notice': typeof RespondToAGovernmentNoticeRoute
   '/start': typeof StartRoute
   '/terms': typeof TermsRoute
+  '/api/approve': typeof ApiApproveRoute
   '/api/checkout': typeof ApiCheckoutRoute
   '/api/documents': typeof ApiDocumentsRouteWithChildren
   '/resources/$slug': typeof ResourcesSlugRoute
@@ -649,6 +674,8 @@ export interface FileRoutesById {
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
+  '/api/mail/response': typeof ApiMailResponseRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -673,6 +700,7 @@ export interface FileRouteTypes {
     | '/respond-to-a-government-notice'
     | '/start'
     | '/terms'
+    | '/api/approve'
     | '/api/checkout'
     | '/api/documents'
     | '/resources/$slug'
@@ -721,6 +749,8 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
@@ -743,6 +773,7 @@ export interface FileRouteTypes {
     | '/respond-to-a-government-notice'
     | '/start'
     | '/terms'
+    | '/api/approve'
     | '/api/checkout'
     | '/api/documents'
     | '/resources/$slug'
@@ -791,6 +822,8 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/landing'
     | '/api/cases'
     | '/api/cases/$caseId/approve'
@@ -813,6 +846,7 @@ export interface FileRouteTypes {
     | '/respond-to-a-government-notice'
     | '/start'
     | '/terms'
+    | '/api/approve'
     | '/api/checkout'
     | '/api/documents'
     | '/resources/$slug'
@@ -861,6 +895,8 @@ export interface FileRouteTypes {
     | '/api/cases/cp2000'
     | '/api/cases/create'
     | '/api/documents/extract'
+    | '/api/mail/response'
+    | '/api/webhooks/stripe'
     | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
@@ -884,6 +920,7 @@ export interface RootRouteChildren {
   RespondToAGovernmentNoticeRoute: typeof RespondToAGovernmentNoticeRoute
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
+  ApiApproveRoute: typeof ApiApproveRoute
   ApiCheckoutRoute: typeof ApiCheckoutRoute
   ApiDocumentsRoute: typeof ApiDocumentsRouteWithChildren
   ResourcesSlugRoute: typeof ResourcesSlugRoute
@@ -931,6 +968,8 @@ export interface RootRouteChildren {
   ApiCasesCaseIdRoute: typeof ApiCasesCaseIdRouteWithChildren
   ApiCasesCp2000Route: typeof ApiCasesCp2000Route
   ApiCasesCreateRoute: typeof ApiCasesCreateRoute
+  ApiMailResponseRoute: typeof ApiMailResponseRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   WorkflowsWorkflowIdLandingRoute: typeof WorkflowsWorkflowIdLandingRoute
   ApiCasesIndexRoute: typeof ApiCasesIndexRoute
 }
@@ -1047,6 +1086,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/approve': {
+      id: '/api/approve'
+      path: '/api/approve'
+      fullPath: '/api/approve'
+      preLoaderRoute: typeof ApiApproveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/checkout': {
@@ -1392,6 +1438,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDocumentsExtractRouteImport
       parentRoute: typeof ApiDocumentsRoute
     }
+    '/api/mail/response': {
+      id: '/api/mail/response'
+      path: '/api/mail/response'
+      fullPath: '/api/mail/response'
+      preLoaderRoute: typeof ApiMailResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/$workflowId/landing': {
       id: '/workflows/$workflowId/landing'
       path: '/workflows/$workflowId/landing'
@@ -1459,6 +1519,7 @@ const rootRouteChildren: RootRouteChildren = {
   RespondToAGovernmentNoticeRoute: RespondToAGovernmentNoticeRoute,
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
+  ApiApproveRoute: ApiApproveRoute,
   ApiCheckoutRoute: ApiCheckoutRoute,
   ApiDocumentsRoute: ApiDocumentsRouteWithChildren,
   ResourcesSlugRoute: ResourcesSlugRoute,
@@ -1509,6 +1570,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCasesCaseIdRoute: ApiCasesCaseIdRouteWithChildren,
   ApiCasesCp2000Route: ApiCasesCp2000Route,
   ApiCasesCreateRoute: ApiCasesCreateRoute,
+  ApiMailResponseRoute: ApiMailResponseRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   WorkflowsWorkflowIdLandingRoute: WorkflowsWorkflowIdLandingRoute,
   ApiCasesIndexRoute: ApiCasesIndexRoute,
 }
