@@ -2,6 +2,7 @@ import type {
   AttorneyPacketSourceReadiness,
   JurisdictionPack,
   JurisdictionRecordsCategory,
+  JurisdictionRecordsCustodianRoute,
   PacketAllegation,
 } from './types';
 import {
@@ -98,10 +99,10 @@ function taskStatus(requirement: SourceRequirement): RecordsInvestigationTaskSta
 function findCustodian(
   requirement: SourceRequirement,
   jurisdiction: JurisdictionPack,
-): JurisdictionPack['recordsCustodians'] extends Array<infer T> | undefined ? T | undefined : never {
+): JurisdictionRecordsCustodianRoute | undefined {
   return jurisdiction.recordsCustodians?.find((route) =>
     route.categories.includes(requirement.category as JurisdictionRecordsCategory),
-  ) as never;
+  );
 }
 
 export function buildRecordsInvestigationTaskPlan(
