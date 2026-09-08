@@ -13,6 +13,7 @@ export interface ConnectorRequestContext {
 export interface SourcedConnectorResult<T> {
   records: T[];
   snapshots: FairProcessSourceSnapshot[];
+  warnings: string[];
 }
 
 export interface JurisdictionDataConnector<TQuery, TResult> {
