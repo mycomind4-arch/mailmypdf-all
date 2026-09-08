@@ -1420,7 +1420,7 @@ export function WorkflowWizard({ workflowId, metaTitle, metaDescription, compone
                       const session = await createCheckoutSession({ data: {
                         mailingMethod: mailType,
                         appealId,
-                        recipientName: recipient.name,
+                        recipient,
                         workflowId,
                       }});
                       if (session.url) {

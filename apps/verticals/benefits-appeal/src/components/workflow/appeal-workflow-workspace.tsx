@@ -41,6 +41,7 @@ export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { wo
   const [mailingMethod, setMailingMethod] = useState<"standard" | "certified" | "registered">("certified");
   const [review, setReview] = useState<any>(null);
   const [approved, setApproved] = useState(false);
+  const [approvalId, setApprovalId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [building, setBuilding] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -85,29 +86,29 @@ export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { wo
   }
 
   async function approve() {
-    if (!insuranceMode || !(appealId || analysis?.appealId) || !recipientComplete) return;
+    if (!(appealId || analysis?.appealId) || !recipientComplete) return;
     setApproving(true); setError(null);
     try {
       const token = await getAccessToken();
-      const response = await fetch("/api/workflows/insurance-claim-denial/approve", {
+      const response = await fetch(`/api/workflows/${workflowId}/approve`, {
         method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, credentials: "include",
         body: JSON.stringify({ appealId: appealId || analysis?.appealId, draft, recipient, mailingMethod }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) { if (payload?.review) setReview(payload.review); throw new Error(payload?.error || "Approval failed."); }
-      setReview(payload.review); setApproved(true);
+      setReview(payload.review); setApprovalId(payload.approvalId); setApproved(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Approval failed."); }
     finally { setApproving(false); }
   }
 
   async function checkout() {
-    if (!insuranceMode || !approved || !(appealId || analysis?.appealId)) return;
+    if (!approved || !approvalId || !(appealId || analysis?.appealId)) return;
     setCheckingOut(true); setError(null);
     try {
       const token = await getAccessToken();
-      const response = await fetch("/api/workflows/insurance-claim-denial/checkout", {
+      const response = await fetch(`/api/workflows/${workflowId}/checkout`, {
         method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, credentials: "include",
-        body: JSON.stringify({ appealId: appealId || analysis?.appealId }),
+        body: JSON.stringify({ appealId: appealId || analysis?.appealId, approvalId }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.url) throw new Error(payload?.error || "Checkout could not be created.");
@@ -151,12 +152,12 @@ export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { wo
 
         {stage === "send" && <section className="rounded-2xl border border-rule bg-paper-deep p-8">
           <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full border border-rule bg-paper"><CheckCircle2 size={18} /></div><div><h2 className="font-serif text-2xl">Your response is ready for review</h2><p className="text-sm text-muted-foreground">Gemini drafted and independently checked the response. Nothing is mailed without your explicit approval.</p></div></div>
-          <div className="mt-8 rounded-xl border border-rule bg-paper p-6"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">Draft response</div><textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="mt-4 min-h-[320px] w-full resize-y rounded-lg border border-rule bg-paper-deep p-4 text-sm leading-7 outline-none" /></div>
+          <div className="mt-8 rounded-xl border border-rule bg-paper p-6"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">Draft response</div><textarea value={draft} onChange={(e) => { setDraft(e.target.value); setApproved(false); setApprovalId(null); }} className="mt-4 min-h-[320px] w-full resize-y rounded-lg border border-rule bg-paper-deep p-4 text-sm leading-7 outline-none" /></div>
           <div className="mt-6 rounded-xl border border-rule bg-paper p-6"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">Independent validation</div><p className="mt-3 whitespace-pre-wrap text-sm leading-6">{validation || "No validation result returned."}</p></div>
-          {insuranceMode ? <>
+          {(appealId || analysis?.appealId) ? <>
             <div className="mt-6 rounded-xl border border-rule bg-paper p-6"><h3 className="font-serif text-xl">Where should we send it?</h3><div className="mt-4 grid gap-3 md:grid-cols-2">
-              {([["name","Recipient name"],["address1","Street address"],["address2","Apartment / suite (optional)"],["city","City"],["state","State"],["zip","ZIP code"]] as const).map(([key, label]) => <input key={key} value={recipient[key]} onChange={(e) => setRecipient((r) => ({ ...r, [key]: e.target.value }))} className="rounded-lg border border-rule bg-paper px-4 py-3 text-sm" placeholder={label} />)}
-            </div><select className="mt-4 rounded-lg border border-rule bg-paper px-4 py-3 text-sm" value={mailingMethod} onChange={(e) => setMailingMethod(e.target.value as typeof mailingMethod)}><option value="standard">Standard</option><option value="certified">Certified</option><option value="registered">Registered</option></select></div>
+              {([["name","Recipient name"],["address1","Street address"],["address2","Apartment / suite (optional)"],["city","City"],["state","State"],["zip","ZIP code"]] as const).map(([key, label]) => <input key={key} value={recipient[key]} onChange={(e) => { setRecipient((r) => ({ ...r, [key]: e.target.value })); setApproved(false); setApprovalId(null); }} className="rounded-lg border border-rule bg-paper px-4 py-3 text-sm" placeholder={label} />)}
+            </div><select className="mt-4 rounded-lg border border-rule bg-paper px-4 py-3 text-sm" value={mailingMethod} onChange={(e) => { setMailingMethod(e.target.value as typeof mailingMethod); setApproved(false); setApprovalId(null); }}><option value="standard">Standard</option><option value="certified">Certified</option><option value="registered">Registered</option></select></div>
             {review && <div className="mt-6 rounded-xl border border-rule bg-paper p-6"><div className="text-[10px] uppercase tracking-widest text-muted-foreground">Readiness review</div><div className="mt-2 text-2xl font-semibold">{review.score}/100</div><p className="mt-2 text-sm text-muted-foreground">{review.issuesRequiringAttention} item(s) require attention.</p></div>}
             <div className="mt-6 flex flex-wrap gap-3"><button disabled={!recipientComplete || approving || approved} onClick={approve} className={`rounded-full border px-5 py-3 text-sm disabled:opacity-40 ${approved ? "bg-foreground text-background" : "border-foreground"}`}>{approved ? "Approved and ready" : approving ? "Checking readiness…" : "Approve & prepare to send"}</button><button disabled={!approved || checkingOut} onClick={checkout} className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm text-background disabled:opacity-40"><Send size={16} />{checkingOut ? "Opening payment…" : "Continue to payment"}</button></div>
           </> : <div className="mt-6 rounded-xl border border-rule bg-paper p-6"><p className="text-sm text-muted-foreground">Mailing remains behind the workflow's server readiness and fulfillment controls. This workflow will receive the full payment/fulfillment path when it is individually upgraded.</p></div>}

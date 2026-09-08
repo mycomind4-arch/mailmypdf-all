@@ -376,6 +376,12 @@ importers:
 
   apps/verticals/benefits-appeal:
     dependencies:
+      '@mailmypdf/mailing-client':
+        specifier: workspace:*
+        version: link:../../../packages/mailing-client
+      '@mailmypdf/payment-fulfillment':
+        specifier: workspace:*
+        version: link:../../../packages/payment-fulfillment
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing

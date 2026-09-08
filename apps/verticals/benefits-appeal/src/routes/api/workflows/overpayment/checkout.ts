@@ -1,7 +1,5 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
-
-export const POST = createAPIFileRoute("/api/workflows/overpayment/checkout")({
-  handler: async ({ request }) => {
-    return Response.json({ error: "Not configured" }, { status: 503 });
-  },
+import { createFileRoute } from '@tanstack/react-router';
+import { checkoutPayment } from '@/platform/payment-handlers';
+export const Route = createFileRoute('/api/workflows/overpayment/checkout')({
+  server: { handlers: { POST: ({ request }) => checkoutPayment(request, 'overpayment') } },
 });

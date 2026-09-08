@@ -1,7 +1,5 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
-
-export const POST = createAPIFileRoute("/api/workflows/disability-benefits-denial/approve")({
-  handler: async ({ request }) => {
-    return Response.json({ error: "Not configured" }, { status: 503 });
-  },
+import { createFileRoute } from '@tanstack/react-router';
+import { approvePayment } from '@/platform/payment-handlers';
+export const Route = createFileRoute('/api/workflows/disability-benefits-denial/approve')({
+  server: { handlers: { POST: ({ request }) => approvePayment(request, 'disability-benefits-denial') } },
 });

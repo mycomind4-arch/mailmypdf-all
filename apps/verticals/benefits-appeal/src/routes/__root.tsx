@@ -1,3 +1,4 @@
+import { PaymentReturn } from '@/components/payment-return';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -30,7 +31,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext()
-  return <QueryClientProvider client={queryClient}><AuthProvider><ProtectedContent /></AuthProvider></QueryClientProvider>
+  return <QueryClientProvider client={queryClient}><AuthProvider><PaymentReturn /><ProtectedContent /></AuthProvider></QueryClientProvider>
 }
 
 function ProtectedContent() {
