@@ -3,10 +3,10 @@ import { persistConnectorCapture } from '../connector-persistence';
 import type { FairProcessBlobStore, FairProcessCaseRecordStore } from '../store';
 import type { JurisdictionPack } from '../types';
 import {
-  lookupHumboldtCodeEnforcementByApn,
-  lookupHumboldtPermitsByApn,
-  type HumboldtCodeEnforcementRecord,
-  type HumboldtPermitRecord,
+  lookupHumboldtHistoricalCodeEnforcementByApn,
+  lookupHumboldtParcelByApn,
+  type HumboldtHistoricalCodeEnforcementRecord,
+  type HumboldtParcelRecord,
 } from './humboldt-connector';
 
 export interface SourcedJurisdictionRecord<T> {
@@ -18,8 +18,13 @@ export interface SourcedJurisdictionRecord<T> {
 export interface HumboldtPropertyIntelligence {
   apn: string;
   retrievedAt: string;
-  permits: Array<SourcedJurisdictionRecord<HumboldtPermitRecord>>;
-  codeEnforcementCases: Array<SourcedJurisdictionRecord<HumboldtCodeEnforcementRecord>>;
+  parcels: Array<SourcedJurisdictionRecord<HumboldtParcelRecord>>;
+  historicalCodeEnforcementCases: Array<SourcedJurisdictionRecord<HumboldtHistoricalCodeEnforcementRecord>>;
+  currentCodeEnforcementStatusAvailable: false;
+  permitSearch: {
+    automated: false;
+    url: string;
+  };
   captureEvidenceIds: string[];
   warnings: string[];
 }
@@ -52,11 +57,12 @@ function attachSource<T>(
 }
 
 /**
- * Refreshes the Humboldt public-data view for a property and persists the exact
- * source responses before returning normalized records to the rest of the case.
+ * Refreshes only Humboldt sources whose machine-readable access has been
+ * verified. Exact responses are persisted before normalized records are returned.
  *
- * These records are source-backed agency/public records. They are not, by
- * themselves, legal conclusions or proof that an alleged violation is true.
+ * The county's exposed code-enforcement GIS layer is a historical 2025-01-15
+ * snapshot. Current case status must come from a current notice, authenticated
+ * source, public-records response, or another separately verified source.
  */
 export async function refreshHumboldtPropertyIntelligence(
   request: HumboldtPropertyIntelligenceRequest,
@@ -69,40 +75,53 @@ export async function refreshHumboldtPropertyIntelligence(
     retrievedAt,
   };
 
-  const [permitResult, enforcementResult] = await Promise.all([
-    lookupHumboldtPermitsByApn(request.apn, context, fetcher),
-    lookupHumboldtCodeEnforcementByApn(request.apn, context, fetcher),
+  const [parcelResult, enforcementResult] = await Promise.all([
+    lookupHumboldtParcelByApn(request.apn, context, fetcher),
+    lookupHumboldtHistoricalCodeEnforcementByApn(request.apn, context, fetcher),
   ]);
 
-  const [permitCapture, enforcementCapture] = await Promise.all([
-    persistConnectorCapture(permitResult, request.recordStore, request.blobStore),
+  const [parcelCapture, enforcementCapture] = await Promise.all([
+    persistConnectorCapture(parcelResult, request.recordStore, request.blobStore),
     persistConnectorCapture(enforcementResult, request.recordStore, request.blobStore),
   ]);
 
-  const permitSourceSnapshotId = permitResult.records.length > 0
-    ? permitResult.snapshots.at(-1)?.id
+  const parcelSourceSnapshotId = parcelResult.records.length > 0
+    ? parcelResult.snapshots.at(-1)?.id
     : undefined;
   const enforcementSourceSnapshotId = enforcementResult.records.length > 0
     ? enforcementResult.snapshots.at(-1)?.id
     : undefined;
 
+  const permitConnector = request.jurisdiction.connectors.find(
+    (connector) => connector.id === 'humboldt-building-permits',
+  );
+
   return {
     apn: request.apn,
     retrievedAt,
-    permits: attachSource(
-      permitResult.records,
-      permitSourceSnapshotId,
-      permitCapture.evidenceBySnapshot,
+    parcels: attachSource(
+      parcelResult.records,
+      parcelSourceSnapshotId,
+      parcelCapture.evidenceBySnapshot,
     ),
-    codeEnforcementCases: attachSource(
+    historicalCodeEnforcementCases: attachSource(
       enforcementResult.records,
       enforcementSourceSnapshotId,
       enforcementCapture.evidenceBySnapshot,
     ),
+    currentCodeEnforcementStatusAvailable: false,
+    permitSearch: {
+      automated: false,
+      url: permitConnector?.baseUrl ?? 'https://aca-prod.accela.com/humboldt/Default.aspx',
+    },
     captureEvidenceIds: [
-      ...permitCapture.evidenceIds,
+      ...parcelCapture.evidenceIds,
       ...enforcementCapture.evidenceIds,
     ],
-    warnings: [...permitResult.warnings, ...enforcementResult.warnings],
+    warnings: [
+      ...parcelResult.warnings,
+      ...enforcementResult.warnings,
+      'Humboldt permit records are publicly searchable in Accela, but automated retrieval is disabled until a supported machine interface is verified.',
+    ],
   };
 }
