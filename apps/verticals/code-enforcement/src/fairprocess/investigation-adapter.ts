@@ -4,6 +4,11 @@ import type {
   InvestigationSource,
   InvestigationState,
 } from '../investigation/types';
+import {
+  applySourceReadinessToAllegations,
+  toAttorneyPacketSourceReadiness,
+} from './records-investigation';
+import type { RecordsInvestigationPlan } from './source-requirements';
 import type {
   AttorneyPacketInput,
   JurisdictionPack,
@@ -26,6 +31,7 @@ export interface InvestigationPacketContext {
   allegations?: PacketAllegation[];
   communications?: PacketSourceRef[];
   recordsRequests?: PacketSourceRef[];
+  sourceRequirementPlan?: RecordsInvestigationPlan;
   sourceReadiness?: AttorneyPacketInput['sourceReadiness'];
 }
 
@@ -127,6 +133,15 @@ export function investigationToAttorneyPacketInput(
     sourceRefs: refsForClaim(state, claim),
   }));
 
+  const allegations = context.sourceRequirementPlan
+    ? applySourceReadinessToAllegations(context.allegations ?? [], context.sourceRequirementPlan)
+    : context.allegations ?? [];
+  const sourceReadiness = context.sourceReadiness ?? (
+    context.sourceRequirementPlan
+      ? toAttorneyPacketSourceReadiness(context.sourceRequirementPlan)
+      : undefined
+  );
+
   return {
     caseId: state.id,
     caseName: context.caseName,
@@ -138,11 +153,11 @@ export function investigationToAttorneyPacketInput(
     nextDeadline: context.nextDeadline,
     facts,
     timeline: context.timeline ?? [],
-    allegations: context.allegations ?? [],
+    allegations,
     findings: findingsFromContradictions(state),
     evidence,
     communications: context.communications,
     recordsRequests: context.recordsRequests,
-    sourceReadiness: context.sourceReadiness,
+    sourceReadiness,
   };
 }
