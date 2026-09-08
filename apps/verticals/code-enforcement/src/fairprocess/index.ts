@@ -10,6 +10,7 @@ export * from './evidence-integrity';
 export * from './investigation-adapter';
 export * from './jurisdiction-registry';
 export * from './records-investigation';
+export * from './records-request-handoff';
 export * from './source-requirements';
 export * from './store';
 export * from './jurisdictions/humboldt';
