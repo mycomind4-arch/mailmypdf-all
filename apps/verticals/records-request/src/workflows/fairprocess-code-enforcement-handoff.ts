@@ -58,6 +58,45 @@ function sameSource(
     JSON.stringify([...left.requirementIds].sort()) === JSON.stringify([...right.requirementIds].sort());
 }
 
+function parseSource(input: Record<string, unknown>): FairProcessCodeEnforcementHandoffSource {
+  if (input.system !== 'fairprocess') throw new Error('FAIRPROCESS_HANDOFF_SOURCE_INVALID');
+  const requirementIds = stringArray(input.requirementIds) ?? [];
+  const source: FairProcessCodeEnforcementHandoffSource = {
+    system: 'fairprocess',
+    caseId: stringValue(input.caseId),
+    jurisdictionPackId: stringValue(input.jurisdictionPackId),
+    jurisdictionPackVersion: stringValue(input.jurisdictionPackVersion),
+    batchId: stringValue(input.batchId),
+    requirementIds,
+  };
+  if (!source.caseId || !source.jurisdictionPackId || !source.jurisdictionPackVersion || !source.batchId) {
+    throw new Error('FAIRPROCESS_HANDOFF_SOURCE_INCOMPLETE');
+  }
+  if (source.requirementIds.length === 0) throw new Error('FAIRPROCESS_HANDOFF_REQUIREMENTS_MISSING');
+  return source;
+}
+
+function validateIntakeReadiness(intake: Record<string, unknown>): string[] {
+  const issues: string[] = [];
+  const agency = stringValue(intake.agency);
+  const department = stringValue(intake.department);
+  const propertyAddress = stringValue(intake.propertyAddress);
+  const caseNumber = stringValue(intake.caseNumber);
+  const dateStart = stringValue(intake.dateStart);
+  const dateEnd = stringValue(intake.dateEnd);
+  const subjectMatter = stringValue(intake.subjectMatter);
+
+  if (!agency) issues.push('Agency is required.');
+  if (!department) issues.push('Records custodian or department is required.');
+  if (!dateStart) issues.push('Records start date is required.');
+  if (!dateEnd) issues.push('Records end date is required.');
+  if (dateStart && dateEnd && dateStart > dateEnd) issues.push('Records end date cannot be before start date.');
+  if (!subjectMatter) issues.push('Subject matter is required.');
+  if (!propertyAddress && !caseNumber) issues.push('Property address or case number is required.');
+
+  return issues;
+}
+
 export function parseFairProcessCodeEnforcementHandoff(
   input: unknown,
 ): FairProcessCodeEnforcementHandoff {
@@ -68,26 +107,14 @@ export function parseFairProcessCodeEnforcementHandoff(
   if (root.workflowId !== 'code-enforcement-records') throw new Error('FAIRPROCESS_HANDOFF_WORKFLOW_INVALID');
 
   const rawSource = objectValue(root.source);
-  if (!rawSource || rawSource.system !== 'fairprocess') throw new Error('FAIRPROCESS_HANDOFF_SOURCE_INVALID');
-  const requirementIds = stringArray(rawSource.requirementIds);
-  const source: FairProcessCodeEnforcementHandoffSource = {
-    system: 'fairprocess',
-    caseId: stringValue(rawSource.caseId),
-    jurisdictionPackId: stringValue(rawSource.jurisdictionPackId),
-    jurisdictionPackVersion: stringValue(rawSource.jurisdictionPackVersion),
-    batchId: stringValue(rawSource.batchId),
-    requirementIds: requirementIds ?? [],
-  };
-  if (!source.caseId || !source.jurisdictionPackId || !source.jurisdictionPackVersion || !source.batchId) {
-    throw new Error('FAIRPROCESS_HANDOFF_SOURCE_INCOMPLETE');
-  }
-  if (source.requirementIds.length === 0) throw new Error('FAIRPROCESS_HANDOFF_REQUIREMENTS_MISSING');
+  if (!rawSource) throw new Error('FAIRPROCESS_HANDOFF_SOURCE_INVALID');
+  const source = parseSource(rawSource);
 
   const intake = objectValue(root.intake);
   if (!intake) throw new Error('FAIRPROCESS_HANDOFF_INTAKE_INVALID');
   const embeddedSource = objectValue(intake.fairProcessSource);
   if (!embeddedSource) throw new Error('FAIRPROCESS_HANDOFF_EMBEDDED_SOURCE_MISSING');
-  const parsedEmbedded = parseEmbeddedSource(embeddedSource);
+  const parsedEmbedded = parseSource(embeddedSource);
   if (!sameSource(source, parsedEmbedded)) throw new Error('FAIRPROCESS_HANDOFF_SOURCE_MISMATCH');
 
   const categories = stringArray(intake.categories);
@@ -96,7 +123,9 @@ export function parseFairProcessCodeEnforcementHandoff(
     throw new Error('FAIRPROCESS_HANDOFF_CATEGORIES_INVALID');
   }
 
-  const blockers = stringArray(root.blockers) ?? [];
+  const declaredBlockers = stringArray(root.blockers) ?? [];
+  const receiverIssues = validateIntakeReadiness(intake);
+  const blockers = [...new Set([...declaredBlockers, ...receiverIssues])];
   const readyForBuild = root.readyForBuild === true;
   if (!readyForBuild || blockers.length > 0) {
     throw new Error(`FAIRPROCESS_HANDOFF_NOT_READY:${blockers.join('|') || 'handoff is not marked ready'}`);
@@ -110,18 +139,6 @@ export function parseFairProcessCodeEnforcementHandoff(
     intake: { ...intake, categories, fairProcessSource: source },
     readyForBuild: true,
     blockers: [],
-  };
-}
-
-function parseEmbeddedSource(input: Record<string, unknown>): FairProcessCodeEnforcementHandoffSource {
-  const requirementIds = stringArray(input.requirementIds) ?? [];
-  return {
-    system: input.system === 'fairprocess' ? 'fairprocess' : 'fairprocess',
-    caseId: stringValue(input.caseId),
-    jurisdictionPackId: stringValue(input.jurisdictionPackId),
-    jurisdictionPackVersion: stringValue(input.jurisdictionPackVersion),
-    batchId: stringValue(input.batchId),
-    requirementIds,
   };
 }
 
