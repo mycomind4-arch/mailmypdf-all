@@ -15,10 +15,10 @@ import { productionCriminalRecordsWorkflow } from './criminal-records-production
 import { productionCriminalHistoryWorkflow } from './criminal-history-production'
 import { productionBackgroundCheckRecordsWorkflow } from './background-check-records-production'
 import { productionCourtRecordsWorkflow } from './court-records-production'
+import { productionPropertyRecordsWorkflow } from './property-records-production'
 import { propertyPermitRecordsWorkflow } from './property-permit-records'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
-import { propertyRecordsWorkflow } from './property-records'
 import { planningRecordsWorkflow } from './planning-records'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
@@ -55,7 +55,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionArrestRecordsWorkflow,
   productionBackgroundCheckRecordsWorkflow,
   // Property & development
-  propertyRecordsWorkflow,
+  productionPropertyRecordsWorkflow,
   propertyPermitRecordsWorkflow,
   codeEnforcementRecordsWorkflow,
   planningRecordsWorkflow,
