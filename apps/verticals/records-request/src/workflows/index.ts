@@ -29,17 +29,18 @@ import { productionMilitaryRecordsWorkflow } from './military-records-production
 import { productionRecordsFollowUpWorkflow } from './records-follow-up-production'
 import { productionRecordsDenialAppealWorkflow } from './records-denial-appeal-production'
 import { productionOpenRecordsRequestWorkflow } from './open-records-production'
+import { productionPublicInformationRequestWorkflow } from './public-information-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
-import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
+import { policeReportWorkflow, policeReportCopyWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
 export const recordsWorkflows: readonly RecordsWorkflow[] = [
   publicRecordsRequestWorkflow,
   foiaRequestWorkflow,
-  publicInformationRequestWorkflow,
+  productionPublicInformationRequestWorkflow,
   productionOpenRecordsRequestWorkflow,
   agencyRecordsRequestWorkflow,
   governmentDocumentsRequestWorkflow,
