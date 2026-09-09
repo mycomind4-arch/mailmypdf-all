@@ -1,85 +1,71 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
-import { analyzeGenericProduction } from './generic-records-analysis'
+import type { RecordsDomainCapability } from './domain-pack'
+import { analyzeGenericProduction, type GenericProductionRecord } from './generic-records-analysis'
+import { assessGenericRecordContradiction, classifyGenericRecord, extractGenericRecordFacts, recommendGenericRecordFollowUp } from './generic-records-ai'
+import { getConfiguredRecordsLlmProviders } from '../ai/records-llm-providers'
 
 export const FOIA_CATEGORIES = [
-  'agency-records','program-records','policy-and-guidance','contracts-and-expenditures','communications','personnel-records','inspection-and-audit','investigation-records','data-and-reports','references-and-cross-indexed',
+  'record-index-metadata-and-processing-status',
+  'agency-program-and-decision-records',
+  'policy-guidance-directives-and-manuals',
+  'contracts-procurement-expenditures-and-grant-records',
+  'emails-correspondence-messages-and-communications',
+  'meetings-calendars-agendas-minutes-and-presentations',
+  'inspections-audits-compliance-and-evaluation-records',
+  'investigation-inquiry-and-case-status-records',
+  'datasets-reports-statistics-and-analytical-records',
+  'personnel-role-assignment-and-public-status-records',
+  'referenced-cross-indexed-and-attachment-records',
+  'fees-clarification-referral-withholding-and-request-status',
 ] as const
+
+export const FOIA_CAPABILITIES: readonly RecordsDomainCapability[] = ['classification','extraction','deadline','contradiction','findings','evidence','research','risk','strategy','draft','draftProvenance','validation','review','approval','mailing','tracking','proofAudit']
 
 export const FOIA_INTAKE = [
-  { id: 'agency', label: 'Federal agency', required: true, helpText: 'The federal agency likely to maintain the records.' },
-  { id: 'component', label: 'Agency component / office', helpText: 'Specific bureau, office, or sub-component when known.' },
-  { id: 'recordsDescription', label: 'Records sought (description)', required: true, helpText: 'Describe the records with reasonable specificity.' },
-  { id: 'dateStart', label: 'Record start date', required: true, helpText: 'Beginning of the requested record period.' },
-  { id: 'dateEnd', label: 'Record end date', required: true, helpText: 'End of the requested record period.' },
-  { id: 'searchTerms', label: 'Search terms / keywords', helpText: 'Distinctive names, project terms, case numbers, or keywords.' },
-  { id: 'custodian', label: 'Known custodian', helpText: 'Specific official or office likely to hold the records.' },
-  { id: 'subjectMatter', label: 'Subject / topic', required: true, helpText: 'Plain-English description of the subject matter.' },
+  { id:'agency', label:'Federal agency', required:true, helpText:'Federal agency likely to maintain the records.' },
+  { id:'component', label:'Agency component / office', helpText:'Bureau, service, office, field office, records unit, or other component when known.' },
+  { id:'recordsDescription', label:'Records sought', required:true, helpText:'Describe identifiable existing records rather than asking the agency to answer a question or create a new record.' },
+  { id:'subjectMatter', label:'Subject / objective', required:true, helpText:'Plain-English description of the matter and what the records should document.' },
+  { id:'dateStart', label:'Record period start', required:true, helpText:'Beginning of the requested record period.' },
+  { id:'dateEnd', label:'Record period end', required:true, helpText:'End of the requested record period.' },
+  { id:'identifiers', label:'Identifiers', helpText:'Case, contract, grant, project, file, incident, person/role, address, docket, or other search-ready identifier.' },
+  { id:'custodians', label:'Known / likely custodians', helpText:'Officials, offices, roles, components, contractors, or systems likely to maintain responsive records.' },
+  { id:'searchTerms', label:'Search terms', helpText:'Distinctive names, phrases, projects, addresses, acronyms, or other search terms.' },
+  { id:'preferredFormat', label:'Preferred format', helpText:'Native electronic files, PDF, CSV, spreadsheet, email export, audio/video, or another available format.' },
+  { id:'feePreference', label:'Fee preference / limit', helpText:'Optional fee limit, advance-notice preference, or fee-related instruction. Do not assume a statutory fee category or waiver entitlement.' },
+  { id:'feeWaiverOrExpediteBasis', label:'Fee-waiver / expedited-processing basis', helpText:'Optional factual basis the requester wants preserved for agency review. The workflow must not assume eligibility or entitlement.' },
+  { id:'exclusions', label:'Scope exclusions / narrowing', helpText:'Optional exclusions that reduce noise while preserving the objective.' },
 ] as const
 
-function describe(category: string, input: Record<string, unknown>): string {
-  const agency = textHelper(input, 'agency') ?? 'the agency'
-  const dates = textHelper(input, 'dateStart') && textHelper(input, 'dateEnd') ? ` Cover ${textHelper(input, 'dateStart')} through ${textHelper(input, 'dateEnd')}.` : ''
-  const scope = textHelper(input, 'searchTerms') ? ` Search terms: ${textHelper(input, 'searchTerms')}.` : ''
-  const subject = textHelper(input, 'subjectMatter') ? ` Subject matter: ${textHelper(input, 'subjectMatter')}.` : ''
-  const descriptions: Record<string, string> = {
-    'agency-records': `General agency records, memoranda, decision documents, and internal files related to the subject.${scope}${dates}`,
-    'program-records': `Program-specific records, operational files, and documentation maintained by ${agency} programs.${scope}${dates}`,
-    'policy-and-guidance': `Policy documents, guidance memoranda, directives, manuals, and interpretive materials.${scope}${dates}`,
-    'contracts-and-expenditures': `Contracts, procurement records, expenditure documentation, and financial agreements.${scope}${dates}`,
-    'communications': `Emails, correspondence, meeting records, and internal communications.${scope}${dates}`,
-    'personnel-records': `Personnel records, assignments, and role documentation relevant to the subject (subject to privacy exemptions).${scope}${dates}`,
-    'inspection-and-audit': `Inspection reports, audit findings, compliance reviews, and evaluation records.${scope}${dates}`,
-    'investigation-records': `Investigation files, inquiry records, and related documentation.${scope}${dates}`,
-    'data-and-reports': `Datasets, statistical reports, periodic reports, and analytical products.${scope}${dates}`,
-    'references-and-cross-indexed': `Records referenced or cross-indexed with the requested materials.${scope}${dates}`,
+function text(input:Record<string,unknown>,key:string):string|undefined{const raw=input[key];if(typeof raw!=='string')return undefined;const value=raw.trim();return value||undefined}
+function selectedCategories(input:Record<string,unknown>):string[]{const raw=input.categories;if(!Array.isArray(raw))return [...FOIA_CATEGORIES];const known=new Set(FOIA_CATEGORIES);const selected=raw.filter((entry):entry is string=>typeof entry==='string'&&known.has(entry as typeof FOIA_CATEGORIES[number]));return selected.length?selected:[...FOIA_CATEGORIES]}
+function scope(input:Record<string,unknown>):string{const parts=[text(input,'identifiers')&&`Identifiers: ${text(input,'identifiers')}.`,text(input,'custodians')&&`Known/likely custodians: ${text(input,'custodians')}.`,text(input,'searchTerms')&&`Search terms: ${text(input,'searchTerms')}.`,text(input,'preferredFormat')&&`Preferred format: ${text(input,'preferredFormat')}.`,text(input,'feePreference')&&`Requester fee preference/limit: ${text(input,'feePreference')}.`,text(input,'feeWaiverOrExpediteBasis')&&`Requester-supplied fee-waiver/expedited-processing factual basis: ${text(input,'feeWaiverOrExpediteBasis')}.`,text(input,'exclusions')&&`Scope exclusions/narrowing: ${text(input,'exclusions')}.`].filter(Boolean);const start=text(input,'dateStart'),end=text(input,'dateEnd');return `${start&&end?` Cover ${start} through ${end}.`:''}${parts.length?` ${parts.join(' ')}`:''}`}
+function describe(category:string,input:Record<string,unknown>):string{
+  const s=scope(input);const objective=text(input,'subjectMatter')?` Objective: ${text(input,'subjectMatter')}.`:'';const records=text(input,'recordsDescription')?` Records description supplied by requester: ${text(input,'recordsDescription')}.`:'';const component=text(input,'component')?` Agency component/office: ${text(input,'component')}.`:''
+  const descriptions:Record<string,string>={
+    'record-index-metadata-and-processing-status':`Existing indexes, inventories, file lists, metadata, tracking records, accession/reference records, processing logs, or equivalent records that identify responsive record sets, offices, dates, attachments, referrals, or processing status. Request existing records only; do not require creation of a new explanatory record.${s}`,
+    'agency-program-and-decision-records':`Existing memoranda, decisions, approvals, findings, staff analyses, recommendations, program files, operational records, and other federal agency records tied to the identified matter.${s}`,
+    'policy-guidance-directives-and-manuals':`Existing policies, procedures, directives, manuals, guidance, bulletins, training materials, standards, and versions in effect during the requested period.${s}`,
+    'contracts-procurement-expenditures-and-grant-records':`Existing contracts, amendments, procurement records, solicitations, awards, purchase orders, invoices, payment/expenditure records, grants, cooperative agreements, and related documentation where lawfully accessible.${s}`,
+    'emails-correspondence-messages-and-communications':`Existing emails, attachments, correspondence, letters, message-platform records, and other communications within the requested scope. Use supplied custodians/search terms where known and preserve attachments as a separate completeness check.${s}`,
+    'meetings-calendars-agendas-minutes-and-presentations':`Existing calendars, invitations, agendas, minutes, presentations, handouts, attendance records, and meeting follow-up records tied to the matter, where maintained and lawfully accessible.${s}`,
+    'inspections-audits-compliance-and-evaluation-records':`Existing inspection, audit, compliance, monitoring, evaluation, review, corrective-action, and supporting records within the requested scope.${s}`,
+    'investigation-inquiry-and-case-status-records':`Lawfully accessible investigation, inquiry, complaint, referral, case, intake, status, disposition, and related records. Do not assume classified, law-enforcement-sensitive, privileged, victim, witness, confidential-source, or other protected material is disclosable.${s}`,
+    'datasets-reports-statistics-and-analytical-records':`Existing datasets, database exports, reports, statistics, dashboards, spreadsheets, analytical products, and underlying machine-readable data where maintained and lawfully available. Prefer native/machine-readable format when requested and available.${s}`,
+    'personnel-role-assignment-and-public-status-records':`Lawfully accessible records identifying relevant federal employee roles, assignments, titles, organizational responsibility, qualification status, or other employment information pertinent to the request. Do not treat private personnel, medical, financial, security, disciplinary, or authentication data as automatically disclosable.${s}`,
+    'referenced-cross-indexed-and-attachment-records':`Existing attachments, enclosures, exhibits, linked files, referenced documents, cross-indexed records, related request/file numbers, and records expressly identified within responsive material but not otherwise produced.${s}`,
+    'fees-clarification-referral-withholding-and-request-status':`Existing acknowledgment, tracking, search, fee, clarification, scope, transfer/referral, consultation, no-records, withholding, redaction, partial-production, closure, appeal/review-instruction, and other processing/status records. Preserve the agency’s actual statements and do not invent exemptions, deadlines, appeal rights, fee-waiver eligibility, or expedited-processing entitlement.${s}`,
   }
-  return `${descriptions[category] ?? `Records concerning ${category}.${scope}${dates}`}${subject}`
+  return `${descriptions[category]??`Existing federal records concerning ${category}.${s}`}${records}${component}${objective}`
 }
+function validateFoia(request:ValidatedRequest):readonly {field:string;message:string}[]{const issues:{field:string;message:string}[]=[];const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ');if(!request.agency?.trim())issues.push({field:'agency',message:'Identify the federal agency likely to maintain the records.'});if(!corpus.includes('records description supplied by requester:'))issues.push({field:'recordsDescription',message:'Describe the identifiable federal records sought.'});if(!corpus.includes('objective:'))issues.push({field:'subjectMatter',message:'Describe the subject and records objective.'});if(!corpus.includes('cover '))issues.push({field:'dateRange',message:'Provide the requested record period.'});return issues}
+export function buildFoiaRequest(input:Record<string,unknown>){const agency=text(input,'agency')??'';const subject=text(input,'subjectMatter');const start=text(input,'dateStart'),end=text(input,'dateEnd');const categories=selectedCategories(input);return {title:`FOIA Request — ${subject??agency??'Federal Records'}`,agency,jurisdiction:'Federal',purpose:text(input,'purpose')??'Request identifiable existing federal agency records with component, custodian, search, format, fee-processing, and production-review controls.',scope:JSON.stringify({workflow:'foia-request',component:text(input,'component'),recordsDescription:text(input,'recordsDescription'),subjectMatter:subject,dateStart:start,dateEnd:end,identifiers:text(input,'identifiers'),custodians:text(input,'custodians'),searchTerms:text(input,'searchTerms'),preferredFormat:text(input,'preferredFormat'),feePreference:text(input,'feePreference'),feeWaiverOrExpediteBasis:text(input,'feeWaiverOrExpediteBasis'),exclusions:text(input,'exclusions')}),items:categories.map(category=>({category,description:describe(category,input),dateStart:start,dateEnd:end,custodian:text(input,'component')??text(input,'custodians'),format:text(input,'preferredFormat'),systemHint:category==='emails-correspondence-messages-and-communications'?'agency email / messaging / correspondence systems':category==='datasets-reports-statistics-and-analytical-records'?'agency reporting database / native data system':category==='record-index-metadata-and-processing-status'?'FOIA tracking / records index / document management / file system':undefined}))}}
 
-function validateFoia(request: ValidatedRequest): readonly { field: string; message: string }[] {
-  const issues: { field: string; message: string }[] = []
-  const descriptions = request.items.map(item => item.description.toLowerCase()).join(' ')
-  if (!descriptions.includes('agency')) issues.push({ field: 'agency', message: 'Identify the federal agency that likely maintains the records.' })
-  if (!descriptions.includes('subject matter')) issues.push({ field: 'subjectMatter', message: 'Describe the subject or topic of the records you are requesting.' })
-  return issues
-}
+export const FOIA_FINDINGS=['MISSING_REQUESTED_CATEGORY','REFERENCED_RECORD_NOT_PRODUCED','IDENTIFIER_MISMATCH','DATE_GAP','DUPLICATE_RECORD','MISSING_ATTACHMENT','UNEXPLAINED_WITHHOLDING','REDACTION_REVIEW','PARTIAL_PRODUCTION','UNRESPONSIVE_ITEM'] as const
 
-export function buildFoiaRequest(input: Record<string, unknown>) {
-  const agency = textHelper(input, 'agency') ?? ''
-  const subject = textHelper(input, 'subjectMatter')
-  const start = textHelper(input, 'dateStart')
-  const end = textHelper(input, 'dateEnd')
-  const selected = categoriesHelper(input, FOIA_CATEGORIES)
-  return {
-    title: `FOIA Request — ${subject ?? agency ?? 'Federal Records'}`,
-    agency,
-    jurisdiction: 'Federal',
-    purpose: textHelper(input, 'purpose') ?? 'Obtain federal agency records under the Freedom of Information Act.',
-    scope: JSON.stringify({ workflow: 'foia-request', component: textHelper(input, 'component'), searchTerms: textHelper(input, 'searchTerms'), custodian: textHelper(input, 'custodian'), dateStart: start, dateEnd: end, subjectMatter: subject }),
-    items: selected.map(category => ({ category, description: describe(category, input), dateStart: start, dateEnd: end, custodian: textHelper(input, 'custodian') ?? textHelper(input, 'component') })),
-  }
-}
-
-export const foiaRequestWorkflow: RecordsWorkflow = createRecordsWorkflow({
-  id: 'foia-request',
-  name: 'FOIA / Federal Records Request',
-  description: 'Build a focused federal FOIA request with agency, records sought, date range, custodians, search terms, and delivery preferences.',
-  searchIntent: 'how to file a FOIA request',
-  seo: { title: 'FOIA Request — How to File a Federal Records Request', description: 'Build a focused federal FOIA request with agency, records sought, date range, custodians, identifiers, search terms, and delivery preferences.', canonicalPath: '/workflows/foia-request' },
-  intakeVersion: '1.0.0',
-  intake: FOIA_INTAKE,
-  capabilities: FULL_CAPABILITIES,
-  request: { categories: FOIA_CATEGORIES, build: buildFoiaRequest },
-  validate: validateFoia,
-  responseAnalysis: {
-    findingTypes: GENERIC_FINDINGS,
-    async analyze(input: unknown) {
-      if (!input || typeof input !== 'object') throw new Error('FOIA_PRODUCTION_ANALYSIS_INPUT_INVALID')
-      const source = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      const requested = (source.requestedItems ?? []).map(item => ({ id: item.category, label: item.category, keywords: item.description.split(/\W+/).filter(Boolean).slice(0, 16) }))
-      return analyzeGenericProduction(requested, source.records ?? [], 'federal record')
-    },
-  },
+export const foiaRequestWorkflow:RecordsWorkflow=createRecordsWorkflow({
+  id:'foia-request',name:'FOIA / Federal Records Request',description:'Build a search-ready federal FOIA request with component, custodians, identifiers, search terms, formats, fee-processing instructions, and production-review controls.',searchIntent:'how to file a FOIA request',seo:{title:'FOIA Request — Build a Search-Ready Federal Records Request',description:'Build a focused federal FOIA request with agency component, identifiable records, custodians, date range, search terms, formats, fee-processing preferences, and production-review controls.',canonicalPath:'/workflows/foia-request'},intakeVersion:'2.0.0',intake:FOIA_INTAKE,capabilities:FOIA_CAPABILITIES,request:{categories:FOIA_CATEGORIES,build:buildFoiaRequest},validate:validateFoia,
+  policies:[{jurisdiction:'federal',version:'2.0.0',rules:{requestExistingIdentifiableFederalRecordsRatherThanAnswersOrNewRecordCreation:true,doNotInventRecordExistenceAgencyComponentsCustodiansSystemsSearchTermsOrFederalAgencyFacts:true,doNotInventExemptionsDeadlinesAppealRightsFeeCategoriesFeeWaiverEligibilityExpeditedProcessingEligibilityOrViolations:true,doNotAssertControllingFederalLawOrProcedureWithoutVerifiedAuthoritativeSourceAndApplicability:true,doNotTreatClassifiedLawEnforcementSensitivePrivilegedPersonnelMedicalFinancialVictimWitnessSourceOrAuthenticationDataAsDisclosable:true,doNotRequestPasswordsSecurityAnswersOneTimeCodesAuthenticationTokensPaymentCredentialsOrSecuritySensitiveSystemDetails:true,preserveRequesterScopeIdentifiersCustodiansSearchTermsFormatsFeePreferencesAndExclusions:true,requireHumanReviewWhenConsequentialDeadlineAppealRightFeeWaiverExpediteEligibilityLegalConclusionOrSensitiveAccessIsUnclear:true}}],
+  responseAnalysis:{findingTypes:FOIA_FINDINGS,async analyze(input:unknown){if(!input||typeof input!=='object')throw new Error('FOIA_PRODUCTION_ANALYSIS_INPUT_INVALID');const source=input as {requestedItems?:readonly {category:string;description:string}[];records?:readonly GenericProductionRecord[]};const records=source.records??[];const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:item.description.split(/\W+/).filter(word=>word.length>=4).slice(0,20)}));const deterministic=analyzeGenericProduction(requested,records,'federal FOIA record');const providers=getConfiguredRecordsLlmProviders();if(providers.length<2)return deterministic;const policy={minimumProviders:2,agreementThreshold:0.67,maxProviders:3} as const;const requestedCategories=requested.map(item=>item.id);const analyzed=await Promise.all(records.slice(0,20).map(async record=>({id:record.id,classification:await classifyGenericRecord(providers,record,'foia-request',requestedCategories,policy),facts:await extractGenericRecordFacts(providers,record,'foia-request',policy)})));const contradictions:Array<{leftId:string;rightId:string;result:Awaited<ReturnType<typeof assessGenericRecordContradiction>>}>=[];for(let i=0;i<Math.min(records.length,10);i+=1)for(let j=i+1;j<Math.min(records.length,10);j+=1)contradictions.push({leftId:records[i].id,rightId:records[j].id,result:await assessGenericRecordContradiction(providers,records[i],records[j],'foia-request',policy)});const strategy=await recommendGenericRecordFollowUp(providers,'foia-request',{deterministic,requestedItems:source.requestedItems??[],records:records.slice(0,20).map(record=>({id:record.id,filename:record.filename,category:record.category,text:record.text??''})),extracted:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value})),contradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value}))},policy);return {...deterministic,aiStrategy:strategy.value,aiProvenance:{providers:strategy.providers,confidence:strategy.confidence,disagreements:strategy.disagreements,warnings:strategy.warnings},aiRecordAnalysis:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value,classificationProvenance:item.classification.providers,factProvenance:item.facts.providers})),aiContradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value,providers:item.result.providers}))}}},
 })
