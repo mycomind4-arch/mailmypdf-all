@@ -34,10 +34,10 @@ import { productionAgencyRecordsRequestWorkflow } from './agency-records-product
 import { productionGovernmentDocumentsRequestWorkflow } from './government-documents-production'
 import { productionCaseRecordsWorkflow } from './case-records-production'
 import { productionPoliceReportWorkflow } from './police-report-production'
+import { productionPoliceReportCopyWorkflow } from './police-report-copy-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
-import { policeReportCopyWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
 export const recordsWorkflows: readonly RecordsWorkflow[] = [
@@ -59,7 +59,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   officerInvolvedShootingRecordsWorkflow,
   evidencePropertyRoomRecordsWorkflow,
   productionPoliceReportWorkflow,
-  policeReportCopyWorkflow,
+  productionPoliceReportCopyWorkflow,
   productionCourtRecordsWorkflow,
   productionCriminalRecordsWorkflow,
   productionCriminalHistoryWorkflow,
