@@ -13,6 +13,7 @@ import { evidencePropertyRoomRecordsWorkflow } from './evidence-property-room-re
 import { productionArrestRecordsWorkflow } from './arrest-records-production'
 import { productionCriminalRecordsWorkflow } from './criminal-records-production'
 import { productionCriminalHistoryWorkflow } from './criminal-history-production'
+import { productionBackgroundCheckRecordsWorkflow } from './background-check-records-production'
 import { propertyPermitRecordsWorkflow } from './property-permit-records'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
@@ -22,7 +23,6 @@ import { planningRecordsWorkflow } from './planning-records'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
 import { birthRecordsWorkflow, marriageRecordsWorkflow, divorceRecordsWorkflow, deathRecordsWorkflow } from './vital-records'
-import { backgroundCheckRecordsWorkflow } from './criminal-records'
 import { militaryRecordsWorkflow, medicalRecordsWorkflow, employmentRecordsWorkflow, educationRecordsWorkflow, recordsFollowUpWorkflow, recordsDenialAppealWorkflow } from './specialized-records'
 import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, openRecordsRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
@@ -53,7 +53,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionCriminalRecordsWorkflow,
   productionCriminalHistoryWorkflow,
   productionArrestRecordsWorkflow,
-  backgroundCheckRecordsWorkflow,
+  productionBackgroundCheckRecordsWorkflow,
   // Property & development
   propertyRecordsWorkflow,
   propertyPermitRecordsWorkflow,
