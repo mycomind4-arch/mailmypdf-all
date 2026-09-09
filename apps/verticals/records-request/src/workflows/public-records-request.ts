@@ -1,85 +1,70 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
-import { analyzeGenericProduction } from './generic-records-analysis'
+import type { RecordsDomainCapability } from './domain-pack'
+import { analyzeGenericProduction, type GenericProductionRecord } from './generic-records-analysis'
+import { assessGenericRecordContradiction, classifyGenericRecord, extractGenericRecordFacts, recommendGenericRecordFollowUp } from './generic-records-ai'
+import { getConfiguredRecordsLlmProviders } from '../ai/records-llm-providers'
 
 export const PUBLIC_RECORDS_CATEGORIES = [
-  'agency-records','program-records','policy-and-guidance','contracts-and-expenditures','communications','inspections-and-audits','investigation-records','data-and-reports','personnel-records','references-and-cross-indexed',
+  'record-index-metadata-and-access-status',
+  'agency-program-and-decision-records',
+  'policy-guidance-directives-and-manuals',
+  'contracts-procurement-expenditures-and-financial-records',
+  'emails-correspondence-texts-and-communications',
+  'meetings-calendars-agendas-minutes-and-presentations',
+  'inspections-audits-compliance-and-evaluation-records',
+  'investigation-inquiry-and-case-status-records',
+  'datasets-reports-statistics-and-analytical-records',
+  'personnel-role-assignment-and-public-employment-status-records',
+  'referenced-cross-indexed-and-attachment-records',
+  'withholding-redaction-no-records-and-request-status',
 ] as const
+
+export const PUBLIC_RECORDS_CAPABILITIES: readonly RecordsDomainCapability[] = ['classification','extraction','deadline','contradiction','findings','evidence','research','risk','strategy','draft','draftProvenance','validation','review','approval','mailing','tracking','proofAudit']
 
 export const PUBLIC_RECORDS_INTAKE = [
-  { id: 'agency', label: 'Agency / department', required: true, helpText: 'Government agency likely to maintain the records.' },
-  { id: 'department', label: 'Specific office / custodian', helpText: 'Particular office, division, or records custodian when known.' },
-  { id: 'recordsDescription', label: 'Records sought (description)', required: true, helpText: 'Describe the records with reasonable specificity.' },
-  { id: 'dateStart', label: 'Record start date', required: true, helpText: 'Beginning of the requested record period.' },
-  { id: 'dateEnd', label: 'Record end date', required: true, helpText: 'End of the requested record period.' },
-  { id: 'identifiers', label: 'Identifiers (case #, address, project, name)', helpText: 'Any known identifiers that help locate the records.' },
-  { id: 'searchTerms', label: 'Search terms / keywords', helpText: 'Distinctive terms to narrow the search.' },
-  { id: 'subjectMatter', label: 'Subject / topic', required: true, helpText: 'Plain-English description of the subject matter.' },
+  { id:'agency', label:'Agency / public body', required:true, helpText:'Government agency, department, board, authority, district, court office, or other public body likely to maintain the records.' },
+  { id:'jurisdiction', label:'Jurisdiction', required:true, helpText:'Federal, state, county, city, district, court, or other jurisdiction.' },
+  { id:'department', label:'Specific office / division / custodian', helpText:'Office, division, program, records custodian, or employee role when known.' },
+  { id:'recordsDescription', label:'Records sought', required:true, helpText:'Describe identifiable records rather than asking the agency to answer a question or create a new record.' },
+  { id:'subjectMatter', label:'Subject / objective', required:true, helpText:'Plain-English description of the matter and what the records should document.' },
+  { id:'dateStart', label:'Record period start', required:true, helpText:'Beginning of the requested record period.' },
+  { id:'dateEnd', label:'Record period end', required:true, helpText:'End of the requested record period.' },
+  { id:'identifiers', label:'Identifiers', helpText:'Case, incident, permit, parcel, project, contract, invoice, employee role, address, meeting, or other search-ready identifiers.' },
+  { id:'custodians', label:'Likely custodians', helpText:'People, offices, roles, departments, contractors, or systems likely to maintain responsive records.' },
+  { id:'searchTerms', label:'Search terms', helpText:'Distinctive names, phrases, project terms, addresses, or other terms useful for communications/data searches.' },
+  { id:'preferredFormat', label:'Preferred format', helpText:'Native electronic files, PDF, CSV, spreadsheet, email export, audio/video, or another available format.' },
+  { id:'exclusions', label:'Scope exclusions / narrowing', helpText:'Optional exclusions that reduce noise without changing the objective.' },
 ] as const
 
-function describe(category: string, input: Record<string, unknown>): string {
-  const dates = textHelper(input, 'dateStart') && textHelper(input, 'dateEnd') ? ` Cover ${textHelper(input, 'dateStart')} through ${textHelper(input, 'dateEnd')}.` : ''
-  const scope = textHelper(input, 'identifiers') ? ` Identifiers: ${textHelper(input, 'identifiers')}.` : ''
-  const search = textHelper(input, 'searchTerms') ? ` Search terms: ${textHelper(input, 'searchTerms')}.` : ''
-  const subject = textHelper(input, 'subjectMatter') ? ` Subject: ${textHelper(input, 'subjectMatter')}.` : ''
-  const descriptions: Record<string, string> = {
-    'agency-records': `General agency records, memoranda, decision documents, and internal files.${scope}${search}${dates}`,
-    'program-records': `Program-specific records, operational files, and program documentation.${scope}${search}${dates}`,
-    'policy-and-guidance': `Policy documents, guidance, directives, manuals, and interpretive materials.${scope}${search}${dates}`,
-    'contracts-and-expenditures': `Contracts, procurement records, expenditure documentation, and financial agreements.${scope}${search}${dates}`,
-    'communications': `Emails, correspondence, meeting records, and internal communications.${scope}${search}${dates}`,
-    'inspections-and-audits': `Inspection reports, audit findings, compliance reviews, and evaluation records.${scope}${search}${dates}`,
-    'investigation-records': `Investigation files, inquiry records, and related documentation.${scope}${search}${dates}`,
-    'data-and-reports': `Datasets, statistical reports, periodic reports, and analytical products.${scope}${search}${dates}`,
-    'personnel-records': `Personnel records, assignments, and role documentation (subject to privacy exemptions).${scope}${search}${dates}`,
-    'references-and-cross-indexed': `Records referenced or cross-indexed with the requested materials.${scope}${search}${dates}`,
+function text(input:Record<string,unknown>,key:string):string|undefined{const raw=input[key];if(typeof raw!=='string')return undefined;const value=raw.trim();return value||undefined}
+function selectedCategories(input:Record<string,unknown>):string[]{const raw=input.categories;if(!Array.isArray(raw))return [...PUBLIC_RECORDS_CATEGORIES];const known=new Set(PUBLIC_RECORDS_CATEGORIES);const selected=raw.filter((entry):entry is string=>typeof entry==='string'&&known.has(entry as typeof PUBLIC_RECORDS_CATEGORIES[number]));return selected.length?selected:[...PUBLIC_RECORDS_CATEGORIES]}
+function scope(input:Record<string,unknown>):string{const parts=[text(input,'identifiers')&&`Identifiers: ${text(input,'identifiers')}.`,text(input,'custodians')&&`Likely custodians: ${text(input,'custodians')}.`,text(input,'searchTerms')&&`Search terms: ${text(input,'searchTerms')}.`,text(input,'preferredFormat')&&`Preferred format: ${text(input,'preferredFormat')}.`,text(input,'exclusions')&&`Scope exclusions/narrowing: ${text(input,'exclusions')}.`].filter(Boolean);const start=text(input,'dateStart'),end=text(input,'dateEnd');return `${start&&end?` Cover ${start} through ${end}.`:''}${parts.length?` ${parts.join(' ')}`:''}`}
+function describe(category:string,input:Record<string,unknown>):string{
+  const s=scope(input);const objective=text(input,'subjectMatter')?` Objective: ${text(input,'subjectMatter')}.`:'';const records=text(input,'recordsDescription')?` Records description supplied by requester: ${text(input,'recordsDescription')}.`:''
+  const descriptions:Record<string,string>={
+    'record-index-metadata-and-access-status':`Existing indexes, logs, inventories, metadata, file lists, database exports, or equivalent records that identify responsive record sets, custodians, systems, dates, attachments, or access/production status. Request existing records only; do not require the agency to create a new explanatory record.${s}`,
+    'agency-program-and-decision-records':`Existing memoranda, decision records, approvals, findings, program files, operational records, staff analyses, recommendations, and other agency records tied to the identified matter.${s}`,
+    'policy-guidance-directives-and-manuals':`Existing policies, procedures, directives, manuals, guidance, bulletins, training materials, standards, and versions in effect during the requested period.${s}`,
+    'contracts-procurement-expenditures-and-financial-records':`Existing contracts, amendments, solicitations, bids/proposals where lawfully accessible, purchase orders, invoices, payment/expenditure records, grant records, and procurement documentation tied to the matter.${s}`,
+    'emails-correspondence-texts-and-communications':`Existing emails, attachments, letters, correspondence, text/message records, platform messages, and other communications within the requested scope. Use supplied custodians/search terms where known and preserve attachments as a separate completeness check.${s}`,
+    'meetings-calendars-agendas-minutes-and-presentations':`Existing calendars, meeting invitations, agendas, minutes, notes where maintained and lawfully accessible, presentations, handouts, attendance records, and meeting follow-up records tied to the matter.${s}`,
+    'inspections-audits-compliance-and-evaluation-records':`Existing inspection, audit, compliance, monitoring, evaluation, review, corrective-action, and related supporting records within the requested scope.${s}`,
+    'investigation-inquiry-and-case-status-records':`Lawfully accessible investigation, inquiry, complaint, case, referral, intake, status, disposition, and related records. Do not assume confidential informant, victim, witness, privileged, law-enforcement-sensitive, or other protected material is publicly disclosable.${s}`,
+    'datasets-reports-statistics-and-analytical-records':`Existing datasets, database exports, reports, statistics, dashboards, spreadsheets, analyses, and underlying machine-readable data where maintained and lawfully available. Prefer native/machine-readable format when requested and available.${s}`,
+    'personnel-role-assignment-and-public-employment-status-records':`Lawfully accessible records identifying relevant public employee roles, assignments, titles, organizational responsibility, training/qualification status, or other employment information pertinent to the request. Do not treat private personnel, medical, financial, disciplinary, or authentication data as automatically public.${s}`,
+    'referenced-cross-indexed-and-attachment-records':`Existing attachments, enclosures, exhibits, linked files, referenced documents, cross-indexed records, related case/project numbers, and records expressly identified within responsive material but not otherwise produced.${s}`,
+    'withholding-redaction-no-records-and-request-status':`Existing acknowledgment, search/status, fee, clarification, transfer/referral, no-records, withholding, redaction, exemption, partial-production, closure, and other response records. Preserve the agency’s actual reasoning rather than inferring legal conclusions.${s}`,
   }
-  return `${descriptions[category] ?? `Records concerning ${category}.${scope}${search}${dates}`}${subject}`
+  return `${descriptions[category]??`Existing public records concerning ${category}.${s}`}${records}${objective}`
 }
+function validatePublicRecords(request:ValidatedRequest):readonly {field:string;message:string}[]{const issues:{field:string;message:string}[]=[];const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ');if(!request.agency?.trim())issues.push({field:'agency',message:'Identify the public body likely to maintain the records.'});if(!corpus.includes('records description supplied by requester:'))issues.push({field:'recordsDescription',message:'Describe the identifiable records sought.'});if(!corpus.includes('objective:'))issues.push({field:'subjectMatter',message:'Describe the subject and records objective.'});if(!corpus.includes('cover '))issues.push({field:'dateRange',message:'Provide the requested record period.'});return issues}
+export function buildPublicRecordsRequest(input:Record<string,unknown>){const agency=text(input,'agency')??'';const subject=text(input,'subjectMatter');const start=text(input,'dateStart'),end=text(input,'dateEnd');const categories=selectedCategories(input);return {title:`Public Records Request — ${subject??agency??'Government Records'}`,agency,jurisdiction:text(input,'jurisdiction'),purpose:text(input,'purpose')??'Request identifiable existing public records with search-ready scope, custodians, identifiers, formats, and production-review controls.',scope:JSON.stringify({workflow:'public-records-request',department:text(input,'department'),recordsDescription:text(input,'recordsDescription'),subjectMatter:subject,dateStart:start,dateEnd:end,identifiers:text(input,'identifiers'),custodians:text(input,'custodians'),searchTerms:text(input,'searchTerms'),preferredFormat:text(input,'preferredFormat'),exclusions:text(input,'exclusions')}),items:categories.map(category=>({category,description:describe(category,input),dateStart:start,dateEnd:end,custodian:text(input,'department')??text(input,'custodians'),format:text(input,'preferredFormat'),systemHint:category==='emails-correspondence-texts-and-communications'?'email / messaging / correspondence systems':category==='datasets-reports-statistics-and-analytical-records'?'reporting database / data warehouse / spreadsheet or native data system':category==='record-index-metadata-and-access-status'?'records index / document management / case or project tracking system':undefined}))}}
 
-function validatePublicRecords(request: ValidatedRequest): readonly { field: string; message: string }[] {
-  const issues: { field: string; message: string }[] = []
-  const descriptions = request.items.map(item => item.description.toLowerCase()).join(' ')
-  if (!descriptions.includes('agency')) issues.push({ field: 'agency', message: 'Identify the government agency that likely maintains the records.' })
-  if (!descriptions.includes('subject:')) issues.push({ field: 'subjectMatter', message: 'Describe the subject or topic of the records you are requesting.' })
-  return issues
-}
+export const PUBLIC_RECORDS_FINDINGS=['MISSING_REQUESTED_CATEGORY','REFERENCED_RECORD_NOT_PRODUCED','IDENTIFIER_MISMATCH','DATE_GAP','DUPLICATE_RECORD','MISSING_ATTACHMENT','UNEXPLAINED_WITHHOLDING','REDACTION_REVIEW','PARTIAL_PRODUCTION','UNRESPONSIVE_ITEM'] as const
 
-export function buildPublicRecordsRequest(input: Record<string, unknown>) {
-  const agency = textHelper(input, 'agency') ?? ''
-  const subject = textHelper(input, 'subjectMatter')
-  const start = textHelper(input, 'dateStart')
-  const end = textHelper(input, 'dateEnd')
-  const selected = categoriesHelper(input, PUBLIC_RECORDS_CATEGORIES)
-  return {
-    title: `Public Records Request — ${subject ?? agency ?? 'Government Records'}`,
-    agency,
-    jurisdiction: textHelper(input, 'jurisdiction'),
-    purpose: textHelper(input, 'purpose') ?? 'Obtain government agency records under applicable public records law.',
-    scope: JSON.stringify({ workflow: 'public-records-request', department: textHelper(input, 'department'), identifiers: textHelper(input, 'identifiers'), searchTerms: textHelper(input, 'searchTerms'), dateStart: start, dateEnd: end, subjectMatter: subject }),
-    items: selected.map(category => ({ category, description: describe(category, input), dateStart: start, dateEnd: end, custodian: textHelper(input, 'department') })),
-  }
-}
-
-export const publicRecordsRequestWorkflow: RecordsWorkflow = createRecordsWorkflow({
-  id: 'public-records-request',
-  name: 'Public Records Request',
-  description: 'Turn a plain-English objective into a precise request with record categories, date ranges, custodians, identifiers, format requirements, and exclusions.',
-  searchIntent: 'public records request',
-  seo: { title: 'Public Records Request — How to Request Government Records', description: 'Build a precise public records request with the agency, records sought, dates, custodians, identifiers, formats, and scope needed for a searchable request.', canonicalPath: '/workflows/public-records-request' },
-  intakeVersion: '1.0.0',
-  intake: PUBLIC_RECORDS_INTAKE,
-  capabilities: FULL_CAPABILITIES,
-  request: { categories: PUBLIC_RECORDS_CATEGORIES, build: buildPublicRecordsRequest },
-  validate: validatePublicRecords,
-  responseAnalysis: {
-    findingTypes: GENERIC_FINDINGS,
-    async analyze(input: unknown) {
-      if (!input || typeof input !== 'object') throw new Error('PUBLIC_RECORDS_PRODUCTION_ANALYSIS_INPUT_INVALID')
-      const source = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      const requested = (source.requestedItems ?? []).map(item => ({ id: item.category, label: item.category, keywords: item.description.split(/\W+/).filter(Boolean).slice(0, 16) }))
-      return analyzeGenericProduction(requested, source.records ?? [], 'public record')
-    },
-  },
+export const publicRecordsRequestWorkflow:RecordsWorkflow=createRecordsWorkflow({
+  id:'public-records-request',name:'Public Records Request',description:'Turn a plain-English objective into a search-ready request for identifiable existing records with custodians, identifiers, date ranges, formats, exclusions, and production-review controls.',searchIntent:'public records request',seo:{title:'Public Records Request — Build a Search-Ready Government Records Request',description:'Build a precise public records request with identifiable record categories, agency, dates, custodians, identifiers, search terms, formats, narrowing, and production-review controls.',canonicalPath:'/workflows/public-records-request'},intakeVersion:'2.0.0',intake:PUBLIC_RECORDS_INTAKE,capabilities:PUBLIC_RECORDS_CAPABILITIES,request:{categories:PUBLIC_RECORDS_CATEGORIES,build:buildPublicRecordsRequest},validate:validatePublicRecords,
+  policies:[{jurisdiction:'all',version:'2.0.0',rules:{requestExistingIdentifiableRecordsRatherThanAnswersOrNewRecordCreation:true,doNotInventRecordExistenceCustodiansSystemsSearchTermsOrAgencyFacts:true,doNotAssertJurisdictionSpecificRightsDeadlinesExemptionsOrViolationsWithoutVerifiedAuthority:true,doNotTreatProtectedPersonnelMedicalFinancialSecurityVictimWitnessOrAuthenticationDataAsPublic:true,doNotRequestPasswordsSecurityAnswersOneTimeCodesAuthenticationTokensPaymentCredentialsOrSecuritySensitiveSystemDetails:true,preserveRequesterScopeIdentifiersCustodiansSearchTermsFormatsAndExclusions:true,requireHumanReviewWhenConsequentialDeadlineLegalConclusionOrSensitiveAccessIsUnclear:true}}],
+  responseAnalysis:{findingTypes:PUBLIC_RECORDS_FINDINGS,async analyze(input:unknown){if(!input||typeof input!=='object')throw new Error('PUBLIC_RECORDS_PRODUCTION_ANALYSIS_INPUT_INVALID');const source=input as {requestedItems?:readonly {category:string;description:string}[];records?:readonly GenericProductionRecord[]};const records=source.records??[];const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:item.description.split(/\W+/).filter(word=>word.length>=4).slice(0,20)}));const deterministic=analyzeGenericProduction(requested,records,'public record');const providers=getConfiguredRecordsLlmProviders();if(providers.length<2)return deterministic;const policy={minimumProviders:2,agreementThreshold:0.67,maxProviders:3} as const;const requestedCategories=requested.map(item=>item.id);const analyzed=await Promise.all(records.slice(0,20).map(async record=>({id:record.id,classification:await classifyGenericRecord(providers,record,'public-records-request',requestedCategories,policy),facts:await extractGenericRecordFacts(providers,record,'public-records-request',policy)})));const contradictions:Array<{leftId:string;rightId:string;result:Awaited<ReturnType<typeof assessGenericRecordContradiction>>}>=[];for(let i=0;i<Math.min(records.length,10);i+=1)for(let j=i+1;j<Math.min(records.length,10);j+=1)contradictions.push({leftId:records[i].id,rightId:records[j].id,result:await assessGenericRecordContradiction(providers,records[i],records[j],'public-records-request',policy)});const strategy=await recommendGenericRecordFollowUp(providers,'public-records-request',{deterministic,requestedItems:source.requestedItems??[],records:records.slice(0,20).map(record=>({id:record.id,filename:record.filename,category:record.category,text:record.text??''})),extracted:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value})),contradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value}))},policy);return {...deterministic,aiStrategy:strategy.value,aiProvenance:{providers:strategy.providers,confidence:strategy.confidence,disagreements:strategy.disagreements,warnings:strategy.warnings},aiRecordAnalysis:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value,classificationProvenance:item.classification.providers,factProvenance:item.facts.providers})),aiContradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value,providers:item.result.providers}))}}},
 })
