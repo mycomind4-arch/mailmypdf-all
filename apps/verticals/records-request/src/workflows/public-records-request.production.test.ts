@@ -32,7 +32,7 @@ describe('production public records front door', () => {
     expect(request.items.some(item => item.category === 'withholding-redaction-no-records-and-request-status')).toBe(true)
   })
 
-  it('does not treat protected personnel or security information as automatically public', () => {
+  it('does not treat protected personnel or authentication information as automatically public', () => {
     const request = buildPublicRecordsRequest({
       agency: 'Example Public Agency',
       jurisdiction: 'Example jurisdiction',
@@ -43,7 +43,7 @@ describe('production public records front door', () => {
     })
     const corpus = request.items.map(item => item.description).join(' ')
     expect(corpus).toContain('Do not treat private personnel')
-    expect(corpus).toContain('Do not demand security-sensitive system details') === false
+    expect(corpus).toContain('protected material is publicly disclosable')
     expect(corpus).not.toContain('provide password')
   })
 })
