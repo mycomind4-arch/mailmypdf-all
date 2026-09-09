@@ -33,10 +33,10 @@ async function parseJsonResponse(response: Response, provider: string): Promise<
 
 function promptFor(task: LlmTask, input: unknown): string {
   const instructions: Record<LlmTask, string> = {
-    classification: 'Classify each record into the most appropriate code-enforcement record category and explain the classification.',
-    extraction: 'Extract code-enforcement identifiers and material facts. Never invent a fact; use empty arrays when absent.',
-    contradiction: 'Determine whether the supplied records materially contradict each other. Distinguish true contradiction from ambiguity or missing context.',
-    strategy: 'Design a precise records-request strategy. Identify likely custodians, search terms, scope gaps, overbreadth risks, identifiers, and follow-up priorities. Do not assert jurisdiction-specific law unless it is explicitly supplied in the input.',
+    classification: 'Classify the supplied record into the most appropriate records-request category supported by the input context. Use the filename, text, declared category, requested categories, and workflow context when present. Do not assume a particular domain. Explain the classification and do not invent facts.',
+    extraction: 'Extract identifiers and material facts relevant to the supplied records request and workflow context. Never invent a fact; use empty arrays or explicit unknown values when information is absent.',
+    contradiction: 'Determine whether the supplied records materially contradict each other. Distinguish true contradiction from ambiguity, different time periods, redaction, or missing context.',
+    strategy: 'Design a precise records-request or production-review strategy from the supplied workflow context. Identify likely custodians, search terms, scope gaps, missing categories, overbreadth risks, identifiers, redaction or withholding issues, and follow-up priorities. Do not assert jurisdiction-specific law unless authoritative law or policy is explicitly supplied in the input.',
   }
   return `${jsonInstruction}\nTask: ${instructions[task]}\nInput:\n${JSON.stringify(input)}\nOutput shape must be inferred from the task and must be a single JSON object.`
 }
@@ -55,7 +55,7 @@ async function openAiComplete<T>(task: LlmTask, input: unknown): Promise<LlmProv
 
 async function anthropicComplete<T>(task: LlmTask, input: unknown): Promise<LlmProviderResult<T>> {
   const apiKey = requireEnv('ANTHROPIC_API_KEY')
-  const model = process.env.ANTHROPIC_RECORDS_MODEL ?? 'claude-sonnet-4-20250514'
+  const model = process.env.ANTHROPIC_RECORDS_MODEL ?? 'claude-sonnet-5'
   const response = await fetch(process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -84,10 +84,11 @@ export const openAiRecordsProvider: LlmProvider = { id: 'openai', complete: open
 export const anthropicRecordsProvider: LlmProvider = { id: 'anthropic', complete: anthropicComplete }
 export const geminiRecordsProvider: LlmProvider = { id: 'gemini', complete: geminiComplete }
 
+/** Claude is the primary provider. Additional configured providers provide quorum/fallback. */
 export function getConfiguredRecordsLlmProviders(): readonly LlmProvider[] {
   const providers: LlmProvider[] = []
-  if (process.env.OPENAI_API_KEY) providers.push(openAiRecordsProvider)
   if (process.env.ANTHROPIC_API_KEY) providers.push(anthropicRecordsProvider)
+  if (process.env.OPENAI_API_KEY) providers.push(openAiRecordsProvider)
   if (process.env.GEMINI_API_KEY) providers.push(geminiRecordsProvider)
   return providers
 }
