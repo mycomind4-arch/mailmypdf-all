@@ -27,11 +27,11 @@ import { productionEducationRecordsWorkflow } from './education-records-producti
 import { productionEmploymentRecordsWorkflow } from './employment-records-production'
 import { productionMilitaryRecordsWorkflow } from './military-records-production'
 import { productionRecordsFollowUpWorkflow } from './records-follow-up-production'
+import { productionRecordsDenialAppealWorkflow } from './records-denial-appeal-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
-import { recordsDenialAppealWorkflow } from './specialized-records'
 import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, openRecordsRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
@@ -75,7 +75,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   governmentCommunicationsRecordsWorkflow,
   caseRecordsWorkflow,
   productionRecordsFollowUpWorkflow,
-  recordsDenialAppealWorkflow,
+  productionRecordsDenialAppealWorkflow,
 ]
 
 const workflowMap = new Map(recordsWorkflows.map((workflow) => [workflow.id, workflow]))
