@@ -26,11 +26,12 @@ import { productionMedicalRecordsWorkflow } from './medical-records-production'
 import { productionEducationRecordsWorkflow } from './education-records-production'
 import { productionEmploymentRecordsWorkflow } from './employment-records-production'
 import { productionMilitaryRecordsWorkflow } from './military-records-production'
+import { productionRecordsFollowUpWorkflow } from './records-follow-up-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
-import { recordsFollowUpWorkflow, recordsDenialAppealWorkflow } from './specialized-records'
+import { recordsDenialAppealWorkflow } from './specialized-records'
 import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, openRecordsRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
@@ -73,7 +74,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionEducationRecordsWorkflow,
   governmentCommunicationsRecordsWorkflow,
   caseRecordsWorkflow,
-  recordsFollowUpWorkflow,
+  productionRecordsFollowUpWorkflow,
   recordsDenialAppealWorkflow,
 ]
 
