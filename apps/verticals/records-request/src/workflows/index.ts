@@ -25,11 +25,12 @@ import { productionDeathRecordsWorkflow } from './death-records-production'
 import { productionMedicalRecordsWorkflow } from './medical-records-production'
 import { productionEducationRecordsWorkflow } from './education-records-production'
 import { productionEmploymentRecordsWorkflow } from './employment-records-production'
+import { productionMilitaryRecordsWorkflow } from './military-records-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
-import { militaryRecordsWorkflow, recordsFollowUpWorkflow, recordsDenialAppealWorkflow } from './specialized-records'
+import { recordsFollowUpWorkflow, recordsDenialAppealWorkflow } from './specialized-records'
 import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, openRecordsRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
@@ -66,7 +67,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionMarriageRecordsWorkflow,
   productionDivorceRecordsWorkflow,
   productionDeathRecordsWorkflow,
-  militaryRecordsWorkflow,
+  productionMilitaryRecordsWorkflow,
   productionMedicalRecordsWorkflow,
   productionEmploymentRecordsWorkflow,
   productionEducationRecordsWorkflow,
