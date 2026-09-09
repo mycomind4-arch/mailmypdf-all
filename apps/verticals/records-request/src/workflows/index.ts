@@ -18,11 +18,12 @@ import { productionCourtRecordsWorkflow } from './court-records-production'
 import { productionPropertyRecordsWorkflow } from './property-records-production'
 import { propertyPermitRecordsWorkflow } from './property-permit-records'
 import { productionPlanningRecordsWorkflow } from './planning-records-production'
+import { productionBirthRecordsWorkflow } from './birth-records-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
-import { birthRecordsWorkflow, marriageRecordsWorkflow, divorceRecordsWorkflow, deathRecordsWorkflow } from './vital-records'
+import { marriageRecordsWorkflow, divorceRecordsWorkflow, deathRecordsWorkflow } from './vital-records'
 import { militaryRecordsWorkflow, medicalRecordsWorkflow, employmentRecordsWorkflow, educationRecordsWorkflow, recordsFollowUpWorkflow, recordsDenialAppealWorkflow } from './specialized-records'
 import { policeReportWorkflow, policeReportCopyWorkflow, publicInformationRequestWorkflow, openRecordsRequestWorkflow, agencyRecordsRequestWorkflow, governmentDocumentsRequestWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
@@ -60,7 +61,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   codeEnforcementRecordsWorkflow,
   productionPlanningRecordsWorkflow,
   // Vital records
-  birthRecordsWorkflow,
+  productionBirthRecordsWorkflow,
   marriageRecordsWorkflow,
   divorceRecordsWorkflow,
   deathRecordsWorkflow,
