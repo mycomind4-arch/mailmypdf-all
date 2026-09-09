@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createElement } from "react";
-import { Archive, BriefcaseBusiness, LayoutDashboard, Plus, UserRound, Workflow } from "lucide-react";
+import { Archive, BriefcaseBusiness, LayoutDashboard, Plus, Sparkles, UserRound, Workflow } from "lucide-react";
 import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import { useAuth } from "@/lib/use-auth";
 import { workflows } from "@/domain/workflows";
@@ -37,7 +37,7 @@ function DashboardPage() {
           <div className="w-full max-w-md text-center">
             <div className="section-kicker">Private Access</div>
             <h1 className="mt-4 text-4xl text-charcoal">Sign in to your Private Office.</h1>
-            <p className="mt-3 text-sm leading-relaxed text-stone">Your matters, evidence, correspondence, approvals, and delivery records are isolated to your MailMyPDF Account.</p>
+            <p className="mt-3 text-sm leading-relaxed text-stone">Your matters, evidence, correspondence, approvals, delivery records, and capability state are isolated to your MailMyPDF Account.</p>
             <Link to="/auth" className="btn-primary mt-7">Sign in</Link>
           </div>
         </section>
@@ -52,6 +52,7 @@ function DashboardPage() {
   const sections = [
     { label: "Workspace", items: [
       { label: "Overview", href: "/dashboard", icon: <LayoutDashboard />, active: true },
+      { label: "Capabilities", href: "/capabilities", icon: <Sparkles /> },
       { label: "Workflow Hub", href: "/workflows", icon: <Workflow /> },
       { label: "Matters", href: "/dashboard#matters", icon: <BriefcaseBusiness /> },
       { label: "Recent", href: "/dashboard#matters", icon: <Archive /> },
@@ -74,7 +75,7 @@ function DashboardPage() {
           eyebrow="MailMyPDF Account"
           title="Private Office"
           subtitle="Facts → Evidence → Analysis → Review → Delivery → Proof"
-          actions={<Link to="/workflows" className="mmp-button-secondary">Workflows</Link>}
+          actions={<><Link to="/capabilities" className="mmp-button-secondary">Capabilities</Link><Link to="/workflows" className="mmp-button-secondary">Workflows</Link></>}
           account={<Link to="/account" className="mmp-workspace-account"><span className="mmp-workspace-account__avatar">{initials || "PO"}</span><span>{accountName}</span></Link>}
         />
       }
@@ -82,8 +83,8 @@ function DashboardPage() {
       <WorkspacePageHeader
         eyebrow="Private workspace"
         title="One controlled record from the first fact to final proof."
-        description="Private Office is the premium workspace for consequential correspondence. Each matter keeps source facts, evidence, AI-assisted analysis, drafting, human review, authorization, mailing, and proof as separate controlled stages."
-        actions={<Link to="/workflows" className="mmp-button-primary"><Plus size={15} /> New matter</Link>}
+        description="Private Office is the premium workspace for consequential correspondence. Each completed matter can establish durable capability state, while source facts, evidence, AI-assisted analysis, drafting, human review, authorization, mailing, and proof remain separate controlled stages."
+        actions={<><Link to="/capabilities" className="mmp-button-secondary"><Sparkles size={15} /> What can I do next?</Link><Link to="/workflows" className="mmp-button-primary"><Plus size={15} /> New matter</Link></>}
         meta={<><span>{catalog.length} available Private Office workflows</span><span>Human review before consequential actions</span></>}
       />
 
