@@ -32,10 +32,10 @@ import { productionOpenRecordsRequestWorkflow } from './open-records-production'
 import { productionPublicInformationRequestWorkflow } from './public-information-production'
 import { productionAgencyRecordsRequestWorkflow } from './agency-records-production'
 import { productionGovernmentDocumentsRequestWorkflow } from './government-documents-production'
+import { productionCaseRecordsWorkflow } from './case-records-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
 import { publicRecordsRequestWorkflow } from './public-records-request'
-import { caseRecordsWorkflow } from './case-records'
 import { policeReportWorkflow, policeReportCopyWorkflow } from './variant-records'
 import type { RecordsWorkflow } from '../workflow-factory'
 
@@ -77,7 +77,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionEmploymentRecordsWorkflow,
   productionEducationRecordsWorkflow,
   governmentCommunicationsRecordsWorkflow,
-  caseRecordsWorkflow,
+  productionCaseRecordsWorkflow,
   productionRecordsFollowUpWorkflow,
   productionRecordsDenialAppealWorkflow,
 ]
