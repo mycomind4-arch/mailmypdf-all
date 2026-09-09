@@ -16,6 +16,7 @@ export const USE_OF_FORCE_RECORD_CATEGORIES = [
   'injury-and-medical-documentation',
   'complaint-and-administrative-review',
   'redaction-withholding-and-retention-records',
+  'request-status-and-release-records',
 ] as const
 
 export const USE_OF_FORCE_CAPABILITIES: readonly RecordsDomainCapability[] = [
@@ -25,130 +26,70 @@ export const USE_OF_FORCE_CAPABILITIES: readonly RecordsDomainCapability[] = [
 ]
 
 export const USE_OF_FORCE_INTAKE = [
-  { id:'agency', label:'Law-enforcement agency', required:true, helpText:'Police department, sheriff, state police, campus police, or other responding agency.' },
-  { id:'department', label:'Likely records / professional standards unit', helpText:'Records, internal affairs, professional standards, investigations, evidence, or another likely custodian.' },
+  { id:'agency', label:'Law-enforcement agency', required:true, helpText:'Police department, sheriff, state police, campus police, transit police, or other responding public agency.' },
+  { id:'jurisdiction', label:'Jurisdiction', required:true, helpText:'Federal, state, county, city, district, campus, transit, or other jurisdiction whose access and records rules may apply.' },
+  { id:'department', label:'Likely records / professional standards unit', helpText:'Records, internal affairs, professional standards, investigations, evidence, force review, or another likely custodian.' },
   { id:'incidentDate', label:'Incident date', required:true, helpText:'Date of the force event.' },
   { id:'timeStart', label:'Approximate start time', helpText:'Beginning of the relevant event window.' },
   { id:'timeEnd', label:'Approximate end time', helpText:'End of the relevant event window.' },
-  { id:'incidentNumber', label:'Incident / report / CAD number', helpText:'Incident, case, report, CAD, or call-for-service number when known.' },
-  { id:'location', label:'Incident location', required:true, helpText:'Address, intersection, business, parcel, or other specific location.' },
-  { id:'person', label:'Person subjected to force', helpText:'Name or other identifier for the person involved.' },
-  { id:'officerNames', label:'Officer names / badge numbers', helpText:'Known officers, badge numbers, unit numbers, or other identifiers.' },
-  { id:'forceDescription', label:'Force or restraint involved', required:true, helpText:'Plain-English description of the force, restraint, weapon, takedown, pursuit, or other event.' },
+  { id:'incidentNumber', label:'Incident / report / CAD number', helpText:'Incident, case, report, CAD, citation, arrest, call-for-service, or event identifier when known.' },
+  { id:'location', label:'Incident location', required:true, helpText:'Address, intersection, business, parcel, facility, road segment, or other specific location.' },
+  { id:'person', label:'Person subjected to force', helpText:'Requester-supplied name or other identifier for the person involved, when lawfully appropriate.' },
+  { id:'officerNames', label:'Officer / unit identifiers', helpText:'Known officers, badge numbers, unit numbers, vehicle identifiers, or roles.' },
+  { id:'forceDescription', label:'Force or restraint involved', required:true, helpText:'Plain-English description of the force, restraint, weapon, takedown, pursuit, discharge, or other event. Preserve disputed allegations as allegations.' },
+  { id:'requesterRelationship', label:'Requester relationship / access context', helpText:'Optional requester-supplied context such as person involved, parent/guardian, attorney, insurer, media, researcher, or general public. This does not establish legal entitlement by itself.' },
+  { id:'preferredFormat', label:'Preferred format', helpText:'Native video/audio and metadata where available, structured CAD export, PDF, image files, or another available format.' },
+  { id:'exclusions', label:'Scope exclusions / narrowing', helpText:'Optional exclusions that reduce noise without changing the incident-specific force-record objective.' },
 ] as const
 
-function text(input:Record<string,unknown>, key:string):string|undefined {
-  const raw=input[key]
-  if(typeof raw!=='string') return undefined
-  const value=raw.trim()
-  return value||undefined
-}
-
-function selectedCategories(input:Record<string,unknown>):string[] {
-  const raw=input.categories
-  if(!Array.isArray(raw)) return [...USE_OF_FORCE_RECORD_CATEGORIES]
-  const known=new Set(USE_OF_FORCE_RECORD_CATEGORIES)
-  const selected=raw.filter((entry):entry is string=>typeof entry==='string'&&known.has(entry as typeof USE_OF_FORCE_RECORD_CATEGORIES[number]))
-  return selected.length?selected:[...USE_OF_FORCE_RECORD_CATEGORIES]
-}
+function text(input:Record<string,unknown>, key:string):string|undefined { const raw=input[key]; if(typeof raw!=='string') return undefined; const value=raw.trim(); return value||undefined }
+function selectedCategories(input:Record<string,unknown>):string[] { const raw=input.categories; if(!Array.isArray(raw)) return [...USE_OF_FORCE_RECORD_CATEGORIES]; const known=new Set(USE_OF_FORCE_RECORD_CATEGORIES); const selected=raw.filter((entry):entry is string=>typeof entry==='string'&&known.has(entry as typeof USE_OF_FORCE_RECORD_CATEGORIES[number])); return selected.length?selected:[...USE_OF_FORCE_RECORD_CATEGORIES] }
 
 function scopeText(input:Record<string,unknown>):string {
-  const identifiers=[
-    text(input,'incidentNumber')&&`incident/report/CAD number ${text(input,'incidentNumber')}`,
-    text(input,'location')&&`location ${text(input,'location')}`,
-    text(input,'person')&&`person ${text(input,'person')}`,
-    text(input,'officerNames')&&`officer identifiers ${text(input,'officerNames')}`,
-  ].filter(Boolean)
-  const date=text(input,'incidentDate')
-  const start=text(input,'timeStart')
-  const end=text(input,'timeEnd')
-  const time=start||end?`, approximately ${start??'unknown start'} through ${end??'unknown end'}`:''
-  return `${identifiers.length?` Search using: ${identifiers.join('; ')}.`:''}${date?` Incident date: ${date}${time}.`:''}`
+  const identifiers=[text(input,'incidentNumber')&&`incident/report/CAD identifier ${text(input,'incidentNumber')}`,text(input,'location')&&`location ${text(input,'location')}`,text(input,'person')&&`requester-supplied person identifier ${text(input,'person')}`,text(input,'officerNames')&&`officer/unit identifiers ${text(input,'officerNames')}`,text(input,'department')&&`likely unit/custodian ${text(input,'department')}`].filter(Boolean)
+  const date=text(input,'incidentDate'); const start=text(input,'timeStart'); const end=text(input,'timeEnd'); const time=start||end?`, approximately ${start??'unknown start'} through ${end??'unknown end'}`:''
+  const format=text(input,'preferredFormat')?` Preferred format: ${text(input,'preferredFormat')}.`:''; const exclusions=text(input,'exclusions')?` Scope exclusions/narrowing: ${text(input,'exclusions')}.`:''; const relationship=text(input,'requesterRelationship')?` Requester-supplied relationship/access context: ${text(input,'requesterRelationship')} (not treated as verified entitlement unless established by applicable authority or agency records).`:''
+  return `${identifiers.length?` Search using these requester-supplied identifiers: ${identifiers.join('; ')}.`:''}${date?` Incident date: ${date}${time}.`:''}${format}${exclusions}${relationship}`
 }
 
 function describe(category:string,input:Record<string,unknown>):string {
   const scope=scopeText(input)
-  const force=text(input,'forceDescription')?` Force/event description: ${text(input,'forceDescription')}.`:''
+  const force=text(input,'forceDescription')?` Force/event description supplied by requester: ${text(input,'forceDescription')}. Preserve whether statements are allegations, reported observations, officer narratives/conclusions, force classifications, complaints, supervisory/administrative findings, arrests/citations, dispositions, or adjudicated findings; do not collapse those states into one factual conclusion.`:''
   const descriptions:Record<string,string>={
-    'use-of-force-reports':`Use-of-force reports, force forms, weapon/discharge reports, restraint reports, pursuit-related force records, and officer narratives documenting the identified force event.${scope}`,
-    'incident-and-supplemental-reports':`Incident, arrest, offense, supplemental, field-contact, pursuit, or other reports associated with the same event, including later supplements and corrections.${scope}`,
-    'body-camera-recordings':`Body-worn camera recordings from each involved or observing officer that depict or capture the force event, including associated file identifiers and retained pre/post-event footage.${scope}`,
-    'dash-and-other-video':`Dash-camera, in-car, fixed-site, evidence, surveillance, drone, or other agency-held video depicting the event, together with associated indexes or metadata.${scope}`,
-    'dispatch-and-cad':`CAD, call-for-service, dispatch, radio-event, unit-assignment, timestamp, and disposition records associated with the event.${scope}`,
-    'supervisor-review-and-approval':`Supervisor reviews, command reviews, force-review forms, approval records, findings, routing history, corrective-action referrals, and documented supervisory comments concerning the force event.${scope}`,
-    'photographs-and-evidence':`Scene photographs, injury photographs, evidence photographs, evidence indexes, property/evidence logs, weapon or equipment records, and other evidentiary materials associated with the event.${scope}`,
-    'injury-and-medical-documentation':`Agency-maintained records documenting reported or observed injuries, requests for medical assistance, EMS response, medical-clearance references, injury forms, and related non-privileged incident documentation.${scope}`,
-    'complaint-and-administrative-review':`Complaints, intake records, administrative or professional-standards review records, referral records, disposition records, and investigation indexes concerning the identified force event where maintained and disclosable.${scope}`,
-    'redaction-withholding-and-retention-records':`Records identifying redactions, withheld material, stated withholding bases, retention classifications, preservation holds, deletion schedules, or deletion events affecting responsive force records or media.${scope}`,
+    'use-of-force-reports':`Lawfully accessible use-of-force reports, force forms, weapon/discharge reports, restraint reports, pursuit-related force records, and officer narratives documenting the identified event. Preserve record authorship and status; a force report or officer narrative is not by itself an adjudicated finding that the force was lawful, unlawful, justified, unjustified, necessary, excessive, or otherwise conclusively characterized.${scope}`,
+    'incident-and-supplemental-reports':`Lawfully accessible incident, arrest, offense, supplemental, field-contact, pursuit, citation, or other reports associated with the same event, including maintained later supplements, amendments, and corrections. An allegation, arrest, citation, or charge is not proof of guilt or adjudication.${scope}`,
+    'body-camera-recordings':`Lawfully accessible body-worn camera recordings from involved or observing officers that depict or capture the event, including responsive associated identifiers and retained pre/post-event footage. Do not assume an unredacted version or unrelated private footage is publicly disclosable; do not request evidence-system credentials or security configuration.${scope}`,
+    'dash-and-other-video':`Lawfully accessible dash-camera, in-car, fixed-site, agency-held surveillance, drone, evidence, or other video depicting the event, together with responsive indexes or non-secret metadata. Do not request credentials, private keys, internal server addresses, or security-sensitive configuration.${scope}`,
+    'dispatch-and-cad':`Existing CAD, call-for-service, dispatch, radio-event, unit-assignment, timestamp, response/disposition, and related records associated with the event where lawfully accessible. Request event records rather than CAD/radio credentials or sensitive system-administration details.${scope}`,
+    'supervisor-review-and-approval':`Lawfully accessible supervisor reviews, command reviews, force-review forms, approval/routing records, findings, corrective-action referrals, and documented supervisory comments concerning the event. Preserve whether a document is preliminary, advisory, final, sustained, not sustained, exonerated, unfounded, policy-compliant, policy-noncompliant, corrected, superseded, or otherwise status-labeled; do not invent or elevate a status beyond the record.${scope}`,
+    'photographs-and-evidence':`Lawfully accessible scene/injury photographs, evidence photographs, evidence indexes, property/evidence logs, equipment/weapon records, file manifests, and other evidentiary materials associated with the event. Request record evidence sufficient to identify responsive material, not evidence-system secrets or security-sensitive access details.${scope}`,
+    'injury-and-medical-documentation':`Lawfully accessible agency-maintained incident records documenting reported or observed injuries, requests for medical assistance, EMS response, medical-clearance references, injury forms, and related non-privileged event documentation. Do not request private clinical records beyond the agency's lawful records scope, and do not assume diagnoses, treatment details, protected health information, or unrelated medical history are publicly disclosable.${scope}`,
+    'complaint-and-administrative-review':`Lawfully accessible complaint/intake records, administrative or professional-standards review records, referrals, investigation indexes, disposition records, and final-status records concerning the event where maintained and disclosable. A complaint or allegation is not a sustained finding; preserve the exact review/disposition status and do not invent misconduct conclusions.${scope}`,
+    'redaction-withholding-and-retention-records':`Existing records identifying redactions, withheld material, the agency's stated withholding basis, retention classifications, preservation holds, deletion schedules, and actual deletion/status records affecting responsive force records or media. Do not infer spoliation, misconduct, unlawful withholding, or another legal violation without verified evidence and applicable authority.${scope}`,
+    'request-status-and-release-records':`Existing acknowledgment, request/search status, fee, clarification, transfer/referral, identity/access-verification requirement, no-records response, retention/deletion statement, production manifest, release/export record, partial-production notice, closure, and review/appeal instructions where actually stated. Preserve the agency's actual statement rather than inventing access entitlement, completeness, deadlines, exemptions, or review rights.${scope}`,
   }
-  return `${descriptions[category]??`Records concerning ${category}.${scope}`}${force}`
+  return `${descriptions[category]??`Existing use-of-force records concerning ${category}.${scope}`}${force}`
 }
 
 function validateUseOfForce(request:ValidatedRequest):readonly {field:string;message:string}[] {
-  const issues:{field:string;message:string}[]=[]
-  const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ')
+  const issues:{field:string;message:string}[]=[]; const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ')
+  if(!request.agency?.trim()) issues.push({field:'agency',message:'Identify the law-enforcement agency or public body.'})
+  if(!request.jurisdiction?.trim()) issues.push({field:'jurisdiction',message:'Identify the relevant jurisdiction.'})
   if(!corpus.includes('location ')) issues.push({field:'location',message:'Provide the incident location so the force event can be identified.'})
   if(!corpus.includes('incident date:')) issues.push({field:'incidentDate',message:'Provide the incident date so responsive records and media can be located.'})
-  if(!corpus.includes('force/event description:')) issues.push({field:'forceDescription',message:'Describe the force, restraint, weapon, pursuit, or other event in plain language.'})
+  if(!corpus.includes('force/event description supplied by requester:')) issues.push({field:'forceDescription',message:'Describe the force, restraint, weapon, pursuit, discharge, or other event in plain language.'})
   return issues
 }
 
 export function buildUseOfForceRecordsRequest(input:Record<string,unknown>) {
-  const incidentNumber=text(input,'incidentNumber')
-  const location=text(input,'location')
-  const incidentDate=text(input,'incidentDate')
-  const forceDescription=text(input,'forceDescription')
-  const categories=selectedCategories(input)
-  return {
-    title:`Use of Force Records — ${incidentNumber??location??incidentDate??'Incident'}`,
-    agency:text(input,'agency')??'',
-    jurisdiction:text(input,'jurisdiction'),
-    purpose:text(input,'purpose')??'Identify, preserve, obtain, and compare the reports, media, dispatch records, supervisory review, evidence, injury documentation, and administrative records associated with the specified force event.',
-    scope:JSON.stringify({workflow:'use-of-force-records',incidentDate,timeStart:text(input,'timeStart'),timeEnd:text(input,'timeEnd'),incidentNumber,location,person:text(input,'person'),officerNames:text(input,'officerNames'),department:text(input,'department'),forceDescription}),
-    items:categories.map(category=>({
-      category,
-      description:describe(category,input),
-      dateStart:incidentDate,
-      dateEnd:incidentDate,
-      custodian:text(input,'department'),
-      systemHint:category==='dispatch-and-cad'?'CAD / call-for-service system':category.includes('camera')||category.includes('video')?'digital evidence management system':category==='complaint-and-administrative-review'||category==='supervisor-review-and-approval'?'professional standards / force review system':undefined,
-      format:category.includes('camera')||category.includes('video')?'native digital media files where available, with associated metadata preserved separately':category==='dispatch-and-cad'?'native export, CSV, JSON, or other structured format where maintained':undefined,
-    })),
-  }
+  const incidentNumber=text(input,'incidentNumber'); const location=text(input,'location'); const incidentDate=text(input,'incidentDate'); const forceDescription=text(input,'forceDescription'); const categories=selectedCategories(input)
+  return {title:`Use of Force Records — ${incidentNumber??location??incidentDate??'Incident'}`,agency:text(input,'agency')??'',jurisdiction:text(input,'jurisdiction'),purpose:text(input,'purpose')??'Identify, preserve, obtain, and compare lawfully accessible reports, media, dispatch records, supervisory/administrative review, evidence, injury documentation, retention records, and release evidence associated with the specified force event while preserving record status and privacy boundaries.',scope:JSON.stringify({workflow:'use-of-force-records',incidentDate,timeStart:text(input,'timeStart'),timeEnd:text(input,'timeEnd'),incidentNumber,location,person:text(input,'person'),officerNames:text(input,'officerNames'),department:text(input,'department'),forceDescription,requesterRelationship:text(input,'requesterRelationship'),preferredFormat:text(input,'preferredFormat'),exclusions:text(input,'exclusions')}),items:categories.map(category=>({category,description:describe(category,input),dateStart:incidentDate,dateEnd:incidentDate,custodian:text(input,'department'),systemHint:category==='dispatch-and-cad'?'CAD / call-for-service records':category.includes('camera')||category.includes('video')?'digital evidence records':category==='complaint-and-administrative-review'||category==='supervisor-review-and-approval'?'professional standards / force review records':undefined,format:text(input,'preferredFormat')??(category.includes('camera')||category.includes('video')?'native digital media files where available, with associated metadata preserved separately':category==='dispatch-and-cad'?'native export, CSV, JSON, or other structured format where maintained':undefined)}))}
 }
 
-export const USE_OF_FORCE_FINDINGS=[
-  'MISSING_REQUESTED_CATEGORY','REFERENCED_RECORD_NOT_PRODUCED','INCIDENT_IDENTIFIER_MISMATCH','DATE_GAP','DUPLICATE_RECORD','MISSING_MEDIA','UNEXPLAINED_WITHHOLDING','REDACTION_REVIEW','PARTIAL_PRODUCTION','UNRESPONSIVE_ITEM',
-] as const
+export const USE_OF_FORCE_FINDINGS=['MISSING_REQUESTED_CATEGORY','REFERENCED_RECORD_NOT_PRODUCED','INCIDENT_IDENTIFIER_MISMATCH','DATE_GAP','DUPLICATE_RECORD','MISSING_MEDIA','UNEXPLAINED_WITHHOLDING','REDACTION_REVIEW','PARTIAL_PRODUCTION','UNRESPONSIVE_ITEM'] as const
 
 export const useOfForceRecordsWorkflow:RecordsWorkflow=createRecordsWorkflow({
-  id:'use-of-force-records',
-  name:'Use of Force Records Request',
-  description:'Build an incident-specific request for force reports, related reports, body-camera and other video, CAD, supervisor review, evidence, injury documentation, administrative review, and withholding/retention records.',
-  searchIntent:'police use of force records request',
-  seo:{title:'Use of Force Records Request — Reports, Body Camera & Review Records',description:'Request police use-of-force reports, body-camera video, CAD, supervisor review, evidence, injury documentation, and related records for a specific incident.',canonicalPath:'/workflows/use-of-force-records'},
-  intakeVersion:'1.0.0',
-  intake:USE_OF_FORCE_INTAKE,
-  capabilities:USE_OF_FORCE_CAPABILITIES,
-  request:{categories:USE_OF_FORCE_RECORD_CATEGORIES,build:buildUseOfForceRecordsRequest},
-  validate:validateUseOfForce,
-  policies:[{jurisdiction:'all',version:'1.0.0',rules:{requestIncidentSpecificRecords:true,requestNativeMedia:true,requestSupervisoryReviewSeparately:true,requestRetentionAndWithholdingRecords:true,preserveIdentifiersAndTimeline:true,doNotTreatReferencedMediaAsProduced:true}}],
-  responseAnalysis:{
-    findingTypes:USE_OF_FORCE_FINDINGS,
-    async analyze(input:unknown){
-      if(!input||typeof input!=='object') throw new Error('USE_OF_FORCE_PRODUCTION_ANALYSIS_INPUT_INVALID')
-      const source=input as {requestedItems?:readonly {category:string;description:string}[];records?:readonly PoliceProductionRecord[];identifiers?:PoliceProductionIdentifiers}
-      const records=source.records??[]
-      const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:item.description.split(/\W+/).filter(word=>word.length>=4).slice(0,20)}))
-      const deterministic=analyzePoliceProduction(requested,records,source.identifiers??{})
-      const providers=getConfiguredRecordsLlmProviders()
-      if(providers.length<2) return deterministic
-      const policy={minimumProviders:2,agreementThreshold:0.67,maxProviders:3} as const
-      const analyzed=await Promise.all(records.slice(0,20).map(async record=>({id:record.id,classification:await classifyPoliceRecord(providers,record,policy),facts:await extractPoliceIncidentFacts(providers,record,policy)})))
-      const contradictions:Array<{leftId:string;rightId:string;result:Awaited<ReturnType<typeof assessPoliceContradiction>>}>=[]
-      for(let i=0;i<Math.min(records.length,10);i+=1){for(let j=i+1;j<Math.min(records.length,10);j+=1){contradictions.push({leftId:records[i].id,rightId:records[j].id,result:await assessPoliceContradiction(providers,records[i],records[j],policy)})}}
-      const strategy=await recommendPoliceFollowUp(providers,{workflow:'use-of-force-records',deterministic,requestedItems:source.requestedItems??[],identifiers:source.identifiers??{},records:records.slice(0,20).map(record=>({id:record.id,filename:record.filename,category:record.category,text:record.text??''})),extracted:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value})),contradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value}))},policy)
-      return {...deterministic,aiStrategy:strategy.value,aiProvenance:{providers:strategy.providers,confidence:strategy.confidence,disagreements:strategy.disagreements,warnings:strategy.warnings},aiRecordAnalysis:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value,classificationProvenance:item.classification.providers,factProvenance:item.facts.providers})),aiContradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value,providers:item.result.providers}))}
-    },
-  },
+  id:'use-of-force-records',name:'Use of Force Records Request',description:'Build an incident-specific request for force reports, related reports, body-camera and other video, CAD, supervisor review, evidence, injury documentation, administrative review, retention/withholding records, and request/release status.',searchIntent:'police use of force records request',seo:{title:'Use of Force Records Request — Reports, Video, Review & Evidence',description:'Request police use-of-force reports, body-camera and other video, CAD, supervisory/administrative review, evidence, injury documentation, retention records, and release-status evidence for a specific incident.',canonicalPath:'/workflows/use-of-force-records'},intakeVersion:'2.0.0',intake:USE_OF_FORCE_INTAKE,capabilities:USE_OF_FORCE_CAPABILITIES,request:{categories:USE_OF_FORCE_RECORD_CATEGORIES,build:buildUseOfForceRecordsRequest},validate:validateUseOfForce,
+  policies:[{jurisdiction:'all',version:'2.0.0',rules:{requestIncidentSpecificReportsMediaDispatchEvidenceReviewRetentionAndReleaseRecordsSeparately:true,preserveRequesterSuppliedIdentifiersEventDescriptionRelationshipAndFormatUnlessVerified:true,preserveAllegationObservationNarrativeForceClassificationComplaintAdministrativeFindingDispositionAndAdjudicationDistinctions:true,doNotTreatComplaintAllegationArrestCitationForceReportOrOfficerNarrativeAsProofOfMisconductGuiltLawfulnessUnlawfulnessJustificationOrAdjudication:true,doNotAssumeUnredactedMediaPrivateClinicalRecordsProtectedHealthInformationVictimWitnessJuvenileConfidentialSourcePersonnelPrivilegedDeliberativeSecurityOrAuthenticationDataIsPublic:true,doNotInventMediaRecordExistenceReviewFindingsDispositionStatusRetentionDeletionPreservationStatusSearchCompletenessAgencyFactsOrRequestStatus:true,doNotInferSpoliationMisconductUnlawfulWithholdingOrLegalViolationsWithoutVerifiedEvidenceAndAuthority:true,doNotAssertJurisdictionSpecificDeadlinesExemptionsPrivilegesDisclosureRightsReviewRightsOrAccessEntitlementWithoutVerifiedAuthority:true,doNotRequestPasswordsSecurityAnswersOneTimeCodesAuthenticationTokensPaymentCredentialsPrivateKeysEvidenceCadRadioSystemSecretsInternalServerAddressesOrSecurityConfiguration:true,requireHumanReviewWhenConsequentialAccessPrivacyMedicalPrivilegeReviewStatusRetentionDeletionIdentityVerificationLegalOrSensitiveInformationQuestionIsUnclear:true}}],
+  responseAnalysis:{findingTypes:USE_OF_FORCE_FINDINGS,async analyze(input:unknown){if(!input||typeof input!=='object') throw new Error('USE_OF_FORCE_PRODUCTION_ANALYSIS_INPUT_INVALID');const source=input as {requestedItems?:readonly {category:string;description:string}[];records?:readonly PoliceProductionRecord[];identifiers?:PoliceProductionIdentifiers};const records=source.records??[];const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:item.description.split(/\W+/).filter(word=>word.length>=4).slice(0,20)}));const deterministic=analyzePoliceProduction(requested,records,source.identifiers??{});const providers=getConfiguredRecordsLlmProviders();if(providers.length<2) return deterministic;const policy={minimumProviders:2,agreementThreshold:0.67,maxProviders:3} as const;const analyzed=await Promise.all(records.slice(0,20).map(async record=>({id:record.id,classification:await classifyPoliceRecord(providers,record,policy),facts:await extractPoliceIncidentFacts(providers,record,policy)})));const contradictions:Array<{leftId:string;rightId:string;result:Awaited<ReturnType<typeof assessPoliceContradiction>>}>=[];for(let i=0;i<Math.min(records.length,8);i+=1){for(let j=i+1;j<Math.min(records.length,8);j+=1){contradictions.push({leftId:records[i].id,rightId:records[j].id,result:await assessPoliceContradiction(providers,records[i],records[j],policy)})}}const strategy=await recommendPoliceFollowUp(providers,{workflow:'use-of-force-records',deterministic,requestedItems:source.requestedItems??[],identifiers:source.identifiers??{},records:records.slice(0,20).map(record=>({id:record.id,filename:record.filename,category:record.category,text:record.text??''})),extracted:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value})),contradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value}))},policy);return {...deterministic,aiStrategy:strategy.value,aiProvenance:{providers:strategy.providers,confidence:strategy.confidence,disagreements:strategy.disagreements,warnings:strategy.warnings},aiRecordAnalysis:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value,classificationProvenance:item.classification.providers,factProvenance:item.facts.providers})),aiContradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value,providers:item.result.providers}))}}},
 })
