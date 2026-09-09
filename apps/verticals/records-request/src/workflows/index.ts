@@ -17,9 +17,9 @@ import { productionBackgroundCheckRecordsWorkflow } from './background-check-rec
 import { productionCourtRecordsWorkflow } from './court-records-production'
 import { productionPropertyRecordsWorkflow } from './property-records-production'
 import { propertyPermitRecordsWorkflow } from './property-permit-records'
+import { productionPlanningRecordsWorkflow } from './planning-records-production'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
-import { planningRecordsWorkflow } from './planning-records'
 import { publicRecordsRequestWorkflow } from './public-records-request'
 import { caseRecordsWorkflow } from './case-records'
 import { birthRecordsWorkflow, marriageRecordsWorkflow, divorceRecordsWorkflow, deathRecordsWorkflow } from './vital-records'
@@ -58,7 +58,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   productionPropertyRecordsWorkflow,
   propertyPermitRecordsWorkflow,
   codeEnforcementRecordsWorkflow,
-  planningRecordsWorkflow,
+  productionPlanningRecordsWorkflow,
   // Vital records
   birthRecordsWorkflow,
   marriageRecordsWorkflow,
