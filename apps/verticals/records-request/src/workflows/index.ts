@@ -2,6 +2,7 @@ import { codeEnforcementRecordsWorkflow } from './code-enforcement-records'
 import { policeRecordsWorkflow } from './police-records'
 import { bodyCameraRecordsWorkflow } from './body-camera-records'
 import { dispatch911RecordsWorkflow } from './dispatch-911-records'
+import { useOfForceRecordsWorkflow } from './use-of-force-records'
 import { propertyPermitRecordsWorkflow } from './property-permit-records'
 import { governmentCommunicationsRecordsWorkflow } from './government-communications-records'
 import { foiaRequestWorkflow } from './foia-request'
@@ -28,6 +29,7 @@ export const recordsWorkflows: readonly RecordsWorkflow[] = [
   policeRecordsWorkflow,
   bodyCameraRecordsWorkflow,
   dispatch911RecordsWorkflow,
+  useOfForceRecordsWorkflow,
   policeReportWorkflow,
   policeReportCopyWorkflow,
   courtRecordsWorkflow,
