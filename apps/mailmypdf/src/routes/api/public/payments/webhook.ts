@@ -321,30 +321,35 @@ async function markOrderPaid(
     return;
   }
 
-  const expectedAmount = order.case_approval_id
-    ? (order.approved_price_cents ?? order.price_cents)
-    : order.price_cents;
-  if (
-    !Number.isSafeInteger(session.amount_total) ||
-    session.amount_total !== expectedAmount
-  ) {
-    log.error("checkout amount does not match order", {
-      orderId,
-      expectedAmount,
-      receivedAmount: session.amount_total,
-      eventId,
-    });
-    await supabaseAdmin.from("order_events").insert({
-      order_id: orderId,
-      type: "payment.amount_mismatch",
-      label: "Payment amount did not match the approved order price",
-      metadata: {
-        event_id: eventId,
-        expected_amount_cents: expectedAmount,
-        received_amount_cents: session.amount_total,
-      },
-    });
-    return;
+  // Secure workflow orders carry an immutable approved price. Generic
+  // MailMyPDF orders may legitimately be discounted at checkout (for example
+  // by an active Pro entitlement), so only approval-bound orders use this
+  // exact-amount invariant here.
+  if (order.case_approval_id) {
+    const expectedAmount = order.approved_price_cents;
+    if (
+      !Number.isSafeInteger(expectedAmount) ||
+      !Number.isSafeInteger(session.amount_total) ||
+      session.amount_total !== expectedAmount
+    ) {
+      log.error("checkout amount does not match approved workflow price", {
+        orderId,
+        expectedAmount,
+        receivedAmount: session.amount_total,
+        eventId,
+      });
+      await supabaseAdmin.from("order_events").insert({
+        order_id: orderId,
+        type: "payment.amount_mismatch",
+        label: "Payment amount did not match the approved workflow price",
+        metadata: {
+          event_id: eventId,
+          expected_amount_cents: expectedAmount,
+          received_amount_cents: session.amount_total,
+        },
+      });
+      return;
+    }
   }
 
   // Conditional update: only transition if status is still 'draft'
