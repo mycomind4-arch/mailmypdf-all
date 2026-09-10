@@ -57,7 +57,7 @@ test("Stripe webhook verifies the stored workflow session and exact approved amo
 
   assert.match(webhook, /!order\.stripe_session_id \|\| order\.stripe_session_id !== session\.id/);
   assert.match(webhook, /session\.amount_total !== expectedAmount/);
-  assert.match(webhook, /order\.approved_price_cents \?\? order\.price_cents/);
+  assert.match(webhook, /if \(order\.case_approval_id\)/);\n  assert.match(webhook, /const expectedAmount = order\.approved_price_cents/);
   assert.match(webhook, /payment\.session_mismatch/);
   assert.match(webhook, /payment\.amount_mismatch/);
 });
