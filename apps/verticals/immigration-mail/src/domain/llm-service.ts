@@ -2,9 +2,9 @@
  * Multi-Provider LLM Service — Actual Provider Implementations
  *
  * Supports three providers with automatic fallback:
- * - Google Gemini (gemini-2.0-flash / gemini-1.5-pro)
- * - Anthropic Claude (claude-sonnet-4-20250514 / claude-3-5-sonnet)
- * - OpenAI (gpt-4o / gpt-4o-mini)
+ * - Anthropic Claude (primary)
+ * - OpenAI (first fallback)
+ * - Google Gemini (additional fallback)
  *
  * Architecture:
  *   - Task routing: each AI task has a preferred provider + fallback
@@ -59,9 +59,9 @@ export interface LLMResponse {
 
 export function getAvailableProviders(): LLMProvider[] {
   const providers: LLMProvider[] = [];
-  if (process.env.GEMINI_API_KEY) providers.push('gemini');
   if (process.env.ANTHROPIC_API_KEY) providers.push('claude');
   if (process.env.OPENAI_API_KEY) providers.push('openai');
+  if (process.env.GEMINI_API_KEY) providers.push('gemini');
   return providers;
 }
 
@@ -89,7 +89,7 @@ export function getProviderLabel(provider: LLMProvider): string {
 export function getDefaultModel(provider: LLMProvider): string {
   const models: Record<LLMProvider, string> = {
     gemini: 'gemini-2.0-flash',
-    claude: 'claude-sonnet-4-20250514',
+    claude: 'claude-sonnet-5',
     openai: 'gpt-4o',
     local: 'local-model',
     unknown: 'unknown',
@@ -282,10 +282,10 @@ export async function callTaskLLM(
   const available = getAvailableProviders();
 
   if (available.length === 0) {
-    throw new Error('No LLM provider is configured. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.');
+    throw new Error('No LLM provider is configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.');
   }
 
-  // Build provider attempt order: preferred → fallback → any remaining
+  // Build provider attempt order: preferred → configured fallback → remaining.
   const attemptOrder: LLMProvider[] = [preferred];
   if (routing.fallbackProvider && !attemptOrder.includes(routing.fallbackProvider)) {
     attemptOrder.push(routing.fallbackProvider);
@@ -294,7 +294,6 @@ export async function callTaskLLM(
     if (!attemptOrder.includes(p)) attemptOrder.push(p);
   }
 
-  // Filter to available + circuit-breaker-healthy providers
   const callable = attemptOrder.filter(
     (p) => isProviderAvailable(p) && circuitBreaker.isAvailable(p),
   );
@@ -306,11 +305,17 @@ export async function callTaskLLM(
   let lastError: Error | null = null;
 
   for (const provider of callable) {
+    const isConfiguredPrimary = provider === routing.preferredProvider;
+    const isConfiguredFallback = provider === routing.fallbackProvider;
+    const model = isConfiguredPrimary
+      ? routing.preferredModel
+      : isConfiguredFallback && routing.fallbackModel
+        ? routing.fallbackModel
+        : getDefaultModel(provider);
+
     const config: LLMConfig = {
       provider,
-      model: routing.preferredModel && provider === preferred
-        ? routing.preferredModel
-        : getDefaultModel(provider),
+      model,
       temperature: options.temperature,
       maxTokens: options.maxTokens,
     };
@@ -319,16 +324,15 @@ export async function callTaskLLM(
       const response = await callLLM(messages, config);
       circuitBreaker.recordSuccess(provider);
 
-      // Validate output
       const validation = validateAIOutput(response.text, options.task, routing.minConfidence);
       if (!validation.valid) {
-        // If validation fails, try next provider
         lastError = new Error(`Validation failed for ${provider}: ${validation.reason}`);
         continue;
       }
 
-      // Attach invocation record
       response.invocation = createInvocation(options.task, options.caseId);
+      response.invocation.provider = response.provider;
+      response.invocation.model = response.model;
       response.invocation.validationState = validation.validationState;
 
       return response;
@@ -353,9 +357,9 @@ export async function callLLM(
   if (!isProviderAvailable(provider)) {
     const available = getAvailableProviders();
     if (available.length === 0) {
-      throw new Error('No LLM provider is configured. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.');
+      throw new Error('No LLM provider is configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.');
     }
-    return callLLM(messages, { ...config, provider: available[0] });
+    return callLLM(messages, { ...config, provider: available[0], model: getDefaultModel(available[0]) });
   }
 
   switch (provider) {
@@ -369,7 +373,7 @@ export async function callLLM(
   }
 }
 
-// ── Circuit breaker status (for health endpoints) ───────────
+// ── Circuit breaker status (for health endpoints) ────────────
 
 export function getCircuitBreakerState() {
   return circuitBreaker.getState();

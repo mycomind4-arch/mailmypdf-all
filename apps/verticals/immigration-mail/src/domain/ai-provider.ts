@@ -1,11 +1,10 @@
 /**
  * AI Provider Architecture — Provider-Neutral Boundaries
  *
- * Provider SDKs stay behind adapters. Model output is untrusted until validated.
- * The user never sees provider complexity.
- *
- * Supports: OpenAI, Claude, Gemini, future providers.
- * Specialized workers can route to different models per task.
+ * Claude/Anthropic is the primary provider for Immigration Mail.
+ * OpenAI is the first fallback and Gemini remains available as an additional
+ * provider. Model output is untrusted until validated and can never bypass
+ * deterministic workflow gates.
  */
 
 // ─── Provider Types ──────────────────────────────────────────────────────────
@@ -60,20 +59,27 @@ export interface TaskRouting {
   minConfidence?: number;
 }
 
-// Simple routing: cheap models for classification, strong models for reasoning
+const CLAUDE_PRIMARY_MODEL = 'claude-sonnet-5';
+const OPENAI_FALLBACK_MODEL = 'gpt-4o';
+
+/**
+ * All consequential Immigration Mail intelligence starts with Claude.
+ * OpenAI is the explicit first fallback. Gemini is still reachable through the
+ * runtime's remaining-provider fallback chain when configured.
+ */
 export const TASK_ROUTING: Record<AITask, TaskRouting> = {
-  classification: { task: 'classification', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514', minConfidence: 0.7 },
-  conversation: { task: 'conversation', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  document_analysis: { task: 'document_analysis', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  extraction: { task: 'extraction', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  rfe_analysis: { task: 'rfe_analysis', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  evidence_analysis: { task: 'evidence_analysis', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  authority_resolution: { task: 'authority_resolution', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  strategy_generation: { task: 'strategy_generation', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  drafting: { task: 'drafting', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  translation: { task: 'translation', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  validation: { task: 'validation', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514' },
-  xray: { task: 'xray', preferredProvider: 'gemini', preferredModel: 'gemini-2.0-flash', fallbackProvider: 'claude', fallbackModel: 'claude-sonnet-4-20250514', minConfidence: 0.85 },
+  classification: { task: 'classification', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL, minConfidence: 0.7 },
+  conversation: { task: 'conversation', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  document_analysis: { task: 'document_analysis', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  extraction: { task: 'extraction', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  rfe_analysis: { task: 'rfe_analysis', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  evidence_analysis: { task: 'evidence_analysis', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  authority_resolution: { task: 'authority_resolution', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  strategy_generation: { task: 'strategy_generation', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  drafting: { task: 'drafting', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  translation: { task: 'translation', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  validation: { task: 'validation', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL },
+  xray: { task: 'xray', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL, minConfidence: 0.85 },
 };
 
 // ─── Provider Adapter Interface ──────────────────────────────────────────────
@@ -109,6 +115,7 @@ export function createInvocation(
   caseId?: string,
   options?: Partial<ModelRouterOptions>,
 ): AIInvocation {
+  void options;
   const routing = TASK_ROUTING[task];
   return {
     caseId,
@@ -162,7 +169,7 @@ export class CircuitBreaker {
 
   getState(): Record<string, { failures: number; open: boolean }> {
     const state: Record<string, { failures: number; open: boolean }> = {};
-    for (const provider of ['openai', 'claude', 'gemini'] as AIProvider[]) {
+    for (const provider of ['claude', 'openai', 'gemini'] as AIProvider[]) {
       state[provider] = {
         failures: this.failures.get(provider) ?? 0,
         open: !this.isAvailable(provider),
@@ -194,13 +201,12 @@ export function validateAIOutput(
     return { valid: false, reason: 'Empty output', validationState: 'failed' };
   }
 
-  // High-risk tasks require minimum confidence
-  if (minConfidence !== undefined) {
-    // In production, this would check the actual confidence score
-    // For now, we validate structurally
-  }
+  // High-risk tasks require minimum confidence. Confidence enforcement remains
+  // at the workflow/domain validation layer until provider responses expose a
+  // trustworthy comparable score.
+  void minConfidence;
 
-  // X-Ray and validation tasks must be deterministic — no "I think" language
+  // X-Ray and validation tasks must be deterministic — no hedging language.
   if (task === 'xray' || task === 'validation') {
     if (/i think|i believe|maybe|perhaps|possibly/i.test(output)) {
       return { valid: false, reason: 'Hedging language in high-stakes output', validationState: 'rejected' };
