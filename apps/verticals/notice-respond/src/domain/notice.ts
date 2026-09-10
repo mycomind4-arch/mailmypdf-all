@@ -104,6 +104,9 @@ export const caseSchema = z.object({
   /* ── Workflow runtime state (persisted) ── */
   workflowState: z.any().optional(),  // Serialized WorkflowState
 
+  /* ── Canonical executable-runtime trace (persisted) ── */
+  runtimeExecution: z.any().optional(),  // Factory/pipeline stage trace; never client-authoritative
+
   /* ── Draft provenance (persisted) ── */
   draftProvenance: z.any().optional(),  // DraftProvenance
 });
