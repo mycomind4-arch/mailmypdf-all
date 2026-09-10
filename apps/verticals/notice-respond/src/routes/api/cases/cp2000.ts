@@ -173,6 +173,13 @@ export const Route = createFileRoute("/api/cases/cp2000")({
                 pageCount: body.pageCount ?? null,
                 fileName: body.fileName ?? null,
               },
+              cp2000: {
+                case: case_,
+                extraction,
+                discrepancies: discrepancies.discrepancies,
+                evidenceChecklist: checklist,
+                strategy,
+              },
               updatedAt: new Date().toISOString(),
             },
           });
