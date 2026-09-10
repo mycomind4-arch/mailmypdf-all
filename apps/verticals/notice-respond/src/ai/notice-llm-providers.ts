@@ -1,9 +1,8 @@
 /**
  * Notice Respond — Multi-LLM Provider implementations
  *
- * Three providers: OpenAI, Anthropic, Gemini.
- * Each wraps the vendor's API and normalizes to the shared LlmProviderResult shape.
- * Providers are only included when their API key is present in the environment.
+ * Claude/Anthropic is the primary provider. OpenAI and Gemini remain
+ * independent fallback/quorum providers when configured.
  */
 
 import type { NoticeLlmProvider, NoticeLlmTask, LlmProviderResult } from './multi-llm-orchestrator'
@@ -83,23 +82,10 @@ function buildPrompt(task: NoticeLlmTask, systemPrompt: string, input: unknown):
   return `${JSON_INSTRUCTION}\n${systemPrompt}\nTask: ${taskInstruction(task)}\nInput:\n${JSON.stringify(input)}\nOutput must be a single JSON object.`
 }
 
-/* ── OpenAI ── */
-async function openAiComplete<T>(task: NoticeLlmTask, systemPrompt: string, input: unknown): Promise<LlmProviderResult<T>> {
-  const apiKey = requireEnv('OPENAI_API_KEY')
-  const model = process.env.OPENAI_NOTICE_MODEL ?? 'gpt-5.6'
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model, input: buildPrompt(task, systemPrompt, input) }),
-  })
-  const value = (await parseJsonResponse(response, 'OPENAI')) as T
-  return { provider: 'openai', model, value, confidence: 0.85, warnings: [] }
-}
-
-/* ── Anthropic ── */
+/* ── Anthropic / Claude (primary) ── */
 async function anthropicComplete<T>(task: NoticeLlmTask, systemPrompt: string, input: unknown): Promise<LlmProviderResult<T>> {
   const apiKey = requireEnv('ANTHROPIC_API_KEY')
-  const model = process.env.ANTHROPIC_NOTICE_MODEL ?? 'claude-sonnet-4-20250514'
+  const model = process.env.ANTHROPIC_NOTICE_MODEL ?? 'claude-sonnet-5'
   const response = await fetch(process.env.ANTHROPIC_BASE_URL ?? 'https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -114,7 +100,20 @@ async function anthropicComplete<T>(task: NoticeLlmTask, systemPrompt: string, i
   return { provider: 'anthropic', model, value, confidence: 0.85, warnings: [] }
 }
 
-/* ── Gemini ── */
+/* ── OpenAI (fallback/quorum) ── */
+async function openAiComplete<T>(task: NoticeLlmTask, systemPrompt: string, input: unknown): Promise<LlmProviderResult<T>> {
+  const apiKey = requireEnv('OPENAI_API_KEY')
+  const model = process.env.OPENAI_NOTICE_MODEL ?? 'gpt-5.6'
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model, input: buildPrompt(task, systemPrompt, input) }),
+  })
+  const value = (await parseJsonResponse(response, 'OPENAI')) as T
+  return { provider: 'openai', model, value, confidence: 0.85, warnings: [] }
+}
+
+/* ── Gemini (fallback/quorum) ── */
 async function geminiComplete<T>(task: NoticeLlmTask, systemPrompt: string, input: unknown): Promise<LlmProviderResult<T>> {
   const apiKey = requireEnv('GEMINI_API_KEY')
   const model = process.env.GEMINI_NOTICE_MODEL ?? 'gemini-3.7-flash'
@@ -133,17 +132,18 @@ async function geminiComplete<T>(task: NoticeLlmTask, systemPrompt: string, inpu
   return { provider: 'gemini', model, value, confidence: 0.85, warnings: [] }
 }
 
-export const openAiNoticeProvider: NoticeLlmProvider = { id: 'openai', complete: openAiComplete }
 export const anthropicNoticeProvider: NoticeLlmProvider = { id: 'anthropic', complete: anthropicComplete }
+export const openAiNoticeProvider: NoticeLlmProvider = { id: 'openai', complete: openAiComplete }
 export const geminiNoticeProvider: NoticeLlmProvider = { id: 'gemini', complete: geminiComplete }
 
 /**
- * Returns only the providers that have their API key configured.
+ * Returns only configured providers in priority order. Claude is always first
+ * when available so single-provider operation and tie-breaking remain Claude-first.
  */
 export function getConfiguredNoticeLlmProviders(): readonly NoticeLlmProvider[] {
   const providers: NoticeLlmProvider[] = []
-  if (process.env.OPENAI_API_KEY) providers.push(openAiNoticeProvider)
   if (process.env.ANTHROPIC_API_KEY) providers.push(anthropicNoticeProvider)
+  if (process.env.OPENAI_API_KEY) providers.push(openAiNoticeProvider)
   if (process.env.GEMINI_API_KEY) providers.push(geminiNoticeProvider)
   return providers
 }
