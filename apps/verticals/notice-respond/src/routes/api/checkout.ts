@@ -186,6 +186,7 @@ export const Route = createFileRoute("/api/checkout")({
             .insert({
               owner_id: user.id,
               workflow_id: workflowId,
+              case_id: approval.case_id,
               status: "pending",
               mailing_method: method,
               draft,
@@ -195,6 +196,7 @@ export const Route = createFileRoute("/api/checkout")({
               approval_id: approvalId,
               approved_draft_hash: approval.draft_hash,
               approved_recipient_hash: approval.recipient_hash,
+              stripe_price_cents: quoteTotalCents,
               quote_snapshot: quoteSnapshot,
             })
             .select("id")
