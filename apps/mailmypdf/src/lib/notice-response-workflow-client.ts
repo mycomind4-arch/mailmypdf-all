@@ -45,6 +45,12 @@ export function analyzeNotice(caseId: string) { return request<{ analysis: { ver
 export function loadNoticeAnalysis(caseId: string) { return request<{ analysis: { version: number; result: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/analyze`); }
 export function generateNoticeDraft(caseId: string) { return request<{ draft: { bodyText: string; model: string } }>(`/api/v2/cases/${caseId}/draft-generate`, { method: "POST" }); }
 export function saveNoticeDraft(caseId: string, bodyText: string) { return request<{ version: number }>(`/api/v2/cases/${caseId}/draft`, { method: "POST", body: JSON.stringify({ body_text: bodyText }) }); }
+export function loadNoticeDraft(caseId: string) {
+  return request<{ draft: { version: number; bodyText: string; createdAt: string } | null }>(`/api/v2/cases/${caseId}/draft`).then((r) => r.draft);
+}
+export function loadNoticeApproval(caseId: string) {
+  return request<{ approval: (ApprovalResult & { recipient: Recipient; mail_class: MailClass; approved_at: string }) | null }>(`/api/v2/cases/${caseId}/approve`).then((r) => r.approval);
+}
 export function previewNoticePacket(caseId: string, mailClass: MailClass) { return request<{ packet: PacketPreview }>(`/api/v2/cases/${caseId}/packet`, { method: "POST", body: JSON.stringify({ mail_class: mailClass }) }).then((r) => r.packet); }
 export function approveNoticePacket(caseId: string, recipient: Recipient, mailClass: MailClass, packet: PacketPreview) { return request<ApprovalResult>(`/api/v2/cases/${caseId}/approve`, { method: "POST", body: JSON.stringify({ recipient, mail_class: mailClass, expected_packet_sha256: packet.packetSha256, expected_total_cents: packet.quote.totalCents }) }); }
 export function createNoticeCheckout(caseId: string, approvalId: string, sender: Recipient) {
