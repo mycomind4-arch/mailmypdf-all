@@ -43,9 +43,13 @@ export function detachNoticeDocument(caseId: string, documentId: string) {
   return request<{ documents: CaseDocument[] }>(`/api/v2/cases/${caseId}/documents/${documentId}`, { method: "DELETE" }).then((r) => r.documents);
 }
 export function saveNoticeInput(caseId: string, input: unknown) { return request<{ version: number }>(`/api/v2/cases/${caseId}/input`, { method: "POST", body: JSON.stringify(input) }); }
-export function loadNoticeInput(caseId: string) { return request<{ input: { version: number; input: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/input`); }
+export function loadNoticeInput(caseId: string) {
+  return request<{ input: { version: number; input: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/input`).then((r) => r.input);
+}
 export function analyzeNotice(caseId: string) { return request<{ analysis: { version: number; result: Record<string, unknown> } }>(`/api/v2/cases/${caseId}/analyze`, { method: "POST" }); }
-export function loadNoticeAnalysis(caseId: string) { return request<{ analysis: { version: number; result: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/analyze`); }
+export function loadNoticeAnalysis(caseId: string) {
+  return request<{ analysis: { version: number; result: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/analyze`).then((r) => r.analysis);
+}
 export function generateNoticeDraft(caseId: string) { return request<{ draft: { bodyText: string; model: string } }>(`/api/v2/cases/${caseId}/draft-generate`, { method: "POST" }); }
 export function saveNoticeDraft(caseId: string, bodyText: string) { return request<{ version: number }>(`/api/v2/cases/${caseId}/draft`, { method: "POST", body: JSON.stringify({ body_text: bodyText }) }); }
 export function loadNoticeDraft(caseId: string) {
