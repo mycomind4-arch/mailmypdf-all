@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FileCheck2, LockKeyhole, ShieldCheck, UploadCloud } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { Button } from "@/components/ui/button";
 import {
   analyzeNotice, approveNoticePacket, attachNoticeDocument, createNoticeCase, createNoticeCheckout,
-  generateNoticeDraft, loadNoticeCase, previewNoticePacket, saveNoticeDraft, saveNoticeInput,
-  uploadNoticeDocument, type NoticeWorkflowId,
+  generateNoticeDraft, loadNoticeAnalysis, loadNoticeApproval, loadNoticeCase, loadNoticeDraft,
+  loadNoticeInput, previewNoticePacket, saveNoticeDraft, saveNoticeInput, uploadNoticeDocument,
+  type NoticeWorkflowId,
 } from "@/lib/notice-response-workflow-client";
 import type { MailClass, PacketPreview, Recipient } from "@/lib/ssdi-workflow-model";
 
@@ -33,12 +34,113 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
   const [input, setInput] = useState<Record<string, unknown>>({ taxpayerName: "", ssnOrItin: "", taxpayerAddress: "", taxYear: "", responseMode: config.modes[0][0], userFacts: "", disputedItems: "", correctedAmounts: "", evidenceByItem: "", requestedOutcome: "", amountDisputed: "", monthlyPayment: "", paymentStartDate: "", firstTimeAbateConfirmed: false, penaltyReliefBasis: "" });
   const [recipient, setRecipient] = useState<Recipient>({ name: "Internal Revenue Service", line1: "", line2: undefined, city: "", state: "", postal: "" });
   const [sender, setSender] = useState<Recipient>({ name: "", line1: "", line2: undefined, city: "", state: "", postal: "" });
+  const resumeAttempted = useRef(false);
+
+  function rememberCaseId(id: string) {
+    setCaseId(id);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("case", id);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
+
+  useEffect(() => {
+    if (resumeAttempted.current || typeof window === "undefined") return;
+    resumeAttempted.current = true;
+
+    const resumeCaseId = new URLSearchParams(window.location.search).get("case");
+    if (!resumeCaseId) return;
+
+    let cancelled = false;
+    setBusy(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const loaded = await loadNoticeCase(resumeCaseId);
+        if (
+          loaded.case.workflow_id !== workflow ||
+          loaded.case.vertical_id !== "notice-response"
+        ) {
+          throw new Error("This saved case does not belong to this IRS notice workflow.");
+        }
+
+        const [savedInput, savedAnalysis, savedDraft, savedApproval] = await Promise.all([
+          loadNoticeInput(resumeCaseId).catch(() => null),
+          loadNoticeAnalysis(resumeCaseId).catch(() => null),
+          loadNoticeDraft(resumeCaseId).catch(() => null),
+          loadNoticeApproval(resumeCaseId).catch(() => null),
+        ]);
+        if (cancelled) return;
+
+        rememberCaseId(resumeCaseId);
+        const subject = loaded.documents.find((document) => document.role === "subject_notice");
+        setNotice(subject ? { id: subject.document_id, security_status: subject.security_status } : null);
+
+        if (savedInput?.input) {
+          setInput((current) => ({ ...current, ...savedInput.input }));
+          const savedName = savedInput.input.taxpayerName;
+          if (typeof savedName === "string" && savedName.trim()) {
+            setSender((current) => ({ ...current, name: current.name || savedName.trim() }));
+          }
+        }
+        if (savedAnalysis?.result) setAnalysis(savedAnalysis.result);
+        if (savedDraft?.bodyText) setDraft(savedDraft.bodyText);
+
+        if (savedApproval) {
+          setApprovalId(savedApproval.approval_id);
+          setRecipient(savedApproval.recipient);
+          setPacket({
+            packetSha256: savedApproval.packet_sha256,
+            responsePages: savedApproval.response_pages,
+            supportingPages: savedApproval.supporting_pages,
+            manifest: [],
+            quote: savedApproval.quote,
+          });
+          setApproved(true);
+          setStep("approve");
+          return;
+        }
+
+        if (savedDraft?.bodyText) {
+          try {
+            const preview = await previewNoticePacket(resumeCaseId, "certified");
+            if (!cancelled) {
+              setPacket(preview);
+              setStep("approve");
+            }
+          } catch {
+            if (!cancelled) setStep("draft");
+          }
+          return;
+        }
+
+        if (savedAnalysis?.result || savedInput?.input) {
+          setStep("facts");
+          return;
+        }
+
+        setStep("review");
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "The saved case could not be resumed.");
+        }
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workflow]);
 
   async function startCase(file?: File) {
     if (!file) return;
     setBusy(true); setError(null);
     try {
-      const created = await createNoticeCase(workflow); setCaseId(created.id);
+      const created = await createNoticeCase(workflow); rememberCaseId(created.id);
       const uploaded = await uploadNoticeDocument(file, workflow); setNotice(uploaded);
       await attachNoticeDocument(created.id, uploaded.id, "subject_notice", "notice");
       setStep("review");
