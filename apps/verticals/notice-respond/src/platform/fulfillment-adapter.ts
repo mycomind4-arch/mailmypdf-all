@@ -4,7 +4,11 @@
  * shared MailMyPDF HTTP client.
  */
 import { createClient } from "@supabase/supabase-js";
-import { uploadDocument, createCommunication } from "@mailmypdf/mailing-client";
+import {
+  uploadDocument,
+  uploadPacket as uploadMailingPacket,
+  createCommunication,
+} from "@mailmypdf/mailing-client";
 import type {
   MailingIntent,
   MailingIntentStore,
@@ -37,6 +41,10 @@ function rowToIntent(row: Record<string, unknown>): MailingIntent {
     legal_reference: row.legal_reference as LegalReference | undefined,
     approved_draft_hash: (row.approved_draft_hash as string) ?? (row.draft_hash as string) ?? null,
     approved_recipient_hash: (row.approved_recipient_hash as string) ?? (row.recipient_hash as string) ?? null,
+    approved_evidence_hash: (row.approved_evidence_hash as string) ?? null,
+    evidence_snapshot: Array.isArray(row.evidence_snapshot)
+      ? row.evidence_snapshot as MailingIntent["evidence_snapshot"]
+      : [],
     stripe_session_id: (row.stripe_session_id as string) ?? null,
     stripe_payment_intent_id: (row.stripe_payment_intent_id as string) ?? null,
     stripe_price_cents: (row.stripe_price_cents as number) ?? null,
@@ -80,6 +88,51 @@ export function createMailMyPDFClient(): MailMyPDFClient {
       const doc = await uploadDocument(file);
       return { id: doc.id };
     },
+
+    async uploadPacket(intent, filename) {
+      const supabase = serviceSupabase();
+      const approvedEvidence = intent.evidence_snapshot ?? [];
+      const attachments = [];
+
+      for (const evidence of approvedEvidence) {
+        if (!evidence.storagePath || !evidence.fileHash) {
+          throw new Error("Approved evidence manifest is incomplete.");
+        }
+
+        const { data, error } = await supabase.storage
+          .from("notice-evidence")
+          .download(evidence.storagePath);
+        if (error || !data) {
+          throw new Error(`Unable to read approved evidence: ${evidence.fileName}`);
+        }
+
+        const bytes = new Uint8Array(await data.arrayBuffer());
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        const actualHash = Array.from(new Uint8Array(digest))
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+
+        if (actualHash !== evidence.fileHash) {
+          throw new Error(
+            `Approved evidence failed integrity verification: ${evidence.fileName}`,
+          );
+        }
+
+        attachments.push({
+          filename: evidence.fileName,
+          mime_type: evidence.fileType,
+          data: bytes,
+        });
+      }
+
+      const doc = await uploadMailingPacket({
+        text: intent.draft_content,
+        filename,
+        attachments,
+      });
+      return { id: doc.id };
+    },
+
     async createCommunication(params) {
       const comm = await createCommunication({
         document_id: params.document_id,
