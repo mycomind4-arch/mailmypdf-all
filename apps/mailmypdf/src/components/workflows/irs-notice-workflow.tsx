@@ -3,8 +3,8 @@ import { FileCheck2, LockKeyhole, ShieldCheck, UploadCloud } from "lucide-react"
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { Button } from "@/components/ui/button";
 import {
-  analyzeNotice, approveNoticePacket, attachNoticeDocument, createNoticeCase, generateNoticeDraft,
-  loadNoticeCase, previewNoticePacket, saveNoticeDraft, saveNoticeInput,
+  analyzeNotice, approveNoticePacket, attachNoticeDocument, createNoticeCase, createNoticeCheckout,
+  generateNoticeDraft, loadNoticeCase, previewNoticePacket, saveNoticeDraft, saveNoticeInput,
   uploadNoticeDocument, type NoticeWorkflowId,
 } from "@/lib/notice-response-workflow-client";
 import type { MailClass, PacketPreview, Recipient } from "@/lib/ssdi-workflow-model";
@@ -29,8 +29,10 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
   const [draft, setDraft] = useState("");
   const [packet, setPacket] = useState<PacketPreview | null>(null);
   const [approved, setApproved] = useState(false);
+  const [approvalId, setApprovalId] = useState<string | null>(null);
   const [input, setInput] = useState<Record<string, unknown>>({ taxpayerName: "", ssnOrItin: "", taxpayerAddress: "", taxYear: "", responseMode: config.modes[0][0], userFacts: "", disputedItems: "", correctedAmounts: "", evidenceByItem: "", requestedOutcome: "", amountDisputed: "", monthlyPayment: "", paymentStartDate: "", firstTimeAbateConfirmed: false, penaltyReliefBasis: "" });
   const [recipient, setRecipient] = useState<Recipient>({ name: "Internal Revenue Service", line1: "", line2: undefined, city: "", state: "", postal: "" });
+  const [sender, setSender] = useState<Recipient>({ name: "", line1: "", line2: undefined, city: "", state: "", postal: "" });
 
   async function startCase(file?: File) {
     if (!file) return;
@@ -71,8 +73,33 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
   }
   async function approve() {
     if (!caseId || !packet) return; setBusy(true); setError(null);
-    try { await approveNoticePacket(caseId, recipient, "certified", packet); setApproved(true); }
+    try {
+      const result = await approveNoticePacket(caseId, recipient, "certified", packet);
+      setApprovalId(result.approval_id);
+      setApproved(true);
+      setSender((current) => ({
+        ...current,
+        name: current.name || String(input.taxpayerName || ""),
+      }));
+    }
     catch (e) { setError(e instanceof Error ? e.message : "Approval could not be recorded."); } finally { setBusy(false); }
+  }
+
+  async function beginCheckout() {
+    if (!caseId || !approvalId) return;
+    setBusy(true); setError(null);
+    try {
+      const result = await createNoticeCheckout(caseId, approvalId, sender);
+      if (result.checkout_url) {
+        window.location.assign(result.checkout_url);
+        return;
+      }
+      window.location.assign(`/orders/${result.order_id}?token=${encodeURIComponent(result.order_token)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Checkout could not be started.");
+    } finally {
+      setBusy(false);
+    }
   }
   const idx = steps.indexOf(step);
   return <div className="min-h-screen bg-paper text-foreground"><SiteHeader /><main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
@@ -84,7 +111,7 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
       {step === "review" && <div><Header title="Review the protected intake" body="The notice is quarantined until the security scan clears. Start analysis only after the document is clean." /><div className="rounded-xl border border-rule bg-paper-deep/30 p-5"><p className="font-semibold">{notice ? "Notice uploaded" : "No notice attached"}</p><p className="mt-1 text-sm text-muted-foreground">Security status: {notice?.security_status ?? "pending scan"}. The original file remains in private storage.</p></div><Button className="mt-6" onClick={() => void runAnalysis()} disabled={busy}>{busy ? "Checking scan and analyzing…" : "Check scan and analyze"}</Button></div>}
       {step === "facts" && <div><Header title="Confirm what the notice says" body="Analysis extracts facts from the clean notice. Your answers below stay separate and are used to shape the draft." />{analysis && <div className="mb-6 rounded-xl border border-brass/30 bg-paper-deep/30 p-5"><p className="text-xs font-semibold uppercase tracking-[.18em] text-brass">Extracted from the notice</p><div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">{Object.entries(analysis).slice(0, 6).map(([key, value]) => <div key={key}><p className="text-xs text-muted-foreground">{key.replaceAll("_", " ")}</p><p className="mt-1 font-medium">{typeof value === "string" || typeof value === "number" ? String(value) : "Recorded"}</p></div>)}</div></div>}<div className="grid gap-4 sm:grid-cols-2"><Field label="Taxpayer name" value={String(input.taxpayerName)} onChange={(v) => setInput({ ...input, taxpayerName: v })} /><Field label="SSN or ITIN as shown" value={String(input.ssnOrItin)} onChange={(v) => setInput({ ...input, ssnOrItin: v })} /><Field label="Tax year" value={String(input.taxYear)} onChange={(v) => setInput({ ...input, taxYear: v })} /><Field label="Mailing address" value={String(input.taxpayerAddress)} onChange={(v) => setInput({ ...input, taxpayerAddress: v })} /><label className="text-sm font-medium sm:col-span-2">Response path<select className="mt-1 w-full rounded-lg border border-rule bg-paper p-3" value={String(input.responseMode)} onChange={(e) => setInput({ ...input, responseMode: e.target.value })}>{config.modes.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label><label className="text-sm font-medium sm:col-span-2">What should the reviewer know?<textarea className="mt-1 min-h-28 w-full rounded-lg border border-rule bg-paper p-3" value={String(input.userFacts)} onChange={(e) => setInput({ ...input, userFacts: e.target.value })} maxLength={12000} /></label></div>{workflow === "cp2000-response" && <Field label="Items you disagree with" value={String(input.disputedItems)} onChange={(v) => setInput({ ...input, disputedItems: v })} />}<Button className="mt-6" onClick={() => void saveFacts()} disabled={busy}>{busy ? "Preparing draft…" : "Build a draft response"}</Button></div>}
       {step === "draft" && <div><Header title="Review your response draft" body="Edit the letter in your own words. The saved version becomes the source for the packet preview." /><textarea className="min-h-[20rem] w-full rounded-xl border border-rule bg-paper p-4 font-serif leading-7" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={30000} /><Button className="mt-6" onClick={() => void saveAndPreview()} disabled={busy || !draft.trim()}>{busy ? "Building packet…" : "Preview secure mailing packet"}</Button></div>}
-      {step === "approve" && <div>{approved ? <div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-700 text-white"><FileCheck2 /></div><Header title="Your packet is approved" body="The approval is bound to the packet hash you reviewed. Mailing stays in the protected fulfillment queue until payment is completed." /><p className="text-sm text-muted-foreground">Keep this page open while the secure payment handoff is prepared.</p></div> : <><Header title="Approve the exact packet" body="Certified Mail is selected. Confirm the destination, packet hash, and quote before approval." /><div className="rounded-xl border border-rule bg-paper-deep/30 p-5 text-sm"><p className="font-semibold">Packet ready for review</p><p className="mt-2 text-muted-foreground">{packet ? `${packet.responsePages} response page(s), ${packet.supportingPages} supporting page(s)` : "Approval recorded."}</p>{packet && <p className="mt-2 break-all font-mono text-xs text-muted-foreground">SHA-256: {packet.packetSha256}</p>}</div><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="Recipient street address" value={recipient.line1} onChange={(v) => setRecipient({ ...recipient, line1: v })} /><Field label="City" value={recipient.city} onChange={(v) => setRecipient({ ...recipient, city: v })} /><Field label="State" value={recipient.state} onChange={(v) => setRecipient({ ...recipient, state: v.toUpperCase() })} /><Field label="ZIP code" value={recipient.postal} onChange={(v) => setRecipient({ ...recipient, postal: v })} /></div><Button className="mt-6" onClick={() => void approve()} disabled={busy || !packet}>{busy ? "Recording approval…" : "Approve packet"}</Button></>}</div>}
+      {step === "approve" && <div>{approved ? <div><div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-700 text-white"><FileCheck2 /></div><Header title="Your packet is approved" body="The approval is bound to the exact packet, recipient, mail class, and server-calculated price." /></div><div className="rounded-xl border border-rule bg-paper-deep/30 p-5 text-sm"><p className="font-semibold">Approved total</p><p className="mt-1 font-serif text-2xl">${packet ? (packet.quote.totalCents / 100).toFixed(2) : "—"}</p>{packet && <p className="mt-2 break-all font-mono text-xs text-muted-foreground">SHA-256: {packet.packetSha256}</p>}</div><div className="mt-6"><h3 className="font-serif text-2xl text-cobalt">Return address</h3><p className="mt-2 text-sm text-muted-foreground">This appears on the mailing as the sender address. Payment cannot change the approved packet or destination.</p><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Sender name" value={sender.name} onChange={(v) => setSender({ ...sender, name: v })} /><Field label="Street address" value={sender.line1} onChange={(v) => setSender({ ...sender, line1: v })} /><Field label="City" value={sender.city} onChange={(v) => setSender({ ...sender, city: v })} /><Field label="State" value={sender.state} onChange={(v) => setSender({ ...sender, state: v.toUpperCase() })} /><Field label="ZIP code" value={sender.postal} onChange={(v) => setSender({ ...sender, postal: v })} /></div><Button className="mt-6" onClick={() => void beginCheckout()} disabled={busy || !approvalId}>{busy ? "Opening secure checkout…" : "Pay & mail approved packet"}</Button></div></div> : <><Header title="Approve the exact packet" body="Certified Mail is selected. Confirm the destination, packet hash, and quote before approval." /><div className="rounded-xl border border-rule bg-paper-deep/30 p-5 text-sm"><p className="font-semibold">Packet ready for review</p><p className="mt-2 text-muted-foreground">{packet ? `${packet.responsePages} response page(s), ${packet.supportingPages} supporting page(s)` : "Approval recorded."}</p>{packet && <p className="mt-2 break-all font-mono text-xs text-muted-foreground">SHA-256: {packet.packetSha256}</p>}</div><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="Recipient street address" value={recipient.line1} onChange={(v) => setRecipient({ ...recipient, line1: v })} /><Field label="City" value={recipient.city} onChange={(v) => setRecipient({ ...recipient, city: v })} /><Field label="State" value={recipient.state} onChange={(v) => setRecipient({ ...recipient, state: v.toUpperCase() })} /><Field label="ZIP code" value={recipient.postal} onChange={(v) => setRecipient({ ...recipient, postal: v })} /></div><Button className="mt-6" onClick={() => void approve()} disabled={busy || !packet}>{busy ? "Recording approval…" : "Approve packet"}</Button></>}</div>}
     </section>
     <p className="mx-auto mt-6 max-w-4xl text-center text-xs leading-5 text-muted-foreground">{analysis ? "Findings are shown for review and are not legal or tax advice." : "Your document stays private. Mailing remains held until you approve the exact packet."}</p>
   </main><SiteFooter /></div>;
