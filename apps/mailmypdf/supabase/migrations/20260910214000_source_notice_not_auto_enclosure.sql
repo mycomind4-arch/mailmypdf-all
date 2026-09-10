@@ -18,7 +18,7 @@ returns table (
   role text,
   evidence_kind text,
   page_count integer,
-  position integer,
+  "position" integer,
   sha256 text,
   storage_path text,
   safe_filename text,
