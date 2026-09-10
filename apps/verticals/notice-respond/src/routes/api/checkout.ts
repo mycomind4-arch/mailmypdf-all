@@ -151,6 +151,16 @@ export const Route = createFileRoute("/api/checkout")({
           const evidenceSnapshot = Array.isArray(reviewState.evidenceItems)
             ? reviewState.evidenceItems
             : [];
+          const approvedEvidencePages = evidenceSnapshot.reduce(
+            (sum: number, item: unknown) => {
+              if (typeof item !== "object" || item === null) return sum;
+              const pageCount = Number((item as { pageCount?: unknown }).pageCount ?? 0);
+              return Number.isInteger(pageCount) && pageCount > 0
+                ? sum + pageCount
+                : sum;
+            },
+            0,
+          );
 
           // ── Canonical pricing — server-authoritative quote ─────────
           const profile = getWorkflowPricingProfile(workflowId);
@@ -160,7 +170,8 @@ export const Route = createFileRoute("/api/checkout")({
           let stripeLineItemDescription: string;
 
           if (profile && profile.commercialStatus === "production") {
-            const actualPages = estimatePageCount(draft);
+            const responsePages = estimatePageCount(draft);
+            const actualPages = responsePages + approvedEvidencePages;
             const quote = calculateQuote({
               workflowId,
               verticalId: profile.verticalId,
