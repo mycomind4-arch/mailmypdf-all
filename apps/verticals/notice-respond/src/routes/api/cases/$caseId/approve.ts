@@ -9,6 +9,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
+import { deserializeCase } from "@/domain/notice";
 import {
   hashDraft,
   hashRecipient,
@@ -93,7 +94,7 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
           // from missing cases.
           const { data: ownedCase, error: caseError } = await supabase
             .from("cases")
-            .select("id, owner_id, workflow_id")
+            .select("id, owner_id, workflow_id, data")
             .eq("id", caseId)
             .eq("owner_id", user.id)
             .maybeSingle();
@@ -105,6 +106,63 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
             return Response.json(
               { error: "Case does not match the requested workflow." },
               { status: 409 },
+            );
+          }
+
+          const persistedCase = deserializeCase(
+            ownedCase.data as Record<string, unknown>,
+          );
+          const runtimeChecklist =
+            persistedCase.runtimeExecution?.cp2000?.evidenceChecklist?.items;
+          const checklistItems = Array.isArray(runtimeChecklist)
+            ? runtimeChecklist
+            : [];
+          const attachedEvidence = Array.isArray(persistedCase.evidence)
+            ? persistedCase.evidence
+            : [];
+          const attachedRequirementIds = new Set(
+            attachedEvidence
+              .filter(
+                (item: unknown) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  ["provided", "verified"].includes(
+                    String((item as { status?: string }).status ?? ""),
+                  ),
+              )
+              .map((item: unknown) =>
+                String((item as { requirementId?: string }).requirementId ?? ""),
+              )
+              .filter(Boolean),
+          );
+          const missingRequired = checklistItems.filter(
+            (item: unknown) => {
+              if (typeof item !== "object" || item === null) return false;
+              const candidate = item as {
+                id?: string;
+                label?: string;
+                requirement?: string;
+                state?: string;
+              };
+              return (
+                candidate.requirement === "required" &&
+                candidate.state !== "provided" &&
+                candidate.state !== "verified" &&
+                (!candidate.id || !attachedRequirementIds.has(candidate.id))
+              );
+            },
+          );
+
+          if (missingRequired.length > 0) {
+            return Response.json(
+              {
+                error: "Required supporting evidence is missing.",
+                missingEvidence: missingRequired.map(
+                  (item: unknown) =>
+                    (item as { label?: string }).label ?? "Required evidence",
+                ),
+              },
+              { status: 422 },
             );
           }
 
@@ -143,7 +201,7 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
               review_state: {
                 reviewChecks: body.reviewChecks,
                 validationPassed: true,
-                evidenceItems: body.evidenceItems ?? [],
+                evidenceItems: attachedEvidence,
                 mailingMethod: body.mailingMethod,
               },
               status: "active",
@@ -168,7 +226,7 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
             approvedAt: persisted.approved_at as string,
             approvedBy: user.id,
             mailingMethod: body.mailingMethod,
-            evidenceSnapshot: body.evidenceItems ?? [],
+            evidenceSnapshot: attachedEvidence,
             status: "approved" as const,
           };
 
