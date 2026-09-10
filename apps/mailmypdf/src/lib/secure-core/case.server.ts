@@ -164,6 +164,10 @@ export async function attachDocument(
     owner_id: context.user.id,
     role: input.role,
     evidence_kind: input.role === "evidence" ? input.evidenceKind : null,
+    // The incoming notice is an analysis source, not an automatic enclosure.
+    // Supporting evidence is enclosed by default because the user explicitly
+    // added it for the mailed packet.
+    included: input.role === "evidence",
     position: input.position ?? 0,
   });
 
