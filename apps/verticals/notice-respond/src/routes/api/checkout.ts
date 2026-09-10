@@ -151,6 +151,17 @@ export const Route = createFileRoute("/api/checkout")({
           const evidenceSnapshot = Array.isArray(reviewState.evidenceItems)
             ? reviewState.evidenceItems
             : [];
+          const approvedMailingMethod =
+            typeof reviewState.mailingMethod === "string"
+              ? reviewState.mailingMethod
+              : null;
+          if (!approvedMailingMethod || approvedMailingMethod !== methodRaw) {
+            return Response.json(
+              { error: "Mailing method does not match the approved mailing package. Re-review and approve the selected mail class." },
+              { status: 409 },
+            );
+          }
+
           const approvedEvidencePages = evidenceSnapshot.reduce(
             (sum: number, item: unknown) => {
               if (typeof item !== "object" || item === null) return sum;
