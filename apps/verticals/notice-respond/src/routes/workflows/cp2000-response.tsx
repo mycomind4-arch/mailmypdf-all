@@ -92,8 +92,159 @@ function CP2000Response() {
   const [approvalRecord, setApprovalRecord] = useState<{ approvalId: string; approvedDraftHash: string; approvedAt: string } | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const resumeAttemptedRef = useRef(false);
+  const checkpointReadyRef = useRef(false);
+  const checkpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const update = (fn: (s: RuntimeState) => RuntimeState) => setState(fn);
+
+  const rememberCaseId = useCallback((id: string) => {
+    setCaseId(id);
+    checkpointReadyRef.current = true;
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("case", id);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
+  // Resume an existing owner-scoped case when the case ID is present in the URL.
+  useEffect(() => {
+    if (resumeAttemptedRef.current || !accessToken || typeof window === "undefined") return;
+
+    const resumeCaseId = new URLSearchParams(window.location.search).get("case");
+    resumeAttemptedRef.current = true;
+    if (!resumeCaseId) {
+      checkpointReadyRef.current = true;
+      return;
+    }
+
+    checkpointReadyRef.current = false;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/cases/${resumeCaseId}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/json",
+          },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error ?? "Unable to resume this case.");
+        }
+
+        const savedCase = payload.case;
+        if (!savedCase || savedCase.workflowId !== definition.id) {
+          throw new Error("The saved case does not match this CP2000 workflow.");
+        }
+
+        const savedState = savedCase.workflowState as RuntimeState | undefined;
+        if (savedState) {
+          setState({
+            ...savedState,
+            isProcessing: false,
+            approved: false,
+          });
+
+          if (savedState.draft) {
+            let restoredDraft = createVersionedDraft();
+            restoredDraft = addDraftVersion(restoredDraft, savedState.draft, "user_edited");
+            if (savedState.draftValidation?.passed) {
+              restoredDraft = setVersionValidation(restoredDraft, true);
+            }
+
+            if (
+              payload.activeApproval?.approvedDraftHash &&
+              payload.activeApproval.approvedDraftHash === hashDraft(savedState.draft)
+            ) {
+              restoredDraft = approveCurrentVersion(restoredDraft, "user");
+              setApprovalRecord({
+                approvalId: payload.activeApproval.id,
+                approvedDraftHash: payload.activeApproval.approvedDraftHash,
+                approvedAt: payload.activeApproval.approvedAt,
+              });
+              setCaseState("approved");
+            }
+            setVersionedDraft(restoredDraft);
+          }
+        }
+
+        const snapshot = savedCase.runtimeExecution?.cp2000;
+        if (snapshot) {
+          setCP2000Case(snapshot.case ?? null);
+          setCP2000Extraction(snapshot.extraction ?? null);
+          setDiscrepancyResult({
+            discrepancies: snapshot.discrepancies ?? [],
+            findings: snapshot.case?.findings ?? [],
+          });
+          setEvidenceChecklist(snapshot.evidenceChecklist ?? null);
+          setCP2000Strategy(snapshot.strategy ?? null);
+        }
+
+        setCaseId(savedCase.id);
+        setWorkflowStarted(true);
+      } catch (error) {
+        setExtractionError(
+          error instanceof Error ? error.message : "Unable to resume this case.",
+        );
+      } finally {
+        checkpointReadyRef.current = true;
+      }
+    })();
+  }, [accessToken, definition.id]);
+
+  // Persist only pre-consequential UI checkpoints. The server strips any
+  // client-supplied approval/provider state and revokes stale approvals when
+  // source facts, draft, evidence, recipient, or mailing method materially change.
+  useEffect(() => {
+    if (
+      !checkpointReadyRef.current ||
+      !accessToken ||
+      !caseId ||
+      state.isProcessing ||
+      state.phase === "checkout" ||
+      state.phase === "submitted" ||
+      caseState === "approved" ||
+      caseState === "mailed"
+    ) {
+      return;
+    }
+
+    if (checkpointTimerRef.current) {
+      clearTimeout(checkpointTimerRef.current);
+    }
+
+    checkpointTimerRef.current = setTimeout(() => {
+      void fetch(`/api/cases/${caseId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          workflowState: state,
+          userFacts: state.userFacts,
+          userObjective: state.userObjective,
+          draftProvenance,
+        }),
+      }).then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          console.warn("Workflow checkpoint failed:", payload?.error ?? response.status);
+        }
+      }).catch((error) => {
+        console.warn("Workflow checkpoint failed:", error);
+      });
+    }, 500);
+
+    return () => {
+      if (checkpointTimerRef.current) {
+        clearTimeout(checkpointTimerRef.current);
+        checkpointTimerRef.current = null;
+      }
+    };
+  }, [accessToken, caseId, state, caseState, draftProvenance]);
 
   // ── Audit helper ──────────────────────────────────────────
   const emitAudit = useCallback((event: string, data?: Record<string, unknown>) => {
@@ -243,7 +394,7 @@ function CP2000Response() {
       // ── Store the complete case ────────────────────────────
       const newCase: CP2000Case = casePayload.case;
       setCP2000Case(newCase);
-      setCaseId(newCase.id);
+      rememberCaseId(newCase.id);
       setCP2000Extraction(casePayload.extraction);
       setDiscrepancyResult({ discrepancies: casePayload.discrepancies, findings: newCase.findings ?? [] });
       setEvidenceChecklist(casePayload.evidenceChecklist);
@@ -356,7 +507,7 @@ function CP2000Response() {
       const extraction: CP2000Extraction = casePayload.extraction;
 
       setCP2000Case(newCase);
-      setCaseId(newCase.id);
+      rememberCaseId(newCase.id);
       setCP2000Extraction(extraction);
       setDiscrepancyResult({
         discrepancies: casePayload.discrepancies ?? [],
