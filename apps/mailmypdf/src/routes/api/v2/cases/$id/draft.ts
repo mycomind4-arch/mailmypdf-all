@@ -8,6 +8,32 @@ const MAX_DRAFT_CHARS = 100_000;
 export const Route = createFileRoute("/api/v2/cases/$id/draft")({
   server: {
     handlers: {
+      GET: async ({ request, params }) => {
+        try {
+          if (!UUID_PATTERN.test(params.id)) return json(400, { error: "Invalid case ID" });
+          const context = await requireAuthenticatedUser(request);
+          await loadCase(params.id, context);
+
+          const { data, error } = await context.supabase
+            .from("case_drafts")
+            .select("version, body_text, created_at")
+            .eq("case_id", params.id)
+            .eq("owner_id", context.user.id)
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) throw new CaseError(error.message);
+          return json(200, {
+            draft: data
+              ? { version: data.version, bodyText: data.body_text, createdAt: data.created_at }
+              : null,
+          });
+        } catch (error) {
+          return errorResponse("case-draft-read", error);
+        }
+      },
+
       // Saves a new immutable draft version. Editing history is preserved so an
       // approval can be traced back to the exact text that was approved.
       POST: async ({ request, params }) => {
