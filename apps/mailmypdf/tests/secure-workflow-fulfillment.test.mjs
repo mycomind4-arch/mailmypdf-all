@@ -1,0 +1,79 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = join(root, "..", "..");
+
+async function appSource(path) {
+  return readFile(join(root, path), "utf8");
+}
+
+async function workspaceSource(path) {
+  return readFile(join(workspaceRoot, path), "utf8");
+}
+
+test("unified IRS notice workflow continues an immutable approval into checkout", async () => {
+  const ui = await appSource("src/components/workflows/irs-notice-workflow.tsx");
+  const client = await appSource("src/lib/notice-response-workflow-client.ts");
+  const checkout = await appSource("src/routes/api/v2/cases/$id/checkout.ts");
+
+  assert.match(ui, /createNoticeCheckout/);
+  assert.match(ui, /Pay & mail approved packet/);
+  assert.match(client, /\/api\/v2\/cases\/\$\{caseId\}\/checkout/);
+
+  assert.match(checkout, /materializeApprovedPacket/);
+  assert.match(checkout, /case_approval_id:\s*input\.approvalId/);
+  assert.match(checkout, /approved_packet_sha256:\s*input\.packet\.packetSha256/);
+  assert.match(checkout, /approved_price_cents:\s*input\.packet\.quote\.totalCents/);
+  assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
+});
+
+test("approved packet is rebuilt and compared before order creation", async () => {
+  const approval = await appSource("src/lib/secure-core/case-approval.server.ts");
+
+  assert.match(approval, /export async function materializeApprovedPacket/);
+  assert.match(approval, /assemblePacket\(letter, documents\)/);
+  assert.match(approval, /packet\.sha256 !== approval\.packet_sha256/);
+  assert.match(approval, /JSON\.stringify\(storedManifest\) !== JSON\.stringify\(currentManifest\)/);
+  assert.match(approval, /quote\.totalCents !== storedQuote\.totalCents/);
+});
+
+test("database allows at most one order per immutable case approval", async () => {
+  const migration = await appSource("supabase/migrations/20260910210000_workflow_order_bridge.sql");
+
+  assert.match(migration, /add column if not exists case_approval_id uuid references public\.case_approvals\(id\)/);
+  assert.match(migration, /create unique index if not exists orders_case_approval_uidx/);
+  assert.match(migration, /approved_packet_sha256/);
+  assert.match(migration, /approved_price_cents/);
+  assert.match(migration, /case approval linkage is immutable/);
+});
+
+test("Stripe webhook verifies the stored workflow session and exact approved amount", async () => {
+  const webhook = await appSource("src/routes/api/public/payments/webhook.ts");
+
+  assert.match(webhook, /order\.stripe_session_id !== session\.id/);
+  assert.match(webhook, /session\.amount_total !== expectedAmount/);
+  assert.match(webhook, /order\.approved_price_cents \?\? order\.price_cents/);
+  assert.match(webhook, /payment\.session_mismatch/);
+  assert.match(webhook, /payment\.amount_mismatch/);
+});
+
+test("successful Lob submission remains authoritative even if workflow projection fails", async () => {
+  const lob = await appSource("src/lib/lob.server.ts");
+
+  assert.match(lob, /workflow_case_id/);
+  assert.match(lob, /\.update\(\{ status: "submitted" \}\)/);
+  assert.match(lob, /workflow\.case_sync_failed/);
+  assert.doesNotMatch(lob, /Order submitted but workflow case could not be synchronized/);
+});
+
+test("shared mailing client targets the deployed TanStack API namespace", async () => {
+  const client = await workspaceSource("packages/mailing-client/src/index.ts");
+
+  assert.match(client, /"\/api\/v1\/documents"/);
+  assert.match(client, /"\/api\/v1\/communications"/);
+  assert.doesNotMatch(client, /request<[^>]+>\("\/v1\/documents"/);
+});
