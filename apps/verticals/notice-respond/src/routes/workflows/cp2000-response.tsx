@@ -812,7 +812,7 @@ function CP2000Response() {
   const currentDraftVersion = getCurrentVersion(versionedDraft);
   const approvalIsStale = versionedDraft.approval.isStale;
   const approvalIsValid = isApprovalValid(versionedDraft);
-  const canApprove = state.draftValidation?.passed && !approvalIsStale && state.mailing?.recipient?.name && state.mailing?.recipient?.address1;
+  const canApprove = state.draftValidation?.passed && !approvalIsStale && state.mailing?.recipient?.name && state.mailing?.recipient?.address1 && state.mailing?.method;
 
   return (
     <div className="min-h-screen bg-paper">
@@ -1114,9 +1114,9 @@ function CP2000Response() {
 
               {state.phase === "review" && (
                 <div>
-                  <div className="postmark w-fit">7 · Review</div>
+                  <div className="postmark w-fit">10 · Final review</div>
                   <h3 className="mt-4 font-serif text-3xl">Review before anything is mailed</h3>
-                  <p className="mt-3 text-muted-foreground">Please confirm each item below. Approval binds to the exact draft content.</p>
+                  <p className="mt-3 text-muted-foreground">Confirm the final draft, supporting packet, recipient, and mail class. Approval binds this exact mailing package.</p>
                   <ReviewChecks items={definition.ux?.reviewChecks ?? []} checks={state.reviewChecks} setChecks={(fn) => update((s) => setReviewChecks(s, fn(state.reviewChecks)))} />
 
                   {/* ── Approval status ── */}
@@ -1157,14 +1157,14 @@ function CP2000Response() {
 
               {state.phase === "attachments" && (
                 <div>
-                  <div className="postmark w-fit">8 · Documents</div>
+                  <div className="postmark w-fit">7 · Documents</div>
                   <h3 className="mt-4 font-serif text-3xl">Add supporting documents</h3>
                   <p className="mt-3 text-muted-foreground">Attach any documents referenced in your response — W-2s, 1099s, return transcripts, corrected forms, etc.</p>
 
                   {/* ── Functional evidence upload ── */}
                   <div className="mt-6 space-y-4">
                     {evidenceChecklist?.items.map((item, i) => {
-                      const attachment = evidenceAttachments.find((a) => a.requirementId === item.requirement);
+                      const attachment = evidenceAttachments.find((a) => a.requirementId === item.id);
                       return (
                         <div key={i} className="rounded-lg border border-rule/60 p-4">
                           <div className="flex items-start justify-between">
@@ -1218,7 +1218,7 @@ function CP2000Response() {
 
               {state.phase === "recipient" && (
                 <div>
-                  <div className="postmark w-fit">9 · Recipient</div>
+                  <div className="postmark w-fit">8 · Recipient</div>
                   <h3 className="mt-4 font-serif text-3xl">Where should we send it?</h3>
                   <p className="mt-3 text-muted-foreground">Enter the IRS mailing address from the CP2000 notice. The response address should be printed on the notice.</p>
                   {cp2000Extraction?.responseAddress && <div className="mt-4 rounded-md border border-rule/70 bg-paper-deep/40 p-3 text-sm text-muted-foreground"><strong>Extracted from notice:</strong> {cp2000Extraction.responseAddress}</div>}
@@ -1229,16 +1229,13 @@ function CP2000Response() {
 
               {state.phase === "mailing" && (
                 <div>
-                  <div className="postmark w-fit">10 · Mail</div>
+                  <div className="postmark w-fit">9 · Mail</div>
                   <h3 className="mt-4 font-serif text-3xl">Choose your mail type</h3>
                   <p className="mt-3 text-muted-foreground">For IRS responses, Certified mail is recommended for proof of timely submission.</p>
                   <MailOptions selected={state.mailing?.method ?? "certified"} onSelect={(id) => update((s) => setMailing(s, { ...s.mailing ?? { recipient: { name: "", org: "", address1: "", address2: "", city: "", state: "", zip: "" }, status: "not_started" }, method: id, }))} />
-                  {/* ── Checkout gate ── */}
-                  {!approvalIsValid && (
-                    <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                      ⚠ Draft must be approved before you can proceed to checkout. Go back to the Review step to approve.
-                    </div>
-                  )}
+                  <div className="mt-4 rounded-md border border-rule/60 bg-paper-deep/40 p-4 text-sm text-muted-foreground">
+                    Your selected mail class is included in the final approval on the next step.
+                  </div>
                 </div>
               )}
 
