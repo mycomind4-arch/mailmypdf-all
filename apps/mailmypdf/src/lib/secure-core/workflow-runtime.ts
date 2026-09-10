@@ -6,12 +6,41 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }, "Expected a real calendar date").nullable();
 const text = z.string().trim().min(1).max(16000);
+const workflowDetailsSchema = z.object({
+  taxYear: z.string().regex(/^\d{4}$/).nullable().default(null),
+  amountDue: text.nullable().default(null),
+  proposedTax: text.nullable().default(null),
+  proposedPenalty: text.nullable().default(null),
+  proposedInterest: text.nullable().default(null),
+  proposedIncomeChanges: z.array(text).max(100).default([]),
+  payerReferences: z.array(text).max(100).default([]),
+  responseAddress: z.object({
+    line1: text,
+    line2: text.nullable().default(null),
+    city: text,
+    state: z.string().trim().regex(/^[A-Za-z]{2}$/),
+    postal: z.string().trim().regex(/^\d{5}(-\d{4})?$/),
+  }).nullable().default(null),
+  paymentInstructions: text.nullable().default(null),
+}).default({
+  taxYear: null,
+  amountDue: null,
+  proposedTax: null,
+  proposedPenalty: null,
+  proposedInterest: null,
+  proposedIncomeChanges: [],
+  payerReferences: [],
+  responseAddress: null,
+  paymentInstructions: null,
+});
+
 const noticeAnalysisSchema = z.object({
   decision: text.nullable(), issuer: text.nullable(), referenceNumber: text.nullable(),
   decisionDate: date, deadline: date,
   confidence: z.enum(["high", "medium", "low"]), summary: text,
   reasons: z.array(text).max(100), missingInformation: z.array(text).max(100),
   suggestedEvidence: z.array(text).max(100), promptInjectionObserved: z.boolean(),
+  workflowDetails: workflowDetailsSchema,
 });
 
 export type NoticeAnalysis = z.infer<typeof noticeAnalysisSchema>;
