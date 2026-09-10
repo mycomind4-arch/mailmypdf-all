@@ -77,3 +77,28 @@ test("shared mailing client targets the deployed TanStack API namespace", async 
   assert.match(client, /"\/api\/v1\/communications"/);
   assert.doesNotMatch(client, /request<[^>]+>\("\/v1\/documents"/);
 });
+
+test("saved IRS workflows resume from the case URL after checkout cancellation", async () => {
+  const ui = await appSource("src/components/workflows/irs-notice-workflow.tsx");
+  const client = await appSource("src/lib/notice-response-workflow-client.ts");
+  const draftRoute = await appSource("src/routes/api/v2/cases/$id/draft.ts");
+  const approvalRoute = await appSource("src/routes/api/v2/cases/$id/approve.ts");
+
+  assert.match(ui, /new URLSearchParams\(window\.location\.search\)\.get\("case"\)/);
+  assert.match(ui, /loadNoticeApproval/);
+  assert.match(ui, /loadNoticeDraft/);
+  assert.match(ui, /setApproved\(true\)/);
+  assert.match(client, /loadNoticeApproval/);
+  assert.match(client, /loadNoticeDraft/);
+  assert.match(draftRoute, /GET:\s*async/);
+  assert.match(approvalRoute, /GET:\s*async/);
+});
+
+test("expired Stripe workflow sessions release their order claim before retry", async () => {
+  const checkout = await appSource("src/routes/api/v2/cases/$id/checkout.ts");
+
+  assert.match(checkout, /Expired\/cancelled sessions must release the order claim/);
+  assert.match(checkout, /\.update\(\{ stripe_session_id: null \}\)/);
+  assert.match(checkout, /\.eq\("stripe_session_id", priorSessionId\)/);
+  assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
+});
