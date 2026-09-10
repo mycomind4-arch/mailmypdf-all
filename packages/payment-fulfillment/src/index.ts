@@ -83,6 +83,7 @@ export interface MailingEvidenceItem {
   fileName: string;
   fileType: string;
   fileSize: number;
+  pageCount?: number;
   fileHash: string;
   storagePath: string;
   status: string;
@@ -178,6 +179,7 @@ export function hashEvidenceSnapshot(
       fileName: item.fileName,
       fileType: item.fileType,
       fileSize: item.fileSize,
+      pageCount: item.pageCount ?? 0,
       fileHash: item.fileHash,
       storagePath: item.storagePath,
       status: item.status,
