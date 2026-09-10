@@ -10,6 +10,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
 import { deserializeCase } from "@/domain/notice";
+import { setCaseDraft, type CP2000Case } from "@/domain/cp2000-case";
+import { validateCP2000Draft, validateFactualConsistency } from "@/domain/cp2000-validation";
+import type { CP2000Extraction } from "@/domain/cp2000";
+import type { Discrepancy } from "@/domain/cp2000-discrepancy";
 import {
   hashDraft,
   hashRecipient,
@@ -76,12 +80,8 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
           if (!/^\d{5}(-\d{4})?$/.test(body.recipient.zip)) {
             return Response.json({ error: "Recipient ZIP code is invalid." }, { status: 400 });
           }
-          if (!body.validationPassed) {
-            return Response.json(
-              { error: "Draft validation must pass before approval." },
-              { status: 422 },
-            );
-          }
+          // Client validation state is only a UX signal. The exact draft is
+          // independently validated below against the persisted server analysis.
           if (!Array.isArray(body.reviewChecks) || body.reviewChecks.length === 0 || !body.reviewChecks.every(Boolean)) {
             return Response.json(
               { error: "All review checks must be completed before approval." },
@@ -174,6 +174,72 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
             );
           }
 
+          const cp2000Snapshot = persistedCase.runtimeExecution?.cp2000 as
+            | {
+                case?: CP2000Case;
+                extraction?: CP2000Extraction;
+                discrepancies?: Discrepancy[];
+              }
+            | undefined;
+
+          if (
+            !cp2000Snapshot?.case ||
+            !cp2000Snapshot.extraction ||
+            !Array.isArray(cp2000Snapshot.discrepancies)
+          ) {
+            return Response.json(
+              { error: "Server analysis snapshot is unavailable; re-run the CP2000 analysis before approval." },
+              { status: 409 },
+            );
+          }
+
+          const userFacts =
+            (persistedCase.workflowState as { userFacts?: string } | undefined)?.userFacts ??
+            persistedCase.userFacts ??
+            null;
+          const factualFindings = validateFactualConsistency(
+            body.draftContent,
+            cp2000Snapshot.extraction,
+            cp2000Snapshot.discrepancies,
+            userFacts,
+          );
+
+          const unresolvedPlaceholders = Array.from(
+            body.draftContent.matchAll(/\[([A-Z][A-Z0-9 _-]{1,80})\]/g),
+          ).map((match) => ({
+            placeholder: match[1],
+            reason: "Unresolved placeholder remains in the approved draft",
+          }));
+
+          const validationCase = setCaseDraft(cp2000Snapshot.case, {
+            content: body.draftContent,
+            wordCount: body.draftContent.split(/\s+/).filter(Boolean).length,
+            unresolvedPlaceholders,
+          });
+          const requirementValidation = validateCP2000Draft(validationCase);
+
+          const blockingFactual = factualFindings.filter(
+            (finding) =>
+              !finding.passed &&
+              (finding.severity === "error" || finding.severity === "block"),
+          );
+          if (
+            blockingFactual.length > 0 ||
+            !requirementValidation.passed ||
+            requirementValidation.blocked
+          ) {
+            return Response.json(
+              {
+                error: "The exact draft failed server-side CP2000 validation.",
+                validation: {
+                  factual: factualFindings,
+                  requirements: requirementValidation,
+                },
+              },
+              { status: 422 },
+            );
+          }
+
           const draftHash = hashDraft(body.draftContent);
           const recipientHash = hashRecipient(body.recipient);
           const evidenceHash = hashEvidenceSnapshot(storedEvidenceFiles);
@@ -211,6 +277,10 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
               review_state: {
                 reviewChecks: body.reviewChecks,
                 validationPassed: true,
+                serverValidation: {
+                  factual: factualFindings,
+                  requirements: requirementValidation,
+                },
                 evidenceItems: storedEvidenceFiles,
                 mailingMethod: body.mailingMethod,
               },
