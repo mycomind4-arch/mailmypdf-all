@@ -18,7 +18,9 @@ async function workspaceSource(path) {
 test("unified IRS notice workflow continues an immutable approval into checkout", async () => {
   const ui = await appSource("src/components/workflows/irs-notice-workflow.tsx");
   const client = await appSource("src/lib/notice-response-workflow-client.ts");
-  const checkout = await appSource("src/routes/api/v2/cases/$id/checkout.ts");
+  const checkoutRoute = await appSource("src/routes/api/v2/cases/$id/checkout.ts");
+  const checkoutServer = await appSource("src/lib/secure-core/workflow-checkout.server.ts");
+  const checkout = `${checkoutRoute}\n${checkoutServer}`;
 
   assert.match(ui, /createNoticeCheckout/);
   assert.match(ui, /Pay & mail approved packet/);
@@ -97,7 +99,7 @@ test("saved IRS workflows resume from the case URL after checkout cancellation",
 });
 
 test("expired Stripe workflow sessions release their order claim before retry", async () => {
-  const checkout = await appSource("src/routes/api/v2/cases/$id/checkout.ts");
+  const checkout = await appSource("src/lib/secure-core/workflow-checkout.server.ts");
 
   assert.match(checkout, /Expired\/cancelled sessions must release the order claim/);
   assert.match(checkout, /\.update\(\{ stripe_session_id: null \}\)/);
