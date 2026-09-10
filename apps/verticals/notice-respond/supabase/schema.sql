@@ -178,3 +178,9 @@ ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_draft_hash TEXT;
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_recipient_hash TEXT;
 
 -- RLS for the new columns is inherited from the existing mailing_intents policies.
+
+-- Private evidence bucket. File access is server-mediated; there are no public
+-- object policies for this bucket.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('notice-evidence', 'notice-evidence', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
