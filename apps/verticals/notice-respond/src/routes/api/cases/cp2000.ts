@@ -159,7 +159,7 @@ export const Route = createFileRoute("/api/cases/cp2000")({
             facts: extraction.facts,
             evidence: checklist.items,
             strategies: [strategy],
-            workflowState: {
+            runtimeExecution: {
               runtime: "canonical-factory",
               runtimeVersion: 1,
               workflowId: definition.id,
