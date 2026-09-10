@@ -1,22 +1,31 @@
 /**
  * POST /api/cases/$caseId/approve
  *
- * Server-side approval transition. Binds approval to the exact draft
- * content via SHA-256 hash. This is the authoritative approval gate —
- * the frontend checkbox is advisory only.
- *
- * Transition: REVIEWED → APPROVED
- *
- * Enforces:
- *   approvedDraftHash === currentDraftHash
- *   user owns the case
- *   draft validation has no blocking errors
- *   required evidence is satisfied (warnings allowed, blocks not)
+ * Authoritative server-side approval boundary for a Notice Respond case.
+ * Approval is durable, owner-scoped, and bound to the exact reviewed draft
+ * and recipient via SHA-256 hashes. Checkout accepts only this persisted ID.
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
-import { hashDraft, hashRecipient, sha256, type MailingRecipient } from "@mailmypdf/payment-fulfillment";
+import {
+  hashDraft,
+  hashRecipient,
+  sha256,
+  type MailingRecipient,
+} from "@mailmypdf/payment-fulfillment";
+
+function serviceSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRole) {
+    throw new Error("Supabase server configuration is incomplete.");
+  }
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 export const Route = createFileRoute("/api/cases/$caseId/approve")({
   server: {
@@ -33,15 +42,24 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
             workflowId: string;
             mailingMethod: string;
             validationPassed?: boolean;
+            reviewChecks?: boolean[];
             evidenceItems?: Array<{ id: string; fileId?: string; status: string }>;
           };
 
-          // ── Validate required fields ──────────────────────────
           if (!body.draftContent || body.draftContent.trim().length < 20) {
             return Response.json(
               { error: "Draft content is required for approval." },
               { status: 400 },
             );
+          }
+          if (body.draftContent.length > 500_000) {
+            return Response.json(
+              { error: "Draft exceeds maximum size." },
+              { status: 400 },
+            );
+          }
+          if (!body.workflowId?.trim()) {
+            return Response.json({ error: "Workflow ID is required." }, { status: 400 });
           }
           if (!body.recipient?.name || !body.recipient?.address1 || !body.recipient?.city || !body.recipient?.state || !body.recipient?.zip) {
             return Response.json(
@@ -49,60 +67,128 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
               { status: 400 },
             );
           }
+          if (!/^[A-Za-z]{2}$/.test(body.recipient.state)) {
+            return Response.json({ error: "Recipient state is invalid." }, { status: 400 });
+          }
+          if (!/^\d{5}(-\d{4})?$/.test(body.recipient.zip)) {
+            return Response.json({ error: "Recipient ZIP code is invalid." }, { status: 400 });
+          }
           if (!body.validationPassed) {
             return Response.json(
               { error: "Draft validation must pass before approval." },
               { status: 422 },
             );
           }
+          if (!Array.isArray(body.reviewChecks) || body.reviewChecks.length === 0 || !body.reviewChecks.every(Boolean)) {
+            return Response.json(
+              { error: "All review checks must be completed before approval." },
+              { status: 422 },
+            );
+          }
 
-          // ── Compute approval hashes ──────────────────────────
+          const supabase = serviceSupabase();
+
+          // Service-role access is used only after authenticated ownership is
+          // explicitly enforced here. Cross-owner case IDs are indistinguishable
+          // from missing cases.
+          const { data: ownedCase, error: caseError } = await supabase
+            .from("cases")
+            .select("id, owner_id, workflow_id")
+            .eq("id", caseId)
+            .eq("owner_id", user.id)
+            .maybeSingle();
+
+          if (caseError || !ownedCase) {
+            return Response.json({ error: "Case not found." }, { status: 404 });
+          }
+          if (ownedCase.workflow_id !== body.workflowId) {
+            return Response.json(
+              { error: "Case does not match the requested workflow." },
+              { status: 409 },
+            );
+          }
+
           const draftHash = hashDraft(body.draftContent);
           const recipientHash = hashRecipient(body.recipient);
 
-          // ── Create the approval record ────────────────────────
+          // Any content/recipient change requires a new approval; only one
+          // active approval may authorize checkout for a case.
+          const { error: revokeError } = await supabase
+            .from("approvals")
+            .update({
+              status: "revoked",
+              revoked_at: new Date().toISOString(),
+            })
+            .eq("case_id", caseId)
+            .eq("owner_id", user.id)
+            .eq("status", "active");
+
+          if (revokeError) {
+            return Response.json(
+              { error: `Unable to revoke prior approval: ${revokeError.message}` },
+              { status: 502 },
+            );
+          }
+
+          const { data: persisted, error: approvalError } = await supabase
+            .from("approvals")
+            .insert({
+              owner_id: user.id,
+              case_id: caseId,
+              workflow_id: body.workflowId,
+              draft_hash: draftHash,
+              recipient_hash: recipientHash,
+              draft: body.draftContent,
+              recipient: body.recipient,
+              review_state: {
+                reviewChecks: body.reviewChecks,
+                validationPassed: true,
+                evidenceItems: body.evidenceItems ?? [],
+                mailingMethod: body.mailingMethod,
+              },
+              status: "active",
+            })
+            .select("id, draft_hash, recipient_hash, approved_at")
+            .single();
+
+          if (approvalError || !persisted) {
+            return Response.json(
+              { error: `Unable to persist approval: ${approvalError?.message || "unknown error"}` },
+              { status: 502 },
+            );
+          }
+
           const approval = {
-            id: crypto.randomUUID(),
+            id: persisted.id as string,
             caseId,
             ownerId: user.id,
             workflowId: body.workflowId,
-            approvedDraftHash: draftHash,
-            approvedRecipientHash: recipientHash,
-            approvedAt: new Date().toISOString(),
+            approvedDraftHash: persisted.draft_hash as string,
+            approvedRecipientHash: persisted.recipient_hash as string,
+            approvedAt: persisted.approved_at as string,
             approvedBy: user.id,
             mailingMethod: body.mailingMethod,
             evidenceSnapshot: body.evidenceItems ?? [],
             status: "approved" as const,
           };
 
-          // ── Create the MailingIntent (immutable) ──────────────
-          const mailingIntent = {
-            id: crypto.randomUUID(),
-            ownerId: user.id,
-            workflowId: body.workflowId,
-            caseId,
-            approvalId: approval.id,
-            draftContent: body.draftContent,
-            recipient: body.recipient,
-            mailingMethod: body.mailingMethod as "first_class" | "certified" | "certified_return_receipt" | "registered",
-            approvedDraftHash: draftHash,
-            approvedRecipientHash: recipientHash,
-            status: "approved" as const,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-
-          // ── Generate idempotency key from stable identifiers ──
-          const idempotencyKey = sha256(`${caseId}:${draftHash}:${recipientHash}`);
+          // Backward-compatible stable key for callers that record approval
+          // identity. Actual provider submission idempotency is anchored to
+          // the Stripe Checkout Session in @mailmypdf/payment-fulfillment.
+          const idempotencyKey = sha256(
+            `${caseId}:${approval.approvedDraftHash}:${approval.approvedRecipientHash}`,
+          );
 
           return Response.json({
             ok: true,
             approval,
-            mailingIntent,
             idempotencyKey,
           }, { status: 201 });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Approval failed.";
+          if (/authentication|required|token/i.test(message)) {
+            return authErrorResponse(error);
+          }
           return Response.json({ error: message }, { status: 500 });
         }
       },
