@@ -102,3 +102,19 @@ test("expired Stripe workflow sessions release their order claim before retry", 
   assert.match(checkout, /\.eq\("stripe_session_id", priorSessionId\)/);
   assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
 });
+
+test("IRS evidence is scan-gated and source notices are not automatic enclosures", async () => {
+  const ui = await appSource("src/components/workflows/irs-notice-workflow.tsx");
+  const cases = await appSource("src/lib/secure-core/case.server.ts");
+  const runtime = await appSource("src/lib/secure-core/workflow-runtime.ts");
+  const migration = await appSource("supabase/migrations/20260910214000_source_notice_not_auto_enclosure.sql");
+
+  assert.match(ui, /Supporting documents/);
+  assert.match(ui, /evidenceOptions/);
+  assert.match(ui, /Refresh scan status/);
+  assert.match(cases, /included:\s*input\.role === "evidence"/);
+  assert.match(runtime, /The source notice must pass security checks before drafting/);
+  assert.match(migration, /cd\.role = 'subject_notice'/);
+  assert.match(migration, /set included = false/);
+  assert.match(migration, /case has no clean source notice/);
+});
