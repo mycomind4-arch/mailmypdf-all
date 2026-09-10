@@ -85,7 +85,7 @@ export const Route = createFileRoute("/api/checkout")({
           const { data: approval, error: approvalError } = await supabase
             .from("approvals")
             .select(
-              "id, owner_id, case_id, workflow_id, draft, recipient, draft_hash, recipient_hash, status, approved_at"
+              "id, owner_id, case_id, workflow_id, draft, recipient, draft_hash, recipient_hash, evidence_hash, review_state, status, approved_at"
             )
             .eq("id", approvalId)
             .eq("owner_id", user.id)
@@ -143,6 +143,15 @@ export const Route = createFileRoute("/api/checkout")({
             );
           }
 
+          const reviewState =
+            approval.review_state &&
+            typeof approval.review_state === "object"
+              ? approval.review_state as Record<string, unknown>
+              : {};
+          const evidenceSnapshot = Array.isArray(reviewState.evidenceItems)
+            ? reviewState.evidenceItems
+            : [];
+
           // ── Canonical pricing — server-authoritative quote ─────────
           const profile = getWorkflowPricingProfile(workflowId);
           let quoteTotalCents: number;
@@ -196,6 +205,8 @@ export const Route = createFileRoute("/api/checkout")({
               approval_id: approvalId,
               approved_draft_hash: approval.draft_hash,
               approved_recipient_hash: approval.recipient_hash,
+              approved_evidence_hash: approval.evidence_hash,
+              evidence_snapshot: evidenceSnapshot,
               stripe_price_cents: quoteTotalCents,
               quote_snapshot: quoteSnapshot,
             })
