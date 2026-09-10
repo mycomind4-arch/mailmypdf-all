@@ -312,6 +312,17 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
       .select("id");
 
     if (updated && updated.length > 0) {
+      if (order.workflow_case_id) {
+        const { error: caseUpdateError } = await supabaseAdmin
+          .from("workflow_cases")
+          .update({ status: "submitted" })
+          .eq("id", order.workflow_case_id)
+          .eq("status", "approved");
+        if (caseUpdateError) {
+          throw new Error(`Order submitted but workflow case could not be synchronized: ${caseUpdateError.message}`);
+        }
+      }
+
       await supabaseAdmin.from("order_events").insert({
         order_id: orderId,
         type: "lob.submitted",
