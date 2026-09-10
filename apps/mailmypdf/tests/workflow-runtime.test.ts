@@ -13,7 +13,20 @@ const analysis = {
 const notice = { document_id: "notice-1", role: "subject_notice", included: true, usable: true };
 
 test("accepts explicit uncertainty without inventing missing facts", () => {
-  assert.deepEqual(validateNoticeAnalysis(analysis), analysis);
+  assert.deepEqual(validateNoticeAnalysis(analysis), {
+    ...analysis,
+    workflowDetails: {
+      taxYear: null,
+      amountDue: null,
+      proposedTax: null,
+      proposedPenalty: null,
+      proposedInterest: null,
+      proposedIncomeChanges: [],
+      payerReferences: [],
+      responseAddress: null,
+      paymentInstructions: null,
+    },
+  });
 });
 
 test("rejects malformed, incomplete and impossible-date analysis", () => {
@@ -48,11 +61,17 @@ test("allows drafting from the current clean notice with no enclosures", () => {
   assert.doesNotThrow(() => assertDraftReady("notice-1", analysis, [notice]));
 });
 
-test("rejects analysis of a removed, excluded, replaced or unsafe notice", () => {
+test("rejects analysis of a removed, replaced or unsafe notice", () => {
   for (const documents of [[], [{ ...notice, document_id: "notice-2" }],
-    [{ ...notice, included: false }], [{ ...notice, usable: false }]]) {
+    [{ ...notice, usable: false }]]) {
     assert.throws(() => assertDraftReady("notice-1", analysis, documents));
   }
+});
+
+test("source notice inclusion controls mailing, not analysis readiness", () => {
+  assert.doesNotThrow(() =>
+    assertDraftReady("notice-1", analysis, [{ ...notice, included: false }]),
+  );
 });
 
 test("blocks unsafe included evidence but ignores excluded evidence", () => {
