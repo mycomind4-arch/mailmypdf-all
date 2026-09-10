@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { useAuth } from "@/lib/auth";
 import { Stepper, MailOptions, RecipientForm, ReviewChecks, MAIL_OPTIONS } from "@/components/workflow-shell";
 import { getWorkflowById } from "@/domain/workflow-catalog";
 import {
@@ -60,6 +61,7 @@ interface EvidenceAttachment {
 }
 
 function CP2000Response() {
+  const { accessToken } = useAuth();
   const definition = getWorkflowById("cp2000-response")!;
   const steps = definition.ux?.steps ?? [];
   const [state, setState] = useState<RuntimeState>(() => createWorkflowState(definition));
@@ -87,7 +89,7 @@ function CP2000Response() {
   const [evidenceAttachments, setEvidenceAttachments] = useState<EvidenceAttachment[]>([]);
   const [extractedRecipient, setExtractedRecipient] = useState<{ name: string; org: string; address1: string; address2: string; city: string; state: string; zip: string } | null>(null);
   const [recipientModified, setRecipientModified] = useState(false);
-  const [approvalRecord, setApprovalRecord] = useState<{ approvedDraftHash: string; approvedAt: string } | null>(null);
+  const [approvalRecord, setApprovalRecord] = useState<{ approvalId: string; approvedDraftHash: string; approvedAt: string } | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
@@ -150,8 +152,14 @@ function CP2000Response() {
       const formData = new FormData();
       formData.append("file", file);
 
+      if (!accessToken) {
+        setExtractionError("Sign in before uploading or analyzing a notice.");
+        return;
+      }
+
       const response = await fetch("/api/documents/extract", {
         method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
 
@@ -203,7 +211,10 @@ function CP2000Response() {
       // ── CP2000 extraction (server-side via API) ────────────
       const caseResponse = await fetch("/api/cases/cp2000", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           text: doc.fullText,
           fileName: doc.fileName,
@@ -448,9 +459,17 @@ function CP2000Response() {
     setApprovalError(null);
 
     try {
+      if (!accessToken) {
+        setApprovalError("Sign in before approving a response.");
+        return;
+      }
+
       const response = await fetch(`/api/cases/${caseId}/approve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           draftContent: state.draft,
           recipient: state.mailing.recipient,
@@ -471,6 +490,7 @@ function CP2000Response() {
       // Mark approval in versioned draft
       setVersionedDraft((prev) => approveCurrentVersion(prev, "user"));
       setApprovalRecord({
+        approvalId: payload.approval.id,
         approvedDraftHash: payload.approval.approvedDraftHash,
         approvedAt: payload.approval.approvedAt,
       });
@@ -515,8 +535,14 @@ function CP2000Response() {
       formData.append("file", file);
       if (requirementId) formData.append("requirementId", requirementId);
 
+      if (!accessToken) {
+        setExtractionError("Sign in before uploading evidence.");
+        return;
+      }
+
       const response = await fetch(`/api/cases/${caseId}/evidence`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
 
@@ -538,7 +564,14 @@ function CP2000Response() {
     if (!caseId) return;
 
     try {
-      await fetch(`/api/cases/${caseId}/evidence?evidenceId=${evidenceId}`, { method: "DELETE" });
+      if (!accessToken) {
+        setExtractionError("Sign in before removing evidence.");
+        return;
+      }
+      await fetch(`/api/cases/${caseId}/evidence?evidenceId=${evidenceId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       setEvidenceAttachments((prev) => prev.filter((e) => e.id !== evidenceId));
       emitAudit(AUDIT_EVENTS.EVIDENCE_REMOVED, { evidenceId });
     } catch (err) {
@@ -1004,7 +1037,7 @@ function CP2000Response() {
               )}
 
               {(state.phase === "checkout" || state.phase === "submitted") && approvalIsValid && (
-                <MailingFunnel draft={state.draft} workflowId={definition.id} workflowTitle={definition.title} recipient={state.mailing?.recipient ?? null} extractionRef={cp2000Extraction?.noticeNumber ?? null} taxYear={cp2000Extraction?.taxYear ?? null} mailOptions={definition.ux?.mailOptions ?? MAIL_OPTIONS} disclaimer={definition.ux?.disclaimerText ?? definition.disclaimer} onMailingStateChange={(s) => { setMailingFunnelState(s); if (s.phase === "submitted") { update((st) => setMailing(st, { method: s.method, recipient: s.recipient, status: "submitted", providerOrderId: s.providerOrderId ?? undefined, trackingNumber: s.trackingNumber ?? undefined, })); transitionState("mailed", "provider", "MailMyPDF fulfillment"); emitAudit(AUDIT_EVENTS.MAILING_SUBMITTED, { providerOrderId: s.providerOrderId, trackingNumber: s.trackingNumber }); } }} />
+                <MailingFunnel draft={state.draft} workflowId={definition.id} workflowTitle={definition.title} approvalId={approvalRecord?.approvalId ?? null} recipient={state.mailing?.recipient ?? null} extractionRef={cp2000Extraction?.noticeNumber ?? null} taxYear={cp2000Extraction?.taxYear ?? null} mailOptions={definition.ux?.mailOptions ?? MAIL_OPTIONS} disclaimer={definition.ux?.disclaimerText ?? definition.disclaimer} onMailingStateChange={(s) => { setMailingFunnelState(s); if (s.phase === "submitted") { update((st) => setMailing(st, { method: s.method, recipient: s.recipient, status: "submitted", providerOrderId: s.providerOrderId ?? undefined, trackingNumber: s.trackingNumber ?? undefined, })); transitionState("mailed", "provider", "MailMyPDF fulfillment"); emitAudit(AUDIT_EVENTS.MAILING_SUBMITTED, { providerOrderId: s.providerOrderId, trackingNumber: s.trackingNumber }); } }} />
               )}
               {(state.phase === "checkout" || state.phase === "submitted") && !approvalIsValid && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center">
