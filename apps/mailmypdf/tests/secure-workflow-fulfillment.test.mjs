@@ -29,6 +29,7 @@ test("unified IRS notice workflow continues an immutable approval into checkout"
   assert.match(checkout, /approved_packet_sha256:\s*input\.packet\.packetSha256/);
   assert.match(checkout, /approved_price_cents:\s*input\.packet\.quote\.totalCents/);
   assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
+  assert.match(checkout, /Checkout session could not be bound to the approved order/);
 });
 
 test("approved packet is rebuilt and compared before order creation", async () => {
@@ -54,7 +55,7 @@ test("database allows at most one order per immutable case approval", async () =
 test("Stripe webhook verifies the stored workflow session and exact approved amount", async () => {
   const webhook = await appSource("src/routes/api/public/payments/webhook.ts");
 
-  assert.match(webhook, /order\.stripe_session_id !== session\.id/);
+  assert.match(webhook, /!order\.stripe_session_id \|\| order\.stripe_session_id !== session\.id/);
   assert.match(webhook, /session\.amount_total !== expectedAmount/);
   assert.match(webhook, /order\.approved_price_cents \?\? order\.price_cents/);
   assert.match(webhook, /payment\.session_mismatch/);
