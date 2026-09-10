@@ -57,7 +57,8 @@ test("Stripe webhook verifies the stored workflow session and exact approved amo
 
   assert.match(webhook, /!order\.stripe_session_id \|\| order\.stripe_session_id !== session\.id/);
   assert.match(webhook, /session\.amount_total !== expectedAmount/);
-  assert.match(webhook, /if \(order\.case_approval_id\)/);\n  assert.match(webhook, /const expectedAmount = order\.approved_price_cents/);
+  assert.match(webhook, /if \(order\.case_approval_id\)/);
+  assert.match(webhook, /const expectedAmount = order\.approved_price_cents/);
   assert.match(webhook, /payment\.session_mismatch/);
   assert.match(webhook, /payment\.amount_mismatch/);
 });
@@ -117,12 +118,12 @@ test("IRS evidence is scan-gated and source notices are not automatic enclosures
   assert.match(cases, /included:\s*input\.role === "evidence"/);
   assert.match(runtime, /The source notice must pass security checks before drafting/);
   assert.match(analysis, /find\(\(d\) => d\.role === "subject_notice"\)/);
-  assert.doesNotMatch(analysis, /role === "subject_notice" && d\.included/);\n  assert.match(analysis, /find\\(\\(d\\) => d\\.role === "subject_notice"\\)/);\n  assert.doesNotMatch(analysis, /role === "subject_notice" && d\\.included/);
+  assert.doesNotMatch(analysis, /role === "subject_notice" && d\.included/);
   assert.match(migration, /cd\.role = 'subject_notice'/);
   assert.match(migration, /set included = false/);
   assert.match(migration, /case has no clean source notice/);
 });
-\n\ntest("Supabase admin accepts the current sb_secret environment variable name", async () => {\n  const serverClient = await appSource("src/integrations/supabase/client.server.ts");\n  const admin = await appSource("src/lib/supabase-admin.server.ts");\n  const example = await appSource(".env.example");\n\n  assert.match(serverClient, /SUPABASE_SERVICE_ROLE_KEY \\?\\? process\\.env\\.SUPABASE_SECRET_KEY/);\n  assert.match(admin, /SUPABASE_SERVICE_ROLE_KEY \\?\\? process\\.env\\.SUPABASE_SECRET_KEY/);\n  assert.match(example, /SUPABASE_SECRET_KEY=""/);\n});\n
+
 
 test("Supabase admin accepts the current secret-key variable name", async () => {
   const serverClient = await appSource("src/integrations/supabase/client.server.ts");
