@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS mailing_intents (
   stripe_payment_intent_id TEXT,
   stripe_price_cents INTEGER,
   quote_snapshot TEXT,
+  evidence_snapshot JSONB,
+  approved_evidence_hash TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   mailing_method TEXT NOT NULL,
   draft TEXT NOT NULL,
@@ -151,6 +153,7 @@ CREATE TABLE IF NOT EXISTS approvals (
   workflow_id TEXT NOT NULL,
   draft_hash TEXT NOT NULL,
   recipient_hash TEXT NOT NULL,
+  evidence_hash TEXT NOT NULL DEFAULT '',
   draft TEXT NOT NULL,
   recipient JSONB NOT NULL,
   review_state JSONB NOT NULL,
@@ -176,6 +179,9 @@ ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS quote_snapshot TEXT;
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approval_id UUID REFERENCES approvals(id);
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_draft_hash TEXT;
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_recipient_hash TEXT;
+ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS evidence_snapshot JSONB;
+ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_evidence_hash TEXT;
+ALTER TABLE approvals ADD COLUMN IF NOT EXISTS evidence_hash TEXT NOT NULL DEFAULT '';
 
 -- RLS for the new columns is inherited from the existing mailing_intents policies.
 
