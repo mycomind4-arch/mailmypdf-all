@@ -259,18 +259,25 @@ async function ensureCheckoutSession(input: {
   if (!claimed || claimed.length !== 1) {
     const { data: winner } = await supabaseAdmin
       .from("orders")
-      .select("stripe_session_id")
+      .select("stripe_session_id, status")
       .eq("id", input.order.id)
       .maybeSingle();
 
-    if (winner?.stripe_session_id && winner.stripe_session_id !== session.id) {
-      try { await stripe.checkout.sessions.expire(session.id); } catch {}
+    if (winner?.stripe_session_id === session.id && winner.status === "draft") {
+      return { checkoutUrl: session.url, sessionId: session.id };
+    }
+
+    try { await stripe.checkout.sessions.expire(session.id); } catch {}
+
+    if (winner?.stripe_session_id) {
       const existing = await stripe.checkout.sessions.retrieve(winner.stripe_session_id);
       return {
         checkoutUrl: existing.status === "open" ? existing.url : null,
         sessionId: existing.id,
       };
     }
+
+    throw new Error("Checkout session could not be bound to the approved order.");
   }
 
   return { checkoutUrl: session.url, sessionId: session.id };
