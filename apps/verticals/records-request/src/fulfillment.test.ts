@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import assert from "node:assert/strict";
+import { describe, it } from 'vitest'
+import assert from 'node:assert/strict'
 import { createMailMyPDFFulfillment } from './fulfillment'
 
 describe('MailMyPDF fulfillment adapter', () => {
@@ -17,32 +17,39 @@ describe('MailMyPDF fulfillment adapter', () => {
     mailingClass: 'certified' as const,
   }
 
-  it('sends authenticated JSON with mandatory idempotency and returns provider submission data', async () => {
+  it('uploads the approved document then creates an idempotent communication', async () => {
     const calls: Request[] = []
     const fetcher: typeof fetch = async (url, init) => {
       const req = new Request(url, init)
       calls.push(req)
-      return new Response(JSON.stringify({ provider: 'mailmypdf', submissionId: 'sub-1', trackingNumber: 'TRACK-1', proofId: 'proof-1' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+      if (String(url).endsWith('/v1/documents')) {
+        return Response.json({ document: { id: 'doc-1' } })
+      }
+      return Response.json({ id: 'sub-1', tracking_number: 'TRACK-1', proof_id: 'proof-1' })
     }
 
     const adapter = createMailMyPDFFulfillment(fetcher, 'https://mail.example', 'secret')
     const result = await adapter.submit(input)
 
     assert.equal(result.submissionId, 'sub-1')
-    assert.equal(calls.length, 1)
+    assert.equal(result.trackingNumber, 'TRACK-1')
+    assert.equal(calls.length, 2)
+    assert.equal(calls[0].url, 'https://mail.example/v1/documents')
+    assert.equal(calls[1].url, 'https://mail.example/v1/communications')
     assert.equal(calls[0].headers.get('authorization'), 'Bearer secret')
-    assert.equal(calls[0].headers.get('idempotency-key'), 'records-req-1')
-    assert.equal(calls[0].method, 'POST')
+    assert.equal(calls[1].headers.get('authorization'), 'Bearer secret')
+    assert.equal(calls[1].headers.get('idempotency-key'), 'records-req-1')
+    const communicationBody = await calls[1].clone().json() as Record<string, any>
+    assert.equal(communicationBody.document_id, 'doc-1')
+    assert.equal(communicationBody.mail_type, 'certified')
+    assert.equal(communicationBody.recipient.postal_code, '95521')
   })
 
   it('rejects missing idempotency keys before calling the provider', async () => {
     let called = false
     const fetcher: typeof fetch = async () => {
       called = true
-      return new Response('{}', { status: 200 })
+      return Response.json({})
     }
     const adapter = createMailMyPDFFulfillment(fetcher, 'https://mail.example', 'secret')
     await assert.rejects(() => adapter.submit({ ...input, idempotencyKey: '' }), /idempotencyKey is required/)
@@ -55,9 +62,9 @@ describe('MailMyPDF fulfillment adapter', () => {
     await assert.rejects(() => adapter.submit(input), /HTTP 502/)
   })
 
-  it('rejects incomplete provider responses', async () => {
-    const fetcher: typeof fetch = async () => new Response(JSON.stringify({ provider: 'mailmypdf' }), { status: 200 })
+  it('rejects incomplete document responses before attempting a communication', async () => {
+    const fetcher: typeof fetch = async () => Response.json({ document: {} })
     const adapter = createMailMyPDFFulfillment(fetcher, 'https://mail.example', 'secret')
-    await assert.rejects(() => adapter.submit(input), /missing required submission data/)
+    await assert.rejects(() => adapter.submit(input), /missing document id/)
   })
 })
