@@ -49,9 +49,69 @@ export const Route = createFileRoute("/api/cases/cp2000")({
             fileSize?: number;
             fileType?: string;
             documentHash?: string;
+            sourceDocumentId?: string;
+            sourceStoragePath?: string;
+            sourceUploadedAt?: string;
             extractionMethod?: string;
             pageCount?: number;
           };
+
+          let sourceDocument: Record<string, unknown> | null = null;
+          if (body.sourceStoragePath) {
+            if (!body.sourceStoragePath.startsWith(`${user.id}/`)) {
+              return Response.json(
+                { error: "Source document path is not owned by the authenticated user." },
+                { status: 400 },
+              );
+            }
+
+            const { data: sourceBlob, error: sourceError } = await serviceSupabase().storage
+              .from("notice-source-documents")
+              .download(body.sourceStoragePath);
+
+            if (sourceError || !sourceBlob) {
+              return Response.json(
+                { error: "Stored source document could not be verified." },
+                { status: 409 },
+              );
+            }
+
+            const sourceBytes = new Uint8Array(await sourceBlob.arrayBuffer());
+            const sourceDigest = await crypto.subtle.digest("SHA-256", sourceBytes);
+            const actualSourceHash = Array.from(new Uint8Array(sourceDigest))
+              .map((byte) => byte.toString(16).padStart(2, "0"))
+              .join("");
+
+            if (!body.documentHash || actualSourceHash !== body.documentHash) {
+              return Response.json(
+                { error: "Stored source document hash does not match the analyzed upload." },
+                { status: 409 },
+              );
+            }
+            if (
+              typeof body.fileSize === "number" &&
+              body.fileSize >= 0 &&
+              sourceBytes.byteLength !== body.fileSize
+            ) {
+              return Response.json(
+                { error: "Stored source document size does not match the analyzed upload." },
+                { status: 409 },
+              );
+            }
+
+            sourceDocument = {
+              id: body.sourceDocumentId ?? crypto.randomUUID(),
+              role: "subject_notice",
+              storagePath: body.sourceStoragePath,
+              fileName: body.fileName ?? "CP2000 notice",
+              fileType: body.fileType ?? "application/octet-stream",
+              fileSize: sourceBytes.byteLength,
+              sha256: actualSourceHash,
+              pageCount: body.pageCount ?? null,
+              extractionMethod: body.extractionMethod ?? null,
+              uploadedAt: body.sourceUploadedAt ?? new Date().toISOString(),
+            };
+          }
 
           const rawText = body.text ?? "";
           if (rawText.trim().length < 20) {
@@ -156,6 +216,7 @@ export const Route = createFileRoute("/api/cases/cp2000")({
             referenceNumber: extraction.noticeNumber ?? undefined,
             noticeDate: extraction.noticeDate ?? undefined,
             noticeText: sanitizedText,
+            sourceDocuments: sourceDocument ? [sourceDocument] : [],
             facts: extraction.facts,
             // Requirement/checklist state is preserved in runtimeExecution.
             // The canonical evidence array contains only actual uploaded files.
@@ -170,7 +231,9 @@ export const Route = createFileRoute("/api/cases/cp2000")({
               blockReasons: pipeline.context.blockReasons,
               stages: pipeline.stages,
               document: {
+                id: body.sourceDocumentId ?? null,
                 hash: body.documentHash ?? null,
+                storagePath: body.sourceStoragePath ?? null,
                 extractionMethod: body.extractionMethod ?? null,
                 pageCount: body.pageCount ?? null,
                 fileName: body.fileName ?? null,
