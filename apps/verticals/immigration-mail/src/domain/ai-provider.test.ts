@@ -6,7 +6,6 @@ import {
   CircuitBreaker,
   isTimeout,
   validateAIOutput,
-  type AIProvider,
   type AITask,
 } from './ai-provider';
 
@@ -22,26 +21,30 @@ describe('AI Provider Architecture', () => {
     }
   });
 
-  it('routes classification to cheap model', () => {
-    expect(TASK_ROUTING.classification.preferredModel).toContain('mini');
-  });
-
-  it('routes X-Ray to strong model with min confidence', () => {
-    expect(TASK_ROUTING.xray.minConfidence).toBeGreaterThanOrEqual(0.8);
-  });
-
-  it('every task has a fallback provider', () => {
+  it('routes every immigration AI task to Claude first', () => {
     for (const task of Object.keys(TASK_ROUTING) as AITask[]) {
-      expect(TASK_ROUTING[task].fallbackProvider, `No fallback for ${task}`).toBeDefined();
+      expect(TASK_ROUTING[task].preferredProvider, `${task} is not Claude-first`).toBe('claude');
+      expect(TASK_ROUTING[task].preferredModel).toBe('claude-sonnet-5');
     }
   });
 
-  it('creates invocation with full provenance', () => {
+  it('uses OpenAI as the explicit first fallback for every task', () => {
+    for (const task of Object.keys(TASK_ROUTING) as AITask[]) {
+      expect(TASK_ROUTING[task].fallbackProvider, `No fallback for ${task}`).toBe('openai');
+      expect(TASK_ROUTING[task].fallbackModel).toBe('gpt-4o');
+    }
+  });
+
+  it('routes X-Ray to a strong model with min confidence', () => {
+    expect(TASK_ROUTING.xray.minConfidence).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('creates invocation with Claude provenance', () => {
     const inv = createInvocation('rfe_analysis', 'case-1');
     expect(inv.task).toBe('rfe_analysis');
     expect(inv.caseId).toBe('case-1');
-    expect(inv.provider).toBeDefined();
-    expect(inv.model).toBeDefined();
+    expect(inv.provider).toBe('claude');
+    expect(inv.model).toBe('claude-sonnet-5');
     expect(inv.timestamp).toBeDefined();
     expect(inv.promptVersion).toBeDefined();
     expect(inv.policyVersion).toBeDefined();
@@ -77,7 +80,6 @@ describe('Circuit Breaker', () => {
     const cb = new CircuitBreaker(1, 50); // 50ms reset
     cb.recordFailure('openai');
     expect(cb.isAvailable('openai')).toBe(false);
-    // Wait for reset
     return new Promise(resolve => setTimeout(resolve, 60)).then(() => {
       expect(cb.isAvailable('openai')).toBe(true);
     });
