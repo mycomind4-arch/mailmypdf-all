@@ -115,7 +115,28 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
             setSender((current) => ({ ...current, name: current.name || savedName.trim() }));
           }
         }
-        if (savedAnalysis?.result) setAnalysis(savedAnalysis.result);
+        if (savedAnalysis?.result) {
+          setAnalysis(savedAnalysis.result);
+          const details = savedAnalysis.result.workflowDetails;
+          if (details && typeof details === "object") {
+            const taxYear = (details as { taxYear?: unknown }).taxYear;
+            if (typeof taxYear === "string" && taxYear) {
+              setInput((current) => ({ ...current, taxYear: current.taxYear || taxYear }));
+            }
+            const responseAddress = (details as { responseAddress?: unknown }).responseAddress;
+            if (responseAddress && typeof responseAddress === "object") {
+              const address = responseAddress as Partial<Recipient>;
+              setRecipient((current) => ({
+                ...current,
+                line1: current.line1 || (typeof address.line1 === "string" ? address.line1 : ""),
+                line2: current.line2 || (typeof address.line2 === "string" ? address.line2 : undefined),
+                city: current.city || (typeof address.city === "string" ? address.city : ""),
+                state: current.state || (typeof address.state === "string" ? address.state : ""),
+                postal: current.postal || (typeof address.postal === "string" ? address.postal : ""),
+              }));
+            }
+          }
+        }
         if (savedDraft?.bodyText) setDraft(savedDraft.bodyText);
 
         if (savedApproval) {
@@ -191,7 +212,28 @@ export function IrsNoticeWorkflow({ workflow }: Props) {
         if (current !== "clean") await new Promise((resolve) => setTimeout(resolve, 750));
       }
       if (current !== "clean") throw new Error("The security scan is still running. Check again in a moment.");
-      const r = await analyzeNotice(caseId); setAnalysis(r.analysis.result); setStep("facts");
+      const r = await analyzeNotice(caseId);
+      setAnalysis(r.analysis.result);
+      const details = r.analysis.result.workflowDetails;
+      if (details && typeof details === "object") {
+        const taxYear = (details as { taxYear?: unknown }).taxYear;
+        if (typeof taxYear === "string" && taxYear) {
+          setInput((current) => ({ ...current, taxYear: current.taxYear || taxYear }));
+        }
+        const responseAddress = (details as { responseAddress?: unknown }).responseAddress;
+        if (responseAddress && typeof responseAddress === "object") {
+          const address = responseAddress as Partial<Recipient>;
+          setRecipient((current) => ({
+            ...current,
+            line1: typeof address.line1 === "string" ? address.line1 : current.line1,
+            line2: typeof address.line2 === "string" ? address.line2 : current.line2,
+            city: typeof address.city === "string" ? address.city : current.city,
+            state: typeof address.state === "string" ? address.state : current.state,
+            postal: typeof address.postal === "string" ? address.postal : current.postal,
+          }));
+        }
+      }
+      setStep("facts");
     }
     catch (e) { setError(e instanceof Error ? e.message : "Analysis could not be completed."); } finally { setBusy(false); }
   }
