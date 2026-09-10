@@ -138,6 +138,22 @@ function CP2000Response() {
           throw new Error("The saved case does not match this CP2000 workflow.");
         }
 
+        const savedEvidence = Array.isArray(savedCase.evidence)
+          ? savedCase.evidence.filter((item: unknown) => {
+              if (typeof item !== "object" || item === null) return false;
+              const candidate = item as Partial<EvidenceAttachment>;
+              return Boolean(
+                candidate.id &&
+                candidate.fileName &&
+                candidate.fileType &&
+                typeof candidate.fileSize === "number" &&
+                candidate.uploadedAt &&
+                candidate.status
+              );
+            }) as EvidenceAttachment[]
+          : [];
+        setEvidenceAttachments(savedEvidence);
+
         const savedState = savedCase.workflowState as RuntimeState | undefined;
         if (savedState) {
           setState({
@@ -951,7 +967,7 @@ function CP2000Response() {
                           <div className="mt-2 text-xs text-muted-foreground">Required: {evidenceChecklist.requiredCount} · Missing: {evidenceChecklist.missingCount} · Ready: {evidenceChecklist.ready ? "✓" : "✗"}</div>
                           <ul className="mt-2 space-y-2">
                             {evidenceChecklist.items.map((item, i) => {
-                              const attachment = evidenceAttachments.find((a) => a.requirementId === item.requirement);
+                              const attachment = evidenceAttachments.find((a) => a.requirementId === item.id);
                               return (
                                 <li key={i} className="text-sm flex items-start gap-2">
                                   <span className={item.state === "missing" ? "text-amber-600" : item.state === "provided" ? "text-emerald-600" : "text-muted-foreground"}>{item.state === "missing" ? "○" : "●"}</span>
@@ -1165,7 +1181,7 @@ function CP2000Response() {
                             ) : (
                               <label className="cursor-pointer rounded-full border border-rule px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
                                 Add file
-                                <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEvidenceUpload(f, item.requirement); }} />
+                                <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEvidenceUpload(f, item.id); }} />
                               </label>
                             )}
                           </div>
