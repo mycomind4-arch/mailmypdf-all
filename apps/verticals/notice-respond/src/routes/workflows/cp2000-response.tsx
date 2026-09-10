@@ -1181,7 +1181,7 @@ function CP2000Response() {
                             ) : (
                               <label className="cursor-pointer rounded-full border border-rule px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
                                 Add file
-                                <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEvidenceUpload(f, item.id); }} />
+                                <input type="file" accept="application/pdf,image/jpeg,image/png" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleEvidenceUpload(f, item.id); }} />
                               </label>
                             )}
                           </div>
@@ -1194,7 +1194,7 @@ function CP2000Response() {
                       <svg className="mx-auto text-muted-foreground" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                       <span className="mt-3 block font-medium text-foreground">Add additional attachments</span>
                       <span className="mt-1 block text-xs text-muted-foreground">Forms, receipts, evidence, prior correspondence</span>
-                      <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" multiple className="sr-only" onChange={(e) => { Array.from(e.target.files ?? []).forEach((f) => handleEvidenceUpload(f)); }} />
+                      <input type="file" accept="application/pdf,image/jpeg,image/png" multiple className="sr-only" onChange={(e) => { Array.from(e.target.files ?? []).forEach((f) => handleEvidenceUpload(f)); }} />
                     </label>
 
                     {/* ── Evidence summary ── */}
