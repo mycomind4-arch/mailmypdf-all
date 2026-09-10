@@ -1,14 +1,13 @@
 /**
  * AI Provider Architecture — Provider-Neutral Multi-LLM Layer
  *
- * Gemini is the DEFAULT/primary provider.
- * OpenAI and Claude are fallback/independent-review providers.
+ * Claude is the production primary provider. OpenAI is the first fallback and
+ * independent-review provider; Gemini remains an additional fallback.
  *
  * Provider SDKs stay behind adapters. Model output is untrusted until validated.
- * Supports task-specific routing, independent review, and disagreement detection.
+ * Deterministic authority, evidence, deadline, validation, and human-review gates
+ * remain authoritative regardless of which model answers.
  */
-
-// ─── Provider Types ──────────────────────────────────────────────────────────
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'unknown';
 
@@ -26,16 +25,14 @@ export interface ProviderConfig {
   reason?: string;
 }
 
-// ─── Provider Health / Configuration Status ──────────────────────────────────
-
 export function getProviderConfigs(): Record<AIProvider, ProviderConfig> {
   return {
-    gemini: {
-      provider: 'gemini',
-      apiKeyEnvVar: 'GEMINI_API_KEY',
-      defaultModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-      available: !!process.env.GEMINI_API_KEY,
-      reason: process.env.GEMINI_API_KEY ? undefined : 'GEMINI_API_KEY not set',
+    claude: {
+      provider: 'claude',
+      apiKeyEnvVar: 'ANTHROPIC_API_KEY',
+      defaultModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5',
+      available: !!process.env.ANTHROPIC_API_KEY,
+      reason: process.env.ANTHROPIC_API_KEY ? undefined : 'ANTHROPIC_API_KEY not set',
     },
     openai: {
       provider: 'openai',
@@ -44,12 +41,12 @@ export function getProviderConfigs(): Record<AIProvider, ProviderConfig> {
       available: !!process.env.OPENAI_API_KEY,
       reason: process.env.OPENAI_API_KEY ? undefined : 'OPENAI_API_KEY not set',
     },
-    claude: {
-      provider: 'claude',
-      apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-      defaultModel: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
-      available: !!process.env.ANTHROPIC_API_KEY,
-      reason: process.env.ANTHROPIC_API_KEY ? undefined : 'ANTHROPIC_API_KEY not set',
+    gemini: {
+      provider: 'gemini',
+      apiKeyEnvVar: 'GEMINI_API_KEY',
+      defaultModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      available: !!process.env.GEMINI_API_KEY,
+      reason: process.env.GEMINI_API_KEY ? undefined : 'GEMINI_API_KEY not set',
     },
     unknown: {
       provider: 'unknown',
@@ -64,9 +61,9 @@ export function getProviderConfigs(): Record<AIProvider, ProviderConfig> {
 export function getProviderStatus(): Record<string, { configured: boolean; model: string; reason?: string }> {
   const configs = getProviderConfigs();
   const result: Record<string, { configured: boolean; model: string; reason?: string }> = {};
-  for (const [key, cfg] of Object.entries(configs)) {
-    if (key === 'unknown') continue;
-    result[key] = {
+  for (const provider of ['claude', 'openai', 'gemini'] as AIProvider[]) {
+    const cfg = configs[provider];
+    result[provider] = {
       configured: cfg.available,
       model: cfg.defaultModel,
       reason: cfg.reason,
@@ -74,8 +71,6 @@ export function getProviderStatus(): Record<string, { configured: boolean; model
   }
   return result;
 }
-
-// ─── AI Task Definitions (Code-Enforcement Specific) ────────────────────────
 
 export type CETask =
   | 'document_classification'
@@ -94,7 +89,6 @@ export type CETask =
   | 'draft_generation'
   | 'draft_critique'
   | 'final_validation'
-  // Workflow 2 — Correction tasks
   | 'correction_issue_extraction'
   | 'recipient_reconciliation'
   | 'property_reconciliation'
@@ -106,8 +100,6 @@ export type CETask =
   | 'correction_draft_generation'
   | 'correction_draft_critique'
   | 'correction_final_validation';
-
-// ─── Task Routing Configuration ─────────────────────────────────────────────
 
 export interface TaskRoutingConfig {
   task: CETask;
@@ -122,244 +114,67 @@ export interface TaskRoutingConfig {
   structuredSchema?: string;
 }
 
+type RouteOptions = Pick<TaskRoutingConfig, 'requiresIndependentReview' | 'timeoutMs'> &
+  Partial<Pick<TaskRoutingConfig, 'temperature' | 'maxRetries' | 'structuredSchema'>>;
+
+function claudeRoute(task: CETask, options: RouteOptions): TaskRoutingConfig {
+  return {
+    task,
+    preferredProvider: 'claude',
+    preferredModel: 'claude-sonnet-5',
+    fallbackProviders: ['openai', 'gemini'],
+    requiresIndependentReview: options.requiresIndependentReview,
+    independentReviewProvider: options.requiresIndependentReview ? 'openai' : undefined,
+    temperature: options.temperature,
+    maxRetries: options.maxRetries ?? 2,
+    timeoutMs: options.timeoutMs,
+    structuredSchema: options.structuredSchema,
+  };
+}
+
 export const AI_TASK_CONFIG: Record<CETask, TaskRoutingConfig> = {
-  document_classification: {
-    task: 'document_classification',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 15000,
-  },
-  notice_extraction: {
-    task: 'notice_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  complaint_extraction: {
-    task: 'complaint_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  authority_extraction: {
-    task: 'authority_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  scope_extraction: {
-    task: 'scope_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  deadline_extraction: {
-    task: 'deadline_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 15000,
-  },
-  property_identity_reconciliation: {
-    task: 'property_identity_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 25000,
-  },
-  jurisdiction_identification: {
-    task: 'jurisdiction_identification',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  procedural_analysis: {
-    task: 'procedural_analysis',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  jurisdiction_research_synthesis: {
-    task: 'jurisdiction_research_synthesis',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  evidence_gap_analysis: {
-    task: 'evidence_gap_analysis',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  contradiction_analysis: {
-    task: 'contradiction_analysis',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  response_strategy: {
-    task: 'response_strategy',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  draft_generation: {
-    task: 'draft_generation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 45000,
-  },
-  draft_critique: {
-    task: 'draft_critique',
-    preferredProvider: 'claude',
-    preferredModel: undefined, // Use default for the critique provider
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  final_validation: {
-    task: 'final_validation',
-    preferredProvider: 'claude',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  // ── Workflow 2 — Correction Tasks ───────────────────────────────────────
-  correction_issue_extraction: {
-    task: 'correction_issue_extraction',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 25000,
-  },
-  recipient_reconciliation: {
-    task: 'recipient_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 25000,
-  },
-  property_reconciliation: {
-    task: 'property_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 25000,
-  },
-  case_identifier_reconciliation: {
-    task: 'case_identifier_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  scope_reconciliation: {
-    task: 'scope_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  deadline_reconciliation: {
-    task: 'deadline_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
-  authority_reconciliation: {
-    task: 'authority_reconciliation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  correction_strategy: {
-    task: 'correction_strategy',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: true,
-    independentReviewProvider: 'claude',
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  correction_draft_generation: {
-    task: 'correction_draft_generation',
-    preferredProvider: 'gemini',
-    fallbackProviders: ['claude'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 45000,
-  },
-  correction_draft_critique: {
-    task: 'correction_draft_critique',
-    preferredProvider: 'claude',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 30000,
-  },
-  correction_final_validation: {
-    task: 'correction_final_validation',
-    preferredProvider: 'claude',
-    fallbackProviders: ['openai'],
-    requiresIndependentReview: false,
-    maxRetries: 2,
-    timeoutMs: 20000,
-  },
+  document_classification: claudeRoute('document_classification', { requiresIndependentReview: false, timeoutMs: 15000 }),
+  notice_extraction: claudeRoute('notice_extraction', { requiresIndependentReview: false, timeoutMs: 30000 }),
+  complaint_extraction: claudeRoute('complaint_extraction', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  authority_extraction: claudeRoute('authority_extraction', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  scope_extraction: claudeRoute('scope_extraction', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  deadline_extraction: claudeRoute('deadline_extraction', { requiresIndependentReview: false, timeoutMs: 15000 }),
+  property_identity_reconciliation: claudeRoute('property_identity_reconciliation', { requiresIndependentReview: false, timeoutMs: 25000 }),
+  jurisdiction_identification: claudeRoute('jurisdiction_identification', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  procedural_analysis: claudeRoute('procedural_analysis', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  jurisdiction_research_synthesis: claudeRoute('jurisdiction_research_synthesis', { requiresIndependentReview: false, timeoutMs: 30000 }),
+  evidence_gap_analysis: claudeRoute('evidence_gap_analysis', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  contradiction_analysis: claudeRoute('contradiction_analysis', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  response_strategy: claudeRoute('response_strategy', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  draft_generation: claudeRoute('draft_generation', { requiresIndependentReview: false, timeoutMs: 45000 }),
+  draft_critique: claudeRoute('draft_critique', { requiresIndependentReview: false, timeoutMs: 30000 }),
+  final_validation: claudeRoute('final_validation', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  correction_issue_extraction: claudeRoute('correction_issue_extraction', { requiresIndependentReview: false, timeoutMs: 25000 }),
+  recipient_reconciliation: claudeRoute('recipient_reconciliation', { requiresIndependentReview: true, timeoutMs: 25000 }),
+  property_reconciliation: claudeRoute('property_reconciliation', { requiresIndependentReview: false, timeoutMs: 25000 }),
+  case_identifier_reconciliation: claudeRoute('case_identifier_reconciliation', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  scope_reconciliation: claudeRoute('scope_reconciliation', { requiresIndependentReview: false, timeoutMs: 20000 }),
+  deadline_reconciliation: claudeRoute('deadline_reconciliation', { requiresIndependentReview: true, timeoutMs: 20000 }),
+  authority_reconciliation: claudeRoute('authority_reconciliation', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  correction_strategy: claudeRoute('correction_strategy', { requiresIndependentReview: true, timeoutMs: 30000 }),
+  correction_draft_generation: claudeRoute('correction_draft_generation', { requiresIndependentReview: false, timeoutMs: 45000 }),
+  correction_draft_critique: claudeRoute('correction_draft_critique', { requiresIndependentReview: false, timeoutMs: 30000 }),
+  correction_final_validation: claudeRoute('correction_final_validation', { requiresIndependentReview: false, timeoutMs: 20000 }),
 };
 
-// ─── Provider Adapter Interface ──────────────────────────────────────────────
+/** Provider order for a task. Unknown is never returned. */
+export function getProviderAttemptOrder(task: CETask): Exclude<AIProvider, 'unknown'>[] {
+  const route = AI_TASK_CONFIG[task];
+  const order = [route.preferredProvider, ...route.fallbackProviders]
+    .filter((provider): provider is Exclude<AIProvider, 'unknown'> => provider !== 'unknown');
+  return [...new Set(order)];
+}
 
 export interface ProviderAdapter {
   name: AIProvider;
   invoke(prompt: string, model: string): Promise<{ output: string; confidence: number; latencyMs: number }>;
   isAvailable(): boolean;
 }
-
-// ─── AI Invocation Record ─────────────────────────────────────────────────────
 
 export interface AIInvocation {
   caseId?: string;
@@ -380,10 +195,7 @@ export interface AIInvocation {
   correlationId?: string;
 }
 
-export function createInvocation(
-  task: CETask,
-  caseId?: string,
-): AIInvocation {
+export function createInvocation(task: CETask, caseId?: string): AIInvocation {
   const routing = AI_TASK_CONFIG[task];
   const configs = getProviderConfigs();
   const model = routing.preferredModel || configs[routing.preferredProvider].defaultModel;
@@ -392,7 +204,7 @@ export function createInvocation(
     task,
     provider: routing.preferredProvider,
     model,
-    promptVersion: '1.0',
+    promptVersion: '1.1',
     workflowVersion: '1.0.0',
     timestamp: new Date().toISOString(),
     inputProvenance: 'user-upload',
@@ -400,18 +212,11 @@ export function createInvocation(
   };
 }
 
-// ─── Circuit Breaker ──────────────────────────────────────────────────────────
-
 export class CircuitBreaker {
   private failures = new Map<AIProvider, number>();
   private lastFailure = new Map<AIProvider, number>();
-  private threshold: number;
-  private resetMs: number;
 
-  constructor(threshold = 3, resetMs = 60000) {
-    this.threshold = threshold;
-    this.resetMs = resetMs;
-  }
+  constructor(private threshold = 3, private resetMs = 60000) {}
 
   recordFailure(provider: AIProvider): void {
     this.failures.set(provider, (this.failures.get(provider) ?? 0) + 1);
@@ -428,8 +233,7 @@ export class CircuitBreaker {
     if (failures < this.threshold) return true;
     const lastFail = this.lastFailure.get(provider) ?? 0;
     if (Date.now() - lastFail > this.resetMs) {
-      this.failures.delete(provider);
-      this.lastFailure.delete(provider);
+      this.recordSuccess(provider);
       return true;
     }
     return false;
@@ -437,7 +241,7 @@ export class CircuitBreaker {
 
   getState(): Record<string, { failures: number; open: boolean }> {
     const state: Record<string, { failures: number; open: boolean }> = {};
-    for (const provider of ['gemini', 'openai', 'claude'] as AIProvider[]) {
+    for (const provider of ['claude', 'openai', 'gemini'] as AIProvider[]) {
       state[provider] = {
         failures: this.failures.get(provider) ?? 0,
         open: !this.isAvailable(provider),
@@ -447,20 +251,13 @@ export class CircuitBreaker {
   }
 }
 
-// ─── Timeout Detection ────────────────────────────────────────────────────────
-
 export function isTimeout(error: unknown): boolean {
-  if (error instanceof Error) {
-    return (
-      error.message.toLowerCase().includes('timeout') ||
-      error.message.toLowerCase().includes('timed out') ||
-      error.name === 'AbortError'
-    );
-  }
-  return false;
+  return error instanceof Error && (
+    error.message.toLowerCase().includes('timeout') ||
+    error.message.toLowerCase().includes('timed out') ||
+    error.name === 'AbortError'
+  );
 }
-
-// ─── Output Validation Gate ──────────────────────────────────────────────────
 
 export function validateAIOutput(
   output: string | undefined,
@@ -471,23 +268,14 @@ export function validateAIOutput(
     return { valid: false, reason: 'Empty output', validationState: 'failed' };
   }
 
-  // Reject hedging language in high-stakes tasks
-  const highStakes: CETask[] = ['procedural_analysis', 'authority_extraction', 'final_validation', 'contradiction_analysis'];
-  if (highStakes.includes(task)) {
-    // Allow hedging in analysis tasks (they SHOULD be cautious) but reject it in validation
-    if (task === 'final_validation' && /i think|i believe|maybe|perhaps|possibly/i.test(output)) {
-      return { valid: false, reason: 'Hedging language in validation output', validationState: 'rejected' };
-    }
+  const finalValidationTasks: CETask[] = ['final_validation', 'correction_final_validation'];
+  if (finalValidationTasks.includes(task) && /i think|i believe|maybe|perhaps|possibly/i.test(output)) {
+    return { valid: false, reason: 'Hedging language in validation output', validationState: 'rejected' };
   }
 
-  if (minConfidence !== undefined) {
-    // In production, this would check actual confidence score
-  }
-
+  void minConfidence;
   return { valid: true, validationState: 'validated' };
 }
-
-// ─── Model Router ─────────────────────────────────────────────────────────────
 
 export interface ModelRouterOptions {
   enableFallback: boolean;
@@ -504,8 +292,6 @@ export const DEFAULT_ROUTER_OPTIONS: ModelRouterOptions = {
   timeoutMs: 30000,
   enableCache: false,
 };
-
-// ─── Multi-Model Invocation Result ────────────────────────────────────────────
 
 export interface MultiModelResult {
   primary: AIInvocation & { output: string; confidence: number };
@@ -534,17 +320,10 @@ export function compareResults(
   task: CETask,
   sourceEvidence: string,
 ): { agreement: 'AGREEMENT' | 'DISAGREEMENT'; disagreement?: ModelDisagreement } {
-  // Simple semantic comparison — in production this would use embeddings or structured comparison
   const a = primary.output.trim().toLowerCase();
   const b = review.output.trim().toLowerCase();
-  
-  // For structured outputs, compare key fields
-  // This is a simplified heuristic; real implementation would parse JSON schemas
   const similarity = computeSimilarity(a, b);
-  
-  if (similarity > 0.85) {
-    return { agreement: 'AGREEMENT' };
-  }
+  if (similarity > 0.85) return { agreement: 'AGREEMENT' };
 
   return {
     agreement: 'DISAGREEMENT',
@@ -565,10 +344,9 @@ export function compareResults(
 }
 
 function computeSimilarity(a: string, b: string): number {
-  // Jaccard similarity on word sets
   const wordsA = new Set(a.split(/\s+/));
   const wordsB = new Set(b.split(/\s+/));
-  const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+  const intersection = [...wordsA].filter((word) => wordsB.has(word)).length;
   const union = new Set([...wordsA, ...wordsB]).size;
   return union > 0 ? intersection / union : 0;
 }
