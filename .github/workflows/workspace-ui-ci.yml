@@ -65,6 +65,8 @@ jobs:
         run: pnpm --filter ./apps/mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts
       - name: Reject thin or unverified indexable workflow pages
         run: pnpm --filter ./apps/mailmypdf seo:authority:validate
+      - name: Verify secure workflow payment-to-mailing invariants
+        run: node --test apps/mailmypdf/tests/secure-workflow-fulfillment.test.mjs
 
   build-core:
     name: Build mailmypdf core
