@@ -39,6 +39,9 @@ export async function uploadNoticeDocument(file: File, workflowId: NoticeWorkflo
 export function attachNoticeDocument(caseId: string, documentId: string, role: "subject_notice" | "evidence", evidenceKind?: string) {
   return request<{ documents: CaseDocument[] }>(`/api/v2/cases/${caseId}/documents`, { method: "POST", body: JSON.stringify({ document_id: documentId, role, evidence_kind: evidenceKind }) }).then((r) => r.documents);
 }
+export function detachNoticeDocument(caseId: string, documentId: string) {
+  return request<{ documents: CaseDocument[] }>(`/api/v2/cases/${caseId}/documents/${documentId}`, { method: "DELETE" }).then((r) => r.documents);
+}
 export function saveNoticeInput(caseId: string, input: unknown) { return request<{ version: number }>(`/api/v2/cases/${caseId}/input`, { method: "POST", body: JSON.stringify(input) }); }
 export function loadNoticeInput(caseId: string) { return request<{ input: { version: number; input: Record<string, unknown> } | null }>(`/api/v2/cases/${caseId}/input`); }
 export function analyzeNotice(caseId: string) { return request<{ analysis: { version: number; result: Record<string, unknown> } }>(`/api/v2/cases/${caseId}/analyze`, { method: "POST" }); }
