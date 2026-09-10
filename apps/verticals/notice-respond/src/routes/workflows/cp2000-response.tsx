@@ -290,7 +290,7 @@ function CP2000Response() {
     } finally {
       update((s) => setProcessing(s, false));
     }
-  }, [update, emitAudit, transitionState]);
+  }, [accessToken, update, emitAudit, transitionState]);
 
   const handlePasteText = useCallback((text: string) => {
     const contentClassification = classifyContent(text);
@@ -476,6 +476,7 @@ function CP2000Response() {
           workflowId: definition.id,
           mailingMethod: state.mailing.method,
           validationPassed: state.draftValidation?.passed ?? false,
+          reviewChecks: state.reviewChecks,
           evidenceItems: evidenceAttachments.map((e) => ({ id: e.id, fileId: e.id, status: e.status })),
         }),
       });
@@ -504,7 +505,7 @@ function CP2000Response() {
     } finally {
       setIsApproving(false);
     }
-  }, [caseId, state.draft, state.mailing, state.draftValidation, versionedDraft, definition.id, evidenceAttachments, emitAudit, transitionState]);
+  }, [accessToken, caseId, state.draft, state.mailing, state.draftValidation, state.reviewChecks, versionedDraft, definition.id, evidenceAttachments, emitAudit, transitionState]);
 
   // ── Evidence upload ───────────────────────────────────────
   const handleEvidenceUpload = useCallback(async (file: File, requirementId?: string) => {
@@ -558,7 +559,7 @@ function CP2000Response() {
     } catch (err) {
       setExtractionError(err instanceof Error ? err.message : "Evidence upload failed.");
     }
-  }, [caseId, emitAudit]);
+  }, [accessToken, caseId, emitAudit]);
 
   const handleEvidenceRemove = useCallback(async (evidenceId: string) => {
     if (!caseId) return;
