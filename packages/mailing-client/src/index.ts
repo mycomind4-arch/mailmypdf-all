@@ -154,7 +154,7 @@ export async function uploadDocument(file: File): Promise<MailMyPDFDocument> {
   const form = new FormData();
   form.append("file", file, file.name);
   const result = await request<{ document?: MailMyPDFDocument } | MailMyPDFDocument>(
-    "/v1/documents",
+    "/api/v1/documents",
     { method: "POST", body: form },
   );
   // Normalize response shape: some deployments return { document: ... },
@@ -191,7 +191,7 @@ export async function uploadPacket(input: {
   }
 
   const result = await request<{ document?: MailMyPDFDocument } | MailMyPDFDocument>(
-    "/v1/documents",
+    "/api/v1/documents",
     { method: "POST", body: form },
   );
   if ("document" in result && result.document) return result.document;
@@ -207,7 +207,7 @@ export async function uploadDocumentBase64(input: {
   mime_type?: string;
 }): Promise<MailMyPDFDocument> {
   const result = await request<{ document?: MailMyPDFDocument } | MailMyPDFDocument>(
-    "/v1/documents",
+    "/api/v1/documents",
     { method: "POST", body: JSON.stringify(input) },
   );
   if ("document" in result && result.document) return result.document;
@@ -220,7 +220,7 @@ export async function uploadDocumentBase64(input: {
  * for maximum compatibility across MailMyPDF API versions.
  */
 export async function createCommunication(input: CreateCommunicationInput): Promise<MailMyPDFCommunication> {
-  return request<MailMyPDFCommunication>("/v1/communications", {
+  return request<MailMyPDFCommunication>("/api/v1/communications", {
     method: "POST",
     headers: { "Idempotency-Key": input.idempotency_key },
     body: JSON.stringify(input),
@@ -231,7 +231,7 @@ export async function createCommunication(input: CreateCommunicationInput): Prom
  * Retrieve the status of a communication by id.
  */
 export async function getCommunication(id: string): Promise<MailMyPDFCommunication> {
-  return request<MailMyPDFCommunication>(`/v1/communications/${encodeURIComponent(id)}`);
+  return request<MailMyPDFCommunication>(`/api/v1/communications/${encodeURIComponent(id)}`);
 }
 
 // ── Factory ─────────────────────────────────────────────────────────────────
