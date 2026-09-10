@@ -319,7 +319,12 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
           .eq("id", order.workflow_case_id)
           .eq("status", "approved");
         if (caseUpdateError) {
-          throw new Error(`Order submitted but workflow case could not be synchronized: ${caseUpdateError.message}`);
+          await supabaseAdmin.from("order_events").insert({
+            order_id: orderId,
+            type: "workflow.case_sync_failed",
+            label: "Mailing submitted; workflow case status needs reconciliation",
+            metadata: { error: caseUpdateError.message, workflow_case_id: order.workflow_case_id },
+          });
         }
       }
 
