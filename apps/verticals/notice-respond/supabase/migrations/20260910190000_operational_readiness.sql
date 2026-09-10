@@ -61,4 +61,8 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('notice-evidence', 'notice-evidence', false)
 ON CONFLICT (id) DO UPDATE SET public = false;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('notice-source-documents', 'notice-source-documents', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
+
 COMMIT;
