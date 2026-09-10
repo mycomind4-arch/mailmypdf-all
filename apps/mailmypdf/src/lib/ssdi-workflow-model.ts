@@ -104,9 +104,12 @@ export function includedDocuments(documents: CaseDocument[]): CaseDocument[] {
 export function packetBlockers(documents: CaseDocument[]): string[] {
   const included = includedDocuments(documents);
   const blockers: string[] = [];
-  if (!included.some((document) => document.role === "subject_notice"))
+  const subjectNotice = documents.find((document) => document.role === "subject_notice");
+  if (!subjectNotice)
     blockers.push("Add the SSDI denial notice.");
-  const pending = included.filter((document) => !document.usable);
+  else if (!subjectNotice.usable)
+    blockers.push("The source notice is still awaiting a security scan.");
+  const pending = included.filter((document) => document.role === "evidence" && !document.usable);
   if (pending.length)
     blockers.push(
       `${pending.length} included document${pending.length === 1 ? " is" : "s are"} still awaiting a security scan.`,
