@@ -62,7 +62,7 @@ create trigger case_documents_identity_immutable
 create or replace function public.case_packet_documents(p_case_id uuid)
 returns table (
   document_id uuid, role text, evidence_kind text, page_count integer,
-  position integer, sha256 text, storage_path text, safe_filename text, mime_type text
+  "position" integer, sha256 text, storage_path text, safe_filename text, mime_type text
 )
 language plpgsql security definer set search_path = public
 as $$
