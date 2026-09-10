@@ -5,7 +5,7 @@
  * configuration, and structured-output metadata needed for a production-grade
  * multi-provider intelligence layer.
  *
- * Gemini is the default provider, but the domain is provider-neutral.
+ * Claude/Anthropic is the default provider, while the domain remains provider-neutral.
  */
 
 // ── Provider Identity ───────────────────────────────────────────────────
@@ -13,49 +13,29 @@
 export type LLMProviderId = "gemini" | "openai" | "anthropic";
 
 export const ALL_PROVIDERS: readonly LLMProviderId[] = [
-  "gemini",
-  "openai",
   "anthropic",
+  "openai",
+  "gemini",
 ] as const;
 
-export const DEFAULT_PROVIDER: LLMProviderId = "gemini";
+export const DEFAULT_PROVIDER: LLMProviderId = "anthropic";
 
 // ── Extended Provenance ──────────────────────────────────────────────────
 
-/**
- * Full provenance record for an LLM operation.
- *
- * Extends the base LLMProvenance with prompt versioning, output hashing,
- * operation context, and fallback chain tracking.
- */
 export interface LLMFullProvenance {
-  /** Provider identifier: "gemini", "openai", "anthropic" */
   provider: LLMProviderId;
-  /** Model identifier used for generation */
   model: string;
-  /** ISO-8601 generation timestamp */
   generatedAt: string;
-  /** SHA-256 hash of the canonical input that produced this artifact */
   inputHash: string;
-  /** SHA-256 hash of the LLM output content */
   outputHash: string;
-  /** Versioned prompt identifier for reproducibility */
   promptVersion: string;
-  /** Operation type */
   operation: LLMOperation;
-  /** Workflow ID that triggered this operation */
   workflowId?: string;
-  /** Matter ID that triggered this operation */
   matterId?: string;
-  /** Whether a fallback provider was used */
   fallbackUsed: boolean;
-  /** Chain of providers attempted (in order) */
   fallbackChain: LLMProviderId[];
-  /** Time taken in milliseconds */
   durationMs?: number;
-  /** Temperature used */
   temperature?: number;
-  /** Max tokens configured */
   maxTokens?: number;
 }
 
@@ -81,9 +61,7 @@ export type IntelligenceMode =
 
 export const DEFAULT_INTELLIGENCE_MODE: IntelligenceMode = "standard";
 
-/**
- * Maps intelligence modes to provider strategies.
- */
+/** Maps intelligence modes to Claude-first provider strategies. */
 export const MODE_STRATEGIES: Record<
   IntelligenceMode,
   {
@@ -93,22 +71,22 @@ export const MODE_STRATEGIES: Record<
   }
 > = {
   standard: {
-    providers: ["gemini"],
+    providers: ["anthropic"],
     consensus: false,
     fallback: false,
   },
   enhanced: {
-    providers: ["gemini"],
+    providers: ["anthropic"],
     consensus: false,
     fallback: true,
   },
   consensus: {
-    providers: ["gemini", "openai"],
+    providers: ["anthropic", "openai"],
     consensus: true,
     fallback: true,
   },
   "maximum-assurance": {
-    providers: ["gemini", "openai", "anthropic"],
+    providers: ["anthropic", "openai", "gemini"],
     consensus: true,
     fallback: true,
   },
@@ -116,11 +94,6 @@ export const MODE_STRATEGIES: Record<
 
 // ── Operation-level Cost Policies ──────────────────────────────────────
 
-/**
- * Default operation-to-mode mapping.
- * Controls which intelligence mode is used for each operation type,
- * preventing every workflow from fanning out to multiple providers.
- */
 export const DEFAULT_OPERATION_POLICIES: Record<LLMOperation, IntelligenceMode> = {
   classify: "standard",
   extract: "standard",
@@ -141,25 +114,15 @@ export interface ProviderConfig {
 }
 
 export interface LLMRuntimeConfig {
-  /** Default provider (must be configured) */
   defaultProvider: LLMProviderId;
-  /** Intelligence mode */
   mode: IntelligenceMode;
-  /** Provider configurations (only configured providers are included) */
   providers: Partial<Record<LLMProviderId, ProviderConfig>>;
-  /** Operation-level mode overrides */
   operationPolicies: Record<LLMOperation, IntelligenceMode>;
-  /** Whether fallback is enabled globally */
   fallbackEnabled: boolean;
-  /** Max retries per provider before fallback */
   maxRetries: number;
-  /** Default timeout in ms */
   defaultTimeoutMs: number;
-  /** Default temperature */
   defaultTemperature: number;
-  /** Default max tokens */
   defaultMaxTokens: number;
-  /** Prompt version for reproducibility */
   promptVersion: string;
 }
 
