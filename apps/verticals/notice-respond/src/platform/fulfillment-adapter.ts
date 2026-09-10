@@ -18,12 +18,126 @@ import type {
   LegalReference,
 } from "@mailmypdf/payment-fulfillment";
 import { handleStripeWebhookEvent, fulfillFromBrowserReturn, fulfillMailingIntent, verifyIntegrity, hashDraft, hashRecipient, sha256 } from "@mailmypdf/payment-fulfillment";
+import {
+  deserializeCase,
+  serializeCase,
+  toCaseSummary,
+  updateCase,
+  type CaseStatus,
+} from "@/domain/notice";
+import type { WorkflowState } from "@/domain/workflow-runtime";
 
 function serviceSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRole) throw new Error("Supabase server configuration is incomplete.");
   return createClient(url, serviceRole, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+function projectCaseStatus(
+  current: CaseStatus,
+  intentStatus: MailingIntent["status"],
+): CaseStatus {
+  if (intentStatus === "delivered") return "delivered";
+  if (intentStatus === "submitted" || intentStatus === "tracking") return "mailed";
+  if (intentStatus === "paid" && !["mailed", "delivered", "closed", "archived"].includes(current)) {
+    return "ready";
+  }
+  return current;
+}
+
+function projectWorkflowMailingStatus(
+  intentStatus: MailingIntent["status"],
+): NonNullable<WorkflowState["mailing"]>["status"] {
+  switch (intentStatus) {
+    case "paid": return "paid";
+    case "submitted": return "submitted";
+    case "tracking": return "in_transit";
+    case "delivered": return "delivered";
+    case "failed":
+    case "expired":
+    case "refunded":
+      return "failed";
+    default:
+      return "draft";
+  }
+}
+
+async function syncCaseFromMailingIntent(
+  supabase: ReturnType<typeof serviceSupabase>,
+  intentId: string,
+): Promise<void> {
+  const { data: intentRow, error: intentError } = await supabase
+    .from("mailing_intents")
+    .select("case_id, owner_id, status, mailing_method, recipient, provider_order_id, tracking_number")
+    .eq("id", intentId)
+    .maybeSingle();
+
+  if (intentError || !intentRow?.case_id || !intentRow.owner_id) return;
+
+  const { data: caseRow, error: caseError } = await supabase
+    .from("cases")
+    .select("data")
+    .eq("id", intentRow.case_id)
+    .eq("owner_id", intentRow.owner_id)
+    .maybeSingle();
+
+  if (caseError || !caseRow?.data) return;
+
+  const current = deserializeCase(caseRow.data as Record<string, unknown>);
+  const intentStatus = intentRow.status as MailingIntent["status"];
+  const projectedCaseStatus = projectCaseStatus(current.status, intentStatus);
+  const existingWorkflowState = current.workflowState as WorkflowState | undefined;
+
+  const projectedWorkflowState = existingWorkflowState
+    ? {
+        ...existingWorkflowState,
+        approved: ["approved", "paid", "submitted", "tracking", "delivered"].includes(intentStatus),
+        phase: ["submitted", "tracking", "delivered"].includes(intentStatus)
+          ? "submitted"
+          : existingWorkflowState.phase,
+        mailing: existingWorkflowState.mailing
+          ? {
+              ...existingWorkflowState.mailing,
+              method: intentRow.mailing_method ?? existingWorkflowState.mailing.method,
+              recipient: intentRow.recipient ?? existingWorkflowState.mailing.recipient,
+              status: projectWorkflowMailingStatus(intentStatus),
+              providerOrderId: intentRow.provider_order_id ?? existingWorkflowState.mailing.providerOrderId,
+              trackingNumber: intentRow.tracking_number ?? existingWorkflowState.mailing.trackingNumber,
+            }
+          : existingWorkflowState.mailing,
+        lastUpdated: new Date().toISOString(),
+      }
+    : undefined;
+
+  const updated = updateCase(current, {
+    status: projectedCaseStatus,
+    workflowState: projectedWorkflowState,
+    mailingStatus: {
+      status: intentStatus,
+      providerOrderId: intentRow.provider_order_id ?? null,
+      trackingNumber: intentRow.tracking_number ?? null,
+      updatedAt: new Date().toISOString(),
+    },
+    mailingRecipient: intentRow.recipient ?? current.mailingRecipient,
+    mailingMethod: intentRow.mailing_method ?? current.mailingMethod,
+    providerOrderId: intentRow.provider_order_id ?? current.providerOrderId,
+  });
+
+  const summary = toCaseSummary(updated);
+  await supabase
+    .from("cases")
+    .update({
+      status: updated.status,
+      readiness_score: updated.readinessScore,
+      health_status: updated.healthStatus,
+      has_draft: summary.hasDraft,
+      has_mailing: summary.hasMailing,
+      updated_at: updated.updatedAt,
+      data: serializeCase(updated),
+    })
+    .eq("id", intentRow.case_id)
+    .eq("owner_id", intentRow.owner_id);
 }
 
 function rowToIntent(row: Record<string, unknown>): MailingIntent {
@@ -76,7 +190,16 @@ export function createSupabaseIntentStore(): MailingIntentStore {
       if (update.provider_order_id !== undefined) updateData.provider_order_id = update.provider_order_id;
       if (update.tracking_number !== undefined) updateData.tracking_number = update.tracking_number;
       if (update.error_message !== undefined) updateData.error_message = update.error_message;
-      await supabase.from("mailing_intents").update(updateData).eq("id", intentId);
+      const { error } = await supabase
+        .from("mailing_intents")
+        .update(updateData)
+        .eq("id", intentId);
+      if (error) throw new Error(`Unable to persist mailing intent status: ${error.message}`);
+
+      // The mailing intent is the fulfillment authority. Case synchronization
+      // is a projection for resume/UI and must never create a duplicate mailing
+      // if it temporarily fails after provider submission.
+      await syncCaseFromMailingIntent(supabase, intentId).catch(() => undefined);
     },
   };
 }
