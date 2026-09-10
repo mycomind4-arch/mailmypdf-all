@@ -16,6 +16,7 @@ export interface MailingFunnelProps {
   draft: string;
   workflowId: string;
   workflowTitle: string;
+  approvalId?: string | null;
   recipient?: MailingRecipient | null;
   extractionRef?: string | null;
   taxYear?: string | null;
@@ -47,6 +48,7 @@ export function MailingFunnel({
   draft,
   workflowId,
   workflowTitle,
+  approvalId,
   recipient,
   extractionRef,
   taxYear,
@@ -146,6 +148,11 @@ export function MailingFunnel({
       setPhase("error");
       return;
     }
+    if (!approvalId) {
+      setError("Approve the exact draft before starting checkout.");
+      setPhase("error");
+      return;
+    }
     setPhase("submitting");
     setError(null);
     notifyParent({ phase: "submitting" });
@@ -159,11 +166,10 @@ export function MailingFunnel({
           Accept: "application/json",
         },
         body: JSON.stringify({
-          draft,
+          approvalId,
           workflowId,
           workflowTitle,
           mailingMethod: method,
-          recipient: mailRecipient,
           matterReference: extractionRef ?? workflowId,
           matterType: "notice-respond",
         }),
@@ -177,7 +183,7 @@ export function MailingFunnel({
       setPhase("error");
       notifyParent({ phase: "error", error: message });
     }
-  }, [accessToken, user, draft, workflowId, workflowTitle, method, mailRecipient, extractionRef, notifyParent]);
+  }, [accessToken, user, approvalId, workflowId, workflowTitle, method, extractionRef, notifyParent]);
 
   const selectedOption = mailOptions.find((option) => option.id === method) ?? mailOptions[0];
 
