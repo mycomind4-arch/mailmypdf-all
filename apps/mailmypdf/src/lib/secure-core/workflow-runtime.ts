@@ -142,11 +142,13 @@ export function assertDraftReady(
   analysis: NoticeAnalysis,
   documents: readonly DraftDocument[],
 ): void {
-  const notice = documents.find((document) => document.role === "subject_notice" && document.included);
+  const notice = documents.find((document) => document.role === "subject_notice");
   if (!notice || notice.document_id !== analysisDocumentId)
-    throw new CaseError("The notice has changed. Include the current notice and analyze it before drafting.");
-  if (documents.some((document) => document.included && !document.usable))
-    throw new CaseError("All included documents must pass security checks before drafting.");
+    throw new CaseError("The notice has changed. Analyze the current notice before drafting.");
+  if (!notice.usable)
+    throw new CaseError("The source notice must pass security checks before drafting.");
+  if (documents.some((document) => document.role === "evidence" && document.included && !document.usable))
+    throw new CaseError("All included supporting documents must pass security checks before drafting.");
   if (analysis.promptInjectionObserved)
     throw new CaseError("The notice analysis reported embedded instructions. Review the notice before generating a draft.");
 }
