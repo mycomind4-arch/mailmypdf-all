@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS cases (
   id UUID PRIMARY KEY,
   owner_id TEXT NOT NULL,
+  workflow_id TEXT NOT NULL DEFAULT 'analyze',
   status TEXT NOT NULL DEFAULT 'intake',
   notice_type TEXT DEFAULT 'other',
   agency TEXT,
@@ -19,6 +20,8 @@ CREATE TABLE IF NOT EXISTS cases (
   updated_at TIMESTAMPTZ DEFAULT now(),
   data JSONB NOT NULL
 );
+
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS workflow_id TEXT NOT NULL DEFAULT 'analyze';
 
 CREATE INDEX IF NOT EXISTS cases_owner_id_idx ON cases(owner_id);
 CREATE INDEX IF NOT EXISTS cases_status_idx ON cases(status);
@@ -49,8 +52,11 @@ CREATE TABLE IF NOT EXISTS mailing_intents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id TEXT NOT NULL,
   workflow_id TEXT NOT NULL,
+  case_id TEXT,
   stripe_session_id TEXT UNIQUE,
   stripe_payment_intent_id TEXT,
+  stripe_price_cents INTEGER,
+  quote_snapshot TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   mailing_method TEXT NOT NULL,
   draft TEXT NOT NULL,
@@ -164,6 +170,9 @@ DROP POLICY IF EXISTS approvals_insert_own ON approvals;
 CREATE POLICY approvals_insert_own ON approvals FOR INSERT WITH CHECK (auth.uid()::text = owner_id);
 
 -- Add approval reference to mailing_intents
+ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS case_id TEXT;
+ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS stripe_price_cents INTEGER;
+ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS quote_snapshot TEXT;
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approval_id UUID REFERENCES approvals(id);
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_draft_hash TEXT;
 ALTER TABLE mailing_intents ADD COLUMN IF NOT EXISTS approved_recipient_hash TEXT;
