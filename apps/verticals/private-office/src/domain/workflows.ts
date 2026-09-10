@@ -1,4 +1,4 @@
-export type WorkflowId = "contractor-dispute" | "property-insurance-claim" | "bank-wire-dispute" | "trust-beneficiary-notice" | "security-deposit-dispute";
+export type WorkflowId = "contractor-dispute" | "property-insurance-claim" | "bank-wire-dispute" | "trust-beneficiary-notice" | "security-deposit-dispute" | "debt-validation-dispute";
 
 export type WorkflowStep =
   | "intro"
@@ -113,6 +113,15 @@ const definitions: Array<
       "Document a security deposit dispute — non-return, partial return, unauthorized deductions, or disputed damage charges — with lease evidence, move-in/move-out condition documentation, correspondence, and professional correspondence to the landlord or property manager.",
     disclaimer:
       "Private Office provides document preparation, evidence organization, and mailing assistance. It is not a law firm, landlord-tenant court, housing authority, or government agency and does not provide legal advice, determine the lawful amount of a deposit, or guarantee any outcome including deposit return.",
+    lifecycle: "gold",
+  },
+  {
+    id: "debt-validation-dispute",
+    title: "Debt Validation Dispute",
+    description:
+      "Document a debt validation dispute — disputed debt, request for validation, unauthorized collection, incorrect amount, wrong party, or time-barred debt — with collection notices, credit records, correspondence, and professional correspondence to the debt collector.",
+    disclaimer:
+      "Private Office provides document preparation, evidence organization, and mailing assistance. It is not a law firm, debt collector, credit bureau, regulator, or government agency and does not provide legal advice, determine whether a debt is legally valid or time-barred, or guarantee any outcome including debt dismissal or removal from credit reports.",
     lifecycle: "gold",
   },
 ];

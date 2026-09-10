@@ -55,7 +55,6 @@ export const workflowProfiles: Record<WorkflowId, WorkflowProfile> = {
       "contractor name",
       "agreement reference",
       "dispute description",
-
     ],
     evidenceRequirements: [
       "contract or written agreement",
@@ -301,6 +300,60 @@ export const workflowProfiles: Record<WorkflowId, WorkflowProfile> = {
     pricing: {
       preparationFee: 39.99,
       includedResponsePages: 4,
+      responsePagePrice: 0,
+      supportingPagePrice: 0,
+      standardMail: 4.99,
+      certifiedMail: 12.99,
+      certifiedReturnReceipt: 18.99,
+      registeredMail: 24.99,
+    },
+  },
+  "debt-validation-dispute": {
+    id: "debt-validation-dispute",
+    slug: "debt-validation-dispute",
+    family: "Financial",
+    primaryKeyword: "debt validation dispute letter",
+    supportingKeywords: [
+      "debt validation letter",
+      "debt collection dispute letter",
+      "request for debt verification",
+      "dispute collection account letter",
+      "debt collector validation request",
+      "collection notice dispute",
+    ],
+    searchIntent: "commercial",
+    problem:
+      "A consumer received collection correspondence for a debt they dispute or do not fully recognize and needs to document the collector's claim, the disputed facts, the relevant dates, and the records supporting a request for verification.",
+    outcome:
+      "Create documented debt validation correspondence identifying the collector, the account or reference number, the alleged amount, the original creditor when known, the basis for the dispute, the evidence, the chronology, and the requested verification or correction.",
+    recipientRole: "debt collector",
+    requiredFacts: [
+      "debt collector name",
+      "consumer name",
+      "account or reference number",
+      "alleged debt amount",
+      "original creditor name when known",
+      "dispute description",
+      "collector communication date",
+    ],
+    evidenceRequirements: [
+      "collection notice or validation notice",
+      "credit report entry when relevant",
+      "payment records or receipts when available",
+      "prior correspondence with the collector",
+      "original account records when available",
+      "supporting communications or call logs",
+    ],
+    deadlinePolicy:
+      "Capture every date shown in the collector's notice and correspondence. Treat any deadline printed in the notice as a known date fact. Potential federal or state validation, limitation, or response periods must be tied to the actual communication and jurisdiction before they are stated as applicable. Do not infer that a debt is time-barred or that a legal deadline has expired from incomplete facts; surface the issue for verification and human review.",
+    objectivePrompt:
+      "What are you asking the collector to do — provide verification, correct identifying information or amount, explain the basis of the claim, stop relying on disputed information pending review, or provide another documented response?",
+    draftSubject: "Debt Validation Dispute Correspondence",
+    disclaimer:
+      "Private Office provides document preparation, evidence organization, and mailing assistance. It is not a law firm, debt collector, credit bureau, regulator, or government agency and does not provide legal advice, determine whether a debt is legally valid or time-barred, determine whether any law has been violated, or guarantee any outcome. You remain responsible for the facts and decisions in your matter.",
+    pricing: {
+      preparationFee: 39.99,
+      includedResponsePages: 6,
       responsePagePrice: 0,
       supportingPagePrice: 0,
       standardMail: 4.99,
