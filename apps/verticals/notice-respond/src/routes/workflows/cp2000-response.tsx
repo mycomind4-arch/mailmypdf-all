@@ -388,6 +388,18 @@ function CP2000Response() {
           fileSize: doc.fileSize,
           fileType: doc.mimeType,
           documentHash: doc.hash,
+          sourceDocumentId:
+            typeof payload.document?.documentId === "string"
+              ? payload.document.documentId
+              : undefined,
+          sourceStoragePath:
+            typeof payload.document?.storagePath === "string"
+              ? payload.document.storagePath
+              : undefined,
+          sourceUploadedAt:
+            typeof payload.document?.uploadedAt === "string"
+              ? payload.document.uploadedAt
+              : undefined,
           extractionMethod: doc.extractionMethod,
           pageCount: doc.pageCount,
         }),
