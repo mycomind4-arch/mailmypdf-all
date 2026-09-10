@@ -13,7 +13,9 @@ ALTER TABLE mailing_intents
   ADD COLUMN IF NOT EXISTS quote_snapshot TEXT,
   ADD COLUMN IF NOT EXISTS approval_id UUID,
   ADD COLUMN IF NOT EXISTS approved_draft_hash TEXT,
-  ADD COLUMN IF NOT EXISTS approved_recipient_hash TEXT;
+  ADD COLUMN IF NOT EXISTS approved_recipient_hash TEXT,
+  ADD COLUMN IF NOT EXISTS evidence_snapshot JSONB,
+  ADD COLUMN IF NOT EXISTS approved_evidence_hash TEXT;
 
 CREATE TABLE IF NOT EXISTS approvals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS approvals (
   workflow_id TEXT NOT NULL,
   draft_hash TEXT NOT NULL,
   recipient_hash TEXT NOT NULL,
+  evidence_hash TEXT NOT NULL DEFAULT '',
   draft TEXT NOT NULL,
   recipient JSONB NOT NULL,
   review_state JSONB NOT NULL,
@@ -29,6 +32,9 @@ CREATE TABLE IF NOT EXISTS approvals (
   revoked_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'active'
 );
+
+ALTER TABLE approvals
+  ADD COLUMN IF NOT EXISTS evidence_hash TEXT NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS approvals_owner_idx ON approvals(owner_id);
 CREATE INDEX IF NOT EXISTS approvals_case_idx ON approvals(case_id);
