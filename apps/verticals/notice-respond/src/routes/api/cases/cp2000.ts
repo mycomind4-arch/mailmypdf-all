@@ -157,7 +157,9 @@ export const Route = createFileRoute("/api/cases/cp2000")({
             noticeDate: extraction.noticeDate ?? undefined,
             noticeText: sanitizedText,
             facts: extraction.facts,
-            evidence: checklist.items,
+            // Requirement/checklist state is preserved in runtimeExecution.
+            // The canonical evidence array contains only actual uploaded files.
+            evidence: [],
             strategies: [strategy],
             runtimeExecution: {
               runtime: "canonical-factory",
