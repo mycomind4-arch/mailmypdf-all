@@ -289,7 +289,7 @@ async function markOrderPaid(
   // Verify metadata integrity: check the order exists and is in a draft state
   const { data: order, error: orderErr } = await supabaseAdmin
     .from("orders")
-    .select("id, status")
+    .select("id, status, stripe_session_id, price_cents, case_approval_id, approved_price_cents")
     .eq("id", orderId)
     .maybeSingle();
   if (orderErr || !order) {
@@ -301,6 +301,48 @@ async function markOrderPaid(
       externalId: eventId,
       message: `order not found — skipping`,
       level: "error",
+    });
+    return;
+  }
+
+  if (order.stripe_session_id && order.stripe_session_id !== session.id) {
+    log.error("checkout session does not match order", {
+      orderId,
+      expectedSessionId: order.stripe_session_id,
+      receivedSessionId: session.id,
+      eventId,
+    });
+    await supabaseAdmin.from("order_events").insert({
+      order_id: orderId,
+      type: "payment.session_mismatch",
+      label: "Payment session did not match the order",
+      metadata: { event_id: eventId, stripe_session_id: session.id },
+    });
+    return;
+  }
+
+  const expectedAmount = order.case_approval_id
+    ? (order.approved_price_cents ?? order.price_cents)
+    : order.price_cents;
+  if (
+    !Number.isSafeInteger(session.amount_total) ||
+    session.amount_total !== expectedAmount
+  ) {
+    log.error("checkout amount does not match order", {
+      orderId,
+      expectedAmount,
+      receivedAmount: session.amount_total,
+      eventId,
+    });
+    await supabaseAdmin.from("order_events").insert({
+      order_id: orderId,
+      type: "payment.amount_mismatch",
+      label: "Payment amount did not match the approved order price",
+      metadata: {
+        event_id: eventId,
+        expected_amount_cents: expectedAmount,
+        received_amount_cents: session.amount_total,
+      },
     });
     return;
   }
