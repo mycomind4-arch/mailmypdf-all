@@ -108,6 +108,66 @@ function wrapText(text: string, font: any, size: number, maxWidth: number): stri
 }
 
 /**
+ * Generates a printable PDF from an already-composed text document.
+ *
+ * This is used by the MailMyPDF API boundary when a trusted vertical submits
+ * a text draft. The stored/provided document is normalized to PDF before it
+ * can reach Lob, so raw text is never sent to the physical-mail provider.
+ */
+export async function generatePlainTextPdf(text: string): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.TimesRoman);
+  const safeText = normalizeForStandardPdfFont(text);
+  const sourceLines = safeText.replace(/\r\n?/g, "\n").split("\n");
+
+  let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let y = PAGE_HEIGHT - MARGIN;
+
+  const newPage = () => {
+    page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    y = PAGE_HEIGHT - MARGIN;
+  };
+
+  for (const sourceLine of sourceLines) {
+    const wrapped = wrapText(
+      sourceLine,
+      font,
+      FONT_SIZE,
+      PAGE_WIDTH - 2 * MARGIN,
+    );
+
+    for (const line of wrapped) {
+      if (y < MARGIN + LINE_HEIGHT) newPage();
+      page.drawText(line, {
+        x: MARGIN,
+        y,
+        size: FONT_SIZE,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      y -= LINE_HEIGHT;
+    }
+  }
+
+  return doc.save();
+}
+
+function normalizeForStandardPdfFont(text: string): string {
+  return text
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u2022/g, "*")
+    .replace(/\u00A0/g, " ")
+    // Standard PDF Times Roman uses WinAnsi. Preserve common Latin names and
+    // punctuation while refusing code points the embedded font cannot encode.
+    .replace(/[^\u0009\u000A\u000D\u0020-\u00FF]/g, "?");
+}
+
+/**
  * Estimates the page count of a generated letter.
  * Used for pricing before actual PDF generation.
  */
