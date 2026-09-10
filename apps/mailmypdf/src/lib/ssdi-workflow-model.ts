@@ -10,6 +10,13 @@ export const EVIDENCE_KINDS = [
   "work_history",
   "prior_decision",
   "correspondence",
+  "tax_return",
+  "information_return",
+  "broker_statement",
+  "bank_statement",
+  "corrected_tax_document",
+  "irs_transcript",
+  "payment_record",
   "other",
 ] as const;
 
