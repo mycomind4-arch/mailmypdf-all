@@ -59,6 +59,8 @@ export interface MailingIntent {
   // Approval hashes (SHA-256, computed at approval time)
   approved_draft_hash?: string | null;
   approved_recipient_hash?: string | null;
+  approved_evidence_hash?: string | null;
+  evidence_snapshot?: MailingEvidenceItem[] | null;
 
   // Payment state
   stripe_session_id?: string | null;
@@ -73,6 +75,17 @@ export interface MailingIntent {
 
   created_at: string;
   updated_at: string;
+}
+
+export interface MailingEvidenceItem {
+  id: string;
+  requirementId?: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  fileHash: string;
+  storagePath: string;
+  status: string;
 }
 
 export interface MailingRecipient {
@@ -115,6 +128,11 @@ export interface MailingIntentStore {
  */
 export interface MailMyPDFClient {
   uploadDocument(content: string, filename: string, mimeType: string): Promise<{ id: string }>;
+  /**
+   * Optional packet-aware upload. Verticals with approved attachments implement
+   * this; other verticals keep the single-document fallback.
+   */
+  uploadPacket?(intent: MailingIntent, filename: string): Promise<{ id: string }>;
   createCommunication(params: {
     document_id: string;
     recipient: MailingRecipient;
@@ -150,6 +168,24 @@ export function hashDraft(draftContent: string): string {
   return sha256(draftContent);
 }
 
+export function hashEvidenceSnapshot(
+  evidence: MailingEvidenceItem[] | null | undefined,
+): string {
+  const normalized = [...(evidence ?? [])]
+    .map((item) => ({
+      id: item.id,
+      requirementId: item.requirementId ?? "",
+      fileName: item.fileName,
+      fileType: item.fileType,
+      fileSize: item.fileSize,
+      fileHash: item.fileHash,
+      storagePath: item.storagePath,
+      status: item.status,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  return sha256(JSON.stringify(normalized));
+}
+
 // ── Integrity Verification ──────────────────────────────────────────────────
 
 export interface IntegrityCheckResult {
@@ -171,6 +207,17 @@ export function verifyIntegrity(intent: MailingIntent): IntegrityCheckResult {
     const computed = hashRecipient(intent.recipient);
     if (computed !== intent.approved_recipient_hash) {
       return { ok: false, error: "Integrity check failed: the stored recipient does not match the approved recipient." };
+    }
+  }
+
+  // Verify the immutable evidence manifest when this workflow has attachments.
+  if (intent.approved_evidence_hash) {
+    const computed = hashEvidenceSnapshot(intent.evidence_snapshot);
+    if (computed !== intent.approved_evidence_hash) {
+      return {
+        ok: false,
+        error: "Integrity check failed: the stored evidence packet does not match the approved evidence packet.",
+      };
     }
   }
 
@@ -259,7 +306,9 @@ export async function fulfillMailingIntent(
   // ── Submit to MailMyPDF ────────────────────────────────────
   try {
     const filename = `${verticalName}-${intent.workflow_id}-${intent.id}.txt`;
-    const document = await client.uploadDocument(intent.draft_content, filename, "text/plain");
+    const document = client.uploadPacket
+      ? await client.uploadPacket(intent, filename)
+      : await client.uploadDocument(intent.draft_content, filename, "text/plain");
 
     const communication = await client.createCommunication({
       document_id: document.id,
@@ -279,6 +328,8 @@ export async function fulfillMailingIntent(
         owner_user_id: intent.owner_id,
         approval_id: intent.approval_id || null,
         approved_draft_hash: intent.approved_draft_hash || null,
+        approved_evidence_hash: intent.approved_evidence_hash || null,
+        evidence_count: intent.evidence_snapshot?.length ?? 0,
         fulfillment_source: source,
       },
       idempotency_key: `stripe:${sessionId}`,
