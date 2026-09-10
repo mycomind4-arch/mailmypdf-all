@@ -13,7 +13,9 @@ import { deserializeCase } from "@/domain/notice";
 import {
   hashDraft,
   hashRecipient,
+  hashEvidenceSnapshot,
   sha256,
+  type MailingEvidenceItem,
   type MailingRecipient,
 } from "@mailmypdf/payment-fulfillment";
 
@@ -120,19 +122,25 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
           const attachedEvidence = Array.isArray(persistedCase.evidence)
             ? persistedCase.evidence
             : [];
+          const storedEvidenceFiles = attachedEvidence.filter(
+            (item: unknown): item is MailingEvidenceItem => {
+              if (typeof item !== "object" || item === null) return false;
+              const candidate = item as Partial<MailingEvidenceItem>;
+              return Boolean(
+                candidate.id &&
+                candidate.fileName &&
+                candidate.fileType &&
+                typeof candidate.fileSize === "number" &&
+                candidate.fileHash &&
+                candidate.storagePath &&
+                candidate.status &&
+                ["provided", "verified"].includes(candidate.status)
+              );
+            },
+          );
           const attachedRequirementIds = new Set(
-            attachedEvidence
-              .filter(
-                (item: unknown) =>
-                  typeof item === "object" &&
-                  item !== null &&
-                  ["provided", "verified"].includes(
-                    String((item as { status?: string }).status ?? ""),
-                  ),
-              )
-              .map((item: unknown) =>
-                String((item as { requirementId?: string }).requirementId ?? ""),
-              )
+            storedEvidenceFiles
+              .map((item) => item.requirementId ?? "")
               .filter(Boolean),
           );
           const missingRequired = checklistItems.filter(
@@ -168,6 +176,7 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
 
           const draftHash = hashDraft(body.draftContent);
           const recipientHash = hashRecipient(body.recipient);
+          const evidenceHash = hashEvidenceSnapshot(storedEvidenceFiles);
 
           // Any content/recipient change requires a new approval; only one
           // active approval may authorize checkout for a case.
@@ -196,17 +205,18 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
               workflow_id: body.workflowId,
               draft_hash: draftHash,
               recipient_hash: recipientHash,
+              evidence_hash: evidenceHash,
               draft: body.draftContent,
               recipient: body.recipient,
               review_state: {
                 reviewChecks: body.reviewChecks,
                 validationPassed: true,
-                evidenceItems: attachedEvidence,
+                evidenceItems: storedEvidenceFiles,
                 mailingMethod: body.mailingMethod,
               },
               status: "active",
             })
-            .select("id, draft_hash, recipient_hash, approved_at")
+            .select("id, draft_hash, recipient_hash, evidence_hash, approved_at")
             .single();
 
           if (approvalError || !persisted) {
@@ -223,10 +233,11 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
             workflowId: body.workflowId,
             approvedDraftHash: persisted.draft_hash as string,
             approvedRecipientHash: persisted.recipient_hash as string,
+            approvedEvidenceHash: persisted.evidence_hash as string,
             approvedAt: persisted.approved_at as string,
             approvedBy: user.id,
             mailingMethod: body.mailingMethod,
-            evidenceSnapshot: attachedEvidence,
+            evidenceSnapshot: storedEvidenceFiles,
             status: "approved" as const,
           };
 
@@ -234,7 +245,7 @@ export const Route = createFileRoute("/api/cases/$caseId/approve")({
           // identity. Actual provider submission idempotency is anchored to
           // the Stripe Checkout Session in @mailmypdf/payment-fulfillment.
           const idempotencyKey = sha256(
-            `${caseId}:${approval.approvedDraftHash}:${approval.approvedRecipientHash}`,
+            `${caseId}:${approval.approvedDraftHash}:${approval.approvedRecipientHash}:${approval.approvedEvidenceHash}`,
           );
 
           return Response.json({
