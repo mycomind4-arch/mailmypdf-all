@@ -9,6 +9,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuthWithRateLimit, errorResponse, withRateLimitHeaders } from "@/lib/proof-of-service/api-helpers";
 import { uploadProofDocument } from "@/lib/proof-of-service/documents";
+import { generatePlainTextPdf } from "@/lib/letter-pdf.server";
 
 export const Route = createFileRoute("/api/v1/documents/")({
   server: {
@@ -45,16 +46,36 @@ export const Route = createFileRoute("/api/v1/documents/")({
             fileData = new Uint8Array(Buffer.from(body.content, "base64"));
           }
 
-          // Validate file size (10MB max)
+          // Validate source size (10MB max) before any conversion.
           const MAX_SIZE = 10 * 1024 * 1024;
           if (fileData.byteLength > MAX_SIZE) {
             return errorResponse(400, "validation_error", `File too large (max ${MAX_SIZE / 1024 / 1024}MB)`, "FILE_TOO_LARGE");
           }
 
-          // Validate file type
-          const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
-          if (!ALLOWED_TYPES.includes(mimeType)) {
+          // Trusted workflow drafts may arrive as plain text. Normalize them
+          // to a real PDF at the MailMyPDF boundary before storage/provider use.
+          const ALLOWED_INPUT_TYPES = [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "text/plain",
+          ];
+          if (!ALLOWED_INPUT_TYPES.includes(mimeType)) {
             return errorResponse(400, "validation_error", `Unsupported file type: ${mimeType}`, "UNSUPPORTED_TYPE");
+          }
+
+          if (mimeType === "text/plain") {
+            const text = new TextDecoder("utf-8", { fatal: false }).decode(fileData);
+            if (!text.trim()) {
+              return errorResponse(400, "validation_error", "Text document is empty", "EMPTY_DOCUMENT");
+            }
+            fileData = await generatePlainTextPdf(text);
+            mimeType = "application/pdf";
+            filename = filename.replace(/\.[^.]+$/, "") + ".pdf";
+          }
+
+          if (fileData.byteLength > MAX_SIZE) {
+            return errorResponse(400, "validation_error", "Generated PDF exceeds the 10MB document limit", "FILE_TOO_LARGE");
           }
 
           const { document } = await uploadProofDocument(
