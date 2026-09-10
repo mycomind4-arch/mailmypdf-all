@@ -23,6 +23,12 @@
 
 export type MailType = "first_class" | "certified" | "certified_return_receipt" | "registered";
 
+export interface MailingPacketAttachment {
+  filename: string;
+  mime_type: string;
+  data: Uint8Array;
+}
+
 export interface MailMyPDFDocument {
   id: string;
   filename: string;
@@ -158,6 +164,41 @@ export async function uploadDocument(file: File): Promise<MailMyPDFDocument> {
 }
 
 /**
+ * Upload a composed text response plus approved supporting documents as one
+ * physical-mail packet. MailMyPDF's document endpoint normalizes the response
+ * to PDF and uses the secure-core packet assembler for the attachments.
+ */
+export async function uploadPacket(input: {
+  text: string;
+  filename: string;
+  attachments: MailingPacketAttachment[];
+}): Promise<MailMyPDFDocument> {
+  const form = new FormData();
+  form.append(
+    "file",
+    new File([input.text], input.filename, { type: "text/plain" }),
+    input.filename,
+  );
+
+  for (const attachment of input.attachments) {
+    const copy = new Uint8Array(new ArrayBuffer(attachment.data.byteLength));
+    copy.set(attachment.data);
+    form.append(
+      "attachment",
+      new File([copy], attachment.filename, { type: attachment.mime_type }),
+      attachment.filename,
+    );
+  }
+
+  const result = await request<{ document?: MailMyPDFDocument } | MailMyPDFDocument>(
+    "/v1/documents",
+    { method: "POST", body: form },
+  );
+  if ("document" in result && result.document) return result.document;
+  return result as MailMyPDFDocument;
+}
+
+/**
  * Upload a document from base64 content (no File object needed).
  */
 export async function uploadDocumentBase64(input: {
@@ -202,6 +243,7 @@ export async function getCommunication(id: string): Promise<MailMyPDFCommunicati
 export function createMailingClient(verticalSlug: string) {
   return {
     uploadDocument,
+    uploadPacket,
     uploadDocumentBase64,
     async createCommunication(input: CreateCommunicationInput): Promise<MailMyPDFCommunication> {
       return createCommunication({
