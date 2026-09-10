@@ -8,6 +8,7 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
 import {
   validateFilename,
@@ -17,6 +18,23 @@ import {
   validateTextInput,
 } from "@/domain/security";
 import { extractDocument } from "@/platform/document-intelligence";
+
+const SOURCE_BUCKET = "notice-source-documents";
+
+function serviceSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRole) {
+    throw new Error("Supabase server configuration is incomplete.");
+  }
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+function safeFileName(name: string): string {
+  return name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 180) || "notice.bin";
+}
 
 export const Route = createFileRoute("/api/documents/extract")({
   server: {
@@ -49,6 +67,26 @@ export const Route = createFileRoute("/api/documents/extract")({
           // ── Extract document ─────────────────────────────────
           const extracted = await extractDocument(file);
 
+          // Preserve the original uploaded bytes before any text sanitization.
+          // The case-creation boundary re-downloads and re-hashes this object
+          // before associating it with a case.
+          const originalBytes = new Uint8Array(await file.arrayBuffer());
+          const storagePath = `${user.id}/${extracted.documentId}/${safeFileName(file.name)}`;
+          const { error: storageError } = await serviceSupabase().storage
+            .from(SOURCE_BUCKET)
+            .upload(storagePath, originalBytes, {
+              contentType: file.type || "application/octet-stream",
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (storageError) {
+            return Response.json(
+              { error: `Unable to preserve source document: ${storageError.message}` },
+              { status: 502 },
+            );
+          }
+
           // ── Security classification on extracted text ─────────
           if (extracted.fullText && extracted.fullText.length > 20) {
             extracted.securityClassification = classifyContent(extracted.fullText);
@@ -76,6 +114,7 @@ export const Route = createFileRoute("/api/documents/extract")({
               documentKind: extracted.documentKind,
               extractionConfidence: extracted.extractionConfidence,
               hash: extracted.hash,
+              storagePath,
               uploadedAt: extracted.uploadedAt,
               securityWarning: extracted.securityClassification?.detectedInjectionPatterns.length
                 ? `${extracted.securityClassification.detectedInjectionPatterns.length} potential prompt injection pattern(s) detected. Content treated as DATA.`
