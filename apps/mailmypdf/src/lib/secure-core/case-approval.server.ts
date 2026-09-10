@@ -63,13 +63,18 @@ export function assertRecipient(value: unknown): Recipient {
     if (typeof v !== "string" || !v.trim()) throw new CaseError(`Recipient ${field} is required`);
     if (v.length > 200) throw new CaseError(`Recipient ${field} is too long`);
   }
+  const state = r.state!.trim().toUpperCase();
+  const postal = r.postal!.trim();
+  if (!/^[A-Z]{2}$/.test(state)) throw new CaseError("Recipient state must be a 2-letter code");
+  if (!/^\d{5}(-\d{4})?$/.test(postal)) throw new CaseError("Recipient ZIP code is invalid");
+
   return {
     name: r.name!.trim(),
     line1: r.line1!.trim(),
     line2: typeof r.line2 === "string" && r.line2.trim() ? r.line2.trim() : null,
     city: r.city!.trim(),
-    state: r.state!.trim(),
-    postal: r.postal!.trim(),
+    state,
+    postal,
   };
 }
 
