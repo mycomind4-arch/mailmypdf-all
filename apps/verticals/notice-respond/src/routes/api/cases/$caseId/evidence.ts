@@ -11,6 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { authErrorResponse, requireAuthenticatedUser } from "@/lib/auth-guard";
 import { validateFilename, validateFileSize, validateMimeType } from "@/domain/security";
 import { deserializeCase, serializeCase, updateCase } from "@/domain/notice";
+import { extractDocument } from "@/platform/document-intelligence";
 
 const EVIDENCE_BUCKET = "notice-evidence";
 
@@ -90,6 +91,26 @@ export const Route = createFileRoute("/api/cases/$caseId/evidence")({
             );
           }
 
+          const mailableTypes = new Set([
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+          ]);
+          if (!mailableTypes.has(file.type)) {
+            return noStore(
+              { error: "Supporting evidence must be a PDF, JPG, or PNG so it can be enclosed in the mailed packet." },
+              { status: 415 },
+            );
+          }
+
+          const measured = await extractDocument(file);
+          if (measured.pageCount < 1 || measured.documentKind === "invalid") {
+            return noStore(
+              { error: "Supporting evidence could not be read as a mailable document." },
+              { status: 422 },
+            );
+          }
+
           const buffer = await file.arrayBuffer();
           const bytes = new Uint8Array(buffer);
           const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
@@ -122,6 +143,7 @@ export const Route = createFileRoute("/api/cases/$caseId/evidence")({
             fileName: file.name,
             fileType: file.type || "application/octet-stream",
             fileSize: file.size,
+            pageCount: measured.pageCount,
             fileHash,
             storagePath: uploadedPath,
             uploadedAt: new Date().toISOString(),
