@@ -177,6 +177,140 @@ export async function previewPacket(
  * attachment added, removed, or swapped between review and approval produces a
  * different hash and a different price — never a silent substitution.
  */
+export interface MaterializedApprovedPacket {
+  approvalId: string;
+  caseId: string;
+  workflowId: string;
+  verticalId: string;
+  bytes: Uint8Array;
+  packetSha256: string;
+  responsePages: number;
+  supportingPages: number;
+  recipient: Recipient;
+  mailClass: MailClass;
+  quote: Quote;
+}
+
+function normalizedManifest(value: unknown): Array<{
+  documentId: string;
+  role: string;
+  evidenceKind: string | null;
+  filename: string;
+  sha256: string;
+  pageCount: number;
+}> {
+  if (!Array.isArray(value)) throw new PacketError("Approved packet manifest is invalid");
+  return value.map((entry) => {
+    if (!entry || typeof entry !== "object") throw new PacketError("Approved packet manifest is invalid");
+    const item = entry as Record<string, unknown>;
+    const documentId = typeof item.documentId === "string"
+      ? item.documentId
+      : typeof item.document_id === "string"
+        ? item.document_id
+        : "";
+    const role = typeof item.role === "string" ? item.role : "";
+    const evidenceKind = typeof item.evidenceKind === "string"
+      ? item.evidenceKind
+      : typeof item.evidence_kind === "string"
+        ? item.evidence_kind
+        : null;
+    const filename = typeof item.filename === "string" ? item.filename : "";
+    const sha256 = typeof item.sha256 === "string" ? item.sha256 : "";
+    const pageCount = Number(item.pageCount ?? item.page_count);
+    if (
+      !documentId ||
+      !role ||
+      !filename ||
+      !/^[a-f0-9]{64}$/.test(sha256) ||
+      !Number.isSafeInteger(pageCount) ||
+      pageCount < 1
+    ) {
+      throw new PacketError("Approved packet manifest is invalid");
+    }
+    return { documentId, role, evidenceKind, filename, sha256, pageCount };
+  });
+}
+
+/**
+ * Rebuild the exact approved packet immediately before order creation.
+ *
+ * Approval is not treated as permission to mail arbitrary later state: the
+ * current draft and every included vault document are re-read, re-hashed, and
+ * compared with the immutable approval record.
+ */
+export async function materializeApprovedPacket(
+  caseId: string,
+  approvalId: string,
+  context: AuthenticatedUserContext,
+): Promise<MaterializedApprovedPacket> {
+  const workflowCase = await loadCase(caseId, context);
+  const { data: approval, error } = await context.supabase
+    .from("case_approvals")
+    .select("id, case_id, packet_sha256, manifest, response_pages, supporting_pages, recipient, mail_class, quote")
+    .eq("id", approvalId)
+    .eq("case_id", caseId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+
+  if (error) throw new CaseError(error.message);
+  if (!approval) throw new CaseNotFoundError("Approved packet not found");
+
+  const mailClass = assertMailClass(approval.mail_class);
+  const recipient = assertRecipient(approval.recipient);
+  const storedQuote = approval.quote as Partial<Quote> | null;
+  if (!storedQuote || !Number.isSafeInteger(storedQuote.totalCents) || storedQuote.totalCents! < 0) {
+    throw new PacketError("Approved quote is invalid");
+  }
+
+  const draft = await loadCurrentDraft(caseId, context);
+  const documents = await loadPacketDocuments(caseId, context);
+  const letter = await renderResponseLetter(draft.body);
+  const packet = await assemblePacket(letter, documents);
+  await persistMeasuredPageCounts(caseId, packet.manifest, context);
+
+  const quote = calculateQuote({
+    workflowId: workflowCase.workflow_id,
+    verticalId: workflowCase.vertical_id,
+    actualPages: packet.responsePages,
+    supportingPages: packet.supportingPages,
+    mailClass,
+  });
+
+  if (packet.sha256 !== approval.packet_sha256) {
+    throw new PacketError("The approved packet changed. Review and approve it again before checkout.");
+  }
+  if (
+    packet.responsePages !== approval.response_pages ||
+    packet.supportingPages !== approval.supporting_pages
+  ) {
+    throw new PacketError("The approved packet page count changed. Review it again before checkout.");
+  }
+
+  const storedManifest = normalizedManifest(approval.manifest);
+  const currentManifest = normalizedManifest(packet.manifest);
+  if (JSON.stringify(storedManifest) !== JSON.stringify(currentManifest)) {
+    throw new PacketError("The approved attachment manifest changed. Review it again before checkout.");
+  }
+
+  if (quote.totalCents !== storedQuote.totalCents) {
+    throw new PacketError("The approved price changed. Review the updated quote before checkout.");
+  }
+
+  return {
+    approvalId,
+    caseId,
+    workflowId: workflowCase.workflow_id,
+    verticalId: workflowCase.vertical_id,
+    bytes: packet.bytes,
+    packetSha256: packet.sha256,
+    responsePages: packet.responsePages,
+    supportingPages: packet.supportingPages,
+    recipient,
+    mailClass,
+    quote,
+  };
+}
+
 export async function approvePacket(
   input: { caseId: string; recipient: Recipient; mailClass: MailClass; reviewed: ReviewedPacket },
   context: AuthenticatedUserContext,
