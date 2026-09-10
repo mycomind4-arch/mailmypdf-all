@@ -47,3 +47,19 @@ export function generateNoticeDraft(caseId: string) { return request<{ draft: { 
 export function saveNoticeDraft(caseId: string, bodyText: string) { return request<{ version: number }>(`/api/v2/cases/${caseId}/draft`, { method: "POST", body: JSON.stringify({ body_text: bodyText }) }); }
 export function previewNoticePacket(caseId: string, mailClass: MailClass) { return request<{ packet: PacketPreview }>(`/api/v2/cases/${caseId}/packet`, { method: "POST", body: JSON.stringify({ mail_class: mailClass }) }).then((r) => r.packet); }
 export function approveNoticePacket(caseId: string, recipient: Recipient, mailClass: MailClass, packet: PacketPreview) { return request<ApprovalResult>(`/api/v2/cases/${caseId}/approve`, { method: "POST", body: JSON.stringify({ recipient, mail_class: mailClass, expected_packet_sha256: packet.packetSha256, expected_total_cents: packet.quote.totalCents }) }); }
+export function createNoticeCheckout(caseId: string, approvalId: string, sender: Recipient) {
+  return request<{
+    order_id: string;
+    order_token: string;
+    checkout_url: string | null;
+    stripe_session_id: string | null;
+    total_cents: number;
+    packet_sha256: string;
+  }>(`/api/v2/cases/${caseId}/checkout`, {
+    method: "POST",
+    body: JSON.stringify({
+      approval_id: approvalId,
+      sender,
+    }),
+  });
+}
