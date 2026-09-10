@@ -1507,6 +1507,10 @@ export type Database = {
           vertical_slug: string | null
           vertical_metadata: Json | null
           scheduled_delivery_date: string | null
+          workflow_case_id: string | null
+          case_approval_id: string | null
+          approved_packet_sha256: string | null
+          approved_price_cents: number | null
         }
         Insert: {
           admin_notes?: string | null
@@ -1543,6 +1547,10 @@ export type Database = {
           vertical_slug?: string | null
           vertical_metadata?: Json | null
           scheduled_delivery_date?: string | null
+          workflow_case_id?: string | null
+          case_approval_id?: string | null
+          approved_packet_sha256?: string | null
+          approved_price_cents?: number | null
         }
         Update: {
           admin_notes?: string | null
@@ -1579,6 +1587,10 @@ export type Database = {
           vertical_slug?: string | null
           vertical_metadata?: Json | null
           scheduled_delivery_date?: string | null
+          workflow_case_id?: string | null
+          case_approval_id?: string | null
+          approved_packet_sha256?: string | null
+          approved_price_cents?: number | null
         }
         Relationships: []
       }
