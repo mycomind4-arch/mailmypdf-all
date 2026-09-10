@@ -67,6 +67,9 @@ export const caseSchema = z.object({
   noticeDate: z.string().optional(),
   noticeText: z.string().default(""),
 
+  /* ── Source documents ── */
+  sourceDocuments: z.array(z.any()).default([]),  // Original uploaded notices with custody metadata
+
   /* ── Extracted Facts ── */
   facts: z.array(z.any()).default([]),  // NoticeFact[]
 
@@ -127,6 +130,7 @@ export function createCase(workflowId: string = "analyze"): NoticeCase {
     typeConfidence: 0,
     category: "other",
     noticeText: "",
+    sourceDocuments: [],
     facts: [],
     evidence: [],
     deadlines: [],
@@ -191,6 +195,7 @@ export function serializeCase(caseObj: NoticeCase): Record<string, unknown> {
 export function deserializeCase(data: Record<string, unknown>): NoticeCase {
   return caseSchema.parse({
     ...data,
+    sourceDocuments: Array.isArray(data.sourceDocuments) ? data.sourceDocuments : [],
     facts: Array.isArray(data.facts) ? data.facts : [],
     evidence: Array.isArray(data.evidence) ? data.evidence : [],
     deadlines: Array.isArray(data.deadlines) ? data.deadlines : [],
