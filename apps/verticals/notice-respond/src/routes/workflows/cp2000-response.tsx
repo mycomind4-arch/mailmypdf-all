@@ -578,7 +578,7 @@ function CP2000Response() {
     } catch (err) {
       console.error("Evidence removal failed:", err);
     }
-  }, [caseId, emitAudit]);
+  }, [accessToken, caseId, emitAudit]);
 
   // ── Recipient modification tracking ───────────────────────
   const handleRecipientChange = useCallback((fn: (r: { name: string; org: string; address1: string; address2: string; city: string; state: string; zip: string }) => { name: string; org: string; address1: string; address2: string; city: string; state: string; zip: string }) => {
