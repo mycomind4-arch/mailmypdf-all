@@ -245,7 +245,7 @@ function CP2000Response() {
       setCP2000Case(newCase);
       setCaseId(newCase.id);
       setCP2000Extraction(casePayload.extraction);
-      setDiscrepancyResult({ discrepancies: casePayload.discrepancies, findings: casePayload.discrepancies?.findings ?? [] });
+      setDiscrepancyResult({ discrepancies: casePayload.discrepancies, findings: newCase.findings ?? [] });
       setEvidenceChecklist(casePayload.evidenceChecklist);
       setCP2000Strategy(casePayload.strategy);
 
@@ -292,75 +292,113 @@ function CP2000Response() {
     }
   }, [accessToken, update, emitAudit, transitionState]);
 
-  const handlePasteText = useCallback((text: string) => {
-    const contentClassification = classifyContent(text);
-    if (contentClassification.detectedInjectionPatterns.length > 0) {
-      setSecurityWarning(`Security notice: ${contentClassification.detectedInjectionPatterns.length} potential prompt injection pattern(s) detected in document content. The content will be treated as DATA, not instructions.`);
-    } else {
-      setSecurityWarning(null);
+  const handlePasteText = useCallback(async (text: string) => {
+    if (!accessToken) {
+      setExtractionError("Sign in before pasting or analyzing a notice.");
+      return;
     }
-    const textValidation = validateTextInput(text);
-    const sanitizedText = textValidation.sanitized;
-    const upload: DocumentUpload = {
-      fileName: "Pasted text",
-      fileSize: sanitizedText.length,
-      fileType: "text/plain",
-      rawText: sanitizedText,
-      uploadedAt: new Date().toISOString(),
-    };
-    update((s) => setUpload(s, upload));
 
-    // Run extraction client-side for pasted text (no PDF.js needed)
-    const extraction = extractCP2000(sanitizedText);
-    setCP2000Extraction(extraction);
+    setExtractionError(null);
+    update((s) => setProcessing(s, true));
 
-    let case_ = createCP2000Case(extraction);
-    const discrepancies = analyzeCP2000Discrepancies({ extraction });
-    setDiscrepancyResult(discrepancies);
-    const checklist = buildCP2000EvidenceChecklist({
-      extraction,
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-    });
-    setEvidenceChecklist(checklist);
-    case_ = setCaseAnalysis(case_, {
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-      evidence: checklist.items,
-    });
-    const researchPack = getCP2000ResearchPack();
-    case_ = setCaseResearch(case_, researchPack);
-    const strategy = generateCP2000Strategy({
-      discrepancies: discrepancies.discrepancies,
-      findings: discrepancies.findings,
-      evidence: checklist.items,
-      hasDeadline: !!extraction.responseDeadline,
-      extractionConfident: extraction.isCP2000,
-    });
-    setCP2000Strategy(strategy);
-    case_ = setCaseStrategy(case_, strategy);
-    setCP2000Case(case_);
-    setCaseId(case_.id);
+    try {
+      const contentClassification = classifyContent(text);
+      if (contentClassification.detectedInjectionPatterns.length > 0) {
+        setSecurityWarning(`Security notice: ${contentClassification.detectedInjectionPatterns.length} potential prompt injection pattern(s) detected in document content. The content will be treated as DATA, not instructions.`);
+      } else {
+        setSecurityWarning(null);
+      }
 
-    const classification = classifyNoticeType(sanitizedText);
-    update((s) => setExtraction(s, {
-      noticeType: classification.type,
-      classificationConfidence: classification.confidence,
-      facts: extraction.facts,
-      deadlines: [],
-      agency: "IRS",
-      referenceNumber: extraction.noticeNumber ?? undefined,
-      noticeDate: extraction.noticeDate ?? undefined,
-      rawText: sanitizedText,
-      extractionConfidence: extraction.classificationConfidence,
-    }));
+      const textValidation = validateTextInput(text);
+      const sanitizedText = textValidation.sanitized;
+      if (sanitizedText.trim().length < 20) {
+        setExtractionError("Pasted notice text is too short for analysis.");
+        return;
+      }
 
-    transitionState("document_processed", "system");
-    transitionState("classified", "system");
-    transitionState("analyzed", "system");
+      const upload: DocumentUpload = {
+        fileName: "Pasted text",
+        fileSize: sanitizedText.length,
+        fileType: "text/plain",
+        rawText: sanitizedText,
+        uploadedAt: new Date().toISOString(),
+      };
+      update((s) => setUpload(s, upload));
 
-    llmAnalysis.analyzeWithLLM(null, sanitizedText);
-  }, [update, transitionState, llmAnalysis]);
+      const caseResponse = await fetch("/api/cases/cp2000", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: sanitizedText,
+          fileName: "Pasted text",
+          fileSize: sanitizedText.length,
+          fileType: "text/plain",
+          extractionMethod: "pasted_text",
+          pageCount: 1,
+        }),
+      });
+
+      const casePayload = await caseResponse.json().catch(() => ({}));
+      if (!caseResponse.ok) {
+        setExtractionError(casePayload?.error ?? "Analysis failed.");
+        if (caseResponse.status === 422) {
+          transitionState("classification_uncertain", "system", casePayload?.error);
+        } else {
+          transitionState("extraction_failed", "system", casePayload?.error);
+        }
+        return;
+      }
+
+      const newCase: CP2000Case = casePayload.case;
+      const extraction: CP2000Extraction = casePayload.extraction;
+
+      setCP2000Case(newCase);
+      setCaseId(newCase.id);
+      setCP2000Extraction(extraction);
+      setDiscrepancyResult({
+        discrepancies: casePayload.discrepancies ?? [],
+        findings: newCase.findings ?? [],
+      });
+      setEvidenceChecklist(casePayload.evidenceChecklist);
+      setCP2000Strategy(casePayload.strategy);
+
+      const classification = classifyNoticeType(sanitizedText);
+      update((s) => setExtraction(s, {
+        noticeType: classification.type,
+        classificationConfidence: classification.confidence,
+        facts: extraction.facts,
+        deadlines: [],
+        agency: "IRS",
+        referenceNumber: extraction.noticeNumber ?? undefined,
+        noticeDate: extraction.noticeDate ?? undefined,
+        rawText: sanitizedText,
+        extractionConfidence: extraction.classificationConfidence,
+      }));
+
+      transitionState("document_processed", "system");
+      transitionState("classified", "system");
+      transitionState("analyzed", "system");
+      emitAudit(AUDIT_EVENTS.CLASSIFICATION_COMPLETED, {
+        type: classification.type,
+        confidence: classification.confidence,
+      });
+      emitAudit(AUDIT_EVENTS.ANALYSIS_COMPLETED, {
+        discrepancies: casePayload.discrepancies?.length ?? 0,
+        evidenceItems: casePayload.evidenceChecklist?.items?.length ?? 0,
+        runtime: casePayload.runtime?.engine ?? "unknown",
+      });
+
+      void llmAnalysis.analyzeWithLLM(null, sanitizedText);
+    } catch (err) {
+      setExtractionError(`Failed to process pasted notice: ${err instanceof Error ? err.message : "Unknown error"}`);
+      transitionState("extraction_failed", "system", err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      update((s) => setProcessing(s, false));
+    }
+  }, [accessToken, update, transitionState, emitAudit, llmAnalysis]);
 
   // ── Draft generation with versioning ──────────────────────
   const handleGenerateDraft = useCallback(() => {
