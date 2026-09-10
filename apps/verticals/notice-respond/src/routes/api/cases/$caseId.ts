@@ -112,8 +112,26 @@ export const Route = createFileRoute("/api/cases/$caseId")({
             return noStore({ error: "Case not found." }, { status: 404 });
           }
 
+          const { data: activeApproval } = await supabase
+            .from("approvals")
+            .select("id, draft_hash, recipient_hash, approved_at")
+            .eq("case_id", caseId)
+            .eq("owner_id", user.id)
+            .eq("status", "active")
+            .order("approved_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
           return noStore({
             case: deserializeCase(data.data as Record<string, unknown>),
+            activeApproval: activeApproval
+              ? {
+                  id: activeApproval.id,
+                  approvedDraftHash: activeApproval.draft_hash,
+                  approvedRecipientHash: activeApproval.recipient_hash,
+                  approvedAt: activeApproval.approved_at,
+                }
+              : null,
           });
         } catch (error) {
           return authErrorResponse(error);
