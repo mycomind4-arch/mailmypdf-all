@@ -122,7 +122,8 @@ describe("SSDI packet progression", () => {
       document({ document_id: "excluded", included: false, position: 2 }),
     ];
     assert.deepEqual(packetBlockers(documents), [
-      "2 included documents are still awaiting a security scan.",
+      "The source notice is still awaiting a security scan.",
+      "1 included document is still awaiting a security scan.",
     ]);
   });
 
