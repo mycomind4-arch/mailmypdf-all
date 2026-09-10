@@ -8,6 +8,12 @@ import {
   updateCase,
 } from "@/domain/notice";
 import type { WorkflowState } from "@/domain/workflow-runtime";
+import {
+  hashDraft,
+  hashEvidenceSnapshot,
+  hashRecipient,
+  type MailingEvidenceItem,
+} from "@mailmypdf/payment-fulfillment";
 
 function serviceSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -112,9 +118,10 @@ export const Route = createFileRoute("/api/cases/$caseId")({
             return noStore({ error: "Case not found." }, { status: 404 });
           }
 
+          const caseObj = deserializeCase(data.data as Record<string, unknown>);
           const { data: activeApproval } = await supabase
             .from("approvals")
-            .select("id, draft_hash, recipient_hash, approved_at")
+            .select("id, draft_hash, recipient_hash, evidence_hash, review_state, approved_at")
             .eq("case_id", caseId)
             .eq("owner_id", user.id)
             .eq("status", "active")
@@ -122,14 +129,85 @@ export const Route = createFileRoute("/api/cases/$caseId")({
             .limit(1)
             .maybeSingle();
 
+          let validApproval: typeof activeApproval = null;
+          if (activeApproval) {
+            const checkpoint = caseObj.workflowState as WorkflowState | undefined;
+            const recipient = checkpoint?.mailing?.recipient;
+            const evidence = Array.isArray(caseObj.evidence)
+              ? caseObj.evidence.filter(
+                  (item: unknown): item is MailingEvidenceItem => {
+                    if (typeof item !== "object" || item === null) return false;
+                    const candidate = item as Partial<MailingEvidenceItem>;
+                    return Boolean(
+                      candidate.id &&
+                      candidate.fileName &&
+                      candidate.fileType &&
+                      typeof candidate.fileSize === "number" &&
+                      candidate.fileHash &&
+                      candidate.storagePath &&
+                      candidate.status
+                    );
+                  },
+                )
+              : [];
+
+            const reviewState =
+              activeApproval.review_state &&
+              typeof activeApproval.review_state === "object"
+                ? activeApproval.review_state as Record<string, unknown>
+                : {};
+            const approvedMailingMethod =
+              typeof reviewState.mailingMethod === "string"
+                ? reviewState.mailingMethod
+                : null;
+
+            const draftMatches = Boolean(
+              checkpoint?.draft &&
+              hashDraft(checkpoint.draft) === activeApproval.draft_hash,
+            );
+            const recipientMatches = Boolean(
+              recipient?.name &&
+              recipient.address1 &&
+              recipient.city &&
+              recipient.state &&
+              recipient.zip &&
+              hashRecipient(recipient) === activeApproval.recipient_hash,
+            );
+            const evidenceMatches =
+              hashEvidenceSnapshot(evidence) === activeApproval.evidence_hash;
+            const mailingMethodMatches = Boolean(
+              checkpoint?.mailing?.method &&
+              approvedMailingMethod === checkpoint.mailing.method,
+            );
+
+            if (
+              draftMatches &&
+              recipientMatches &&
+              evidenceMatches &&
+              mailingMethodMatches
+            ) {
+              validApproval = activeApproval;
+            } else {
+              await supabase
+                .from("approvals")
+                .update({
+                  status: "revoked",
+                  revoked_at: new Date().toISOString(),
+                })
+                .eq("id", activeApproval.id)
+                .eq("owner_id", user.id)
+                .eq("status", "active");
+            }
+          }
+
           return noStore({
-            case: deserializeCase(data.data as Record<string, unknown>),
-            activeApproval: activeApproval
+            case: caseObj,
+            activeApproval: validApproval
               ? {
-                  id: activeApproval.id,
-                  approvedDraftHash: activeApproval.draft_hash,
-                  approvedRecipientHash: activeApproval.recipient_hash,
-                  approvedAt: activeApproval.approved_at,
+                  id: validApproval.id,
+                  approvedDraftHash: validApproval.draft_hash,
+                  approvedRecipientHash: validApproval.recipient_hash,
+                  approvedAt: validApproval.approved_at,
                 }
               : null,
           });
