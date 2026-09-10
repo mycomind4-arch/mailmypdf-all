@@ -161,12 +161,44 @@ async function ensureCheckoutSession(input: {
   const stripe = createStripeClient();
 
   if (input.order.stripe_session_id) {
-    const existing = await stripe.checkout.sessions.retrieve(input.order.stripe_session_id);
+    const priorSessionId = input.order.stripe_session_id;
+    const existing = await stripe.checkout.sessions.retrieve(priorSessionId);
     if (existing.status === "open" && existing.url) {
       return { checkoutUrl: existing.url, sessionId: existing.id };
     }
     if (existing.status === "complete") {
       return { checkoutUrl: null, sessionId: existing.id };
+    }
+
+    // Expired/cancelled sessions must release the order claim before a new
+    // approval-bound checkout can be created.
+    const { data: released, error: releaseError } = await supabaseAdmin
+      .from("orders")
+      .update({ stripe_session_id: null })
+      .eq("id", input.order.id)
+      .eq("status", "draft")
+      .eq("stripe_session_id", priorSessionId)
+      .select("id");
+
+    if (releaseError) throw new Error(releaseError.message);
+    if (released && released.length === 1) {
+      input.order.stripe_session_id = null;
+    } else {
+      const { data: current } = await supabaseAdmin
+        .from("orders")
+        .select("stripe_session_id, status")
+        .eq("id", input.order.id)
+        .maybeSingle();
+      if (current?.status !== "draft") {
+        return { checkoutUrl: null, sessionId: current?.stripe_session_id ?? priorSessionId };
+      }
+      if (current?.stripe_session_id) {
+        const winner = await stripe.checkout.sessions.retrieve(current.stripe_session_id);
+        if (winner.status === "open" && winner.url) {
+          return { checkoutUrl: winner.url, sessionId: winner.id };
+        }
+      }
+      throw new Error("Unable to release the expired checkout session.");
     }
   }
 
