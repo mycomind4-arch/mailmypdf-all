@@ -51,7 +51,7 @@ export async function analyseSubjectNotice(
   const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
   const documents = await listCaseDocuments(caseId, context);
-  const notice = documents.find((d) => d.role === "subject_notice" && d.included);
+  const notice = documents.find((d) => d.role === "subject_notice");
   if (!notice) throw new CaseNotFoundError("This case has no notice to analyse yet");
 
   const document = await loadDisclosableDocument(caseId, notice.document_id, context);
