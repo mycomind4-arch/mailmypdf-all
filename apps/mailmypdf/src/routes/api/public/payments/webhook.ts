@@ -305,7 +305,7 @@ async function markOrderPaid(
     return;
   }
 
-  if (order.stripe_session_id && order.stripe_session_id !== session.id) {
+  if (!order.stripe_session_id || order.stripe_session_id !== session.id) {
     log.error("checkout session does not match order", {
       orderId,
       expectedSessionId: order.stripe_session_id,
