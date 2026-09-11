@@ -22,6 +22,22 @@ export type CompoundGateDecision = {
   verifiedAt: string | null;
 };
 
+export type CompoundCapabilityRunStatus = "completed" | "blocked" | "failed";
+
+export type CompoundCapabilityRun = {
+  id: string;
+  phaseId: string;
+  capabilityLabel: string;
+  canonicalCapabilityId: string;
+  adapterId: string | null;
+  status: CompoundCapabilityRunStatus;
+  provider: string;
+  provenance: "system_generated" | "externally_sourced";
+  output: unknown;
+  messages: readonly string[];
+  executedAt: string;
+};
+
 export type CompoundPhaseState = {
   phaseId: string;
   status: CompoundPhaseStatus;
@@ -38,6 +54,7 @@ export type CompoundMatterState = {
   createdAt: string;
   updatedAt: string;
   phases: readonly CompoundPhaseState[];
+  capabilityRuns: readonly CompoundCapabilityRun[];
 };
 
 export type CompoundMatterStatus =
@@ -117,6 +134,7 @@ export function createCompoundMatterState(input: {
     createdAt: now,
     updatedAt: now,
     phases,
+    capabilityRuns: [],
   };
 }
 
@@ -263,6 +281,34 @@ export function completeCompoundPhase(
   return {
     ...state,
     phases,
+    version: state.version + 1,
+    updatedAt: now,
+  };
+}
+
+export function recordCompoundCapabilityRun(
+  state: CompoundMatterState,
+  run: CompoundCapabilityRun,
+  now = new Date().toISOString(),
+): CompoundMatterState {
+  const workflow = compoundWorkflows[state.workflowId];
+  const definition = workflow.phases.find((phase) => phase.id === run.phaseId);
+  if (!definition) throw new Error(`Unknown compound phase: ${run.phaseId}`);
+
+  const phase = state.phases.find((candidate) => candidate.phaseId === run.phaseId);
+  if (!phase) throw new Error(`Unknown compound phase: ${run.phaseId}`);
+  if (phase.status !== "in_progress") {
+    throw new Error(`Capability execution requires phase ${run.phaseId} to be in progress`);
+  }
+  if (!definition.capabilities.includes(run.capabilityLabel)) {
+    throw new Error(
+      `Capability ${run.capabilityLabel} is not defined for phase ${run.phaseId}`,
+    );
+  }
+
+  return {
+    ...state,
+    capabilityRuns: [...(state.capabilityRuns ?? []), run],
     version: state.version + 1,
     updatedAt: now,
   };
