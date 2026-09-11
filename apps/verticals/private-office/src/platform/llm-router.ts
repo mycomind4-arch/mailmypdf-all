@@ -2,7 +2,7 @@
  * LLM Provider Router / Orchestrator
  *
  * Responsibilities:
- *   - Choose default provider (Gemini)
+ *   - Choose default provider (Claude / Anthropic)
  *   - Honor explicit provider configuration
  *   - Enforce allowed providers
  *   - Handle provider availability / fallback
