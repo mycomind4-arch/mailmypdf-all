@@ -102,5 +102,18 @@ describe("compound capability executor", () => {
     expect(result.canonicalCapabilityId).toBe("research");
     expect(result.status).toBe("blocked");
     expect(result.provider).toBe("authority:null");
+    expect(result.provenance).toBe("system_generated");
+  });
+
+  it("blocks risk assessment when there is not enough intelligence to assess", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accusation-defense",
+      matterId: "matter-1",
+      phaseId: "triage-authority",
+      capabilityLabel: "consequence classification",
+    });
+    expect(result.canonicalCapabilityId).toBe("risk");
+    expect(result.status).toBe("blocked");
+    expect((result.output as { overallRisk: string }).overallRisk).toBe("unknown");
   });
 });
