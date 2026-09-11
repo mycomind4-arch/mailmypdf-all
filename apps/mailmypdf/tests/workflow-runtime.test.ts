@@ -42,19 +42,26 @@ test("resolves SSDI only under its persisted vertical, never falls back for unkn
   assert.equal(resolveCaseWorkflow("ssdi-denial", "appeal-mail").id, "ssdi-denial");
   assert.equal(resolveCaseWorkflow("cp14-response", "notice-response").noticeFamily, "irs");
   assert.deepEqual(resolveCaseWorkflow("cp2000-response", "notice-response").responseModes, ["agree", "disagree", "partial-agreement"]);
+  assert.deepEqual(resolveCaseWorkflow("cp504-response", "notice-response").responseModes, ["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]);
   assert.throws(() => resolveCaseWorkflow("ssdi-denial", "dispute-mail"));
   assert.throws(() => resolveCaseWorkflow("unknown", "appeal-mail"));
   assert.throws(() => resolveCaseWorkflow("toString", "appeal-mail"));
 });
 
-test("keeps CP14 and CP2000 drafting rules distinct", () => {
+test("keeps IRS notice drafting rules distinct", () => {
   const cp14 = resolveCaseWorkflow("cp14-response", "notice-response");
   const cp2000 = resolveCaseWorkflow("cp2000-response", "notice-response");
+  const cp504 = resolveCaseWorkflow("cp504-response", "notice-response");
   assert.match(cp14.analysisInstructions, /balance-due/);
   assert.match(cp14.draftInstructions, /installment/);
   assert.match(cp2000.analysisInstructions, /proposed-underreporter/);
   assert.match(cp2000.draftInstructions, /partial-agreement/);
+  assert.match(cp504.analysisInstructions, /Intent to Levy/);
+  assert.match(cp504.analysisInstructions, /Collection Due Process/);
+  assert.match(cp504.draftInstructions, /Form 9423/);
+  assert.match(cp504.draftInstructions, /collection activity will stop/);
   assert.notEqual(cp14.analysisInstructions, cp2000.analysisInstructions);
+  assert.notEqual(cp2000.analysisInstructions, cp504.analysisInstructions);
 });
 
 test("allows drafting from the current clean notice with no enclosures", () => {
