@@ -18,6 +18,7 @@ import type {
   CompoundCapabilityRun,
   CompoundMatterState,
 } from "@/domain/compound-workflow-runtime";
+import { evaluateCompoundPhaseReadiness } from "@/domain/compound-phase-readiness";
 import { useAuth } from "@/lib/use-auth";
 import {
   createCompoundMatter,
@@ -300,6 +301,10 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const latestRun = matter?.capabilityRuns
     ?.filter((run) => run.phaseId === activePhaseState?.phaseId)
     .at(-1) as CompoundCapabilityRun | undefined;
+  const activeGateReadiness =
+    matter && activePhaseState
+      ? evaluateCompoundPhaseReadiness(matter, activePhaseState.phaseId)
+      : [];
 
   return (
     <main className="min-h-screen bg-ivory text-charcoal">
@@ -525,6 +530,38 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                 </button>
               </div>
             </div>
+
+            {activeGateReadiness.length > 0 && (
+              <div className="mt-8">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Gate readiness
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {activeGateReadiness.map((item) => (
+                    <div
+                      key={item.gate}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold text-slate-950">{item.gate}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                          {item.readiness.replaceAll("_", " ")}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-slate-600">{item.detail}</p>
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        Gate status: {item.currentStatus}
+                        {item.supportingRunId ? ` · Run ${item.supportingRunId}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  Readiness is advisory. The engine does not silently pass legal,
+                  professional-review, human-review, or consequential-action gates.
+                </p>
+              </div>
+            )}
 
             {latestRun && (
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
