@@ -6,7 +6,7 @@ export const Route = createFileRoute("/start")({
     if (returnTo) {
       throw redirect({ to: "/auth", search: { redirect: returnTo } });
     }
-    throw redirect({ to: "/mail-a-pdf" });
+    throw redirect({ to: "/ecosystem" });
   },
   component: () => null,
 });
