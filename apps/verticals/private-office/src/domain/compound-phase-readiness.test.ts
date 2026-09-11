@@ -107,6 +107,45 @@ describe("compound phase readiness", () => {
     expect(evidence?.eligibleForSystemPass).toBe(false);
   });
 
+  it("makes externally sourced authority ready for user review but never system-passable", () => {
+    let state = createCompoundMatterState({
+      id: "matter-1",
+      ownerId: "owner-1",
+      workflowId: "government-accountability-investigation",
+    });
+    state = startCompoundPhase(state, "agency-authority");
+    state = recordCompoundCapabilityRun(state, {
+      id: "authority-run",
+      phaseId: "agency-authority",
+      capabilityLabel: "authority audit",
+      canonicalCapabilityId: "research",
+      adapterId: "government",
+      status: "completed",
+      provider: "authority:official-source",
+      provenance: "externally_sourced",
+      output: {
+        researchPerformed: true,
+        citations: [
+          {
+            title: "Official source",
+            reference: "https://agency.ca.gov/rule",
+            summary: "Official source text",
+          },
+        ],
+      },
+      messages: [],
+      executedAt: new Date().toISOString(),
+    });
+
+    const readiness = evaluateCompoundPhaseReadiness(
+      state,
+      "agency-authority",
+    );
+    const authority = readiness.find((item) => item.gate === "authority");
+    expect(authority?.readiness).toBe("ready_for_review");
+    expect(authority?.eligibleForSystemPass).toBe(false);
+  });
+
   it("allows deterministic passage only when every evidence item is verified", () => {
     let state = createCompoundMatterState({
       id: "matter-1",
