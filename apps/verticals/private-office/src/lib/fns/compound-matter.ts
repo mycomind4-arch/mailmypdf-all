@@ -63,6 +63,7 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
     calendarType: z.enum(["calendar", "business"]),
     deadlineEventType: z.string().min(1).max(100),
     authority: z.string().min(1).max(200),
+    authoritySourceUrl: z.string().url().max(2048).optional(),
     version: z.string().min(1).max(20).optional(),
     provenanceLevel: provenanceLevelSchema,
     confidence: z.number().min(0).max(1).optional(),
