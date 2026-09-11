@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createElement } from "react";
+import { createElement, useEffect, useState } from "react";
 import { Archive, BriefcaseBusiness, LayoutDashboard, Plus, UserRound, Workflow } from "lucide-react";
 import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import { useAuth } from "@/lib/use-auth";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
+import { compoundWorkflows } from "@/domain/compound-workflows";
+import type { CompoundMatterState } from "@/domain/compound-workflow-runtime";
+import { listCompoundMatters } from "@/lib/fns/compound-matter";
 import {
   createWorkflowHub,
   createWorkspacePageHeader,
@@ -24,6 +27,32 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const { user, loading, isConfigured } = useAuth();
+  const [compoundMatters, setCompoundMatters] = useState<CompoundMatterState[]>([]);
+  const [mattersLoading, setMattersLoading] = useState(false);
+  const [mattersError, setMattersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setCompoundMatters([]);
+      return;
+    }
+    let cancelled = false;
+    setMattersLoading(true);
+    setMattersError(null);
+    listCompoundMatters()
+      .then((result) => {
+        if (!cancelled) setCompoundMatters(result.matters as CompoundMatterState[]);
+      })
+      .catch((cause) => {
+        if (!cancelled) setMattersError(cause instanceof Error ? cause.message : "Unable to load matters.");
+      })
+      .finally(() => {
+        if (!cancelled) setMattersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   if (loading) {
     return <main className="min-h-screen bg-ivory"><PrivateOfficeChrome /><div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center"><span className="font-mono text-sm text-stone">Loading Private Office…</span></div></main>;
@@ -84,7 +113,7 @@ function DashboardPage() {
         title="One controlled record from the first fact to final proof."
         description="Private Office is the premium workspace for consequential correspondence. Each matter keeps source facts, evidence, AI-assisted analysis, drafting, human review, authorization, mailing, and proof as separate controlled stages."
         actions={<Link to="/workflows" className="mmp-button-primary"><Plus size={15} /> New matter</Link>}
-        meta={<><span>{catalog.length} available Private Office workflows</span><span>Human review before consequential actions</span></>}
+        meta={<><span>{catalog.length} focused workflows + {Object.keys(compoundWorkflows).length} compound workflows</span><span>Human review before consequential actions</span></>}
       />
 
       <WorkflowHub
@@ -106,12 +135,55 @@ function DashboardPage() {
       />
 
       <section id="matters" className="mmp-workspace-section">
-        <div className="mmp-workspace-section__head"><h2>Your matters</h2></div>
-        <div className="mmp-workspace-panel mmp-workspace-empty">
-          <h3>Matter history needs a real repository before it is displayed.</h3>
-          <p>The previous dashboard initialized an empty in-memory matter list and then treated it as account state. That placeholder has been removed. This area is reserved for persisted, owner-scoped matter summaries when the Private Office repository is connected.</p>
-          <Link to="/workflows" className="mmp-button-primary mt-5">Start a Private Office matter</Link>
-        </div>
+        <div className="mmp-workspace-section__head"><h2>Your compound matters</h2></div>
+
+        {mattersLoading ? (
+          <div className="mmp-workspace-panel mmp-workspace-empty">
+            <p>Loading persisted matters…</p>
+          </div>
+        ) : mattersError ? (
+          <div className="mmp-workspace-panel mmp-workspace-empty">
+            <h3>Unable to load matters</h3>
+            <p>{mattersError}</p>
+          </div>
+        ) : compoundMatters.length === 0 ? (
+          <div className="mmp-workspace-panel mmp-workspace-empty">
+            <h3>No compound matters yet.</h3>
+            <p>Start one of the new compound workflows to create a durable, owner-scoped orchestration record.</p>
+            <Link to="/workflows" className="mmp-button-primary mt-5">Start a compound matter</Link>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {compoundMatters.map((matter) => {
+              const workflow = compoundWorkflows[matter.workflowId];
+              const complete = matter.phases.filter((phase) => phase.status === "complete").length;
+              const active = matter.phases.find((phase) => phase.status === "in_progress");
+              const blocked = matter.phases.find((phase) => phase.status === "blocked");
+              return (
+                <Link
+                  key={matter.id}
+                  to={`/workflows/${matter.workflowId}` as "/workflows"}
+                  className="mmp-workspace-panel block transition hover:-translate-y-0.5"
+                >
+                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                    <div>
+                      <div className="section-kicker">{workflow.family}</div>
+                      <h3 className="mt-2 text-xl text-charcoal">{workflow.title}</h3>
+                      <p className="mt-2 text-sm text-stone">
+                        {complete}/{matter.phases.length} phases complete
+                        {active ? ` · Active: ${workflow.phases.find((p) => p.id === active.phaseId)?.title ?? active.phaseId}` : ""}
+                        {blocked ? ` · Blocked: ${workflow.phases.find((p) => p.id === blocked.phaseId)?.title ?? blocked.phaseId}` : ""}
+                      </p>
+                    </div>
+                    <div className="font-mono text-xs text-stone-light">
+                      v{matter.version}<br />{matter.updatedAt.slice(0, 10)}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     </WorkspaceShell>
   );
