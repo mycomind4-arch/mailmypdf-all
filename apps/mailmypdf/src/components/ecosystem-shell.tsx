@@ -5,7 +5,7 @@
  * Each vertical imports this component and passes its config.
  *
  * Public header:    [BRAND] Products ▾ | Workflows | How It Works | Security & Trust | About | Mail a PDF | Sign In | Start a Workflow
- * Auth header:      [BRAND] Products ▾ | Workflows | How It Works | Security & Trust | Recent ▾ | Dashboard | Mail a PDF | New Workflow | Avatar ▾
+ * Auth shell:       [LEFT SIDEBAR] + Dashboard | Workflows | Mail a PDF | Recent ▾ | New Matter | Avatar ▾
  *
  * DO NOT create competing navigation components.
  * DO NOT add vertical-specific global nav labels.
