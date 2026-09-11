@@ -199,6 +199,15 @@
   }
 }
 
+
+/* Authenticated workspace chrome — the fixed left rail owns 272px on desktop. */
+@media (min-width: 1024px) {
+  body.mmp-auth-sidebar-active {
+    margin-left: 272px;
+    width: calc(100% - 272px);
+  }
+}
+
 /* ── Utilities ──────────────────────────────────────────────────────────── */
 
 @utility postmark {
