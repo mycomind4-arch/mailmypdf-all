@@ -67,6 +67,8 @@ jobs:
         run: pnpm --filter ./apps/mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
         run: node --test apps/mailmypdf/tests/secure-workflow-fulfillment.test.mjs
+      - name: Verify executable notice workflow runtimes
+        run: pnpm --filter ./apps/mailmypdf exec tsx --test tests/workflow-runtime.test.ts tests/notice-response-workflow.test.ts
 
   build-core:
     name: Build mailmypdf core
