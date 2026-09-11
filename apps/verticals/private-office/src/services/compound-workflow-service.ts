@@ -148,7 +148,11 @@ export class CompoundWorkflowService {
     actorId?: string;
     execution: Omit<
       CompoundCapabilityExecutionInput,
-      "workflowId" | "matterId" | "phaseId" | "capabilityLabel"
+      | "workflowId"
+      | "matterId"
+      | "phaseId"
+      | "capabilityLabel"
+      | "verifiedByActorId"
     >;
   }): Promise<CompoundMatterState> {
     const current = await this.requireMatter(input.ownerId, input.matterId);
@@ -180,6 +184,7 @@ export class CompoundWorkflowService {
       phaseId: input.phaseId,
       capabilityLabel: input.capabilityLabel,
       ...input.execution,
+      verifiedByActorId: input.actorId ?? input.ownerId,
     });
     const next = recordCompoundCapabilityRun(current, run);
 
