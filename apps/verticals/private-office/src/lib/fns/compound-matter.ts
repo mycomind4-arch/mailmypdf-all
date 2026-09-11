@@ -54,6 +54,18 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
     provenanceLevel: provenanceLevelSchema.optional(),
     confidence: z.number().min(0).max(1).optional(),
   })).max(500).optional(),
+  deadlineRules: z.array(z.object({
+    name: z.string().min(1).max(100),
+    description: z.string().min(1).max(500),
+    triggerEventType: z.string().min(1).max(100),
+    days: z.number().int().min(1).max(3650),
+    calendarType: z.enum(["calendar", "business"]),
+    deadlineEventType: z.string().min(1).max(100),
+    authority: z.string().min(1).max(200),
+    version: z.string().min(1).max(20).optional(),
+    provenanceLevel: provenanceLevelSchema,
+    confidence: z.number().min(0).max(1).optional(),
+  })).max(100).optional(),
   evidence: z.array(z.object({
     claimId: z.string().min(1).max(200),
     relation: z.enum(["supports", "contradicts", "qualifies", "missing"]),
