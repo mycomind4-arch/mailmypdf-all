@@ -17,15 +17,13 @@ import {
   sortedByDate,
   type EvidenceRelation,
   type ProvenanceLevel,
-} from "../../../../../packages/intelligence/src/index";
-import {
-  CAPABILITIES,
-  type CapabilityId,
-} from "../../../../../packages/workflows/src/capability-registry";
+} from "@mailmypdf/intelligence";
 import {
   ADAPTERS,
+  CAPABILITIES,
   type AdapterId,
-} from "../../../../../packages/workflows/src/adapter-registry";
+  type CapabilityId,
+} from "@mailmypdf/workflows";
 import { getAuthorityProvider } from "@/platform/authority-provider";
 import type { CompoundWorkflowId } from "@/domain/compound-workflows";
 import type {
