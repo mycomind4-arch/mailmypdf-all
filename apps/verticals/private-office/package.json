@@ -4,12 +4,13 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "pnpm run build:shared && vite dev",
+    "build": "pnpm run build:shared && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "vitest run",
-    "verify:launch": "npm test && npm run build"
+    "test": "pnpm run build:shared && vitest run",
+    "verify:launch": "npm test && npm run build",
+    "build:shared": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/intelligence build && pnpm --filter @mailmypdf/workflows build"
   },
   "dependencies": {
     "@mailmypdf/fulfillment": "workspace:*",
