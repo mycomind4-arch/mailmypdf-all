@@ -8,7 +8,11 @@ import {
   detectGaps,
   evaluateEvidence,
   conflictingDates,
+  computeAllDeadlines,
   computeRiskAssessment,
+  createDeadlineRule,
+  createTemporalConstraint,
+  getDeadlineStatus,
   sortBySeverity,
   sortedByDate,
   type EvidenceRelation,
@@ -46,6 +50,19 @@ export type CompoundTimelineEventInput = {
   confidence?: number;
 };
 
+export type CompoundDeadlineRuleInput = {
+  name: string;
+  description: string;
+  triggerEventType: string;
+  days: number;
+  calendarType: "calendar" | "business";
+  deadlineEventType: string;
+  authority: string;
+  version?: string;
+  provenanceLevel: ProvenanceLevel;
+  confidence?: number;
+};
+
 export type CompoundEvidenceInput = {
   claimId: string;
   relation: EvidenceRelation;
@@ -66,6 +83,7 @@ export type CompoundCapabilityExecutionInput = {
   currentDate?: string;
   facts?: readonly CompoundStructuredFactInput[];
   timelineEvents?: readonly CompoundTimelineEventInput[];
+  deadlineRules?: readonly CompoundDeadlineRuleInput[];
   evidence?: readonly CompoundEvidenceInput[];
 };
 
@@ -122,6 +140,7 @@ export function resolveCompoundCapabilityBinding(
 
   const executable =
     canonicalCapabilityId === "timeline" ||
+    canonicalCapabilityId === "deadlines" ||
     canonicalCapabilityId === "contradictions" ||
     canonicalCapabilityId === "evidence" ||
     canonicalCapabilityId === "risk"
@@ -242,6 +261,89 @@ export async function executeCompoundCapability(
           dateConflicts: conflictingDates(timeline),
         },
         [`Reconstructed ${ordered.length} source-linked timeline event(s).`],
+      );
+    }
+
+    if (binding.canonicalCapabilityId === "deadlines") {
+      if (!input.timelineEvents?.length) {
+        return resultRun(
+          input,
+          binding,
+          "blocked",
+          "@mailmypdf/intelligence",
+          null,
+          ["Deadline computation requires a structured trigger event. No trigger date was invented."],
+        );
+      }
+      if (!input.deadlineRules?.length) {
+        return resultRun(
+          input,
+          binding,
+          "blocked",
+          "@mailmypdf/intelligence",
+          null,
+          ["Deadline computation requires an explicit sourced rule. The system will not invent a legal deadline rule."],
+        );
+      }
+
+      const timeline = buildTimeline(input);
+      const rules = input.deadlineRules.map((rule) => {
+        const duration = createTemporalConstraint({
+          triggerEventType: rule.triggerEventType,
+          days: rule.days,
+          calendarType: rule.calendarType,
+        });
+        return createDeadlineRule({
+          name: rule.name,
+          description: rule.description,
+          triggerEventType: rule.triggerEventType,
+          duration,
+          deadlineEventType: rule.deadlineEventType,
+          authority: rule.authority,
+          version: rule.version ?? "1",
+          provenance: provenance(rule.provenanceLevel),
+          confidence: rule.confidence,
+        });
+      });
+
+      const deadlines = computeAllDeadlines(timeline.events, rules);
+      if (deadlines.length === 0) {
+        return resultRun(
+          input,
+          binding,
+          "blocked",
+          "@mailmypdf/intelligence",
+          { rules, triggerEvents: timeline.events, deadlines: [] },
+          ["No supplied trigger event matched the supplied deadline rule. No deadline was inferred."],
+        );
+      }
+
+      const currentDate = input.currentDate ?? new Date().toISOString().slice(0, 10);
+      const evaluated = deadlines.map((deadline) => ({
+        result: deadline,
+        status: getDeadlineStatus(deadline, currentDate),
+      }));
+      const hasUnverifiedAuthority = rules.some(
+        (rule) => !rule.verified && rule.provenance.level !== "external_source",
+      );
+
+      return resultRun(
+        input,
+        binding,
+        "completed",
+        "@mailmypdf/intelligence",
+        {
+          currentDate,
+          rules,
+          deadlines: evaluated,
+          authorityVerified: !hasUnverifiedAuthority,
+        },
+        [
+          `Computed ${evaluated.length} deadline(s) from explicit rule(s) and matching trigger event(s).`,
+          ...(hasUnverifiedAuthority
+            ? ["The deadline rule authority is not independently verified; do not use this computation to pass an authority gate."]
+            : []),
+        ],
       );
     }
 
