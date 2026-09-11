@@ -226,7 +226,10 @@ create table if not exists public.private_office_compound_events (
       'compound_phase_started',
       'compound_gate_passed',
       'compound_gate_blocked',
-      'compound_phase_completed'
+      'compound_phase_completed',
+      'compound_capability_completed',
+      'compound_capability_blocked',
+      'compound_capability_failed'
     )
   ),
   actor_id text,
@@ -403,7 +406,10 @@ begin
     'compound_phase_started',
     'compound_gate_passed',
     'compound_gate_blocked',
-    'compound_phase_completed'
+    'compound_phase_completed',
+    'compound_capability_completed',
+    'compound_capability_blocked',
+    'compound_capability_failed'
   ) then
     raise exception 'unsupported compound event type';
   end if;
