@@ -14,13 +14,103 @@ import {
   compoundWorkflows,
   type CompoundWorkflowId,
 } from "@/domain/compound-workflows";
-import type { CompoundMatterState } from "@/domain/compound-workflow-runtime";
+import type {
+  CompoundCapabilityRun,
+  CompoundMatterState,
+} from "@/domain/compound-workflow-runtime";
 import { useAuth } from "@/lib/use-auth";
 import {
   createCompoundMatter,
   getCompoundMatter,
+  runCompoundCapability,
   startCompoundMatterPhase,
 } from "@/lib/fns/compound-matter";
+
+type ParsedEvidenceRelation = "supports" | "contradicts" | "qualifies" | "missing";
+type ParsedEvidenceType = "document" | "fact" | "entity" | "external";
+
+function nonEmptyLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function parseFacts(value: string) {
+  return nonEmptyLines(value).map((line, index) => {
+    const [subject, predicate, ...rest] = line.split("|").map((part) => part.trim());
+    const factValue = rest.join(" | ").trim();
+    if (!subject || !predicate || !factValue) {
+      throw new Error(
+        `Fact line ${index + 1} must use: subject | predicate | value`,
+      );
+    }
+    return {
+      subject,
+      predicate,
+      value: factValue,
+      provenanceLevel: "user_provided" as const,
+    };
+  });
+}
+
+function parseTimeline(value: string) {
+  return nonEmptyLines(value).map((line, index) => {
+    const [date, eventType, ...rest] = line.split("|").map((part) => part.trim());
+    if (!eventType) {
+      throw new Error(
+        `Timeline line ${index + 1} must use: YYYY-MM-DD | event type | description`,
+      );
+    }
+    return {
+      date: date || undefined,
+      eventType,
+      description: rest.join(" | ").trim() || undefined,
+      provenanceLevel: "user_provided" as const,
+    };
+  });
+}
+
+function parseEvidence(value: string) {
+  const allowedRelations = new Set<ParsedEvidenceRelation>([
+    "supports",
+    "contradicts",
+    "qualifies",
+    "missing",
+  ]);
+  const allowedTypes = new Set<ParsedEvidenceType>([
+    "document",
+    "fact",
+    "entity",
+    "external",
+  ]);
+
+  return nonEmptyLines(value).map((line, index) => {
+    const [claimId, relationRaw, evidenceTypeRaw, evidenceId, ...rest] = line
+      .split("|")
+      .map((part) => part.trim());
+    const relation = relationRaw as ParsedEvidenceRelation;
+    const evidenceType = evidenceTypeRaw as ParsedEvidenceType;
+    if (
+      !claimId ||
+      !allowedRelations.has(relation) ||
+      !allowedTypes.has(evidenceType) ||
+      !evidenceId
+    ) {
+      throw new Error(
+        `Evidence line ${index + 1} must use: claim | supports/contradicts/qualifies/missing | document/fact/entity/external | evidence id | explanation`,
+      );
+    }
+    return {
+      claimId,
+      relation,
+      evidenceType,
+      evidenceId,
+      explanation: rest.join(" | ").trim() || undefined,
+      provenanceLevel: "user_provided" as const,
+    };
+  });
+}
 
 export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkflowId }) {
   const workflow = compoundWorkflows[workflowId];
@@ -31,6 +121,13 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [startingPhase, setStartingPhase] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resuming, setResuming] = useState(false);
+  const [selectedCapability, setSelectedCapability] = useState("");
+  const [jurisdiction, setJurisdiction] = useState("");
+  const [analysisContext, setAnalysisContext] = useState("");
+  const [factsText, setFactsText] = useState("");
+  const [timelineText, setTimelineText] = useState("");
+  const [evidenceText, setEvidenceText] = useState("");
+  const [runningCapability, setRunningCapability] = useState(false);
 
   useEffect(() => {
     if (!user || !search.matterId || matter?.id === search.matterId) return;
@@ -60,6 +157,24 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
       cancelled = true;
     };
   }, [user, search.matterId, workflowId, matter?.id]);
+
+  const activePhaseState = matter?.phases.find(
+    (phase) => phase.status === "in_progress",
+  );
+  const activePhaseDefinition = activePhaseState
+    ? workflow.phases.find((phase) => phase.id === activePhaseState.phaseId)
+    : undefined;
+
+  useEffect(() => {
+    const first = activePhaseDefinition?.capabilities[0];
+    if (!first) {
+      setSelectedCapability("");
+      return;
+    }
+    if (!activePhaseDefinition.capabilities.includes(selectedCapability)) {
+      setSelectedCapability(first);
+    }
+  }, [activePhaseDefinition, selectedCapability]);
 
   async function createMatter() {
     setCreating(true);
@@ -103,7 +218,38 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     }
   }
 
+  async function executeSelectedCapability() {
+    if (!matter || !activePhaseState || !selectedCapability) return;
+    setRunningCapability(true);
+    setError(null);
+    try {
+      const result = await runCompoundCapability({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+          capabilityLabel: selectedCapability,
+          jurisdiction: jurisdiction.trim() || undefined,
+          context: analysisContext.trim() || undefined,
+          facts: parseFacts(factsText),
+          timelineEvents: parseTimeline(timelineText),
+          evidence: parseEvidence(evidenceText),
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to execute this capability.",
+      );
+    } finally {
+      setRunningCapability(false);
+    }
+  }
+
   const firstReady = matter?.phases.find((phase) => phase.status === "ready");
+  const latestRun = matter?.capabilityRuns
+    ?.filter((run) => run.phaseId === activePhaseState?.phaseId)
+    .at(-1) as CompoundCapabilityRun | undefined;
 
   return (
     <main className="min-h-screen bg-ivory text-charcoal">
@@ -207,6 +353,166 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                 );
               })}
             </div>
+          </section>
+        )}
+
+        {matter && activePhaseDefinition && activePhaseState && (
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+            <div className="max-w-3xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Active phase analysis
+              </div>
+              <h2 className="mt-2 font-serif text-3xl">{activePhaseDefinition.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Run one of this phase&apos;s canonical capabilities. Inputs stay attached to this
+                matter through the resulting capability record; outputs record their provider,
+                platform capability, adapter, status, and execution time.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <label className="input-label">Capability</label>
+                  <select
+                    className="input-field"
+                    value={selectedCapability}
+                    onChange={(event) => setSelectedCapability(event.target.value)}
+                  >
+                    {activePhaseDefinition.capabilities.map((capability) => (
+                      <option key={capability} value={capability}>
+                        {capability}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Jurisdiction</label>
+                  <input
+                    className="input-field"
+                    value={jurisdiction}
+                    onChange={(event) => setJurisdiction(event.target.value)}
+                    placeholder="Example: California, Humboldt County"
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Analysis context</label>
+                  <textarea
+                    className="input-field"
+                    rows={4}
+                    value={analysisContext}
+                    onChange={(event) => setAnalysisContext(event.target.value)}
+                    placeholder="Describe the question this capability should address. Authority research remains blocked unless a live authority provider is configured."
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Facts</label>
+                  <textarea
+                    className="input-field font-mono text-xs"
+                    rows={5}
+                    value={factsText}
+                    onChange={(event) => setFactsText(event.target.value)}
+                    placeholder={"subject | predicate | value\nhearing | hearing_date | 2026-09-20"}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    One fact per line. These are stored as user-provided provenance unless later verified.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="input-label">Timeline events</label>
+                  <textarea
+                    className="input-field font-mono text-xs"
+                    rows={5}
+                    value={timelineText}
+                    onChange={(event) => setTimelineText(event.target.value)}
+                    placeholder={"2026-09-01 | agency_notice | Notice received\n2026-09-20 | hearing | Hearing stated in notice"}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Evidence</label>
+                  <textarea
+                    className="input-field font-mono text-xs"
+                    rows={6}
+                    value={evidenceText}
+                    onChange={(event) => setEvidenceText(event.target.value)}
+                    placeholder={"claim-1 | supports | document | notice-pdf | Agency notice\nclaim-1 | contradicts | fact | witness-2 | Conflicting account"}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={executeSelectedCapability}
+                  disabled={runningCapability || !selectedCapability}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {runningCapability ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {runningCapability ? "Running capability…" : "Run capability"}
+                </button>
+              </div>
+            </div>
+
+            {latestRun && (
+              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Latest persisted capability run
+                    </div>
+                    <h3 className="mt-1 font-semibold text-slate-950">
+                      {latestRun.capabilityLabel}
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                    {latestRun.status}
+                  </span>
+                </div>
+
+                <dl className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">Platform</dt>
+                    <dd className="mt-1">{latestRun.canonicalCapabilityId}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">Adapter</dt>
+                    <dd className="mt-1">{latestRun.adapterId ?? "platform"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-slate-500">Provider</dt>
+                    <dd className="mt-1">{latestRun.provider}</dd>
+                  </div>
+                </dl>
+
+                {latestRun.messages.length > 0 && (
+                  <ul className="mt-4 space-y-1 text-sm text-slate-700">
+                    {latestRun.messages.map((message, index) => (
+                      <li key={index}>• {message}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {latestRun.output !== null && latestRun.output !== undefined && (
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-sm font-semibold">
+                      View structured output
+                    </summary>
+                    <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white p-4 text-xs text-slate-700">
+                      {JSON.stringify(latestRun.output, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
           </section>
         )}
 
