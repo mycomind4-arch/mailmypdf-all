@@ -2,6 +2,7 @@ import {
   completeCompoundPhase,
   createCompoundMatterState,
   getCompoundMatterStatus,
+  recordCompoundCapabilityRun,
   recordCompoundGateDecision,
   startCompoundPhase,
   type CompoundGateDecision,
@@ -11,10 +12,12 @@ import {
 import type {
   CompoundMatterRepository,
 } from "@/domain/compound-matter-repository";
-import type {
-  CompoundWorkflowGateType,
-  CompoundWorkflowId,
+import {
+  compoundWorkflows,
+  type CompoundWorkflowGateType,
+  type CompoundWorkflowId,
 } from "@/domain/compound-workflows";
+import type { CompoundCapabilityExecutionInput } from "./compound-capability-executor";
 
 export class CompoundGateAuthorizationError extends Error {
   constructor(message: string) {
@@ -129,6 +132,77 @@ export class CompoundWorkflowService {
       detail: input.detail,
       verifiedBy: "user",
       actorId: input.actorId ?? input.ownerId,
+    });
+  }
+
+  async executeCapability(input: {
+    ownerId: string;
+    matterId: string;
+    expectedVersion: number;
+    phaseId: string;
+    capabilityLabel: string;
+    actorId?: string;
+    execution: Omit<
+      CompoundCapabilityExecutionInput,
+      "workflowId" | "matterId" | "phaseId" | "capabilityLabel"
+    >;
+  }): Promise<CompoundMatterState> {
+    const current = await this.requireMatter(input.ownerId, input.matterId);
+    this.requireVersion(current, input.expectedVersion);
+
+    const phaseDefinition = compoundWorkflows[current.workflowId].phases.find(
+      (phase) => phase.id === input.phaseId,
+    );
+    if (!phaseDefinition) throw new Error(`Unknown compound phase: ${input.phaseId}`);
+    if (!phaseDefinition.capabilities.includes(input.capabilityLabel)) {
+      throw new Error(
+        `Capability ${input.capabilityLabel} is not defined for phase ${input.phaseId}`,
+      );
+    }
+
+    const phaseState = current.phases.find((phase) => phase.phaseId === input.phaseId);
+    if (phaseState?.status !== "in_progress") {
+      throw new Error(
+        `Capability execution requires phase ${input.phaseId} to be in progress`,
+      );
+    }
+
+    const { executeCompoundCapability } = await import(
+      "./compound-capability-executor"
+    );
+    const run = await executeCompoundCapability({
+      workflowId: current.workflowId,
+      matterId: current.id,
+      phaseId: input.phaseId,
+      capabilityLabel: input.capabilityLabel,
+      ...input.execution,
+    });
+    const next = recordCompoundCapabilityRun(current, run);
+
+    return this.repository.commit({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+      expectedVersion: input.expectedVersion,
+      nextState: next,
+      status: getCompoundMatterStatus(next),
+      event: {
+        eventType:
+          run.status === "completed"
+            ? "compound_capability_completed"
+            : run.status === "blocked"
+              ? "compound_capability_blocked"
+              : "compound_capability_failed",
+        actorId: input.actorId ?? input.ownerId,
+        metadata: {
+          phaseId: input.phaseId,
+          capabilityLabel: input.capabilityLabel,
+          canonicalCapabilityId: run.canonicalCapabilityId,
+          adapterId: run.adapterId,
+          provider: run.provider,
+          status: run.status,
+          messages: run.messages,
+        },
+      },
     });
   }
 
