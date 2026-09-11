@@ -47,7 +47,10 @@ export async function callAIWithDocument(cfg: AIConfig, system: string, user: st
   const base = (cfg.apiBaseUrl || (cfg.provider === 'gemini' ? 'https://generativelanguage.googleapis.com' : cfg.provider === 'openai' ? 'https://api.openai.com' : 'https://api.anthropic.com')).replace(/\/$/, '');
   let response: Response;
   if (cfg.provider === 'anthropic') {
-    response = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: cfg.model, max_tokens: 7000, system, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: document.mimeType, data: document.base64 } }, { type: 'text', text: user }] }] }) });
+    const content = document.mimeType === 'application/pdf'
+      ? [{ type: 'document', source: { type: 'base64', media_type: document.mimeType, data: document.base64 } }, { type: 'text', text: user }]
+      : [{ type: 'image', source: { type: 'base64', media_type: document.mimeType, data: document.base64 } }, { type: 'text', text: user }];
+    response = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: cfg.model, max_tokens: 7000, system, messages: [{ role: 'user', content }] }) });
     if (!response.ok) throw new Error(`Anthropic request failed: ${response.status}`);
     const body = await response.json() as any;
     return body.content?.filter((x:any)=>x.type==='text').map((x:any)=>x.text).join('\n').trim() ?? '';
