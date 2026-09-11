@@ -220,7 +220,93 @@ export class CompoundWorkflowService {
         `User reviewed and confirmed the retrieved authority sources from run ${run.id}. This confirms source selection only; it does not establish legal applicability or replace professional advice.`,
       verifiedBy: "user",
       actorId: input.actorId ?? input.ownerId,
+      supportingRunId: run.id,
       userAuthorityConfirmation: true,
+    });
+  }
+
+  async confirmDeadlineGate(input: {
+    ownerId: string;
+    matterId: string;
+    expectedVersion: number;
+    phaseId: string;
+    actorId?: string;
+  }): Promise<CompoundMatterState> {
+    const current = await this.requireMatter(input.ownerId, input.matterId);
+    this.requireVersion(current, input.expectedVersion);
+
+    const phase = current.phases.find(
+      (candidate) => candidate.phaseId === input.phaseId,
+    );
+    if (phase?.status !== "in_progress") {
+      throw new Error(
+        `Deadline confirmation requires phase ${input.phaseId} to be in progress`,
+      );
+    }
+    const deadlineGate = phase.gates.find((gate) => gate.gate === "deadline");
+    if (!deadlineGate) {
+      throw new Error(`Phase ${input.phaseId} has no deadline gate`);
+    }
+    if (deadlineGate.status !== "pending") {
+      throw new Error(
+        `Deadline gate for phase ${input.phaseId} is already ${deadlineGate.status}`,
+      );
+    }
+
+    const { evaluateCompoundPhaseReadiness } = await import(
+      "@/domain/compound-phase-readiness"
+    );
+    const readiness = evaluateCompoundPhaseReadiness(
+      current,
+      input.phaseId,
+    ).find((item) => item.gate === "deadline");
+
+    if (
+      readiness?.readiness !== "ready_for_review" ||
+      !readiness.supportingRunId
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Deadline cannot be confirmed until a source-grounded deadline calculation is ready for review.",
+      );
+    }
+
+    const run = current.capabilityRuns.find(
+      (candidate) => candidate.id === readiness.supportingRunId,
+    );
+    const output =
+      run && typeof run.output === "object" && run.output !== null
+        ? (run.output as {
+            authorityVerified?: boolean;
+            deadlines?: unknown[];
+          })
+        : null;
+
+    if (
+      !run ||
+      run.status !== "completed" ||
+      run.canonicalCapabilityId !== "deadlines" ||
+      output?.authorityVerified !== true ||
+      !Array.isArray(output.deadlines) ||
+      output.deadlines.length === 0
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Deadline confirmation requires a completed source-grounded deadline run.",
+      );
+    }
+
+    return this.recordGateDecision({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+      expectedVersion: input.expectedVersion,
+      phaseId: input.phaseId,
+      gate: "deadline",
+      status: "passed",
+      detail:
+        `User reviewed the grounded deadline rule and computed date from run ${run.id}. This confirms the selected rule/calculation for workflow progression; it does not guarantee legal applicability or replace professional advice.`,
+      verifiedBy: "user",
+      actorId: input.actorId ?? input.ownerId,
+      supportingRunId: run.id,
+      userDeadlineConfirmation: true,
     });
   }
 
@@ -260,6 +346,12 @@ export class CompoundWorkflowService {
       );
     }
 
+    const execution = this.groundDeadlineRules(
+      current,
+      input.phaseId,
+      input.execution,
+    );
+
     const { executeCompoundCapability } = await import(
       "./compound-capability-executor"
     );
@@ -268,7 +360,7 @@ export class CompoundWorkflowService {
       matterId: current.id,
       phaseId: input.phaseId,
       capabilityLabel: input.capabilityLabel,
-      ...input.execution,
+      ...execution,
       verifiedByActorId: input.actorId ?? input.ownerId,
     });
     const next = recordCompoundCapabilityRun(current, run);
@@ -387,14 +479,17 @@ export class CompoundWorkflowService {
     detail?: string | null;
     verifiedBy: Exclude<CompoundGateDecision["verifiedBy"], null>;
     actorId: string;
+    supportingRunId?: string | null;
     userAuthorityConfirmation?: boolean;
+    userDeadlineConfirmation?: boolean;
   }): Promise<CompoundMatterState> {
     if (
       input.verifiedBy === "user" &&
       input.gate !== "human-review" &&
       input.gate !== "consequential-action" &&
       input.gate !== "counsel-escalation" &&
-      !(input.gate === "authority" && input.userAuthorityConfirmation === true)
+      !(input.gate === "authority" && input.userAuthorityConfirmation === true) &&
+      !(input.gate === "deadline" && input.userDeadlineConfirmation === true)
     ) {
       throw new CompoundGateAuthorizationError(
         `Users cannot self-verify the ${input.gate} gate.`,
@@ -410,6 +505,7 @@ export class CompoundWorkflowService {
       status: input.status,
       detail: input.detail,
       verifiedBy: input.verifiedBy,
+      supportingRunId: input.supportingRunId,
     });
 
     return this.repository.commit({
@@ -429,9 +525,91 @@ export class CompoundWorkflowService {
           gate: input.gate,
           detail: input.detail ?? null,
           verifiedBy: input.verifiedBy,
+          supportingRunId: input.supportingRunId ?? null,
         },
       },
     });
+  }
+
+  private groundDeadlineRules(
+    state: CompoundMatterState,
+    phaseId: string,
+    execution: Omit<
+      CompoundCapabilityExecutionInput,
+      | "workflowId"
+      | "matterId"
+      | "phaseId"
+      | "capabilityLabel"
+      | "verifiedByActorId"
+    >,
+  ): typeof execution {
+    if (!execution.deadlineRules?.length) return execution;
+
+    const phase = state.phases.find((candidate) => candidate.phaseId === phaseId);
+    const authorityGate = phase?.gates.find((gate) => gate.gate === "authority");
+    const supportingRunId =
+      authorityGate?.status === "passed" &&
+      authorityGate.verifiedBy === "user" &&
+      authorityGate.supportingRunId
+        ? authorityGate.supportingRunId
+        : null;
+
+    const supportingRun = supportingRunId
+      ? state.capabilityRuns.find(
+          (run) =>
+            run.id === supportingRunId &&
+            run.status === "completed" &&
+            run.canonicalCapabilityId === "research" &&
+            run.provenance === "externally_sourced",
+        )
+      : undefined;
+
+    const output =
+      supportingRun &&
+      typeof supportingRun.output === "object" &&
+      supportingRun.output !== null
+        ? (supportingRun.output as {
+            researchPerformed?: boolean;
+            citations?: Array<{
+              url?: string;
+              reference?: string;
+              contentHash?: string;
+            }>;
+          })
+        : null;
+
+    const citations =
+      output?.researchPerformed === true && Array.isArray(output.citations)
+        ? output.citations
+        : [];
+
+    return {
+      ...execution,
+      deadlineRules: execution.deadlineRules.map((rule) => {
+        const requestedUrl = rule.authoritySourceUrl?.trim();
+        const citation = requestedUrl
+          ? citations.find(
+              (candidate) =>
+                candidate.url === requestedUrl ||
+                candidate.reference === requestedUrl,
+            )
+          : undefined;
+        const verified =
+          Boolean(supportingRunId) &&
+          Boolean(citation?.contentHash) &&
+          Boolean(requestedUrl);
+
+        return {
+          ...rule,
+          authoritySourceVerified: verified,
+          authoritySourceRunId: verified ? supportingRunId! : undefined,
+          authorityContentHash: verified ? citation!.contentHash : undefined,
+          provenanceLevel: verified
+            ? ("external_source" as const)
+            : rule.provenanceLevel,
+        };
+      }),
+    };
   }
 
   private async requireMatter(
