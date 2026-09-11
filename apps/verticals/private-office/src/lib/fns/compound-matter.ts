@@ -25,6 +25,46 @@ const userGateSchema = matterMutationSchema.extend({
   detail: z.string().max(2000).nullable().optional(),
 });
 
+const provenanceLevelSchema = z.enum([
+  "user_provided",
+  "document_extracted",
+  "external_source",
+  "rule_derived",
+  "ai_inferred",
+  "human_verified",
+]);
+
+const capabilityExecutionSchema = matterMutationSchema.extend({
+  capabilityLabel: z.string().min(1).max(200),
+  context: z.string().max(12000).optional(),
+  jurisdiction: z.string().max(300).optional(),
+  currentDate: z.string().max(30).optional(),
+  facts: z.array(z.object({
+    subject: z.string().min(1).max(200),
+    predicate: z.string().min(1).max(100),
+    value: z.string().min(1).max(2000),
+    provenanceLevel: provenanceLevelSchema.optional(),
+    confidence: z.number().min(0).max(1).optional(),
+  })).max(500).optional(),
+  timelineEvents: z.array(z.object({
+    eventType: z.string().min(1).max(100),
+    date: z.string().max(30).optional(),
+    dateEnd: z.string().max(30).optional(),
+    description: z.string().max(2000).optional(),
+    provenanceLevel: provenanceLevelSchema.optional(),
+    confidence: z.number().min(0).max(1).optional(),
+  })).max(500).optional(),
+  evidence: z.array(z.object({
+    claimId: z.string().min(1).max(200),
+    relation: z.enum(["supports", "contradicts", "qualifies", "missing"]),
+    evidenceType: z.enum(["document", "fact", "entity", "external"]),
+    evidenceId: z.string().min(1).max(200),
+    explanation: z.string().max(2000).optional(),
+    provenanceLevel: provenanceLevelSchema.optional(),
+    confidence: z.number().min(0).max(1).optional(),
+  })).max(500).optional(),
+});
+
 async function service() {
   const { CompoundWorkflowService } = await import(
     "@/services/compound-workflow-service"
@@ -80,6 +120,33 @@ export const startCompoundMatterPhase = createServerFn({ method: "POST" })
       actorId: context.user.id,
     });
     return { matter };
+  });
+
+export const runCompoundCapability = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(capabilityExecutionSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const {
+      matterId,
+      expectedVersion,
+      phaseId,
+      capabilityLabel,
+      ...execution
+    } = data;
+    const matter = await workflowService.executeCapability({
+      ownerId: context.user.id,
+      matterId,
+      expectedVersion,
+      phaseId,
+      capabilityLabel,
+      actorId: context.user.id,
+      execution,
+    });
+    return {
+      matter,
+      run: matter.capabilityRuns.at(-1) ?? null,
+    };
   });
 
 export const recordCompoundUserGate = createServerFn({ method: "POST" })
