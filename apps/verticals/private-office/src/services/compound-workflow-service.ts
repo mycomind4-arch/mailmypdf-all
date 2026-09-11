@@ -225,6 +225,91 @@ export class CompoundWorkflowService {
     });
   }
 
+  async confirmDeadlineGate(input: {
+    ownerId: string;
+    matterId: string;
+    expectedVersion: number;
+    phaseId: string;
+    actorId?: string;
+  }): Promise<CompoundMatterState> {
+    const current = await this.requireMatter(input.ownerId, input.matterId);
+    this.requireVersion(current, input.expectedVersion);
+
+    const phase = current.phases.find(
+      (candidate) => candidate.phaseId === input.phaseId,
+    );
+    if (phase?.status !== "in_progress") {
+      throw new Error(
+        `Deadline confirmation requires phase ${input.phaseId} to be in progress`,
+      );
+    }
+    const deadlineGate = phase.gates.find((gate) => gate.gate === "deadline");
+    if (!deadlineGate) {
+      throw new Error(`Phase ${input.phaseId} has no deadline gate`);
+    }
+    if (deadlineGate.status !== "pending") {
+      throw new Error(
+        `Deadline gate for phase ${input.phaseId} is already ${deadlineGate.status}`,
+      );
+    }
+
+    const { evaluateCompoundPhaseReadiness } = await import(
+      "@/domain/compound-phase-readiness"
+    );
+    const readiness = evaluateCompoundPhaseReadiness(
+      current,
+      input.phaseId,
+    ).find((item) => item.gate === "deadline");
+
+    if (
+      readiness?.readiness !== "ready_for_review" ||
+      !readiness.supportingRunId
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Deadline cannot be confirmed until a source-grounded deadline calculation is ready for review.",
+      );
+    }
+
+    const run = current.capabilityRuns.find(
+      (candidate) => candidate.id === readiness.supportingRunId,
+    );
+    const output =
+      run && typeof run.output === "object" && run.output !== null
+        ? (run.output as {
+            authorityVerified?: boolean;
+            deadlines?: unknown[];
+          })
+        : null;
+
+    if (
+      !run ||
+      run.status !== "completed" ||
+      run.canonicalCapabilityId !== "deadlines" ||
+      output?.authorityVerified !== true ||
+      !Array.isArray(output.deadlines) ||
+      output.deadlines.length === 0
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Deadline confirmation requires a completed source-grounded deadline run.",
+      );
+    }
+
+    return this.recordGateDecision({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+      expectedVersion: input.expectedVersion,
+      phaseId: input.phaseId,
+      gate: "deadline",
+      status: "passed",
+      detail:
+        `User reviewed the grounded deadline rule and computed date from run ${run.id}. This confirms the selected rule/calculation for workflow progression; it does not guarantee legal applicability or replace professional advice.`,
+      verifiedBy: "user",
+      actorId: input.actorId ?? input.ownerId,
+      supportingRunId: run.id,
+      userDeadlineConfirmation: true,
+    });
+  }
+
   async executeCapability(input: {
     ownerId: string;
     matterId: string;
@@ -396,13 +481,15 @@ export class CompoundWorkflowService {
     actorId: string;
     supportingRunId?: string | null;
     userAuthorityConfirmation?: boolean;
+    userDeadlineConfirmation?: boolean;
   }): Promise<CompoundMatterState> {
     if (
       input.verifiedBy === "user" &&
       input.gate !== "human-review" &&
       input.gate !== "consequential-action" &&
       input.gate !== "counsel-escalation" &&
-      !(input.gate === "authority" && input.userAuthorityConfirmation === true)
+      !(input.gate === "authority" && input.userAuthorityConfirmation === true) &&
+      !(input.gate === "deadline" && input.userDeadlineConfirmation === true)
     ) {
       throw new CompoundGateAuthorizationError(
         `Users cannot self-verify the ${input.gate} gate.`,
