@@ -84,3 +84,23 @@ tree is a copied workspace containing unrelated conversation artifacts.
 
 No donor is frozen and no vertical is marked complete until this checklist is
 machine-checked in the monorepo.
+
+## First restoration packet: Appeal Mail
+
+The first tree comparison found 55 donor paths absent from
+`apps/verticals/appeal-mail`. The important gap is not the donor's package files;
+it is the case/document runtime around the workflows:
+
+- `src/components/case-workspace.tsx` and `src/components/packet-editor.tsx`;
+- `src/lib/case-document-pipeline.ts` and its contract test;
+- `src/lib/pdf-text.ts`;
+- `src/platform/case-ai.ts`, `src/platform/runtime.ts`, and the provider contract;
+- case, packet, dashboard, and SSO routes under `src/routes/api/` and
+  `src/routes/case/`;
+- packet, recipient, webhook, and workflow-routing tests.
+
+These are the first files to review and port behind the monorepo's secure gateway.
+They must not be copied verbatim until imports, authentication, storage, payment
+boundaries, and Claude-first provider policy are mapped to shared packages. The
+package/config files and migration scripts are explicitly excluded from the first
+packet.
