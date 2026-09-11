@@ -386,6 +386,112 @@ describe("CompoundWorkflowService", () => {
     expect(output.authorityVerified).toBe(false);
   });
 
+  it("requires explicit review before a source-grounded deadline gate can pass", async () => {
+    const repository = new MemoryRepository();
+    const service = new CompoundWorkflowService(repository);
+    let state = await service.create(
+      "owner-1",
+      "government-accountability-investigation",
+    );
+    state = await service.startPhase({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = {
+      ...state,
+      version: state.version + 1,
+      capabilityRuns: [
+        ...state.capabilityRuns,
+        {
+          id: "authority-run-deadline-review",
+          phaseId: "agency-authority",
+          capabilityLabel: "authority audit",
+          canonicalCapabilityId: "research",
+          adapterId: "government",
+          status: "completed",
+          provider: "authority:official-source",
+          provenance: "externally_sourced",
+          output: {
+            researchPerformed: true,
+            citations: [
+              {
+                title: "Official rule",
+                url: "https://agency.ca.gov/rule",
+                reference: "https://agency.ca.gov/rule",
+                summary: "Response due in 30 days.",
+                contentHash: "e".repeat(64),
+              },
+            ],
+          },
+          messages: [],
+          executedAt: "2026-09-11T04:00:00.000Z",
+        },
+      ],
+    };
+    repository.state = state;
+    state = await service.confirmAuthorityGate({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = await service.executeCapability({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+      capabilityLabel: "deadline ledger",
+      execution: {
+        timelineEvents: [
+          {
+            eventType: "notice_received",
+            date: "2026-09-01",
+            provenanceLevel: "document_extracted",
+          },
+        ],
+        deadlineRules: [
+          {
+            name: "response-window",
+            description: "30-day response rule",
+            triggerEventType: "notice_received",
+            days: 30,
+            calendarType: "calendar",
+            deadlineEventType: "response_due",
+            authority: "Official rule",
+            authoritySourceUrl: "https://agency.ca.gov/rule",
+            provenanceLevel: "user_provided",
+          },
+        ],
+      },
+    });
+
+    const before = state.phases
+      .find((phase) => phase.phaseId === "agency-authority")
+      ?.gates.find((gate) => gate.gate === "deadline");
+    expect(before?.status).toBe("pending");
+
+    state = await service.confirmDeadlineGate({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    const after = state.phases
+      .find((phase) => phase.phaseId === "agency-authority")
+      ?.gates.find((gate) => gate.gate === "deadline");
+    expect(after?.status).toBe("passed");
+    expect(after?.verifiedBy).toBe("user");
+    expect(after?.supportingRunId).toBe(
+      state.capabilityRuns.at(-1)?.id,
+    );
+    expect(after?.detail).toMatch(/does not guarantee legal applicability/i);
+  });
+
   it("records explicit user review approval when the phase defines that gate", async () => {
     const repository = new MemoryRepository();
     const service = new CompoundWorkflowService(repository);
