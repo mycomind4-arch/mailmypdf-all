@@ -139,5 +139,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Test Private Office compound runtime
+        if: matrix.app == 'private-office'
+        run: pnpm --filter ./apps/verticals/private-office test
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
