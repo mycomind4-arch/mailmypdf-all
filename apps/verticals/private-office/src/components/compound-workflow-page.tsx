@@ -1,13 +1,71 @@
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, CheckCircle2, GitBranch, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  GitBranch,
+  Loader2,
+  Play,
+  ShieldCheck,
+} from "lucide-react";
 import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import {
   compoundWorkflows,
   type CompoundWorkflowId,
 } from "@/domain/compound-workflows";
+import type { CompoundMatterState } from "@/domain/compound-workflow-runtime";
+import { useAuth } from "@/lib/use-auth";
+import {
+  createCompoundMatter,
+  startCompoundMatterPhase,
+} from "@/lib/fns/compound-matter";
 
 export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkflowId }) {
   const workflow = compoundWorkflows[workflowId];
+  const { user, loading: authLoading } = useAuth();
+  const [matter, setMatter] = useState<CompoundMatterState | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [startingPhase, setStartingPhase] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function createMatter() {
+    setCreating(true);
+    setError(null);
+    try {
+      const result = await createCompoundMatter({ data: { workflowId } });
+      setMatter(result.matter as CompoundMatterState);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to create the matter.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function beginFirstPhase() {
+    if (!matter) return;
+    const firstReady = matter.phases.find((phase) => phase.status === "ready");
+    if (!firstReady) return;
+
+    setStartingPhase(true);
+    setError(null);
+    try {
+      const result = await startCompoundMatterPhase({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: firstReady.phaseId,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to start this phase.");
+    } finally {
+      setStartingPhase(false);
+    }
+  }
+
+  const firstReady = matter?.phases.find((phase) => phase.status === "ready");
 
   return (
     <main className="min-h-screen bg-ivory text-charcoal">
@@ -19,13 +77,40 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           </div>
           <h1 className="font-serif text-4xl leading-tight md:text-6xl">{workflow.title}</h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-700">{workflow.summary}</p>
+
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              to="/start"
-              className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
-              Start a matter <ArrowRight className="h-4 w-4" />
-            </Link>
+            {authLoading ? (
+              <button disabled className="inline-flex items-center gap-2 rounded-full bg-slate-300 px-6 py-3 text-sm font-semibold text-white">
+                <Loader2 className="h-4 w-4 animate-spin" /> Checking account
+              </button>
+            ) : !user ? (
+              <Link
+                to="/auth"
+                search={{ returnTo: `/workflows/${workflowId}` }}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+              >
+                Sign in to start <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : !matter ? (
+              <button
+                onClick={createMatter}
+                disabled={creating}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                {creating ? "Creating matter…" : "Start this compound matter"}
+              </button>
+            ) : firstReady ? (
+              <button
+                onClick={beginFirstPhase}
+                disabled={startingPhase}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {startingPhase ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {startingPhase ? "Starting phase…" : "Begin next ready phase"}
+              </button>
+            ) : null}
+
             <Link
               to="/workflows"
               className="inline-flex items-center rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold"
@@ -33,7 +118,59 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
               All workflows
             </Link>
           </div>
+
+          {error && (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+              {error}
+            </div>
+          )}
         </div>
+
+        {matter && (
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Live matter
+                </div>
+                <h2 className="mt-2 font-serif text-3xl">{workflow.title}</h2>
+                <p className="mt-2 font-mono text-xs text-slate-500">
+                  Matter {matter.id} · version {matter.version}
+                </p>
+              </div>
+              <Link to="/dashboard" className="text-sm font-semibold underline underline-offset-4">
+                Open Private Office dashboard
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {matter.phases.map((phase, index) => {
+                const definition = workflow.phases.find((candidate) => candidate.id === phase.phaseId);
+                return (
+                  <div key={phase.phaseId} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Phase {index + 1}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                        {phase.status.replaceAll("_", " ")}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 font-semibold text-slate-950">{definition?.title ?? phase.phaseId}</h3>
+                    <div className="mt-3 space-y-1 text-xs text-slate-600">
+                      {phase.gates.map((gate) => (
+                        <div key={gate.gate} className="flex justify-between gap-3">
+                          <span>{gate.gate}</span>
+                          <span>{gate.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           <div className="rounded-3xl border border-slate-200 bg-white p-6">
