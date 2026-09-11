@@ -82,8 +82,8 @@ export const workflows: Record<string, WorkflowDefinition> = {
     "unemployment-denial",
     "Appeal an Unemployment Denial",
     "Upload your unemployment denial letter and build a documented appeal with organized work and wage evidence.",
-    "denied unemployment",
-    390, 14.0,
+    "unemployment insurance appeal",
+    260, 1.391115,
     ["Denial reason","Work separation facts","Wage records","Eligibility issue","Deadline","Appeal hearing"],
     "Analyze the uploaded unemployment denial letter and extract the agency, claim number, decision date, appeal deadline, stated denial reason (work separation, wages, availability, misconduct, or voluntary quit), evidence cited, and hearing instructions. Separate agency findings from user-supplied facts. Identify factual disputes, missing wage records, and disputed separation facts. Do not invent eligibility, wages, dates, or outcomes. Build a source-linked issue-to-evidence map. Draft only after analysis is internally consistent, then validate before human approval."
   ),
@@ -167,6 +167,30 @@ export const workflows: Record<string, WorkflowDefinition> = {
     40, 10.0,
     ["Hearing notice","Issues on appeal","Evidence packet","Witness list","Argument outline","Hearing date"],
     "Analyze the hearing notice for the issues on appeal, hearing date, procedural requirements, and evidence needs. Organize the evidence packet by issue, identify witnesses, and build an argument outline. Do not invent outcomes or legal conclusions. Prepare a source-grounded hearing packet."
+  ),
+  "scholarship-appeal": makeWorkflow(
+    "scholarship-appeal", "Appeal a Scholarship Decision", "Build a documented appeal of a scholarship award or eligibility decision.",
+    "scholarship appeal letter", 40, 5.0,
+    ["Award decision", "Eligibility", "Accomplishments", "Supporting evidence"],
+    "Analyze the scholarship decision, separate stated criteria from user-supplied facts, identify missing supporting evidence, and draft a source-grounded appeal without inventing eligibility or outcomes."
+  ),
+  "sap-appeal": makeWorkflow(
+    "sap-appeal", "Appeal a Satisfactory Academic Progress Decision", "Build a documented appeal of a financial-aid SAP suspension or warning.",
+    "SAP appeal", 30, 6.0,
+    ["SAP calculation", "Academic record", "Extenuating circumstances", "Recovery plan"],
+    "Analyze the SAP decision, identify the academic calculation and documented circumstances, organize supporting records, and draft a review-ready appeal with a concrete recovery plan."
+  ),
+  "financial-aid-reinstatement": makeWorkflow(
+    "financial-aid-reinstatement", "Request Financial Aid Reinstatement", "Build a documented request to restore suspended financial aid.",
+    "financial aid reinstatement", 50, 7.0,
+    ["Aid suspension", "Academic record", "Extenuating circumstances", "Recovery plan"],
+    "Analyze the financial-aid suspension, identify the stated requirements and documented circumstances, and draft a reinstatement request with a source-grounded recovery plan."
+  ),
+  "car-insurance-appeal": makeWorkflow(
+    "car-insurance-appeal", "Appeal a Car Insurance Decision", "Build a documented appeal of an auto claim or coverage decision.",
+    "car insurance appeal letter", 70, 8.0,
+    ["Auto claim", "Coverage decision", "Damage evidence", "Policy terms", "Timeline"],
+    "Analyze the auto claim decision, policy language, stated exclusions, damage evidence, and timeline. Draft a source-grounded appeal without inventing coverage or outcomes."
   ),
 };
 
