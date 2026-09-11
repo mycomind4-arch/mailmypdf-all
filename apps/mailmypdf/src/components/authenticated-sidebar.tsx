@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
-  Building2,
   ChevronRight,
   CircleHelp,
   Crown,
@@ -11,13 +10,11 @@ import {
   FolderOpen,
   Globe2,
   Home,
-  Landmark,
   LogOut,
   Mail,
   Map,
   Menu,
   Scale,
-  Search,
   Settings,
   ShieldAlert,
   Sparkles,
@@ -28,6 +25,7 @@ import { useMemo, useState } from "react";
 
 type SidebarUser = {
   email?: string | null;
+  fullName?: string;
   user_metadata?: Record<string, unknown>;
 };
 
@@ -112,17 +110,18 @@ function SidebarContents({
 
   const { displayName, initials } = useMemo(() => {
     const metadataName =
-      typeof user.user_metadata?.fullName === "string"
+      user.fullName ||
+      (typeof user.user_metadata?.fullName === "string"
         ? user.user_metadata.fullName
         : typeof user.user_metadata?.full_name === "string"
           ? user.user_metadata.full_name
-          : "";
+          : "");
     const fallback = user.email?.split("@")[0] || "Account";
     const name = metadataName.trim() || fallback;
     const parts = name.split(/\s+/).filter(Boolean);
     const letters = parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : name.slice(0, 2);
     return { displayName: name, initials: letters.toUpperCase() };
-  }, [user.email, user.user_metadata]);
+  }, [user.email, user.fullName, user.user_metadata]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -214,9 +213,11 @@ function SidebarContents({
 export function AuthenticatedSidebar({
   user,
   onSignOut,
+  showMobileControls = true,
 }: {
   user: SidebarUser;
   onSignOut: () => void | Promise<void>;
+  showMobileControls?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -226,6 +227,7 @@ export function AuthenticatedSidebar({
         <SidebarContents user={user} onSignOut={onSignOut} />
       </aside>
 
+      {showMobileControls && (
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-rule/60 bg-paper/95 px-4 backdrop-blur lg:hidden">
         <button
           type="button"
@@ -243,8 +245,9 @@ export function AuthenticatedSidebar({
           New Matter
         </Link>
       </div>
+      )}
 
-      {mobileOpen && (
+      {showMobileControls && mobileOpen && (
         <div className="fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <button
             type="button"
