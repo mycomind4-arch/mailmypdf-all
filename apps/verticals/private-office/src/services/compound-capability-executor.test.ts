@@ -64,6 +64,61 @@ describe("compound capability executor", () => {
     expect(result.messages.join(" ")).toMatch(/requires at least one structured event/i);
   });
 
+  it("blocks deadline computation without an explicit rule", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accusation-defense",
+      matterId: "matter-1",
+      phaseId: "triage-authority",
+      capabilityLabel: "deadline extraction",
+      timelineEvents: [
+        {
+          eventType: "notice_received",
+          date: "2026-09-01",
+          provenanceLevel: "document_extracted",
+        },
+      ],
+    });
+    expect(result.canonicalCapabilityId).toBe("deadlines");
+    expect(result.status).toBe("blocked");
+    expect(result.messages.join(" ")).toMatch(/will not invent a legal deadline rule/i);
+  });
+
+  it("computes a deadline only from an explicit rule and matching trigger", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accusation-defense",
+      matterId: "matter-1",
+      phaseId: "triage-authority",
+      capabilityLabel: "deadline extraction",
+      currentDate: "2026-09-10",
+      timelineEvents: [
+        {
+          eventType: "notice_received",
+          date: "2026-09-01",
+          provenanceLevel: "document_extracted",
+        },
+      ],
+      deadlineRules: [
+        {
+          name: "response-window",
+          description: "Test response window",
+          triggerEventType: "notice_received",
+          days: 30,
+          calendarType: "calendar",
+          deadlineEventType: "response_due",
+          authority: "user-supplied test authority",
+          provenanceLevel: "user_provided",
+        },
+      ],
+    });
+    expect(result.status).toBe("completed");
+    const output = result.output as {
+      deadlines: Array<{ result: { date: string }; status: string }>;
+      authorityVerified: boolean;
+    };
+    expect(output.deadlines[0]?.result.date).toBe("2026-10-01");
+    expect(output.authorityVerified).toBe(false);
+  });
+
   it("detects conflicting structured facts", async () => {
     const result = await executeCompoundCapability({
       workflowId: "government-accusation-defense",
