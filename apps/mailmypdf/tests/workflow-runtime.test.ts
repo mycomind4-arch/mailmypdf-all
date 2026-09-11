@@ -43,6 +43,7 @@ test("resolves SSDI only under its persisted vertical, never falls back for unkn
   assert.equal(resolveCaseWorkflow("cp14-response", "notice-response").noticeFamily, "irs");
   assert.deepEqual(resolveCaseWorkflow("cp2000-response", "notice-response").responseModes, ["agree", "disagree", "partial-agreement"]);
   assert.deepEqual(resolveCaseWorkflow("cp504-response", "notice-response").responseModes, ["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]);
+  assert.deepEqual(resolveCaseWorkflow("cp523-response", "notice-response").responseModes, ["pay-past-due", "already-corrected", "dispute-default", "request-reinstatement", "cannot-pay-past-due"]);
   assert.throws(() => resolveCaseWorkflow("ssdi-denial", "dispute-mail"));
   assert.throws(() => resolveCaseWorkflow("unknown", "appeal-mail"));
   assert.throws(() => resolveCaseWorkflow("toString", "appeal-mail"));
@@ -52,6 +53,7 @@ test("keeps IRS notice drafting rules distinct", () => {
   const cp14 = resolveCaseWorkflow("cp14-response", "notice-response");
   const cp2000 = resolveCaseWorkflow("cp2000-response", "notice-response");
   const cp504 = resolveCaseWorkflow("cp504-response", "notice-response");
+  const cp523 = resolveCaseWorkflow("cp523-response", "notice-response");
   assert.match(cp14.analysisInstructions, /balance-due/);
   assert.match(cp14.draftInstructions, /installment/);
   assert.match(cp2000.analysisInstructions, /proposed-underreporter/);
@@ -60,8 +62,13 @@ test("keeps IRS notice drafting rules distinct", () => {
   assert.match(cp504.analysisInstructions, /Collection Due Process/);
   assert.match(cp504.draftInstructions, /Form 9423/);
   assert.match(cp504.draftInstructions, /collection activity will stop/);
+  assert.match(cp523.analysisInstructions, /installment-agreement default/);
+  assert.match(cp523.analysisInstructions, /past-due amount/);
+  assert.match(cp523.draftInstructions, /reinstatement/);
+  assert.match(cp523.draftInstructions, /Form 9423/);
   assert.notEqual(cp14.analysisInstructions, cp2000.analysisInstructions);
   assert.notEqual(cp2000.analysisInstructions, cp504.analysisInstructions);
+  assert.notEqual(cp504.analysisInstructions, cp523.analysisInstructions);
 });
 
 test("allows drafting from the current clean notice with no enclosures", () => {
