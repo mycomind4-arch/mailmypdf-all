@@ -19,8 +19,8 @@ import { handleControlPlaneRequest } from "@/platform/control-plane-logic";
    calling vertical app.  All communication is server-side;
    the token and API keys never reach the client bundle.
 
-   Currently configured for Google Gemini (provider: "gemini")
-   as required by all Benefits Appeal workflow routes.
+   Claude is the default provider. Gemini and OpenAI are explicit
+   fallbacks for Benefits Appeal workflow routes.
    ═══════════════════════════════════════════════════════════ */
 
 export const Route = createFileRoute("/api/control-plane/ai")({

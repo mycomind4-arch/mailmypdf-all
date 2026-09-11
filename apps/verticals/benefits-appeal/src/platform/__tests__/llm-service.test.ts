@@ -7,7 +7,7 @@ describe('llm-service', () => {
     expect(Array.isArray(providers)).toBe(true)
   })
 
-  it('gemini is the default provider', () => {
+  it('Claude is first in the provider order when configured', () => {
     const available = getAvailableProviders()
     if (process.env.GEMINI_API_KEY) {
       expect(available).toContain('gemini')
