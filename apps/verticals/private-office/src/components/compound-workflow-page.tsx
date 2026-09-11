@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, useSearch } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -18,23 +18,61 @@ import type { CompoundMatterState } from "@/domain/compound-workflow-runtime";
 import { useAuth } from "@/lib/use-auth";
 import {
   createCompoundMatter,
+  getCompoundMatter,
   startCompoundMatterPhase,
 } from "@/lib/fns/compound-matter";
 
 export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkflowId }) {
   const workflow = compoundWorkflows[workflowId];
   const { user, loading: authLoading } = useAuth();
+  const search = useSearch({ strict: false }) as { matterId?: string };
   const [matter, setMatter] = useState<CompoundMatterState | null>(null);
   const [creating, setCreating] = useState(false);
   const [startingPhase, setStartingPhase] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resuming, setResuming] = useState(false);
+
+  useEffect(() => {
+    if (!user || !search.matterId || matter?.id === search.matterId) return;
+    let cancelled = false;
+    setResuming(true);
+    setError(null);
+
+    getCompoundMatter({ data: { matterId: search.matterId } })
+      .then((result) => {
+        if (cancelled) return;
+        const loaded = result.matter as CompoundMatterState;
+        if (loaded.workflowId !== workflowId) {
+          throw new Error("This matter belongs to a different compound workflow.");
+        }
+        setMatter(loaded);
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "Unable to resume this matter.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setResuming(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, search.matterId, workflowId, matter?.id]);
 
   async function createMatter() {
     setCreating(true);
     setError(null);
     try {
       const result = await createCompoundMatter({ data: { workflowId } });
-      setMatter(result.matter as CompoundMatterState);
+      const created = result.matter as CompoundMatterState;
+      setMatter(created);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("matterId", created.id);
+        window.history.replaceState({}, "", url);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create the matter.");
     } finally {
@@ -79,9 +117,9 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-700">{workflow.summary}</p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            {authLoading ? (
+            {authLoading || resuming ? (
               <button disabled className="inline-flex items-center gap-2 rounded-full bg-slate-300 px-6 py-3 text-sm font-semibold text-white">
-                <Loader2 className="h-4 w-4 animate-spin" /> Checking account
+                <Loader2 className="h-4 w-4 animate-spin" /> {resuming ? "Resuming matter" : "Checking account"}
               </button>
             ) : !user ? (
               <Link
