@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
+import { compoundWorkflowList } from "@/domain/compound-workflows";
 import { createWorkflowDirectory } from "../../../../../../packages/design-system/src/index";
 
 const WorkflowDirectory = createWorkflowDirectory(createElement);
@@ -10,7 +11,7 @@ const WorkflowDirectory = createWorkflowDirectory(createElement);
 export const Route = createFileRoute("/workflows/")({ component: WorkflowDirectoryPage });
 
 function WorkflowDirectoryPage() {
-  const items = Object.values(workflows).map((workflow) => {
+  const standardItems = Object.values(workflows).map((workflow) => {
     const profile = workflowProfiles[workflow.id];
     return {
       id: workflow.id,
@@ -23,6 +24,22 @@ function WorkflowDirectoryPage() {
       keywords: [profile.primaryKeyword, ...profile.supportingKeywords],
     };
   });
+
+  const compoundItems = compoundWorkflowList.map((workflow) => ({
+    id: workflow.id,
+    title: workflow.title,
+    category: workflow.family,
+    description: workflow.majorOutcome,
+    href: `/workflows/${workflow.id}`,
+    badge: "Compound workflow",
+    meta: workflow.primaryKeyword,
+    keywords: [
+      workflow.primaryKeyword,
+      ...workflow.phases.flatMap((phase) => phase.capabilities),
+    ],
+  }));
+
+  const items = [...compoundItems, ...standardItems];
   const families = [...new Set(items.map((item) => item.category))];
 
   return (
@@ -31,22 +48,22 @@ function WorkflowDirectoryPage() {
       <WorkflowDirectory
         productName="Private Office"
         title="Choose the matter that needs a documented response."
-        description="Private Office is the high-control correspondence layer for consequential personal and financial matters. Each workflow preserves evidence, chronology, review, authorization, delivery, and proof in one matter record."
+        description="Private Office is the high-control correspondence and legal-operations layer for consequential personal, property, financial, estate, and government matters. Compound workflows can coordinate multiple governed operations while preserving evidence, chronology, review, authorization, delivery, and proof."
         items={items}
         categories={families.map((family) => ({ id: family, label: family }))}
-        searchPlaceholder="Search contractor, property insurance, bank wire, trust, security deposit…"
+        searchPlaceholder="Search defense, property, estate, government records, contractor, trust, bank wire…"
         helperTitle="Not sure which Private Office matter fits?"
-        helperDescription="Start from the party you need to correspond with and the record you need to preserve. The catalog only lists governed Private Office workflows that exist today."
+        helperDescription="Start from the outcome you need. Compound workflows coordinate multiple operations for major matters; focused workflows handle a specific correspondence or dispute."
         helperHref="/workflows"
         helperLabel="Browse Private Matters"
         steps={[
-          { title: "Choose the matter", description: "Select the governed workflow matched to the dispute, claim, trust, banking, or property matter." },
-          { title: "Build the evidence record", description: "Organize documents, chronology, facts, and source-linked evidence before drafting." },
-          { title: "Prepare & authorize", description: "Review the correspondence and consequential actions before explicit approval." },
-          { title: "Deliver & preserve proof", description: "Use MailMyPDF mailing and proof controls when the matter is ready to send." },
+          { title: "Choose the objective", description: "Select a compound operation for a major matter or a focused workflow for a specific dispute, claim, trust, banking, or property issue." },
+          { title: "Build the evidence record", description: "Organize documents, chronology, facts, authority, and source-linked evidence before consequential action." },
+          { title: "Pass the gates", description: "Resolve evidence, authority, deadline, professional-review, and human-approval gates as the matter progresses." },
+          { title: "Act & preserve proof", description: "Only approved actions move forward; delivery, tracking, and proof remain attached to the matter record." },
         ]}
-        finalTitle="Discreet correspondence. Complete record."
-        finalDescription="Choose the matter, build the record carefully, and retain control of what gets approved and sent."
+        finalTitle="Discreet operations. Complete record."
+        finalDescription="Choose the objective, build the record carefully, and retain control over what gets approved, sent, filed, or escalated."
         finalHref="/workflows"
         finalLabel="Choose a Private Matter"
       />
