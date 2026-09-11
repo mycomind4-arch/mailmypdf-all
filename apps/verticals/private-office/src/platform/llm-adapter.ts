@@ -6,10 +6,10 @@
  *           ↓
  *       LLM Adapter
  *           ↓
- *   ┌──────┼──────────┐
- *   │      │          │
- * Gemini  OpenAI   Future
- * (default)
+ *   ┌─────────┼─────────┐
+ *   │         │         │
+ * Claude    OpenAI    Gemini
+ * (default)  fallback  fallback
  *
  * The LLM proposes information. The deterministic application validates and
  * controls state. The human approves consequential correspondence.
@@ -290,41 +290,74 @@ export async function generateWithRetry(
 
 // ── Factory ─────────────────────────────────────────────────────────────
 
+import { AnthropicAdapter } from "./anthropic-adapter";
 import { GeminiAdapter } from "./gemini-adapter";
+import { OpenAIAdapter } from "./openai-adapter";
 
 let cachedAdapter: LLMAdapter | null = null;
 
 /**
- * Returns the configured LLM adapter. Defaults to Gemini.
- * Selection via LLM_PROVIDER environment variable.
- * Returns null when no provider is configured (rule-based path is used).
+ * Returns the configured single-provider adapter used by legacy Private Office
+ * paths. Claude is primary; OpenAI and Gemini are fallbacks when no explicit
+ * provider is selected. Newer orchestration should prefer llm-router.
  */
 export function getLLMAdapter(): LLMAdapter | null {
   if (cachedAdapter !== null) return cachedAdapter;
 
-  const provider = process.env.LLM_PROVIDER ?? "gemini";
-  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
-
-  if (!apiKey) {
-    // No credentials configured — use rule-based path
-    return null;
+  const explicitProvider = process.env.LLM_PROVIDER;
+  const supported = new Set(["anthropic", "openai", "gemini"]);
+  if (explicitProvider && !supported.has(explicitProvider)) {
+    throw new LLMError(
+      `LLM provider "${explicitProvider}" is not configured`,
+      explicitProvider,
+      "PROVIDER_NOT_SUPPORTED",
+    );
   }
 
-  if (provider === "gemini") {
-    cachedAdapter = new GeminiAdapter({
-      apiKey,
-      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
-      apiUrl: process.env.GEMINI_API_URL,
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const geminiKey =
+    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
+
+  const provider =
+    explicitProvider ??
+    (anthropicKey
+      ? "anthropic"
+      : openaiKey
+        ? "openai"
+        : geminiKey
+          ? "gemini"
+          : null);
+
+  if (!provider) return null;
+
+  if (provider === "anthropic") {
+    if (!anthropicKey) return null;
+    cachedAdapter = new AnthropicAdapter({
+      apiKey: anthropicKey,
+      model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5",
+      apiUrl: process.env.ANTHROPIC_API_URL,
     });
     return cachedAdapter;
   }
 
-  // Future providers: add openai, anthropic, etc. here
-  throw new LLMError(
-    `LLM provider "${provider}" is not configured`,
-    provider,
-    "PROVIDER_NOT_SUPPORTED",
-  );
+  if (provider === "openai") {
+    if (!openaiKey) return null;
+    cachedAdapter = new OpenAIAdapter({
+      apiKey: openaiKey,
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      apiUrl: process.env.OPENAI_API_URL,
+    });
+    return cachedAdapter;
+  }
+
+  if (!geminiKey) return null;
+  cachedAdapter = new GeminiAdapter({
+    apiKey: geminiKey,
+    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    apiUrl: process.env.GEMINI_API_URL,
+  });
+  return cachedAdapter;
 }
 
 /**
