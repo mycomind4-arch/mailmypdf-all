@@ -39,6 +39,7 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
   context: z.string().max(12000).optional(),
   jurisdiction: z.string().max(300).optional(),
   currentDate: z.string().max(30).optional(),
+  sourceUrls: z.array(z.string().url().max(2048)).max(6).optional(),
   facts: z.array(z.object({
     subject: z.string().min(1).max(200),
     predicate: z.string().min(1).max(100),
@@ -174,6 +175,21 @@ export const advanceCompoundSystemGates = createServerFn({ method: "POST" })
       phaseId: data.phaseId,
     });
     return result;
+  });
+
+export const confirmCompoundAuthorityGate = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(matterMutationSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const matter = await workflowService.confirmAuthorityGate({
+      ownerId: context.user.id,
+      matterId: data.matterId,
+      expectedVersion: data.expectedVersion,
+      phaseId: data.phaseId,
+      actorId: context.user.id,
+    });
+    return { matter };
   });
 
 export const recordCompoundUserGate = createServerFn({ method: "POST" })
