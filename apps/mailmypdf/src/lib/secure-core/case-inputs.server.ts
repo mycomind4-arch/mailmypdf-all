@@ -23,6 +23,19 @@ const cp14Input = z.object({
   userFacts: optionalBounded(12000),
   requestedOutcome: optionalBounded(2000),
 });
+
+const cp504Input = z.object({
+  ...sharedNoticeIdentity,
+  taxYear: bounded(20).min(1),
+  responseMode: z.enum(["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]),
+  amountDisputed: optionalBounded(100),
+  monthlyPayment: optionalBounded(100),
+  paymentStartDate: optionalBounded(40),
+  userFacts: optionalBounded(12000),
+  requestedOutcome: optionalBounded(2000),
+  collectionConcern: optionalBounded(4000),
+});
+
 const cp2000Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(20).min(1),
@@ -33,10 +46,10 @@ const cp2000Input = z.object({
   userFacts: optionalBounded(12000),
 });
 
-export type NoticeResponseInput = z.infer<typeof cp14Input> | z.infer<typeof cp2000Input>;
+export type NoticeResponseInput = z.infer<typeof cp14Input> | z.infer<typeof cp2000Input> | z.infer<typeof cp504Input>;
 
 export function validateCaseInput(workflowId: string, value: unknown): NoticeResponseInput {
-  const schema = workflowId === "cp14-response" ? cp14Input : workflowId === "cp2000-response" ? cp2000Input : null;
+  const schema = workflowId === "cp14-response" ? cp14Input : workflowId === "cp2000-response" ? cp2000Input : workflowId === "cp504-response" ? cp504Input : null;
   if (!schema) throw new CaseError("This workflow does not accept notice-response inputs");
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new CaseError("The workflow information is incomplete or invalid");
