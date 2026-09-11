@@ -98,7 +98,14 @@ function parseDeadlineRules(value: string) {
         : calendarTypeRaw === "calendar"
           ? ("calendar" as const)
           : null;
-    const description = descriptionParts.join(" | ").trim();
+    const sourceCandidate = descriptionParts.at(-1)?.trim();
+    const authoritySourceUrl =
+      sourceCandidate?.startsWith("https://") ? sourceCandidate : undefined;
+    const description = (
+      authoritySourceUrl ? descriptionParts.slice(0, -1) : descriptionParts
+    )
+      .join(" | ")
+      .trim();
 
     if (
       !name ||
@@ -111,7 +118,7 @@ function parseDeadlineRules(value: string) {
       !description
     ) {
       throw new Error(
-        `Deadline rule line ${index + 1} must use: name | trigger event | days | calendar/business | deadline event | authority | description`,
+        `Deadline rule line ${index + 1} must use: name | trigger event | days | calendar/business | deadline event | authority | description | optional reviewed source URL`,
       );
     }
 
@@ -122,6 +129,7 @@ function parseDeadlineRules(value: string) {
       calendarType,
       deadlineEventType,
       authority,
+      authoritySourceUrl,
       description,
       provenanceLevel: "user_provided" as const,
     };
@@ -461,6 +469,32 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
       item.currentStatus === "pending" &&
       item.readiness === "ready_for_review",
   );
+  const confirmedAuthorityRunId = activePhaseState?.gates.find(
+    (decision) =>
+      decision.gate === "authority" &&
+      decision.status === "passed" &&
+      decision.verifiedBy === "user",
+  )?.supportingRunId;
+  const confirmedAuthorityRun = confirmedAuthorityRunId
+    ? matter?.capabilityRuns.find((run) => run.id === confirmedAuthorityRunId)
+    : undefined;
+  const confirmedAuthorityOutput =
+    confirmedAuthorityRun &&
+    typeof confirmedAuthorityRun.output === "object" &&
+    confirmedAuthorityRun.output !== null
+      ? (confirmedAuthorityRun.output as {
+          citations?: Array<{ url?: string; reference?: string; title?: string }>;
+        })
+      : null;
+  const confirmedAuthoritySources =
+    confirmedAuthorityOutput?.citations
+      ?.map((citation) => ({
+        url: citation.url ?? citation.reference,
+        title: citation.title ?? citation.url ?? citation.reference,
+      }))
+      .filter((citation): citation is { url: string; title: string } =>
+        Boolean(citation.url && citation.title),
+      ) ?? [];
   const pendingUserGates =
     activePhaseState?.gates.filter(
       (decision) =>
@@ -685,11 +719,23 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     rows={5}
                     value={deadlineRulesText}
                     onChange={(event) => setDeadlineRulesText(event.target.value)}
-                    placeholder={"response-window | notice_received | 30 | calendar | response_due | Statute or official rule supplied by user | 30-day response rule"}
+                    placeholder={"response-window | notice_received | 30 | calendar | response_due | Official rule title | 30-day response rule | https://agency.ca.gov/rule"}
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    The engine will not invent a legal deadline rule. User-entered authority remains unverified until independently grounded.
+                    The engine will not invent a legal deadline rule. Add the reviewed official source URL as the final field to bind this rule to the exact authority run you confirmed. A URL that was not in that confirmed run remains unverified.
                   </p>
+                  {confirmedAuthoritySources.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950">
+                      <div className="font-semibold">Reviewed authority sources available for grounding</div>
+                      <ul className="mt-2 space-y-1 font-mono">
+                        {confirmedAuthoritySources.map((source) => (
+                          <li key={source.url} className="break-all">
+                            {source.url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 <div>
