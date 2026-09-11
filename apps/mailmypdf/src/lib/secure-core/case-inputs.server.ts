@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { AuthenticatedUserContext } from "./auth.server";
 import { CaseError, loadCase } from "./case.server";
 import { resolveCaseWorkflow } from "./workflow-runtime";
-import { NOTICE_WORKFLOW_CONFIGS } from "../notice-workflow-registry";
+import { NOTICE_WORKFLOW_CONFIGS, isNoticeWorkflowId, type NoticeWorkflowId } from "../notice-workflow-registry";
 
 const bounded = (max: number) => z.string().trim().max(max);
 const optionalBounded = (max: number) => bounded(max).optional().default("");
@@ -61,9 +61,16 @@ const cp2000Input = z.object({
 
 export type NoticeResponseInput = z.infer<typeof cp14Input> | z.infer<typeof cp2000Input> | z.infer<typeof cp504Input> | z.infer<typeof cp523Input>;
 
+const NOTICE_INPUT_SCHEMAS = {
+  "cp14-response": cp14Input,
+  "cp2000-response": cp2000Input,
+  "cp504-response": cp504Input,
+  "cp523-response": cp523Input,
+} as const satisfies Record<NoticeWorkflowId, z.ZodTypeAny>;
+
 export function validateCaseInput(workflowId: string, value: unknown): NoticeResponseInput {
-  const schema = workflowId === "cp14-response" ? cp14Input : workflowId === "cp2000-response" ? cp2000Input : workflowId === "cp504-response" ? cp504Input : workflowId === "cp523-response" ? cp523Input : null;
-  if (!schema) throw new CaseError("This workflow does not accept notice-response inputs");
+  if (!isNoticeWorkflowId(workflowId)) throw new CaseError("This workflow does not accept notice-response inputs");
+  const schema = NOTICE_INPUT_SCHEMAS[workflowId];
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new CaseError("The workflow information is incomplete or invalid");
   return parsed.data as NoticeResponseInput;
