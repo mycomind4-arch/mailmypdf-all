@@ -161,6 +161,20 @@ export const runCompoundCapability = createServerFn({ method: "POST" })
     };
   });
 
+export const advanceCompoundSystemGates = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(matterMutationSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const result = await workflowService.advanceSystemVerifiableGates({
+      ownerId: context.user.id,
+      matterId: data.matterId,
+      expectedVersion: data.expectedVersion,
+      phaseId: data.phaseId,
+    });
+    return result;
+  });
+
 export const recordCompoundUserGate = createServerFn({ method: "POST" })
   .middleware([accountAuthMiddleware])
   .validator(userGateSchema)
