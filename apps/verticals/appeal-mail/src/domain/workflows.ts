@@ -82,4 +82,4 @@ export function getWorkflow(id: WorkflowId): WorkflowDefinition { const workflow
 export function isWorkflowId(value: string): value is WorkflowId { return Boolean(workflows[value]); }
 export const workflowCatalogVersion = "2026-08-20-appeal-mail-v2";
 export const appealWorkflowCount = workflowIds.length;
-export const workflowExperienceStandard = { stages: ["understand","build","send"] as const, upload: ["application/pdf","image/png","image/jpeg"], ai: "Gemini", review: "human", fulfillment: "MailMyPDF" };
+export const workflowExperienceStandard = { stages: ["understand","build","send"] as const, upload: ["application/pdf","image/png","image/jpeg"], ai: "Claude (Anthropic), with Gemini/OpenAI fallback", review: "human", fulfillment: "MailMyPDF" };

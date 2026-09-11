@@ -19,8 +19,9 @@ import { handleControlPlaneRequest } from "@/platform/control-plane-logic";
    calling vertical app.  All communication is server-side;
    the token and API keys never reach the client bundle.
 
-   Currently configured for Google Gemini (provider: "gemini")
-   as required by all Appeal Mail workflow routes.
+   Claude is the default provider. Gemini and OpenAI are explicit
+   fallbacks. Legacy workflow routes that still require Gemini are
+   migration blockers and must not be marked parity-complete.
    ═══════════════════════════════════════════════════════════ */
 
 export const Route = createFileRoute("/api/control-plane/ai")({

@@ -19,7 +19,7 @@ describe("Appeal Mail workflow catalog", () => {
     expect(workflows["insurance-claim-denial"].primaryKeyword).toBe("denial of insurance claim");
     expect(workflows["financial-aid-appeal"].primaryMsv).toBe(1000);
     expect(workflows["license-suspension-appeal"].primaryCpc).toBeCloseTo(27.394478);
-    expect(workflowExperienceStandard.ai).toBe("Gemini");
+    expect(workflowExperienceStandard.ai).toContain("Claude");
     expect(workflowExperienceStandard.fulfillment).toBe("MailMyPDF");
   });
 });

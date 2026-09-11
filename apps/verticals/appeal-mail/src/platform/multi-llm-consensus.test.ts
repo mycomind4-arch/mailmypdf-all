@@ -3,7 +3,7 @@ import { runMultiLlmConsensus, DEFAULT_APPEAL_LLM_POLICY } from './multi-llm-con
 
 // Mock the llm-service module
 vi.mock('./llm-service', () => ({
-  getAvailableProviders: () => ['gemini', 'claude', 'openai'] as const,
+  getAvailableProviders: () => ['claude', 'gemini', 'openai'] as const,
   callLLM: vi.fn(async (messages: unknown, config: { provider: string }) => {
     // All providers return the same text — full agreement
     return {

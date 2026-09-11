@@ -38,8 +38,8 @@ export interface LLMResponse {
 
 export function getAvailableProviders(): LLMProvider[] {
   const providers: LLMProvider[] = [];
-  if (process.env.GEMINI_API_KEY) providers.push("gemini");
   if (process.env.ANTHROPIC_API_KEY) providers.push("claude");
+  if (process.env.GEMINI_API_KEY) providers.push("gemini");
   if (process.env.OPENAI_API_KEY) providers.push("openai");
   return providers;
 }
