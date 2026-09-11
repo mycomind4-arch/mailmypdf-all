@@ -195,6 +195,37 @@ describe("compound capability executor", () => {
     expect(output.contradictions).toHaveLength(1);
   });
 
+  it("marks evidence human-verified only after explicit authenticated verification", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accusation-defense",
+      matterId: "matter-1",
+      phaseId: "proof-elements",
+      capabilityLabel: "evidence matrix",
+      verifyEvidenceInputs: true,
+      verifiedByActorId: "user-123",
+      evidence: [
+        {
+          claimId: "claim-1",
+          relation: "supports",
+          evidenceType: "document",
+          evidenceId: "notice-pdf",
+          explanation: "Reviewed source notice",
+        },
+      ],
+    });
+
+    expect(result.status).toBe("completed");
+    const output = result.output as {
+      evidence: Array<{
+        verified: boolean;
+        provenance: { level: string; verifiedBy?: string };
+      }>;
+    };
+    expect(output.evidence[0]?.verified).toBe(true);
+    expect(output.evidence[0]?.provenance.level).toBe("human_verified");
+    expect(output.evidence[0]?.provenance.verifiedBy).toBe("user-123");
+  });
+
   it("stores schema-valid AI classification as inferred, never verified", async () => {
     process.env.ANTHROPIC_API_KEY = "test-key";
     _resetLLMConfig();
