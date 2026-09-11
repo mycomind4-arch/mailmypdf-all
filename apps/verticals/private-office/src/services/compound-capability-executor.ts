@@ -89,6 +89,7 @@ export type CompoundCapabilityExecutionInput = {
   context?: string;
   jurisdiction?: string;
   currentDate?: string;
+  sourceUrls?: readonly string[];
   verifyEvidenceInputs?: boolean;
   verifiedByActorId?: string;
   facts?: readonly CompoundStructuredFactInput[];
@@ -687,6 +688,7 @@ export async function executeCompoundCapability(
         workflowId: input.workflowId,
         context: input.context?.trim() || input.capabilityLabel,
         jurisdiction: input.jurisdiction,
+        sourceUrls: input.sourceUrls,
       });
 
       return resultRun(

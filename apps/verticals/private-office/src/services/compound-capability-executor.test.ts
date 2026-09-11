@@ -3,6 +3,11 @@ import type { LLMAdapter } from "@/platform/llm-adapter";
 import { _resetAdapters, _setAdapter } from "@/platform/llm-router";
 import { _resetLLMConfig } from "@/platform/llm-config";
 import {
+  _resetAuthorityProvider,
+  _setAuthorityProvider,
+  type AuthorityProvider,
+} from "@/platform/authority-provider";
+import {
   executeCompoundCapability,
   resolveCompoundCapabilityBinding,
 } from "./compound-capability-executor";
@@ -54,6 +59,7 @@ describe("compound capability executor", () => {
     }
     _resetLLMConfig();
     _resetAdapters();
+    _resetAuthorityProvider();
   });
   it("maps timeline work to the canonical timeline capability", () => {
     const binding = resolveCompoundCapabilityBinding(
@@ -317,7 +323,7 @@ describe("compound capability executor", () => {
     expect(result.provider).toBe("llm:none");
   });
 
-  it("blocks authority work honestly when no live authority provider is configured", async () => {
+  it("blocks authority work honestly when no official source URL is supplied", async () => {
     const result = await executeCompoundCapability({
       workflowId: "government-accountability-investigation",
       matterId: "matter-1",
@@ -328,8 +334,47 @@ describe("compound capability executor", () => {
     });
     expect(result.canonicalCapabilityId).toBe("research");
     expect(result.status).toBe("blocked");
-    expect(result.provider).toBe("authority:null");
+    expect(result.provider).toBe("authority:official-source");
     expect(result.provenance).toBe("system_generated");
+  });
+
+  it("passes explicit source URLs through the authority provider", async () => {
+    let receivedUrls: readonly string[] | undefined;
+    const provider: AuthorityProvider = {
+      name: "test-authority",
+      async research(request) {
+        receivedUrls = request.sourceUrls;
+        return {
+          researchPerformed: true,
+          citations: [
+            {
+              title: "Official source",
+              type: "guidance",
+              reference: "https://agency.ca.gov/rule",
+              summary: "Retrieved source",
+              url: "https://agency.ca.gov/rule",
+            },
+          ],
+          failures: [],
+          disclaimer: "Source retrieved.",
+          provenance: "externally_sourced",
+        };
+      },
+    };
+    _setAuthorityProvider(provider);
+
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "agency-authority",
+      capabilityLabel: "authority audit",
+      context: "Determine the asserted agency authority.",
+      sourceUrls: ["https://agency.ca.gov/rule"],
+    });
+
+    expect(receivedUrls).toEqual(["https://agency.ca.gov/rule"]);
+    expect(result.status).toBe("completed");
+    expect(result.provenance).toBe("externally_sourced");
   });
 
   it("blocks risk assessment when there is not enough intelligence to assess", async () => {

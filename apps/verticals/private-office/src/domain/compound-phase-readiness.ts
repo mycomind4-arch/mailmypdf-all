@@ -157,10 +157,10 @@ function authorityReady(
     currentStatus: "pending",
     readiness: eligible ? "ready_for_review" : "needs_work",
     detail: eligible
-      ? "Live authority research returned citations. The deterministic gate evaluator may mark the research requirement complete, but applicability remains reviewable."
+      ? "Official source material was retrieved with external provenance. Review the cited source, jurisdiction, effective date, and relevance before confirming this authority gate."
       : "The run does not establish independently sourced legal authority.",
     supportingRunId: run.id,
-    eligibleForSystemPass: eligible,
+    eligibleForSystemPass: false,
   };
 }
 
