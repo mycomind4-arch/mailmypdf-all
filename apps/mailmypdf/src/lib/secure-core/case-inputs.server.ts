@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AuthenticatedUserContext } from "./auth.server";
 import { CaseError, loadCase } from "./case.server";
 import { resolveCaseWorkflow } from "./workflow-runtime";
+import { NOTICE_WORKFLOW_CONFIGS } from "../notice-workflow-registry";
 
 const bounded = (max: number) => z.string().trim().max(max);
 const optionalBounded = (max: number) => bounded(max).optional().default("");
@@ -14,7 +15,7 @@ const sharedNoticeIdentity = {
 const cp14Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(20).min(1),
-  responseMode: z.enum(["pay", "dispute", "request-arrangement", "request-oic", "request-cnc"]),
+  responseMode: z.enum(NOTICE_WORKFLOW_CONFIGS["cp14-response"].modes.map(([value]) => value) as [string, ...string[]]),
   amountDisputed: optionalBounded(100),
   monthlyPayment: optionalBounded(100),
   paymentStartDate: optionalBounded(40),
@@ -28,7 +29,7 @@ const cp14Input = z.object({
 const cp523Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(40).min(1),
-  responseMode: z.enum(["pay-past-due", "already-corrected", "dispute-default", "request-reinstatement", "cannot-pay-past-due"]),
+  responseMode: z.enum(NOTICE_WORKFLOW_CONFIGS["cp523-response"].modes.map(([value]) => value) as [string, ...string[]]),
   pastDueAmount: optionalBounded(100),
   missedPaymentReason: optionalBounded(3000),
   reinstatementFacts: optionalBounded(6000),
@@ -39,7 +40,7 @@ const cp523Input = z.object({
 const cp504Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(20).min(1),
-  responseMode: z.enum(["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]),
+  responseMode: z.enum(NOTICE_WORKFLOW_CONFIGS["cp504-response"].modes.map(([value]) => value) as [string, ...string[]]),
   amountDisputed: optionalBounded(100),
   monthlyPayment: optionalBounded(100),
   paymentStartDate: optionalBounded(40),
@@ -51,7 +52,7 @@ const cp504Input = z.object({
 const cp2000Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(20).min(1),
-  responseMode: z.enum(["agree", "disagree", "partial-agreement"]),
+  responseMode: z.enum(NOTICE_WORKFLOW_CONFIGS["cp2000-response"].modes.map(([value]) => value) as [string, ...string[]]),
   disputedItems: optionalBounded(6000),
   correctedAmounts: optionalBounded(4000),
   evidenceByItem: optionalBounded(6000),
