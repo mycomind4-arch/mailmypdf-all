@@ -296,8 +296,8 @@ export function calculateBenefitsPricing(
     includedResponsePages: 3,
     supportingSheets,
     mailingMethod,
-    mailingFee: quote.mailCents / 100,
-    largePacketFee: 0,
+    mailingFee: quote.mailServiceCost / 100,
+    largePacketFee: quote.supportingPageCost / 100,
     total: quote.totalCents / 100,
   };
 }
