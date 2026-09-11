@@ -51,7 +51,6 @@ export function buildProviderConfigs(): Partial<
     };
   }
 
-<<<<<<< HEAD
   // Gemini (fallback / maximum-assurance)
   const geminiKey =
     process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
@@ -60,18 +59,6 @@ export function buildProviderConfigs(): Partial<
       apiKey: geminiKey,
       model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
       apiUrl: process.env.GEMINI_API_URL,
-=======
-  // Anthropic (optional)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const anthropicModel = process.env.ANTHROPIC_MODEL;
-  if (anthropicKey && anthropicModel) {
-    configs.anthropic = {
-      apiKey: anthropicKey,
-      // The provider account owns model availability. Do not silently select a
-      // retired or unavailable model when an API key is present.
-      model: anthropicModel,
-      apiUrl: process.env.ANTHROPIC_API_URL,
->>>>>>> 13268e4 (feat(private-office): add studio workflow foundation)
     };
   }
 
@@ -85,26 +72,10 @@ export function buildLLMConfig(): LLMRuntimeConfig {
   const providers = buildProviderConfigs();
   const configuredProviders = Object.keys(providers) as LLMProviderId[];
 
-<<<<<<< HEAD
   const explicitProvider =
     process.env.LLM_PROVIDER as LLMProviderId | undefined;
 
   if (explicitProvider && !providers[explicitProvider]) {
-=======
-  const requestedDefault = process.env.LLM_PROVIDER as
-    | LLMProviderId
-    | undefined;
-  const defaultProvider =
-    requestedDefault ??
-    (providers[DEFAULT_PROVIDER]
-      ? DEFAULT_PROVIDER
-      : configuredProviders[0] ?? DEFAULT_PROVIDER);
-
-  // An explicitly selected provider must be available. When no provider is
-  // selected, use the first configured provider so an Anthropic-only local
-  // environment can serve Studio without an unrelated Gemini setting.
-  if (requestedDefault && configuredProviders.length > 0 && !providers[defaultProvider]) {
->>>>>>> 13268e4 (feat(private-office): add studio workflow foundation)
     throw new Error(
       `Default LLM provider "${explicitProvider}" is not configured. ` +
         `Configured providers: ${configuredProviders.join(", ")}`,
