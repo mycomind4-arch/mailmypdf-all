@@ -562,8 +562,10 @@ export async function executeCompoundCapability(
         result: deadline,
         status: getDeadlineStatus(deadline, currentDate),
       }));
-      const hasUnverifiedAuthority = rules.some(
-        (rule) => !rule.verified && rule.provenance.level !== "external_source",
+      const authorityVerified = rules.every(
+        (rule) =>
+          rule.provenance.level === "external_source" &&
+          rule.provenance.sourceRefs.length > 0,
       );
 
       return resultRun(
@@ -575,12 +577,12 @@ export async function executeCompoundCapability(
           currentDate,
           rules,
           deadlines: evaluated,
-          authorityVerified: !hasUnverifiedAuthority,
+          authorityVerified,
         },
         [
           `Computed ${evaluated.length} deadline(s) from explicit rule(s) and matching trigger event(s).`,
-          ...(hasUnverifiedAuthority
-            ? ["The deadline rule authority is not independently verified; do not use this computation to pass an authority gate."]
+          ...(!authorityVerified
+            ? ["The deadline was computed from the supplied rule, but that rule is not independently grounded to an external source reference. Do not use this computation to pass a deadline authority gate."]
             : []),
         ],
       );
