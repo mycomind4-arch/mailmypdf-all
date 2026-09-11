@@ -207,6 +207,47 @@ describe("compound capability executor", () => {
     expect(output.authorityVerified).toBe(false);
   });
 
+  it("marks a deadline authority-grounded only when server-verified binding metadata is present", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "agency-authority",
+      capabilityLabel: "deadline ledger",
+      currentDate: "2026-09-10",
+      timelineEvents: [
+        {
+          eventType: "notice_received",
+          date: "2026-09-01",
+          provenanceLevel: "document_extracted",
+        },
+      ],
+      deadlineRules: [
+        {
+          name: "response-window",
+          description: "30-day response rule",
+          triggerEventType: "notice_received",
+          days: 30,
+          calendarType: "calendar",
+          deadlineEventType: "response_due",
+          authority: "Official response rule",
+          authoritySourceUrl: "https://agency.ca.gov/rule",
+          authoritySourceVerified: true,
+          authoritySourceRunId: "run-1",
+          authorityContentHash: "d".repeat(64),
+          provenanceLevel: "user_provided",
+        },
+      ],
+    });
+
+    expect(result.status).toBe("completed");
+    const output = result.output as {
+      authorityVerified: boolean;
+      authorityBindings: Array<{ verified: boolean }>;
+    };
+    expect(output.authorityVerified).toBe(true);
+    expect(output.authorityBindings[0]?.verified).toBe(true);
+  });
+
   it("detects conflicting structured facts", async () => {
     const result = await executeCompoundCapability({
       workflowId: "government-accusation-defense",
