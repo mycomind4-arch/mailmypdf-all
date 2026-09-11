@@ -49,6 +49,14 @@ export const createCompoundMatter = createServerFn({ method: "POST" })
     return { matter };
   });
 
+export const listCompoundMatters = createServerFn({ method: "GET" })
+  .middleware([accountAuthMiddleware])
+  .handler(async ({ context }) => {
+    const workflowService = await service();
+    const matters = await workflowService.list(context.user.id);
+    return { matters };
+  });
+
 export const getCompoundMatter = createServerFn({ method: "GET" })
   .middleware([accountAuthMiddleware])
   .validator(z.object({ matterId: z.string().uuid() }))
