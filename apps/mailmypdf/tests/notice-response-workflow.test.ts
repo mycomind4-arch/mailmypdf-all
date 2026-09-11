@@ -56,17 +56,18 @@ test("CP504 rejects unsupported formal-appeal shortcuts", () => {
 });
 
 
-test("CP504 is routed through the executable secure notice shell", async () => {
+test("CP504 is registered on the executable secure notice route", async () => {
   const route = await readFile(new URL("../src/routes/notice/$.tsx", import.meta.url), "utf8");
-  const client = await readFile(new URL("../src/lib/notice-response-workflow-client.ts", import.meta.url), "utf8");
+  const registry = await readFile(new URL("../src/lib/notice-workflow-registry.ts", import.meta.url), "utf8");
   const ui = await readFile(new URL("../src/components/workflows/irs-notice-workflow.tsx", import.meta.url), "utf8");
 
-  assert.match(route, /slug === "cp504-response"/);
+  assert.match(route, /isNoticeWorkflowId\(slug\)/);
   assert.match(route, /<IrsNoticeWorkflow workflow=\{slug\}/);
-  assert.match(client, /"cp504-response"/);
-  assert.match(ui, /IRS CP504/);
-  assert.match(ui, /already-paid/);
-  assert.match(ui, /general letter as a formal collection appeal/);
+  assert.match(registry, /"cp504-response"/);
+  assert.match(registry, /IRS CP504/);
+  assert.match(registry, /already-paid/);
+  assert.match(registry, /general letter as a formal collection appeal/);
+  assert.match(ui, /NOTICE_WORKFLOW_CONFIGS/);
 });
 
 
@@ -96,14 +97,15 @@ test("CP523 rejects a generic appeal shortcut", () => {
   }), /incomplete or invalid/);
 });
 
-test("CP523 is routed through the executable secure notice shell", async () => {
+test("CP523 is registered on the executable secure notice route", async () => {
   const route = await readFile(new URL("../src/routes/notice/$.tsx", import.meta.url), "utf8");
+  const registry = await readFile(new URL("../src/lib/notice-workflow-registry.ts", import.meta.url), "utf8");
   const client = await readFile(new URL("../src/lib/notice-response-workflow-client.ts", import.meta.url), "utf8");
-  const ui = await readFile(new URL("../src/components/workflows/irs-notice-workflow.tsx", import.meta.url), "utf8");
 
-  assert.match(route, /slug === "cp523-response"/);
-  assert.match(client, /"cp523-response"/);
-  assert.match(ui, /IRS CP523/);
-  assert.match(ui, /request-reinstatement/);
-  assert.match(ui, /installment-agreement default notice/);
+  assert.match(route, /isNoticeWorkflowId\(slug\)/);
+  assert.match(registry, /"cp523-response"/);
+  assert.match(registry, /IRS CP523/);
+  assert.match(registry, /request-reinstatement/);
+  assert.match(registry, /installment-agreement default notice/);
+  assert.match(client, /notice-workflow-registry/);
 });
