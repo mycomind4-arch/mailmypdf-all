@@ -68,3 +68,42 @@ test("CP504 is routed through the executable secure notice shell", async () => {
   assert.match(ui, /already-paid/);
   assert.match(ui, /general letter as a formal collection appeal/);
 });
+
+
+test("CP523 input preserves installment-agreement default facts", () => {
+  const input = validateCaseInput("cp523-response", {
+    taxpayerName: "Jordan Smith",
+    ssnOrItin: "***-**-1234",
+    taxpayerAddress: "1 Main St\nAustin, TX 78701",
+    taxYear: "2024",
+    responseMode: "request-reinstatement",
+    pastDueAmount: "$300",
+    missedPaymentReason: "Bank account changed.",
+    reinstatementFacts: "The missed payment has been addressed.",
+    userFacts: "The taxpayer wants to discuss reinstatement.",
+  });
+  assert.equal(input.responseMode, "request-reinstatement");
+  assert.equal(input.pastDueAmount, "$300");
+});
+
+test("CP523 rejects a generic appeal shortcut", () => {
+  assert.throws(() => validateCaseInput("cp523-response", {
+    taxpayerName: "Jordan Smith",
+    ssnOrItin: "***-**-1234",
+    taxpayerAddress: "1 Main St",
+    taxYear: "2024",
+    responseMode: "appeal",
+  }), /incomplete or invalid/);
+});
+
+test("CP523 is routed through the executable secure notice shell", async () => {
+  const route = await readFile(new URL("../src/routes/notice/$.tsx", import.meta.url), "utf8");
+  const client = await readFile(new URL("../src/lib/notice-response-workflow-client.ts", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../src/components/workflows/irs-notice-workflow.tsx", import.meta.url), "utf8");
+
+  assert.match(route, /slug === "cp523-response"/);
+  assert.match(client, /"cp523-response"/);
+  assert.match(ui, /IRS CP523/);
+  assert.match(ui, /request-reinstatement/);
+  assert.match(ui, /installment-agreement default notice/);
+});
