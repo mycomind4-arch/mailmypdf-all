@@ -188,8 +188,202 @@ describe("CompoundWorkflowService", () => {
       ?.gates.find((candidate) => candidate.gate === "authority");
     expect(gate?.status).toBe("passed");
     expect(gate?.verifiedBy).toBe("user");
+    expect(gate?.supportingRunId).toBe("authority-run-1");
     expect(gate?.detail).toMatch(/source selection only/i);
     expect(gate?.detail).toMatch(/does not establish legal applicability/i);
+  });
+
+  it("grounds a deadline only to a citation from the authority run the user confirmed", async () => {
+    const repository = new MemoryRepository();
+    const service = new CompoundWorkflowService(repository);
+    let state = await service.create(
+      "owner-1",
+      "government-accountability-investigation",
+    );
+    state = await service.startPhase({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = {
+      ...state,
+      version: state.version + 1,
+      capabilityRuns: [
+        ...state.capabilityRuns,
+        {
+          id: "authority-run-grounding",
+          phaseId: "agency-authority",
+          capabilityLabel: "authority audit",
+          canonicalCapabilityId: "research",
+          adapterId: "government",
+          status: "completed",
+          provider: "authority:official-source",
+          provenance: "externally_sourced",
+          output: {
+            researchPerformed: true,
+            citations: [
+              {
+                title: "Official response rule",
+                reference: "https://agency.ca.gov/response-rule",
+                url: "https://agency.ca.gov/response-rule",
+                summary: "Response is due 30 days after notice.",
+                contentHash: "b".repeat(64),
+              },
+            ],
+          },
+          messages: [],
+          executedAt: "2026-09-11T04:00:00.000Z",
+        },
+      ],
+    };
+    repository.state = state;
+
+    state = await service.confirmAuthorityGate({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+      actorId: "owner-1",
+    });
+
+    state = await service.executeCapability({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+      capabilityLabel: "deadline ledger",
+      actorId: "owner-1",
+      execution: {
+        currentDate: "2026-09-10",
+        timelineEvents: [
+          {
+            eventType: "notice_received",
+            date: "2026-09-01",
+            provenanceLevel: "document_extracted",
+          },
+        ],
+        deadlineRules: [
+          {
+            name: "response-window",
+            description: "30-day response rule",
+            triggerEventType: "notice_received",
+            days: 30,
+            calendarType: "calendar",
+            deadlineEventType: "response_due",
+            authority: "Official response rule",
+            authoritySourceUrl: "https://agency.ca.gov/response-rule",
+            provenanceLevel: "user_provided",
+          },
+        ],
+      },
+    });
+
+    const run = state.capabilityRuns.at(-1)!;
+    const output = run.output as {
+      authorityVerified: boolean;
+      authorityBindings: Array<{
+        sourceRunId: string | null;
+        contentHash: string | null;
+        verified: boolean;
+      }>;
+    };
+    expect(output.authorityVerified).toBe(true);
+    expect(output.authorityBindings[0]).toMatchObject({
+      sourceRunId: "authority-run-grounding",
+      contentHash: "b".repeat(64),
+      verified: true,
+    });
+  });
+
+  it("does not ground a deadline to a URL that was not in the confirmed authority run", async () => {
+    const repository = new MemoryRepository();
+    const service = new CompoundWorkflowService(repository);
+    let state = await service.create(
+      "owner-1",
+      "government-accountability-investigation",
+    );
+    state = await service.startPhase({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = {
+      ...state,
+      version: state.version + 1,
+      capabilityRuns: [
+        ...state.capabilityRuns,
+        {
+          id: "authority-run-other",
+          phaseId: "agency-authority",
+          capabilityLabel: "authority audit",
+          canonicalCapabilityId: "research",
+          adapterId: "government",
+          status: "completed",
+          provider: "authority:official-source",
+          provenance: "externally_sourced",
+          output: {
+            researchPerformed: true,
+            citations: [
+              {
+                title: "Official rule",
+                url: "https://agency.ca.gov/real-rule",
+                reference: "https://agency.ca.gov/real-rule",
+                summary: "Official rule",
+                contentHash: "c".repeat(64),
+              },
+            ],
+          },
+          messages: [],
+          executedAt: "2026-09-11T04:00:00.000Z",
+        },
+      ],
+    };
+    repository.state = state;
+    state = await service.confirmAuthorityGate({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = await service.executeCapability({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+      capabilityLabel: "deadline ledger",
+      execution: {
+        timelineEvents: [
+          {
+            eventType: "notice_received",
+            date: "2026-09-01",
+            provenanceLevel: "document_extracted",
+          },
+        ],
+        deadlineRules: [
+          {
+            name: "response-window",
+            description: "claimed rule",
+            triggerEventType: "notice_received",
+            days: 30,
+            calendarType: "calendar",
+            deadlineEventType: "response_due",
+            authority: "Claimed rule",
+            authoritySourceUrl: "https://agency.ca.gov/not-reviewed",
+            provenanceLevel: "user_provided",
+          },
+        ],
+      },
+    });
+
+    const output = state.capabilityRuns.at(-1)!.output as {
+      authorityVerified: boolean;
+    };
+    expect(output.authorityVerified).toBe(false);
   });
 
   it("records explicit user review approval when the phase defines that gate", async () => {
