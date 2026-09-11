@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/use-auth";
 import {
   advanceCompoundSystemGates,
   completeCompoundMatterPhase,
+  confirmCompoundAuthorityGate,
   createCompoundMatter,
   getCompoundMatter,
   recordCompoundUserGate,
@@ -180,6 +181,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [selectedCapability, setSelectedCapability] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
   const [analysisContext, setAnalysisContext] = useState("");
+  const [authoritySourceUrlsText, setAuthoritySourceUrlsText] = useState("");
   const [factsText, setFactsText] = useState("");
   const [timelineText, setTimelineText] = useState("");
   const [deadlineRulesText, setDeadlineRulesText] = useState("");
@@ -187,6 +189,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [verifyEvidenceInputs, setVerifyEvidenceInputs] = useState(false);
   const [runningCapability, setRunningCapability] = useState(false);
   const [advancingGates, setAdvancingGates] = useState(false);
+  const [confirmingAuthority, setConfirmingAuthority] = useState(false);
   const [gateAction, setGateAction] = useState<UserControlledGate | null>(null);
   const [completingPhase, setCompletingPhase] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
@@ -294,6 +297,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           capabilityLabel: selectedCapability,
           jurisdiction: jurisdiction.trim() || undefined,
           context: analysisContext.trim() || undefined,
+          sourceUrls: nonEmptyLines(authoritySourceUrlsText),
           facts: parseFacts(factsText),
           timelineEvents: parseTimeline(timelineText),
           deadlineRules: parseDeadlineRules(deadlineRulesText),
@@ -338,6 +342,34 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
       );
     } finally {
       setAdvancingGates(false);
+    }
+  }
+
+  async function confirmReviewedAuthoritySources() {
+    if (!matter || !activePhaseState) return;
+    setConfirmingAuthority(true);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const result = await confirmCompoundAuthorityGate({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+      setProgressMessage(
+        "Reviewed authority sources confirmed. This records source selection only; it does not establish legal applicability or replace professional advice.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to confirm the reviewed authority sources.",
+      );
+    } finally {
+      setConfirmingAuthority(false);
     }
   }
 
@@ -423,6 +455,12 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const systemPassableGateCount = activeGateReadiness.filter(
     (item) => item.currentStatus === "pending" && item.eligibleForSystemPass,
   ).length;
+  const authorityReadyForReview = activeGateReadiness.some(
+    (item) =>
+      item.gate === "authority" &&
+      item.currentStatus === "pending" &&
+      item.readiness === "ready_for_review",
+  );
   const pendingUserGates =
     activePhaseState?.gates.filter(
       (decision) =>
@@ -593,8 +631,24 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     rows={4}
                     value={analysisContext}
                     onChange={(event) => setAnalysisContext(event.target.value)}
-                    placeholder="Describe the question this capability should address. Authority research remains blocked unless a live authority provider is configured."
+                    placeholder="Describe the question this capability should address. For authority research, provide official source URLs below."
                   />
+                </div>
+
+                <div>
+                  <label className="input-label">Official authority source URLs</label>
+                  <textarea
+                    className="input-field font-mono text-xs"
+                    rows={4}
+                    value={authoritySourceUrlsText}
+                    onChange={(event) => setAuthoritySourceUrlsText(event.target.value)}
+                    placeholder={"https://agency.ca.gov/official-rule\nhttps://www.law.cornell.edu/... (not accepted unless server-approved)"}
+                  />
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    One URL per line, up to six. The server accepts HTTPS .gov/.mil
+                    sources and explicitly configured trusted hosts, revalidates redirects,
+                    and stores source hashes/excerpts. Retrieval is not a legal conclusion.
+                  </p>
                 </div>
 
                 <div>
@@ -720,6 +774,22 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                       : "No verified system gate ready"}
                   </button>
 
+                  {authorityReadyForReview && (
+                    <button
+                      type="button"
+                      onClick={confirmReviewedAuthoritySources}
+                      disabled={confirmingAuthority}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      {confirmingAuthority ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      )}
+                      Confirm reviewed authority sources
+                    </button>
+                  )}
+
                   {pendingUserGates.map((decision) => (
                     <button
                       key={decision.gate}
@@ -760,9 +830,10 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                   </button>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
-                  System gate passage requires verified deterministic support. Professional-review,
-                  human-review, and consequential-action gates always require explicit user action;
-                  acknowledging professional review does not mean counsel was obtained.
+                  System gate passage requires verified deterministic support. Retrieved authority
+                  sources require explicit source review before the authority gate can pass.
+                  Professional-review, human-review, and consequential-action gates always require
+                  explicit user action; acknowledging professional review does not mean counsel was obtained.
                 </p>
               </div>
             )}
