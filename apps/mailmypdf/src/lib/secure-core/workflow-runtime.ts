@@ -102,6 +102,29 @@ const cp14: CaseWorkflowDefinition = Object.freeze({
 });
 
 
+
+const cp523: CaseWorkflowDefinition = Object.freeze({
+  id: "cp523-response",
+  verticalId: "notice-response",
+  noticeFamily: "irs",
+  responseModes: ["pay-past-due", "already-corrected", "dispute-default", "request-reinstatement", "cannot-pay-past-due"],
+  analysisInstructions:
+    "This workflow prepares a response to an IRS CP523 installment-agreement default notice. " +
+    "Confirm that the document identifies itself as CP523, CP523 (SP), or the corresponding " +
+    "installment-agreement default notice. Extract the tax period, notice date, termination " +
+    "date or response deadline only if printed, past-due amount, notice/reference number, " +
+    "reason for default if stated, payment instructions, and IRS contact/response information. " +
+    "Distinguish the past-due amount needed to cure the default from the total unpaid liability " +
+    "when the notice distinguishes them. Never calculate a deadline or infer why a payment was missed.",
+  draftInstructions:
+    "Prepare a factual CP523 response using only verified notice facts and the user's selected " +
+    "response mode. Distinguish curing the past-due payment, already-taken corrective action, " +
+    "disagreement with the stated default, a request to discuss reinstatement, and inability to " +
+    "pay the past-due amount. Reference only evidence actually enclosed. Do not represent the " +
+    "letter as Form 9423 or another formal appeal request, do not promise reinstatement, and do " +
+    "not invent missed-payment reasons, financial facts, eligibility, deadlines, or outcomes.",
+});
+
 const cp504: CaseWorkflowDefinition = Object.freeze({
   id: "cp504-response",
   verticalId: "notice-response",
@@ -143,7 +166,7 @@ const cp2000: CaseWorkflowDefinition = Object.freeze({
     "Never invent tax-return figures, payer records, authorities, payments, or outcomes.",
 });
 
-const WORKFLOW_DEFINITIONS = [ssdi, cp14, cp2000, cp504] as const;
+const WORKFLOW_DEFINITIONS = [ssdi, cp14, cp2000, cp504, cp523] as const;
 
 export function resolveCaseWorkflow(workflowId: string, verticalId: string): CaseWorkflowDefinition {
   const workflow = WORKFLOW_DEFINITIONS.find(
