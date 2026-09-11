@@ -116,15 +116,20 @@ function deadlineReady(
   return {
     gate: "deadline",
     currentStatus: "pending",
-    readiness: deadlines.length > 0 ? "ready_for_review" : "needs_work",
+    readiness:
+      deadlines.length > 0 && authorityVerified
+        ? "ready_for_review"
+        : deadlines.length > 0
+          ? "needs_work"
+          : "needs_work",
     detail:
       deadlines.length === 0
         ? "The deadline run produced no matching deadline."
         : authorityVerified
-          ? "A deadline was computed from a supplied trigger and authority-grounded rule. The deterministic gate evaluator may pass this gate."
-          : "A deadline was computed, but its rule authority is not independently verified. Ground the rule before relying on it.",
+          ? "The date was computed from a rule bound to the authority source you reviewed. Review the rule text, trigger, counting method, and computed date before confirming the deadline gate."
+          : "A date was computed, but the rule is not bound to the specific authority source the user reviewed. Ground the rule before relying on it.",
     supportingRunId: run.id,
-    eligibleForSystemPass: eligible,
+    eligibleForSystemPass: false,
   };
 }
 
