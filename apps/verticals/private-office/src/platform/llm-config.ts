@@ -31,18 +31,17 @@ export function buildProviderConfigs(): Partial<
 > {
   const configs: Partial<Record<LLMProviderId, ProviderConfig>> = {};
 
-  // Claude (default)
-  const geminiKey =
-    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
-  if (geminiKey) {
-    configs.gemini = {
-      apiKey: geminiKey,
-      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
-      apiUrl: process.env.GEMINI_API_URL,
+  // Claude / Anthropic (default)
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    configs.anthropic = {
+      apiKey: anthropicKey,
+      model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5",
+      apiUrl: process.env.ANTHROPIC_API_URL,
     };
   }
 
-  // OpenAI (optional)
+  // OpenAI (fallback / consensus)
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
     configs.openai = {
@@ -52,13 +51,14 @@ export function buildProviderConfigs(): Partial<
     };
   }
 
-  // Anthropic (optional)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey) {
-    configs.anthropic = {
-      apiKey: anthropicKey,
-      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-20241022",
-      apiUrl: process.env.ANTHROPIC_API_URL,
+  // Gemini (fallback / maximum-assurance)
+  const geminiKey =
+    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
+  if (geminiKey) {
+    configs.gemini = {
+      apiKey: geminiKey,
+      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+      apiUrl: process.env.GEMINI_API_URL,
     };
   }
 
@@ -72,17 +72,22 @@ export function buildLLMConfig(): LLMRuntimeConfig {
   const providers = buildProviderConfigs();
   const configuredProviders = Object.keys(providers) as LLMProviderId[];
 
-  const defaultProvider = (
-    process.env.LLM_PROVIDER as LLMProviderId | undefined
-  ) ?? DEFAULT_PROVIDER;
+  const explicitProvider =
+    process.env.LLM_PROVIDER as LLMProviderId | undefined;
 
-  // Validate default provider is configured
-  if (configuredProviders.length > 0 && !providers[defaultProvider]) {
+  if (explicitProvider && !providers[explicitProvider]) {
     throw new Error(
-      `Default LLM provider "${defaultProvider}" is not configured. ` +
+      `Default LLM provider "${explicitProvider}" is not configured. ` +
         `Configured providers: ${configuredProviders.join(", ")}`,
     );
   }
+
+  const defaultProvider =
+    explicitProvider ??
+    (providers[DEFAULT_PROVIDER]
+      ? DEFAULT_PROVIDER
+      : ALL_PROVIDERS.find((provider) => Boolean(providers[provider])) ??
+        DEFAULT_PROVIDER);
 
   const mode = (process.env.LLM_INTELLIGENCE_MODE as IntelligenceMode | undefined) ??
     DEFAULT_INTELLIGENCE_MODE;
