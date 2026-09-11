@@ -4,8 +4,8 @@
  * This is the SINGLE shared navigation architecture for all MailMyPDF verticals.
  * Each vertical imports this component and passes its config.
  *
- * Public header:    [BRAND] Mail a PDF | Products ▾ | Workflows | How It Works | Pricing | Sign In | Start Now
- * Auth header:      [BRAND] Mail a PDF | Products ▾ | Workflows | Recent ▾ | Dashboard | Start Now | Avatar ▾
+ * Public header:    [BRAND] Products ▾ | Workflows | How It Works | Security & Trust | About | Mail a PDF | Sign In | Start a Workflow
+ * Auth header:      [BRAND] Products ▾ | Workflows | How It Works | Security & Trust | Recent ▾ | Dashboard | Mail a PDF | New Workflow | Avatar ▾
  *
  * DO NOT create competing navigation components.
  * DO NOT add vertical-specific global nav labels.
@@ -119,7 +119,7 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper/90 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-2.5 group">
           <ShellLogo theme={config.theme} />
@@ -127,29 +127,33 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
             <span className="font-serif text-lg transition-colors group-hover:text-cobalt">
               {config.brand}
             </span>
-            <span className="mt-1 hidden text-[9px] uppercase tracking-[0.2em] text-muted-foreground sm:block">
+            <span className="mt-1 hidden text-[9px] uppercase tracking-[0.2em] text-muted-foreground xl:block">
               {config.brandTagline}
             </span>
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
-          <NavLink to={config.mailPdfUrl} className="px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:text-foreground">
-            Mail a PDF
-          </NavLink>
+        <nav className="hidden items-center gap-0.5 md:flex" aria-label="Main navigation">
           <ProductsDropdown config={config} />
-          <NavLink to={config.workflowsUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
+          <NavLink to={config.workflowsUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
             Workflows
           </NavLink>
-          <NavLink to={config.howItWorksUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
+          <NavLink to={config.howItWorksUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
             How It Works
           </NavLink>
-          <NavLink to="/#security" className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
-            Security
-          </NavLink>
-          <NavLink to="/about" className="hidden px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground lg:inline-flex">
+          <a href="/#security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
+            Security & Trust
+          </a>
+          <NavLink to="/about" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex">
             About
+          </NavLink>
+          <NavLink
+            to={config.mailPdfUrl}
+            className="ml-2 hidden items-center gap-1.5 rounded-full border border-rule bg-card px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-cobalt/40 hover:text-cobalt lg:inline-flex"
+          >
+            <Mail size={14} />
+            Mail a PDF
           </NavLink>
 
           {isAuth ? (
@@ -158,8 +162,9 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
               <NavLink to={config.dashboardUrl} className="px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:text-foreground">
                 Dashboard
               </NavLink>
-              <NavLink to={config.startUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5">
-                {config.ctaLabel ?? "Start Now"}
+              <NavLink to={config.workflowsUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                {config.ctaLabel ?? "New Workflow"}
+                <ArrowRight size={14} />
               </NavLink>
               <AvatarMenu config={config} />
             </>
@@ -168,8 +173,9 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
               <NavLink to={config.authUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
                 Sign In
               </NavLink>
-              <NavLink to={config.startUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5">
-                {config.ctaLabel ?? "Start Now"}
+              <NavLink to={config.workflowsUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                {config.ctaLabel ?? "Start a Workflow"}
+                <ArrowRight size={14} />
               </NavLink>
             </>
           )}
@@ -224,7 +230,7 @@ function ProductsDropdown({ config }: { config: EcosystemShellConfig }) {
     };
   }, [open]);
 
-  const categories = Array.from(new Set(ECOSYSTEM_PRODUCTS.map((p) => p.category)));
+  const products = ECOSYSTEM_PRODUCTS.filter((product) => product.slug !== "mailmypdf");
 
   return (
     <div className="relative" ref={ref}>
@@ -239,48 +245,51 @@ function ProductsDropdown({ config }: { config: EcosystemShellConfig }) {
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-[560px] max-w-[calc(100vw-2rem)]">
-          <div className="overflow-hidden rounded-xl border border-rule bg-card shadow-premium">
-            <div className="border-b border-rule/60 px-5 py-3">
-              <div className="font-serif text-base">MailMyPDF Products</div>
-              <p className="mt-0.5 text-xs text-muted-foreground">Explore all MailMyPDF product verticals.</p>
-            </div>
-            <div className="max-h-[400px] overflow-y-auto">
-              {categories.map((cat) => (
-                <div key={cat} className="border-b border-rule/30 last:border-0">
-                  <div className="px-5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{cat}</div>
-                  {ECOSYSTEM_PRODUCTS.filter((p) => p.category === cat).map((p) => {
-                    const isCurrent = p.slug === config.currentProductSlug;
-                    return (
-                      <a
-                        key={p.slug}
-                        href={p.href}
-                        onClick={() => setOpen(false)}
-                        className={`flex items-start gap-2 px-5 py-2.5 transition-colors hover:bg-muted/40 ${isCurrent ? "bg-muted/20" : ""}`}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-sm text-foreground">{p.name}</span>
-                            {isCurrent && <span className="rounded-full border border-rule px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Current</span>}
-                            {p.status === "planned" && <span className="rounded-full border border-rule px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Soon</span>}
-                          </div>
-                          <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{p.description}</div>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between border-t border-rule bg-paper-deep/30 px-5 py-2.5">
-              <a
-                href={config.productsUrl}
+        <div className="absolute left-0 top-full z-50 mt-2 w-[680px] max-w-[calc(100vw-2rem)]">
+          <div className="overflow-hidden rounded-2xl border border-rule bg-card shadow-premium">
+            <div className="flex items-end justify-between gap-6 border-b border-rule/60 px-5 py-4">
+              <div>
+                <div className="font-serif text-lg">Choose a MailMyPDF product</div>
+                <p className="mt-1 text-xs text-muted-foreground">Start with the kind of document problem you need to solve.</p>
+              </div>
+              <NavLink
+                to={config.productsUrl}
                 onClick={() => setOpen(false)}
-                className="text-xs font-medium text-cobalt hover:text-cobalt/80"
+                className="shrink-0 text-xs font-semibold text-cobalt hover:text-cobalt/80"
               >
-                View All Products →
-              </a>
-              <div className="text-[10px] text-muted-foreground">{ECOSYSTEM_PRODUCTS.length} product families</div>
+                All products →
+              </NavLink>
+            </div>
+            <div className="grid max-h-[430px] grid-cols-2 gap-px overflow-y-auto bg-rule/40 p-px">
+              {products.map((p) => {
+                const isCurrent = p.slug === config.currentProductSlug;
+                return (
+                  <NavLink
+                    key={p.slug}
+                    to={p.href}
+                    onClick={() => setOpen(false)}
+                    className={`group bg-card px-5 py-4 transition-colors hover:bg-paper-deep/70 ${isCurrent ? "bg-paper-deep/60" : ""}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-serif text-base text-foreground transition-colors group-hover:text-cobalt">{p.name}</span>
+                      {isCurrent && <span className="rounded-full border border-rule px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Current</span>}
+                    </div>
+                    <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{p.category}</div>
+                    <div className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{p.description}</div>
+                  </NavLink>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between border-t border-rule bg-paper-deep/30 px-5 py-3">
+              <NavLink
+                to={config.mailPdfUrl}
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-cobalt"
+              >
+                <Mail size={13} />
+                Just need to mail a finished PDF?
+              </NavLink>
+              <div className="text-[10px] text-muted-foreground">{products.length} specialized product families</div>
             </div>
           </div>
         </div>
@@ -404,13 +413,10 @@ function AvatarMenu({ config }: { config: EcosystemShellConfig }) {
   };
 
   const initials = auth.user?.email?.[0]?.toUpperCase() ?? "?";
-  const caseLabel = config.caseTerm === "Matters" ? "Matters" : "Cases / Matters";
-
   const menuItems = [
     { label: "Dashboard", href: config.dashboardUrl, icon: FolderOpen },
-    { label: caseLabel, href: `${config.dashboardUrl}/cases`, icon: FileText },
-    { label: "Drafts", href: `${config.dashboardUrl}/drafts`, icon: FileText },
-    { label: "Mailings", href: `${config.dashboardUrl}/mailings`, icon: Mail },
+    { label: "Workflows", href: config.workflowsUrl, icon: FileText },
+    { label: "Orders & mailings", href: "/orders", icon: Mail },
   ];
 
   return (
@@ -474,10 +480,6 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
   return (
     <div className="border-t border-rule bg-paper md:hidden">
       <div className="flex flex-col gap-1 px-4 py-3">
-        <NavLink to={config.mailPdfUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
-          Mail a PDF
-        </NavLink>
-
         <button
           onClick={() => setProductsExpanded(!productsExpanded)}
           className="flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50"
@@ -488,24 +490,23 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         </button>
         {productsExpanded && (
           <div className="ml-3 border-l border-rule/40 pl-3">
-            {ECOSYSTEM_PRODUCTS.map((p) => (
-              <a
+            {ECOSYSTEM_PRODUCTS.filter((p) => p.slug !== "mailmypdf").map((p) => (
+              <NavLink
                 key={p.slug}
-                href={p.href}
+                to={p.href}
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-muted/50"
               >
                 {p.name}
-                {p.status === "planned" && <span className="ml-1.5 text-[9px] uppercase tracking-wider text-muted-foreground">Soon</span>}
-              </a>
+              </NavLink>
             ))}
-            <a
-              href={config.productsUrl}
+            <NavLink
+              to={config.productsUrl}
               onClick={onClose}
               className="block rounded-lg px-3 py-2 text-sm font-medium text-cobalt hover:text-cobalt/80"
             >
               View All Products →
-            </a>
+            </NavLink>
           </div>
         )}
 
@@ -515,8 +516,16 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         <NavLink to={config.howItWorksUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           How It Works
         </NavLink>
-        <NavLink to={config.pricingUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
-          Pricing
+        <a href="/#security" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
+          Security & Trust
+        </a>
+        <NavLink to="/about" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
+          About
+        </NavLink>
+        <div className="my-1 border-t border-rule/40" />
+        <NavLink to={config.mailPdfUrl} onClick={onClose} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold text-ink-soft hover:bg-muted/50">
+          <Mail size={15} />
+          Mail a PDF
         </NavLink>
 
         {isAuth ? (
@@ -555,11 +564,12 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         )}
 
         <NavLink
-          to={config.startUrl}
+          to={config.workflowsUrl}
           onClick={onClose}
-          className="mt-2 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
         >
-          {config.ctaLabel ?? "Start Now"}
+          {config.ctaLabel ?? (isAuth ? "New Workflow" : "Start a Workflow")}
+          <ArrowRight size={14} />
         </NavLink>
       </div>
     </div>
