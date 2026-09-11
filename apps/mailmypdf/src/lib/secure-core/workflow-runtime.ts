@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CaseError } from "./case.server";
+import { NOTICE_WORKFLOW_CONFIGS } from "../notice-workflow-registry";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -86,7 +87,7 @@ const cp14: CaseWorkflowDefinition = Object.freeze({
   id: "cp14-response",
   verticalId: "notice-response",
   noticeFamily: "irs",
-    responseModes: ["pay", "dispute", "request-arrangement", "request-oic", "request-cnc"],
+    responseModes: NOTICE_WORKFLOW_CONFIGS["cp14-response"].modes.map(([value]) => value),
   analysisInstructions:
     "This workflow prepares a response to an IRS CP14 balance-due notice. Confirm " +
     "that the document identifies itself as CP14 or an equivalent balance-due notice. " +
@@ -107,7 +108,7 @@ const cp523: CaseWorkflowDefinition = Object.freeze({
   id: "cp523-response",
   verticalId: "notice-response",
   noticeFamily: "irs",
-  responseModes: ["pay-past-due", "already-corrected", "dispute-default", "request-reinstatement", "cannot-pay-past-due"],
+  responseModes: NOTICE_WORKFLOW_CONFIGS["cp523-response"].modes.map(([value]) => value),
   analysisInstructions:
     "This workflow prepares a response to an IRS CP523 installment-agreement default notice. " +
     "Confirm that the document identifies itself as CP523, CP523 (SP), or the corresponding " +
@@ -129,7 +130,7 @@ const cp504: CaseWorkflowDefinition = Object.freeze({
   id: "cp504-response",
   verticalId: "notice-response",
   noticeFamily: "irs",
-  responseModes: ["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"],
+  responseModes: NOTICE_WORKFLOW_CONFIGS["cp504-response"].modes.map(([value]) => value),
   analysisInstructions:
     "This workflow prepares a response to an IRS CP504 Notice of Intent to Levy. Confirm " +
     "that the document identifies itself as CP504. Extract the tax year, notice date, " +
@@ -151,7 +152,7 @@ const cp2000: CaseWorkflowDefinition = Object.freeze({
   id: "cp2000-response",
   verticalId: "notice-response",
   noticeFamily: "irs",
-  responseModes: ["agree", "disagree", "partial-agreement"],
+  responseModes: NOTICE_WORKFLOW_CONFIGS["cp2000-response"].modes.map(([value]) => value),
   analysisInstructions:
     "This workflow prepares a response to an IRS CP2000 proposed-underreporter notice. " +
     "Confirm that the document identifies itself as CP2000. Extract the tax year, notice " +
