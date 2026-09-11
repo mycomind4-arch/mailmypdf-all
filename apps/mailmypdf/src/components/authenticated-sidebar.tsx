@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
+  Building2,
   ChevronRight,
   CircleHelp,
   Crown,
@@ -41,17 +42,18 @@ const primaryItems: SidebarItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: Home, exact: true },
   { label: "My Mail", href: "/dashboard/orders", icon: FolderOpen },
   { label: "Workflows", href: "/ecosystem", icon: Workflow },
-  { label: "Mail a PDF", href: "/send", icon: Mail },
+  { label: "Mail a PDF", href: "/mail-a-pdf", icon: Mail },
 ];
 
 const productItems: SidebarItem[] = [
-  { label: "Notice Respond", href: "/notice-response", icon: FileText, accent: "text-rose-400" },
-  { label: "Appeal Mail", href: "/appeal-reply", icon: Scale, accent: "text-amber-400" },
-  { label: "Immigration Mail", href: "/immigration", icon: Globe2, accent: "text-sky-400" },
+  { label: "Notice Respond", href: "/notice-respond", icon: FileText, accent: "text-rose-400" },
+  { label: "Appeal Mail", href: "/appeal-mail", icon: Scale, accent: "text-amber-400" },
+  { label: "Immigration Mail", href: "/immigration-mail", icon: Globe2, accent: "text-sky-400" },
   { label: "Dispute Mail", href: "/dispute-mail", icon: ShieldAlert, accent: "text-pink-400" },
   { label: "Records Requests", href: "/records-request", icon: FileSearch2, accent: "text-emerald-400" },
+  { label: "Code Enforcement", href: "/code-enforcement", icon: Building2, accent: "text-blue-300" },
   { label: "Private Office", href: "/private-office", icon: Crown, accent: "text-yellow-300" },
-  { label: "Small Business", href: "/small-business-mail", icon: BriefcaseBusiness, accent: "text-indigo-300" },
+  { label: "Small Business", href: "/small-business", icon: BriefcaseBusiness, accent: "text-indigo-300" },
   { label: "Fair Process", href: "/fair-process", icon: Map, accent: "text-teal-300" },
 ];
 
