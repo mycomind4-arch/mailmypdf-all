@@ -136,7 +136,7 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
       <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 group">
+        <Link to="/" className={`flex items-center gap-2.5 group ${isAuth ? "lg:hidden" : ""}`}>
           <ShellLogo theme={config.theme} />
           <span className="flex flex-col leading-none">
             <span className="font-serif text-lg transition-colors group-hover:text-cobalt">
@@ -150,41 +150,50 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
 
         {/* Desktop Nav */}
         <nav className="hidden items-center gap-0.5 md:flex" aria-label="Main navigation">
-          <ProductsDropdown config={config} />
-          <NavLink to={config.workflowsUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
-            Workflows
-          </NavLink>
-          <NavLink to={config.howItWorksUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
-            How It Works
-          </NavLink>
-          <a href="/#security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
-            Security & Trust
-          </a>
-          <NavLink to="/about" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex">
-            About
-          </NavLink>
-          <NavLink
-            to={config.mailPdfUrl}
-            className="ml-2 hidden items-center gap-1.5 rounded-full border border-rule bg-card px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-cobalt/40 hover:text-cobalt lg:inline-flex"
-          >
-            <Mail size={14} />
-            Mail a PDF
-          </NavLink>
-
           {isAuth ? (
             <>
-              <RecentDropdown config={config} />
-              <NavLink to={config.dashboardUrl} className="px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:text-foreground">
+              <NavLink to={config.dashboardUrl} className="rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 Dashboard
               </NavLink>
+              <NavLink to={config.workflowsUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+                Workflows
+              </NavLink>
+              <NavLink
+                to={config.mailPdfUrl}
+                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex"
+              >
+                <Mail size={14} />
+                Mail a PDF
+              </NavLink>
+              <RecentDropdown config={config} />
               <NavLink to={config.workflowsUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                {config.ctaLabel ?? "New Workflow"}
+                New Matter
                 <ArrowRight size={14} />
               </NavLink>
               <AvatarMenu config={config} />
             </>
           ) : (
             <>
+              <ProductsDropdown config={config} />
+              <NavLink to={config.workflowsUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+                Workflows
+              </NavLink>
+              <NavLink to={config.howItWorksUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+                How It Works
+              </NavLink>
+              <a href="/#security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
+                Security & Trust
+              </a>
+              <NavLink to="/about" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex">
+                About
+              </NavLink>
+              <NavLink
+                to={config.mailPdfUrl}
+                className="ml-2 hidden items-center gap-1.5 rounded-full border border-rule bg-card px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-cobalt/40 hover:text-cobalt lg:inline-flex"
+              >
+                <Mail size={14} />
+                Mail a PDF
+              </NavLink>
               <NavLink to={config.authUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
                 Sign In
               </NavLink>
