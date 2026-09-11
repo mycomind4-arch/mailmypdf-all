@@ -21,14 +21,21 @@ import type {
 import { evaluateCompoundPhaseReadiness } from "@/domain/compound-phase-readiness";
 import { useAuth } from "@/lib/use-auth";
 import {
+  advanceCompoundSystemGates,
+  completeCompoundMatterPhase,
   createCompoundMatter,
   getCompoundMatter,
+  recordCompoundUserGate,
   runCompoundCapability,
   startCompoundMatterPhase,
 } from "@/lib/fns/compound-matter";
 
 type ParsedEvidenceRelation = "supports" | "contradicts" | "qualifies" | "missing";
 type ParsedEvidenceType = "document" | "fact" | "entity" | "external";
+type UserControlledGate =
+  | "human-review"
+  | "consequential-action"
+  | "counsel-escalation";
 
 function nonEmptyLines(value: string): string[] {
   return value
@@ -177,7 +184,12 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [timelineText, setTimelineText] = useState("");
   const [deadlineRulesText, setDeadlineRulesText] = useState("");
   const [evidenceText, setEvidenceText] = useState("");
+  const [verifyEvidenceInputs, setVerifyEvidenceInputs] = useState(false);
   const [runningCapability, setRunningCapability] = useState(false);
+  const [advancingGates, setAdvancingGates] = useState(false);
+  const [gateAction, setGateAction] = useState<UserControlledGate | null>(null);
+  const [completingPhase, setCompletingPhase] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !search.matterId || matter?.id === search.matterId) return;
@@ -273,6 +285,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     setRunningCapability(true);
     setError(null);
     try {
+      setProgressMessage(null);
       const result = await runCompoundCapability({
         data: {
           matterId: matter.id,
@@ -284,6 +297,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           facts: parseFacts(factsText),
           timelineEvents: parseTimeline(timelineText),
           deadlineRules: parseDeadlineRules(deadlineRulesText),
+          verifyEvidenceInputs,
           evidence: parseEvidence(evidenceText),
         },
       });
@@ -297,6 +311,107 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     }
   }
 
+  async function advanceVerifiedSystemGates() {
+    if (!matter || !activePhaseState) return;
+    setAdvancingGates(true);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const result = await advanceCompoundSystemGates({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+      setProgressMessage(
+        result.passedGates.length > 0
+          ? `Passed verified system gate(s): ${result.passedGates.join(", ")}.`
+          : "No pending gate currently has enough verified support for a deterministic system pass.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to evaluate verified system gates.",
+      );
+    } finally {
+      setAdvancingGates(false);
+    }
+  }
+
+  async function acknowledgeUserGate(gate: UserControlledGate) {
+    if (!matter || !activePhaseState) return;
+    setGateAction(gate);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const detail =
+        gate === "counsel-escalation"
+          ? "User acknowledged the professional-review requirement. This acknowledgment does not establish that counsel was obtained or that professional review is unnecessary."
+          : gate === "consequential-action"
+            ? "User explicitly approved this consequential-action gate for workflow progression. No filing, mailing, service, payment, transfer, settlement, or other external action is performed by this approval alone."
+            : "User explicitly completed the required human review for this phase.";
+      const result = await recordCompoundUserGate({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+          gate,
+          approved: true,
+          detail,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+      setProgressMessage(
+        gate === "counsel-escalation"
+          ? "Professional-review requirement acknowledged; this does not mean professional review occurred."
+          : `${gate.replaceAll("-", " ")} gate approved.`,
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to record this gate.",
+      );
+    } finally {
+      setGateAction(null);
+    }
+  }
+
+  async function completeActivePhase() {
+    if (!matter || !activePhaseState) return;
+    setCompletingPhase(true);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const result = await completeCompoundMatterPhase({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+        },
+      });
+      const next = result.matter as CompoundMatterState;
+      setMatter(next);
+      const unlocked = next.phases
+        .filter((phase) => phase.status === "ready")
+        .map((phase) => phase.phaseId);
+      setProgressMessage(
+        unlocked.length > 0
+          ? `Phase completed. Ready next: ${unlocked.join(", ")}.`
+          : next.phases.every((phase) => phase.status === "complete")
+            ? "Compound workflow complete."
+            : "Phase completed.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to complete this phase.",
+      );
+    } finally {
+      setCompletingPhase(false);
+    }
+  }
+
   const firstReady = matter?.phases.find((phase) => phase.status === "ready");
   const latestRun = matter?.capabilityRuns
     ?.filter((run) => run.phaseId === activePhaseState?.phaseId)
@@ -305,6 +420,20 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     matter && activePhaseState
       ? evaluateCompoundPhaseReadiness(matter, activePhaseState.phaseId)
       : [];
+  const systemPassableGateCount = activeGateReadiness.filter(
+    (item) => item.currentStatus === "pending" && item.eligibleForSystemPass,
+  ).length;
+  const pendingUserGates =
+    activePhaseState?.gates.filter(
+      (decision) =>
+        decision.status === "pending" &&
+        (decision.gate === "human-review" ||
+          decision.gate === "consequential-action" ||
+          decision.gate === "counsel-escalation"),
+    ) ?? [];
+  const activePhaseCanComplete =
+    Boolean(activePhaseState) &&
+    activePhaseState!.gates.every((decision) => decision.status === "passed");
 
   return (
     <main className="min-h-screen bg-ivory text-charcoal">
@@ -361,6 +490,11 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           {error && (
             <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
               {error}
+            </div>
+          )}
+          {progressMessage && (
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900">
+              {progressMessage}
             </div>
           )}
         </div>
@@ -513,6 +647,19 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     onChange={(event) => setEvidenceText(event.target.value)}
                     placeholder={"claim-1 | supports | document | notice-pdf | Agency notice\nclaim-1 | contradicts | fact | witness-2 | Conflicting account"}
                   />
+                  <label className="mt-3 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={verifyEvidenceInputs}
+                      onChange={(event) => setVerifyEvidenceInputs(event.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      I personally reviewed these evidence references and confirm that they
+                      correspond to the items described. This verifies provenance only; it
+                      does not declare the underlying claim true.
+                    </span>
+                  </label>
                 </div>
 
                 <button
@@ -556,9 +703,66 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     </div>
                   ))}
                 </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={advanceVerifiedSystemGates}
+                    disabled={advancingGates || systemPassableGateCount === 0}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:opacity-50"
+                  >
+                    {advancingGates ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                    )}
+                    {systemPassableGateCount > 0
+                      ? `Pass ${systemPassableGateCount} verified system gate${systemPassableGateCount === 1 ? "" : "s"}`
+                      : "No verified system gate ready"}
+                  </button>
+
+                  {pendingUserGates.map((decision) => (
+                    <button
+                      key={decision.gate}
+                      type="button"
+                      onClick={() =>
+                        acknowledgeUserGate(decision.gate as UserControlledGate)
+                      }
+                      disabled={gateAction !== null}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      {gateAction === decision.gate ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      {decision.gate === "counsel-escalation"
+                        ? "Acknowledge professional-review requirement"
+                        : decision.gate === "consequential-action"
+                          ? "Explicitly approve consequential gate"
+                          : "Complete human review"}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={completeActivePhase}
+                    disabled={completingPhase || !activePhaseCanComplete}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"
+                  >
+                    {completingPhase ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    )}
+                    {activePhaseCanComplete
+                      ? "Complete phase and unlock dependents"
+                      : "Complete all gates to finish phase"}
+                  </button>
+                </div>
                 <p className="mt-3 text-xs text-slate-500">
-                  Readiness is advisory. The engine does not silently pass legal,
-                  professional-review, human-review, or consequential-action gates.
+                  System gate passage requires verified deterministic support. Professional-review,
+                  human-review, and consequential-action gates always require explicit user action;
+                  acknowledging professional review does not mean counsel was obtained.
                 </p>
               </div>
             )}
