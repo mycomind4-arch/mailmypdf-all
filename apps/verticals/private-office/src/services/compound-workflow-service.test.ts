@@ -106,6 +106,92 @@ describe("CompoundWorkflowService", () => {
     ).not.toThrow();
   });
 
+  it("refuses authority confirmation without an externally sourced citation run", async () => {
+    const repository = new MemoryRepository();
+    const service = new CompoundWorkflowService(repository);
+    let state = await service.create(
+      "owner-1",
+      "government-accountability-investigation",
+    );
+    state = await service.startPhase({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    await expect(
+      service.confirmAuthorityGate({
+        ownerId: "owner-1",
+        matterId: state.id,
+        expectedVersion: state.version,
+        phaseId: "agency-authority",
+      }),
+    ).rejects.toThrow(/externally sourced authority run/i);
+  });
+
+  it("allows explicit source review to confirm an authority gate without calling it legal applicability", async () => {
+    const repository = new MemoryRepository();
+    const service = new CompoundWorkflowService(repository);
+    let state = await service.create(
+      "owner-1",
+      "government-accountability-investigation",
+    );
+    state = await service.startPhase({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+    });
+
+    state = {
+      ...state,
+      version: state.version + 1,
+      capabilityRuns: [
+        ...state.capabilityRuns,
+        {
+          id: "authority-run-1",
+          phaseId: "agency-authority",
+          capabilityLabel: "authority audit",
+          canonicalCapabilityId: "research",
+          adapterId: "government",
+          status: "completed",
+          provider: "authority:official-source",
+          provenance: "externally_sourced",
+          output: {
+            researchPerformed: true,
+            citations: [
+              {
+                title: "Official rule",
+                reference: "https://agency.ca.gov/rule",
+                summary: "Official source text",
+              },
+            ],
+          },
+          messages: [],
+          executedAt: "2026-09-11T04:00:00.000Z",
+        },
+      ],
+    };
+    repository.state = state;
+
+    state = await service.confirmAuthorityGate({
+      ownerId: "owner-1",
+      matterId: state.id,
+      expectedVersion: state.version,
+      phaseId: "agency-authority",
+      actorId: "owner-1",
+    });
+
+    const gate = state.phases
+      .find((phase) => phase.phaseId === "agency-authority")
+      ?.gates.find((candidate) => candidate.gate === "authority");
+    expect(gate?.status).toBe("passed");
+    expect(gate?.verifiedBy).toBe("user");
+    expect(gate?.detail).toMatch(/source selection only/i);
+    expect(gate?.detail).toMatch(/does not establish legal applicability/i);
+  });
+
   it("records explicit user review approval when the phase defines that gate", async () => {
     const repository = new MemoryRepository();
     const service = new CompoundWorkflowService(repository);
