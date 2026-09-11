@@ -193,6 +193,21 @@ export const confirmCompoundAuthorityGate = createServerFn({ method: "POST" })
     return { matter };
   });
 
+export const confirmCompoundDeadlineGate = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(matterMutationSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const matter = await workflowService.confirmDeadlineGate({
+      ownerId: context.user.id,
+      matterId: data.matterId,
+      expectedVersion: data.expectedVersion,
+      phaseId: data.phaseId,
+      actorId: context.user.id,
+    });
+    return { matter };
+  });
+
 export const recordCompoundUserGate = createServerFn({ method: "POST" })
   .middleware([accountAuthMiddleware])
   .validator(userGateSchema)
