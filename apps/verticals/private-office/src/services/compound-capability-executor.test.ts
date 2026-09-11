@@ -53,6 +53,17 @@ describe("compound capability executor", () => {
     ]);
   });
 
+  it("refuses to invent a timeline when no events are supplied", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "reconstruct-events",
+      capabilityLabel: "timeline reconstruction",
+    });
+    expect(result.status).toBe("blocked");
+    expect(result.messages.join(" ")).toMatch(/requires at least one structured event/i);
+  });
+
   it("detects conflicting structured facts", async () => {
     const result = await executeCompoundCapability({
       workflowId: "government-accusation-defense",
