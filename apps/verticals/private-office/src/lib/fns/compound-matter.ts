@@ -20,7 +20,7 @@ const matterMutationSchema = z.object({
 });
 
 const userGateSchema = matterMutationSchema.extend({
-  gate: z.enum(["human-review", "consequential-action"]),
+  gate: z.enum(["human-review", "consequential-action", "counsel-escalation"]),
   approved: z.boolean(),
   detail: z.string().max(2000).nullable().optional(),
 });
@@ -66,6 +66,7 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
     provenanceLevel: provenanceLevelSchema,
     confidence: z.number().min(0).max(1).optional(),
   })).max(100).optional(),
+  verifyEvidenceInputs: z.boolean().optional(),
   evidence: z.array(z.object({
     claimId: z.string().min(1).max(200),
     relation: z.enum(["supports", "contradicts", "qualifies", "missing"]),
