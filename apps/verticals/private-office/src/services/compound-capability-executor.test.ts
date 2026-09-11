@@ -1,10 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { LLMAdapter } from "@/platform/llm-adapter";
+import { _resetAdapters, _setAdapter } from "@/platform/llm-router";
+import { _resetLLMConfig } from "@/platform/llm-config";
 import {
   executeCompoundCapability,
   resolveCompoundCapabilityBinding,
 } from "./compound-capability-executor";
 
+const providerEnvKeys = [
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
+  "GOOGLE_AI_API_KEY",
+  "LLM_PROVIDER",
+] as const;
+const originalProviderEnv = Object.fromEntries(
+  providerEnvKeys.map((key) => [key, process.env[key]]),
+);
+
+function clearProviderEnv() {
+  for (const key of providerEnvKeys) delete process.env[key];
+  _resetLLMConfig();
+  _resetAdapters();
+}
+
+function mockAdapter(content: string): LLMAdapter {
+  return {
+    provider: "anthropic",
+    async generate() {
+      return {
+        content,
+        provenance: {
+          provider: "anthropic",
+          model: "claude-test",
+          generatedAt: "2026-09-11T04:30:00.000Z",
+          inputHash: "a".repeat(64),
+        },
+      };
+    },
+  };
+}
+
 describe("compound capability executor", () => {
+  beforeEach(() => {
+    clearProviderEnv();
+  });
+
+  afterEach(() => {
+    clearProviderEnv();
+    for (const key of providerEnvKeys) {
+      const value = originalProviderEnv[key];
+      if (value !== undefined) process.env[key] = value;
+    }
+    _resetLLMConfig();
+    _resetAdapters();
+  });
   it("maps timeline work to the canonical timeline capability", () => {
     const binding = resolveCompoundCapabilityBinding(
       "government-accusation-defense",
@@ -143,6 +193,65 @@ describe("compound capability executor", () => {
     expect(result.status).toBe("completed");
     const output = result.output as { contradictions: unknown[] };
     expect(output.contradictions).toHaveLength(1);
+  });
+
+  it("stores schema-valid AI classification as inferred, never verified", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    _resetLLMConfig();
+    _setAdapter(
+      "anthropic",
+      mockAdapter(
+        JSON.stringify({
+          type: "agency enforcement notice",
+          confidence: 0.91,
+          reasoning: "The supplied context describes an agency notice.",
+          provenance: "llm_generated",
+        }),
+      ),
+    );
+
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "agency-authority",
+      capabilityLabel: "jurisdiction map",
+      context: "An agency issued a notice concerning the property.",
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.provenance).toBe("ai_inferred");
+    expect(result.provider).toContain("llm:anthropic:claude-test");
+  });
+
+  it("rejects malformed AI output instead of entering it into domain state", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    _resetLLMConfig();
+    _setAdapter("anthropic", mockAdapter("not-json"));
+
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "agency-authority",
+      capabilityLabel: "jurisdiction map",
+      context: "Supplied matter context.",
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.output).toBeNull();
+    expect(result.messages.join(" ")).toMatch(/schema validation/i);
+  });
+
+  it("blocks advisory AI cleanly when no provider is configured", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accountability-investigation",
+      matterId: "matter-1",
+      phaseId: "agency-authority",
+      capabilityLabel: "jurisdiction map",
+      context: "Supplied matter context.",
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.provider).toBe("llm:none");
   });
 
   it("blocks authority work honestly when no live authority provider is configured", async () => {
