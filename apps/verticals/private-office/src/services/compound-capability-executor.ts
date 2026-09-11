@@ -192,6 +192,7 @@ function resultRun(
   provider: string,
   output: unknown,
   messages: readonly string[],
+  provenanceOverride?: CompoundCapabilityRun["provenance"],
 ): CompoundCapabilityRun {
   return {
     id: crypto.randomUUID(),
@@ -201,10 +202,7 @@ function resultRun(
     adapterId: binding.adapterId,
     status,
     provider,
-    provenance:
-      binding.executable === "deterministic"
-        ? "system_generated"
-        : "externally_sourced",
+    provenance: provenanceOverride ?? "system_generated",
     output,
     messages,
     executedAt: new Date().toISOString(),
@@ -320,13 +318,16 @@ export async function executeCompoundCapability(
         evidenceItems: evidence,
         timelineEvents: timeline.events,
       });
+      const meaningful = assessment.overallRisk !== "unknown";
       return resultRun(
         input,
         binding,
-        "completed",
+        meaningful ? "completed" : "blocked",
         "@mailmypdf/intelligence",
         assessment,
-        [`Deterministic risk assessment: ${assessment.overallRisk} (${assessment.riskScore}/100).`],
+        meaningful
+          ? [`Deterministic risk assessment: ${assessment.overallRisk} (${assessment.riskScore}/100).`]
+          : ["Risk assessment is unknown because the matter does not yet contain enough structured intelligence to evaluate."],
       );
     }
 
@@ -345,6 +346,7 @@ export async function executeCompoundCapability(
         `authority:${provider.name}`,
         authority,
         [authority.disclaimer],
+        authority.provenance,
       );
     }
 
