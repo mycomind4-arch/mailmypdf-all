@@ -188,7 +188,7 @@ export function evaluateCompoundPhaseReadiness(
         readiness: "ready_for_review" as const,
         detail:
           decision.detail ?? "Gate has already been explicitly passed.",
-        supportingRunId: null,
+        supportingRunId: decision.supportingRunId ?? null,
         eligibleForSystemPass: false,
       };
     }
