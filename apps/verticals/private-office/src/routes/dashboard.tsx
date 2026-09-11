@@ -160,9 +160,9 @@ function DashboardPage() {
               const active = matter.phases.find((phase) => phase.status === "in_progress");
               const blocked = matter.phases.find((phase) => phase.status === "blocked");
               return (
-                <Link
+                <a
                   key={matter.id}
-                  to={`/workflows/${matter.workflowId}` as "/workflows"}
+                  href={`/workflows/${matter.workflowId}?matterId=${encodeURIComponent(matter.id)}`}
                   className="mmp-workspace-panel block transition hover:-translate-y-0.5"
                 >
                   <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -179,7 +179,7 @@ function DashboardPage() {
                       v{matter.version}<br />{matter.updatedAt.slice(0, 10)}
                     </div>
                   </div>
-                </Link>
+                </a>
               );
             })}
           </div>
