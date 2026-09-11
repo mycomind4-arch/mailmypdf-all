@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CaseError } from "./case.server";
-import { NOTICE_WORKFLOW_CONFIGS } from "../notice-workflow-registry";
+import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -167,7 +167,17 @@ const cp2000: CaseWorkflowDefinition = Object.freeze({
     "Never invent tax-return figures, payer records, authorities, payments, or outcomes.",
 });
 
-const WORKFLOW_DEFINITIONS = [ssdi, cp14, cp2000, cp504, cp523] as const;
+const NOTICE_WORKFLOW_DEFINITIONS = {
+  "cp14-response": cp14,
+  "cp2000-response": cp2000,
+  "cp504-response": cp504,
+  "cp523-response": cp523,
+} as const satisfies Record<NoticeWorkflowId, CaseWorkflowDefinition>;
+
+const WORKFLOW_DEFINITIONS: readonly CaseWorkflowDefinition[] = [
+  ssdi,
+  ...Object.values(NOTICE_WORKFLOW_DEFINITIONS),
+];
 
 export function resolveCaseWorkflow(workflowId: string, verticalId: string): CaseWorkflowDefinition {
   const workflow = WORKFLOW_DEFINITIONS.find(
