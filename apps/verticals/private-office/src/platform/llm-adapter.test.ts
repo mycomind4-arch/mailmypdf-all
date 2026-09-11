@@ -191,6 +191,8 @@ describe("Gemini adapter: generate", () => {
 describe("LLM adapter factory", () => {
   beforeEach(() => {
     _resetLLMAdapter();
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_AI_API_KEY;
     delete process.env.LLM_PROVIDER;
@@ -201,7 +203,27 @@ describe("LLM adapter factory", () => {
     expect(adapter).toBe(null);
   });
 
-  it("returns Gemini adapter when GEMINI_API_KEY is set", () => {
+  it("returns Claude adapter by default when ANTHROPIC_API_KEY is set", () => {
+    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    _resetLLMAdapter();
+    const adapter = getLLMAdapterPublic();
+    expect(adapter).not.toBe(null);
+    expect(adapter!.provider).toBe("anthropic");
+    _resetLLMAdapter();
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  it("falls back to OpenAI when Claude is unavailable", () => {
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    _resetLLMAdapter();
+    const adapter = getLLMAdapterPublic();
+    expect(adapter).not.toBe(null);
+    expect(adapter!.provider).toBe("openai");
+    _resetLLMAdapter();
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it("falls back to Gemini when it is the only configured provider", () => {
     process.env.GEMINI_API_KEY = "test-gemini-key";
     _resetLLMAdapter();
     const adapter = getLLMAdapterPublic();
