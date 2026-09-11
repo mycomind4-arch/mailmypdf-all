@@ -68,7 +68,9 @@ function evidenceReady(
     const evaluation = object(entryObject?.evaluation);
     return (
       evaluation?.hasGaps === true ||
-      evaluation?.isContradicted === true
+      evaluation?.isContradicted === true ||
+      (typeof evaluation?.contradictingCount === "number" &&
+        evaluation.contradictingCount > 0)
     );
   });
 
