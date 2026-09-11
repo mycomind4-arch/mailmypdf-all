@@ -8,7 +8,8 @@ import type {
   WorkflowCase,
 } from "./ssdi-workflow-model";
 
-export type NoticeWorkflowId = "cp14-response" | "cp2000-response" | "cp504-response" | "cp523-response";
+import type { NoticeWorkflowId } from "./notice-workflow-registry";
+export type { NoticeWorkflowId } from "./notice-workflow-registry";
 export const NOTICE_VERTICAL_ID = "notice-response" as const;
 
 export class NoticeWorkflowApiError extends Error {
