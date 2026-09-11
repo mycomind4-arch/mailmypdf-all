@@ -195,6 +195,14 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: 400; let
 .prose-content p { margin-bottom: 1rem; }
 .prose-content strong { color: var(--color-charcoal); font-weight: 600; }
 
+/* Build Studio canvas */
+.studio-node { width: 100%; border: 1px solid var(--color-rule); border-left: 3px solid var(--color-navy); border-radius: 10px; background: var(--color-paper); padding: .9rem 1rem; text-align: left; box-shadow: var(--shadow-card); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.studio-node:hover, .studio-node--selected { border-color: var(--color-navy); box-shadow: 0 4px 16px rgba(28,28,30,.08); transform: translateY(-1px); }
+.studio-node--green { border-left-color: var(--color-success); }
+.studio-node--slate { border-left-color: var(--color-stone); }
+.studio-node--violet { border-left-color: #6D5A8D; }
+.studio-node--amber { border-left-color: var(--color-warning); }
+
 /* === Reduced Motion === */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

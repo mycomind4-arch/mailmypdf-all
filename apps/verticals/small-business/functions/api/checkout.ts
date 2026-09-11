@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser, json } from "../_auth";
+import { isAllowedWorkflowId } from "../_workflows";
 import {
   calculateQuote,
   getWorkflowPricingProfile,
@@ -45,6 +46,11 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
     const method = input.mailClass;
     if (!input.businessId || !input.workflowId || !input.draftContent || input.draftContent.trim().length < 20) return json({ error: "Business, workflow, and completed document are required." }, 400);
+    // SECURITY: workflowId is later used server-side (with the Trigger.dev
+    // secret key) to select which Trigger.dev task to invoke on payment —
+    // it must be a known, catalog-registered workflow for this vertical,
+    // never an arbitrary client-supplied string. See functions/_workflows.ts.
+    if (!isAllowedWorkflowId(input.workflowId)) return json({ error: "Unknown workflow." }, 400);
     if (!method || !isValidPricingKey(method)) return json({ error: "A valid mail class is required." }, 400);
     if (!input.recipient || !String(input.recipient.name || "").trim()) return json({ error: "A recipient is required." }, 400);
 
@@ -110,6 +116,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     return json({ ok: true, checkoutUrl: session.url, sessionId: session.id, mailingIntentId: intentId });
   } catch (error) {
     if (error instanceof Response) return error;
-    return json({ error: error instanceof Error ? error.message : "Unable to start checkout." }, 502);
+    console.error("[checkout:smallbusiness] Error:", error);
+    return json({ error: "Unable to start checkout." }, 502);
   }
 };

@@ -22,7 +22,6 @@ export interface AnthropicConfig {
 }
 
 const DEFAULT_API_URL = "https://api.anthropic.com";
-const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 export class AnthropicAdapter implements LLMAdapter {
@@ -34,8 +33,14 @@ export class AnthropicAdapter implements LLMAdapter {
   constructor(config: AnthropicConfig) {
     if (!config.apiKey.trim())
       throw new LLMError("Anthropic API key is required", "anthropic", "NO_API_KEY");
+    if (!config.model.trim())
+      throw new LLMError(
+        "Anthropic model is required",
+        "anthropic",
+        "INVALID_ARGUMENT",
+      );
     this.apiKey = config.apiKey;
-    this.model = config.model || DEFAULT_MODEL;
+    this.model = config.model;
     this.apiUrl = (config.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
   }
 

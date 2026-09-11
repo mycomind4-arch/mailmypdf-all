@@ -27,6 +27,7 @@
  */
 
 import { json } from "../../_auth";
+import { queueMailJobExecution } from "../../_fulfillment";
 
 type Env = {
   STRIPE_SECRET_KEY?: string;
@@ -174,53 +175,22 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
         });
       }
 
-      const workflowId = String(intent.workflow_id || "").trim();
-      const triggerUrl = `${(env.TRIGGER_API_URL || "https://api.trigger.dev").replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(workflowId)}/trigger`;
-      const triggerResponse = await fetch(triggerUrl, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${env.TRIGGER_SECRET_KEY}`,
-        },
-        body: JSON.stringify({
-          payload: {
-            mailingIntentId: intentId,
-            businessId: intent.business_id,
-            workflowId,
-            mailJobId: intent.mail_job_id,
-            stripeSessionId: session.id,
-          },
-          options: {
-            idempotencyKey: `mailing-intent:${intentId}`,
-          },
-        }),
-      });
-
-      const triggerBody = await triggerResponse.text();
-      if (!triggerResponse.ok) {
-        console.error(`[stripe-webhook:smallbusiness] Trigger.dev rejected fulfillment for intent ${intentId}: ${triggerBody}`);
+      // Route through the single fulfillment helper — it always targets the
+      // real `execute-mail-job` Trigger.dev task with a schema-valid payload,
+      // and validates `workflow_id` before doing anything with it. See
+      // functions/_fulfillment.ts for why this must not be reimplemented here.
+      const queued = await queueMailJobExecution(env, intent as { id: unknown; business_id: unknown; mail_job_id: unknown; workflow_id: unknown });
+      if (!queued.queued) {
+        console.error(`[stripe-webhook:smallbusiness] Fulfillment queueing failed for intent ${intentId}: ${queued.reason}`);
         // The payment is still verified — fulfillment can be retried
         return json({
           received: true,
           success: true,
           status: "paid",
           intentId,
-          warning: "Fulfillment queueing failed — payment is verified and can be retried.",
+          warning: queued.reason || "Fulfillment queueing failed — payment is verified and can be retried.",
         });
       }
-
-      // ── Mark as queued ────────────────────────────────────────
-      await supabaseRest(
-        env,
-        `mailing_intents?id=eq.${encodeURIComponent(intentId)}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            status: "queued",
-            trigger_response: triggerBody,
-          }),
-        },
-      );
 
       return json({
         received: true,

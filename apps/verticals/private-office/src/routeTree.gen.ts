@@ -18,12 +18,15 @@ import { Route as MailAPdfRouteImport } from './routes/mail-a-pdf'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as StartRouteImport } from './routes/start'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
 import { Route as WorkflowsBankWireDisputeRouteImport } from './routes/workflows/bank-wire-dispute'
 import { Route as WorkflowsContractorDisputeRouteImport } from './routes/workflows/contractor-dispute'
 import { Route as WorkflowsPropertyInsuranceClaimRouteImport } from './routes/workflows/property-insurance-claim'
 import { Route as WorkflowsSecurityDepositDisputeRouteImport } from './routes/workflows/security-deposit-dispute'
 import { Route as WorkflowsTrustBeneficiaryNoticeRouteImport } from './routes/workflows/trust-beneficiary-notice'
+import { Route as ApiStudioChatRouteImport } from './routes/api/studio/chat'
+import { Route as ApiStudioRunRouteImport } from './routes/api/studio/run'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +73,11 @@ const StartRoute = StartRouteImport.update({
   path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
   id: '/workflows/',
   path: '/workflows/',
@@ -105,6 +113,16 @@ const WorkflowsTrustBeneficiaryNoticeRoute =
     path: '/workflows/trust-beneficiary-notice',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiStudioChatRoute = ApiStudioChatRouteImport.update({
+  id: '/api/studio/chat',
+  path: '/api/studio/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioRunRoute = ApiStudioRunRouteImport.update({
+  id: '/api/studio/run',
+  path: '/api/studio/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -116,12 +134,15 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/studio/chat': typeof ApiStudioChatRoute
+  '/api/studio/run': typeof ApiStudioRunRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -133,12 +154,15 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows': typeof WorkflowsIndexRoute
+  '/api/studio/chat': typeof ApiStudioChatRoute
+  '/api/studio/run': typeof ApiStudioRunRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -151,12 +175,15 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows/': typeof WorkflowsIndexRoute
+  '/api/studio/chat': typeof ApiStudioChatRoute
+  '/api/studio/run': typeof ApiStudioRunRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -170,12 +197,15 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/products'
     | '/start'
+    | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows/'
+    | '/api/studio/chat'
+    | '/api/studio/run'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -187,12 +217,15 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/products'
     | '/start'
+    | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows'
+    | '/api/studio/chat'
+    | '/api/studio/run'
   id:
     | '__root__'
     | '/'
@@ -204,12 +237,15 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/products'
     | '/start'
+    | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows/'
+    | '/api/studio/chat'
+    | '/api/studio/run'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -222,12 +258,15 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   ProductsRoute: typeof ProductsRoute
   StartRoute: typeof StartRoute
+  StudioRoute: typeof StudioRoute
   WorkflowsBankWireDisputeRoute: typeof WorkflowsBankWireDisputeRoute
   WorkflowsContractorDisputeRoute: typeof WorkflowsContractorDisputeRoute
   WorkflowsPropertyInsuranceClaimRoute: typeof WorkflowsPropertyInsuranceClaimRoute
   WorkflowsSecurityDepositDisputeRoute: typeof WorkflowsSecurityDepositDisputeRoute
   WorkflowsTrustBeneficiaryNoticeRoute: typeof WorkflowsTrustBeneficiaryNoticeRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
+  ApiStudioChatRoute: typeof ApiStudioChatRoute
+  ApiStudioRunRoute: typeof ApiStudioRunRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/': {
       id: '/workflows/'
       path: '/workflows'
@@ -337,6 +383,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsTrustBeneficiaryNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/studio/chat': {
+      id: '/api/studio/chat'
+      path: '/api/studio/chat'
+      fullPath: '/api/studio/chat'
+      preLoaderRoute: typeof ApiStudioChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/run': {
+      id: '/api/studio/run'
+      path: '/api/studio/run'
+      fullPath: '/api/studio/run'
+      preLoaderRoute: typeof ApiStudioRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -350,12 +410,15 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   ProductsRoute: ProductsRoute,
   StartRoute: StartRoute,
+  StudioRoute: StudioRoute,
   WorkflowsBankWireDisputeRoute: WorkflowsBankWireDisputeRoute,
   WorkflowsContractorDisputeRoute: WorkflowsContractorDisputeRoute,
   WorkflowsPropertyInsuranceClaimRoute: WorkflowsPropertyInsuranceClaimRoute,
   WorkflowsSecurityDepositDisputeRoute: WorkflowsSecurityDepositDisputeRoute,
   WorkflowsTrustBeneficiaryNoticeRoute: WorkflowsTrustBeneficiaryNoticeRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
+  ApiStudioChatRoute: ApiStudioChatRoute,
+  ApiStudioRunRoute: ApiStudioRunRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
