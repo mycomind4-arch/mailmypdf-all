@@ -111,7 +111,6 @@ function deadlineReady(
     ? output.deadlines
     : [];
   const authorityVerified = output?.authorityVerified === true;
-  const eligible = deadlines.length > 0 && authorityVerified;
 
   return {
     gate: "deadline",
@@ -119,9 +118,7 @@ function deadlineReady(
     readiness:
       deadlines.length > 0 && authorityVerified
         ? "ready_for_review"
-        : deadlines.length > 0
-          ? "needs_work"
-          : "needs_work",
+        : "needs_work",
     detail:
       deadlines.length === 0
         ? "The deadline run produced no matching deadline."
