@@ -24,6 +24,7 @@ import {
   advanceCompoundSystemGates,
   completeCompoundMatterPhase,
   confirmCompoundAuthorityGate,
+  confirmCompoundDeadlineGate,
   createCompoundMatter,
   getCompoundMatter,
   recordCompoundUserGate,
@@ -198,6 +199,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [runningCapability, setRunningCapability] = useState(false);
   const [advancingGates, setAdvancingGates] = useState(false);
   const [confirmingAuthority, setConfirmingAuthority] = useState(false);
+  const [confirmingDeadline, setConfirmingDeadline] = useState(false);
   const [gateAction, setGateAction] = useState<UserControlledGate | null>(null);
   const [completingPhase, setCompletingPhase] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
@@ -381,6 +383,34 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     }
   }
 
+  async function confirmReviewedDeadline() {
+    if (!matter || !activePhaseState) return;
+    setConfirmingDeadline(true);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const result = await confirmCompoundDeadlineGate({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+      setProgressMessage(
+        "Reviewed deadline rule and computed date confirmed for workflow progression. This does not guarantee legal applicability or replace professional advice.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to confirm the reviewed deadline.",
+      );
+    } finally {
+      setConfirmingDeadline(false);
+    }
+  }
+
   async function acknowledgeUserGate(gate: UserControlledGate) {
     if (!matter || !activePhaseState) return;
     setGateAction(gate);
@@ -466,6 +496,12 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const authorityReadyForReview = activeGateReadiness.some(
     (item) =>
       item.gate === "authority" &&
+      item.currentStatus === "pending" &&
+      item.readiness === "ready_for_review",
+  );
+  const deadlineReadyForReview = activeGateReadiness.some(
+    (item) =>
+      item.gate === "deadline" &&
       item.currentStatus === "pending" &&
       item.readiness === "ready_for_review",
   );
@@ -836,6 +872,22 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     </button>
                   )}
 
+                  {deadlineReadyForReview && (
+                    <button
+                      type="button"
+                      onClick={confirmReviewedDeadline}
+                      disabled={confirmingDeadline}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      {confirmingDeadline ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      Confirm reviewed deadline rule &amp; date
+                    </button>
+                  )}
+
                   {pendingUserGates.map((decision) => (
                     <button
                       key={decision.gate}
@@ -876,10 +928,10 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                   </button>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
-                  System gate passage requires verified deterministic support. Retrieved authority
-                  sources require explicit source review before the authority gate can pass.
-                  Professional-review, human-review, and consequential-action gates always require
-                  explicit user action; acknowledging professional review does not mean counsel was obtained.
+                  System gate passage is limited to low-interpretation deterministic checks. Retrieved
+                  authority sources and grounded deadline calculations require explicit user review before
+                  their gates can pass. Professional-review, human-review, and consequential-action gates
+                  always require explicit user action; acknowledging professional review does not mean counsel was obtained.
                 </p>
               </div>
             )}
