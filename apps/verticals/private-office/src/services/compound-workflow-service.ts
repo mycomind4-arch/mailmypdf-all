@@ -220,6 +220,7 @@ export class CompoundWorkflowService {
         `User reviewed and confirmed the retrieved authority sources from run ${run.id}. This confirms source selection only; it does not establish legal applicability or replace professional advice.`,
       verifiedBy: "user",
       actorId: input.actorId ?? input.ownerId,
+      supportingRunId: run.id,
       userAuthorityConfirmation: true,
     });
   }
@@ -260,6 +261,12 @@ export class CompoundWorkflowService {
       );
     }
 
+    const execution = this.groundDeadlineRules(
+      current,
+      input.phaseId,
+      input.execution,
+    );
+
     const { executeCompoundCapability } = await import(
       "./compound-capability-executor"
     );
@@ -268,7 +275,7 @@ export class CompoundWorkflowService {
       matterId: current.id,
       phaseId: input.phaseId,
       capabilityLabel: input.capabilityLabel,
-      ...input.execution,
+      ...execution,
       verifiedByActorId: input.actorId ?? input.ownerId,
     });
     const next = recordCompoundCapabilityRun(current, run);
@@ -387,6 +394,7 @@ export class CompoundWorkflowService {
     detail?: string | null;
     verifiedBy: Exclude<CompoundGateDecision["verifiedBy"], null>;
     actorId: string;
+    supportingRunId?: string | null;
     userAuthorityConfirmation?: boolean;
   }): Promise<CompoundMatterState> {
     if (
@@ -410,6 +418,7 @@ export class CompoundWorkflowService {
       status: input.status,
       detail: input.detail,
       verifiedBy: input.verifiedBy,
+      supportingRunId: input.supportingRunId,
     });
 
     return this.repository.commit({
@@ -429,9 +438,91 @@ export class CompoundWorkflowService {
           gate: input.gate,
           detail: input.detail ?? null,
           verifiedBy: input.verifiedBy,
+          supportingRunId: input.supportingRunId ?? null,
         },
       },
     });
+  }
+
+  private groundDeadlineRules(
+    state: CompoundMatterState,
+    phaseId: string,
+    execution: Omit<
+      CompoundCapabilityExecutionInput,
+      | "workflowId"
+      | "matterId"
+      | "phaseId"
+      | "capabilityLabel"
+      | "verifiedByActorId"
+    >,
+  ): typeof execution {
+    if (!execution.deadlineRules?.length) return execution;
+
+    const phase = state.phases.find((candidate) => candidate.phaseId === phaseId);
+    const authorityGate = phase?.gates.find((gate) => gate.gate === "authority");
+    const supportingRunId =
+      authorityGate?.status === "passed" &&
+      authorityGate.verifiedBy === "user" &&
+      authorityGate.supportingRunId
+        ? authorityGate.supportingRunId
+        : null;
+
+    const supportingRun = supportingRunId
+      ? state.capabilityRuns.find(
+          (run) =>
+            run.id === supportingRunId &&
+            run.status === "completed" &&
+            run.canonicalCapabilityId === "research" &&
+            run.provenance === "externally_sourced",
+        )
+      : undefined;
+
+    const output =
+      supportingRun &&
+      typeof supportingRun.output === "object" &&
+      supportingRun.output !== null
+        ? (supportingRun.output as {
+            researchPerformed?: boolean;
+            citations?: Array<{
+              url?: string;
+              reference?: string;
+              contentHash?: string;
+            }>;
+          })
+        : null;
+
+    const citations =
+      output?.researchPerformed === true && Array.isArray(output.citations)
+        ? output.citations
+        : [];
+
+    return {
+      ...execution,
+      deadlineRules: execution.deadlineRules.map((rule) => {
+        const requestedUrl = rule.authoritySourceUrl?.trim();
+        const citation = requestedUrl
+          ? citations.find(
+              (candidate) =>
+                candidate.url === requestedUrl ||
+                candidate.reference === requestedUrl,
+            )
+          : undefined;
+        const verified =
+          Boolean(supportingRunId) &&
+          Boolean(citation?.contentHash) &&
+          Boolean(requestedUrl);
+
+        return {
+          ...rule,
+          authoritySourceVerified: verified,
+          authoritySourceRunId: verified ? supportingRunId! : undefined,
+          authorityContentHash: verified ? citation!.contentHash : undefined,
+          provenanceLevel: verified
+            ? ("external_source" as const)
+            : rule.provenanceLevel,
+        };
+      }),
+    };
   }
 
   private async requireMatter(
