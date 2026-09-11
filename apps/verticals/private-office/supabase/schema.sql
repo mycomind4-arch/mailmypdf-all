@@ -313,7 +313,7 @@ returns setof public.private_office_compound_matters
 language plpgsql
 security invoker
 set search_path = ''
-as $
+as $$
 declare
   created public.private_office_compound_matters%rowtype;
 begin
@@ -370,7 +370,7 @@ returns setof public.private_office_compound_matters
 language plpgsql
 security invoker
 set search_path = ''
-as $
+as $$
 declare
   current_workflow text;
   updated public.private_office_compound_matters%rowtype;
