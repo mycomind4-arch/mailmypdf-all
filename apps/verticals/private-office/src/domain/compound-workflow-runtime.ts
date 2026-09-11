@@ -32,7 +32,7 @@ export type CompoundCapabilityRun = {
   adapterId: string | null;
   status: CompoundCapabilityRunStatus;
   provider: string;
-  provenance: "system_generated" | "externally_sourced";
+  provenance: "system_generated" | "externally_sourced" | "ai_inferred";
   output: unknown;
   messages: readonly string[];
   executedAt: string;
