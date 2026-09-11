@@ -248,7 +248,9 @@ drop policy if exists private_office_compound_matters_select_own
   on public.private_office_compound_matters;
 create policy private_office_compound_matters_select_own
   on public.private_office_compound_matters
-  for select using (auth.uid()::text = owner_id);
+  for select
+  to authenticated
+  using ((select auth.uid())::text = owner_id);
 
 drop policy if exists private_office_compound_matters_insert_own
   on public.private_office_compound_matters;
@@ -261,7 +263,9 @@ drop policy if exists private_office_compound_events_select_own
   on public.private_office_compound_events;
 create policy private_office_compound_events_select_own
   on public.private_office_compound_events
-  for select using (auth.uid()::text = owner_id);
+  for select
+  to authenticated
+  using ((select auth.uid())::text = owner_id);
 drop policy if exists private_office_compound_events_insert_own
   on public.private_office_compound_events;
 drop policy if exists private_office_compound_events_update_own
@@ -307,9 +311,9 @@ create or replace function public.private_office_create_compound_matter(
 )
 returns setof public.private_office_compound_matters
 language plpgsql
-security definer
-set search_path = public
-as $$
+security invoker
+set search_path = ''
+as $
 declare
   created public.private_office_compound_matters%rowtype;
 begin
@@ -364,9 +368,9 @@ create or replace function public.private_office_commit_compound_state(
 )
 returns setof public.private_office_compound_matters
 language plpgsql
-security definer
-set search_path = public
-as $$
+security invoker
+set search_path = ''
+as $
 declare
   current_workflow text;
   updated public.private_office_compound_matters%rowtype;
