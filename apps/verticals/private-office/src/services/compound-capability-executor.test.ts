@@ -169,6 +169,38 @@ describe("compound capability executor", () => {
     expect(output.authorityVerified).toBe(false);
   });
 
+  it("does not treat a client-labeled external deadline rule as verified authority without a source reference", async () => {
+    const result = await executeCompoundCapability({
+      workflowId: "government-accusation-defense",
+      matterId: "matter-1",
+      phaseId: "triage-authority",
+      capabilityLabel: "deadline extraction",
+      verifiedByActorId: "user-123",
+      timelineEvents: [
+        {
+          eventType: "notice_received",
+          date: "2026-09-01",
+          provenanceLevel: "document_extracted",
+        },
+      ],
+      deadlineRules: [
+        {
+          name: "response-window",
+          description: "Client-labeled external rule",
+          triggerEventType: "notice_received",
+          days: 30,
+          calendarType: "calendar",
+          deadlineEventType: "response_due",
+          authority: "claimed external authority",
+          provenanceLevel: "external_source",
+        },
+      ],
+    });
+    expect(result.status).toBe("completed");
+    const output = result.output as { authorityVerified: boolean };
+    expect(output.authorityVerified).toBe(false);
+  });
+
   it("detects conflicting structured facts", async () => {
     const result = await executeCompoundCapability({
       workflowId: "government-accusation-defense",
