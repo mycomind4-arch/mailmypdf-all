@@ -276,6 +276,9 @@ importers:
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing
+      '@mailmypdf/workflows':
+        specifier: workspace:*
+        version: link:../../../packages/workflows
       '@supabase/supabase-js':
         specifier: ^2.110.0
         version: 2.112.4(@opentelemetry/api@1.9.1)
@@ -984,6 +987,9 @@ importers:
       '@mailmypdf/fulfillment':
         specifier: workspace:*
         version: link:../../../packages/fulfillment
+      '@mailmypdf/intelligence':
+        specifier: workspace:*
+        version: link:../../../packages/intelligence
       '@mailmypdf/mailing-client':
         specifier: workspace:*
         version: link:../../../packages/mailing-client
