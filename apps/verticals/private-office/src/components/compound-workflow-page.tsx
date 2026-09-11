@@ -71,6 +71,54 @@ function parseTimeline(value: string) {
   });
 }
 
+function parseDeadlineRules(value: string) {
+  return nonEmptyLines(value).map((line, index) => {
+    const [
+      name,
+      triggerEventType,
+      daysRaw,
+      calendarTypeRaw,
+      deadlineEventType,
+      authority,
+      ...descriptionParts
+    ] = line.split("|").map((part) => part.trim());
+    const days = Number(daysRaw);
+    const calendarType =
+      calendarTypeRaw === "business"
+        ? ("business" as const)
+        : calendarTypeRaw === "calendar"
+          ? ("calendar" as const)
+          : null;
+    const description = descriptionParts.join(" | ").trim();
+
+    if (
+      !name ||
+      !triggerEventType ||
+      !Number.isInteger(days) ||
+      days < 1 ||
+      !calendarType ||
+      !deadlineEventType ||
+      !authority ||
+      !description
+    ) {
+      throw new Error(
+        `Deadline rule line ${index + 1} must use: name | trigger event | days | calendar/business | deadline event | authority | description`,
+      );
+    }
+
+    return {
+      name,
+      triggerEventType,
+      days,
+      calendarType,
+      deadlineEventType,
+      authority,
+      description,
+      provenanceLevel: "user_provided" as const,
+    };
+  });
+}
+
 function parseEvidence(value: string) {
   const allowedRelations = new Set<ParsedEvidenceRelation>([
     "supports",
@@ -126,6 +174,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [analysisContext, setAnalysisContext] = useState("");
   const [factsText, setFactsText] = useState("");
   const [timelineText, setTimelineText] = useState("");
+  const [deadlineRulesText, setDeadlineRulesText] = useState("");
   const [evidenceText, setEvidenceText] = useState("");
   const [runningCapability, setRunningCapability] = useState(false);
 
@@ -233,6 +282,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
           context: analysisContext.trim() || undefined,
           facts: parseFacts(factsText),
           timelineEvents: parseTimeline(timelineText),
+          deadlineRules: parseDeadlineRules(deadlineRulesText),
           evidence: parseEvidence(evidenceText),
         },
       });
@@ -433,6 +483,20 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     onChange={(event) => setTimelineText(event.target.value)}
                     placeholder={"2026-09-01 | agency_notice | Notice received\n2026-09-20 | hearing | Hearing stated in notice"}
                   />
+                </div>
+
+                <div>
+                  <label className="input-label">Deadline rules</label>
+                  <textarea
+                    className="input-field font-mono text-xs"
+                    rows={5}
+                    value={deadlineRulesText}
+                    onChange={(event) => setDeadlineRulesText(event.target.value)}
+                    placeholder={"response-window | notice_received | 30 | calendar | response_due | Statute or official rule supplied by user | 30-day response rule"}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    The engine will not invent a legal deadline rule. User-entered authority remains unverified until independently grounded.
+                  </p>
                 </div>
 
                 <div>
