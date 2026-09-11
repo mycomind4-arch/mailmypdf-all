@@ -291,7 +291,7 @@ export const compoundWorkflowList: readonly CompoundWorkflowDefinition[] = [
         ],
         dependsOn: ["notice-record-correction"],
         outputs: ["property and estate reconstruction report", "exhibit index", "attorney handoff packet"],
-        gates: ["human-review", "counsel-escalation"],
+        gates: ["human-review", "counsel-escalation", "consequential-action"],
       },
     ],
     terminalOutputs: [

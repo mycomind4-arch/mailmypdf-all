@@ -3,7 +3,10 @@ import type {
   CompoundGateDecision,
   CompoundMatterState,
 } from "./compound-workflow-runtime";
-import { compoundWorkflows, type CompoundWorkflowGateType } from "./compound-workflows";
+import {
+  compoundWorkflows,
+  type CompoundWorkflowGateType,
+} from "./compound-workflows";
 
 export type CompoundGateReadinessStatus =
   | "ready_for_review"
@@ -16,6 +19,7 @@ export type CompoundGateReadiness = {
   readiness: CompoundGateReadinessStatus;
   detail: string;
   supportingRunId: string | null;
+  eligibleForSystemPass: boolean;
 };
 
 function latestRun(
@@ -38,14 +42,18 @@ function object(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function evidenceReady(run: CompoundCapabilityRun | undefined): CompoundGateReadiness {
+function evidenceReady(
+  run: CompoundCapabilityRun | undefined,
+): CompoundGateReadiness {
   if (!run || run.status !== "completed") {
     return {
       gate: "evidence",
       currentStatus: "pending",
       readiness: "needs_work",
-      detail: "Run and review the phase evidence capability before considering this gate.",
+      detail:
+        "Run and review the phase evidence capability before considering this gate.",
       supportingRunId: run?.id ?? null,
+      eligibleForSystemPass: false,
     };
   }
 
@@ -53,11 +61,22 @@ function evidenceReady(run: CompoundCapabilityRun | undefined): CompoundGateRead
   const evaluations = Array.isArray(output?.evaluations)
     ? output.evaluations
     : [];
+  const evidence = Array.isArray(output?.evidence) ? output.evidence : [];
+
   const unresolved = evaluations.some((entry) => {
     const entryObject = object(entry);
     const evaluation = object(entryObject?.evaluation);
-    return evaluation?.hasGaps === true || evaluation?.isContradicted === true;
+    return (
+      evaluation?.hasGaps === true ||
+      evaluation?.isContradicted === true ||
+      (typeof evaluation?.contradictingCount === "number" &&
+        evaluation.contradictingCount > 0)
+    );
   });
+
+  const allEvidenceVerified =
+    evidence.length > 0 &&
+    evidence.every((entry) => object(entry)?.verified === true);
 
   return {
     gate: "evidence",
@@ -65,12 +84,17 @@ function evidenceReady(run: CompoundCapabilityRun | undefined): CompoundGateRead
     readiness: unresolved ? "needs_work" : "ready_for_review",
     detail: unresolved
       ? "The evidence evaluation still shows gaps or contradictory evidence."
-      : "The evidence capability completed without detected packet gaps or contradictions. Human review is still required before passing the gate.",
+      : allEvidenceVerified
+        ? "The evidence packet has no detected gaps or contradictions and every included item is verified. The deterministic gate evaluator may pass this gate."
+        : "The evidence capability completed without detected packet gaps or contradictions, but one or more evidence items are not verified. Review is still required.",
     supportingRunId: run.id,
+    eligibleForSystemPass: !unresolved && allEvidenceVerified,
   };
 }
 
-function deadlineReady(run: CompoundCapabilityRun | undefined): CompoundGateReadiness {
+function deadlineReady(
+  run: CompoundCapabilityRun | undefined,
+): CompoundGateReadiness {
   if (!run || run.status !== "completed") {
     return {
       gate: "deadline",
@@ -78,12 +102,16 @@ function deadlineReady(run: CompoundCapabilityRun | undefined): CompoundGateRead
       readiness: "needs_work",
       detail: "No completed deadline computation exists for this phase.",
       supportingRunId: run?.id ?? null,
+      eligibleForSystemPass: false,
     };
   }
 
   const output = object(run.output);
-  const deadlines = Array.isArray(output?.deadlines) ? output.deadlines : [];
+  const deadlines = Array.isArray(output?.deadlines)
+    ? output.deadlines
+    : [];
   const authorityVerified = output?.authorityVerified === true;
+  const eligible = deadlines.length > 0 && authorityVerified;
 
   return {
     gate: "deadline",
@@ -93,41 +121,46 @@ function deadlineReady(run: CompoundCapabilityRun | undefined): CompoundGateRead
       deadlines.length === 0
         ? "The deadline run produced no matching deadline."
         : authorityVerified
-          ? "A deadline was computed from a supplied trigger and authority-grounded rule. Review the source and calculation before passing the gate."
-          : "A deadline was computed, but its rule authority is not independently verified. Review and ground the rule before relying on it.",
+          ? "A deadline was computed from a supplied trigger and authority-grounded rule. The deterministic gate evaluator may pass this gate."
+          : "A deadline was computed, but its rule authority is not independently verified. Ground the rule before relying on it.",
     supportingRunId: run.id,
+    eligibleForSystemPass: eligible,
   };
 }
 
-function authorityReady(run: CompoundCapabilityRun | undefined): CompoundGateReadiness {
+function authorityReady(
+  run: CompoundCapabilityRun | undefined,
+): CompoundGateReadiness {
   if (!run || run.status !== "completed") {
     return {
       gate: "authority",
       currentStatus: "pending",
       readiness: "needs_work",
-      detail: run?.status === "blocked"
-        ? "Authority research was attempted but did not complete with a live authoritative source."
-        : "No completed authority/research run exists for this phase.",
+      detail:
+        run?.status === "blocked"
+          ? "Authority research was attempted but did not complete with a live authoritative source."
+          : "No completed authority/research run exists for this phase.",
       supportingRunId: run?.id ?? null,
+      eligibleForSystemPass: false,
     };
   }
 
   const output = object(run.output);
   const researchPerformed = output?.researchPerformed === true;
-  const citations = Array.isArray(output?.citations) ? output.citations : [];
+  const citations = Array.isArray(output?.citations)
+    ? output.citations
+    : [];
+  const eligible = researchPerformed && citations.length > 0;
 
   return {
     gate: "authority",
     currentStatus: "pending",
-    readiness:
-      researchPerformed && citations.length > 0
-        ? "ready_for_review"
-        : "needs_work",
-    detail:
-      researchPerformed && citations.length > 0
-        ? "Live authority research returned citations. Review applicability and jurisdiction before passing the gate."
-        : "The run does not establish independently sourced legal authority.",
+    readiness: eligible ? "ready_for_review" : "needs_work",
+    detail: eligible
+      ? "Live authority research returned citations. The deterministic gate evaluator may mark the research requirement complete, but applicability remains reviewable."
+      : "The run does not establish independently sourced legal authority.",
     supportingRunId: run.id,
+    eligibleForSystemPass: eligible,
   };
 }
 
@@ -136,8 +169,13 @@ export function evaluateCompoundPhaseReadiness(
   phaseId: string,
 ): readonly CompoundGateReadiness[] {
   const workflow = compoundWorkflows[state.workflowId];
-  const phaseDefinition = workflow.phases.find((phase) => phase.id === phaseId);
-  const phaseState = state.phases.find((phase) => phase.phaseId === phaseId);
+  const phaseDefinition = workflow.phases.find(
+    (phase) => phase.id === phaseId,
+  );
+  const phaseState = state.phases.find(
+    (phase) => phase.phaseId === phaseId,
+  );
+
   if (!phaseDefinition || !phaseState) {
     throw new Error(`Unknown compound phase: ${phaseId}`);
   }
@@ -148,23 +186,31 @@ export function evaluateCompoundPhaseReadiness(
         gate: decision.gate,
         currentStatus: decision.status,
         readiness: "ready_for_review" as const,
-        detail: decision.detail ?? "Gate has already been explicitly passed.",
+        detail:
+          decision.detail ?? "Gate has already been explicitly passed.",
         supportingRunId: null,
+        eligibleForSystemPass: false,
       };
     }
 
     if (decision.gate === "evidence") {
-      const result = evidenceReady(latestRun(state, phaseId, "evidence"));
+      const result = evidenceReady(
+        latestRun(state, phaseId, "evidence"),
+      );
       return { ...result, currentStatus: decision.status };
     }
 
     if (decision.gate === "deadline") {
-      const result = deadlineReady(latestRun(state, phaseId, "deadlines"));
+      const result = deadlineReady(
+        latestRun(state, phaseId, "deadlines"),
+      );
       return { ...result, currentStatus: decision.status };
     }
 
     if (decision.gate === "authority") {
-      const result = authorityReady(latestRun(state, phaseId, "research"));
+      const result = authorityReady(
+        latestRun(state, phaseId, "research"),
+      );
       return { ...result, currentStatus: decision.status };
     }
 
@@ -174,8 +220,9 @@ export function evaluateCompoundPhaseReadiness(
         currentStatus: decision.status,
         readiness: "manual_only" as const,
         detail:
-          "Counsel-escalation decisions are never auto-cleared by capability execution. A human must decide whether professional review is required.",
+          "Counsel-escalation decisions are never auto-cleared by capability execution. A human must address professional-review needs.",
         supportingRunId: null,
+        eligibleForSystemPass: false,
       };
     }
 
@@ -190,6 +237,7 @@ export function evaluateCompoundPhaseReadiness(
         detail:
           "This gate requires explicit human action and cannot be passed automatically.",
         supportingRunId: null,
+        eligibleForSystemPass: false,
       };
     }
 
@@ -199,6 +247,7 @@ export function evaluateCompoundPhaseReadiness(
       readiness: "manual_only" as const,
       detail: "This gate requires explicit review.",
       supportingRunId: null,
+      eligibleForSystemPass: false,
     };
   });
 }

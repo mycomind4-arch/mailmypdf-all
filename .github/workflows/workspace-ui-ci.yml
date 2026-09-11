@@ -139,5 +139,15 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Test Private Office compound runtime
+        if: matrix.app == 'private-office'
+        run: |
+          pnpm --filter mailmypdf-private-office run build:shared
+          pnpm --filter mailmypdf-private-office exec vitest run \
+            src/domain/compound-workflows.test.ts \
+            src/domain/compound-workflow-runtime.test.ts \
+            src/domain/compound-phase-readiness.test.ts \
+            src/services/compound-workflow-service.test.ts \
+            src/services/compound-capability-executor.test.ts
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build

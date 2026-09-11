@@ -20,7 +20,7 @@ const matterMutationSchema = z.object({
 });
 
 const userGateSchema = matterMutationSchema.extend({
-  gate: z.enum(["human-review", "consequential-action"]),
+  gate: z.enum(["human-review", "consequential-action", "counsel-escalation"]),
   approved: z.boolean(),
   detail: z.string().max(2000).nullable().optional(),
 });
@@ -66,6 +66,7 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
     provenanceLevel: provenanceLevelSchema,
     confidence: z.number().min(0).max(1).optional(),
   })).max(100).optional(),
+  verifyEvidenceInputs: z.boolean().optional(),
   evidence: z.array(z.object({
     claimId: z.string().min(1).max(200),
     relation: z.enum(["supports", "contradicts", "qualifies", "missing"]),
@@ -159,6 +160,20 @@ export const runCompoundCapability = createServerFn({ method: "POST" })
       matter,
       run: matter.capabilityRuns.at(-1) ?? null,
     };
+  });
+
+export const advanceCompoundSystemGates = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(matterMutationSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const result = await workflowService.advanceSystemVerifiableGates({
+      ownerId: context.user.id,
+      matterId: data.matterId,
+      expectedVersion: data.expectedVersion,
+      phaseId: data.phaseId,
+    });
+    return result;
   });
 
 export const recordCompoundUserGate = createServerFn({ method: "POST" })

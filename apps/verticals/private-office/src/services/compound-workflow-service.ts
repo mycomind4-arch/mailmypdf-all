@@ -117,7 +117,7 @@ export class CompoundWorkflowService {
     matterId: string;
     expectedVersion: number;
     phaseId: string;
-    gate: "human-review" | "consequential-action";
+    gate: "human-review" | "consequential-action" | "counsel-escalation";
     approved: boolean;
     detail?: string | null;
     actorId?: string;
@@ -129,7 +129,11 @@ export class CompoundWorkflowService {
       phaseId: input.phaseId,
       gate: input.gate,
       status: input.approved ? "passed" : "blocked",
-      detail: input.detail,
+      detail:
+        input.gate === "counsel-escalation"
+          ? input.detail ??
+            "User explicitly acknowledged the professional-review requirement. This does not mean counsel was obtained, declined, or waived."
+          : input.detail,
       verifiedBy: "user",
       actorId: input.actorId ?? input.ownerId,
     });
@@ -144,7 +148,11 @@ export class CompoundWorkflowService {
     actorId?: string;
     execution: Omit<
       CompoundCapabilityExecutionInput,
-      "workflowId" | "matterId" | "phaseId" | "capabilityLabel"
+      | "workflowId"
+      | "matterId"
+      | "phaseId"
+      | "capabilityLabel"
+      | "verifiedByActorId"
     >;
   }): Promise<CompoundMatterState> {
     const current = await this.requireMatter(input.ownerId, input.matterId);
@@ -176,6 +184,7 @@ export class CompoundWorkflowService {
       phaseId: input.phaseId,
       capabilityLabel: input.capabilityLabel,
       ...input.execution,
+      verifiedByActorId: input.actorId ?? input.ownerId,
     });
     const next = recordCompoundCapabilityRun(current, run);
 
@@ -204,6 +213,58 @@ export class CompoundWorkflowService {
         },
       },
     });
+  }
+
+  async advanceSystemVerifiableGates(input: {
+    ownerId: string;
+    matterId: string;
+    expectedVersion: number;
+    phaseId: string;
+  }): Promise<{
+    matter: CompoundMatterState;
+    passedGates: CompoundWorkflowGateType[];
+  }> {
+    let current = await this.requireMatter(input.ownerId, input.matterId);
+    this.requireVersion(current, input.expectedVersion);
+
+    const phase = current.phases.find(
+      (candidate) => candidate.phaseId === input.phaseId,
+    );
+    if (phase?.status !== "in_progress") {
+      throw new Error(
+        `System gate evaluation requires phase ${input.phaseId} to be in progress`,
+      );
+    }
+
+    const { evaluateCompoundPhaseReadiness } = await import(
+      "@/domain/compound-phase-readiness"
+    );
+    const readiness = evaluateCompoundPhaseReadiness(
+      current,
+      input.phaseId,
+    ).filter(
+      (item) =>
+        item.currentStatus === "pending" &&
+        item.eligibleForSystemPass,
+    );
+
+    const passedGates: CompoundWorkflowGateType[] = [];
+    for (const item of readiness) {
+      current = await this.recordGateDecision({
+        ownerId: input.ownerId,
+        matterId: input.matterId,
+        expectedVersion: current.version,
+        phaseId: input.phaseId,
+        gate: item.gate,
+        status: "passed",
+        detail: `Deterministic system gate: ${item.detail}`,
+        verifiedBy: "system",
+        actorId: "system",
+      });
+      passedGates.push(item.gate);
+    }
+
+    return { matter: current, passedGates };
   }
 
   async completePhase(input: {
@@ -245,7 +306,8 @@ export class CompoundWorkflowService {
     if (
       input.verifiedBy === "user" &&
       input.gate !== "human-review" &&
-      input.gate !== "consequential-action"
+      input.gate !== "consequential-action" &&
+      input.gate !== "counsel-escalation"
     ) {
       throw new CompoundGateAuthorizationError(
         `Users cannot self-verify the ${input.gate} gate.`,
