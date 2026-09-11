@@ -139,6 +139,91 @@ export class CompoundWorkflowService {
     });
   }
 
+  async confirmAuthorityGate(input: {
+    ownerId: string;
+    matterId: string;
+    expectedVersion: number;
+    phaseId: string;
+    actorId?: string;
+  }): Promise<CompoundMatterState> {
+    const current = await this.requireMatter(input.ownerId, input.matterId);
+    this.requireVersion(current, input.expectedVersion);
+
+    const phase = current.phases.find(
+      (candidate) => candidate.phaseId === input.phaseId,
+    );
+    if (phase?.status !== "in_progress") {
+      throw new Error(
+        `Authority confirmation requires phase ${input.phaseId} to be in progress`,
+      );
+    }
+    const authorityGate = phase.gates.find((gate) => gate.gate === "authority");
+    if (!authorityGate) {
+      throw new Error(`Phase ${input.phaseId} has no authority gate`);
+    }
+    if (authorityGate.status !== "pending") {
+      throw new Error(
+        `Authority gate for phase ${input.phaseId} is already ${authorityGate.status}`,
+      );
+    }
+
+    const { evaluateCompoundPhaseReadiness } = await import(
+      "@/domain/compound-phase-readiness"
+    );
+    const readiness = evaluateCompoundPhaseReadiness(
+      current,
+      input.phaseId,
+    ).find((item) => item.gate === "authority");
+
+    if (
+      readiness?.readiness !== "ready_for_review" ||
+      !readiness.supportingRunId
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Authority sources cannot be confirmed until an externally sourced authority run with citations is ready for review.",
+      );
+    }
+
+    const run = current.capabilityRuns.find(
+      (candidate) => candidate.id === readiness.supportingRunId,
+    );
+    const output =
+      run && typeof run.output === "object" && run.output !== null
+        ? (run.output as {
+            researchPerformed?: boolean;
+            citations?: unknown[];
+          })
+        : null;
+
+    if (
+      !run ||
+      run.status !== "completed" ||
+      run.canonicalCapabilityId !== "research" ||
+      run.provenance !== "externally_sourced" ||
+      output?.researchPerformed !== true ||
+      !Array.isArray(output.citations) ||
+      output.citations.length === 0
+    ) {
+      throw new CompoundGateAuthorizationError(
+        "Authority confirmation requires a completed externally sourced research run with at least one citation.",
+      );
+    }
+
+    return this.recordGateDecision({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+      expectedVersion: input.expectedVersion,
+      phaseId: input.phaseId,
+      gate: "authority",
+      status: "passed",
+      detail:
+        `User reviewed and confirmed the retrieved authority sources from run ${run.id}. This confirms source selection only; it does not establish legal applicability or replace professional advice.`,
+      verifiedBy: "user",
+      actorId: input.actorId ?? input.ownerId,
+      userAuthorityConfirmation: true,
+    });
+  }
+
   async executeCapability(input: {
     ownerId: string;
     matterId: string;
@@ -302,12 +387,14 @@ export class CompoundWorkflowService {
     detail?: string | null;
     verifiedBy: Exclude<CompoundGateDecision["verifiedBy"], null>;
     actorId: string;
+    userAuthorityConfirmation?: boolean;
   }): Promise<CompoundMatterState> {
     if (
       input.verifiedBy === "user" &&
       input.gate !== "human-review" &&
       input.gate !== "consequential-action" &&
-      input.gate !== "counsel-escalation"
+      input.gate !== "counsel-escalation" &&
+      !(input.gate === "authority" && input.userAuthorityConfirmation === true)
     ) {
       throw new CompoundGateAuthorizationError(
         `Users cannot self-verify the ${input.gate} gate.`,
