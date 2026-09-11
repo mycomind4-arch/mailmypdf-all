@@ -89,6 +89,8 @@ export type CompoundCapabilityExecutionInput = {
   context?: string;
   jurisdiction?: string;
   currentDate?: string;
+  verifyEvidenceInputs?: boolean;
+  verifiedByActorId?: string;
   facts?: readonly CompoundStructuredFactInput[];
   timelineEvents?: readonly CompoundTimelineEventInput[];
   deadlineRules?: readonly CompoundDeadlineRuleInput[];
@@ -174,10 +176,21 @@ export function resolveCompoundCapabilityBinding(
   };
 }
 
-function provenance(level?: ProvenanceLevel): {
+function provenance(
+  level?: ProvenanceLevel,
+  verifiedByActorId?: string,
+): {
   level: ProvenanceLevel;
+  verifiedBy?: string;
 } {
-  return { level: level ?? "user_provided" };
+  const resolved = level ?? "user_provided";
+  if (resolved === "human_verified") {
+    if (!verifiedByActorId) {
+      throw new Error("Human-verified provenance requires an authenticated verifier.");
+    }
+    return { level: resolved, verifiedBy: verifiedByActorId };
+  }
+  return { level: resolved };
 }
 
 function buildFacts(input: CompoundCapabilityExecutionInput) {
@@ -186,7 +199,7 @@ function buildFacts(input: CompoundCapabilityExecutionInput) {
       subject: fact.subject,
       predicate: fact.predicate,
       value: fact.value,
-      provenance: provenance(fact.provenanceLevel),
+      provenance: provenance(fact.provenanceLevel, input.verifiedByActorId),
       confidence: fact.confidence,
     }),
   );
@@ -200,7 +213,7 @@ function buildTimeline(input: CompoundCapabilityExecutionInput) {
       date: event.date,
       dateEnd: event.dateEnd,
       description: event.description,
-      provenance: provenance(event.provenanceLevel),
+      provenance: provenance(event.provenanceLevel, input.verifiedByActorId),
       confidence: event.confidence,
     }),
   );
@@ -208,17 +221,20 @@ function buildTimeline(input: CompoundCapabilityExecutionInput) {
 }
 
 function buildEvidence(input: CompoundCapabilityExecutionInput) {
-  return (input.evidence ?? []).map((item) =>
-    createEvidence({
+  return (input.evidence ?? []).map((item) => {
+    const level: ProvenanceLevel = input.verifyEvidenceInputs
+      ? "human_verified"
+      : item.provenanceLevel ?? "user_provided";
+    return createEvidence({
       claimId: item.claimId,
       relation: item.relation,
       evidenceType: item.evidenceType,
       evidenceId: item.evidenceId,
       explanation: item.explanation,
-      provenance: provenance(item.provenanceLevel),
+      provenance: provenance(level, input.verifiedByActorId),
       confidence: item.confidence,
-    }),
-  );
+    });
+  });
 }
 
 const llmFindingListSchema = z.object({
