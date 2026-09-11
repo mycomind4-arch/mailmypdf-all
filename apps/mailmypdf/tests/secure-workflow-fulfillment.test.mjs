@@ -136,3 +136,15 @@ test("Supabase admin accepts the current secret-key variable name", async () => 
   assert.match(admin, /SUPABASE_SERVICE_ROLE_KEY \?\? process\.env\.SUPABASE_SECRET_KEY/);
   assert.match(example, /SUPABASE_SECRET_KEY=""/);
 });
+
+
+test("order PDF bucket is reproducible and private", async () => {
+  const migration = await appSource("supabase/migrations/20260911013600_order_pdfs_bucket.sql");
+  const documents = await appSource("src/services/document.service.ts");
+
+  assert.match(documents, /\.from\("order-pdfs"\)/);
+  assert.match(migration, /'order-pdfs'/);
+  assert.match(migration, /public\s*=\s*false/);
+  assert.match(migration, /array\['application\/pdf'\]/);
+  assert.doesNotMatch(migration, /create policy[\s\S]*order-pdfs/i);
+});
