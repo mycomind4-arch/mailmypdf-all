@@ -83,7 +83,7 @@ export const CORRECTION_PIPELINE: CorrectionWorkflowStep[] = [
   { id: 'timeline', title: 'Timeline Update', status: 'pending', required: true, evidenceRequired: true, description: 'Update timeline with correction request events.' },
   { id: 'evidence', title: 'Evidence Graph', status: 'pending', required: true, evidenceRequired: true, description: 'Link correction issues to evidence sources.' },
   { id: 'discrepancies', title: 'Discrepancy Detection', status: 'pending', required: true, evidenceRequired: true, description: 'Detect mismatches between notice and records.' },
-  { id: 'multi_llm_routing', title: 'Multi-LLM Routing', status: 'pending', required: true, evidenceRequired: true, description: 'Route tasks to Gemini (default), OpenAI, Claude with fallback.' },
+  { id: 'multi_llm_routing', title: 'Multi-LLM Routing', status: 'pending', required: true, evidenceRequired: true, description: 'Route tasks to Claude (default), Gemini, OpenAI with fallback.' },
   { id: 'independent_review', title: 'Independent Model Review', status: 'pending', required: true, evidenceRequired: true, description: 'Independent model review for high-consequence correction findings.' },
   { id: 'disagreement_handling', title: 'Disagreement Handling', status: 'pending', required: true, evidenceRequired: true, description: 'Handle model disagreements. Block automatic finalization.' },
   { id: 'correction_strategy', title: 'Correction Strategy', status: 'pending', required: true, evidenceRequired: true, description: 'Generate minimal-effective-correction strategies.' },

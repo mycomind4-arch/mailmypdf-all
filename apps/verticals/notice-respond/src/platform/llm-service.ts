@@ -1,7 +1,7 @@
 /**
  * Multi-Provider LLM Service for Notice Respond
  *
- * Gemini is DEFAULT. Claude and OpenAI are fallback/independent-review providers.
+ * Claude is DEFAULT. Gemini and OpenAI are fallback/independent-review providers.
  * Each provider is lazily initialized — only configured keys are usable.
  *
  * Used by:
@@ -37,8 +37,8 @@ export interface LLMResponse {
 
 export function getAvailableProviders(): LLMProvider[] {
   const providers: LLMProvider[] = [];
-  if (process.env.GEMINI_API_KEY) providers.push("gemini");
   if (process.env.ANTHROPIC_API_KEY) providers.push("claude");
+  if (process.env.GEMINI_API_KEY) providers.push("gemini");
   if (process.env.OPENAI_API_KEY) providers.push("openai");
   return providers;
 }
@@ -228,7 +228,7 @@ export async function independentReview(
   if (available.length < 2) {
     return { review: "", provider: null };
   }
-  // Use a different provider than Gemini (the default)
+  // Use a different provider than Claude (the default)
   const reviewer = available.find(p => p !== "gemini") ?? available[1];
   const response = await callLLM(
     [

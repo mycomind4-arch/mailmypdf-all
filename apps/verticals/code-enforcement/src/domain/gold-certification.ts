@@ -203,7 +203,7 @@ export function certifyGold(input: {
     ['multi-llm-routing'], ['Multi-LLM routing not configured.']);
 
   addStage('gemini_default', !!input.geminiDefaultPassed,
-    ['gemini-default'], ['Gemini is not set as default provider.']);
+    ['claude-default'], ['Claude is not set as default provider.']);
 
   addStage('fallback_providers', !!input.fallbackProvidersPassed,
     ['fallback-providers'], ['Fallback providers not configured.']);

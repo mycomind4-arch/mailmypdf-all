@@ -697,8 +697,8 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
   // ── Multi-LLM / AI Provider ───────────────────────────────────────────────────
 
   describe('Multi-LLM Configuration', () => {
-    it('Gemini is default for correction_draft_generation', () => {
-      expect(CORRECTION_TASK_CONFIG.correction_draft_generation.preferredProvider).toBe('gemini');
+    it('Claude is default for correction_draft_generation', () => {
+      expect(CORRECTION_TASK_CONFIG.correction_draft_generation.preferredProvider).toBe('claude');
     });
 
     it('Claude is default for correction_draft_critique', () => {
@@ -778,8 +778,8 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
       }
     });
 
-    it('Gemini is preferred provider for correction tasks in AI_TASK_CONFIG (not just CORRECTION_TASK_CONFIG)', () => {
-      const geminiTasks = [
+    it('Claude is preferred provider for correction tasks in AI_TASK_CONFIG (not just CORRECTION_TASK_CONFIG)', () => {
+      const claudeTasks = [
         'correction_issue_extraction',
         'recipient_reconciliation',
         'property_reconciliation',
@@ -790,8 +790,8 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
         'correction_strategy',
         'correction_draft_generation',
       ];
-      for (const task of geminiTasks) {
-        expect(AI_TASK_CONFIG[task as never].preferredProvider).toBe('gemini');
+      for (const task of claudeTasks) {
+        expect(AI_TASK_CONFIG[task as never].preferredProvider).toBe('claude');
       }
     });
 
@@ -887,7 +887,7 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
 
     it('model provenance is recorded in invocation', () => {
       const invocation = createInvocation('notice_extraction', 'case-001');
-      expect(invocation.provider).toBe('gemini');
+      expect(invocation.provider).toBe('claude');
       expect(invocation.model).toBeDefined();
       expect(invocation.timestamp).toBeDefined();
       expect(invocation.task).toBe('notice_extraction');
@@ -1185,7 +1185,7 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
       const invocation = createInvocation('notice_extraction', 'case-001');
       record = recordAIInvocation(record, invocation);
       expect(record.aiInvocations.length).toBe(1);
-      expect(record.aiInvocations[0].provider).toBe('gemini');
+      expect(record.aiInvocations[0].provider).toBe('claude');
     });
 
     it('provenance records human corrections', () => {
@@ -1413,10 +1413,10 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
       expect(report.overall).toBeDefined();
     });
 
-    it('multi_llm_routing gate — Gemini is default', () => {
+    it('multi_llm_routing gate — Claude is default', () => {
       for (const [name, config] of Object.entries(CORRECTION_TASK_CONFIG)) {
         if (name !== 'correction_draft_critique' && name !== 'correction_final_validation') {
-          expect(config.preferredProvider).toBe('gemini');
+          expect(config.preferredProvider).toBe('claude');
         }
       }
     });

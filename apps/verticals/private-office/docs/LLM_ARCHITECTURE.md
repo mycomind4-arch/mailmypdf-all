@@ -33,7 +33,7 @@ Human Review → Approval → Payment → Mailing → Proof
 
 ## Gemini Default
 
-Gemini is the default provider. Provider selection is centralized in `llm-config.ts` and configured via environment variables — no workflow code changes needed.
+Claude is the default provider. Provider selection is centralized in `llm-config.ts` and configured via environment variables — no workflow code changes needed.
 
 ```env
 LLM_PROVIDER=gemini
@@ -168,7 +168,7 @@ No workflow-specific LLM implementations are needed.
 ## Environment Variables
 
 See `.env.example` for the complete list. Key variables:
-- `LLM_PROVIDER` — default provider (gemini)
+- `LLM_PROVIDER` — default provider (claude)
 - `LLM_INTELLIGENCE_MODE` — intelligence mode (standard/enhanced/consensus/maximum-assurance)
 - `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` — provider credentials
 - `LLM_FALLBACK_ENABLED` — enable/disable fallback

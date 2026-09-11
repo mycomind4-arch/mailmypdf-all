@@ -14,7 +14,7 @@ import {
    Verifies the self-hosted control plane endpoint logic:
      - rejects unauthenticated requests (401)
      - rejects wrong token (401)
-     - returns 503 when GEMINI_API_KEY is missing
+     - returns 503 when ANTHROPIC_API_KEY is missing
      - returns 503 when control plane token is missing
      - returns valid config when properly configured
      - returns task-specific models
@@ -35,26 +35,26 @@ function makeRequest(body: unknown, token?: string): Request {
 
 describe("Control Plane AI resolver", () => {
   const savedToken = process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
-  const savedKey = process.env.GEMINI_API_KEY;
-  const savedModel = process.env.GEMINI_MODEL;
-  const savedDraftModel = process.env.GEMINI_MODEL_DRAFT;
+  const savedKey = process.env.ANTHROPIC_API_KEY;
+  const savedModel = process.env.ANTHROPIC_MODEL;
+  const savedDraftModel = process.env.ANTHROPIC_MODEL_DRAFT;
 
   beforeEach(() => {
     process.env.MAILMYPDF_CONTROL_PLANE_TOKEN = "test-control-plane-token";
-    process.env.GEMINI_API_KEY = "test-gemini-key";
-    delete process.env.GEMINI_MODEL;       // test the default
-    delete process.env.GEMINI_MODEL_DRAFT;
+    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    delete process.env.ANTHROPIC_MODEL;       // test the default
+    delete process.env.ANTHROPIC_MODEL_DRAFT;
   });
 
   afterEach(() => {
     if (savedToken !== undefined) process.env.MAILMYPDF_CONTROL_PLANE_TOKEN = savedToken;
     else delete process.env.MAILMYPDF_CONTROL_PLANE_TOKEN;
-    if (savedKey !== undefined) process.env.GEMINI_API_KEY = savedKey;
-    else delete process.env.GEMINI_API_KEY;
-    if (savedModel !== undefined) process.env.GEMINI_MODEL = savedModel;
-    else delete process.env.GEMINI_MODEL;
-    if (savedDraftModel !== undefined) process.env.GEMINI_MODEL_DRAFT = savedDraftModel;
-    else delete process.env.GEMINI_MODEL_DRAFT;
+    if (savedKey !== undefined) process.env.ANTHROPIC_API_KEY = savedKey;
+    else delete process.env.ANTHROPIC_API_KEY;
+    if (savedModel !== undefined) process.env.ANTHROPIC_MODEL = savedModel;
+    else delete process.env.ANTHROPIC_MODEL;
+    if (savedDraftModel !== undefined) process.env.ANTHROPIC_MODEL_DRAFT = savedDraftModel;
+    else delete process.env.ANTHROPIC_MODEL_DRAFT;
   });
 
   it("returns 401 when no Authorization header is provided", async () => {
@@ -83,8 +83,8 @@ describe("Control Plane AI resolver", () => {
     assert.ok(body.error.includes("not configured"));
   });
 
-  it("returns 503 when GEMINI_API_KEY is not set", async () => {
-    delete process.env.GEMINI_API_KEY;
+  it("returns 503 when ANTHROPIC_API_KEY is not set", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
     const request = makeRequest(
       { verticalSlug: "appeal-mail", workflowSlug: "denied-claim", task: "analysis" },
       "test-control-plane-token",
@@ -92,10 +92,10 @@ describe("Control Plane AI resolver", () => {
     const response = await handleControlPlaneRequest(request);
     assert.equal(response.status, 503);
     const body = await response.json();
-    assert.ok(body.error.includes("Gemini API key"));
+    assert.ok(body.error.includes("Anthropic API key"));
   });
 
-  it("returns valid Gemini config with default model gemini-3.6-flash", async () => {
+  it("returns valid Claude config with the default Sonnet model", async () => {
     const request = makeRequest(
       { verticalSlug: "appeal-mail", workflowSlug: "denied-claim", task: "analysis" },
       "test-control-plane-token",
@@ -103,14 +103,15 @@ describe("Control Plane AI resolver", () => {
     const response = await handleControlPlaneRequest(request);
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.equal(body.provider, "gemini");
-    assert.equal(body.apiKey, "test-gemini-key");
-    assert.equal(body.model, "gemini-3.6-flash");
+    assert.equal(body.provider, "claude");
+    assert.equal(body.apiKey, "test-anthropic-key");
+    assert.equal(body.model, "claude-sonnet-4-20250514");
+    assert.equal(body.fallbackProvider, "gemini");
     assert.equal(body.promptOverride, null);
   });
 
-  it("returns task-specific model when GEMINI_MODEL_DRAFT is set", async () => {
-    process.env.GEMINI_MODEL_DRAFT = "gemini-3.7-flash";
+  it("returns task-specific model when ANTHROPIC_MODEL_DRAFT is set", async () => {
+    process.env.ANTHROPIC_MODEL_DRAFT = "claude-sonnet-custom";
     const request = makeRequest(
       { verticalSlug: "appeal-mail", workflowSlug: "denied-claim", task: "draft" },
       "test-control-plane-token",
@@ -118,7 +119,7 @@ describe("Control Plane AI resolver", () => {
     const response = await handleControlPlaneRequest(request);
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.equal(body.model, "gemini-3.7-flash");
+    assert.equal(body.model, "claude-sonnet-custom");
   });
 
   it("returns 400 for invalid JSON body", async () => {
@@ -140,7 +141,7 @@ describe("Control Plane AI resolver", () => {
   });
 
   it("resolveControlPlaneConfig throws ControlPlaneError without key", () => {
-    delete process.env.GEMINI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
     assert.throws(
       () => resolveControlPlaneConfig({ task: "analysis" }),
       ControlPlaneError,

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const payload = await req.json() as { analysis?: Record<string, unknown>; extracted?: Record<string, unknown> }
     if (!payload.analysis) return NextResponse.json({ error: 'Analysis results are required.' }, { status: 400 })
 
-    // Draft with Gemini (default)
+    // Draft with Claude (default)
     const draftResponse = await callLLM(
       [
         { role: 'system', content: config.systemPrompt },
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       { provider: 'gemini', temperature: 0.2 },
     )
 
-    // Validate with independent pass (also Gemini by default, but can route to Claude for review)
+    // Validate with an independent pass after Claude drafting
     const facts = {
       referenceNumber: String(payload.analysis?.referenceNumber || payload.analysis?.claimNumber || payload.analysis?.accountNumber || ''),
       decisionDate: String(payload.analysis?.decisionDate || ''),

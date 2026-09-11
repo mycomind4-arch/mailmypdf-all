@@ -82,6 +82,16 @@ export const TASK_ROUTING: Record<AITask, TaskRouting> = {
   xray: { task: 'xray', preferredProvider: 'claude', preferredModel: CLAUDE_PRIMARY_MODEL, fallbackProvider: 'openai', fallbackModel: OPENAI_FALLBACK_MODEL, minConfidence: 0.85 },
 };
 
+export const TASK_ROUTING: Record<AITask, TaskRouting> = Object.fromEntries(
+  Object.entries(LEGACY_TASK_ROUTING).map(([task, route]) => [task, {
+    ...route,
+    preferredProvider: route.preferredProvider === 'gemini' ? 'claude' : route.preferredProvider,
+    preferredModel: route.preferredProvider === 'gemini' ? 'claude-sonnet-4-20250514' : route.preferredModel,
+    fallbackProvider: route.preferredProvider === 'gemini' ? 'gemini' : route.fallbackProvider,
+    fallbackModel: route.preferredProvider === 'gemini' ? 'gemini-2.0-flash' : route.fallbackModel,
+  }]),
+) as Record<AITask, TaskRouting>;
+
 // ─── Provider Adapter Interface ──────────────────────────────────────────────
 
 export interface ProviderAdapter {

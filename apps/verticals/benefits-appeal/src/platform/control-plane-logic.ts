@@ -4,8 +4,8 @@
    Pure logic extracted for testing.  The route file in ai.ts
    wraps this with createFileRoute + server.handlers.
 
-   Default model: gemini-3.6-flash (current stable Gemini flash)
-   Per-task model overrides via GEMINI_MODEL_DRAFT, etc.
+   Default model: Claude Sonnet
+   Gemini remains an explicit fallback.
    ═══════════════════════════════════════════════════════════ */
 
 export interface ControlPlaneRequest {
@@ -15,38 +15,42 @@ export interface ControlPlaneRequest {
 }
 
 export interface AIConfigResponse {
-  provider: "gemini";
+  provider: "claude";
   apiKey: string;
   model: string;
+  fallbackProvider: "gemini";
+  fallbackApiKey?: string;
   promptOverride: string | null;
 }
 
 export function resolveControlPlaneConfig(
   body: ControlPlaneRequest,
 ): AIConfigResponse {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) {
+  const claudeKey = process.env.ANTHROPIC_API_KEY;
+  if (!claudeKey) {
     throw new ControlPlaneError(
-      "Gemini API key is not configured. Set GEMINI_API_KEY in the control plane environment.",
+      "Anthropic API key is not configured. Set ANTHROPIC_API_KEY in the control plane environment.",
       503,
     );
   }
 
-  const defaultModel = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const defaultModel = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
   const task = body.task || "analysis";
 
   // Per-task model overrides (optional, falls back to GEMINI_MODEL)
   const taskModel =
     task === "draft" || task === "revision"
-      ? process.env.GEMINI_MODEL_DRAFT || defaultModel
+      ? process.env.ANTHROPIC_MODEL_DRAFT || defaultModel
       : task === "validation"
-        ? process.env.GEMINI_MODEL_VALIDATION || defaultModel
-        : process.env.GEMINI_MODEL_ANALYSIS || defaultModel;
+        ? process.env.ANTHROPIC_MODEL_VALIDATION || defaultModel
+        : process.env.ANTHROPIC_MODEL_ANALYSIS || defaultModel;
 
   return {
-    provider: "gemini",
-    apiKey: geminiKey,
+    provider: "claude",
+    apiKey: claudeKey,
     model: taskModel,
+    fallbackProvider: "gemini",
+    fallbackApiKey: process.env.GEMINI_API_KEY,
     promptOverride: null,
   };
 }

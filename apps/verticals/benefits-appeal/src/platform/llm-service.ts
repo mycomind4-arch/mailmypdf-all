@@ -1,6 +1,6 @@
 /**
  * Multi-Provider LLM Service
- * Gemini is DEFAULT. Claude and OpenAI are fallback/independent-review providers.
+ * Claude is DEFAULT. Gemini and OpenAI are fallback/independent-review providers.
  * Each provider is lazily initialized — only configured keys are usable.
  */
 

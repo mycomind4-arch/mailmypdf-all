@@ -1,5 +1,5 @@
 /**
- * Gemini LLM adapter — default provider for Private Office.
+ * Gemini LLM adapter — provider-neutral fallback for Private Office.
  *
  * Uses the Google Generative Language REST API directly (no SDK dependency)
  * to keep the dependency footprint minimal.

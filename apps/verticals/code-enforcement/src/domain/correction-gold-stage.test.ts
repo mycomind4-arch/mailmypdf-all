@@ -815,7 +815,7 @@ describe('Correction Gold-Stage Execution', () => {
     it('should create an AI invocation with Gemini as preferred provider for correction tasks', () => {
       const invocation = createInvocation('correction_issue_extraction' as never, 'case-001');
 
-      expect(invocation.provider).toBe('gemini');
+      expect(invocation.provider).toBe('claude');
       expect(invocation.task).toBe('correction_issue_extraction');
       expect(invocation.validationState).toBe('pending');
       expect(invocation.timestamp).toBeDefined();
@@ -843,7 +843,7 @@ describe('Correction Gold-Stage Execution', () => {
 
     it('should activate OpenAI fallback when Gemini fails', () => {
       const config = AI_TASK_CONFIG['correction_issue_extraction' as never];
-      expect(config.preferredProvider).toBe('gemini');
+      expect(config.preferredProvider).toBe('claude');
       expect(config.fallbackProviders).toContain('openai');
 
       // Simulate Gemini failure
@@ -867,7 +867,7 @@ describe('Correction Gold-Stage Execution', () => {
 
     it('should activate Claude fallback for recipient_reconciliation when Gemini fails', () => {
       const config = AI_TASK_CONFIG['recipient_reconciliation' as never];
-      expect(config.preferredProvider).toBe('gemini');
+      expect(config.preferredProvider).toBe('claude');
       expect(config.fallbackProviders).toContain('claude');
     });
 
@@ -1470,7 +1470,7 @@ describe('Correction Gold-Stage Execution', () => {
       // Verify routing for all correction tasks
       for (const [task, config] of Object.entries(CORRECTION_TASK_CONFIG)) {
         if (task !== 'correction_draft_critique' && task !== 'correction_final_validation') {
-          expect(config.preferredProvider).toBe('gemini');
+          expect(config.preferredProvider).toBe('claude');
         }
       }
 

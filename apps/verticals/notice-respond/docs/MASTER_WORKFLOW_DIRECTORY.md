@@ -67,5 +67,5 @@ Keep shared identity, document storage, payments, mailing, tracking, proof, and 
 - equifax-dispute — Equifax (FUNCTIONAL)
 
 ### LLM Integration
-All workflows support multi-LLM analysis (Gemini default, OpenAI/Claude fallback).
+All workflows support multi-LLM analysis (Claude default, Gemini/OpenAI fallback).
 Upload a notice → LLM analyzes document → extracts facts/deadlines/requirements → generates response draft.

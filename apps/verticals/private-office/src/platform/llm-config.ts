@@ -2,8 +2,8 @@
  * LLM runtime configuration — environment-driven provider setup,
  * intelligence modes, and operation-level cost policies.
  *
- * Claude/Anthropic is the primary provider. OpenAI and Gemini remain
- * configurable fallback/consensus providers without workflow code changes.
+ * Claude is the default provider. Provider selection is configurable
+ * through environment variables without requiring workflow code changes.
  */
 
 import type {
@@ -23,69 +23,71 @@ import {
 
 /**
  * Build provider configuration from environment variables.
+ *
  * Server-side only. Never expose provider credentials to the browser.
- * Insertion order is intentional because it also defines fallback priority.
  */
 export function buildProviderConfigs(): Partial<
   Record<LLMProviderId, ProviderConfig>
 > {
   const configs: Partial<Record<LLMProviderId, ProviderConfig>> = {};
 
-  // Anthropic / Claude (primary)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey) {
-    configs.anthropic = {
-      apiKey: anthropicKey,
-      model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5",
-      apiUrl: process.env.ANTHROPIC_API_URL,
-    };
-  }
-
-  // OpenAI (first fallback / consensus peer)
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
-    configs.openai = {
-      apiKey: openaiKey,
-      model: process.env.OPENAI_MODEL ?? "gpt-5.6",
-      apiUrl: process.env.OPENAI_API_URL,
-    };
-  }
-
-  // Gemini (second fallback / maximum-assurance peer)
+  // Claude (default)
   const geminiKey =
     process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_API_KEY;
   if (geminiKey) {
     configs.gemini = {
       apiKey: geminiKey,
-      model: process.env.GEMINI_MODEL ?? "gemini-3.7-flash",
+      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
       apiUrl: process.env.GEMINI_API_URL,
+    };
+  }
+
+  // OpenAI (optional)
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    configs.openai = {
+      apiKey: openaiKey,
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      apiUrl: process.env.OPENAI_API_URL,
+    };
+  }
+
+  // Anthropic (optional)
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    configs.anthropic = {
+      apiKey: anthropicKey,
+      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-20241022",
+      apiUrl: process.env.ANTHROPIC_API_URL,
     };
   }
 
   return configs;
 }
 
-/** Build the LLM runtime configuration from environment variables. */
+/**
+ * Build the LLM runtime configuration from environment variables.
+ */
 export function buildLLMConfig(): LLMRuntimeConfig {
   const providers = buildProviderConfigs();
   const configuredProviders = Object.keys(providers) as LLMProviderId[];
-  const explicitProvider = process.env.LLM_PROVIDER as LLMProviderId | undefined;
 
-  if (explicitProvider && configuredProviders.length > 0 && !providers[explicitProvider]) {
+  const defaultProvider = (
+    process.env.LLM_PROVIDER as LLMProviderId | undefined
+  ) ?? DEFAULT_PROVIDER;
+
+  // Validate default provider is configured
+  if (configuredProviders.length > 0 && !providers[defaultProvider]) {
     throw new Error(
-      `Default LLM provider "${explicitProvider}" is not configured. ` +
+      `Default LLM provider "${defaultProvider}" is not configured. ` +
         `Configured providers: ${configuredProviders.join(", ")}`,
     );
   }
 
-  // Claude is the default when configured. If it is unavailable, degrade to the
-  // next configured provider rather than breaking deterministic workflow execution.
-  const defaultProvider = explicitProvider ??
-    (providers[DEFAULT_PROVIDER] ? DEFAULT_PROVIDER : configuredProviders[0] ?? DEFAULT_PROVIDER);
-
   const mode = (process.env.LLM_INTELLIGENCE_MODE as IntelligenceMode | undefined) ??
     DEFAULT_INTELLIGENCE_MODE;
 
+  // Parse operation-level policy overrides from env
   const operationPolicies = { ...DEFAULT_OPERATION_POLICIES };
   for (const op of Object.keys(operationPolicies) as LLMOperation[]) {
     const envKey = `LLM_POLICY_${op.toUpperCase()}`;
@@ -109,6 +111,10 @@ export function buildLLMConfig(): LLMRuntimeConfig {
   };
 }
 
+/**
+ * Get the intelligence mode for a specific operation, respecting
+ * both global and operation-level configuration.
+ */
 export function getOperationMode(
   operation: LLMOperation,
   config: LLMRuntimeConfig,
@@ -116,6 +122,11 @@ export function getOperationMode(
   return config.operationPolicies[operation] ?? config.mode;
 }
 
+/**
+ * Get the list of providers to consult for a given operation,
+ * based on the operation's intelligence mode and which providers
+ * are actually configured.
+ */
 export function getProvidersForOperation(
   operation: LLMOperation,
   config: LLMRuntimeConfig,
@@ -123,14 +134,21 @@ export function getProvidersForOperation(
   const mode = getOperationMode(operation, config);
   const strategy = MODE_STRATEGIES[mode];
   const configured = Object.keys(config.providers) as LLMProviderId[];
+
+  // Filter strategy providers to only those configured
   const result = strategy.providers.filter((p) => configured.includes(p));
 
+  // Always include at least the default if configured
   if (result.length === 0 && config.providers[config.defaultProvider]) {
     return [config.defaultProvider];
   }
+
   return result;
 }
 
+/**
+ * Check if a provider is configured and available.
+ */
 export function isProviderConfigured(
   provider: LLMProviderId,
   config: LLMRuntimeConfig,
@@ -138,16 +156,27 @@ export function isProviderConfigured(
   return Boolean(config.providers[provider]);
 }
 
+/**
+ * Get all configured provider IDs.
+ */
 export function getConfiguredProviders(config: LLMRuntimeConfig): LLMProviderId[] {
   return ALL_PROVIDERS.filter((p) => config.providers[p]);
 }
 
+// ── Test helpers ────────────────────────────────────────────────────────
+
 let configOverride: LLMRuntimeConfig | null = null;
 
+/**
+ * Test-only: override the cached config.
+ */
 export function _setLLMConfig(config: LLMRuntimeConfig | null): void {
   configOverride = config;
 }
 
+/**
+ * Get the runtime config (cached or overridden).
+ */
 let cachedConfig: LLMRuntimeConfig | null = null;
 
 export function getLLMConfig(): LLMRuntimeConfig {
@@ -157,6 +186,9 @@ export function getLLMConfig(): LLMRuntimeConfig {
   return cachedConfig;
 }
 
+/**
+ * Test-only: reset the cached config.
+ */
 export function _resetLLMConfig(): void {
   cachedConfig = null;
   configOverride = null;
