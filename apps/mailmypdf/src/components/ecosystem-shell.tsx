@@ -14,6 +14,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight } from "lucide-react";
+import { AuthenticatedSidebar } from "./authenticated-sidebar";
 
 
 /* ── NavLink: handles both internal and external URLs ───────────────────── */
@@ -117,8 +118,22 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAuth = !auth.loading && !!auth.user;
 
+  useEffect(() => {
+    if (!isAuth) return;
+    document.body.classList.add("mmp-auth-sidebar-active");
+    return () => document.body.classList.remove("mmp-auth-sidebar-active");
+  }, [isAuth]);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper/90 backdrop-blur-md">
+    <>
+      {isAuth && auth.user ? (
+        <AuthenticatedSidebar
+          user={auth.user}
+          onSignOut={auth.signOut}
+          showMobileControls={false}
+        />
+      ) : null}
+      <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-2.5 group">
@@ -204,7 +219,8 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
       {mobileOpen && (
         <MobileNav config={config} onClose={() => setMobileOpen(false)} />
       )}
-    </header>
+      </header>
+    </>
   );
 }
 
