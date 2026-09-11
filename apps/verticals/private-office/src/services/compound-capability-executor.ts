@@ -540,7 +540,10 @@ export async function executeCompoundCapability(
           deadlineEventType: rule.deadlineEventType,
           authority: rule.authority,
           version: rule.version ?? "1",
-          provenance: provenance(rule.provenanceLevel),
+          provenance: provenance(
+            rule.provenanceLevel,
+            input.verifiedByActorId,
+          ),
           confidence: rule.confidence,
         });
       });
