@@ -117,7 +117,7 @@ export class CompoundWorkflowService {
     matterId: string;
     expectedVersion: number;
     phaseId: string;
-    gate: "human-review" | "consequential-action";
+    gate: "human-review" | "consequential-action" | "counsel-escalation";
     approved: boolean;
     detail?: string | null;
     actorId?: string;
@@ -129,7 +129,11 @@ export class CompoundWorkflowService {
       phaseId: input.phaseId,
       gate: input.gate,
       status: input.approved ? "passed" : "blocked",
-      detail: input.detail,
+      detail:
+        input.gate === "counsel-escalation"
+          ? input.detail ??
+            "User explicitly acknowledged the professional-review requirement. This does not mean counsel was obtained, declined, or waived."
+          : input.detail,
       verifiedBy: "user",
       actorId: input.actorId ?? input.ownerId,
     });
@@ -297,7 +301,8 @@ export class CompoundWorkflowService {
     if (
       input.verifiedBy === "user" &&
       input.gate !== "human-review" &&
-      input.gate !== "consequential-action"
+      input.gate !== "consequential-action" &&
+      input.gate !== "counsel-escalation"
     ) {
       throw new CompoundGateAuthorizationError(
         `Users cannot self-verify the ${input.gate} gate.`,
