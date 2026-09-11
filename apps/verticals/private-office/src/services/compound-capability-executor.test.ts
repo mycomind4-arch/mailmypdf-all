@@ -211,10 +211,10 @@ describe("compound capability executor", () => {
     );
 
     const result = await executeCompoundCapability({
-      workflowId: "government-accountability-investigation",
+      workflowId: "government-accusation-defense",
       matterId: "matter-1",
-      phaseId: "agency-authority",
-      capabilityLabel: "jurisdiction map",
+      phaseId: "triage-authority",
+      capabilityLabel: "accusation triage",
       context: "An agency issued a notice concerning the property.",
     });
 
@@ -229,10 +229,10 @@ describe("compound capability executor", () => {
     _setAdapter("anthropic", mockAdapter("not-json"));
 
     const result = await executeCompoundCapability({
-      workflowId: "government-accountability-investigation",
+      workflowId: "government-accusation-defense",
       matterId: "matter-1",
-      phaseId: "agency-authority",
-      capabilityLabel: "jurisdiction map",
+      phaseId: "triage-authority",
+      capabilityLabel: "accusation triage",
       context: "Supplied matter context.",
     });
 
@@ -243,10 +243,10 @@ describe("compound capability executor", () => {
 
   it("blocks advisory AI cleanly when no provider is configured", async () => {
     const result = await executeCompoundCapability({
-      workflowId: "government-accountability-investigation",
+      workflowId: "government-accusation-defense",
       matterId: "matter-1",
-      phaseId: "agency-authority",
-      capabilityLabel: "jurisdiction map",
+      phaseId: "triage-authority",
+      capabilityLabel: "accusation triage",
       context: "Supplied matter context.",
     });
 
