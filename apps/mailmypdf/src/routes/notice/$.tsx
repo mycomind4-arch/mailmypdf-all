@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IrsNoticeWorkflow } from "@/components/workflows/irs-notice-workflow";
 import { WorkflowAuthorityPage } from "@/components/workflow-authority-page";
+import { isNoticeWorkflowId, NOTICE_WORKFLOW_CONFIGS } from "@/lib/notice-workflow-registry";
 
 export const Route = createFileRoute("/notice/$")({
-  head: ({ params }) => ({ meta: [{ title: `${params._splat === "cp14-response" ? "CP14 Response" : params._splat === "cp2000-response" ? "CP2000 Response" : params._splat === "cp504-response" ? "CP504 Response" : params._splat === "cp523-response" ? "CP523 Response" : "Notice Respond"} | MailMyPDF` }] }),
+  head: ({ params }) => ({ meta: [{ title: `${isNoticeWorkflowId(params._splat) ? `${NOTICE_WORKFLOW_CONFIGS[params._splat].noticeLabel} Response` : "Notice Respond"} | MailMyPDF` }] }),
   component: () => {
     const slug = Route.useParams()._splat;
-    if (slug === "cp14-response" || slug === "cp2000-response" || slug === "cp504-response" || slug === "cp523-response") return <IrsNoticeWorkflow workflow={slug} />;
+    if (isNoticeWorkflowId(slug)) return <IrsNoticeWorkflow workflow={slug} />;
     return <WorkflowAuthorityPage product="Notice Respond" workflowSlug={slug ?? "irs-notice"} pipeline="P02_OFFICIAL_RESPONSE" />;
   },
 });
