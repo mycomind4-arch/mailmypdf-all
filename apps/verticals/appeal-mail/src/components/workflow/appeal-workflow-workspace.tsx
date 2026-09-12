@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Upload, Sparkles, CheckCircle2, Send, FileText, AlertTriangle, ArrowRight } from "lucide-react";
 import { workflows, type WorkflowId } from "@/domain/workflows";
+import { useAuth } from "@/lib/auth";
 
 type Stage = "understand" | "build" | "send";
 type Recipient = { name: string; address1: string; address2: string; city: string; state: string; zip: string };
@@ -30,6 +31,7 @@ async function getAccessToken(): Promise<string> {
 
 export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { workflowId: WorkflowId; suppressH1?: boolean }) {
   const workflow = workflows[workflowId];
+  const { user, loading: authLoading } = useAuth();
   const insuranceMode = workflowId === "insurance-claim-denial";
   const [stage, setStage] = useState<Stage>("understand");
   const [file, setFile] = useState<File | null>(null);
@@ -118,6 +120,12 @@ export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { wo
 
   if (!workflow) return <main className="min-h-screen px-6 py-20"><div className="mx-auto max-w-2xl">Workflow not found.</div></main>;
 
+  // The public page is intentionally useful for SEO and evaluation, but never
+  // accepts a real upload until identity is established. Server routes keep
+  // their own auth checks; this is only the customer-facing entry experience.
+  if (authLoading) return <section id={suppressH1 ? "workflow-start" : undefined} className="bg-paper px-6 py-12"><div className="mx-auto max-w-5xl rounded-2xl border border-rule bg-paper-deep p-8 text-sm text-muted-foreground">Loading your workspace…</div></section>;
+  if (!user) return <WorkflowDemo workflowId={workflowId} suppressH1={suppressH1} />;
+
   return (
     <main className="min-h-screen bg-paper px-6 py-10">
       <div className="mx-auto max-w-5xl">
@@ -163,5 +171,45 @@ export function AppealWorkflowWorkspace({ workflowId, suppressH1 = false }: { wo
         </section>}
       </div>
     </main>
+  );
+}
+
+function WorkflowDemo({ workflowId, suppressH1 }: { workflowId: WorkflowId; suppressH1: boolean }) {
+  const workflow = workflows[workflowId];
+  const signUpHref = `/auth?returnTo=${encodeURIComponent(`/workflows/${workflowId}`)}`;
+  const screenshots = [
+    ["Intake", "Add the essential facts and the document you received.", "/workflow-demo/contractor-intake.png"],
+    ["Documents", "Organize the records that support your response.", "/workflow-demo/contractor-documents.png"],
+    ["Analysis", "Confirm the extracted facts before anything is drafted.", "/workflow-demo/contractor-analysis.png"],
+    ["Evidence", "Link each issue to the strongest supporting material.", "/workflow-demo/contractor-evidence.png"],
+    ["Timeline", "Put the important events and deadlines in order.", "/workflow-demo/contractor-timeline.png"],
+    ["Draft", "After payment, review the complete response built from the record.", "/workflow-demo/contractor-draft.png"],
+    ["Review", "Approve the exact finished PDF and mailing details.", "/workflow-demo/contractor-review.png"],
+    ["Mail & proof", "MailMyPDF sends the approved PDF and preserves proof.", "/workflow-demo/contractor-mail.png"],
+  ] as const;
+
+  return (
+    <section id={suppressH1 ? "workflow-start" : undefined} className="bg-paper px-6 py-10">
+      <div className="mx-auto max-w-5xl">
+        <div className="rounded-2xl border border-rule bg-paper-deep p-6 md:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Interactive demo</div>
+              <h2 className="mt-2 font-serif text-2xl md:text-3xl">See how your {workflow.title.toLowerCase()} will come together</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Explore the full workflow with sample information. Your real documents, saved case, final PDF, and mailing stay private to your free MailMyPDF account.</p>
+            </div>
+            <a href={signUpHref} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background hover:opacity-90">Start free <ArrowRight size={16} /></a>
+          </div>
+
+          <div className="mt-7 rounded-xl border border-rule bg-paper p-4"><div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">How the guided flow works</div><div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium"><span>Tell us what happened</span><ArrowRight size={15} className="text-muted-foreground" /><span>Build the record</span><ArrowRight size={15} className="text-muted-foreground" /><span>Review the finished PDF</span><ArrowRight size={15} className="text-muted-foreground" /><span>Approve mailing</span></div></div>
+          <p className="mt-5 text-sm text-muted-foreground">Reference walkthrough — the stage structure adapts to each workflow; these screenshots show the quality bar.</p>
+          <ol className="mt-5 grid gap-5 md:grid-cols-2">
+            {screenshots.map(([title, description, src], index) => <li key={src} className="overflow-hidden rounded-xl border border-rule bg-paper"><div className="border-b border-rule px-4 py-3"><div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">{index + 1}</span><h3 className="font-serif text-lg">{title}</h3>{index < screenshots.length - 1 ? <ArrowRight size={16} className="ml-auto text-muted-foreground" aria-label="Next stage" /> : null}</div><p className="mt-2 pl-10 text-sm leading-5 text-muted-foreground">{description}</p></div><img src={src} alt={`Contractor dispute ${title.toLowerCase()} stage`} loading={index < 2 ? "eager" : "lazy"} className="block h-auto w-full" /></li>)}
+          </ol>
+
+          <aside className="mt-6 rounded-xl border border-rule bg-paper p-6"><div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Ready to use your own information?</div><h3 className="mt-2 font-serif text-xl">Create a free account to begin.</h3><p className="mt-3 text-sm leading-6 text-muted-foreground">Your account keeps the real workflow, final PDF, payment, approval, mailing, and proof tied to your matter.</p><a href={signUpHref} className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background hover:opacity-90">Create free account <ArrowRight size={16} /></a></aside>
+        </div>
+      </div>
+    </section>
   );
 }
