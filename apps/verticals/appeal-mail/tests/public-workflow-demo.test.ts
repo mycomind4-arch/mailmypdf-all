@@ -17,3 +17,10 @@ test("the demo uses the protected Contractor Dispute reference screenshots", () 
   const images = workspace.match(/\/workflow-demo\/contractor-[a-z-]+\.png/g) ?? [];
   assert.equal(new Set(images).size, 8);
 });
+
+test("the public demo explains the sensitive-document security protocol", () => {
+  assert.match(workspace, /Sensitive-document protocol/);
+  assert.match(workspace, /private, access-controlled storage/);
+  assert.match(workspace, /explicit approval/);
+  assert.match(workspace, /\/privacy/);
+});

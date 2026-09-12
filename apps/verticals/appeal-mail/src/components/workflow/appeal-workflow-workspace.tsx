@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Upload, Sparkles, CheckCircle2, Send, FileText, AlertTriangle, ArrowRight } from "lucide-react";
+import { Upload, Sparkles, CheckCircle2, Send, FileText, AlertTriangle, ArrowRight, ShieldCheck } from "lucide-react";
 import { workflows, type WorkflowId } from "@/domain/workflows";
 import { useAuth } from "@/lib/auth";
 
@@ -202,6 +202,9 @@ function WorkflowDemo({ workflowId, suppressH1 }: { workflowId: WorkflowId; supp
           </div>
 
           <div className="mt-7 rounded-xl border border-rule bg-paper p-4"><div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">How the guided flow works</div><div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium"><span>Tell us what happened</span><ArrowRight size={15} className="text-muted-foreground" /><span>Build the record</span><ArrowRight size={15} className="text-muted-foreground" /><span>Review the finished PDF</span><ArrowRight size={15} className="text-muted-foreground" /><span>Approve mailing</span></div></div>
+          <aside className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-5">
+            <div className="flex items-start gap-3"><ShieldCheck size={22} className="mt-0.5 shrink-0 text-emerald-700" /><div><div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Sensitive-document protocol</div><h3 className="mt-1 font-serif text-xl">Your real case stays private and account-bound.</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Real documents are kept in private, access-controlled storage. Every saved case, payment, final PDF, and mailing record is tied to your account; mailing still requires your explicit approval of the finished document. We do not use your documents for marketing.</p><a href="/privacy" className="mt-3 inline-flex items-center gap-2 text-sm font-medium underline underline-offset-4">Read the privacy and retention policy <ArrowRight size={15} /></a></div></div>
+          </aside>
           <p className="mt-5 text-sm text-muted-foreground">Reference walkthrough — the stage structure adapts to each workflow; these screenshots show the quality bar.</p>
           <ol className="mt-5 grid gap-5 md:grid-cols-2">
             {screenshots.map(([title, description, src], index) => <li key={src} className="overflow-hidden rounded-xl border border-rule bg-paper"><div className="border-b border-rule px-4 py-3"><div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">{index + 1}</span><h3 className="font-serif text-lg">{title}</h3>{index < screenshots.length - 1 ? <ArrowRight size={16} className="ml-auto text-muted-foreground" aria-label="Next stage" /> : null}</div><p className="mt-2 pl-10 text-sm leading-5 text-muted-foreground">{description}</p></div><img src={src} alt={`Contractor dispute ${title.toLowerCase()} stage`} loading={index < 2 ? "eager" : "lazy"} className="block h-auto w-full" /></li>)}
