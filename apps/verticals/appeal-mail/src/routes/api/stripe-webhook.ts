@@ -63,6 +63,23 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
           try {
+            // A draft-unlock checkout pays for preparation but is never a
+            // mailing authorization. It is recorded separately and exits
+            // before the legacy fulfillment engine is even consulted.
+            if (session.metadata?.payment_phase === "draft_unlock") {
+              const expectedAmount = Number(session.metadata.quote_total_cents);
+              if (!Number.isSafeInteger(expectedAmount) || expectedAmount <= 0 || session.amount_total !== expectedAmount || session.currency !== "usd") {
+                return Response.json({ error: "Payment amount does not match checkout." }, { status: 409 });
+              }
+              const supabase = await (await import("@/platform/supabase")).getSupabaseServer();
+              const { data: gate, error: gateError } = await supabase.from("appeal_payment_gates").select("id,owner_id,workflow_id,stripe_session_id,status").eq("appeal_id", appealId).single();
+              if (gateError || !gate || gate.owner_id !== session.metadata.owner_user_id || gate.workflow_id !== session.metadata.workflow_id || gate.stripe_session_id !== session.id || gate.status !== "checkout_open") {
+                return Response.json({ error: "Draft purchase does not match its saved case." }, { status: 409 });
+              }
+              const { error: updateError } = await supabase.from("appeal_payment_gates").update({ status: "paid", stripe_payment_intent_id: paymentIntentId, updated_at: new Date().toISOString() }).eq("id", gate.id);
+              if (updateError) throw new Error("Unable to record draft purchase.");
+              return Response.json({ received: true, draftUnlocked: true }, { status: 200 });
+            }
             const validationError = paymentSessionError(session, await store.load(appealId));
             if (validationError) return Response.json({ error: validationError }, { status: 409 });
             const result = await fulfillMailingIntent(
