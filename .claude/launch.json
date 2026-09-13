@@ -1,0 +1,62 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "private-office-studio",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "mailmypdf-private-office",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "8090",
+        "--strictPort"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "immigration-mail",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "immigration-mail",
+        "run",
+        "dev"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "appeal-mail",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "appeal-mail",
+        "run",
+        "dev"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "notice-respond",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "notice-respond",
+        "run",
+        "dev"
+      ],
+      "port": 8080
+    }
+  ]
+}
