@@ -1871,7 +1871,7 @@ function StudioPage() {
                 aria-pressed={leftPanelView === "claude"}
                 className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 transition ${leftPanelView === "claude" ? "bg-white/15 text-paper shadow-sm" : "text-white/55 hover:text-paper"}`}
               >
-                <MessageSquare size={14} /> Claude
+                <MessageSquare size={14} /> Architect
               </button>
               <button
                 onClick={() => setLeftPanelView("code")}
@@ -1885,7 +1885,7 @@ function StudioPage() {
                 aria-pressed={leftPanelView === "agents"}
                 className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 transition ${leftPanelView === "agents" ? "bg-white/15 text-paper shadow-sm" : "text-white/55 hover:text-paper"}`}
               >
-                <Bot size={14} /> Agents
+                <Bot size={14} /> Command
               </button>
             </div>
           </div>
@@ -2082,11 +2082,11 @@ function StudioPage() {
             </div>
           ) : leftPanelView === "agents" ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-              <div className="text-sm font-medium">Agent swarm</div>
+              <div className="text-sm font-medium">Agent Command Center</div>
               <p className="mt-1 text-xs leading-relaxed text-white/50">
-                Builder writes/fixes the workflow in its own git worktree, Tester runs the real test suite against it,
-                Reviewer independently checks the diff, SEO audits any public page it touches. Nothing lands outside
-                the <code className="font-mono">agent/integration</code> branch without your say-so.
+                Choose the provider and exact model for Builder and Reviewer, then launch background work in an isolated
+                git workspace. Tester validates the real suite, Reviewer checks the diff, and SEO audits public pages.
+                Nothing lands outside the <code className="font-mono">agent/integration</code> branch without your say-so.
               </p>
               {agentProviderAvailability && (!agentProviderAvailability.claude || !agentProviderAvailability.codex) && (
                 <div className="mt-3 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] leading-relaxed text-white/70">
@@ -2121,7 +2121,7 @@ function StudioPage() {
                   aria-label="Task instructions"
                   value={agentInstructions}
                   onChange={(event) => setAgentInstructions(event.target.value)}
-                  placeholder="Describe what the Builder should do…"
+                  placeholder="Describe the outcome you want the team to achieve…"
                   className="min-h-16 w-full resize-none rounded border border-white/15 bg-black/20 p-2 text-xs text-paper outline-none placeholder:text-white/40"
                 />
                 <div className="grid grid-cols-2 gap-2">
