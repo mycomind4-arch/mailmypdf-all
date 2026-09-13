@@ -22,7 +22,7 @@
  * integration happen in the intelligence layer.
  */
 
-import type { LLMAdapter, LLMRequest } from "./llm-adapter";
+import type { LLMAdapter, LLMRequest, LLMToolCall } from "./llm-adapter";
 import { LLMError, hashInput } from "./llm-adapter";
 import { GeminiAdapter } from "./gemini-adapter";
 import { OpenAIAdapter } from "./openai-adapter";
@@ -119,6 +119,7 @@ export interface RouterResult {
   content: string;
   provenance: LLMFullProvenance;
   fallbackChain: FallbackChainEntry[];
+  toolCalls?: LLMToolCall[];
 }
 
 // ── Core Router ─────────────────────────────────────────────────────────
@@ -230,6 +231,7 @@ export async function routeLLMRequest(
         content: response.content,
         provenance,
         fallbackChain,
+        ...(response.toolCalls?.length ? { toolCalls: response.toolCalls } : {}),
       };
 
       break; // Success — stop trying providers

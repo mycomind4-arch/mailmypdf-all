@@ -21,6 +21,14 @@ const PAGE_HEIGHT = 792;
 const MARGIN = 72;
 const FONT_SIZE = 11;
 const LINE_HEIGHT = 15.5;
+// assemblePacket puts this letter first, and the resulting packet is
+// submitted to Lob with address_placement: "top_first_page" (see
+// apps/mailmypdf's lob-adapter), which overlays Lob's own return/recipient
+// address into the top of page 1. That zone must stay clear or the overlay
+// covers the first lines of the letter. Lob's guidance for this placement
+// is a minimum 2" clear at the top of page 1; every other page keeps the
+// normal 1" margin.
+const LOB_FIRST_PAGE_TOP_MARGIN = 144; // 2"
 
 export interface Recipient {
   name: string;
@@ -111,14 +119,20 @@ export async function renderResponseLetter(bodyText: string): Promise<Uint8Array
   }
 
   const linesPerPage = Math.floor((PAGE_HEIGHT - MARGIN * 2) / LINE_HEIGHT);
-  for (let i = 0; i < Math.max(lines.length, 1); i += linesPerPage) {
+  const firstPageLines = Math.floor((PAGE_HEIGHT - LOB_FIRST_PAGE_TOP_MARGIN - MARGIN) / LINE_HEIGHT);
+  let cursor = 0;
+  let pageIndex = 0;
+  do {
+    const capacity = pageIndex === 0 ? firstPageLines : linesPerPage;
     const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    let y = PAGE_HEIGHT - MARGIN;
-    for (const line of lines.slice(i, i + linesPerPage)) {
+    let y = PAGE_HEIGHT - (pageIndex === 0 ? LOB_FIRST_PAGE_TOP_MARGIN : MARGIN);
+    for (const line of lines.slice(cursor, cursor + capacity)) {
       if (line) page.drawText(line, { x: MARGIN, y, size: FONT_SIZE, font });
       y -= LINE_HEIGHT;
     }
-  }
+    cursor += capacity;
+    pageIndex += 1;
+  } while (cursor < lines.length);
 
   return pdf.save({ useObjectStreams: false });
 }

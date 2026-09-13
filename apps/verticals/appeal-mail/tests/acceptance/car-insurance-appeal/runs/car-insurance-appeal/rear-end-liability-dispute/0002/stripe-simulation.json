@@ -1,0 +1,20 @@
+{
+  "checkoutSessionId": "cs_test_acceptance_1",
+  "amountCents": 5533,
+  "currency": "usd",
+  "metadata": {
+    "appeal_id": "36ff1877-9801-4343-b2c1-3c4fd8e52fa9",
+    "packet_id": "60a69091-bc32-4714-bbea-e90c8cf09dd6",
+    "approved_draft_hash": "b173720cf7271511778f7ab870f42b8e22f126bc069a9a68ee82d8d0516ad43b",
+    "approved_recipient_hash": "2e246d986e0c5eba50cfd98343e2fb2e64526d1ad20cea363af90e4088a06d0f",
+    "workflow_id": "car-insurance-appeal",
+    "mailing_method": "certified",
+    "response_pages": "4",
+    "supporting_pages": "0",
+    "owner_user_id": "studio-test-user",
+    "pricing_source": "canonical",
+    "quote_total_cents": "5533"
+  },
+  "webhookDeliveries": 3,
+  "fulfillmentInvocations": 1
+}

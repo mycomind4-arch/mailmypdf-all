@@ -18,6 +18,7 @@
  */
 import { getSupabaseServer } from "./supabase";
 import type { MailingIntent, MailingIntentStore, MailType } from "@mailmypdf/payment-fulfillment";
+import { toMailingEvidenceItems } from "@/domain/evidence";
 
 type SupabaseServer = Awaited<ReturnType<typeof getSupabaseServer>>;
 
@@ -97,6 +98,8 @@ function rowsToIntent(appeal: Record<string, any>, mailing: Record<string, any> 
     matter_type: appeal.workflow_id,
     approved_draft_hash: packet.approvedDraftHash ?? null,
     approved_recipient_hash: packet.approvedRecipientHash ?? null,
+    approved_evidence_hash: packet.approvedEvidenceHash ?? null,
+    evidence_snapshot: toMailingEvidenceItems(Array.isArray(appeal.evidence) ? appeal.evidence : []),
     stripe_session_id: mailing?.stripe_session_id ?? null,
     stripe_payment_intent_id: mailing?.stripe_payment_id ?? null,
     stripe_price_cents: null,

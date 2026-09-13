@@ -1,0 +1,48 @@
+{
+  "id": "rear-end-liability-dispute",
+  "workflowId": "car-insurance-appeal",
+  "title": "Rear-End Collision: Insurer Ignored Police Report on Liability",
+  "description": "Meridian Auto Insurance assigned the claimant 50% comparative negligence in a rear-end collision, directly contradicting the responding officer's police report, which found the other driver 100% at fault. The insurer also undervalued the repair estimate against an independent body-shop quote.",
+  "seed": "rear-end-liability-dispute-v1",
+  "intake": {
+    "recipient": {
+      "name": "Meridian Auto Insurance Co. - Appeals Department",
+      "address1": "500 Harborview Plaza, Suite 900",
+      "city": "Columbus",
+      "state": "OH",
+      "zip": "43215"
+    },
+    "mailingMethod": "certified",
+    "facts": {
+      "claimantName": "Jordan A. Rivera",
+      "insurerName": "Meridian Auto Insurance Co.",
+      "claimNumber": "MAI-2026-0417-CA",
+      "policyNumber": "POL-9284617",
+      "adjusterName": "Casey Nguyen",
+      "accidentDate": "2026-08-01",
+      "decisionDate": "2026-08-20",
+      "appealDeadline": "2027-01-15",
+      "liabilityFinding": "Comparative negligence: claimant found 50% at fault for the rear-end collision.",
+      "liabilityPercentage": "50%",
+      "policeReportNumber": "PR-58821-2026",
+      "policeReportFinding": "Officer M. Diaz found the other driver 100% at fault for following too closely.",
+      "damageFinding": "Insurer valued collision repair at $4,150.00.",
+      "repairEstimateAmount": "$4,150.00",
+      "independentEstimateAmount": "$6,830.00",
+      "independentEstimateSource": "Sunrise Collision Center, written estimate dated 2026-02-20",
+      "coverageFinding": "Collision coverage, Policy Section 4.2, subject to comparative-negligence offset.",
+      "rentalCoverage": "Denied, citing the comparative-negligence finding.",
+      "isTotalLoss": false
+    }
+  },
+  "uploads": [
+    {
+      "id": "upl_claim_denial",
+      "file": "claim-denial-letter.pdf",
+      "mimeType": "application/pdf",
+      "label": "Claim Decision Letter (Meridian Auto Insurance)",
+      "isPrimary": true,
+      "includeInMail": true
+    }
+  ]
+}

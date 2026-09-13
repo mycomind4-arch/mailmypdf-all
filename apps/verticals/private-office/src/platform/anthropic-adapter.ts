@@ -11,6 +11,7 @@ import {
   type LLMRequest,
   type LLMResponse,
   type LLMProvenance,
+  type LLMToolCall,
   LLMError,
   hashInput,
 } from "./llm-adapter";
@@ -52,6 +53,20 @@ export class AnthropicAdapter implements LLMAdapter {
 
     const url = `${this.apiUrl}/v1/messages`;
 
+    const tools = request.tools?.map((tool) => {
+      if (tool.type === "web_search") {
+        // Anthropic's server-side web search tool: the API itself performs the
+        // search and feeds results back into the same turn, no client-side
+        // tool-result round trip needed.
+        return { type: "web_search_20250305", name: "web_search" };
+      }
+      throw new LLMError(
+        `Anthropic adapter does not support tool type "${(tool as { type: string }).type}"`,
+        "anthropic",
+        "INVALID_ARGUMENT",
+      );
+    });
+
     const body = {
       model: this.model,
       system: request.systemPrompt,
@@ -60,6 +75,7 @@ export class AnthropicAdapter implements LLMAdapter {
       ],
       max_tokens: request.maxTokens ?? 2048,
       temperature: request.temperature ?? 0.7,
+      ...(tools?.length ? { tools } : {}),
     };
 
     const controller = new AbortController();
@@ -128,7 +144,8 @@ export class AnthropicAdapter implements LLMAdapter {
       inputHash,
     };
 
-    return { content, provenance };
+    const toolCalls = extractToolCalls(data);
+    return { content, provenance, ...(toolCalls.length ? { toolCalls } : {}) };
   }
 }
 
@@ -141,4 +158,25 @@ function extractContent(data: unknown): string | null {
   if (!block) return null;
   const text = block.text;
   return typeof text === "string" ? text.trim() : null;
+}
+
+/** Pulls out any server_tool_use / web_search_tool_result blocks Claude produced. */
+function extractToolCalls(data: unknown): LLMToolCall[] {
+  if (!data || typeof data !== "object") return [];
+  const obj = data as {
+    content?: Array<{ type?: string; name?: string; input?: unknown; content?: unknown }>;
+  };
+  const calls: LLMToolCall[] = [];
+  for (const block of obj.content ?? []) {
+    if (block.type === "server_tool_use") {
+      calls.push({ tool: block.name ?? "unknown", input: block.input });
+    } else if (block.type === "web_search_tool_result") {
+      const resultCount = Array.isArray(block.content) ? block.content.length : undefined;
+      calls.push({
+        tool: "web_search",
+        resultSummary: resultCount !== undefined ? `${resultCount} result(s)` : undefined,
+      });
+    }
+  }
+  return calls;
 }

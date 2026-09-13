@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import "../../../../../packages/design-system/src/tokens.css";
 import "../../../../../packages/design-system/src/patterns.css";
 import "../../../../../packages/design-system/src/workspace.css";
+import "../../../../../packages/workflow-ui/src/workflow-ui.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { stepWorkflows } from "@/domain/step-workflows";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -51,8 +53,20 @@ function ProtectedContent() {
   const isWorkflowPath = path.startsWith("/workflows/");
   const isHub = path === "/workflows" || path === "/workflows/";
   const isLanding = /^\/workflows\/[^/]+\/landing\/?$/.test(path);
+  // Step-matter-engine workflows (see @/domain/step-workflows) publish their
+  // canonical SEO page directly at /workflows/<id> — that page is a public
+  // landing page whose CTA gates the actual "start" action via useAuth()
+  // itself; only the per-matter data under /matters/$matterId/$step is
+  // private, and that is already enforced server-side by
+  // accountAuthMiddleware regardless of this root-level gate. Without this
+  // exemption every canonical workflow URL search engines are told to index
+  // (workflow-master-registry.ts's searchIntent.canonicalPath) 500s for any
+  // signed-out visitor, crawlers included — see the location.search fix
+  // below for why it was a hard crash rather than a graceful sign-in page.
+  const workflowIdSegment = isWorkflowPath ? path.slice("/workflows/".length).split("/")[0] : "";
+  const isStepWorkflowLanding = isWorkflowPath && !isHub && !isLanding && Object.prototype.hasOwnProperty.call(stepWorkflows, workflowIdSegment);
   const protectedPrefixes = ["/dashboard", "/account", "/workflows/analyze"];
-  const requiresAccount = protectedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || (isWorkflowPath && !isHub && !isLanding);
+  const requiresAccount = protectedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)) || (isWorkflowPath && !isHub && !isLanding && !isStepWorkflowLanding);
 
   if (!requiresAccount) return <Outlet />;
   if (loading) return <AuthGate message="Loading your MailMyPDF Account…" />;
@@ -62,7 +76,13 @@ function ProtectedContent() {
 
 function AuthGate({ message }: { message?: string }) {
   const location = useLocation();
-  const returnTo = encodeURIComponent(location.pathname + location.search);
+  // `location.search` is the PARSED search-params object in this router
+  // version, not a string — `location.pathname + location.search` therefore
+  // attempted to coerce that object to a primitive and crashed every
+  // gated page with a 500 (`Cannot convert object to primitive value`)
+  // instead of rendering this sign-in prompt. `location.href` is already
+  // the full "pathname+search+hash" string form.
+  const returnTo = encodeURIComponent(location.href);
   return <div className="min-h-screen"><SiteHeader /><main className="mx-auto max-w-3xl px-6 py-24 text-center"><div className="postmark mx-auto w-fit">MailMyPDF Account</div><h1 className="mt-6 font-serif text-4xl">{message || "Sign in to start this workflow."}</h1><p className="mt-3 max-w-xl mx-auto text-sm text-muted-foreground">Workflow intake, uploaded documents, drafts, and mailing records are private to your account. Sign in or create an account to begin.</p>{!message && <Link to={`/auth?returnTo=${returnTo}` as never} className="mt-8 inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground">Sign in or create an account</Link>}</main><SiteFooter /></div>;
 }
 

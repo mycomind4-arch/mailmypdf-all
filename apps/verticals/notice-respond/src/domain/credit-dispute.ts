@@ -57,8 +57,18 @@ export const BUREAU_CONFIGS: Record<BureauConfig["id"], BureauConfig> = {
     id: "equifax",
     name: "Equifax",
     displayName: "Equifax",
-    mailingAddress: { org: "Equifax Information Services LLC", line1: "P.O. Box 105069", line2: "", city: "Atlanta", state: "GA", zip: "30348" },
-    phone: "866-349-8231",
+    // Verified against Equifax's own Dispute Request Form
+    // (assets.equifax.com/assets/personal/Dispute.pdf) and corroborated by
+    // independent consumer-law sources — this replaces a prior, incorrect
+    // "P.O. Box 105069, Atlanta, GA 30348" value that did not match Equifax's
+    // own published dispute address (and did not even match the DIFFERENT
+    // wrong address, P.O. Box 25022/30307, that had separately drifted into
+    // this app's FAQ and prompt copy — see equifax-dispute.ts for the rest of
+    // that cleanup). Phone is Equifax's dispute line, verified against
+    // multiple independent sources (1-888-378-4329 / 1-888-EQUIFAX is
+    // Equifax's separate general customer-service line).
+    mailingAddress: { org: "Equifax Information Services LLC", line1: "P.O. Box 740256", line2: "", city: "Atlanta", state: "GA", zip: "30374-0256" },
+    phone: "866-349-5191",
     detectionPattern: /equifax/i,
   },
 };
@@ -284,9 +294,11 @@ export function generateCreditDisputeDraft(params: CreditDisputeDraftParams): st
     "Supporting Documents:",
     "  [LIST ENCLOSED DOCUMENTS — proof of identity, account statements, payment records, prior correspondence, police report if identity theft, etc.]",
     "",
-    "I request that you complete your investigation within 30 days as required by FCRA Section 611(1)(A). Please send me an updated copy of my credit report reflecting the corrections, and notify each information furnisher of the dispute results as required by FCRA Section 611(6).",
+    "I request that you complete your reinvestigation within 30 days of receiving this letter, as required by FCRA Section 611(a)(1)(A) (45 days if I submit additional relevant information during that period). If any item cannot be verified as accurate and complete, please delete or correct it, provide me with a free updated copy of my credit report reflecting the change, and notify each furnisher of information that provided the inaccurate information, as required by FCRA Section 611(a)(6) and 611(d).",
     "",
-    "If you determine that any disputed information is accurate, please provide me with the name, address, and telephone number of the information furnisher as required by FCRA Section 611(6)(B)(iii).",
+    "If any information I have corrected or disputed here was furnished to anyone within the past two years for employment purposes, or within the past six months for any other purpose, please provide corrected notices to each such recipient at my request, as permitted under FCRA Section 611(d).",
+    "",
+    "If you determine that any disputed information is accurate, please (1) provide me with the name, address, and telephone number of the furnisher, as required by FCRA Section 611(a)(6)(B)(iii); (2) provide me, upon my written request within 15 days of receiving your results, a description of the procedure used to determine the accuracy and completeness of the information, including the business name and address of any furnisher contacted, as required by FCRA Section 611(a)(7); and (3) if I still disagree after your reinvestigation, place a statement of the dispute (not to exceed 100 words, at my election) in my file and include it or a clear summary of it in any subsequent report, as required by FCRA Section 611(b)-(c).",
     "",
     "Sincerely,",
     "[YOUR NAME]",

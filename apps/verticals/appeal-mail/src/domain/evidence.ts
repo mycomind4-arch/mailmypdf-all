@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { MailingEvidenceItem } from "@mailmypdf/payment-fulfillment";
 
 /* ─────────────────────────────────────────────
    Evidence — documents, excerpts, and records
@@ -37,6 +38,14 @@ export const evidenceSchema = z.object({
   uploadedAt: z.string().optional(),
   hash: z.string().optional(),
   notes: z.string().optional(),
+  // Retained bytes for this evidence item in Supabase Storage (bucket
+  // "appeal-evidence"), so it can be re-attached to the mail-ready packet
+  // at fulfillment time -- see mailmypdf-client.ts's uploadPacket() and
+  // mailing-intent-store.ts's evidence_snapshot mapping. Mirrors Notice
+  // Respond's MailingEvidenceItem shape from @mailmypdf/payment-fulfillment.
+  storagePath: z.string().optional(),
+  mimeType: z.string().optional(),
+  fileSize: z.number().optional(),
 });
 export type Evidence = z.infer<typeof evidenceSchema>;
 
@@ -81,4 +90,33 @@ export function generateExhibitIndex(evidence: Evidence[]): { number: string; ev
     label: e.label,
     pageRef: e.pageRef,
   }));
+}
+
+/**
+ * Converts evidence with retained storage bytes into the manifest shape
+ * @mailmypdf/payment-fulfillment expects on a MailingIntent
+ * (`evidence_snapshot`). Only evidence with a `storagePath` and `hash` is
+ * independently attachable -- entries without both are conceptual labels
+ * for things referenced within another evidence item's document (see
+ * analyze.ts), not separately retrievable files, and must be excluded here
+ * or the same file would be enclosed more than once.
+ *
+ * Used both when computing `approvedEvidenceHash` at approval time
+ * (packet.ts) and when building the intent's `evidence_snapshot` at
+ * fulfillment time (mailing-intent-store.ts) -- both call sites MUST derive
+ * the same list from the same evidence array, or fulfillment's integrity
+ * check will reject a packet that was never actually altered.
+ */
+export function toMailingEvidenceItems(evidence: Evidence[]): MailingEvidenceItem[] {
+  return evidence
+    .filter((e): e is Evidence & { storagePath: string; hash: string } => Boolean(e.storagePath && e.hash))
+    .map((e) => ({
+      id: e.id,
+      fileName: e.documentFilename || e.label,
+      fileType: e.mimeType || "application/octet-stream",
+      fileSize: e.fileSize ?? 0,
+      fileHash: e.hash,
+      storagePath: e.storagePath,
+      status: "approved",
+    }));
 }

@@ -1,0 +1,42 @@
+import { SectionCard, StatusPill } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
+import { contractorDisputeStepWorkflow, type ContractorDisputeIntake } from "@/domain/step-workflows/contractor-dispute";
+
+/** Read-only matter dashboard — not one of the 8 workflow steps, just a summary + quick links. */
+export function OverviewStep({ matter, goToStep }: StepComponentProps) {
+  const intake = (matter.steps.intake?.data ?? {}) as ContractorDisputeIntake;
+
+  return (
+    <SectionCard title="Matter overview" description="A summary of this Contractor Dispute matter and quick links to each step.">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
+        <div>
+          <div className="wf-card-eyebrow">Property</div>
+          <div style={{ fontSize: "0.9rem" }}>{intake.propertyAddress ?? "Not yet entered"}</div>
+        </div>
+        <div>
+          <div className="wf-card-eyebrow">Contractor</div>
+          <div style={{ fontSize: "0.9rem" }}>{intake.contractorName ?? "Not yet entered"}</div>
+        </div>
+      </div>
+      <div className="wf-card-eyebrow" style={{ marginBottom: "0.5rem" }}>
+        Steps
+      </div>
+      <ul style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {contractorDisputeStepWorkflow.steps.map((step, index) => {
+          const status = matter.steps[step.id]?.status ?? "not_started";
+          return (
+            <li key={step.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+              <button type="button" onClick={() => goToStep(step.id)} className="wf-btn wf-btn--outline" style={{ flex: 1, justifyContent: "flex-start" }}>
+                {index + 1}. {step.label}
+              </button>
+              <StatusPill
+                tone={status === "complete" ? "success" : status === "in_progress" ? "info" : "neutral"}
+                label={status === "complete" ? "Complete" : status === "in_progress" ? "In progress" : "Not started"}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </SectionCard>
+  );
+}

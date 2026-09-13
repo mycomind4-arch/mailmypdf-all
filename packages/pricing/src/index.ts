@@ -443,6 +443,18 @@ const noticeRespondProfiles: WorkflowPricingProfile[] = [
     pricingRationale: "Benefits notice response with agency-specific procedures",
     commercialStatus: "production",
   }),
+  profile("transunion-dispute", "notice-respond", "STANDARD", 2999, {
+    pricingRationale: "Single-bureau FCRA dispute letter with tradeline-level error classification and evidence organization — same STANDARD tier as this catalog's other single-bureau credit-report profile (dispute-mail's \"credit-report\")",
+    commercialStatus: "production",
+  }),
+  profile("experian-dispute", "notice-respond", "STANDARD", 2999, {
+    pricingRationale: "Single-bureau FCRA dispute letter with tradeline-level error classification and evidence organization — identical document-preparation-and-mailing product to \"transunion-dispute\" regardless of which bureau receives the letter, so it reuses the same STANDARD $29.99 tier rather than a bureau-specific price",
+    commercialStatus: "production",
+  }),
+  profile("equifax-dispute", "notice-respond", "STANDARD", 2999, {
+    pricingRationale: "Single-bureau FCRA dispute letter with tradeline-level error classification and evidence organization — identical document-preparation-and-mailing product to \"transunion-dispute\" and \"experian-dispute\" regardless of which bureau receives the letter, so it reuses the same STANDARD $29.99 tier rather than a bureau-specific price",
+    commercialStatus: "production",
+  }),
 ];
 
 // ── Dispute Mail ────────────────────────────────────────────────────────────

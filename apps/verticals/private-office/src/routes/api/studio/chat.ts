@@ -31,6 +31,13 @@ export const Route = createFileRoute("/api/studio/chat")({
             maxTokens: 2600,
             temperature: 0.3,
             promptVersion: "studio-workflow-v2",
+            // Anthropic's web search tool is wired end-to-end (AnthropicAdapter,
+            // routeLLMRequest, RouterResult.toolCalls) but intentionally left off
+            // here: this endpoint requires Claude's reply to be pure JSON
+            // (studioProposalSchema), and a tool-use turn can interleave citations/
+            // text with the JSON. A dedicated conversational "Ask Claude" endpoint
+            // (free-form text, no strict schema) is the right place to flip this on:
+            // tools: [{ type: "web_search" }],
           },
           {
             provider: "anthropic",

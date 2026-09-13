@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Evidence } from "./evidence";
-import { generateExhibitIndex } from "./evidence";
-import { hashDraft, hashRecipient } from "@mailmypdf/payment-fulfillment";
+import { generateExhibitIndex, toMailingEvidenceItems } from "./evidence";
+import { hashDraft, hashRecipient, hashEvidenceSnapshot } from "@mailmypdf/payment-fulfillment";
 
 /* ─────────────────────────────────────────────
    Packet — the assembled appeal package ready
@@ -43,6 +43,7 @@ export const appealPacketSchema = z.object({
   // Approval-time integrity hashes — see fulfillment engine verifyIntegrity().
   approvedDraftHash: z.string().optional(),
   approvedRecipientHash: z.string().optional(),
+  approvedEvidenceHash: z.string().optional(),
 });
 export type AppealPacket = z.infer<typeof appealPacketSchema>;
 
@@ -82,6 +83,7 @@ export function assemblePacket(params: {
       state: params.recipient.state,
       zip: params.recipient.zip,
     }),
+    approvedEvidenceHash: hashEvidenceSnapshot(toMailingEvidenceItems(params.evidence)),
   });
 }
 

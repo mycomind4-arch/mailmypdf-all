@@ -1,0 +1,405 @@
+{
+  "appealId": "36ff1877-9801-4343-b2c1-3c4fd8e52fa9",
+  "appeals": [
+    {
+      "id": "36ff1877-9801-4343-b2c1-3c4fd8e52fa9",
+      "user_id": "studio-test-user",
+      "workflow_id": "car-insurance-appeal",
+      "status": "mailed",
+      "decision": {
+        "id": "cd036228-814c-46b6-85f7-4a2a582ae33c",
+        "type": "claim_denial",
+        "documentId": "doc_test_pending_1",
+        "documentFilename": "claim-denial-letter.pdf",
+        "agency": "Meridian Auto Insurance Co.",
+        "referenceNumber": "MAI-2026-0417-CA",
+        "decisionDate": "2026-08-20",
+        "decisionTypeLabel": "Claim decision letter with comparative-negligence liability finding",
+        "deadline": {
+          "date": "2027-01-15",
+          "type": "appeal",
+          "source": "extracted"
+        },
+        "facts": [
+          {
+            "id": "e0094c81-a99c-436f-a411-929015140b28",
+            "label": "Claim number",
+            "value": "MAI-2026-0417-CA",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "fca96a34-b358-4802-88f3-d62eaafffeaf",
+            "label": "Policy number",
+            "value": "POL-9284617",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "b66c97ea-9c6a-4feb-8d03-628adaa0f472",
+            "label": "Adjuster",
+            "value": "Casey Nguyen",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "0b1411ab-7aa0-4d8d-9a30-261719f8f245",
+            "label": "Accident date",
+            "value": "2026-08-01",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "ec799d36-91e7-4f4d-97dd-aa172ae4e916",
+            "label": "Liability finding",
+            "value": "Comparative negligence: claimant found 50% at fault for the rear-end collision.",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "d3318787-08e0-4822-b366-7cc2bef86aa4",
+            "label": "Liability / fault percentage",
+            "value": "50%",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "6a2fd648-6007-46a1-9b0d-efc653730ef1",
+            "label": "Coverage finding",
+            "value": "Collision coverage, Policy Section 4.2, subject to comparative-negligence offset.",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "9fa125a5-61b8-4763-b06d-69e70b98b8b8",
+            "label": "Damage finding",
+            "value": "Insurer valued collision repair at $4,150.00.",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "87e6a27d-5714-4926-99de-c643b10635bd",
+            "label": "Repair estimate amount",
+            "value": "$4,150.00",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "14bd0b52-0768-4064-afef-f0683134095f",
+            "label": "Rental coverage",
+            "value": "Denied, citing the comparative-negligence finding.",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "f969886d-d4e9-44bf-9a17-c9b2b56e7743",
+            "label": "Police report number",
+            "value": "PR-58821-2026",
+            "source": "extracted",
+            "confidence": 0.85
+          },
+          {
+            "id": "0-ec55e9d0-656c-47a7-8c0c-9009f4027d07",
+            "label": "Fact 1",
+            "value": "Police report PR-58821-2026: Officer M. Diaz found the other driver 100% at fault for following too closely.",
+            "source": "extracted",
+            "confidence": 0.8
+          },
+          {
+            "id": "1-3f29d409-2bd8-40a8-a9bf-ad373e6fb72a",
+            "label": "Fact 2",
+            "value": "Independent repair estimate from Sunrise Collision Center, written estimate dated 2026-02-20: $6,830.00",
+            "source": "extracted",
+            "confidence": 0.8
+          },
+          {
+            "id": "2-8c2803f7-9483-42c0-a42b-a6dd742a966b",
+            "label": "Fact 3",
+            "value": "50% comparative negligence assigned to the claimant",
+            "source": "extracted",
+            "confidence": 0.8
+          },
+          {
+            "id": "3-6cebce8e-7dee-493d-93fb-d8539de0e727",
+            "label": "Fact 4",
+            "value": "Rental reimbursement denied on the same comparative-negligence basis",
+            "source": "extracted",
+            "confidence": 0.8
+          }
+        ],
+        "reasons": [
+          {
+            "id": "0-be19cdc5-fa04-427b-a6a8-99e8a8fa80df",
+            "text": "50% comparative negligence assigned to the claimant",
+            "confidence": 0.9
+          },
+          {
+            "id": "1-93bc8e79-ae19-4ba4-98e6-19d8b1643a01",
+            "text": "Rental reimbursement denied on the same comparative-negligence basis",
+            "confidence": 0.9
+          }
+        ],
+        "citedRules": [],
+        "chronology": [],
+        "issues": [
+          {
+            "id": "0-08a47ffd-c411-4926-a3b1-70004f2cb51a",
+            "description": "Insurer's 50% comparative-negligence finding directly contradicts police report PR-58821-2026, which found the other driver 100% at fault.",
+            "type": "factual_dispute",
+            "severity": "medium",
+            "sourceExcerpt": "Officer M. Diaz found the other driver 100% at fault for following too closely."
+          },
+          {
+            "id": "1-91cc53a9-440a-4dab-a9a1-b96328fc7002",
+            "description": "Insurer's repair estimate of $4,150.00 is well below the independent estimate of $6,830.00.",
+            "type": "factual_dispute",
+            "severity": "medium",
+            "sourceExcerpt": "Sunrise Collision Center, written estimate dated 2026-02-20 estimate reflects actual required repairs."
+          }
+        ],
+        "extractedAt": "2026-09-13T06:09:54.609Z",
+        "extractionConfidence": 0.9,
+        "rawText": "{\"summary\":\"Meridian Auto Insurance Co. assigned Jordan A. Rivera 50% comparative negligence, contradicting the police report.\",\"decision\":\"Claim decision letter with comparative-negligence liability finding\",\"decisionType\":\"car_insurance_claim\",\"issuer\":\"Meridian Auto Insurance Co.\",\"referenceNumber\":\"MAI-2026-0417-CA\",\"claimNumber\":\"MAI-2026-0417-CA\",\"policyNumber\":\"POL-9284617\",\"adjusterName\":\"Casey Nguyen\",\"decisionDate\":\"2026-08-20\",\"deadline\":\"2027-01-15\",\"accidentDate\":\"2026-08-01\",\"liabilityFinding\":\"Comparative negligence: claimant found 50% at fault for the rear-end collision.\",\"liabilityPercentage\":\"50%\",\"coverageFinding\":\"Collision coverage, Policy Section 4.2, subject to comparative-negligence offset.\",\"damageFinding\":\"Insurer valued collision repair at $4,150.00.\",\"repairEstimateAmount\":\"$4,150.00\",\"totalLossValue\":\"\",\"isTotalLoss\":false,\"rentalCoverage\":\"Denied, citing the comparative-negligence finding.\",\"policeReportNumber\":\"PR-58821-2026\",\"denialReasons\":[\"50% comparative negligence assigned to the claimant\",\"Rental reimbursement denied on the same comparative-negligence basis\"],\"keyFacts\":[\"Police report PR-58821-2026: Officer M. Diaz found the other driver 100% at fault for following too closely.\",\"Independent repair estimate from Sunrise Collision Center, written estimate dated 2026-02-20: $6,830.00\"],\"evidenceMentioned\":[\"Police report PR-58821-2026\",\"Independent body-shop repair estimate\"],\"issues\":[{\"issue\":\"Insurer's 50% comparative-negligence finding directly contradicts police report PR-58821-2026, which found the other driver 100% at fault.\",\"whyItMatters\":\"Officer M. Diaz found the other driver 100% at fault for following too closely.\",\"evidenceNeeded\":[\"Certified copy of the police report\"]},{\"issue\":\"Insurer's repair estimate of $4,150.00 is well below the independent estimate of $6,830.00.\",\"whyItMatters\":\"Sunrise Collision Center, written estimate dated 2026-02-20 estimate reflects actual required repairs.\",\"evidenceNeeded\":[\"Independent body-shop estimate\"]}],\"uncertainties\":[],\"confidence\":\"high\"}"
+      },
+      "grounds": [
+        {
+          "id": "ground-0-a168f9f6-8b78-4c7c-a4bc-cc808ed6a6ba",
+          "type": "factual_error",
+          "claim": "Insurer's 50% comparative-negligence finding directly contradicts police report PR-58821-2026, which found the other driver 100% at fault.",
+          "source": "Officer M. Diaz found the other driver 100% at fault for following too closely.",
+          "supportingEvidenceIds": [
+            "eadba300-75d1-42ea-a5ec-ae8fb686ae03",
+            "48082941-13d3-49d3-af30-d7431425d9a3",
+            "a949358e-4880-4aee-9ffd-8080e8c8d24d"
+          ],
+          "confidence": 0.65,
+          "unresolvedIssue": "Certified copy of the police report",
+          "userConfirmed": false,
+          "draftLanguage": ""
+        },
+        {
+          "id": "ground-1-17b11088-726a-435e-ac6c-b8ff16a410a7",
+          "type": "factual_error",
+          "claim": "Insurer's repair estimate of $4,150.00 is well below the independent estimate of $6,830.00.",
+          "source": "Sunrise Collision Center, written estimate dated 2026-02-20 estimate reflects actual required repairs.",
+          "supportingEvidenceIds": [],
+          "confidence": 0.65,
+          "unresolvedIssue": "Independent body-shop estimate",
+          "userConfirmed": false,
+          "draftLanguage": ""
+        }
+      ],
+      "evidence": [
+        {
+          "id": "eadba300-75d1-42ea-a5ec-ae8fb686ae03",
+          "type": "document",
+          "label": "Original car insurance decision",
+          "documentId": "doc_test_pending_1",
+          "documentFilename": "claim-denial-letter.pdf",
+          "groundIds": [
+            "ground-0-a168f9f6-8b78-4c7c-a4bc-cc808ed6a6ba",
+            "ground-1-17b11088-726a-435e-ac6c-b8ff16a410a7"
+          ],
+          "uploadedAt": "2026-09-13T06:09:54.613Z",
+          "hash": "a2685bd8d01d2eec8d7d1cf9ce6a04b1628fc5a6520770f9f3edfbbafe2449cb",
+          "storagePath": "studio-test-user/doc_test_pending_1/claim-denial-letter.pdf",
+          "mimeType": "application/pdf",
+          "fileSize": 3201
+        },
+        {
+          "id": "48082941-13d3-49d3-af30-d7431425d9a3",
+          "type": "document",
+          "label": "Police report PR-58821-2026",
+          "documentId": "doc_test_pending_1",
+          "documentFilename": "claim-denial-letter.pdf",
+          "groundIds": [
+            "ground-0-a168f9f6-8b78-4c7c-a4bc-cc808ed6a6ba",
+            "ground-1-17b11088-726a-435e-ac6c-b8ff16a410a7"
+          ],
+          "uploadedAt": "2026-09-13T06:09:54.612Z"
+        },
+        {
+          "id": "a949358e-4880-4aee-9ffd-8080e8c8d24d",
+          "type": "document",
+          "label": "Independent body-shop repair estimate",
+          "documentId": "doc_test_pending_1",
+          "documentFilename": "claim-denial-letter.pdf",
+          "groundIds": [
+            "ground-0-a168f9f6-8b78-4c7c-a4bc-cc808ed6a6ba",
+            "ground-1-17b11088-726a-435e-ac6c-b8ff16a410a7"
+          ],
+          "uploadedAt": "2026-09-13T06:09:54.613Z"
+        }
+      ],
+      "arguments": [],
+      "draft": "Re: Appeal of Claim Decision -- Claim Number MAI-2026-0417-CA\n\nDear Claims Appeals Department,\n\nI am writing to appeal Meridian Auto Insurance Co.'s decision dated 2026-08-20 on the above claim, which assigned me 50% comparative negligence for the collision on 2026-08-01.\n\nThis finding directly contradicts police report PR-58821-2026, in which the responding officer found the other driver 100% at fault. I am enclosing a copy of that report and ask that the liability determination be reversed accordingly.\n\nSeparately, the claim decision valued my vehicle's repair at $4,150.00. An independent estimate from Sunrise Collision Center, written estimate dated 2026-02-20 puts the actual repair cost at $6,830.00. I am enclosing that estimate and ask that the claim be reprocessed at the correct amount.\n\nBecause the comparative-negligence finding is unsupported by the police report, I also ask that the denied rental reimbursement be reconsidered and approved.\n\nPlease reverse the liability determination, reprocess the claim using the independent repair estimate, and reconsider the rental reimbursement under Policy Section 4.2. I look forward to your response before the appeal deadline.\n\nSincerely,\n\nJordan A. Rivera\n\nSincerely,\n[Your Name]",
+      "review": {
+        "score": 92,
+        "checks": [
+          {
+            "id": "deadline_expired",
+            "label": "Deadline not expired",
+            "description": "The appeal deadline has not passed.",
+            "status": "pass"
+          },
+          {
+            "id": "deadline_urgent",
+            "label": "Deadline is not urgent",
+            "description": "More than 7 days remain before the deadline.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_deadline",
+            "label": "Deadline identified",
+            "description": "An appeal deadline has been identified from the decision.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_recipient",
+            "label": "Recipient specified",
+            "description": "A mailing recipient has been provided.",
+            "status": "pass"
+          },
+          {
+            "id": "no_grounds",
+            "label": "Appeal grounds established",
+            "description": "At least one appeal ground has been defined.",
+            "status": "pass",
+            "detail": "2 ground(s) defined."
+          },
+          {
+            "id": "weak_grounds",
+            "label": "Grounds are well-supported",
+            "description": "All grounds have claims and reasonable confidence.",
+            "status": "pass"
+          },
+          {
+            "id": "unsupported_claims",
+            "label": "All claims supported",
+            "description": "Every appeal ground has supporting evidence.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_evidence",
+            "label": "Evidence attached",
+            "description": "At least one piece of evidence has been attached.",
+            "status": "pass",
+            "detail": "3 item(s) attached."
+          },
+          {
+            "id": "unlinked_evidence",
+            "label": "Evidence linked to grounds",
+            "description": "All evidence is linked to at least one ground.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_outcome",
+            "label": "Requested outcome stated",
+            "description": "The draft states what outcome is being requested.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_signature",
+            "label": "Signature placeholder present",
+            "description": "The draft includes a signature line.",
+            "status": "pass"
+          },
+          {
+            "id": "nonexistent_exhibits",
+            "label": "Exhibit references valid",
+            "description": "All exhibit references in the draft correspond to attached evidence.",
+            "status": "pass"
+          },
+          {
+            "id": "incomplete_packet",
+            "label": "Packet complete",
+            "description": "Appeal letter and all referenced exhibits are assembled.",
+            "status": "pass"
+          },
+          {
+            "id": "incomplete_instructions",
+            "label": "Appeal instructions reviewed",
+            "description": "Appeal instructions from the decision have been reviewed.",
+            "status": "warning",
+            "detail": "No appeal instructions extracted from the decision."
+          },
+          {
+            "id": "inconsistent_dates",
+            "label": "Dates are consistent",
+            "description": "Dates in the draft match the decision.",
+            "status": "pass"
+          },
+          {
+            "id": "contradictory_statements",
+            "label": "No contradictions detected",
+            "description": "The draft does not contradict the decision facts.",
+            "status": "pass"
+          }
+        ],
+        "issuesRequiringAttention": 1,
+        "generatedAt": "2026-09-13T06:09:54.621Z"
+      },
+      "packet": {
+        "id": "60a69091-bc32-4714-bbea-e90c8cf09dd6",
+        "appealId": "36ff1877-9801-4343-b2c1-3c4fd8e52fa9",
+        "finalLetter": "Re: Appeal of Claim Decision -- Claim Number MAI-2026-0417-CA\n\nDear Claims Appeals Department,\n\nI am writing to appeal Meridian Auto Insurance Co.'s decision dated 2026-08-20 on the above claim, which assigned me 50% comparative negligence for the collision on 2026-08-01.\n\nThis finding directly contradicts police report PR-58821-2026, in which the responding officer found the other driver 100% at fault. I am enclosing a copy of that report and ask that the liability determination be reversed accordingly.\n\nSeparately, the claim decision valued my vehicle's repair at $4,150.00. An independent estimate from Sunrise Collision Center, written estimate dated 2026-02-20 puts the actual repair cost at $6,830.00. I am enclosing that estimate and ask that the claim be reprocessed at the correct amount.\n\nBecause the comparative-negligence finding is unsupported by the police report, I also ask that the denied rental reimbursement be reconsidered and approved.\n\nPlease reverse the liability determination, reprocess the claim using the independent repair estimate, and reconsider the rental reimbursement under Policy Section 4.2. I look forward to your response before the appeal deadline.\n\nSincerely,\n\nJordan A. Rivera\n\nSincerely,\n[Your Name]",
+        "attachmentIds": [
+          "eadba300-75d1-42ea-a5ec-ae8fb686ae03",
+          "48082941-13d3-49d3-af30-d7431425d9a3",
+          "a949358e-4880-4aee-9ffd-8080e8c8d24d"
+        ],
+        "exhibitIndex": [
+          {
+            "number": "Exhibit A",
+            "evidenceId": "eadba300-75d1-42ea-a5ec-ae8fb686ae03",
+            "label": "Original car insurance decision"
+          },
+          {
+            "number": "Exhibit B",
+            "evidenceId": "48082941-13d3-49d3-af30-d7431425d9a3",
+            "label": "Police report PR-58821-2026"
+          },
+          {
+            "number": "Exhibit C",
+            "evidenceId": "a949358e-4880-4aee-9ffd-8080e8c8d24d",
+            "label": "Independent body-shop repair estimate"
+          }
+        ],
+        "recipientName": "Meridian Auto Insurance Co. - Appeals Department",
+        "recipientAddress1": "500 Harborview Plaza, Suite 900",
+        "recipientCity": "Columbus",
+        "recipientState": "OH",
+        "recipientZip": "43215",
+        "mailingMethod": "certified",
+        "pageCount": 4,
+        "assembledAt": "2026-09-13T06:09:54.622Z",
+        "approvedDraftHash": "b173720cf7271511778f7ab870f42b8e22f126bc069a9a68ee82d8d0516ad43b",
+        "approvedRecipientHash": "2e246d986e0c5eba50cfd98343e2fb2e64526d1ad20cea363af90e4088a06d0f",
+        "approvedEvidenceHash": "385a1fd213d03c15b9a62156f5c2f337aa300b377e1fe704aa8157796f92bb6b"
+      },
+      "proof": {
+        "id": "572adfa3-99c1-4622-8d64-31dad10c9128",
+        "appealId": "36ff1877-9801-4343-b2c1-3c4fd8e52fa9",
+        "packetId": "60a69091-bc32-4714-bbea-e90c8cf09dd6",
+        "finalAppealHash": "b173720cf7271511778f7ab870f42b8e22f126bc069a9a68ee82d8d0516ad43b",
+        "attachmentHashes": [],
+        "recipientName": "Meridian Auto Insurance Co. - Appeals Department",
+        "recipientAddress1": "500 Harborview Plaza, Suite 900",
+        "recipientCity": "Columbus",
+        "recipientState": "OH",
+        "recipientZip": "43215",
+        "mailingMethod": "certified",
+        "providerOrderId": "comm_test_pending_1",
+        "trackingNumber": "TRACK-pending-1",
+        "mailingTimestamp": "2026-09-13T06:09:55.106Z",
+        "status": "mailed",
+        "createdAt": "2026-09-13T06:09:54.628Z",
+        "sealedAt": "2026-09-13T06:09:55.106Z"
+      },
+      "timeline": [],
+      "version": 3,
+      "created_at": "2026-09-13T06:09:54.613Z",
+      "updated_at": "2026-09-13T06:09:55.106Z"
+    }
+  ]
+}

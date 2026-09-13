@@ -46,6 +46,19 @@ export interface AppealWorkflowEntry {
   primaryKeyword: string;
   /** Related keywords */
   relatedKeywords: string[];
+  /**
+   * Real monthly search volume for primaryKeyword, when it has been
+   * looked up (e.g. via a keyword-data vendor). Optional — most legacy
+   * catalog entries predate this field and were not backed by measured
+   * volume, so absence here is not itself a defect. See workflows.ts's
+   * `primaryMsv`/`primaryCpc`/`keywordIntent` for the equivalent fields
+   * on the generic step-workflow registry.
+   */
+  primaryMsv?: number;
+  /** Real CPC for primaryKeyword, when looked up alongside primaryMsv. */
+  primaryCpc?: number;
+  /** Search intent for primaryKeyword, when known. */
+  keywordIntent?: "transactional" | "commercial" | "informational";
   /** Canonical route path */
   route: string;
   /** Status */
@@ -1063,17 +1076,32 @@ export const APPEAL_CATALOG: AppealWorkflowEntry[] = [
       "Procedural errors in the decision-making process",
       "Request for review or hearing",
     ],
-    seoTitle: "Agency Decision Appeal — Appeal Mail",
+    seoTitle: "How to Appeal an Administrative Decision — Appeal Mail",
     seoDescription:
-      "Appeal an adverse agency decision with evidence, regulatory arguments, and deadline compliance.",
-    primaryKeyword: "agency decision appeal",
-    relatedKeywords: ["administrative decision appeal", "regulatory appeal"],
+      "Step-by-step guidance to appeal an adverse administrative or agency decision — governing authority, deadline, procedural requirements, evidence, and a certified-mail filing record.",
+    primaryKeyword: "how to appeal an administrative decision",
+    relatedKeywords: [
+      "agency decision appeal",
+      "administrative decision appeal letter",
+      "appeal a government agency decision",
+      "administrative appeal letter sample",
+    ],
+    // Measured via SEOmatic/DataForSEO (2026-09-12): 10 searches/mo, keyword
+    // difficulty 19 (LOW), $0 CPC, informational intent. Low absolute volume
+    // is consistent with this catalog's other broad/general-appeal entries
+    // (several existing workflows.ts entries — out-of-network-denial,
+    // life-insurance-denial, edd-denial — also carry primaryMsv: 10) and with
+    // this workflow's role as the general fallback once insurance/SSDI/
+    // financial-aid decisions are routed to their own dedicated workflows.
+    primaryMsv: 10,
+    primaryCpc: 0,
+    keywordIntent: "informational",
     route: "/appeal/agency-decision",
     status: "IMPLEMENTED",
     engine: "Administrative Appeal Engine",
     executable: true,
-    workflowRoute: "/workflows/government-decision",
-        cta: "Join the workflow",
+    workflowRoute: "/workflows/administrative-decision-appeal",
+    cta: "Start your appeal",
   },
   {
     slug: "licensing",
@@ -1460,6 +1488,9 @@ export const AppealWorkflowEntrySchema = z.object({
   seoDescription: z.string().min(10),
   primaryKeyword: z.string().min(1),
   relatedKeywords: z.array(z.string()).min(0),
+  primaryMsv: z.number().min(0).optional(),
+  primaryCpc: z.number().min(0).optional(),
+  keywordIntent: z.enum(["transactional", "commercial", "informational"]).optional(),
   route: z.string().startsWith("/"),
   status: z.enum(["IMPLEMENTED", "COMING_SOON"]),
   engine: z.string().min(1),

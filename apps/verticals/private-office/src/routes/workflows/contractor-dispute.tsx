@@ -1,17 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   FileText,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   Mail,
-  
+
   Eye,
   Scale,
   Calendar,
 } from "lucide-react";
 import { WorkflowAuthorityPage, type AuthoritySection, type IntakeField } from "@/components/workflow-authority-page";
 import { workflowProfiles } from "@/domain/workflow-profiles";
+import { createStepMatter } from "@/lib/fns/step-matter";
 
 export const Route = createFileRoute("/workflows/contractor-dispute")({
   head: () => ({
@@ -23,8 +24,26 @@ export const Route = createFileRoute("/workflows/contractor-dispute")({
       { property: "og:description", content: "Document your contractor dispute with evidence, timeline, and professional correspondence. Certified mail with proof of delivery." },
     ],
   }),
-  component: () => <WorkflowAuthorityPage workflowId="contractor-dispute" authoritySections={authoritySections} intakeFields={intakeFields} />,
+  component: ContractorDisputeRoute,
 });
+
+function ContractorDisputeRoute() {
+  const navigate = useNavigate();
+
+  async function startWorkflow() {
+    const { matter } = await createStepMatter({ data: { workflowId: "contractor-dispute" } });
+    navigate({ to: "/matters/$matterId/$step", params: { matterId: matter.id, step: "intake" } });
+  }
+
+  return (
+    <WorkflowAuthorityPage
+      workflowId="contractor-dispute"
+      authoritySections={authoritySections}
+      intakeFields={intakeFields}
+      onStartWorkflow={startWorkflow}
+    />
+  );
+}
 
 const profile = workflowProfiles["contractor-dispute"];
 

@@ -1,0 +1,95 @@
+[
+  {
+    "event": "workflow_started",
+    "at": "2026-09-13T06:09:42.033Z",
+    "detail": {
+      "workflowId": "car-insurance-appeal",
+      "scenarioId": "rear-end-liability-dispute"
+    }
+  },
+  {
+    "event": "fixture_loaded",
+    "at": "2026-09-13T06:09:42.033Z",
+    "detail": {
+      "uploads": [
+        "upl_claim_denial"
+      ]
+    }
+  },
+  {
+    "event": "analyze",
+    "at": "2026-09-13T06:09:42.082Z",
+    "durationMs": 26
+  },
+  {
+    "event": "upload_added",
+    "at": "2026-09-13T06:09:42.082Z",
+    "detail": {
+      "uploadId": "upl_claim_denial"
+    }
+  },
+  {
+    "event": "analysis_completed",
+    "at": "2026-09-13T06:09:42.082Z",
+    "detail": {
+      "appealId": "0579f2ab-897f-46eb-bfb8-82613801b85b"
+    }
+  },
+  {
+    "event": "document_generated",
+    "at": "2026-09-13T06:09:42.085Z",
+    "durationMs": 3
+  },
+  {
+    "event": "packet_started",
+    "at": "2026-09-13T06:09:42.089Z",
+    "durationMs": 4
+  },
+  {
+    "event": "packet_completed",
+    "at": "2026-09-13T06:09:42.089Z",
+    "detail": {
+      "packetId": "96eef131-d71a-42f2-8f55-37e01aa8549d"
+    }
+  },
+  {
+    "event": "payment_requested",
+    "at": "2026-09-13T06:09:42.091Z",
+    "durationMs": 2
+  },
+  {
+    "event": "payment_simulated_success",
+    "at": "2026-09-13T06:09:42.366Z",
+    "durationMs": 275
+  },
+  {
+    "event": "payment_webhook_processed",
+    "at": "2026-09-13T06:09:42.366Z",
+    "detail": {
+      "status": 200,
+      "body": {
+        "received": true
+      }
+    }
+  },
+  {
+    "event": "page_rendering",
+    "at": "2026-09-13T06:09:43.097Z",
+    "detail": {
+      "rendered": true,
+      "pageCount": 3
+    }
+  },
+  {
+    "event": "mail_simulation_started",
+    "at": "2026-09-13T06:09:43.097Z"
+  },
+  {
+    "event": "mail_simulation_completed",
+    "at": "2026-09-13T06:09:43.099Z"
+  },
+  {
+    "event": "test_finished",
+    "at": "2026-09-13T06:09:43.100Z"
+  }
+]

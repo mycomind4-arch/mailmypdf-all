@@ -301,14 +301,26 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
       },
       {
         question: "Where do I mail my TransUnion dispute letter?",
-        answer: "Mail your dispute to: TransUnion LLC, P.O. Box 2000, Chester, PA 19022. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send it by certified mail with return receipt for proof of delivery.",
+        answer: "Mail your dispute to: TransUnion LLC, Consumer Dispute Center, P.O. Box 2000, Chester, PA 19016. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send it by certified mail with return receipt for proof of delivery.",
       },
       {
         question: "Can I dispute items online instead of by mail?",
         answer: "Yes, TransUnion offers online disputes through their website. However, mailing a dispute letter gives you a physical paper trail and allows you to include detailed explanations and supporting documents. For serious disputes (identity theft, mixed files, multiple errors), a written letter is recommended over online disputes.",
       },
+      {
+        question: "What if TransUnion says the disputed information is accurate?",
+        answer: "If TransUnion verifies the item as accurate, it stays on your report. You then have the right to request the method of verification in writing within 15 days (FCRA Section 611(a)(7)), which requires TransUnion to disclose how the furnisher confirmed the information. If you still disagree, you can add a personal statement of dispute — up to 100 words — to your credit file, and TransUnion must include it (or a clear summary) in future reports.",
+      },
+      {
+        question: "What happens if TransUnion doesn't finish investigating within 30 days?",
+        answer: "If TransUnion doesn't complete a reasonable reinvestigation within the 30-day window (45 days if you submitted more information during the investigation), the disputed item generally must be deleted from your report. If that doesn't happen, you can file a complaint with the Consumer Financial Protection Bureau (CFPB) or your state attorney general, and you may have grounds for a private FCRA claim.",
+      },
+      {
+        question: "Can disputing an item on my TransUnion report hurt my credit score?",
+        answer: "No. Filing a dispute is a right under federal law and is not reported as a negative mark, and it is not a credit inquiry. Your score may change only if the investigation results in a correction — for example, if an inaccurate late payment or balance is fixed, your score can improve. If the item is verified as accurate, nothing changes beyond what was already being reported.",
+      },
     ],
-    keywords: ["dispute TransUnion credit report", "TransUnion dispute letter", "FCRA dispute", "credit report error", "TransUnion dispute address", "credit report dispute", "FCRA Section 611"],
+    keywords: ["dispute TransUnion credit report", "TransUnion dispute letter", "FCRA dispute", "credit report error", "TransUnion dispute address", "credit report dispute", "FCRA Section 611", "TransUnion dispute address Chester PA", "method of verification FCRA", "statement of dispute credit report"],
     twitterCard: "summary_large_image",
     breadcrumb: [
       { name: "Notice Respond", path: "/" },
@@ -321,11 +333,11 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
     faq: [
       {
         question: "How do I dispute inaccurate information on my Experian credit report?",
-        answer: "You can dispute by mail, online, or by phone. A written dispute by certified mail creates the strongest paper trail. Your letter should identify each inaccurate item, explain why it's wrong, and include copies of supporting documents. Experian must investigate within 30 days (45 if you send additional information during the investigation).",
+        answer: "You can dispute by mail, online through the Experian Dispute Center, or by phone. A written dispute by certified mail creates the strongest paper trail. Your letter should identify each inaccurate item, explain why it's wrong, and include copies of supporting documents. Experian must investigate within 30 days (45 if you send additional information during the investigation).",
       },
       {
         question: "Where do I mail my Experian dispute letter?",
-        answer: "Mail your dispute to: Experian, P.O. Box 4500, Allen, TX 75013. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send by certified mail with return receipt for proof of delivery.",
+        answer: "Mail your dispute to: Experian National Consumer Assistance Center, P.O. Box 4500, Allen, TX 75013. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send by certified mail with return receipt for proof of delivery.",
       },
       {
         question: "What information can I dispute on my Experian report?",
@@ -337,10 +349,26 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
       },
       {
         question: "What if Experian verifies information I know is wrong?",
-        answer: "If Experian verifies the disputed information as accurate, you can: (1) add a 100-word statement of dispute to your credit file explaining your side, (2) dispute directly with the furnisher (the company that reported the information), (3) file a complaint with the CFPB, or (4) consult a consumer law attorney about potential FCRA violations.",
+        answer: "If Experian verifies the disputed information as accurate, you can: (1) request the method of verification in writing within 15 days (FCRA Section 611(a)(7)), (2) add a 100-word statement of dispute to your credit file explaining your side, (3) dispute directly with the furnisher (the company that reported the information), (4) file a complaint with the CFPB, or (5) consult a consumer law attorney about potential FCRA violations.",
+      },
+      {
+        question: "Can I dispute Experian errors through Credit Karma?",
+        answer: "No — this is a common point of confusion. Credit Karma's direct-dispute feature only covers Equifax and TransUnion. If an error is on your Experian report, Credit Karma cannot file that dispute for you; you have to go through Experian directly, either its own online Dispute Center (experian.com/disputes), by phone, or by mail. A mailed, certified letter is the only method that gives you your own dated proof independent of any online account.",
+      },
+      {
+        question: "Is Experian's online dispute portal the same as TransUnion's or Equifax's?",
+        answer: "No. Each bureau runs its own separate dispute system and account login — Experian's is the \"Experian Dispute Center\" at experian.com/disputes. They're separate businesses with separate records, so a dispute filed with Experian does not automatically reach TransUnion or Equifax, even if the same error appears on more than one of your reports. Behind the scenes, all three bureaus route the dispute to the furnisher over the same industry-wide e-OSCAR network, but you still have to file with each bureau that reports the error.",
+      },
+      {
+        question: "Has Experian had problems with how it handles disputes?",
+        answer: "In January 2025, the Consumer Financial Protection Bureau (CFPB) filed a lawsuit alleging Experian failed to properly reinvestigate disputes, failed to delete unverifiable information, and gave consumers inadequate notice of results, among other claims. Those are allegations in ongoing litigation, not a proven finding — but they're a good reason to keep your own paper trail (certified mail receipts, copies of everything you send) rather than relying solely on Experian's own process to document what happened.",
+      },
+      {
+        question: "Can disputing an item on my Experian report hurt my credit score?",
+        answer: "No. Filing a dispute is a right under federal law, is not reported as a negative mark, and is not a credit inquiry. Your score may change only if the investigation results in a correction — for example, if an inaccurate late payment or balance is fixed, your score can improve. If the item is verified as accurate, nothing changes beyond what was already being reported.",
       },
     ],
-    keywords: ["dispute Experian credit report", "Experian dispute letter", "Experian dispute address", "FCRA dispute", "credit report error", "Experian dispute", "credit report correction"],
+    keywords: ["dispute Experian credit report", "Experian dispute letter", "Experian dispute address", "Experian National Consumer Assistance Center", "FCRA dispute", "credit report error", "Experian dispute", "credit report correction", "Experian Dispute Center", "method of verification FCRA"],
     twitterCard: "summary_large_image",
     breadcrumb: [
       { name: "Notice Respond", path: "/" },
@@ -353,11 +381,11 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
     faq: [
       {
         question: "How do I dispute inaccurate information on my Equifax credit report?",
-        answer: "You can dispute by mail, online, or by phone. A written dispute by certified mail creates the strongest paper trail. Your letter should identify each inaccurate item, explain why it's wrong, and include copies of supporting documents. Equifax must investigate within 30 days (45 if you send additional information during the investigation).",
+        answer: "You can dispute by mail, online through myEquifax, or by phone. A written dispute by certified mail creates the strongest paper trail. Your letter should identify each inaccurate item, explain why it's wrong, and include copies of supporting documents. Equifax must investigate within 30 days (45 if you send additional information during the investigation).",
       },
       {
         question: "Where do I mail my Equifax dispute letter?",
-        answer: "Mail your dispute to: Equifax Information Services LLC, P.O. Box 25022, Atlanta, GA 30307. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send by certified mail with return receipt.",
+        answer: "Mail your dispute to: Equifax Information Services LLC, P.O. Box 740256, Atlanta, GA 30374-0256. Include your full name, address, Social Security number, date of birth, and a copy of your credit report with the disputed items circled. Send by certified mail with return receipt.",
       },
       {
         question: "What information can I dispute on my Equifax report?",
@@ -371,22 +399,40 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
         question: "Should I dispute with all three credit bureaus at once?",
         answer: "If the same error appears on all three reports (TransUnion, Experian, Equifax), you should dispute with all three separately — they don't share investigation results. Notice Respond has separate workflows for each bureau. Each dispute letter should reference the specific report from that bureau.",
       },
+      {
+        question: "Can I dispute Equifax errors through Credit Karma?",
+        answer: "No — Credit Karma's Direct Dispute feature only works with TransUnion. If you spot an error on the Equifax report Credit Karma shows you, its Dispute Center will redirect you to Equifax's own site rather than filing the dispute for you, so you still need to go through Equifax directly (myEquifax, phone, or mail). A mailed, certified letter is the only method that gives you your own dated proof independent of any online account.",
+      },
+      {
+        question: "Is Equifax's online dispute portal the same as TransUnion's or Experian's?",
+        answer: "No. Equifax runs its own separate dispute system and account login — myEquifax at myequifax.com — distinct from TransUnion's and Experian's own portals. They're separate businesses with separate records, so a dispute filed with Equifax does not automatically reach the other two bureaus, even if the same error appears on more than one of your reports. Behind the scenes, all three bureaus route the dispute to the furnisher over the same industry-wide e-OSCAR network, but you still have to file with each bureau that reports the error.",
+      },
+      {
+        question: "Does the 2017 Equifax data breach affect how I should dispute an error today?",
+        answer: "Not the dispute process itself — the FCRA rights and 30-day investigation timeline are the same regardless. But it's worth knowing: the 2017 breach exposed roughly 147 million people's data, and the resulting settlement with state and federal regulators entitled affected consumers to free credit monitoring (up to 10 years total: 4 years across all three bureaus, plus up to 6 more years of Equifax-only monitoring) or an alternative cash reimbursement. If you were affected and are still monitoring your Equifax file for breach-related fraud, a formal written dispute — not just flagging it in an app — is the strongest way to document and correct any fraudulent account that surfaces.",
+      },
+      {
+        question: "Can disputing an item on my Equifax report hurt my credit score?",
+        answer: "No. Filing a dispute is a right under federal law, is not reported as a negative mark, and is not a credit inquiry. Your score may change only if the investigation results in a correction — for example, if an inaccurate late payment or balance is fixed, your score can improve. If the item is verified as accurate, nothing changes beyond what was already being reported.",
+      },
     ],
-    keywords: ["dispute Equifax credit report", "Equifax dispute letter", "Equifax dispute address", "FCRA dispute", "credit report error", "Equifax dispute", "credit report correction"],
+    keywords: ["dispute Equifax credit report", "Equifax dispute letter", "Equifax dispute address", "myEquifax", "FCRA dispute", "credit report error", "Equifax dispute", "credit report correction", "Equifax data breach", "method of verification FCRA"],
     twitterCard: "summary_large_image",
     breadcrumb: [
       { name: "Notice Respond", path: "/" },
       { name: "Workflows", path: "/workflows" },
       { name: "Equifax Dispute", path: "/workflows/equifax-dispute" },
     ],
-  },  "tax-notice": {
+  },
+
+  "tax-notice": {
     title: "Respond to a Tax Notice — Notice Respond",
     description: "Create a structured response to a tax authority notice without losing the notice deadline, reference number, or supporting evidence.",
     keywords: ["tax notice response", "tax authority letter", "tax correspondence response", "respond to a tax notice"],
     faq: [
     {
         "question": "How long do I have to respond to a tax notice?",
-        "answer": "Most tax notices include a response deadline, typically 30 days from the notice date. If no deadline is stated, contact the issuing agency immediately to confirm the response window."
+        "answer": "It depends on the notice, and the deadline is not always 30 days. A math-error correction (e.g., CP11/CP12/CP13) gives you 60 days to request abatement (IRC § 6213(b)(2)(A)). A formal Notice of Deficiency (\"90-day letter\") gives 90 days (150 if you're outside the U.S.) to petition Tax Court, and that deadline cannot be extended. A Final Notice of Intent to Levy or a Notice of Federal Tax Lien gives 30 days to request a Collection Due Process hearing. Most other notices say to reply \"by the date listed\" — always use the exact date printed on your specific notice rather than assuming a default."
     },
     {
         "question": "What should I include in my response to a tax notice?",
@@ -395,6 +441,14 @@ export const WORKFLOW_SEO: Record<string, WorkflowSEO> = {
     {
         "question": "Can I disagree with a tax notice?",
         "answer": "Yes. If you believe the notice is incorrect, state clearly which items you disagree with and provide evidence supporting your position. Include copies of relevant records, not originals."
+    },
+    {
+        "question": "I got an IRS notice like CP2000, CP14, CP504, or CP523 — should I use this workflow?",
+        "answer": "If your notice number matches one of those, a more specialized workflow already exists for it and will generally serve you better than the generic process here — this tool will detect the match from your notice number or text and point you to the dedicated CP2000, CP14, CP504, or CP523 workflow. Use this generic workflow for any other notice, including most state and local tax notices."
+    },
+    {
+        "question": "Does a CP504 notice give me the right to a Collection Due Process hearing?",
+        "answer": "Not by itself. CP504 (\"final notice before levy\") warns that the IRS may levy a state tax refund and offers Collection Appeals Program (CAP) rights, but the formal 30-day Collection Due Process (CDP) hearing right under IRC §§ 6330/6320 is triggered by a later, separate notice — a Final Notice of Intent to Levy (such as Letter 1058 or LT11) or a Notice of Federal Tax Lien (Letter 3172). Don't assume your CDP clock started from CP504."
     },
     {
         "question": "Should I send original documents with my tax notice response?",

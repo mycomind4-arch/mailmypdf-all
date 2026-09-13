@@ -72,6 +72,8 @@ import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
 import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiControlPlaneAiRouteImport } from './routes/api/control-plane/ai'
 import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
+import { Route as DevMatterPreviewStepRouteImport } from './routes/dev/matter-preview.$step'
+import { Route as MattersMatterIdStepRouteImport } from './routes/matters/$matterId/$step'
 import { Route as WorkflowsWorkflowIdStartRouteImport } from './routes/workflows/$workflowId/start'
 import { Route as ApiWorkflowsWorkflowIdAnalyzeRouteImport } from './routes/api/workflows/$workflowId/analyze'
 import { Route as ApiWorkflowsWorkflowIdDraftRouteImport } from './routes/api/workflows/$workflowId/draft'
@@ -552,6 +554,16 @@ const ApiControlPlaneAiRoute = ApiControlPlaneAiRouteImport.update({
 const ApiMailResponseRoute = ApiMailResponseRouteImport.update({
   id: '/api/mail/response',
   path: '/api/mail/response',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevMatterPreviewStepRoute = DevMatterPreviewStepRouteImport.update({
+  id: '/dev/matter-preview/$step',
+  path: '/dev/matter-preview/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MattersMatterIdStepRoute = MattersMatterIdStepRouteImport.update({
+  id: '/matters/$matterId/$step',
+  path: '/matters/$matterId/$step',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkflowsWorkflowIdStartRoute =
@@ -1459,6 +1471,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
   '/api/mail/response': typeof ApiMailResponseRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -1663,6 +1677,8 @@ export interface FileRoutesByTo {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
   '/api/mail/response': typeof ApiMailResponseRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -1869,6 +1885,8 @@ export interface FileRoutesById {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/control-plane/ai': typeof ApiControlPlaneAiRoute
   '/api/mail/response': typeof ApiMailResponseRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/start': typeof WorkflowsWorkflowIdStartRoute
   '/api/workflows/$workflowId/analyze': typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   '/api/workflows/$workflowId/draft': typeof ApiWorkflowsWorkflowIdDraftRoute
@@ -2076,6 +2094,8 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/control-plane/ai'
     | '/api/mail/response'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2280,6 +2300,8 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/control-plane/ai'
     | '/api/mail/response'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2485,6 +2507,8 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/control-plane/ai'
     | '/api/mail/response'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/start'
     | '/api/workflows/$workflowId/analyze'
     | '/api/workflows/$workflowId/draft'
@@ -2654,6 +2678,8 @@ export interface RootRouteChildren {
   ApiAuthStatusRoute: typeof ApiAuthStatusRoute
   ApiControlPlaneAiRoute: typeof ApiControlPlaneAiRoute
   ApiMailResponseRoute: typeof ApiMailResponseRoute
+  DevMatterPreviewStepRoute: typeof DevMatterPreviewStepRoute
+  MattersMatterIdStepRoute: typeof MattersMatterIdStepRoute
   ApiWorkflowsWorkflowIdAnalyzeRoute: typeof ApiWorkflowsWorkflowIdAnalyzeRoute
   ApiWorkflowsWorkflowIdDraftRoute: typeof ApiWorkflowsWorkflowIdDraftRoute
   ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute: typeof ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute
@@ -3236,6 +3262,20 @@ declare module '@tanstack/react-router' {
       path: '/api/mail/response'
       fullPath: '/api/mail/response'
       preLoaderRoute: typeof ApiMailResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/matter-preview/$step': {
+      id: '/dev/matter-preview/$step'
+      path: '/dev/matter-preview/$step'
+      fullPath: '/dev/matter-preview/$step'
+      preLoaderRoute: typeof DevMatterPreviewStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/matters/$matterId/$step': {
+      id: '/matters/$matterId/$step'
+      path: '/matters/$matterId/$step'
+      fullPath: '/matters/$matterId/$step'
+      preLoaderRoute: typeof MattersMatterIdStepRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workflows/$workflowId/start': {
@@ -4350,6 +4390,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthStatusRoute: ApiAuthStatusRoute,
   ApiControlPlaneAiRoute: ApiControlPlaneAiRoute,
   ApiMailResponseRoute: ApiMailResponseRoute,
+  DevMatterPreviewStepRoute: DevMatterPreviewStepRoute,
+  MattersMatterIdStepRoute: MattersMatterIdStepRoute,
   ApiWorkflowsWorkflowIdAnalyzeRoute: ApiWorkflowsWorkflowIdAnalyzeRoute,
   ApiWorkflowsWorkflowIdDraftRoute: ApiWorkflowsWorkflowIdDraftRoute,
   ApiWorkflowsAdministrativeDecisionAppealAnalyzeRoute:

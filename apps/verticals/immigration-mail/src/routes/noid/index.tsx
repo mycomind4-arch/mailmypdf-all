@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getAllFormProfiles, generateFormSpecificNOIDContent } from "@/domain/form-adapters";
+import { createStepMatter } from "@/lib/fns/step-matter";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute('/noid/')({
   head: () => ({
@@ -18,6 +20,13 @@ function NOIDLandingPage() {
   const forms = getAllFormProfiles().filter(f =>
     f.commonNOIDGrounds.length > 0 && f.formType !== 'generic'
   );
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  async function startWorkflow() {
+    const { matter } = await createStepMatter({ data: { workflowId: "noid-response" } });
+    navigate({ to: "/matters/$matterId/$step", params: { matterId: matter.id, step: "intake" } });
+  }
 
   return (
     <div className="min-h-screen page-fade">
@@ -32,12 +41,31 @@ function NOIDLandingPage() {
             <p className="mt-6 max-w-2xl text-lg text-ink-soft md:text-xl">
               Received a NOID for any USCIS form? We help you understand the denial grounds, organize evidence, and prepare your response.
             </p>
-            <Link
-              to="/respond-to-a-uscis-notice"
-              className="mt-8 inline-flex rounded-full bg-primary px-7 py-3.5 font-medium text-primary-foreground"
-            >
-              Upload your NOID letter
-            </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {user ? (
+                <button
+                  type="button"
+                  onClick={startWorkflow}
+                  className="inline-flex rounded-full bg-primary px-7 py-3.5 font-medium text-primary-foreground"
+                >
+                  Start your NOID response
+                </button>
+              ) : (
+                <Link
+                  to="/auth"
+                  search={{ returnTo: "/noid" } as never}
+                  className="inline-flex rounded-full bg-primary px-7 py-3.5 font-medium text-primary-foreground"
+                >
+                  Sign in to start your NOID response
+                </Link>
+              )}
+              <Link
+                to="/respond-to-a-uscis-notice"
+                className="inline-flex rounded-full border border-rule px-7 py-3.5 font-medium"
+              >
+                Learn how it works
+              </Link>
+            </div>
           </div>
         </section>
 

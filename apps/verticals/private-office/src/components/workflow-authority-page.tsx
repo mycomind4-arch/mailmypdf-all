@@ -34,6 +34,12 @@ interface WorkflowAuthorityPageProps {
   authoritySections: AuthoritySection[];
   intakeFields?: IntakeField[];
   showWorkspace?: boolean;
+  /**
+   * When provided, the primary CTA calls this instead of revealing the
+   * inline single-page workspace below — used by workflows that have their
+   * own multi-step matter flow (see routes/matters/$matterId/$step.tsx).
+   */
+  onStartWorkflow?: () => void;
 }
 
 export function WorkflowAuthorityPage({
@@ -41,6 +47,7 @@ export function WorkflowAuthorityPage({
   authoritySections,
   intakeFields,
   showWorkspace = true,
+  onStartWorkflow,
 }: WorkflowAuthorityPageProps) {
   const profile = workflowProfiles[workflowId];
   const { user } = useAuth();
@@ -222,13 +229,6 @@ export function WorkflowAuthorityPage({
       (phase) => phase.id === selectedStudioPhase.id,
     );
     const variables = selectedStudioPhase.variables ?? [];
-    const journeyIndex =
-      phaseIndex === 0
-        ? 0
-        : phaseIndex < studioWorkflow.phases.length - 2
-          ? 1
-          : 2;
-    const journeySteps = ["Understand", "Build", "Send"];
     const screenHeading =
       selectedStudioPhase.kind === "input"
         ? "Start with your records"
@@ -257,20 +257,20 @@ export function WorkflowAuthorityPage({
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-stone">{selectedStudioPhase.objective}</p>
           </div>
 
-          <ol className="mx-auto mt-8 flex max-w-3xl items-start overflow-x-auto pb-2">
-            {journeySteps.map((step, index) => {
-              const isCurrent = index === journeyIndex;
-              const isComplete = index < journeyIndex;
+          <ol className="mx-auto mt-8 flex max-w-4xl items-start overflow-x-auto pb-2">
+            {studioWorkflow.phases.map((phase, index) => {
+              const isCurrent = index === phaseIndex;
+              const isComplete = index < phaseIndex;
               return (
-                <li key={step} className="flex min-w-28 flex-1 items-start last:flex-none">
+                <li key={phase.id} className="flex min-w-28 flex-1 items-start last:flex-none">
                   <div className="w-full text-center">
                     <div className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${isCurrent ? "border-navy bg-navy text-paper" : isComplete ? "border-success bg-success text-paper" : "border-rule bg-paper text-stone"}`}>
                       {isComplete ? <CheckCircle2 size={14} /> : index + 1}
                     </div>
-                    <div className={`mt-2 text-xs font-semibold uppercase tracking-wide ${isCurrent ? "text-navy" : "text-stone"}`}>{step}</div>
-                    <div className="mt-1 text-[11px] text-stone-light">{isComplete ? "Complete" : isCurrent ? `${Math.round(((phaseIndex + 1) / studioWorkflow.phases.length) * 100)}%` : "Not started"}</div>
+                    <div className={`mt-2 text-xs font-semibold uppercase tracking-wide ${isCurrent ? "text-navy" : "text-stone"}`}>Phase {index + 1}</div>
+                    <div className="mt-1 truncate text-[11px] text-stone-light">{isComplete ? "Complete" : isCurrent ? phase.title : "Not started"}</div>
                   </div>
-                  {index < journeySteps.length - 1 && <div className={`mt-3 h-px flex-1 ${index < journeyIndex ? "bg-navy" : "border-t border-dashed border-rule"}`} />}
+                  {index < studioWorkflow.phases.length - 1 && <div className={`mt-3 h-px flex-1 ${index < phaseIndex ? "bg-navy" : "border-t border-dashed border-rule"}`} />}
                 </li>
               );
             })}
@@ -353,7 +353,7 @@ export function WorkflowAuthorityPage({
                   </Link>
                 ) : hasWorkspace ? (
                   <button
-                  onClick={() => setShowWorkspaceUI(true)}
+                  onClick={() => (onStartWorkflow ? onStartWorkflow() : setShowWorkspaceUI(true))}
                   className="btn-brass"
                 >
                     {landingAction} <ArrowRight size={16} />
@@ -828,6 +828,10 @@ export function WorkflowAuthorityPage({
               ) : hasWorkspace ? (
                 <button
                   onClick={() => {
+                    if (onStartWorkflow) {
+                      onStartWorkflow();
+                      return;
+                    }
                     setShowWorkspaceUI(true);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}

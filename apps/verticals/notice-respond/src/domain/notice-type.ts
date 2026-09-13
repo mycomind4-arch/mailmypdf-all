@@ -10,6 +10,7 @@ export const noticeTypeSchema = z.enum([
   "irs_cp2000",
   "irs_cp14",
   "irs_cp504",
+  "irs_cp523",
   "irs_letter",
   "court_summons",
   "court_complaint",
@@ -44,6 +45,11 @@ export const NOTICE_TYPE_META: Record<NoticeType, NoticeTypeMeta> = {
     label: "IRS CP504 — Intent to Levy",
     category: "irs",
     description: "The IRS intends to levy your assets if the balance is not paid.",
+  },
+  irs_cp523: {
+    label: "IRS CP523 — Installment Agreement Default",
+    category: "irs",
+    description: "The IRS intends to terminate your installment agreement because of a missed payment or other default.",
   },
   irs_letter: {
     label: "IRS Letter",
@@ -119,6 +125,11 @@ const CLASSIFICATION_PATTERNS: ClassificationPattern[] = [
   {
     type: "irs_cp504",
     patterns: [/CP\s*504/i, /intent.?to.?lev/i, /final.?notice/i, /seizure/i],
+    minMatches: 1,
+  },
+  {
+    type: "irs_cp523",
+    patterns: [/CP\s*523/i, /installment.?agreement/i, /default.{0,20}agreement/i, /terminat.{0,20}agreement/i],
     minMatches: 1,
   },
   {
