@@ -123,13 +123,25 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   // silently diverging from what Studio itself is showing you. Overlay the
   // actual current working-tree contents on top of the clean checkout so the
   // run starts from what you're really looking at right now.
-  await overlayWorkingTree(repoRoot, state.worktreeDir, (chunk) => void emit("orchestrator", "overlay.output", chunk));
+  const overlay = await overlayWorkingTree(repoRoot, state.worktreeDir, (chunk) => void emit("orchestrator", "overlay.output", chunk));
+  if (!overlay.pass) {
+    state.status = "failed";
+    await emit("orchestrator", "overlay.failed", overlay.detail);
+    await writeRunState(repoRoot, state);
+    return;
+  }
   await emit("orchestrator", "overlay.done");
 
   let cancelled = false;
   activeRuns.set(state.runId, { kill: () => { cancelled = true; } });
 
-  await runInstall(state.worktreeDir, (chunk) => void emit("orchestrator", "install.output", chunk));
+  const install = await runInstall(state.worktreeDir, (chunk) => void emit("orchestrator", "install.output", chunk));
+  if (!install.pass) {
+    state.status = "failed";
+    await emit("orchestrator", "install.failed", install.detail);
+    await writeRunState(repoRoot, state);
+    return;
+  }
   await emit("orchestrator", "install.done");
   await writeRunState(repoRoot, state);
 
@@ -267,39 +279,40 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   await writeRunState(repoRoot, state);
 }
 
-const OVERLAY_EXCLUDES = [
-  ".git",
-  "node_modules",
-  ".agent-runs",
-  ".claude",
-  ".turbo",
-  ".output",
-  ".wrangler",
-  ".tanstack",
-  "coverage",
-];
-// Deliberately NOT excluding "dist": several workspace packages (e.g.
-// @mailmypdf/documents) resolve via a pre-built dist/, not their TS source —
-// skipping it here breaks module resolution in the worktree entirely.
-
-async function overlayWorkingTree(repoRoot: string, worktreeDir: string, onOutput: (chunk: string) => void): Promise<void> {
-  const args = ["-a", "--delete", ...OVERLAY_EXCLUDES.map((name) => `--exclude=${name}`), `${repoRoot}/`, `${worktreeDir}/`];
-  await new Promise<void>((resolve) => {
-    const child = spawn("rsync", args, { stdio: ["ignore", "pipe", "pipe"] });
+/**
+ * Overlays only tracked changes. Copying the whole developer checkout also
+ * copied ignored files such as .env.local into an LLM-controlled workspace.
+ * A new worktree already has every tracked file at HEAD; applying the tracked
+ * staged and unstaged diffs gives agents the current code without secrets.
+ */
+async function overlayWorkingTree(repoRoot: string, worktreeDir: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {
+  for (const args of [["diff", "--binary", "--no-ext-diff", "HEAD"], ["diff", "--cached", "--binary", "--no-ext-diff"]]) {
+    const diff = await git(repoRoot, args);
+    if (diff.exitCode !== 0) return { pass: false, detail: diff.stderr || "Could not read the current git diff." };
+    if (!diff.stdout) continue;
+    const applied = await new Promise<{ pass: boolean; detail: string }>((resolve) => {
+      const child = spawn("git", ["apply", "--whitespace=nowarn", "-"], { cwd: worktreeDir, stdio: ["pipe", "pipe", "pipe"] });
+      child.stdin.write(diff.stdout);
+      child.stdin.end();
+      let output = "";
     child.stdout.on("data", (chunk) => onOutput(chunk.toString("utf8")));
-    child.stderr.on("data", (chunk) => onOutput(chunk.toString("utf8")));
-    child.on("close", () => resolve());
-    child.on("error", (error) => { onOutput(String(error)); resolve(); });
-  });
+      child.stderr.on("data", (chunk) => { const text = chunk.toString("utf8"); output += text; onOutput(text); });
+      child.on("close", (code) => resolve({ pass: code === 0, detail: output || `git apply exited ${code}` }));
+      child.on("error", (error) => resolve({ pass: false, detail: String(error) }));
+    });
+    if (!applied.pass) return applied;
+  }
+  return { pass: true, detail: "Tracked changes overlaid." };
 }
 
-async function runInstall(cwd: string, onOutput: (chunk: string) => void): Promise<void> {
-  await new Promise<void>((resolve) => {
+async function runInstall(cwd: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {
+  return new Promise((resolve) => {
     const child = spawn("pnpm", ["install", "--frozen-lockfile"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
     child.stdout.on("data", (chunk) => onOutput(chunk.toString("utf8")));
-    child.stderr.on("data", (chunk) => onOutput(chunk.toString("utf8")));
-    child.on("close", () => resolve());
-    child.on("error", () => resolve());
+    child.stderr.on("data", (chunk) => { const text = chunk.toString("utf8"); output += text; onOutput(text); });
+    child.on("close", (code) => resolve({ pass: code === 0, detail: output || `pnpm install exited ${code}` }));
+    child.on("error", (error) => resolve({ pass: false, detail: String(error) }));
   });
 }
 

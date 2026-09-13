@@ -43,14 +43,12 @@ function buildCommand(options: AgentCallOptions): { command: string; args: strin
     const sandbox = mode === "chat" ? "read-only" : "workspace-write";
     return { command: "codex", args: ["exec", "-C", cwd, "-s", sandbox, "--json", prompt] };
   }
-  // Claude: confirmed against `claude --help` (2.1.270) — there is no --cwd
-  // flag; the child process's own `cwd` (set below) is what scopes it to the
-  // worktree. "plan" mode can't edit (our "chat" mode); bypassPermissions is
-  // the non-interactive equivalent of codex's workspace-write (our "work"
-  // mode) — safe here specifically because it's confined to a disposable
-  // worktree branch. --permission-prompts none guarantees this never blocks
-  // on an interactive prompt that nothing is present to answer.
-  const permissionMode = mode === "chat" ? "plan" : "bypassPermissions";
+  // Claude has no OS-level workspace sandbox. Do not use bypassPermissions:
+  // a disposable git worktree does not stop a shell command from reaching the
+  // rest of the developer machine. Builder runs may edit their worktree, while
+  // reviewer runs remain in plan mode. Commands that would need an interactive
+  // grant are denied rather than hanging this background service.
+  const permissionMode = mode === "chat" ? "plan" : "acceptEdits";
   return {
     command: "claude",
     args: [
