@@ -17,6 +17,7 @@ export type RoleRunContext = {
 export async function runBuilder(
   ctx: RoleRunContext & {
     provider: AgentProviderName;
+    model?: string;
     instructions: string;
     priorFailure?: string;
     onProcessStart?: (kill: () => void) => void;
@@ -32,6 +33,7 @@ export async function runBuilder(
   }
   const result = await runAgentCli({
     provider: ctx.provider,
+    model: ctx.model,
     mode: "work",
     cwd: ctx.worktreeDir,
     prompt: promptParts.join("\n\n"),
@@ -148,7 +150,7 @@ function extractLastVerdict(stdout: string): Record<string, unknown> | null {
 }
 
 export async function runReviewer(
-  ctx: RoleRunContext & { provider: AgentProviderName; baseBranch: string },
+  ctx: RoleRunContext & { provider: AgentProviderName; model?: string; baseBranch: string },
 ): Promise<{ approved: boolean; comments: string[] }> {
   const diff = await spawnAndCapture("git", ["diff", `${ctx.baseBranch}...HEAD`], ctx.worktreeDir, () => {});
   const prompt = [
@@ -162,6 +164,7 @@ export async function runReviewer(
 
   const result = await runAgentCli({
     provider: ctx.provider,
+    model: ctx.model,
     mode: "chat",
     cwd: ctx.worktreeDir,
     prompt,

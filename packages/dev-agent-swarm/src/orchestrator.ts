@@ -165,6 +165,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       verticalId: state.verticalId,
       workflowId: state.workflowId,
       provider: request.builderProvider ?? "codex",
+      model: request.builderModel,
       instructions: state.instructions,
       priorFailure: builderFailure ?? (reviewerComments.length ? `Reviewer requested changes:\n${reviewerComments.join("\n")}` : undefined),
       onOutput: onOutput("builder"),
@@ -207,6 +208,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       verticalId: state.verticalId,
       workflowId: state.workflowId,
       provider: request.reviewerProvider ?? "codex",
+      model: request.reviewerModel,
       baseBranch,
       onOutput: onOutput("reviewer"),
     });

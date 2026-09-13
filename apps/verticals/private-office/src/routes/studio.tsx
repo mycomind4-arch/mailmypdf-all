@@ -886,6 +886,8 @@ function StudioPage() {
   const [agentInstructions, setAgentInstructions] = useState("");
   const [agentBuilderProvider, setAgentBuilderProvider] = useState<AgentProviderName>("codex");
   const [agentReviewerProvider, setAgentReviewerProvider] = useState<AgentProviderName>("codex");
+  const [agentBuilderModel, setAgentBuilderModel] = useState("");
+  const [agentReviewerModel, setAgentReviewerModel] = useState("");
   const [agentLaunchError, setAgentLaunchError] = useState<string | null>(null);
   const [isLaunchingAgentRun, setIsLaunchingAgentRun] = useState(false);
   const [expandedAgentRunId, setExpandedAgentRunId] = useState<string | null>(null);
@@ -1435,6 +1437,8 @@ function StudioPage() {
           publicPath: target?.publicPath,
           builderProvider: agentBuilderProvider,
           reviewerProvider: agentReviewerProvider,
+          builderModel: agentBuilderModel.trim() || undefined,
+          reviewerModel: agentReviewerModel.trim() || undefined,
         }),
       });
       const data = (await response.json()) as { runId?: string; error?: string };
@@ -2127,6 +2131,7 @@ function StudioPage() {
                       <option value="codex">Codex</option>
                       <option value="claude">Claude</option>
                     </select>
+                    <input aria-label="Builder model" value={agentBuilderModel} onChange={(event) => setAgentBuilderModel(event.target.value)} placeholder="Default model" className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35" />
                   </label>
                   <label className="text-[10px] uppercase tracking-wide text-white/40">
                     Reviewer
@@ -2134,6 +2139,7 @@ function StudioPage() {
                       <option value="codex">Codex</option>
                       <option value="claude">Claude</option>
                     </select>
+                    <input aria-label="Reviewer model" value={agentReviewerModel} onChange={(event) => setAgentReviewerModel(event.target.value)} placeholder="Default model" className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35" />
                   </label>
                 </div>
                 {agentLaunchError && <p className="text-xs text-error">{agentLaunchError}</p>}

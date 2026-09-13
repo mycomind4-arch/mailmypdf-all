@@ -5,6 +5,8 @@ import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 import { getProviderAvailability, startOrchestratorRun } from "@mailmypdf/dev-agent-swarm";
 
+const modelId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
+
 // Launches a Builder → Tester → Reviewer → SEO run (see
 // docs/architecture — the plan this shipped from — for the full design).
 // Kept to the same local-dev-only boundary as api/studio/acceptance/test.ts:
@@ -18,6 +20,8 @@ const bodySchema = z.object({
   publicPath: z.string().trim().max(300).optional(),
   builderProvider: z.enum(["claude", "codex"]).optional(),
   reviewerProvider: z.enum(["claude", "codex"]).optional(),
+  builderModel: modelId.optional(),
+  reviewerModel: modelId.optional(),
 });
 
 export const Route = createFileRoute("/api/studio/agents/launch")({

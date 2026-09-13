@@ -21,6 +21,7 @@ export type AgentCallOptions = {
   mode: AgentMode;
   cwd: string;
   prompt: string;
+  model?: string;
   /** Wall-clock timeout in ms before the process is killed. */
   timeoutMs?: number;
   onOutput?: (chunk: string, stream: "stdout" | "stderr") => void;
@@ -36,12 +37,12 @@ export type AgentCallResult = {
 };
 
 function buildCommand(options: AgentCallOptions): { command: string; args: string[] } {
-  const { provider, mode, cwd, prompt } = options;
+  const { provider, mode, cwd, prompt, model } = options;
   if (provider === "codex") {
     // read-only ("chat") vs workspace-write ("work") maps directly onto
     // codex's own sandbox flag — see plan's "Chat vs. work mode routing".
     const sandbox = mode === "chat" ? "read-only" : "workspace-write";
-    return { command: "codex", args: ["exec", "-C", cwd, "-s", sandbox, "--json", prompt] };
+    return { command: "codex", args: ["exec", "-C", cwd, "-s", sandbox, "--json", ...(model ? ["--model", model] : []), prompt] };
   }
   // Claude has no OS-level workspace sandbox. Do not use bypassPermissions:
   // a disposable git worktree does not stop a shell command from reaching the
@@ -57,6 +58,7 @@ function buildCommand(options: AgentCallOptions): { command: string; args: strin
       "--verbose",
       "--permission-mode", permissionMode,
       "--permission-prompts", "none",
+      ...(model ? ["--model", model] : []),
     ],
   };
 }
