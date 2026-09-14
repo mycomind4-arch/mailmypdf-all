@@ -46,6 +46,15 @@ explicitly excludes `role` from profile metadata for this reason).
 
 ## 3. Verified findings (evidence-backed, as of 2026-09-14)
 
+- **Real privilege-escalation bug found and fixed** (commit `d3021de`):
+  `apps/verticals/{appeal-mail,benefits-appeal}/src/lib/auth-guard.ts` both
+  granted admin from the caller's own `user_metadata.role`/`is_admin` before
+  falling back to `user_roles` — any signed-in customer could self-grant
+  admin via the standard Supabase client SDK. This is the concrete example
+  behind non-negotiable #2 below; if auditing any other vertical's own
+  `auth-guard.ts`/equivalent, check specifically for `metadata?.role` or
+  `metadata?.is_admin` reads before trusting it.
+
 - **Auth guard is centralized correctly.** One `beforeLoad` in
   `_authenticated/route.tsx`, one redirect pattern, preserves destination via
   `search.redirect`. Do not add a second auth check elsewhere in core.
