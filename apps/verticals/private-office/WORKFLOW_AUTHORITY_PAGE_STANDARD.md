@@ -28,4 +28,4 @@ High-stakes claims require current source verification. Never invent deadlines, 
 
 Canonical public host: https://mailmypdf.ai. Prelaunch indexing remains disabled until the owner's launch switch is enabled.
 
-Architecture source of truth: mailmypdf-platform. Do not create a competing page structure, URL scheme, or global navigation model.
+Architecture source of truth: this monorepo's shared packages. Do not create a competing page structure, URL scheme, or global navigation model.

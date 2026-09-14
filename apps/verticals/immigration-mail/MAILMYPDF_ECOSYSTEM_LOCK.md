@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 ## Global shell
 
@@ -51,4 +51,4 @@ P05 emphasizes document classification, agency identification, requested-action 
 
 ## Anti-fragmentation
 
-Do not create separate navigation, authentication, sitemap, canonical-domain or pipeline architecture. Domain-specific immigration intelligence belongs in this repo; reusable engines belong in `mailmypdf-platform`. Exceptions require documentation in the platform repo.
+Do not create separate navigation, authentication, sitemap, canonical-domain or pipeline architecture. Domain-specific immigration intelligence belongs in this repo; reusable engines belong in `this monorepo's shared packages`. Exceptions require documentation in the platform repo.

@@ -85,7 +85,7 @@ Before a workflow is marked Gold/production-ready, its pricing profile must demo
 
 ## Pricing architecture
 
-Pricing logic belongs in the shared pricing engine in `mailmypdf-platform` when the capability is cross-vertical. A workflow may define its profile and domain-specific assumptions locally, but must not duplicate the global calculation engine.
+Pricing logic belongs in the shared pricing engine in `this monorepo's shared packages` when the capability is cross-vertical. A workflow may define its profile and domain-specific assumptions locally, but must not duplicate the global calculation engine.
 
 ## Source discipline
 

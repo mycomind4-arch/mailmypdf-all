@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | notice-respond | vertical | live | Workflow factory + notice response workflows | 992/994 |
 | mailmypdf | core | production | Mailing, tracking, proof, payments, fulfillment | 508/519 (11 route-migration fails) |
-| mailmypdf-platform | platform | dead weight | Shared packages (nothing imports from it) | — |
+| this monorepo's shared packages | platform | dead weight | Shared packages (nothing imports from it) | — |
 | fairprocessmaps | data | live (frozen backend) | Jurisdiction/property intelligence (FastAPI stack frozen per ADR-006) | — |
 | fairprocess-repo | data+engine | live | Due-process engine + property intelligence on Cloudflare D1/R2 + county GIS | 91/91 |
 | FairProcess V1 | engine | partial (ai-worker won't build) | Recordation Integrity Engine for code-enforcement | 106/106 pass, ai-worker ❌, case-model 0 tests |
@@ -45,7 +45,7 @@ Two type errors (Deadline Watchdog return shape, Audit Narrative missing `sectio
 ### 5. permit-signal explicitly archived
 README says don't add features. If permit monitoring needed, get canonical repo `mycomind4-arch/permitsignal`.
 
-### 6. mailmypdf-platform confirmed dead weight
+### 6. this monorepo's shared packages confirmed dead weight
 Zero `@mailmypdf/*` imports from any other repo. Leave out of scope.
 
 ## Reusable Capabilities Already Implemented

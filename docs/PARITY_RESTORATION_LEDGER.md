@@ -47,7 +47,7 @@ tree is a copied workspace containing unrelated conversation artifacts.
 | `fairprocessmaps` | **Integrate as Fair Process intelligence surface** | Existing Fair Process work; expose as a separate front door and shared case/intelligence capability. |
 | `ruthlessinvestigator` | **Integrate behind Fair Process** | Previously approved investigator capability; keep its own entitlement and audit boundary. |
 | `advanced-search` | **Integrate behind Fair Process** | Previously approved search capability; use as a governed retrieval service, not a workflow donor. |
-| `mailmypdf-platform` | **Integrate as platform control plane** | Shared auth, billing, entitlements, routing, observability, and provider policy. |
+| `this monorepo's shared packages` | **Integrate as platform control plane** | Shared auth, billing, entitlements, routing, observability, and provider policy. |
 | `mailmypdf-private-office` | **Integrate as premium front door** | Premium UI and private-office packaging; no duplicated domain runtime. |
 | `mailmypdf-smallbusiness` | **Integrate as segment front door** | Small-business packaging; reuse canonical workflows and pricing contracts. |
 | `appeal-mail`, `benefits-appeal`, `notice-respond`, `immigration-mail`, `dispute-mail`, `records-requests`, `code-enforcement`, `insurance-claims` | **Reviewed donor/source** | Restore file-level parity into `apps/verticals/*`; then freeze donors. |

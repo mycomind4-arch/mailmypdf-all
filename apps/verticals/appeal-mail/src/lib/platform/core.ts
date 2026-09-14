@@ -1,7 +1,7 @@
 /**
  * @platform/core — Stable primitives shared across the MailMyPDF ecosystem.
  *
- * Adapted from mailmypdf-platform/packages/core with Appeal Mail-specific integration.
+ * Adapted from packages/core with Appeal Mail-specific integration.
  * Zero runtime dependencies. Framework-agnostic. Pure TypeScript.
  */
 

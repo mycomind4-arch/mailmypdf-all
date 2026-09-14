@@ -307,7 +307,7 @@ Apply RLS to all user-data tables: users can only CRUD their own records (via `a
 
 ### @mailmypdf/pricing Package
 
-Install via: `"@mailmypdf/pricing": "https://github.com/mycomind4-arch/mailmypdf-platform/releases/download/pricing-v0.2.2/mailmypdf-pricing-0.2.1.tgz"`
+Install via: `"@mailmypdf/pricing": "this repository`
 
 ### Core Pricing Constants
 

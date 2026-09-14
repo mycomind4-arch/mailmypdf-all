@@ -1,7 +1,7 @@
 /**
  * Platform Intelligence Adapter
  *
- * Bridges mailmypdf-platform intelligence primitives with Appeal Mail's
+ * Bridges this monorepo's shared packages intelligence primitives with Appeal Mail's
  * existing domain models. This is NOT a replacement of Appeal Mail's
  * stress test or review engine — it's a layer that adds the platform's
  * evidence evaluation, contradiction detection, and case assessment

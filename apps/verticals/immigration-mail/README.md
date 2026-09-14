@@ -35,7 +35,7 @@ Immigration Mail consumes reusable technology from **MailMyPDF Platform** rather
 
 The Platform defines provider-neutral boundaries for Docling-compatible document intelligence and LiveKit/Pipecat-compatible realtime voice. Immigration-specific taxonomy, workflows, prompts, and UX remain owned by this repository.
 
-See `docs/PLATFORM_INTEGRATION_PLAN.md` and the ecosystem `VERTICAL_FULFILLMENT_CONTRACT.md` in `mailmypdf-platform`.
+See `docs/PLATFORM_INTEGRATION_PLAN.md` and the ecosystem `VERTICAL_FULFILLMENT_CONTRACT.md` in `this monorepo's shared packages`.
 
 ## Multilingual by design
 

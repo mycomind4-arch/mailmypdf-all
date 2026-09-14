@@ -103,9 +103,9 @@ Grepped `src/verticals/registry.ts` directly. The registered verticals at the ti
 
 **Recommendation:** Register them. Use root-relative routes (`/code-enforcement`), not `*.pages.dev` URLs.
 
-### `mailmypdf-platform` dead-weight: reconfirmed
+### `this monorepo's shared packages` dead-weight: reconfirmed
 
-Direct grep across `mailmypdf-ecosystem/` for `@mailmypdf/*` import outside `mailmypdf-platform` itself: zero hits. Nothing depends on it. Leave out of scope.
+Direct grep across `mailmypdf-ecosystem/` for `@mailmypdf/*` import outside `this monorepo's shared packages` itself: zero hits. Nothing depends on it. Leave out of scope.
 
 ---
 

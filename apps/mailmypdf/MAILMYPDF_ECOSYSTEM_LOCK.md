@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 This contract freezes global navigation, identity, SEO, routing, and pipeline architecture. Product repos remain independently deployable, but the public product is one MailMyPDF ecosystem.
 
@@ -13,7 +13,7 @@ mailmypdf.ai
   -> Gateway / Router
      -> Core App: mailmypdf
      -> Vertical Apps: appeal-mail, notice-respond, immigration-mail, dispute-mail, mailmypdf-smallbusiness
-     -> Platform APIs: mailmypdf-platform
+     -> Platform APIs: this monorepo's shared packages
 ```
 
 ## Global navigation
@@ -182,7 +182,7 @@ Verticals own domain intelligence: classification, domain facts, rules/authoriti
 
 Do not create another global navigation, canonical domain, ecosystem sitemap strategy, customer identity concept, or bespoke pipeline when an existing archetype fits. Do not duplicate platform engines in verticals. Do not expose authenticated history publicly. Do not mark placeholders executable.
 
-Any exception must be documented in `mailmypdf-platform` before implementation.
+Any exception must be documented in `this monorepo's shared packages` before implementation.
 
 ## Definition of done
 

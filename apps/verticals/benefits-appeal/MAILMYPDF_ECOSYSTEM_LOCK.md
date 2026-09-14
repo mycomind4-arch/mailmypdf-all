@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 This file freezes global navigation, identity, SEO, routing, pricing, and pipeline architecture. Benefits Appeal remains a specialized product implementation; the public product is part of one MailMyPDF ecosystem.
 
@@ -116,12 +116,12 @@ Landing pages must show the starting assumption, inclusions, page/evidence prici
 
 Gold/production readiness requires fulfillment cost coverage, AI/inference coverage, payment-processing coverage, retry/support reserve, and a positive target gross margin without a materially misleading starting price.
 
-The shared pricing calculator belongs in `mailmypdf-platform`; workflows provide their profile and domain-specific assumptions.
+The shared pricing calculator belongs in `this monorepo's shared packages`; workflows provide their profile and domain-specific assumptions.
 
 Current competitive reference points include Postmarkr at $2.05 starting B&W standard mail, The Letter Pilot at $4.99 starting First-Class and $11.00 starting Certified Mail, and OnlineCertifiedMail at $11.49 for 1–8 sheets. These are market reference points only and must be reverified before launch pricing is finalized.
 
 ## Anti-fragmentation
 
-Do not create a separate global navigation, auth model, sitemap strategy, canonical domain, pricing calculator, or pipeline for an Benefits Appeal workflow when the shared architecture applies. Vertical-specific intelligence and pricing profiles belong here; shared engines belong in `mailmypdf-platform`.
+Do not create a separate global navigation, auth model, sitemap strategy, canonical domain, pricing calculator, or pipeline for an Benefits Appeal workflow when the shared architecture applies. Vertical-specific intelligence and pricing profiles belong here; shared engines belong in `this monorepo's shared packages`.
 
-Any architectural exception must be documented in `mailmypdf-platform` before implementation.
+Any architectural exception must be documented in `this monorepo's shared packages` before implementation.

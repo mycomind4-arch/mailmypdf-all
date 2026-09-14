@@ -19,7 +19,7 @@
 |------|-----|
 | Appeal Mail | https://github.com/mycomind4-arch/appeal-mail |
 | MailMyPDF | https://github.com/mycomind4-arch/mailmypdf |
-| MailMyPDF Platform (docs/types) | https://github.com/mycomind4-arch/mailmypdf-platform |
+| MailMyPDF Platform (docs/types) | this repository |
 
 ## 3. Current HEAD SHAs
 

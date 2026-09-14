@@ -19,7 +19,7 @@
 |------|-----|
 | Benefits Appeal | https://github.com/mycomind4-arch/benefits-appeal |
 | MailMyPDF | https://github.com/mycomind4-arch/mailmypdf |
-| MailMyPDF Platform (docs/types) | https://github.com/mycomind4-arch/mailmypdf-platform |
+| MailMyPDF Platform (docs/types) | this repository |
 
 ## 3. Current HEAD SHAs
 

@@ -65,7 +65,7 @@ The repository now has one canonical host application and one normalized vertica
 
 The former `apps/core` and top-level vertical directories were moved intact; their implementation trees were not deleted or rewritten during the topology migration.
 
-## Shared Packages — 17 packages from mailmypdf-platform
+## Shared Packages — 17 packages from this monorepo's shared packages
 
 | Package | Files | Status |
 |---------|-------|--------|
