@@ -7,16 +7,19 @@ import { isProviderAvailable } from "./providers";
 import type { LaunchRequest, RunState, RunEvent, RoleName, RoleStatus } from "./types";
 
 const MAX_RETRIES = 2;
-const RUNS_DIRNAME = ".agent-runs";
+export const RUNS_DIRNAME = ".agent-runs";
 const INTEGRATION_BRANCH = "agent/integration";
 
 const activeRuns = new Map<string, { kill: () => void }>();
 
-function runsDir(repoRoot: string): string {
+/** Shared by chat.ts: batch runs and chat sessions live side by side under
+ * the same `.agent-runs/<id>/` container (worktree + events.jsonl + a
+ * run.json or session.json), so a lot of the file-layout plumbing is common. */
+export function runsDir(repoRoot: string): string {
   return path.join(repoRoot, RUNS_DIRNAME);
 }
 
-function runDir(repoRoot: string, runId: string): string {
+export function runDir(repoRoot: string, runId: string): string {
   return path.join(runsDir(repoRoot), runId);
 }
 
@@ -25,7 +28,7 @@ async function writeRunState(repoRoot: string, state: RunState): Promise<void> {
   await fs.writeFile(path.join(runDir(repoRoot, state.runId), "run.json"), JSON.stringify(state, null, 2));
 }
 
-async function appendEvent(repoRoot: string, runId: string, event: RunEvent): Promise<void> {
+export async function appendEvent(repoRoot: string, runId: string, event: RunEvent): Promise<void> {
   await fs.appendFile(path.join(runDir(repoRoot, runId), "events.jsonl"), `${JSON.stringify(event)}\n`);
 }
 
@@ -34,7 +37,7 @@ function setRoleStatus(state: RunState, role: RoleName, status: RoleStatus, deta
   state.roles[role] = { status, attempts: current.attempts, detail };
 }
 
-async function git(repoRootOrCwd: string, args: string[]): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+export async function git(repoRootOrCwd: string, args: string[]): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn("git", args, { cwd: repoRootOrCwd, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -99,23 +102,27 @@ export function stopRun(runId: string): boolean {
   return true;
 }
 
-async function executeRun(request: LaunchRequest & { repoRoot: string }, state: RunState): Promise<void> {
-  const { repoRoot } = request;
-  const emit = (role: RunEvent["role"], type: string, detail?: string, data?: Record<string, unknown>) =>
-    appendEvent(repoRoot, state.runId, { at: new Date().toISOString(), role, type, detail, data });
-  const onOutput = (role: RoleName) => (chunk: string) => void emit(role, "output", chunk);
+/**
+ * Creates a disposable git worktree on a fresh branch, overlays the repo's
+ * actual current working-tree contents onto it (see overlayWorkingTree), and
+ * installs dependencies — the common setup both a batch run and an
+ * interactive chat session need before any agent role can act. Emits
+ * progress via `emit` using the same event shape both callers already log.
+ */
+export async function prepareWorktree(
+  repoRoot: string,
+  worktreeDir: string,
+  branch: string,
+  emit: (role: "orchestrator", type: string, detail?: string) => Promise<void> | void,
+): Promise<{ pass: boolean; detail: string }> {
+  await fs.mkdir(path.dirname(worktreeDir), { recursive: true });
 
-  emit("orchestrator", "run.started", `Preparing worktree for ${state.workflowId} on branch ${state.branch}.`);
-  await fs.mkdir(path.dirname(state.worktreeDir), { recursive: true });
-
-  const worktreeAdd = await git(repoRoot, ["worktree", "add", state.worktreeDir, "-b", state.branch]);
+  const worktreeAdd = await git(repoRoot, ["worktree", "add", worktreeDir, "-b", branch]);
   if (worktreeAdd.exitCode !== 0) {
-    state.status = "failed";
     await emit("orchestrator", "worktree.failed", worktreeAdd.stderr);
-    await writeRunState(repoRoot, state);
-    return;
+    return { pass: false, detail: worktreeAdd.stderr };
   }
-  await emit("orchestrator", "worktree.ready", state.worktreeDir);
+  await emit("orchestrator", "worktree.ready", worktreeDir);
 
   // `git worktree add` only ever checks out committed history. Any repo work
   // that's uncommitted or untracked in repoRoot (which is common — this is a
@@ -123,26 +130,39 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   // silently diverging from what Studio itself is showing you. Overlay the
   // actual current working-tree contents on top of the clean checkout so the
   // run starts from what you're really looking at right now.
-  const overlay = await overlayWorkingTree(repoRoot, state.worktreeDir, (chunk) => void emit("orchestrator", "overlay.output", chunk));
+  const overlay = await overlayWorkingTree(repoRoot, worktreeDir, (chunk) => void emit("orchestrator", "overlay.output", chunk));
   if (!overlay.pass) {
-    state.status = "failed";
     await emit("orchestrator", "overlay.failed", overlay.detail);
-    await writeRunState(repoRoot, state);
-    return;
+    return overlay;
   }
   await emit("orchestrator", "overlay.done");
 
-  let cancelled = false;
-  activeRuns.set(state.runId, { kill: () => { cancelled = true; } });
-
-  const install = await runInstall(state.worktreeDir, (chunk) => void emit("orchestrator", "install.output", chunk));
+  const install = await runInstall(worktreeDir, (chunk) => void emit("orchestrator", "install.output", chunk));
   if (!install.pass) {
-    state.status = "failed";
     await emit("orchestrator", "install.failed", install.detail);
+    return install;
+  }
+  await emit("orchestrator", "install.done");
+  return { pass: true, detail: "Worktree ready." };
+}
+
+async function executeRun(request: LaunchRequest & { repoRoot: string }, state: RunState): Promise<void> {
+  const { repoRoot } = request;
+  const emit = (role: RunEvent["role"], type: string, detail?: string, data?: Record<string, unknown>) =>
+    appendEvent(repoRoot, state.runId, { at: new Date().toISOString(), role, type, detail, data });
+  const onOutput = (role: RoleName) => (chunk: string) => void emit(role, "output", chunk);
+
+  emit("orchestrator", "run.started", `Preparing worktree for ${state.workflowId} on branch ${state.branch}.`);
+
+  const prepared = await prepareWorktree(repoRoot, state.worktreeDir, state.branch, emit);
+  if (!prepared.pass) {
+    state.status = "failed";
     await writeRunState(repoRoot, state);
     return;
   }
-  await emit("orchestrator", "install.done");
+
+  let cancelled = false;
+  activeRuns.set(state.runId, { kill: () => { cancelled = true; } });
   await writeRunState(repoRoot, state);
 
   const baseBranch = (await git(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"])).stdout.trim() || "main";
@@ -307,7 +327,45 @@ async function overlayWorkingTree(repoRoot: string, worktreeDir: string, onOutpu
     });
     if (!applied.pass) return applied;
   }
+
+  // Several workspace packages (e.g. @mailmypdf/documents) resolve via a
+  // pre-built dist/, not their TS source — and dist/ is gitignored, so
+  // neither `git worktree add` (checks out committed history only) nor the
+  // tracked-diff overlay above ever puts it in a fresh worktree. dist/ is
+  // build output, not a secret, so it's safe to copy directly (unlike a
+  // whole-checkout copy, which is what leaked .env.local before).
+  const distCopy = await copyPackageDistOutputs(repoRoot, worktreeDir, onOutput);
+  if (!distCopy.pass) return distCopy;
+
   return { pass: true, detail: "Tracked changes overlaid." };
+}
+
+async function copyPackageDistOutputs(repoRoot: string, worktreeDir: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {
+  const packagesDir = path.join(repoRoot, "packages");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(packagesDir);
+  } catch {
+    return { pass: true, detail: "No packages/ directory." };
+  }
+  for (const name of entries) {
+    const distSrc = path.join(packagesDir, name, "dist");
+    const distDest = path.join(worktreeDir, "packages", name, "dist");
+    try {
+      await fs.access(distSrc);
+    } catch {
+      continue; // No dist/ for this package — nothing to copy.
+    }
+    try {
+      await fs.rm(distDest, { recursive: true, force: true });
+      await fs.cp(distSrc, distDest, { recursive: true });
+    } catch (error) {
+      const detail = `Could not copy packages/${name}/dist into the worktree: ${error instanceof Error ? error.message : String(error)}`;
+      onOutput(`${detail}\n`);
+      return { pass: false, detail };
+    }
+  }
+  return { pass: true, detail: "dist/ outputs copied." };
 }
 
 async function runInstall(cwd: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {

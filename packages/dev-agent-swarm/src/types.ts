@@ -53,3 +53,33 @@ export type LaunchRequest = {
   requestedRoles?: AgentRole[];
   budget?: AgentRunBudget;
 };
+
+// -- Interactive chat (Builder, driven turn-by-turn like the real CLIs) --------
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  at: string;
+  /** Which provider produced this (assistant) or was active for this (system) message. */
+  provider?: AgentProviderName;
+};
+
+export type ChatSession = {
+  sessionId: string;
+  verticalId: string;
+  workflowId: string;
+  publicPath?: string;
+  branch: string;
+  worktreeDir: string;
+  /** The provider a new message uses if the caller doesn't specify one. */
+  provider: AgentProviderName;
+  /** Each provider's own native session/thread id, so switching back to a
+   * provider you've already used in this chat resumes it rather than
+   * starting over. */
+  providerSessionIds: Partial<Record<AgentProviderName, string>>;
+  messages: ChatMessage[];
+  status: "idle" | "running";
+  createdAt: string;
+  updatedAt: string;
+};

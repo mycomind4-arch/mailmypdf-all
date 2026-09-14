@@ -29,8 +29,6 @@ import {
   Github,
   Eye,
   EyeOff,
-  MessageSquare,
-  Paperclip,
   Play,
   Plus,
   Redo2,
@@ -57,7 +55,7 @@ import { findStepWorkflow } from "@/domain/step-workflows";
 import { readHiddenWorkflowIds, writeHiddenWorkflowIds } from "@/lib/workflow-visibility";
 import { scanProjectFiles, type StudioFileTreeNode } from "@/lib/fns/scan-project-files";
 import { scanWorkflowCatalog } from "@/lib/fns/scan-workflow-catalog";
-import type { RunState, RoleName, AgentProviderName } from "@mailmypdf/dev-agent-swarm";
+import type { AgentProviderName, ChatSession, ChatGate } from "@mailmypdf/dev-agent-swarm";
 import { syncProjectToGithub } from "@/lib/fns/sync-project-to-github";
 import { publishProjectToCloudflare } from "@/lib/fns/publish-project-to-cloudflare";
 import {
@@ -120,13 +118,6 @@ type TraceEvent = {
   label: string;
   detail?: string;
   data?: Record<string, unknown>;
-};
-
-type StudioChatMessage = {
-  id: string;
-  role: "assistant" | "user";
-  content: string;
-  attachments?: string[];
 };
 
 type StudioFlowData = { phase: StudioPhase; selected: boolean };
@@ -835,15 +826,7 @@ function StudioPage() {
   const [status, setStatus] = useState<"idle" | "building" | "ready" | "error">("idle");
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("General");
-  const [leftPanelView, setLeftPanelView] = useState<"library" | "claude" | "code" | "agents">("library");
-  const [chatMessages, setChatMessages] = useState<StudioChatMessage[]>([
-    {
-      id: "studio-welcome",
-      role: "assistant",
-      content: "Tell me what you want to create or change. I will turn it into an editable workflow for the selected vertical.",
-    },
-  ]);
-  const [chatFiles, setChatFiles] = useState<File[]>([]);
+  const [leftPanelView, setLeftPanelView] = useState<"library" | "code" | "agents">("library");
   const [catalogProgress, setCatalogProgress] = useState<Record<string, CatalogAgentProgress>>({});
   const [isBatchRunning, setIsBatchRunning] = useState(false);
   const [studioView, setStudioView] = useState<"preview" | "graph">("preview");
@@ -879,19 +862,23 @@ function StudioPage() {
     reports?: StudioAcceptanceReport[];
     error?: string;
   } | null>(null);
-  const [agentRuns, setAgentRuns] = useState<RunState[]>([]);
+  // Agent chat — one interactive session per (vertical, workflow), driven
+  // turn-by-turn by a real claude/codex CLI (switchable per message), with
+  // Tester/Reviewer/SEO available as on-demand gates rather than an
+  // automatic pipeline. See packages/dev-agent-swarm/src/chat.ts.
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [agentProviderAvailability, setAgentProviderAvailability] = useState<{ claude: boolean; codex: boolean } | null>(null);
   const [agentVerticalId, setAgentVerticalId] = useState<string>("");
   const [agentWorkflowId, setAgentWorkflowId] = useState<string>("");
-  const [agentInstructions, setAgentInstructions] = useState("");
-  const [agentBuilderProvider, setAgentBuilderProvider] = useState<AgentProviderName>("codex");
-  const [agentReviewerProvider, setAgentReviewerProvider] = useState<AgentProviderName>("codex");
-  const [agentBuilderModel, setAgentBuilderModel] = useState("");
-  const [agentReviewerModel, setAgentReviewerModel] = useState("");
-  const [agentLaunchError, setAgentLaunchError] = useState<string | null>(null);
-  const [isLaunchingAgentRun, setIsLaunchingAgentRun] = useState(false);
-  const [expandedAgentRunId, setExpandedAgentRunId] = useState<string | null>(null);
-  const [agentRunLog, setAgentRunLog] = useState<Record<string, string[]>>({});
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatProvider, setChatProvider] = useState<AgentProviderName>("codex");
+  const [chatModel, setChatModel] = useState("");
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [isSendingChat, setIsSendingChat] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const [pendingGate, setPendingGate] = useState<ChatGate | null>(null);
+  const [chatLog, setChatLog] = useState<Record<string, string[]>>({});
   const [expandedCodePaths, setExpandedCodePaths] = useState<Set<string>>(() => new Set([""]));
   const [previewSource, setPreviewSource] = useState<
     { kind: "route"; publicPath: string; verticalId?: string; label: string } | null
@@ -1048,87 +1035,6 @@ function StudioPage() {
     });
   }
 
-  async function buildWorkflow(event: React.FormEvent) {
-    event.preventDefault();
-    const userRequest = prompt.trim();
-    if (!userRequest || status === "building") return;
-    const attachedFiles = chatFiles;
-    setChatMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: userRequest,
-        attachments: attachedFiles.map((file) => file.name),
-      },
-    ]);
-    setStatus("building");
-    setMessage("Claude is designing the workflow…");
-    try {
-      const attachmentContext = await Promise.all(
-        attachedFiles.map(async (file) => {
-          const canReadText = file.type.startsWith("text/") || /\.(csv|json|md|txt)$/i.test(file.name);
-          if (!canReadText) return `${file.name} (${file.type || "attached file"}, ${file.size} bytes)`;
-          const excerpt = (await file.text()).slice(0, 12_000);
-          return `${file.name}:\n${excerpt}`;
-        }),
-      );
-      const messageForClaude = attachmentContext.length
-        ? `${userRequest}\n\nAttached context:\n${attachmentContext.join("\n\n")}`
-        : userRequest;
-      const response = await fetch("/api/studio/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          message: messageForClaude,
-          currentWorkflow: {
-            title: workflow.title,
-            objective: workflow.objective,
-            sourceWorkflowId: workflow.sourceWorkflowId,
-            landingPage,
-            phases: workflow.phases.map((phase) => ({
-              id: phase.id,
-              title: phase.title,
-              objective: phase.objective,
-              kind: phase.kind,
-              variables: phase.variables,
-              capabilities: phase.capabilities.map((item) => ({ capabilityId: item.capabilityId, executionMode: item.executionMode })),
-            })),
-          },
-        }),
-      });
-      const data = (await response.json()) as { proposal?: StudioProposal; error?: string };
-      if (!response.ok || !data.proposal) throw new Error(data.error ?? "Claude did not return a workflow.");
-      const phases = createStudioPhases(data.proposal);
-      commit(() => ({
-        ...workflow,
-        title: data.proposal!.title,
-        description: data.proposal!.explanation,
-        objective: userRequest,
-        landingPage: data.proposal!.landingPage ?? landingPage,
-        phases,
-        edges: sequentialEdges(phases),
-      }));
-      setSelectedId(phases[0].id);
-      setStatus("ready");
-      setMessage(data.proposal.explanation);
-      setChatMessages((current) => [
-        ...current,
-        { id: crypto.randomUUID(), role: "assistant", content: data.proposal!.explanation },
-      ]);
-      setPrompt("");
-      setChatFiles([]);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Studio request failed.";
-      setStatus("error");
-      setMessage(errorMessage);
-      setChatMessages((current) => [
-        ...current,
-        { id: crypto.randomUUID(), role: "assistant", content: errorMessage },
-      ]);
-    }
-  }
-
   function newWorkflow() {
     const next = createInitialWorkflow();
     commit(() => next);
@@ -1223,18 +1129,12 @@ function StudioPage() {
     commit(() => next);
     setSelectedId(next.phases[0].id);
     setPreviewTarget("landing");
-    setLeftPanelView("claude");
+    setLeftPanelView("agents");
     setStatus("ready");
-    setPrompt(`I want to build ${definition.title}. Help me define the primary keyword, secondary long-tail keywords, research scope, landing page, workflow pages, and required uploads.`);
-    setChatMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Let’s shape ${definition.title} together. First, what primary keyword should this workflow own? I’ll suggest secondary long-tail keywords, then research the governing authority and determine whether owners need one source document or multiple uploads—such as the original notice, any response deadline, and supporting records.`,
-      },
-    ]);
-    setMessage(`Claude is ready to plan ${definition.title} with you.`);
+    setAgentVerticalId(definition.verticalId);
+    setAgentWorkflowId(definition.id);
+    setChatInput(`I want to build ${definition.title}. Help me define the primary keyword, secondary long-tail keywords, research scope, landing page, workflow pages, and required uploads.`);
+    setMessage(`Start a chat to build ${definition.title} with an agent.`);
     setCatalogProgress((current) => ({ ...current, [workflowKey]: { state: "reviewing", updatedAt: new Date().toISOString() } }));
   }
 
@@ -1388,14 +1288,14 @@ function StudioPage() {
     let cancelled = false;
     async function refresh() {
       try {
-        const response = await fetch("/api/studio/agents/runs");
-        const data = (await response.json()) as { runs: RunState[]; availability: { claude: boolean; codex: boolean } };
+        const response = await fetch("/api/studio/chat/sessions");
+        const data = (await response.json()) as { sessions: ChatSession[]; availability: { claude: boolean; codex: boolean } };
         if (!cancelled) {
-          setAgentRuns(data.runs);
+          setChatSessions(data.sessions);
           setAgentProviderAvailability(data.availability);
         }
       } catch {
-        // Keep showing the last-known run list on a transient failure.
+        // Keep showing the last-known session list on a transient failure.
       }
     }
     void refresh();
@@ -1407,59 +1307,104 @@ function StudioPage() {
   }, [leftPanelView]);
 
   useEffect(() => {
-    if (!expandedAgentRunId) return;
-    const source = new EventSource(`/api/studio/agents/stream?runId=${encodeURIComponent(expandedAgentRunId)}`);
+    if (!activeSessionId) return;
+    const source = new EventSource(`/api/studio/agents/stream?runId=${encodeURIComponent(activeSessionId)}`);
     source.onmessage = (event) => {
-      setAgentRunLog((current) => ({
+      setChatLog((current) => ({
         ...current,
-        [expandedAgentRunId]: [...(current[expandedAgentRunId] ?? []), event.data],
+        [activeSessionId]: [...(current[activeSessionId] ?? []), event.data],
       }));
     };
     return () => source.close();
-  }, [expandedAgentRunId]);
+  }, [activeSessionId]);
 
-  async function launchAgentRun() {
-    setAgentLaunchError(null);
-    if (!agentVerticalId || !agentWorkflowId || !agentInstructions.trim()) {
-      setAgentLaunchError("Pick a vertical and workflow, and describe the task.");
+  const activeSession = chatSessions.find((session) => session.sessionId === activeSessionId) ?? null;
+
+  async function startChat() {
+    setChatError(null);
+    if (!agentVerticalId || !agentWorkflowId) {
+      setChatError("Pick a vertical and workflow first.");
       return;
     }
-    setIsLaunchingAgentRun(true);
+    setIsStartingChat(true);
     try {
       const target = catalog.find((row) => row.verticalId === agentVerticalId && row.id === agentWorkflowId);
-      const response = await fetch("/api/studio/agents/launch", {
+      const response = await fetch("/api/studio/chat/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          verticalId: agentVerticalId,
-          workflowId: agentWorkflowId,
-          instructions: agentInstructions.trim(),
-          publicPath: target?.publicPath,
-          builderProvider: agentBuilderProvider,
-          reviewerProvider: agentReviewerProvider,
-          builderModel: agentBuilderModel.trim() || undefined,
-          reviewerModel: agentReviewerModel.trim() || undefined,
-        }),
+        body: JSON.stringify({ verticalId: agentVerticalId, workflowId: agentWorkflowId, publicPath: target?.publicPath, provider: chatProvider }),
       });
-      const data = (await response.json()) as { runId?: string; error?: string };
-      if (!response.ok || data.error) {
-        setAgentLaunchError(data.error ?? "The run could not be launched.");
+      const data = (await response.json()) as { session?: ChatSession; error?: string };
+      if (!response.ok || !data.session) {
+        setChatError(data.error ?? "The session could not be started.");
         return;
       }
-      setAgentInstructions("");
-      setExpandedAgentRunId(data.runId ?? null);
+      setChatSessions((current) => [data.session!, ...current]);
+      setActiveSessionId(data.session.sessionId);
     } catch (error) {
-      setAgentLaunchError(error instanceof Error ? error.message : "The run could not be launched.");
+      setChatError(error instanceof Error ? error.message : "The session could not be started.");
     } finally {
-      setIsLaunchingAgentRun(false);
+      setIsStartingChat(false);
     }
   }
 
-  async function stopAgentRun(runId: string) {
-    await fetch("/api/studio/agents/stop", {
+  async function sendChat() {
+    setChatError(null);
+    if (!activeSessionId || !chatInput.trim()) return;
+    setIsSendingChat(true);
+    try {
+      const response = await fetch("/api/studio/chat/message", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionId: activeSessionId, message: chatInput.trim(), provider: chatProvider, model: chatModel.trim() || undefined }),
+      });
+      const data = (await response.json()) as { session?: ChatSession; error?: string };
+      if (!response.ok || !data.session) {
+        setChatError(data.error ?? "The message could not be sent.");
+        return;
+      }
+      setChatSessions((current) => current.map((session) => (session.sessionId === data.session!.sessionId ? data.session! : session)));
+      setChatInput("");
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "The message could not be sent.");
+    } finally {
+      setIsSendingChat(false);
+    }
+  }
+
+  async function runGate(gate: ChatGate) {
+    setChatError(null);
+    if (!activeSessionId) return;
+    setPendingGate(gate);
+    try {
+      const response = await fetch("/api/studio/chat/gate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          gate === "reviewer"
+            ? { sessionId: activeSessionId, gate, provider: chatProvider, model: chatModel.trim() || undefined }
+            : { sessionId: activeSessionId, gate },
+        ),
+      });
+      const data = (await response.json()) as { session?: ChatSession; error?: string };
+      if (!response.ok || !data.session) {
+        setChatError(data.error ?? "That check could not run.");
+        return;
+      }
+      setChatSessions((current) => current.map((session) => (session.sessionId === data.session!.sessionId ? data.session! : session)));
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "That check could not run.");
+    } finally {
+      setPendingGate(null);
+    }
+  }
+
+  async function stopChat() {
+    if (!activeSessionId) return;
+    await fetch("/api/studio/chat/stop", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ runId }),
+      body: JSON.stringify({ sessionId: activeSessionId }),
     });
   }
 
@@ -1858,20 +1803,13 @@ function StudioPage() {
                 <button onClick={publishWorkflow} className="rounded p-1.5 text-white/65 hover:bg-white/10 hover:text-paper" aria-label="Publish workflow" title="Publish workflow"><Upload size={15} /></button>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-4 rounded-md bg-black/15 p-1 text-xs font-medium">
+            <div className="mt-3 grid grid-cols-3 rounded-md bg-black/15 p-1 text-xs font-medium">
               <button
                 onClick={() => setLeftPanelView("library")}
                 aria-pressed={leftPanelView === "library"}
                 className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 transition ${leftPanelView === "library" ? "bg-white/15 text-paper shadow-sm" : "text-white/55 hover:text-paper"}`}
               >
                 <BookOpen size={14} /> Workflows
-              </button>
-              <button
-                onClick={() => setLeftPanelView("claude")}
-                aria-pressed={leftPanelView === "claude"}
-                className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 transition ${leftPanelView === "claude" ? "bg-white/15 text-paper shadow-sm" : "text-white/55 hover:text-paper"}`}
-              >
-                <MessageSquare size={14} /> Architect
               </button>
               <button
                 onClick={() => setLeftPanelView("code")}
@@ -1885,7 +1823,7 @@ function StudioPage() {
                 aria-pressed={leftPanelView === "agents"}
                 className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 transition ${leftPanelView === "agents" ? "bg-white/15 text-paper shadow-sm" : "text-white/55 hover:text-paper"}`}
               >
-                <Bot size={14} /> Command
+                <Bot size={14} /> Chat
               </button>
             </div>
           </div>
@@ -2080,132 +2018,167 @@ function StudioPage() {
                 )}
               </div>
             </div>
-          ) : leftPanelView === "agents" ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-              <div className="text-sm font-medium">Agent Command Center</div>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">
-                Choose the provider and exact model for Builder and Reviewer, then launch background work in an isolated
-                git workspace. Tester validates the real suite, Reviewer checks the diff, and SEO audits public pages.
-                Nothing lands outside the <code className="font-mono">agent/integration</code> branch without your say-so.
-              </p>
-              {agentProviderAvailability && (!agentProviderAvailability.claude || !agentProviderAvailability.codex) && (
-                <div className="mt-3 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] leading-relaxed text-white/70">
-                  {!agentProviderAvailability.claude && <div>The `claude` CLI is not installed on this machine — Claude-provider roles will fail to launch.</div>}
-                  {!agentProviderAvailability.codex && <div>The `codex` CLI is not installed on this machine — Codex-provider roles will fail to launch.</div>}
-                </div>
-              )}
-
-              <div className="mt-4 space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    aria-label="Vertical"
-                    value={agentVerticalId}
-                    onChange={(event) => { setAgentVerticalId(event.target.value); setAgentWorkflowId(""); }}
-                    className="rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper"
-                  >
-                    <option value="">Vertical…</option>
-                    {studioVerticals.map((vertical) => <option key={vertical.id} value={vertical.id}>{vertical.title}</option>)}
-                  </select>
-                  <select
-                    aria-label="Workflow"
-                    value={agentWorkflowId}
-                    onChange={(event) => setAgentWorkflowId(event.target.value)}
-                    disabled={!agentVerticalId}
-                    className="rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper disabled:opacity-40"
-                  >
-                    <option value="">Workflow…</option>
-                    {catalog.filter((row) => row.verticalId === agentVerticalId).map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}
-                  </select>
-                </div>
-                <textarea
-                  aria-label="Task instructions"
-                  value={agentInstructions}
-                  onChange={(event) => setAgentInstructions(event.target.value)}
-                  placeholder="Describe the outcome you want the team to achieve…"
-                  className="min-h-16 w-full resize-none rounded border border-white/15 bg-black/20 p-2 text-xs text-paper outline-none placeholder:text-white/40"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[10px] uppercase tracking-wide text-white/40">
-                    Builder
-                    <select value={agentBuilderProvider} onChange={(event) => setAgentBuilderProvider(event.target.value as AgentProviderName)} className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper">
-                      <option value="codex">Codex</option>
-                      <option value="claude">Claude</option>
-                    </select>
-                    <input aria-label="Builder model" value={agentBuilderModel} onChange={(event) => setAgentBuilderModel(event.target.value)} placeholder="Default model" className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35" />
-                  </label>
-                  <label className="text-[10px] uppercase tracking-wide text-white/40">
-                    Reviewer
-                    <select value={agentReviewerProvider} onChange={(event) => setAgentReviewerProvider(event.target.value as AgentProviderName)} className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper">
-                      <option value="codex">Codex</option>
-                      <option value="claude">Claude</option>
-                    </select>
-                    <input aria-label="Reviewer model" value={agentReviewerModel} onChange={(event) => setAgentReviewerModel(event.target.value)} placeholder="Default model" className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35" />
-                  </label>
-                </div>
-                {agentLaunchError && <p className="text-xs text-error">{agentLaunchError}</p>}
-                <button onClick={() => void launchAgentRun()} disabled={isLaunchingAgentRun} className="btn-primary w-full justify-center text-xs">
-                  <Play size={13} /> {isLaunchingAgentRun ? "Launching…" : "Launch swarm"}
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {agentRuns.length === 0 && <p className="text-xs text-white/40">No runs yet.</p>}
-                {agentRuns.map((run) => {
-                  const isExpanded = expandedAgentRunId === run.runId;
-                  return (
-                    <div key={run.runId} className="rounded-lg border border-white/10 bg-white/5">
-                      <button onClick={() => setExpandedAgentRunId(isExpanded ? null : run.runId)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs">
-                        <div className="min-w-0 flex-1 truncate text-white/85">{run.workflowId} <span className="text-white/40">· {run.verticalId}</span></div>
-                        <span className={`badge ${run.status === "merged" ? "badge-success" : run.status === "failed" || run.status === "needs_human" ? "badge-error" : run.status === "cancelled" ? "badge-stone" : "badge-gold"}`}>{run.status.toUpperCase()}</span>
-                      </button>
-                      {isExpanded && (
-                        <div className="border-t border-white/10 p-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            {(Object.entries(run.roles) as Array<[RoleName, NonNullable<RunState["roles"][RoleName]>]>).map(([role, info]) => (
-                              <span key={role} className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${info.status === "pass" || info.status === "approved" ? "border-success/40 bg-success/15 text-success" : info.status === "fail" || info.status === "changes_requested" ? "border-error/40 bg-error/15 text-error" : "border-white/20 bg-white/10 text-white/60"}`}>
-                                {role} · {info.status}
-                              </span>
-                            ))}
-                          </div>
-                          {run.status === "running" && (
-                            <button onClick={() => void stopAgentRun(run.runId)} className="btn-outline mt-2 text-[10px]">Stop run</button>
-                          )}
-                          <div className="mt-2 max-h-64 overflow-y-auto rounded border border-white/10 bg-black/20 p-2 font-mono text-[10px] leading-relaxed text-white/60">
-                            {(agentRunLog[run.runId] ?? []).map((line, index) => <div key={index} className="whitespace-pre-wrap">{line}</div>)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="border-b border-white/10 px-4 py-3">
-                <div className="text-sm font-medium">Claude workflow architect</div>
-                <p className="mt-1 text-xs leading-relaxed text-white/50">Designing {workflow.title} in {workflowTarget?.verticalTitle ?? "your Studio workspace"}.</p>
-              </div>
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-                {chatMessages.map((chatMessage) => (
-                  <div key={chatMessage.id} className={`flex ${chatMessage.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[92%] rounded-lg px-3 py-2.5 text-sm leading-relaxed ${chatMessage.role === "user" ? "bg-brass text-paper" : "bg-white/10 text-white/90"}`}>
-                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">{chatMessage.role === "user" ? "You" : "Claude"}</div>
-                      <div className="whitespace-pre-wrap">{chatMessage.content}</div>
-                      {chatMessage.attachments?.length ? <div className="mt-2 flex flex-wrap gap-1">{chatMessage.attachments.map((attachment) => <span key={attachment} className="inline-flex items-center gap-1 rounded border border-white/20 bg-black/10 px-1.5 py-0.5 text-[10px]"><Paperclip size={10} />{attachment}</span>)}</div> : null}
-                    </div>
+                <div className="text-sm font-medium">Agent chat</div>
+                <p className="mt-1 text-xs leading-relaxed text-white/50">
+                  Chat with Builder like you would with claude or codex directly — it works in its own disposable git
+                  workspace. Run tests, request a review, or check SEO whenever you want; nothing lands outside{" "}
+                  <code className="font-mono">agent/integration</code> without your say-so.
+                </p>
+                {agentProviderAvailability && (!agentProviderAvailability.claude || !agentProviderAvailability.codex) && (
+                  <div className="mt-2 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] leading-relaxed text-white/70">
+                    {!agentProviderAvailability.claude && <div>The `claude` CLI is not installed on this machine.</div>}
+                    {!agentProviderAvailability.codex && <div>The `codex` CLI is not installed on this machine.</div>}
                   </div>
-                ))}
-                {status === "building" && <div className="flex justify-start"><div className="rounded-lg bg-white/10 px-3 py-2 text-xs text-white/70"><Sparkles size={13} className="mr-1 inline animate-pulse" />Claude is building the workflow…</div></div>}
+                )}
               </div>
-              <form onSubmit={buildWorkflow} className="border-t border-white/10 p-4">
-                {chatFiles.length ? <div className="mb-2 flex flex-wrap gap-1.5">{chatFiles.map((file) => <span key={`${file.name}-${file.lastModified}`} className="inline-flex max-w-full items-center gap-1 rounded border border-white/15 bg-white/10 px-2 py-1 text-[10px] text-white/75"><Paperclip size={10} /><span className="max-w-32 truncate">{file.name}</span><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setChatFiles((current) => current.filter((item) => item !== file))} className="rounded text-white/55 hover:text-paper"><X size={11} /></button></span>)}</div> : null}
-                <textarea aria-label="Ask Claude to build or edit a workflow" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Describe the workflow or the change you want…" className="min-h-24 w-full resize-none rounded-md border border-white/10 bg-white/5 p-2 text-sm text-paper outline-none placeholder:text-white/45 focus:border-brass" />
-                <div className="mt-2 flex items-center gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-paper"><Paperclip size={14} /> Attach file<input type="file" multiple className="sr-only" onChange={(event) => { const nextFiles = Array.from(event.target.files ?? []); setChatFiles((current) => [...current, ...nextFiles].filter((file, index, files) => files.findIndex((candidate) => candidate.name === file.name && candidate.lastModified === file.lastModified) === index).slice(0, 6)); event.currentTarget.value = ""; }} /></label>
-                  <button disabled={status === "building" || !prompt.trim()} className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-brass px-3 py-2 text-xs font-semibold text-paper disabled:opacity-60"><Sparkles size={14} /> {status === "building" ? "Building…" : "Send to Claude"}</button>
+
+              {!activeSession ? (
+                <div className="space-y-2 p-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      aria-label="Vertical"
+                      value={agentVerticalId}
+                      onChange={(event) => { setAgentVerticalId(event.target.value); setAgentWorkflowId(""); }}
+                      className="rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper"
+                    >
+                      <option value="">Vertical…</option>
+                      {studioVerticals.map((vertical) => <option key={vertical.id} value={vertical.id}>{vertical.title}</option>)}
+                    </select>
+                    <select
+                      aria-label="Workflow"
+                      value={agentWorkflowId}
+                      onChange={(event) => setAgentWorkflowId(event.target.value)}
+                      disabled={!agentVerticalId}
+                      className="rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper disabled:opacity-40"
+                    >
+                      <option value="">Workflow…</option>
+                      {catalog.filter((row) => row.verticalId === agentVerticalId).map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}
+                    </select>
+                  </div>
+                  <label className="block text-[10px] uppercase tracking-wide text-white/40">
+                    Provider
+                    <select value={chatProvider} onChange={(event) => setChatProvider(event.target.value as AgentProviderName)} className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper">
+                      <option value="codex">Codex</option>
+                      <option value="claude">Claude</option>
+                    </select>
+                  </label>
+                  {chatError && <p className="text-xs text-error">{chatError}</p>}
+                  <button onClick={() => void startChat()} disabled={isStartingChat || !agentVerticalId || !agentWorkflowId} className="btn-primary w-full justify-center text-xs">
+                    <Play size={13} /> {isStartingChat ? "Starting…" : "Start chat"}
+                  </button>
+
+                  {chatSessions.length > 0 && (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="text-[10px] uppercase tracking-wide text-white/40">Recent sessions</div>
+                      {chatSessions.map((session) => (
+                        <button
+                          key={session.sessionId}
+                          onClick={() => setActiveSessionId(session.sessionId)}
+                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-xs hover:border-white/25"
+                        >
+                          <span className="min-w-0 flex-1 truncate text-white/80">{session.workflowId} <span className="text-white/40">· {session.verticalId}</span></span>
+                          <span className="shrink-0 text-white/40">{session.messages.length} msg</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </form>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2 text-xs">
+                    <button onClick={() => setActiveSessionId(null)} className="text-white/50 hover:text-paper">&larr; Sessions</button>
+                    <span className="text-white/30">/</span>
+                    <span className="truncate text-white/80">{activeSession.workflowId} · {activeSession.verticalId}</span>
+                    <input
+                      aria-label="Model (optional)"
+                      value={chatModel}
+                      onChange={(event) => setChatModel(event.target.value)}
+                      placeholder="Default model"
+                      className="ml-auto w-28 rounded border border-white/15 bg-black/20 px-2 py-1 text-[11px] text-paper placeholder:text-white/35"
+                    />
+                    <select
+                      aria-label="Chat provider"
+                      value={chatProvider}
+                      onChange={(event) => setChatProvider(event.target.value as AgentProviderName)}
+                      className="rounded border border-white/15 bg-black/20 px-2 py-1 text-[11px] text-paper"
+                    >
+                      <option value="codex">Codex</option>
+                      <option value="claude">Claude</option>
+                    </select>
+                  </div>
+
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                    {activeSession.messages.length === 0 && (
+                      <p className="text-xs text-white/40">Send a message to get started — just like talking to claude or codex directly.</p>
+                    )}
+                    {activeSession.messages.map((chatMessage) => (
+                      <div key={chatMessage.id} className={`flex ${chatMessage.role === "user" ? "justify-end" : "justify-start"}`}>
+                        {chatMessage.role === "system" ? (
+                          <div className="max-w-[92%] rounded-lg border border-white/10 bg-black/20 px-3 py-2 font-mono text-[11px] leading-relaxed text-white/70">
+                            <div className="whitespace-pre-wrap">{chatMessage.content}</div>
+                          </div>
+                        ) : (
+                          <div className={`max-w-[92%] rounded-lg px-3 py-2.5 text-sm leading-relaxed ${chatMessage.role === "user" ? "bg-brass text-paper" : "bg-white/10 text-white/90"}`}>
+                            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">
+                              {chatMessage.role === "user" ? "You" : chatMessage.provider ?? "Assistant"}
+                            </div>
+                            <div className="whitespace-pre-wrap">{chatMessage.content}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {(isSendingChat || pendingGate) && (
+                      <div className="flex justify-start">
+                        <div className="rounded-lg bg-white/10 px-3 py-2 text-xs text-white/70">
+                          <Sparkles size={13} className="mr-1 inline animate-pulse" />
+                          {pendingGate ? `Running ${pendingGate}…` : `${chatProvider} is working…`}
+                        </div>
+                      </div>
+                    )}
+                    {(chatLog[activeSession.sessionId] ?? []).length > 0 && (
+                      <details className="rounded border border-white/10 bg-black/20 p-2">
+                        <summary className="cursor-pointer text-[10px] uppercase tracking-wide text-white/40">Live output</summary>
+                        <div className="mt-2 max-h-48 overflow-y-auto font-mono text-[10px] leading-relaxed text-white/60">
+                          {(chatLog[activeSession.sessionId] ?? []).map((line, index) => <div key={index} className="whitespace-pre-wrap">{line}</div>)}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+
+                  <div className="border-t border-white/10 p-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button onClick={() => void runGate("tester")} disabled={activeSession.status === "running" || pendingGate !== null} className="btn-outline text-[10px] disabled:opacity-40">Run tests</button>
+                      <button onClick={() => void runGate("reviewer")} disabled={activeSession.status === "running" || pendingGate !== null} className="btn-outline text-[10px] disabled:opacity-40">Request review</button>
+                      <button onClick={() => void runGate("seo")} disabled={activeSession.status === "running" || pendingGate !== null} className="btn-outline text-[10px] disabled:opacity-40">Check SEO</button>
+                      {activeSession.status === "running" && (
+                        <button onClick={() => void stopChat()} className="ml-auto text-[10px] text-error hover:underline">Stop</button>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-start gap-2">
+                      <textarea
+                        aria-label="Message"
+                        value={chatInput}
+                        onChange={(event) => setChatInput(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendChat(); } }}
+                        placeholder="Message the agent…"
+                        disabled={activeSession.status === "running"}
+                        className="min-h-16 w-full resize-none rounded-md border border-white/10 bg-white/5 p-2 text-sm text-paper outline-none placeholder:text-white/45 focus:border-brass disabled:opacity-50"
+                      />
+                      <button
+                        onClick={() => void sendChat()}
+                        disabled={isSendingChat || activeSession.status === "running" || !chatInput.trim()}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-brass px-3 py-2 text-xs font-semibold text-paper disabled:opacity-60"
+                      >
+                        <Sparkles size={14} /> Send
+                      </button>
+                    </div>
+                    {chatError && <p className="mt-1 text-xs text-error">{chatError}</p>}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </aside>
