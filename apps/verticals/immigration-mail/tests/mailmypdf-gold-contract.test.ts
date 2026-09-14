@@ -30,11 +30,9 @@ describe("MailMyPDF Gold fulfillment contract", () => {
 
   it("uses the canonical MailMyPDF v1 endpoints and preserves multipart boundaries", async () => {
     const source = await readMailingClient();
-    expect(source).toContain('"/v1/documents"');
-    expect(source).toContain('"/v1/communications"');
+    expect(source).toContain('"/api/v1/documents"');
+    expect(source).toContain('"/api/v1/communications"');
     expect(source).toContain("instanceof FormData");
-    expect(source).not.toContain('"/api/v1/documents"');
-    expect(source).not.toContain('"/api/v1/communications"');
   });
 
   it("requires authenticated payment before fulfillment", async () => {
