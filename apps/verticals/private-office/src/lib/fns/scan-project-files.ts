@@ -2,7 +2,7 @@ import { createMiddleware, createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { promises as FsPromises } from "node:fs";
 import type PathModule from "node:path";
-import { requireAuthenticatedUser } from "@/lib/auth-guard";
+import { studioAccessError } from "@/lib/studio-access";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 
 export type StudioFileTreeNode = {
@@ -24,21 +24,17 @@ const OMITTED_DIRECTORIES = new Set([
   "node_modules",
 ]);
 
-export function isLocalDevelopmentHost(host: string | null, environment: string | undefined): boolean {
-  if (environment !== "development" || !host) return false;
-  const hostname = host.startsWith("[") ? host.slice(0, host.indexOf("]") + 1).toLowerCase() : host.split(":", 1)[0]?.toLowerCase();
-  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
-}
+export { isLocalDevelopmentHost } from "@/lib/studio-access";
 
 // Studio is useful before a user has configured an account. Keep that
 // convenience strictly to the local development server; all other requests
-// must still pass the standard account boundary.
+// are rejected because these tools operate on the developer's machine.
 export const studioFileScanAuthMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => next())
   .server(async ({ next, request }) => {
-    if (isLocalDevelopmentHost(request.headers.get("host"), process.env.NODE_ENV)) return next();
-    const user = await requireAuthenticatedUser(request);
-    return next({ context: { user } });
+    const accessError = studioAccessError(request);
+    if (accessError) throw accessError;
+    return next();
   });
 
 /** Converts a project-relative path into safe path segments. */

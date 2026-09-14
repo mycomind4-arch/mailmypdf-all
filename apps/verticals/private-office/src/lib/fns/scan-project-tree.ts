@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { promises as FsPromises } from "node:fs";
 import type PathModule from "node:path";
-import { accountAuthMiddleware } from "@/lib/server-function-auth";
+import { studioFileScanAuthMiddleware } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 import { studioVerticals, studioCatalog } from "@/domain/studio-ecosystem";
 
@@ -132,7 +132,7 @@ async function listRouteDir(
 }
 
 export const scanProjectTree = createServerFn({ method: "GET" })
-  .middleware([accountAuthMiddleware])
+  .middleware([studioFileScanAuthMiddleware])
   .validator(z.object({ projectId: z.string() }))
   .handler(async ({ data }): Promise<StudioTreeNode> => {
     const project = findStudioProject(data.projectId);

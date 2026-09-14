@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { studioAccessError } from "@/lib/studio-access";
 import { z } from "zod";
-import { requireAuthenticatedUser } from "@/lib/auth-guard";
-import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 
 // Runs a workflow's real acceptance test by shelling out to the one CLI the
@@ -29,13 +28,8 @@ export const Route = createFileRoute("/api/studio/acceptance/test")({
         // This spawns a vitest subprocess against the real repo — keep it to
         // the same local-dev-only boundary scan-project-files.ts uses rather
         // than opening it to any authenticated request.
-        if (!isLocalDevelopmentHost(request.headers.get("host"), process.env.NODE_ENV)) {
-          try {
-            await requireAuthenticatedUser(request);
-          } catch {
-            return Response.json({ error: "Not authorized." }, { status: 401 });
-          }
-        }
+        const accessError = studioAccessError(request);
+        if (accessError) return accessError;
 
         const parsed = bodySchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {

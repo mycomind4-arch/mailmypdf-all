@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAuthenticatedUser } from "@/lib/auth-guard";
-import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
+import { studioAccessError } from "@/lib/studio-access";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 import { runEventsLogPath } from "@mailmypdf/dev-agent-swarm";
 
@@ -14,13 +13,8 @@ export const Route = createFileRoute("/api/studio/agents/stream")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        if (!isLocalDevelopmentHost(request.headers.get("host"), process.env.NODE_ENV)) {
-          try {
-            await requireAuthenticatedUser(request);
-          } catch {
-            return Response.json({ error: "Not authorized." }, { status: 401 });
-          }
-        }
+        const accessError = studioAccessError(request);
+        if (accessError) return accessError;
 
         const runId = new URL(request.url).searchParams.get("runId");
         if (!runId || !/^[A-Za-z0-9_.-]+$/.test(runId)) {

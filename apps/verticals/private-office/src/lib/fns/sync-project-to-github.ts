@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { accountAuthMiddleware } from "@/lib/server-function-auth";
+import { studioFileScanAuthMiddleware } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 
 const inputSchema = z.object({
@@ -21,7 +21,7 @@ const inputSchema = z.object({
  * instead of `-A`.
  */
 export const syncProjectToGithub = createServerFn({ method: "POST" })
-  .middleware([accountAuthMiddleware])
+  .middleware([studioFileScanAuthMiddleware])
   .validator(inputSchema)
   .handler(async ({ data }) => {
     const project = findStudioProject(data.projectId);

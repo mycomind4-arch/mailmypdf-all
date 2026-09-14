@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { studioAccessError } from "@/lib/studio-access";
 import { z } from "zod";
 import { studioExecutionModes, studioNodeKinds } from "@/domain/studio-workflow";
 import { routeLLMRequest } from "@/platform/llm-router";
@@ -54,6 +55,8 @@ export const Route = createFileRoute("/api/studio/run")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const accessError = studioAccessError(request);
+        if (accessError) return accessError;
         const parsed = phaseSchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {
           return Response.json(

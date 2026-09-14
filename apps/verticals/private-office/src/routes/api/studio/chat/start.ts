@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { studioAccessError } from "@/lib/studio-access";
 import { z } from "zod";
-import { requireAuthenticatedUser } from "@/lib/auth-guard";
-import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
 import { startChatSession, getProviderAvailability } from "@mailmypdf/dev-agent-swarm";
 
@@ -20,13 +19,8 @@ export const Route = createFileRoute("/api/studio/chat/start")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!isLocalDevelopmentHost(request.headers.get("host"), process.env.NODE_ENV)) {
-          try {
-            await requireAuthenticatedUser(request);
-          } catch {
-            return Response.json({ error: "Not authorized." }, { status: 401 });
-          }
-        }
+        const accessError = studioAccessError(request);
+        if (accessError) return accessError;
 
         const parsed = bodySchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) {
