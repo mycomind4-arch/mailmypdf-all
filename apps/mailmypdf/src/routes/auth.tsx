@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useState, useEffect } from "react";
 import { supabase, ensureSupabase } from "@/integrations/supabase/client";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { safeAuthDestination } from "@/lib/auth-navigation";
 
 const AUTH_TIMEOUT_MS = 15_000;
 
@@ -21,7 +22,7 @@ async function withAuthTimeout<T>(operation: Promise<T>): Promise<T> {
 }
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s.redirect === "string" ? s.redirect : typeof (s as any).returnTo === "string" ? (s as any).returnTo : "/dashboard" }),
+  validateSearch: (s: Record<string, unknown>) => ({ redirect: safeAuthDestination(s.redirect ?? s.returnTo) }),
   head: () => ({ meta: [{ title: "Sign in — MailMyPDF" }, { name: "robots", content: "noindex" }] }),
   component: AuthPage,
 });

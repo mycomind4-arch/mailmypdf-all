@@ -1,10 +1,12 @@
 import { createFileRoute, Outlet, redirect, useRouter } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, ensureSupabase } from "@/integrations/supabase/client";
 import { AuthenticatedSidebar } from "@/components/authenticated-sidebar";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
   beforeLoad: async ({ location }) => {
+    await ensureSupabase();
+    if (!supabase.auth) throw redirect({ to: "/auth", search: { redirect: location.href } });
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth", search: { redirect: location.href } });
     return { user: data.user };

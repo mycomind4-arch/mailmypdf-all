@@ -4,8 +4,9 @@
  * The main site is the canonical home for "Mail a PDF".
  * mailPdfUrl is internal (/mail-a-pdf), not external.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, ensureSupabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import type { EcosystemShellConfig } from "./ecosystem-shell";
 
 export function useShellConfig(): EcosystemShellConfig {
@@ -13,35 +14,40 @@ export function useShellConfig(): EcosystemShellConfig {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase.auth) return;
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
+    let unsubscribe: (() => void) | undefined;
+    async function initialize() {
+      await ensureSupabase();
       if (!active) return;
-      if (data.session?.user) {
-        setUser({
-          email: data.session.user.email ?? "",
-          fullName: (data.session.user.user_metadata?.fullName as string) ?? undefined,
-          role: (data.session.user.user_metadata?.role as string) ?? undefined,
-        });
-      }
-      setLoading(false);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      if (session?.user) {
-        setUser({
-          email: session.user.email ?? "",
-          fullName: (session.user.user_metadata?.fullName as string) ?? undefined,
-          role: (session.user.user_metadata?.role as string) ?? undefined,
-        });
-      } else {
+      const auth = supabase.auth;
+      if (!auth) { setLoading(false); return; }
+      let observedEvent = false;
+      const applyUser = (sessionUser: User | undefined) => {
+        if (!active) return;
+        setUser(sessionUser ? {
+          email: sessionUser.email ?? "",
+          fullName: sessionUser.user_metadata?.full_name ?? sessionUser.user_metadata?.fullName,
+          // Profile metadata is user-editable and must not supply a role.
+        } : null);
+        setLoading(false);
+      };
+      const { data: listener } = auth.onAuthStateChange((_event, session) => {
+        observedEvent = true;
+        applyUser(session?.user);
+      });
+      unsubscribe = () => listener.subscription.unsubscribe();
+      const { data } = await auth.getSession();
+      if (!observedEvent) applyUser(data.session?.user);
+    }
+    void initialize().catch(() => {
+      if (active) {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 

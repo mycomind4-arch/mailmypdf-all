@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { safeAuthDestination } from "@/lib/auth-navigation";
 
 const AUTH_TIMEOUT_MS = 15_000;
 
@@ -21,7 +22,7 @@ async function withTimeout<T>(operation: Promise<T>): Promise<T> {
 
 export const Route = createFileRoute("/auth/confirm")({
   validateSearch: (s: Record<string, unknown>) => ({
-    redirect: typeof s.redirect === "string" ? s.redirect : "/dashboard",
+    redirect: safeAuthDestination(s.redirect),
     code: typeof s.code === "string" ? s.code : undefined,
     error: typeof s.error === "string" ? s.error : undefined,
     errorDescription: typeof s.error_description === "string" ? s.error_description : undefined,
@@ -89,7 +90,7 @@ function ConfirmEmailPage() {
         <p className="mt-5 text-sm leading-6 text-muted-foreground">{message}</p>
         {status === "error" && (
           <div className="mt-8 flex justify-center gap-3">
-            <button onClick={() => void navigate({ to: "/auth", search: { redirect: "/dashboard" } })} className="rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white">Back to sign in</button>
+            <button onClick={() => void navigate({ to: "/auth", search: { redirect } })} className="rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-white">Back to sign in</button>
             <button onClick={() => window.location.reload()} className="rounded-full border border-rule px-5 py-2 text-sm">Try again</button>
           </div>
         )}
