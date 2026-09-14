@@ -40,7 +40,7 @@ describe("buildLLMConfig", () => {
     expect(config.providers.anthropic?.model).toBe("test-model");
   });
 
-  it("does not select an Anthropic model the account did not configure", () => {
+  it("uses the safe Claude default when the account did not configure a model", () => {
     process.env.ANTHROPIC_API_KEY = "test-key";
     delete process.env.ANTHROPIC_MODEL;
     delete process.env.LLM_PROVIDER;
@@ -48,6 +48,6 @@ describe("buildLLMConfig", () => {
     delete process.env.GOOGLE_AI_API_KEY;
     delete process.env.OPENAI_API_KEY;
 
-    expect(buildLLMConfig().providers.anthropic).toBeUndefined();
+    expect(buildLLMConfig().providers.anthropic?.model).toBe("claude-sonnet-5");
   });
 });

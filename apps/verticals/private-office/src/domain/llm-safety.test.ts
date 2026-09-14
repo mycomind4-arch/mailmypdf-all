@@ -508,10 +508,10 @@ describe("LLM safety: authority provider honesty", () => {
     expect(result.provenance).not.toBe("externally_sourced");
   });
 
-  it("getAuthorityProvider returns NullAuthorityProvider by default", () => {
+  it("getAuthorityProvider uses the official-source provider by default", () => {
     _resetAuthorityProvider();
     const provider = getAuthorityProvider();
-    expect(provider.name).toBe("null");
+    expect(provider.name).toBe("official-source");
   });
 
   it("NullAuthorityProvider does not fabricate citations", async () => {
