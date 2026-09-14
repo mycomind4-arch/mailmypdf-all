@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import { analyzePoliceProduction, type PoliceProductionRecord, type PoliceProductionIdentifiers } from './police-records-analysis'
 import { buildPoliceRecordsTimeline } from './police-records-timeline'
 import type { RecordsDomainCapability } from './domain-pack'
@@ -184,7 +185,7 @@ export const policeRecordsWorkflow: RecordsWorkflow = createRecordsWorkflow({
       if (!input || typeof input !== 'object') throw new Error('POLICE_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const source = input as { requestedItems?: readonly { category:string; description:string }[]; records?: readonly PoliceProductionRecord[]; identifiers?: PoliceProductionIdentifiers }
       const records = source.records ?? []
-      const requested = (source.requestedItems ?? []).map(item => ({ id:item.category, label:item.category, keywords:item.description.split(/\W+/).filter(word => word.length >= 4).slice(0, 20) }))
+      const requested = (source.requestedItems ?? []).map(item => ({ id:item.category, label:item.category, keywords:deriveCategoryKeywords(item.description) }))
       const deterministic = analyzePoliceProduction(requested, records, source.identifiers ?? {})
       const timeline = buildPoliceRecordsTimeline(records)
       const providers = getConfiguredRecordsLlmProviders()

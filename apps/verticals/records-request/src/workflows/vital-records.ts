@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
+import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper, deriveCategoryKeywords } from './shared-capabilities'
 import { analyzeGenericProduction } from './generic-records-analysis'
 
 // ── Birth Records ──
@@ -51,7 +51,7 @@ export const birthRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('BIRTH_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'birth record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'birth record')
     },
   },
 })
@@ -105,7 +105,7 @@ export const marriageRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('MARRIAGE_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'marriage record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'marriage record')
     },
   },
 })
@@ -160,7 +160,7 @@ export const divorceRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('DIVORCE_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'divorce record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'divorce record')
     },
   },
 })
@@ -212,7 +212,7 @@ export const deathRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('DEATH_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'death record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'death record')
     },
   },
 })

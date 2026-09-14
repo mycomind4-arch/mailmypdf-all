@@ -51,7 +51,7 @@ export type PoliceProductionAnalysis = {
 }
 
 const REDACTION_PATTERNS = /(?:redacted|withheld|exempt|privileged|confidential|blackout)/i
-const REFERENCE_PATTERNS = /(?:see attached|attached|enclosed|supplement(?:al)?\s+report|CAD|body[- ]?worn|dash[- ]?cam|911\s+call|video|photograph|recording|report\s+number)/i
+const REFERENCE_PATTERNS = /(?:\bsee\s|attached|enclosed|referenc(?:e|ed|es|ing)|supplement(?:al)?\s+report|CAD|body[- ]?worn|dash[- ]?cam|911\s+call|video|photograph|recording|report\s+number)/i
 const MEDIA_PATTERNS = /(?:video|audio|recording|body[- ]?cam|dash[- ]?cam|photograph|photo|911\s+call)/i
 const INCIDENT_NUMBER_PATTERN = /\b(?:case|incident|report|CAD)\s*(?:number|no\.?|#)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]{2,})/gi
 
@@ -59,17 +59,35 @@ function textFor(record: PoliceProductionRecord): string {
   return `${record.filename} ${record.category ?? ''} ${record.text ?? ''}`.trim()
 }
 
+function categoryToken(id: string): string {
+  return id.replace(/-/g, '').toLowerCase()
+}
+
 function matchesCategory(record: PoliceProductionRecord, category: PoliceRequestedCategory): boolean {
   if (record.category?.toLowerCase() === category.id.toLowerCase()) return true
 
-  const filename = record.filename.toLowerCase()
-  if (category.keywords.some((keyword) => filename.includes(keyword.toLowerCase()))) return true
+  // Require the filename to contain the category's own id as a contiguous
+  // token (e.g. "supervisor-review-and-approval.pdf"), not merely any one
+  // of its auto-derived description keywords. Many categories within the
+  // same workflow legitimately share vocabulary (every use-of-force category
+  // description mentions "force"), so a single-keyword filename check lets
+  // an unrelated record's generic name spuriously "cover" a different
+  // category — e.g. force-report.pdf matching supervisor-review-and-approval
+  // purely because both mention "force".
+  const filenameToken = record.filename.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (filenameToken.includes(categoryToken(category.id))) return true
 
   const content = record.text ?? ''
   if (!content.trim()) return false
 
-  const keywordMatch = category.keywords.some((keyword) => content.toLowerCase().includes(keyword.toLowerCase()))
-  if (!keywordMatch) return false
+  // Require at least two distinct keyword hits, not one. Sibling categories
+  // in the same workflow legitimately share domain vocabulary (every
+  // use-of-force category description mentions "force"), so a single shared
+  // word is weak evidence a record belongs to this specific category —
+  // multiple hits together are much stronger corroboration.
+  const contentLower = content.toLowerCase()
+  const matchedKeywords = new Set(category.keywords.filter((keyword) => contentLower.includes(keyword.toLowerCase())))
+  if (matchedKeywords.size < 2) return false
 
   // A generic response that merely points to another record is not itself proof
   // that the referenced category was produced. Prefer explicit record metadata

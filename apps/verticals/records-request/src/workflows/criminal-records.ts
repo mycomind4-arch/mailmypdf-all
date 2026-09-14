@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
+import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper, deriveCategoryKeywords } from './shared-capabilities'
 import { analyzeGenericProduction } from './generic-records-analysis'
 
 // ── Criminal Records ──
@@ -54,7 +54,7 @@ export const criminalRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('CRIMINAL_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'criminal record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'criminal record')
     },
   },
 })
@@ -104,7 +104,7 @@ export const criminalHistoryWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('CRIMINAL_HISTORY_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'criminal history record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'criminal history record')
     },
   },
 })
@@ -156,7 +156,7 @@ export const arrestRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('ARREST_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'arrest record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'arrest record')
     },
   },
 })
@@ -206,7 +206,7 @@ export const backgroundCheckRecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('BACKGROUND_CHECK_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'background check record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'background check record')
     },
   },
 })

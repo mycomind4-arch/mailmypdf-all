@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
+import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper, deriveCategoryKeywords } from './shared-capabilities'
 import { analyzeGenericProduction } from './generic-records-analysis'
 
 // ── Police Report Request ──
@@ -52,7 +52,7 @@ export const policeReportWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('POLICE_REPORT_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'police report')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'police report')
     },
   },
 })
@@ -104,7 +104,7 @@ export const policeReportCopyWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('POLICE_REPORT_COPY_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'report copy')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'report copy')
     },
   },
 })
@@ -156,7 +156,7 @@ export const publicInformationRequestWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('PUBLIC_INFO_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'public information record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'public information record')
     },
   },
 })
@@ -208,7 +208,7 @@ export const openRecordsRequestWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('OPEN_RECORDS_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'open record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'open record')
     },
   },
 })
@@ -260,7 +260,7 @@ export const agencyRecordsRequestWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('AGENCY_RECORDS_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'agency record')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'agency record')
     },
   },
 })
@@ -312,7 +312,7 @@ export const governmentDocumentsRequestWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('GOV_DOCS_ANALYSIS_INPUT_INVALID')
       const s = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: i.description.split(/\W+/).filter(Boolean).slice(0, 16) })), s.records ?? [], 'government document')
+      return analyzeGenericProduction((s.requestedItems ?? []).map(i => ({ id: i.category, label: i.category, keywords: deriveCategoryKeywords(i.description) })), s.records ?? [], 'government document')
     },
   },
 })

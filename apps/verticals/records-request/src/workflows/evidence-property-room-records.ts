@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import {
   analyzePoliceProduction,
@@ -313,7 +314,7 @@ export const evidencePropertyRoomRecordsWorkflow: RecordsWorkflow = createRecord
       const requested = (source.requestedItems ?? []).map((item) => ({
         id: item.category,
         label: item.category,
-        keywords: item.description.split(/\W+/).filter((word) => word.length >= 4).slice(0, 20),
+        keywords: deriveCategoryKeywords(item.description),
       }))
       const deterministic = analyzePoliceProduction(requested, records, source.identifiers ?? {})
       const providers = getConfiguredRecordsLlmProviders()

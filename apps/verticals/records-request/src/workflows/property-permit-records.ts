@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import { analyzePropertyPermitProduction } from './property-permit-analysis'
 import {
@@ -302,7 +303,7 @@ export const propertyPermitRecordsWorkflow: RecordsWorkflow = createRecordsWorkf
       const requested = (source.requestedItems ?? []).map((item) => ({
         id: item.category,
         label: item.category,
-        keywords: item.description.split(/\W+/).filter((word) => word.length >= 4).slice(0, 16),
+        keywords: deriveCategoryKeywords(item.description),
       }))
       const deterministic = analyzePropertyPermitProduction(requested, records)
       const providers = getConfiguredRecordsLlmProviders()

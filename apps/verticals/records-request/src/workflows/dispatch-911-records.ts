@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import { analyzePoliceProduction, type PoliceProductionIdentifiers, type PoliceProductionRecord } from './police-records-analysis'
 import { assessPoliceContradiction, classifyPoliceRecord, extractPoliceIncidentFacts, recommendPoliceFollowUp } from './police-records-ai'
@@ -115,7 +116,7 @@ export const dispatch911RecordsWorkflow:RecordsWorkflow=createRecordsWorkflow({
   responseAnalysis:{findingTypes:DISPATCH_911_FINDINGS,async analyze(input:unknown){
     if(!input||typeof input!=='object') throw new Error('DISPATCH_911_PRODUCTION_ANALYSIS_INPUT_INVALID')
     const source=input as {requestedItems?:readonly {category:string;description:string}[];records?:readonly PoliceProductionRecord[];identifiers?:PoliceProductionIdentifiers}; const records=source.records??[]
-    const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:item.description.split(/\W+/).filter(word=>word.length>=4).slice(0,20)})); const deterministic=analyzePoliceProduction(requested,records,source.identifiers??{}); const providers=getConfiguredRecordsLlmProviders(); if(providers.length<2) return deterministic
+    const requested=(source.requestedItems??[]).map(item=>({id:item.category,label:item.category,keywords:deriveCategoryKeywords(item.description)})); const deterministic=analyzePoliceProduction(requested,records,source.identifiers??{}); const providers=getConfiguredRecordsLlmProviders(); if(providers.length<2) return deterministic
     const policy={minimumProviders:2,agreementThreshold:0.67,maxProviders:3} as const; const analyzed=await Promise.all(records.slice(0,20).map(async record=>({id:record.id,classification:await classifyPoliceRecord(providers,record,policy),facts:await extractPoliceIncidentFacts(providers,record,policy)}))); const contradictions:Array<{leftId:string;rightId:string;result:Awaited<ReturnType<typeof assessPoliceContradiction>>}>=[]
     for(let i=0;i<Math.min(records.length,8);i+=1){for(let j=i+1;j<Math.min(records.length,8);j+=1){contradictions.push({leftId:records[i].id,rightId:records[j].id,result:await assessPoliceContradiction(providers,records[i],records[j],policy)})}}
     const strategy=await recommendPoliceFollowUp(providers,{workflow:'dispatch-911-records',deterministic,requestedItems:source.requestedItems??[],identifiers:source.identifiers??{},records:records.slice(0,20).map(record=>({id:record.id,filename:record.filename,category:record.category,text:record.text??''})),extracted:analyzed.map(item=>({id:item.id,classification:item.classification.value,facts:item.facts.value})),contradictions:contradictions.filter(item=>item.result.value.contradictory).map(item=>({leftId:item.leftId,rightId:item.rightId,analysis:item.result.value}))},policy)

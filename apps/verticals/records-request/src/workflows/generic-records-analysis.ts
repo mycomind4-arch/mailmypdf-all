@@ -15,7 +15,15 @@ function matches(r: GenericProductionRecord, c: GenericRequestedCategory) {
   const filenameToken = r.filename.toLowerCase().replace(/[^a-z0-9]/g, '')
   if (filenameToken.includes(categoryToken(c.id))) return true
   const text = r.text ?? ''
-  if (REFERENCE.test(text) && !r.category) return false
+  // Once we're here, r.category (if set at all) is for a DIFFERENT category
+  // than c — the exact-match check above already handled the case where it
+  // matches. A record merely mentioning/referencing another category's
+  // subject in passing ("see attached deed reference...") is not proof that
+  // category was actually produced, regardless of whether this record
+  // happens to carry some other category tag; gating this check on
+  // `!r.category` let any categorized record's incidental keyword overlap
+  // silently satisfy unrelated categories.
+  if (REFERENCE.test(text)) return false
   const h = content(r).toLowerCase()
   return c.keywords.some(k => h.includes(k.toLowerCase()))
 }
@@ -37,7 +45,10 @@ export function analyzeGenericProduction(
     const t = content(r)
     if (r.sha256) { const prior = hashes.get(r.sha256); if (prior) findings.push({ id: `duplicate-${r.id}`, type: 'DUPLICATE_RECORD', severity: 'info', description: `Record appears to duplicate produced record ${prior} by SHA-256.`, recordIds: [prior, r.id] }); else hashes.set(r.sha256, r.id) }
     if (REDACTION.test(t)) findings.push({ id: `redaction-${r.id}`, type: 'REDACTION_REVIEW', severity: 'warning', description: `Record ${r.filename} contains withholding or redaction language and should be reviewed for the stated basis.`, recordIds: [r.id] })
-    if (REFERENCE.test(t) && !r.category) findings.push({ id: `reference-${r.id}`, type: 'REFERENCED_RECORD_NOT_PRODUCED', severity: 'warning', description: `Record ${r.filename} appears to reference another ${identifierLabel}; confirm whether that referenced material was separately produced.`, recordIds: [r.id] })
+    // A record's own category tag doesn't prove everything it mentions was
+    // actually produced — flag reference language regardless of whether the
+    // record happens to carry a category.
+    if (REFERENCE.test(t)) findings.push({ id: `reference-${r.id}`, type: 'REFERENCED_RECORD_NOT_PRODUCED', severity: 'warning', description: `Record ${r.filename} appears to reference another ${identifierLabel}; confirm whether that referenced material was separately produced.`, recordIds: [r.id] })
   }
   const missing = requested.filter(c => !covered.includes(c.id)).map(c => c.id)
   if (covered.length && missing.length) findings.push({ id: 'partial-production', type: 'PARTIAL_PRODUCTION', severity: 'warning', description: `The production matched ${covered.length} of ${requested.length} requested categories. Review the missing categories before treating the response as complete.`, recordIds: [] })

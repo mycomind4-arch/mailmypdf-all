@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import {
   analyzeCodeEnforcementProduction,
@@ -264,7 +265,7 @@ function normalizeRequestedCategories(items: readonly { category: string; descri
   return items.map((item) => ({
     id: item.category,
     label: item.category,
-    keywords: item.description.split(/\W+/).filter((word) => word.length >= 4).slice(0, 12),
+    keywords: deriveCategoryKeywords(item.description),
   }))
 }
 

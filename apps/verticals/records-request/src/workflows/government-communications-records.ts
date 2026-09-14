@@ -1,5 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
+import { deriveCategoryKeywords } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import { analyzeGovernmentCommunicationProduction, type GovernmentCommunicationRecord } from './government-communications-analysis'
 import { assessGenericRecordContradiction, classifyGenericRecord, extractGenericRecordFacts, recommendGenericRecordFollowUp } from './generic-records-ai'
@@ -187,7 +188,7 @@ export const governmentCommunicationsRecordsWorkflow: RecordsWorkflow = createRe
       if (!input || typeof input !== 'object') throw new Error('GOVERNMENT_COMMUNICATION_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const source = input as { requestedItems?: readonly { category:string; description:string }[]; records?: readonly GovernmentCommunicationRecord[] }
       const records = source.records ?? []
-      const requested = (source.requestedItems ?? []).map(item => ({ id:item.category, label:item.category, keywords:item.description.split(/\W+/).filter(word => word.length >= 4).slice(0, 20) }))
+      const requested = (source.requestedItems ?? []).map(item => ({ id:item.category, label:item.category, keywords:deriveCategoryKeywords(item.description) }))
       const deterministic = analyzeGovernmentCommunicationProduction(requested, records)
       const providers = getConfiguredRecordsLlmProviders()
       if (providers.length < 2) return deterministic

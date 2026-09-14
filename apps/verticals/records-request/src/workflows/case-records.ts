@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper } from './shared-capabilities'
+import { FULL_CAPABILITIES, GENERIC_FINDINGS, textHelper, categoriesHelper, deriveCategoryKeywords } from './shared-capabilities'
 import { analyzeGenericProduction } from './generic-records-analysis'
 
 export const CASE_RECORDS_CATEGORIES = [
@@ -79,7 +79,7 @@ export const caseRecordsWorkflow: RecordsWorkflow = createRecordsWorkflow({
     async analyze(input: unknown) {
       if (!input || typeof input !== 'object') throw new Error('CASE_PRODUCTION_ANALYSIS_INPUT_INVALID')
       const source = input as { requestedItems?: readonly { category: string; description: string }[]; records?: readonly { id: string; filename: string; category?: string; text?: string; sha256?: string }[] }
-      const requested = (source.requestedItems ?? []).map(item => ({ id: item.category, label: item.category, keywords: item.description.split(/\W+/).filter(Boolean).slice(0, 16) }))
+      const requested = (source.requestedItems ?? []).map(item => ({ id: item.category, label: item.category, keywords: deriveCategoryKeywords(item.description) }))
       return analyzeGenericProduction(requested, source.records ?? [], 'case record')
     },
   },
