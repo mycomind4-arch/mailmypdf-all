@@ -64,7 +64,7 @@ export async function requireUser(request: Request): Promise<AuthenticatedUser> 
     throw new AuthError("Invalid or expired authentication token.", 401);
   }
 
-  const role = await resolveUserRole(data.user.id, data.user.user_metadata);
+  const role = await resolveUserRole(data.user.id);
   return {
     id: data.user.id,
     email: data.user.email || "",
@@ -77,12 +77,10 @@ export async function requireUser(request: Request): Promise<AuthenticatedUser> 
 
 async function resolveUserRole(
   userId: string,
-  metadata?: Record<string, unknown>,
 ): Promise<UserRole> {
-  // Check user_metadata first (set by MailMyPDF platform)
-  if (metadata?.role === "super_admin") return "super_admin";
-  if (metadata?.role === "admin") return "admin";
-  if (metadata?.is_admin === true) return "admin";
+  // user_metadata is customer-editable via the standard Supabase client SDK
+  // (auth.updateUser) and must never be trusted for role. The user_roles
+  // table, checked server-side only below, is the sole source of truth.
 
   // Check user_roles table (server-side only — RLS blocks client access)
   try {
@@ -143,7 +141,7 @@ export async function getAuthStatus(request: Request): Promise<{
     const { data, error } = await supabase.auth.getUser(match[1]);
     if (error || !data.user) return { configured: true, authenticated: false };
 
-    const role = await resolveUserRole(data.user.id, data.user.user_metadata);
+    const role = await resolveUserRole(data.user.id);
     return {
       configured: true,
       authenticated: true,
