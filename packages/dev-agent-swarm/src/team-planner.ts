@@ -9,7 +9,7 @@ export type TeamPlan = {
 type Specialty = Exclude<AgentRole, "builder" | "tester" | "reviewer" | "seo">;
 
 const signals: Array<{ role: Specialty; pattern: RegExp; rationale: string }> = [
-  { role: "visual_qa", pattern: /\b(ui|ux|visual|design|layout|page|responsive|accessib|frontend|component|brand)\b/i, rationale: "The outcome changes a user-facing experience." },
+  { role: "visual_qa", pattern: /\b(ui|ux|visual|design|layout|page|screens?|responsive|accessib|frontend|component|brand)\b/i, rationale: "The outcome changes a user-facing experience." },
   { role: "safety_reviewer", pattern: /\b(auth|login|permission|security|privacy|upload|document|payment|stripe|medical|health|legal|personal data|email)\b/i, rationale: "The outcome handles sensitive data, access, or consequential actions." },
   { role: "release_manager", pattern: /\b(release|deploy|production|migration|database|schema|infra|observability|monitoring|performance)\b/i, rationale: "The outcome has release or operational impact." },
   { role: "documentation", pattern: /\b(doc|documentation|guide|help|onboard|instruction|runbook|readme)\b/i, rationale: "The outcome needs durable guidance or discoverability." },
