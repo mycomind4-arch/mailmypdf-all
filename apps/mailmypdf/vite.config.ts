@@ -20,6 +20,9 @@ export default defineConfig({
     preset: "cloudflare_module",
   },
   vite: {
+    // This workspace package exports TypeScript source with .js specifiers.
+    // Transform it through Vite instead of handing raw source to Node SSR.
+    ssr: { noExternal: ["@mailmypdf/legal-defense"] },
     resolve: {
       alias: {
         // Force tslib to resolve to its ESM build so the Nitro/rolldown bundler
