@@ -31,6 +31,9 @@ export const Route = createFileRoute("/products")({
               {p.status === "planned" && (
                 <span className="mt-3 inline-block rounded-full border border-rule px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Coming Soon</span>
               )}
+              {p.status === "beta" && (
+                <span className="mt-3 inline-block rounded-full border border-violet-300/50 bg-violet-50 px-2.5 py-1 text-[10px] uppercase tracking-wider text-violet-800">Beta · workflow available</span>
+              )}
             </a>
           ))}
         </div>

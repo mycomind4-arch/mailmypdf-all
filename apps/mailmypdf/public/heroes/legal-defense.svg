@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Organized criminal defense case file</title>
+  <desc id="desc">A dark evidence board with a vehicle file, timeline, and linked evidence cards.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071321"/><stop offset="1" stop-color="#183149"/></linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffdf7"/><stop offset="1" stop-color="#e8e2d5"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g opacity=".12" stroke="#d7b66f" fill="none"><path d="M0 170h1600M0 450h1600M0 730h1600"/><path d="M250 0v900M760 0v900M1270 0v900"/></g>
+  <g transform="translate(700 120) rotate(-3)" filter="url(#shadow)">
+    <rect width="650" height="650" rx="20" fill="url(#paper)"/>
+    <rect x="52" y="52" width="180" height="26" rx="5" fill="#b18a3a" opacity=".8"/>
+    <rect x="52" y="100" width="430" height="15" rx="4" fill="#24364a" opacity=".82"/>
+    <rect x="52" y="132" width="315" height="11" rx="4" fill="#24364a" opacity=".22"/>
+    <g transform="translate(52 195)">
+      <rect width="545" height="116" rx="12" fill="#f7f2e7" stroke="#c9bdab"/>
+      <circle cx="56" cy="58" r="28" fill="#19334e"/>
+      <path d="M40 62h32l-5-14H45zM47 48l6-12h14l6 12" stroke="#d7b66f" stroke-width="4" fill="none"/>
+      <rect x="110" y="30" width="275" height="14" rx="4" fill="#24364a" opacity=".8"/>
+      <rect x="110" y="61" width="380" height="10" rx="4" fill="#24364a" opacity=".2"/>
+      <rect x="110" y="82" width="300" height="10" rx="4" fill="#24364a" opacity=".15"/>
+    </g>
+    <g transform="translate(52 345)" fill="none" stroke-linecap="round">
+      <circle cx="34" cy="35" r="13" fill="#b18a3a" stroke="none"/><circle cx="34" cy="105" r="13" fill="#b18a3a" stroke="none"/><circle cx="34" cy="175" r="13" fill="#b18a3a" stroke="none"/>
+      <path d="M34 48v44M34 118v44" stroke="#b18a3a" stroke-width="4"/>
+      <path d="M75 35h330M75 105h410M75 175h300" stroke="#24364a" stroke-width="14" opacity=".72"/>
+      <path d="M75 57h235M75 127h280M75 197h375" stroke="#24364a" stroke-width="9" opacity=".15"/>
+    </g>
+  </g>
+  <g transform="translate(285 235) rotate(4)" filter="url(#shadow)">
+    <rect width="380" height="250" rx="18" fill="#f4ead2"/>
+    <text x="34" y="48" font-family="Arial, sans-serif" font-size="15" letter-spacing="4" fill="#5c513e">VEHICLE PROVENANCE</text>
+    <path d="M78 104h84M200 104h84M162 104l38 0" stroke="#b18a3a" stroke-width="4"/>
+    <circle cx="62" cy="104" r="18" fill="#19334e"/><circle cx="184" cy="104" r="18" fill="#19334e"/><circle cx="306" cy="104" r="18" fill="#19334e"/>
+    <rect x="35" y="153" width="285" height="12" rx="4" fill="#24364a" opacity=".7"/>
+    <rect x="35" y="182" width="245" height="9" rx="4" fill="#24364a" opacity=".18"/>
+  </g>
+  <g transform="translate(270 555) rotate(-2)" filter="url(#shadow)">
+    <rect width="420" height="170" rx="18" fill="#132b43" stroke="#d7b66f" stroke-opacity=".6"/>
+    <text x="32" y="43" font-family="Arial, sans-serif" font-size="14" letter-spacing="3" fill="#d7b66f">EVIDENCE DEPENDENCY</text>
+    <path d="M62 92h65m32 0h65m32 0h65" stroke="#d7b66f" stroke-width="3"/>
+    <circle cx="45" cy="92" r="16" fill="#d7b66f"/><circle cx="143" cy="92" r="16" fill="#d7b66f"/><circle cx="240" cy="92" r="16" fill="#d7b66f"/><circle cx="337" cy="92" r="16" fill="#d7b66f"/>
+    <text x="29" y="132" font-family="Arial" font-size="11" fill="#c7d3df">HIT</text><text x="124" y="132" font-family="Arial" font-size="11" fill="#c7d3df">ARREST</text><text x="218" y="132" font-family="Arial" font-size="11" fill="#c7d3df">SEARCH</text><text x="319" y="132" font-family="Arial" font-size="11" fill="#c7d3df">ITEM</text>
+  </g>
+</svg>

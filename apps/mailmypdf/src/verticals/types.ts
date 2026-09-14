@@ -68,6 +68,7 @@ export type VerticalCategory =
   | "disputes" // Disputes
   | "housing" // Housing
   | "professional" // Professional Correspondence
+  | "legal" // Legal defense preparation
   | "business"; // Business
 
 export const CATEGORY_LABELS: Record<VerticalCategory, string> = {
@@ -76,6 +77,7 @@ export const CATEGORY_LABELS: Record<VerticalCategory, string> = {
   disputes: "Disputes",
   housing: "Housing",
   professional: "Professional Correspondence",
+  legal: "Legal Defense",
   business: "Business",
 };
 

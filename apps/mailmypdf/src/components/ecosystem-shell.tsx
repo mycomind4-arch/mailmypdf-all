@@ -38,13 +38,14 @@ export interface EcosystemProduct {
   href: string;
   description: string;
   category: string;
-  status: "live" | "planned";
+  status: "live" | "beta" | "planned";
 }
 
 export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
   { name: "MailMyPDF", slug: "mailmypdf", href: "/", description: "Core document and letter mailing workflows", category: "Core", status: "live" },
   { name: "Notice Respond", slug: "notice-respond", href: "/notice-respond", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
   { name: "Code Enforcement", slug: "code-enforcement", href: "/code-enforcement", description: "Notices, inspections, evidence, compliance, hearings, and case records", category: "Government / Official", status: "planned" },
+  { name: "Legal Defense", slug: "legal-defense", href: "/legal-defense", description: "Arrest reconstruction, evidence mapping, discovery organization, and counsel-ready packets", category: "Legal Defense", status: "beta" },
   { name: "Immigration Mail", slug: "immigration-mail", href: "/immigration-mail", description: "Immigration notices, evidence packages, records requests, and explanation letters", category: "Immigration", status: "live" },
   { name: "Appeal Mail", slug: "appeal-mail", href: "/appeal-mail", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
   { name: "Benefits Appeal", slug: "benefits-appeal", href: "/benefits-appeal", description: "Benefits denials, reconsideration, documentation, and review preparation", category: "Appeals / Claims", status: "planned" },

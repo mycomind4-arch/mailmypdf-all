@@ -73,6 +73,7 @@ import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiCasesIndexRouteImport } from './routes/api/cases/index'
 import { Route as ApiCasesCaseIdRouteImport } from './routes/api/cases/$caseId'
 import { Route as ApiCasesCp2000RouteImport } from './routes/api/cases/cp2000'
+import { Route as ApiCasesCp523RouteImport } from './routes/api/cases/cp523'
 import { Route as ApiCasesCreateRouteImport } from './routes/api/cases/create'
 import { Route as ApiDocumentsExtractRouteImport } from './routes/api/documents/extract'
 import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
@@ -424,6 +425,11 @@ const ApiCasesCp2000Route = ApiCasesCp2000RouteImport.update({
   path: '/api/cases/cp2000',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCasesCp523Route = ApiCasesCp523RouteImport.update({
+  id: '/api/cases/cp523',
+  path: '/api/cases/cp523',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCasesCreateRoute = ApiCasesCreateRouteImport.update({
   id: '/api/cases/create',
   path: '/api/cases/create',
@@ -525,6 +531,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
+  '/api/cases/cp523': typeof ApiCasesCp523Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
@@ -598,6 +605,7 @@ export interface FileRoutesByTo {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
+  '/api/cases/cp523': typeof ApiCasesCp523Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
@@ -672,6 +680,7 @@ export interface FileRoutesById {
   '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/cases/$caseId': typeof ApiCasesCaseIdRouteWithChildren
   '/api/cases/cp2000': typeof ApiCasesCp2000Route
+  '/api/cases/cp523': typeof ApiCasesCp523Route
   '/api/cases/create': typeof ApiCasesCreateRoute
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
@@ -747,6 +756,7 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/cases/$caseId'
     | '/api/cases/cp2000'
+    | '/api/cases/cp523'
     | '/api/cases/create'
     | '/api/documents/extract'
     | '/api/mail/response'
@@ -820,6 +830,7 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/cases/$caseId'
     | '/api/cases/cp2000'
+    | '/api/cases/cp523'
     | '/api/cases/create'
     | '/api/documents/extract'
     | '/api/mail/response'
@@ -893,6 +904,7 @@ export interface FileRouteTypes {
     | '/api/auth/status'
     | '/api/cases/$caseId'
     | '/api/cases/cp2000'
+    | '/api/cases/cp523'
     | '/api/cases/create'
     | '/api/documents/extract'
     | '/api/mail/response'
@@ -967,6 +979,7 @@ export interface RootRouteChildren {
   ApiAuthStatusRoute: typeof ApiAuthStatusRoute
   ApiCasesCaseIdRoute: typeof ApiCasesCaseIdRouteWithChildren
   ApiCasesCp2000Route: typeof ApiCasesCp2000Route
+  ApiCasesCp523Route: typeof ApiCasesCp523Route
   ApiCasesCreateRoute: typeof ApiCasesCreateRoute
   ApiMailResponseRoute: typeof ApiMailResponseRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
@@ -1424,6 +1437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCasesCp2000RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cases/cp523': {
+      id: '/api/cases/cp523'
+      path: '/api/cases/cp523'
+      fullPath: '/api/cases/cp523'
+      preLoaderRoute: typeof ApiCasesCp523RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cases/create': {
       id: '/api/cases/create'
       path: '/api/cases/create'
@@ -1569,6 +1589,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthStatusRoute: ApiAuthStatusRoute,
   ApiCasesCaseIdRoute: ApiCasesCaseIdRouteWithChildren,
   ApiCasesCp2000Route: ApiCasesCp2000Route,
+  ApiCasesCp523Route: ApiCasesCp523Route,
   ApiCasesCreateRoute: ApiCasesCreateRoute,
   ApiMailResponseRoute: ApiMailResponseRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,

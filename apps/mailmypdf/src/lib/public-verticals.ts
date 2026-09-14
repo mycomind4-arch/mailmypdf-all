@@ -6,6 +6,7 @@ export type PublicVerticalId =
   | "dispute-mail"
   | "immigration-mail"
   | "insurance-claims"
+  | "legal-defense"
   | "notice-respond"
   | "permit-reply"
   | "private-office"
@@ -137,6 +138,34 @@ export const PUBLIC_VERTICALS: readonly PublicVerticalConfig[] = [
       { title: "Build the property record", description: "Organize inspection history, photographs, permits, correspondence, ownership information, and relevant facts." },
       { title: "Choose the response path", description: "Distinguish clarification, correction, evidence submission, access, hearing, appeal, or records needs." },
       { title: "Keep proof", description: "Review the exact response before sending and preserve the packet with available delivery evidence." },
+    ],
+  },
+  {
+    id: "legal-defense",
+    path: "/legal-defense",
+    product: "Legal Defense",
+    verticalKeys: ["legal-defense"],
+    eyebrow: "Criminal defense · evidence · timelines · counsel packets",
+    heroTitle: "Build the defense record before details disappear.",
+    description:
+      "Reconstruct police encounters, preserve source evidence, expose contradictions, map how evidence was obtained, and prepare an attorney-ready case packet without pretending software replaces counsel.",
+    directoryDescription:
+      "Browse evidence-first defense workflows for arrest reconstruction, vehicle provenance, search and suppression issue spotting, discovery organization, police evidence, statements, and counsel preparation.",
+    helperTitle: "Start with the arrest sequence and the source documents",
+    helperDescription:
+      "Record what happened in order, preserve the documents that establish possession or ownership, and identify exactly what officers knew before each consequential step.",
+    categories: [
+      { label: "Arrest & detention", terms: ["arrest", "detention", "stop", "custody"] },
+      { label: "Search & suppression", terms: ["search", "suppression", "evidence", "seizure"] },
+      { label: "Vehicles & property", terms: ["vehicle", "stolen", "bill of sale", "property"] },
+      { label: "Police evidence", terms: ["body camera", "dispatch", "report", "alpr", "discovery"] },
+      { label: "Attorney preparation", terms: ["attorney", "counsel", "packet", "timeline"] },
+    ],
+    steps: [
+      { title: "Secure the record", description: "Preserve charging papers, release documents, bills of sale, communications, video, reports, and physical identifiers." },
+      { title: "Reconstruct events", description: "Place the stop, detention, arrest, search, statements, and evidence collection in a source-aware timeline." },
+      { title: "Map evidence", description: "Connect each item to the event and asserted authority that produced it, while keeping disputed facts visible." },
+      { title: "Prepare for counsel", description: "Generate a reviewable issue map, evidence inventory, contradiction list, and attorney-ready intelligence packet." },
     ],
   },
   {
