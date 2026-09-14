@@ -55,7 +55,7 @@ import { findStepWorkflow } from "@/domain/step-workflows";
 import { readHiddenWorkflowIds, writeHiddenWorkflowIds } from "@/lib/workflow-visibility";
 import { scanProjectFiles, type StudioFileTreeNode } from "@/lib/fns/scan-project-files";
 import { scanWorkflowCatalog } from "@/lib/fns/scan-workflow-catalog";
-import type { AgentProviderName, ChatSession, ChatGate } from "@mailmypdf/dev-agent-swarm";
+import type { AgentProviderName, ChatSession, ChatGate, RunState } from "@mailmypdf/dev-agent-swarm";
 import { syncProjectToGithub } from "@/lib/fns/sync-project-to-github";
 import { publishProjectToCloudflare } from "@/lib/fns/publish-project-to-cloudflare";
 import {
@@ -877,6 +877,10 @@ function StudioPage() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [agentRuns, setAgentRuns] = useState<RunState[]>([]);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [swarmInstructions, setSwarmInstructions] = useState("");
+  const [isDispatchingSwarm, setIsDispatchingSwarm] = useState(false);
   const [pendingGate, setPendingGate] = useState<ChatGate | null>(null);
   const [chatLog, setChatLog] = useState<Record<string, string[]>>({});
   const [expandedCodePaths, setExpandedCodePaths] = useState<Set<string>>(() => new Set([""]));
@@ -1288,12 +1292,16 @@ function StudioPage() {
     let cancelled = false;
     async function refresh() {
       try {
-        const response = await fetch("/api/studio/chat/sessions");
-        const data = (await response.json()) as { sessions: ChatSession[]; availability: { claude: boolean; codex: boolean } };
-        if (!cancelled) {
-          setChatSessions(data.sessions);
-          setAgentProviderAvailability(data.availability);
-        }
+        const [sessionsResponse, runsResponse] = await Promise.all([
+          fetch("/api/studio/chat/sessions"),
+          fetch("/api/studio/agents/runs"),
+        ]);
+        const sessionsData = (await sessionsResponse.json()) as { sessions: ChatSession[]; availability: { claude: boolean; codex: boolean } };
+        const runsData = (await runsResponse.json()) as { runs: RunState[]; availability: { claude: boolean; codex: boolean } };
+        if (cancelled) return;
+        if (sessionsResponse.ok) setChatSessions(sessionsData.sessions);
+        if (runsResponse.ok) setAgentRuns(runsData.runs);
+        setAgentProviderAvailability(runsResponse.ok ? runsData.availability : sessionsData.availability);
       } catch {
         // Keep showing the last-known session list on a transient failure.
       }
@@ -1307,16 +1315,17 @@ function StudioPage() {
   }, [leftPanelView]);
 
   useEffect(() => {
-    if (!activeSessionId) return;
-    const source = new EventSource(`/api/studio/agents/stream?runId=${encodeURIComponent(activeSessionId)}`);
+    const streamId = activeRunId ?? activeSessionId;
+    if (!streamId) return;
+    const source = new EventSource(`/api/studio/agents/stream?runId=${encodeURIComponent(streamId)}`);
     source.onmessage = (event) => {
       setChatLog((current) => ({
         ...current,
-        [activeSessionId]: [...(current[activeSessionId] ?? []), event.data],
+        [streamId]: [...(current[streamId] ?? []), event.data],
       }));
     };
     return () => source.close();
-  }, [activeSessionId]);
+  }, [activeRunId, activeSessionId]);
 
   const activeSession = chatSessions.find((session) => session.sessionId === activeSessionId) ?? null;
 
@@ -1340,11 +1349,66 @@ function StudioPage() {
         return;
       }
       setChatSessions((current) => [data.session!, ...current]);
+      setActiveRunId(null);
       setActiveSessionId(data.session.sessionId);
     } catch (error) {
       setChatError(error instanceof Error ? error.message : "The session could not be started.");
     } finally {
       setIsStartingChat(false);
+    }
+  }
+
+  async function dispatchAutonomousTeam() {
+    setChatError(null);
+    if (!agentVerticalId || !agentWorkflowId) {
+      setChatError("Pick a vertical and workflow first.");
+      return;
+    }
+    const target = catalog.find((row) => row.verticalId === agentVerticalId && row.id === agentWorkflowId);
+    const instructions = swarmInstructions.trim()
+      || `Build and verify ${target?.title ?? agentWorkflowId}. Inspect the existing implementation first, make only the changes needed for a complete user-facing workflow, add or update focused tests, then review the result for correctness and release readiness.`;
+    setIsDispatchingSwarm(true);
+    try {
+      const response = await fetch("/api/studio/agents/launch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          verticalId: agentVerticalId,
+          workflowId: agentWorkflowId,
+          publicPath: target?.publicPath,
+          instructions,
+          builderProvider: chatProvider,
+          reviewerProvider: chatProvider,
+          builderModel: chatModel.trim() || undefined,
+          reviewerModel: chatModel.trim() || undefined,
+          budget: { maxConcurrentAgents: 1, maxAttempts: 2, timeoutMs: 15 * 60_000 },
+        }),
+      });
+      const data = (await response.json()) as { runId?: string; error?: string };
+      if (!response.ok || !data.runId) {
+        setChatError(data.error ?? "The background team could not be started.");
+        return;
+      }
+      setActiveRunId(data.runId);
+      setChatLog((current) => ({ ...current, [data.runId!]: [] }));
+      setSwarmInstructions("");
+      setMessage(`Background team dispatched for ${target?.title ?? agentWorkflowId}.`);
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "The background team could not be started.");
+    } finally {
+      setIsDispatchingSwarm(false);
+    }
+  }
+
+  async function stopAutonomousTeam(runId: string) {
+    try {
+      await fetch("/api/studio/agents/stop", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ runId }),
+      });
+    } finally {
+      setActiveRunId((current) => current === runId ? null : current);
     }
   }
 
@@ -2021,11 +2085,11 @@ function StudioPage() {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="border-b border-white/10 px-4 py-3">
-                <div className="text-sm font-medium">Agent chat</div>
+                <div className="text-sm font-medium">Command Center</div>
                 <p className="mt-1 text-xs leading-relaxed text-white/50">
-                  Chat with Builder like you would with claude or codex directly — it works in its own disposable git
-                  workspace. Run tests, request a review, or check SEO whenever you want; nothing lands outside{" "}
-                  <code className="font-mono">agent/integration</code> without your say-so.
+                  Choose Claude or Codex and an exact model once. Work in a private chat, or dispatch a background
+                  Builder → Tester → Reviewer → SEO team in an isolated workspace. Completed work waits on{" "}
+                  <code className="font-mono">agent/integration</code> for your review.
                 </p>
                 {agentProviderAvailability && (!agentProviderAvailability.claude || !agentProviderAvailability.codex) && (
                   <div className="mt-2 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] leading-relaxed text-white/70">
@@ -2058,17 +2122,73 @@ function StudioPage() {
                       {catalog.filter((row) => row.verticalId === agentVerticalId).map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}
                     </select>
                   </div>
-                  <label className="block text-[10px] uppercase tracking-wide text-white/40">
-                    Provider
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-[10px] uppercase tracking-wide text-white/40">
+                      Runtime
                     <select value={chatProvider} onChange={(event) => setChatProvider(event.target.value as AgentProviderName)} className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper">
                       <option value="codex">Codex</option>
                       <option value="claude">Claude</option>
                     </select>
                   </label>
+                    <label className="block text-[10px] uppercase tracking-wide text-white/40">
+                      Exact model
+                      <input
+                        aria-label="Exact model (optional)"
+                        value={chatModel}
+                        onChange={(event) => setChatModel(event.target.value)}
+                        placeholder="Provider default"
+                        className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35"
+                      />
+                    </label>
+                  </div>
                   {chatError && <p className="text-xs text-error">{chatError}</p>}
-                  <button onClick={() => void startChat()} disabled={isStartingChat || !agentVerticalId || !agentWorkflowId} className="btn-primary w-full justify-center text-xs">
-                    <Play size={13} /> {isStartingChat ? "Starting…" : "Start chat"}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => void startChat()} disabled={isStartingChat || !agentVerticalId || !agentWorkflowId} className="btn-outline justify-center text-xs disabled:opacity-50">
+                      <Play size={13} /> {isStartingChat ? "Starting…" : "Open chat"}
+                    </button>
+                    <button onClick={() => void dispatchAutonomousTeam()} disabled={isDispatchingSwarm || !agentVerticalId || !agentWorkflowId} className="btn-primary justify-center text-xs disabled:opacity-50">
+                      <Bot size={13} /> {isDispatchingSwarm ? "Dispatching…" : "Run team"}
+                    </button>
+                  </div>
+                  <label className="block text-[10px] uppercase tracking-wide text-white/40">
+                    Background outcome <span className="normal-case text-white/30">(optional)</span>
+                    <textarea
+                      aria-label="Background team outcome"
+                      value={swarmInstructions}
+                      onChange={(event) => setSwarmInstructions(event.target.value)}
+                      placeholder="Describe the outcome. The team will build, test, review, and check search readiness."
+                      className="mt-1 min-h-20 w-full resize-none rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs leading-relaxed text-paper placeholder:text-white/35"
+                    />
+                  </label>
+
+                  {agentRuns.length > 0 && (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="text-[10px] uppercase tracking-wide text-white/40">Background teams</div>
+                      {agentRuns.slice(0, 4).map((run) => (
+                        <div key={run.runId} className={`rounded-lg border p-2 ${activeRunId === run.runId ? "border-brass/60 bg-brass/10" : "border-white/10 bg-white/5"}`}>
+                          <button onClick={() => setActiveRunId(run.runId)} className="flex w-full items-center justify-between gap-2 text-left text-xs">
+                            <span className="min-w-0 flex-1 truncate text-white/80">{run.workflowId} <span className="text-white/40">· {run.verticalId}</span></span>
+                            <span className={`shrink-0 text-[10px] uppercase ${run.status === "merged" ? "text-success" : run.status === "running" ? "text-brass" : run.status === "failed" || run.status === "needs_human" ? "text-error" : "text-white/45"}`}>{run.status.replaceAll("_", " ")}</span>
+                          </button>
+                          {activeRunId === run.runId && (
+                            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-white/45">
+                              <span className="truncate">{run.branch}</span>
+                              {run.status === "running" && <button onClick={() => void stopAutonomousTeam(run.runId)} className="shrink-0 text-error hover:underline">Stop team</button>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeRunId && (chatLog[activeRunId] ?? []).length > 0 && (
+                    <details open className="rounded border border-white/10 bg-black/20 p-2">
+                      <summary className="cursor-pointer text-[10px] uppercase tracking-wide text-white/40">Team activity</summary>
+                      <div className="mt-2 max-h-48 overflow-y-auto font-mono text-[10px] leading-relaxed text-white/60">
+                        {(chatLog[activeRunId] ?? []).map((line, index) => <div key={index} className="whitespace-pre-wrap">{line}</div>)}
+                      </div>
+                    </details>
+                  )}
 
                   {chatSessions.length > 0 && (
                     <div className="mt-4 space-y-1.5">
@@ -2076,7 +2196,7 @@ function StudioPage() {
                       {chatSessions.map((session) => (
                         <button
                           key={session.sessionId}
-                          onClick={() => setActiveSessionId(session.sessionId)}
+                          onClick={() => { setActiveRunId(null); setActiveSessionId(session.sessionId); }}
                           className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-xs hover:border-white/25"
                         >
                           <span className="min-w-0 flex-1 truncate text-white/80">{session.workflowId} <span className="text-white/40">· {session.verticalId}</span></span>
