@@ -152,7 +152,8 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   let testerPass = false;
   let reviewerApproved = false;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+  const maxRetries = Math.min(MAX_RETRIES, Math.max(0, (request.budget?.maxAttempts ?? MAX_RETRIES + 1) - 1));
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     if (cancelled) break;
     setRoleStatus(state, "builder", "running");
     state.roles.builder!.attempts = attempt + 1;
@@ -166,6 +167,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       workflowId: state.workflowId,
       provider: request.builderProvider ?? "codex",
       model: request.builderModel,
+      timeoutMs: request.budget?.timeoutMs,
       instructions: state.instructions,
       priorFailure: builderFailure ?? (reviewerComments.length ? `Reviewer requested changes:\n${reviewerComments.join("\n")}` : undefined),
       onOutput: onOutput("builder"),
@@ -194,7 +196,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     if (!testerPass) {
       builderFailure = testerResult.detail;
       reviewerComments = [];
-      if (attempt === MAX_RETRIES) break;
+      if (attempt === maxRetries) break;
       await emit("orchestrator", "retry", "Tester failed — sending Builder another attempt.");
       continue;
     }
@@ -209,6 +211,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       workflowId: state.workflowId,
       provider: request.reviewerProvider ?? "codex",
       model: request.reviewerModel,
+      timeoutMs: request.budget?.timeoutMs,
       baseBranch,
       onOutput: onOutput("reviewer"),
     });
@@ -223,7 +226,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     }
     reviewerComments = reviewerResult.comments;
     builderFailure = undefined;
-    if (attempt === MAX_RETRIES) break;
+    if (attempt === maxRetries) break;
     await emit("orchestrator", "retry", "Reviewer requested changes — sending Builder another attempt.");
   }
 

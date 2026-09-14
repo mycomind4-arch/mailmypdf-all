@@ -22,6 +22,11 @@ const bodySchema = z.object({
   reviewerProvider: z.enum(["claude", "codex"]).optional(),
   builderModel: modelId.optional(),
   reviewerModel: modelId.optional(),
+  budget: z.object({
+    maxConcurrentAgents: z.number().int().min(1).max(4),
+    maxAttempts: z.number().int().min(1).max(3),
+    timeoutMs: z.number().int().min(60_000).max(15 * 60_000),
+  }).optional(),
 });
 
 export const Route = createFileRoute("/api/studio/agents/launch")({

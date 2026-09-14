@@ -20,6 +20,7 @@ export async function runBuilder(
     model?: string;
     instructions: string;
     priorFailure?: string;
+    timeoutMs?: number;
     onProcessStart?: (kill: () => void) => void;
   },
 ): Promise<{ exitCode: number | null }> {
@@ -39,6 +40,7 @@ export async function runBuilder(
     prompt: promptParts.join("\n\n"),
     onOutput: ctx.onOutput,
     onProcessStart: ctx.onProcessStart,
+    timeoutMs: ctx.timeoutMs,
   });
   return { exitCode: result.exitCode };
 }
@@ -150,7 +152,7 @@ function extractLastVerdict(stdout: string): Record<string, unknown> | null {
 }
 
 export async function runReviewer(
-  ctx: RoleRunContext & { provider: AgentProviderName; model?: string; baseBranch: string },
+  ctx: RoleRunContext & { provider: AgentProviderName; model?: string; baseBranch: string; timeoutMs?: number },
 ): Promise<{ approved: boolean; comments: string[] }> {
   const diff = await spawnAndCapture("git", ["diff", `${ctx.baseBranch}...HEAD`], ctx.worktreeDir, () => {});
   const prompt = [
@@ -165,6 +167,7 @@ export async function runReviewer(
   const result = await runAgentCli({
     provider: ctx.provider,
     model: ctx.model,
+    timeoutMs: ctx.timeoutMs,
     mode: "chat",
     cwd: ctx.worktreeDir,
     prompt,
