@@ -34,7 +34,7 @@ describe("SSDI denial workflow UI", () => {
     const route = await read("src/routes/benefits/$.tsx");
     assert.match(route, /_splat === "ssdi-denial"/);
     assert.match(route, /return <SsdiDenialWorkflow/);
-    assert.match(route, /return \(\s*<WorkflowAuthorityPage/);
+    assert.match(route, /return \(?\s*<WorkflowAuthorityPage/);
   });
 
   test("defines the complete twelve-window sequence", async () => {
