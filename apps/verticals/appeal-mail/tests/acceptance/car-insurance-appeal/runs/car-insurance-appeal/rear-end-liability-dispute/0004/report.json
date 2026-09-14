@@ -1,0 +1,32 @@
+{
+  "runId": "0004",
+  "workflow": "car-insurance-appeal",
+  "scenario": "rear-end-liability-dispute",
+  "startedAt": "2026-09-14T18:10:57.385Z",
+  "finishedAt": "2026-09-14T18:11:04.712Z",
+  "status": "passed",
+  "mailReady": true,
+  "checks": {
+    "workflow": "pass",
+    "uploads": "pass",
+    "analysis": "pass",
+    "documentGeneration": "pass",
+    "packetAssembly": "pass",
+    "payment": "pass",
+    "paymentIdempotency": "pass",
+    "requestedUploads": "pass",
+    "pdfPreflight": "pass",
+    "mailSimulation": "pass",
+    "mailDuplicateProtection": "pass"
+  },
+  "failures": [],
+  "qualityFindings": [],
+  "artifacts": {
+    "report": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004/report.json",
+    "trace": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004/trace.json",
+    "manifest": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004/packet-manifest.json",
+    "packet": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004/packet/mail-ready-packet.pdf",
+    "screenshots": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004/screenshots",
+    "runDir": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0004"
+  }
+}
