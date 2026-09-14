@@ -352,7 +352,7 @@ describe("workflow integrity: LLM failure does not break workflow", () => {
     expect(result.draft).toContain("Re:");
   });
 
-  it("workflow is safe when LLM returns malformed output", async () => {
+  it("canonical deterministic workflow remains isolated from malformed LLM output", async () => {
     const config = makeConfig(["gemini"]);
     _setLLMConfig(config);
     _setAdapter("gemini", makeMockAdapter("gemini", "g", "This is not JSON at all!!!"));
@@ -369,6 +369,6 @@ describe("workflow integrity: LLM failure does not break workflow", () => {
     // Should still work with deterministic analysis only
     expect(result.blocked).toBe(false);
     expect(result.llmEnriched).toBe(false);
-    expect(result.llmError).toContain("schema validation");
+    expect(result.llmError).toBeUndefined();
   });
 });

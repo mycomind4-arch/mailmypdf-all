@@ -44,6 +44,9 @@ export interface WorkflowExecutionResult {
   blocked: boolean;
   errors: string[];
   warnings: string[];
+  /** Deterministic runs never claim model enrichment. */
+  llmEnriched: boolean;
+  llmError?: string;
 }
 
 function generateDraft(
@@ -446,6 +449,7 @@ export function runProfiledWorkflow(
     blocked,
     errors,
     warnings,
+    llmEnriched: false,
   };
 }
 
@@ -514,6 +518,8 @@ export async function runProfiledWorkflowWithLLM(
     ...deterministicResult,
     analysis: reconciliation.analysis,
     llmEnhanced: reconciliation.llmEnhanced,
+    llmEnriched: reconciliation.llmEnhanced,
+    llmError: reconciliation.llmSkippedReason,
     llmSkippedReason: reconciliation.llmSkippedReason,
   };
 }
