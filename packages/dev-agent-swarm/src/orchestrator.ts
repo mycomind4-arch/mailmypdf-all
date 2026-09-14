@@ -292,7 +292,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
           activeRuns.set(state.runId, {
             kill: () => {
               cancelled = true;
-              for (const stop) of specialistKills) stop();
+              for (const stop of specialistKills) stop();
             },
           });
         },

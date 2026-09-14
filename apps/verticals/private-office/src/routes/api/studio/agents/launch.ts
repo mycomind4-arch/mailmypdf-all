@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAuthenticatedUser } from "@/lib/auth-guard";
 import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
-import { agentRoles, getProviderAvailability, startOrchestratorRun } from "@mailmypdf/dev-agent-swarm";
+import { agentRoles, getProviderAvailability, planAgentTeam, startOrchestratorRun } from "@mailmypdf/dev-agent-swarm";
 
 const modelId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 
@@ -63,7 +63,13 @@ export const Route = createFileRoute("/api/studio/agents/launch")({
         }
         const repoRoot = await resolveProjectRoot(project);
 
-        const { runId } = await startOrchestratorRun({ ...parsed.data, repoRoot });
+        const teamPlan = planAgentTeam(parsed.data.instructions);
+        const { runId } = await startOrchestratorRun({
+          ...parsed.data,
+          requestedRoles: parsed.data.requestedRoles ?? teamPlan.roles,
+          budget: parsed.data.budget ?? { ...teamPlan.budget, maxAttempts: 2, timeoutMs: 15 * 60_000 },
+          repoRoot,
+        });
         return Response.json({ runId });
       },
     },

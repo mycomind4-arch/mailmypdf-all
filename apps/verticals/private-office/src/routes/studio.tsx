@@ -55,7 +55,7 @@ import { findStepWorkflow } from "@/domain/step-workflows";
 import { readHiddenWorkflowIds, writeHiddenWorkflowIds } from "@/lib/workflow-visibility";
 import { scanProjectFiles, type StudioFileTreeNode } from "@/lib/fns/scan-project-files";
 import { scanWorkflowCatalog } from "@/lib/fns/scan-workflow-catalog";
-import type { AgentProviderName, AgentRole, ChatSession, ChatGate, RunState } from "@mailmypdf/dev-agent-swarm";
+import { planAgentTeam, type AgentProviderName, type AgentRole, type ChatSession, type ChatGate, type RunState } from "@mailmypdf/dev-agent-swarm";
 import { syncProjectToGithub } from "@/lib/fns/sync-project-to-github";
 import { publishProjectToCloudflare } from "@/lib/fns/publish-project-to-cloudflare";
 import {
@@ -890,7 +890,7 @@ function StudioPage() {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [swarmInstructions, setSwarmInstructions] = useState("");
   const [isDispatchingSwarm, setIsDispatchingSwarm] = useState(false);
-  const [selectedSpecialistRoles, setSelectedSpecialistRoles] = useState<AgentRole[]>(["workflow_evaluator", "visual_qa", "safety_reviewer"]);
+  const [selectedSpecialistRoles, setSelectedSpecialistRoles] = useState<AgentRole[] | null>(null);
   const [pendingGate, setPendingGate] = useState<ChatGate | null>(null);
   const [chatLog, setChatLog] = useState<Record<string, string[]>>({});
   const [expandedCodePaths, setExpandedCodePaths] = useState<Set<string>>(() => new Set([""]));
@@ -1338,6 +1338,11 @@ function StudioPage() {
   }, [activeRunId, activeSessionId]);
 
   const activeSession = chatSessions.find((session) => session.sessionId === activeSessionId) ?? null;
+  const teamPlan = useMemo(
+    () => planAgentTeam(swarmInstructions || `Build and verify ${agentWorkflowId || "this workflow"}.`),
+    [agentWorkflowId, swarmInstructions],
+  );
+  const effectiveSpecialistRoles = selectedSpecialistRoles ?? teamPlan.roles;
 
   async function startChat() {
     setChatError(null);
@@ -1391,8 +1396,8 @@ function StudioPage() {
           reviewerProvider: chatProvider,
           builderModel: chatModel.trim() || undefined,
           reviewerModel: chatModel.trim() || undefined,
-          requestedRoles: selectedSpecialistRoles,
-          budget: { maxConcurrentAgents: Math.min(4, Math.max(1, selectedSpecialistRoles.length)), maxAttempts: 2, timeoutMs: 15 * 60_000 },
+          requestedRoles: selectedSpecialistRoles ?? undefined,
+          budget: { maxConcurrentAgents: Math.min(4, Math.max(1, effectiveSpecialistRoles.length)), maxAttempts: 2, timeoutMs: 15 * 60_000 },
         }),
       });
       const data = (await response.json()) as { runId?: string; error?: string };
@@ -2153,19 +2158,26 @@ function StudioPage() {
                     </label>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-white/40">Specialist gates</div>
+                    <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-white/40">
+                      <span>Specialist gates</span>
+                      {selectedSpecialistRoles && <button type="button" onClick={() => setSelectedSpecialistRoles(null)} className="normal-case text-brass hover:underline">Use recommended</button>}
+                    </div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {specialistRoleOptions.map((role) => {
-                        const selectedRole = selectedSpecialistRoles.includes(role.id);
+                        const selectedRole = effectiveSpecialistRoles.includes(role.id);
                         return <button
                           key={role.id}
                           type="button"
                           aria-pressed={selectedRole}
-                          onClick={() => setSelectedSpecialistRoles((current) => selectedRole ? current.filter((item) => item !== role.id) : [...current, role.id])}
+                          onClick={() => setSelectedSpecialistRoles((current) => {
+                            const startingRoles = current ?? effectiveSpecialistRoles;
+                            return selectedRole ? startingRoles.filter((item) => item !== role.id) : [...startingRoles, role.id];
+                          })}
                           className={`rounded-full border px-2 py-1 text-[10px] transition ${selectedRole ? "border-brass/70 bg-brass/20 text-paper" : "border-white/15 text-white/50 hover:border-white/35 hover:text-paper"}`}
                         >{role.label}</button>;
                       })}
                     </div>
+                    <p className="mt-1 text-[10px] leading-relaxed text-white/35">{selectedSpecialistRoles ? "Custom team selected." : teamPlan.rationale.join(" ")}</p>
                   </div>
                   {chatError && <p className="text-xs text-error">{chatError}</p>}
                   <div className="grid grid-cols-2 gap-2">
