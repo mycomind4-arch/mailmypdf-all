@@ -31,7 +31,7 @@ and reviewed reusable registry templates generated from real customer needs.
 
 | Priority | Item | Status / evidence |
 |---|---|---|
-| P0 | Restrict Studio shell/file/publishing tools | Repair in progress: shared local-development and same-origin guard; previously ordinary production users could invoke tools, and /api/studio/run lacked an auth check. |
+| P0 | Restrict Studio shell/file/publishing tools | Closed, commit `5f8ee64`. Real severity: GitHub sync/Cloudflare publish (developer-machine-credentialed) were reachable by any signed-in customer via `accountAuthMiddleware`, not just admin. Now `studioAccessError` (local-loopback + `NODE_ENV=development` + same-origin) gates every `/api/studio/**` route unconditionally, including in production for an authenticated admin. Verified: `studio-access.test.ts` 4/4 (incl. a self-enforcing scan that every route file contains the guard call), full private-office suite 1067/1067, `tsc --noEmit` clean. |
 | P0 | Audit server admin and matter ownership boundaries | Open. Core admin functions use user_roles; other surfaces may use app_metadata. UI role data must not trust user_metadata. |
 | P1 | Safe login/confirmation destinations | Repair in progress: shared same-site destination validator and auth-loop rejection. Password recovery and vertical flows remain to audit. |
 | P1 | Stable shell across core and verticals | In progress. `context/NAV_AUTH_SHELL_CONTRACT.md` now holds the route × role × shell matrix (seed version, 2026-09-14) — 3 confirmed inconsistent shell patterns in core (dashboard/admin/legal-defense), verticals confirmed to run their own local shell copies rather than the core app's. Extend the matrix per vertical before further consolidation. |
