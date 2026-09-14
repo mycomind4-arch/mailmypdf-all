@@ -69,6 +69,12 @@ export type CompoundDeadlineRuleInput = {
   version?: string;
   provenanceLevel: ProvenanceLevel;
   confidence?: number;
+  /** User-selected URL; server verifies it against the reviewed authority run. */
+  authoritySourceUrl?: string;
+  /** Server-only fields. These are never accepted directly from client input. */
+  authoritySourceVerified?: boolean;
+  authoritySourceRunId?: string;
+  authorityContentHash?: string;
 };
 
 export type CompoundEvidenceInput = {
@@ -542,7 +548,7 @@ export async function executeCompoundCapability(
           authority: rule.authority,
           version: rule.version ?? "1",
           provenance: provenance(
-            rule.provenanceLevel,
+            rule.authoritySourceVerified ? "external_source" : rule.provenanceLevel,
             input.verifiedByActorId,
           ),
           confidence: rule.confidence,
@@ -566,10 +572,11 @@ export async function executeCompoundCapability(
         result: deadline,
         status: getDeadlineStatus(deadline, currentDate),
       }));
-      const authorityVerified = rules.every(
+      const authorityVerified = input.deadlineRules.every(
         (rule) =>
-          rule.provenance.level === "external_source" &&
-          rule.provenance.sourceRefs.length > 0,
+          rule.authoritySourceVerified === true &&
+          Boolean(rule.authoritySourceRunId) &&
+          Boolean(rule.authorityContentHash),
       );
 
       return resultRun(
@@ -582,11 +589,18 @@ export async function executeCompoundCapability(
           rules,
           deadlines: evaluated,
           authorityVerified,
+          authorityBindings: input.deadlineRules.map((rule) => ({
+            ruleName: rule.name,
+            sourceUrl: rule.authoritySourceUrl ?? null,
+            sourceRunId: rule.authoritySourceRunId ?? null,
+            contentHash: rule.authorityContentHash ?? null,
+            verified: rule.authoritySourceVerified === true,
+          })),
         },
         [
           `Computed ${evaluated.length} deadline(s) from explicit rule(s) and matching trigger event(s).`,
           ...(!authorityVerified
-            ? ["The deadline was computed from the supplied rule, but that rule is not independently grounded to an external source reference. Do not use this computation to pass a deadline authority gate."]
+            ? ["The deadline was computed from the supplied rule, but the rule is not bound to the specific externally sourced authority run the user reviewed. Do not use this computation to pass the deadline gate."]
             : []),
         ],
       );

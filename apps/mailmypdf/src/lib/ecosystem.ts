@@ -111,6 +111,18 @@ export const ECOSYSTEM_VERTICALS: EcosystemVertical[] = [
     ]
   },
   {
+    slug: "legal-defense",
+    title: "Legal Defense",
+    label: "Evidence-First Defense Preparation",
+    description: "A controlled workspace for arrest reconstruction, vehicle provenance, search-and-seizure issue mapping, police evidence, discovery organization, and attorney-ready defense packets.",
+    href: "/legal-defense",
+    capabilities: ["documents", "research"],
+    requiresAccount: true,
+    workflows: [
+      { slug: "wrongful-stolen-vehicle-arrest", title: "Wrongful stolen-vehicle arrest + search defense", searchIntent: "arrested for stolen car with bill of sale", description: "Reconstruct the stop, vehicle allegation, arrest, search, and alleged paraphernalia evidence into an attorney-ready packet." }
+    ]
+  },
+  {
     slug: "private-office",
     title: "Private Office",
     label: "Professional Correspondence",

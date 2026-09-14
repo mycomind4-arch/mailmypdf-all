@@ -31,6 +31,7 @@ const HERO_IMAGES: Record<PublicVerticalId, string> = {
   "private-office": "/heroes/private-office.jpg",
   "small-business": "/heroes/small-business.jpg",
   "insurance-claims": "/heroes/insurance-claims.jpg",
+  "legal-defense": "/heroes/legal-defense.svg",
   "code-enforcement": "/heroes/code-enforcement.jpg",
   "benefits-appeal": "/heroes/benefits-appeal.jpg",
   "claim-proof": "/heroes/claim-proof.jpg",

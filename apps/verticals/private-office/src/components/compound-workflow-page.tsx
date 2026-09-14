@@ -24,6 +24,7 @@ import {
   advanceCompoundSystemGates,
   completeCompoundMatterPhase,
   confirmCompoundAuthorityGate,
+  confirmCompoundDeadlineGate,
   createCompoundMatter,
   getCompoundMatter,
   recordCompoundUserGate,
@@ -98,7 +99,14 @@ function parseDeadlineRules(value: string) {
         : calendarTypeRaw === "calendar"
           ? ("calendar" as const)
           : null;
-    const description = descriptionParts.join(" | ").trim();
+    const sourceCandidate = descriptionParts.at(-1)?.trim();
+    const authoritySourceUrl =
+      sourceCandidate?.startsWith("https://") ? sourceCandidate : undefined;
+    const description = (
+      authoritySourceUrl ? descriptionParts.slice(0, -1) : descriptionParts
+    )
+      .join(" | ")
+      .trim();
 
     if (
       !name ||
@@ -111,7 +119,7 @@ function parseDeadlineRules(value: string) {
       !description
     ) {
       throw new Error(
-        `Deadline rule line ${index + 1} must use: name | trigger event | days | calendar/business | deadline event | authority | description`,
+        `Deadline rule line ${index + 1} must use: name | trigger event | days | calendar/business | deadline event | authority | description | optional reviewed source URL`,
       );
     }
 
@@ -122,6 +130,7 @@ function parseDeadlineRules(value: string) {
       calendarType,
       deadlineEventType,
       authority,
+      authoritySourceUrl,
       description,
       provenanceLevel: "user_provided" as const,
     };
@@ -190,6 +199,7 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
   const [runningCapability, setRunningCapability] = useState(false);
   const [advancingGates, setAdvancingGates] = useState(false);
   const [confirmingAuthority, setConfirmingAuthority] = useState(false);
+  const [confirmingDeadline, setConfirmingDeadline] = useState(false);
   const [gateAction, setGateAction] = useState<UserControlledGate | null>(null);
   const [completingPhase, setCompletingPhase] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
@@ -373,6 +383,34 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
     }
   }
 
+  async function confirmReviewedDeadline() {
+    if (!matter || !activePhaseState) return;
+    setConfirmingDeadline(true);
+    setError(null);
+    setProgressMessage(null);
+    try {
+      const result = await confirmCompoundDeadlineGate({
+        data: {
+          matterId: matter.id,
+          expectedVersion: matter.version,
+          phaseId: activePhaseState.phaseId,
+        },
+      });
+      setMatter(result.matter as CompoundMatterState);
+      setProgressMessage(
+        "Reviewed deadline rule and computed date confirmed for workflow progression. This does not guarantee legal applicability or replace professional advice.",
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to confirm the reviewed deadline.",
+      );
+    } finally {
+      setConfirmingDeadline(false);
+    }
+  }
+
   async function acknowledgeUserGate(gate: UserControlledGate) {
     if (!matter || !activePhaseState) return;
     setGateAction(gate);
@@ -461,6 +499,38 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
       item.currentStatus === "pending" &&
       item.readiness === "ready_for_review",
   );
+  const deadlineReadyForReview = activeGateReadiness.some(
+    (item) =>
+      item.gate === "deadline" &&
+      item.currentStatus === "pending" &&
+      item.readiness === "ready_for_review",
+  );
+  const confirmedAuthorityRunId = activePhaseState?.gates.find(
+    (decision) =>
+      decision.gate === "authority" &&
+      decision.status === "passed" &&
+      decision.verifiedBy === "user",
+  )?.supportingRunId;
+  const confirmedAuthorityRun = confirmedAuthorityRunId
+    ? matter?.capabilityRuns.find((run) => run.id === confirmedAuthorityRunId)
+    : undefined;
+  const confirmedAuthorityOutput =
+    confirmedAuthorityRun &&
+    typeof confirmedAuthorityRun.output === "object" &&
+    confirmedAuthorityRun.output !== null
+      ? (confirmedAuthorityRun.output as {
+          citations?: Array<{ url?: string; reference?: string; title?: string }>;
+        })
+      : null;
+  const confirmedAuthoritySources =
+    confirmedAuthorityOutput?.citations
+      ?.map((citation) => ({
+        url: citation.url ?? citation.reference,
+        title: citation.title ?? citation.url ?? citation.reference,
+      }))
+      .filter((citation): citation is { url: string; title: string } =>
+        Boolean(citation.url && citation.title),
+      ) ?? [];
   const pendingUserGates =
     activePhaseState?.gates.filter(
       (decision) =>
@@ -685,11 +755,23 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     rows={5}
                     value={deadlineRulesText}
                     onChange={(event) => setDeadlineRulesText(event.target.value)}
-                    placeholder={"response-window | notice_received | 30 | calendar | response_due | Statute or official rule supplied by user | 30-day response rule"}
+                    placeholder={"response-window | notice_received | 30 | calendar | response_due | Official rule title | 30-day response rule | https://agency.ca.gov/rule"}
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    The engine will not invent a legal deadline rule. User-entered authority remains unverified until independently grounded.
+                    The engine will not invent a legal deadline rule. Add the reviewed official source URL as the final field to bind this rule to the exact authority run you confirmed. A URL that was not in that confirmed run remains unverified.
                   </p>
+                  {confirmedAuthoritySources.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950">
+                      <div className="font-semibold">Reviewed authority sources available for grounding</div>
+                      <ul className="mt-2 space-y-1 font-mono">
+                        {confirmedAuthoritySources.map((source) => (
+                          <li key={source.url} className="break-all">
+                            {source.url}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -790,6 +872,22 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                     </button>
                   )}
 
+                  {deadlineReadyForReview && (
+                    <button
+                      type="button"
+                      onClick={confirmReviewedDeadline}
+                      disabled={confirmingDeadline}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:opacity-50"
+                    >
+                      {confirmingDeadline ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      )}
+                      Confirm reviewed deadline rule &amp; date
+                    </button>
+                  )}
+
                   {pendingUserGates.map((decision) => (
                     <button
                       key={decision.gate}
@@ -830,10 +928,10 @@ export function CompoundWorkflowPage({ workflowId }: { workflowId: CompoundWorkf
                   </button>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
-                  System gate passage requires verified deterministic support. Retrieved authority
-                  sources require explicit source review before the authority gate can pass.
-                  Professional-review, human-review, and consequential-action gates always require
-                  explicit user action; acknowledging professional review does not mean counsel was obtained.
+                  System gate passage is limited to low-interpretation deterministic checks. Retrieved
+                  authority sources and grounded deadline calculations require explicit user review before
+                  their gates can pass. Professional-review, human-review, and consequential-action gates
+                  always require explicit user action; acknowledging professional review does not mean counsel was obtained.
                 </p>
               </div>
             )}

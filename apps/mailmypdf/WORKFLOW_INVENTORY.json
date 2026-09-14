@@ -1,10 +1,21 @@
 {
   "total": {
-    "workflows": 99,
+    "workflows": 100,
     "goldContent": 99,
     "placeholder": 0
   },
   "workflows": [
+    {
+      "id": "legal-defense/wrongful-stolen-vehicle-arrest",
+      "vertical": "legal-defense",
+      "route": "/legal-defense/workflows/wrongful-stolen-vehicle-arrest",
+      "maturity": "executable",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": true,
+      "testStatus": "passing",
+      "lastReviewed": "2026-09-14"
+    },
     {
       "id": "mail/mail-a-pdf",
       "vertical": "mail",

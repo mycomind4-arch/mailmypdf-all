@@ -63,6 +63,7 @@ const capabilityExecutionSchema = matterMutationSchema.extend({
     calendarType: z.enum(["calendar", "business"]),
     deadlineEventType: z.string().min(1).max(100),
     authority: z.string().min(1).max(200),
+    authoritySourceUrl: z.string().url().max(2048).optional(),
     version: z.string().min(1).max(20).optional(),
     provenanceLevel: provenanceLevelSchema,
     confidence: z.number().min(0).max(1).optional(),
@@ -183,6 +184,21 @@ export const confirmCompoundAuthorityGate = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const workflowService = await service();
     const matter = await workflowService.confirmAuthorityGate({
+      ownerId: context.user.id,
+      matterId: data.matterId,
+      expectedVersion: data.expectedVersion,
+      phaseId: data.phaseId,
+      actorId: context.user.id,
+    });
+    return { matter };
+  });
+
+export const confirmCompoundDeadlineGate = createServerFn({ method: "POST" })
+  .middleware([accountAuthMiddleware])
+  .validator(matterMutationSchema)
+  .handler(async ({ data, context }) => {
+    const workflowService = await service();
+    const matter = await workflowService.confirmDeadlineGate({
       ownerId: context.user.id,
       matterId: data.matterId,
       expectedVersion: data.expectedVersion,

@@ -96,6 +96,7 @@ const PRODUCT_BY_VERTICAL: Record<string, ProductConfig> = {
   insurance: { product: "Insurance Claims", href: "/insurance-claims", pipeline: "Insurance claim preparation", noun: "insurance claim workflow" },
   "insurance-claims": { product: "Insurance Claims", href: "/insurance-claims", pipeline: "Insurance claim preparation", noun: "insurance claim workflow" },
   "private-office": { product: "Private Office", href: "/private-office", pipeline: "Private document operations", noun: "private office workflow" },
+  "legal-defense": { product: "Legal Defense", href: "/legal-defense", pipeline: "Evidence-first defense preparation", noun: "legal defense preparation workflow" },
 };
 
 const INVENTORY_WORKFLOWS = (inventory.workflows ?? []) as InventoryWorkflow[];

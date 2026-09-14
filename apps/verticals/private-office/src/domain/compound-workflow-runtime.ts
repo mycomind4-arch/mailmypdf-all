@@ -20,6 +20,7 @@ export type CompoundGateDecision = {
   detail: string | null;
   verifiedBy: "system" | "user" | "professional" | null;
   verifiedAt: string | null;
+  supportingRunId: string | null;
 };
 
 export type CompoundCapabilityRunStatus = "completed" | "blocked" | "failed";
@@ -71,6 +72,7 @@ function initialGate(gate: CompoundWorkflowGateType): CompoundGateDecision {
     detail: null,
     verifiedBy: null,
     verifiedAt: null,
+    supportingRunId: null,
   };
 }
 
@@ -199,6 +201,7 @@ export function recordCompoundGateDecision(
     status: Exclude<CompoundGateStatus, "pending">;
     detail?: string | null;
     verifiedBy: Exclude<CompoundGateDecision["verifiedBy"], null>;
+    supportingRunId?: string | null;
   },
   now = new Date().toISOString(),
 ): CompoundMatterState {
@@ -228,6 +231,7 @@ export function recordCompoundGateDecision(
                 detail: input.detail ?? null,
                 verifiedBy: input.verifiedBy,
                 verifiedAt: now,
+                supportingRunId: input.supportingRunId ?? null,
               }
             : gate,
         ),
