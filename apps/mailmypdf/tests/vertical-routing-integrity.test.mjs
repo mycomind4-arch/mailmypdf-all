@@ -34,7 +34,7 @@ test("BureaucracyOS is not a user-facing ecosystem vertical", () => {
 test("solutions compatibility routes point back to canonical verticals", () => {
   const appealAlias = fs.readFileSync(path.join(root, "src/routes/solutions/appeal-reply.tsx"), "utf8");
   const dynamicAlias = fs.readFileSync(path.join(root, "src/routes/solutions/$verticalSlug.tsx"), "utf8");
-  assert.match(appealAlias, /redirect\(\{ to: "\/appeal-mail" \}\)/);
+  assert.match(appealAlias, /redirect\(\{ href: "\/appeal-mail" \}\)/);
   assert.match(dynamicAlias, /redirect\(\{ to: vertical\?\.route \?\? "\/solutions" \}\)/);
 });
 
