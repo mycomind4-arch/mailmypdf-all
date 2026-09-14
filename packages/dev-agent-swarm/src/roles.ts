@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { runAgentCli } from "./providers";
-import type { AgentProviderName } from "./types";
+import type { AgentProviderName, AgentRole } from "./types";
 
 export type RoleRunContext = {
   worktreeDir: string;
@@ -152,7 +152,7 @@ function extractLastVerdict(stdout: string): Record<string, unknown> | null {
 }
 
 export async function runReviewer(
-  ctx: RoleRunContext & { provider: AgentProviderName; model?: string; baseBranch: string; timeoutMs?: number },
+  ctx: RoleRunContext & { provider: AgentProviderName; model?: string; baseBranch: string; timeoutMs?: number; onProcessStart?: (kill: () => void) => void },
 ): Promise<{ approved: boolean; comments: string[] }> {
   const diff = await spawnAndCapture("git", ["diff", `${ctx.baseBranch}...HEAD`], ctx.worktreeDir, () => {});
   const prompt = [
@@ -172,6 +172,7 @@ export async function runReviewer(
     cwd: ctx.worktreeDir,
     prompt,
     onOutput: ctx.onOutput,
+    onProcessStart: ctx.onProcessStart,
   });
 
   const parsed = extractLastVerdict(result.stdout);
@@ -184,6 +185,57 @@ export async function runReviewer(
   }
   const comments = Array.isArray(parsed.comments) ? parsed.comments.map(String) : [];
   return { approved: parsed.approved, comments };
+}
+
+// -- Specialist review gates --------------------------------------------------
+
+type SpecialistRole = Exclude<AgentRole, "builder" | "tester" | "reviewer" | "seo">;
+
+const specialistFocus: Record<SpecialistRole, string> = {
+  workflow_evaluator: "the end-to-end user journey, required inputs, deterministic hand-offs, useful failures, and payment or mailing completion where applicable",
+  visual_qa: "the visible hierarchy, responsive layout, accessibility, empty/loading/error states, and consistency with the surrounding product",
+  safety_reviewer: "privacy, authentication and authorization boundaries, untrusted input, accidental secret exposure, unsafe claims, and harmful automation",
+  release_manager: "test coverage, migrations and configuration, observability, rollback risk, operational readiness, and whether this is safe to release",
+  documentation: "developer and operator documentation, workflow instructions, user-facing copy, and whether changed behavior is discoverable",
+  design_system: "design tokens, shared components, typography, spacing, color contrast, interaction states, and visual cohesion across the vertical",
+};
+
+/** Runs a bounded, read-only specialist gate over the change produced by the
+ * Builder. Specialists deliberately cannot edit the worktree: their verdict
+ * is an independent quality signal and a failed gate keeps the run ready for
+ * a human decision instead of introducing competing edits. */
+export async function runSpecialistReview(
+  ctx: RoleRunContext & { role: SpecialistRole; provider: AgentProviderName; model?: string; baseBranch: string; timeoutMs?: number; onProcessStart?: (kill: () => void) => void },
+): Promise<{ approved: boolean; comments: string[] }> {
+  const diff = await spawnAndCapture("git", ["diff", `${ctx.baseBranch}...HEAD`], ctx.worktreeDir, () => {});
+  const prompt = [
+    `You are the ${ctx.role} specialist for the MailMyPDF ecosystem, independently evaluating a change to vertical "${ctx.verticalId}", workflow "${ctx.workflowId}".`,
+    `Evaluate the diff specifically for ${specialistFocus[ctx.role]}.`,
+    "Do not edit files. Report only material release blockers; do not reject a change for optional improvements.",
+    "```diff",
+    diff.stdout.slice(0, 20000),
+    "```",
+    'Respond with ONLY a single JSON object as your final message, nothing else: {"approved": boolean, "comments": string[]}.',
+  ].join("\n\n");
+  const result = await runAgentCli({
+    provider: ctx.provider,
+    model: ctx.model,
+    timeoutMs: ctx.timeoutMs,
+    mode: "chat",
+    cwd: ctx.worktreeDir,
+    prompt,
+    onOutput: ctx.onOutput,
+    onProcessStart: ctx.onProcessStart,
+  });
+  const parsed = extractLastVerdict(result.stdout);
+  if (!parsed || typeof parsed.approved !== "boolean") {
+    const tail = (result.stdout || result.stderr).trim().slice(-500) || "(no output captured)";
+    return { approved: false, comments: [`${ctx.role} output could not be parsed as a verdict — needs human review. Last output:\n${tail}`] };
+  }
+  return {
+    approved: parsed.approved,
+    comments: Array.isArray(parsed.comments) ? parsed.comments.map(String) : [],
+  };
 }
 
 // -- SEO --------------------------------------------------------------------

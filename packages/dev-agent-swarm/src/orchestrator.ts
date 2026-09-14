@@ -2,13 +2,14 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { runBuilder, runTester, runReviewer, runSeoCheck } from "./roles";
+import { runBuilder, runTester, runReviewer, runSeoCheck, runSpecialistReview } from "./roles";
 import { isProviderAvailable } from "./providers";
-import type { LaunchRequest, RunState, RunEvent, RoleName, RoleStatus } from "./types";
+import type { AgentRole, LaunchRequest, RunState, RunEvent, RoleName, RoleStatus } from "./types";
 
 const MAX_RETRIES = 2;
 export const RUNS_DIRNAME = ".agent-runs";
 const INTEGRATION_BRANCH = "agent/integration";
+const CORE_ROLES = new Set<AgentRole>(["builder", "tester", "reviewer", "seo"]);
 
 const activeRuns = new Map<string, { kill: () => void }>();
 
@@ -234,6 +235,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       timeoutMs: request.budget?.timeoutMs,
       baseBranch,
       onOutput: onOutput("reviewer"),
+      onProcessStart: (kill) => activeRuns.set(state.runId, { kill: () => { cancelled = true; kill(); } }),
     });
     reviewerApproved = reviewerResult.approved;
     setRoleStatus(state, "reviewer", reviewerApproved ? "approved" : "changes_requested", reviewerResult.comments.join("\n"));
@@ -262,6 +264,56 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     await emit("orchestrator", "run.needs_human", !testerPass ? "Tester never passed." : "Reviewer never approved.");
     await writeRunState(repoRoot, state);
     return;
+  }
+
+  const requestedSpecialists = [...new Set(request.requestedRoles ?? [])].filter(
+    (role): role is Exclude<AgentRole, "builder" | "tester" | "reviewer" | "seo"> => !CORE_ROLES.has(role),
+  );
+  if (requestedSpecialists.length) {
+    const specialistLimit = Math.min(4, Math.max(1, request.budget?.maxConcurrentAgents ?? 2));
+    const specialistKills = new Set<() => void>();
+    const results = await runWithConcurrency(requestedSpecialists, specialistLimit, async (role) => {
+      setRoleStatus(state, role, "running");
+      await writeRunState(repoRoot, state);
+      await emit(role, "role.started");
+      const result = await runSpecialistReview({
+        worktreeDir: state.worktreeDir,
+        repoRoot,
+        verticalId: state.verticalId,
+        workflowId: state.workflowId,
+        role,
+        provider: request.reviewerProvider ?? "codex",
+        model: request.reviewerModel,
+        timeoutMs: request.budget?.timeoutMs,
+        baseBranch,
+        onOutput: onOutput(role),
+        onProcessStart: (kill) => {
+          specialistKills.add(kill);
+          activeRuns.set(state.runId, {
+            kill: () => {
+              cancelled = true;
+              for (const stop) of specialistKills) stop();
+            },
+          });
+        },
+      });
+      setRoleStatus(state, role, result.approved ? "approved" : "changes_requested", result.comments.join("\n"));
+      await writeRunState(repoRoot, state);
+      await emit(role, "role.finished", result.comments.join("\n"));
+      return result;
+    });
+    if (cancelled) {
+      state.status = "cancelled";
+      await emit("orchestrator", "run.cancelled");
+      await writeRunState(repoRoot, state);
+      return;
+    }
+    if (results.some((result) => !result.approved)) {
+      state.status = "needs_human";
+      await emit("orchestrator", "run.needs_human", "One or more specialist gates requested a human decision.");
+      await writeRunState(repoRoot, state);
+      return;
+    }
   }
 
   {
@@ -302,6 +354,19 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   state.mergedInto = INTEGRATION_BRANCH;
   await emit("orchestrator", "merge.done", `Merged into ${INTEGRATION_BRANCH}.`);
   await writeRunState(repoRoot, state);
+}
+
+async function runWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await worker(items[index]);
+    }
+  }));
+  return results;
 }
 
 /**

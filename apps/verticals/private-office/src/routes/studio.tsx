@@ -55,7 +55,7 @@ import { findStepWorkflow } from "@/domain/step-workflows";
 import { readHiddenWorkflowIds, writeHiddenWorkflowIds } from "@/lib/workflow-visibility";
 import { scanProjectFiles, type StudioFileTreeNode } from "@/lib/fns/scan-project-files";
 import { scanWorkflowCatalog } from "@/lib/fns/scan-workflow-catalog";
-import type { AgentProviderName, ChatSession, ChatGate, RunState } from "@mailmypdf/dev-agent-swarm";
+import type { AgentProviderName, AgentRole, ChatSession, ChatGate, RunState } from "@mailmypdf/dev-agent-swarm";
 import { syncProjectToGithub } from "@/lib/fns/sync-project-to-github";
 import { publishProjectToCloudflare } from "@/lib/fns/publish-project-to-cloudflare";
 import {
@@ -79,6 +79,15 @@ const PUBLISHED_KEY = "private-office-studio-published-workflow:";
 const ECOSYSTEM_PUBLISHED_KEY = "mailmypdf-studio-published-workflow:";
 const ECOSYSTEM_DRAFT_KEY = "mailmypdf-studio-draft-workflow:";
 const AGENT_PROGRESS_KEY = "mailmypdf-studio-agent-progress";
+
+const specialistRoleOptions: Array<{ id: AgentRole; label: string }> = [
+  { id: "workflow_evaluator", label: "Workflow" },
+  { id: "visual_qa", label: "Visual QA" },
+  { id: "safety_reviewer", label: "Safety" },
+  { id: "release_manager", label: "Release" },
+  { id: "documentation", label: "Docs" },
+  { id: "design_system", label: "Design system" },
+];
 
 const nodeStyle: Record<StudioNodeKind, { badge: string; tone: string }> = {
   input: { badge: "INPUT", tone: "studio-node--navy" },
@@ -881,6 +890,7 @@ function StudioPage() {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [swarmInstructions, setSwarmInstructions] = useState("");
   const [isDispatchingSwarm, setIsDispatchingSwarm] = useState(false);
+  const [selectedSpecialistRoles, setSelectedSpecialistRoles] = useState<AgentRole[]>(["workflow_evaluator", "visual_qa", "safety_reviewer"]);
   const [pendingGate, setPendingGate] = useState<ChatGate | null>(null);
   const [chatLog, setChatLog] = useState<Record<string, string[]>>({});
   const [expandedCodePaths, setExpandedCodePaths] = useState<Set<string>>(() => new Set([""]));
@@ -1381,7 +1391,8 @@ function StudioPage() {
           reviewerProvider: chatProvider,
           builderModel: chatModel.trim() || undefined,
           reviewerModel: chatModel.trim() || undefined,
-          budget: { maxConcurrentAgents: 1, maxAttempts: 2, timeoutMs: 15 * 60_000 },
+          requestedRoles: selectedSpecialistRoles,
+          budget: { maxConcurrentAgents: Math.min(4, Math.max(1, selectedSpecialistRoles.length)), maxAttempts: 2, timeoutMs: 15 * 60_000 },
         }),
       });
       const data = (await response.json()) as { runId?: string; error?: string };
@@ -2140,6 +2151,21 @@ function StudioPage() {
                         className="mt-1 w-full rounded border border-white/15 bg-black/20 px-2 py-1.5 text-xs text-paper placeholder:text-white/35"
                       />
                     </label>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-white/40">Specialist gates</div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {specialistRoleOptions.map((role) => {
+                        const selectedRole = selectedSpecialistRoles.includes(role.id);
+                        return <button
+                          key={role.id}
+                          type="button"
+                          aria-pressed={selectedRole}
+                          onClick={() => setSelectedSpecialistRoles((current) => selectedRole ? current.filter((item) => item !== role.id) : [...current, role.id])}
+                          className={`rounded-full border px-2 py-1 text-[10px] transition ${selectedRole ? "border-brass/70 bg-brass/20 text-paper" : "border-white/15 text-white/50 hover:border-white/35 hover:text-paper"}`}
+                        >{role.label}</button>;
+                      })}
+                    </div>
                   </div>
                   {chatError && <p className="text-xs text-error">{chatError}</p>}
                   <div className="grid grid-cols-2 gap-2">

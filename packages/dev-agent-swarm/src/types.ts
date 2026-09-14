@@ -14,7 +14,7 @@ export type AgentRunBudget = {
   timeoutMs: number;
 };
 
-export type RoleName = "builder" | "tester" | "reviewer" | "seo";
+export type RoleName = AgentRole;
 
 export type RunEvent = {
   at: string;

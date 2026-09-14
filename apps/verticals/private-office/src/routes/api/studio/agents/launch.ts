@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAuthenticatedUser } from "@/lib/auth-guard";
 import { isLocalDevelopmentHost } from "@/lib/fns/scan-project-files";
 import { findStudioProject, resolveProjectRoot } from "@/domain/studio-project";
-import { getProviderAvailability, startOrchestratorRun } from "@mailmypdf/dev-agent-swarm";
+import { agentRoles, getProviderAvailability, startOrchestratorRun } from "@mailmypdf/dev-agent-swarm";
 
 const modelId = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 
@@ -22,6 +22,7 @@ const bodySchema = z.object({
   reviewerProvider: z.enum(["claude", "codex"]).optional(),
   builderModel: modelId.optional(),
   reviewerModel: modelId.optional(),
+  requestedRoles: z.array(z.enum(agentRoles)).max(6).optional(),
   budget: z.object({
     maxConcurrentAgents: z.number().int().min(1).max(4),
     maxAttempts: z.number().int().min(1).max(3),
