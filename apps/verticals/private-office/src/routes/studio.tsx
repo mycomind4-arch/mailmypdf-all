@@ -1405,6 +1405,7 @@ function StudioPage() {
         setChatError(data.error ?? "The background team could not be started.");
         return;
       }
+      setActiveSessionId(null);
       setActiveRunId(data.runId);
       setChatLog((current) => ({ ...current, [data.runId!]: [] }));
       setSwarmInstructions("");
@@ -2204,7 +2205,7 @@ function StudioPage() {
                       <div className="text-[10px] uppercase tracking-wide text-white/40">Background teams</div>
                       {agentRuns.slice(0, 4).map((run) => (
                         <div key={run.runId} className={`rounded-lg border p-2 ${activeRunId === run.runId ? "border-brass/60 bg-brass/10" : "border-white/10 bg-white/5"}`}>
-                          <button onClick={() => setActiveRunId(run.runId)} className="flex w-full items-center justify-between gap-2 text-left text-xs">
+                          <button onClick={() => { setActiveSessionId(null); setActiveRunId(run.runId); }} className="flex w-full items-center justify-between gap-2 text-left text-xs">
                             <span className="min-w-0 flex-1 truncate text-white/80">{run.workflowId} <span className="text-white/40">· {run.verticalId}</span></span>
                             <span className={`shrink-0 text-[10px] uppercase ${run.status === "merged" ? "text-success" : run.status === "running" ? "text-brass" : run.status === "failed" || run.status === "needs_human" ? "text-error" : "text-white/45"}`}>{run.status.replaceAll("_", " ")}</span>
                           </button>
