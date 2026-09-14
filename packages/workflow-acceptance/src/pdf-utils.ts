@@ -158,6 +158,9 @@ export const DEFAULT_PLACEHOLDER_PATTERNS: string[] = [
   "[object Object]",
   "TODO",
   "lorem ipsum",
+  "[Your Name]",
+  "[Your Address]",
+  "[Insert Name]",
 ];
 
 export function findPlaceholders(text: string, patterns: string[] = DEFAULT_PLACEHOLDER_PATTERNS): string[] {
