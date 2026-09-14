@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 ## Global shell
 
@@ -32,4 +32,4 @@ One MailMyPDF Account across the ecosystem. Mailing history is authenticated-onl
 
 ## Anti-fragmentation
 
-Do not create a separate global navigation, auth model, sitemap strategy, public canonical domain or bespoke workflow engine when the shared architecture applies. Matter-specific intelligence belongs here; shared engines belong in `mailmypdf-platform`.
+Do not create a separate global navigation, auth model, sitemap strategy, public canonical domain or bespoke workflow engine when the shared architecture applies. Matter-specific intelligence belongs here; shared engines belong in `this monorepo's shared packages`.

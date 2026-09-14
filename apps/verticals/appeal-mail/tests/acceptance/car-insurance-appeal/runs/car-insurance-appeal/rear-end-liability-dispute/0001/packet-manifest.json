@@ -1,0 +1,18 @@
+{
+  "packetId": "96eef131-d71a-42f2-8f55-37e01aa8549d",
+  "items": [
+    {
+      "type": "generated",
+      "name": "response-letter.pdf",
+      "pages": 3
+    },
+    {
+      "type": "user_upload",
+      "uploadId": "upl_claim_denial",
+      "name": "claim-denial-letter.pdf",
+      "pages": 0,
+      "includeInMail": true,
+      "sha256": "a2685bd8d01d2eec8d7d1cf9ce6a04b1628fc5a6520770f9f3edfbbafe2449cb"
+    }
+  ]
+}

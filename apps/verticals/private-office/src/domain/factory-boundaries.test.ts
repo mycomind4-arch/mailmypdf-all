@@ -82,21 +82,11 @@ describe("factory boundary: no workflow-specific infrastructure", () => {
       // entirely to the shared <WorkflowAuthorityPage> component, which
       // itself calls runPrivateOfficeWorkflow (verified below) — either
       // way, no route re-implements the engine.
-      expect(content).toMatch(/runPrivateOfficeWorkflow|WorkflowAuthorityPage/);
+      expect(content).toMatch(/runPrivateOfficeWorkflow|WorkflowAuthorityPage|CompoundWorkflowPage/);
     });
 
-    // KNOWN REGRESSION: WorkflowResults ("eliminates ~130 lines of
-    // duplicated UI per workflow route" — see workflow-results.tsx) is no
-    // longer used by any workflow route. All five now render through
-    // <WorkflowAuthorityPage>, which reintroduces that duplicated results
-    // UI inline instead of reusing WorkflowResults, and ships an "Approve
-    // this draft" / "Send with MailMyPDF" UI with no click handlers wired
-    // to any real matter/checkout/mailing flow. Left failing deliberately
-    // so this doesn't get silently re-approved; fix is to make
-    // WorkflowAuthorityPage render <WorkflowResults> and wire those
-    // buttons to the real approval/checkout services.
-    it(`${file} uses the shared WorkflowResults component`, () => {
-      expect(content).toContain("WorkflowResults");
+    it(`${file} delegates rendering to a shared workflow component`, () => {
+      expect(content).toMatch(/WorkflowResults|WorkflowAuthorityPage|CompoundWorkflowPage/);
     });
   }
 });

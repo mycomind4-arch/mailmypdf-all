@@ -94,7 +94,7 @@ test("EQ: draft addresses Equifax", () => {
   assert.ok(draft.includes("Wells Fargo"));
   assert.ok(draft.includes("30 days"));
   assert.ok(draft.includes("Atlanta, GA"));
-  assert.ok(draft.includes("P.O. Box 105069"));
+  assert.ok(draft.includes("P.O. Box 740256"));
 });
 
 test("EQ: draft has required sections", () => {
@@ -114,8 +114,8 @@ test("EQ: bureau config has correct address", () => {
   assert.equal(cfg.name, "Equifax");
   assert.equal(cfg.mailingAddress.city, "Atlanta");
   assert.equal(cfg.mailingAddress.state, "GA");
-  assert.equal(cfg.mailingAddress.zip, "30348");
-  assert.ok(cfg.mailingAddress.line1.includes("P.O. Box 105069"));
+  assert.equal(cfg.mailingAddress.zip, "30374-0256");
+  assert.ok(cfg.mailingAddress.line1.includes("P.O. Box 740256"));
 });
 
 test("EQ: workflow exists in catalog", () => {

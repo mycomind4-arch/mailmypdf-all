@@ -68,10 +68,12 @@ function SidebarNavItem({
   item,
   pathname,
   onNavigate,
+  collapsed,
 }: {
   item: SidebarItem;
   pathname: string;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const active = isActivePath(pathname, item);
   const Icon = item.icon;
@@ -81,7 +83,10 @@ function SidebarNavItem({
       to={item.href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
-      className={`group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm transition-all duration-150 ${
+      title={collapsed ? item.label : undefined}
+      className={`group flex min-h-11 items-center rounded-xl text-sm transition-all duration-150 ${
+        collapsed ? "justify-center px-0" : "gap-3 px-3"
+      } ${
         active
           ? "bg-blue-500/20 text-white shadow-[inset_2px_0_0_rgba(96,165,250,.95)]"
           : "text-slate-300 hover:bg-white/[0.055] hover:text-white"
@@ -90,13 +95,17 @@ function SidebarNavItem({
       <span className={`flex h-7 w-7 shrink-0 items-center justify-center ${item.accent ?? (active ? "text-blue-300" : "text-slate-400 group-hover:text-slate-200")}`}>
         <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      <ChevronRight
-        className={`h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 ${
-          active ? "text-blue-300" : "text-slate-600 group-hover:text-slate-400"
-        }`}
-        aria-hidden="true"
-      />
+      {!collapsed && (
+        <>
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          <ChevronRight
+            className={`h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 ${
+              active ? "text-blue-300" : "text-slate-600 group-hover:text-slate-400"
+            }`}
+            aria-hidden="true"
+          />
+        </>
+      )}
     </Link>
   );
 }
@@ -105,10 +114,12 @@ function SidebarContents({
   user,
   onSignOut,
   onNavigate,
+  collapsed,
 }: {
   user: SidebarUser;
   onSignOut: () => void | Promise<void>;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -129,48 +140,64 @@ function SidebarContents({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="px-4 pb-4 pt-5">
-        <Link to="/" onClick={onNavigate} className="group flex items-center gap-3">
-          <span className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.045] shadow-inner">
+      <div className={`pb-4 pt-5 ${collapsed ? "px-2" : "px-4"}`}>
+        <Link
+          to="/"
+          onClick={onNavigate}
+          title={collapsed ? "MailMyPDF" : undefined}
+          className={`group flex items-center ${collapsed ? "justify-center" : "gap-3"}`}
+        >
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.045] shadow-inner">
             <Mail className="h-5 w-5 text-slate-100" strokeWidth={1.7} aria-hidden="true" />
             <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#071728] bg-blue-400" />
           </span>
-          <span className="min-w-0">
-            <span className="block font-serif text-[22px] leading-none text-white">MailMyPDF</span>
-            <span className="mt-1.5 block text-[8px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Secure · Simple · Done
+          {!collapsed && (
+            <span className="min-w-0">
+              <span className="block font-serif text-[22px] leading-none text-white">MailMyPDF</span>
+              <span className="mt-1.5 block text-[8px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                Secure · Simple · Done
+              </span>
             </span>
-          </span>
+          )}
         </Link>
       </div>
 
-      <div className="px-3">
+      <div className={collapsed ? "px-2" : "px-3"}>
         <Link
           to="/ecosystem"
           onClick={onNavigate}
-          className="mb-3 flex items-center justify-center gap-2 rounded-xl border border-blue-400/25 bg-blue-500/15 px-3 py-2.5 text-sm font-medium text-blue-100 transition hover:border-blue-300/40 hover:bg-blue-500/20"
+          title={collapsed ? "New Matter" : undefined}
+          className={`mb-3 flex items-center justify-center rounded-xl border border-blue-400/25 bg-blue-500/15 text-sm font-medium text-blue-100 transition hover:border-blue-300/40 hover:bg-blue-500/20 ${
+            collapsed ? "mx-auto h-10 w-10 px-0" : "gap-2 px-3 py-2.5"
+          }`}
         >
-          <Sparkles className="h-4 w-4 text-blue-300" aria-hidden="true" />
-          New Matter
-          <ArrowUpRight className="h-3.5 w-3.5 text-blue-300" aria-hidden="true" />
+          <Sparkles className="h-4 w-4 shrink-0 text-blue-300" aria-hidden="true" />
+          {!collapsed && (
+            <>
+              New Matter
+              <ArrowUpRight className="h-3.5 w-3.5 text-blue-300" aria-hidden="true" />
+            </>
+          )}
         </Link>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-4" aria-label="Authenticated navigation">
+      <nav className={`min-h-0 flex-1 overflow-y-auto pb-4 ${collapsed ? "px-2" : "px-3"}`} aria-label="Authenticated navigation">
         <div className="space-y-1">
           {primaryItems.map((item) => (
-            <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+            <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />
           ))}
         </div>
 
         <div className="my-4 border-t border-white/10" />
 
-        <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-          Products
-        </div>
+        {!collapsed && (
+          <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Products
+          </div>
+        )}
         <div className="space-y-1">
           {productItems.map((item) => (
-            <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+            <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />
           ))}
         </div>
 
@@ -181,33 +208,42 @@ function SidebarContents({
             item={{ label: "Help Center", href: "/how-it-works", icon: CircleHelp }}
             pathname={pathname}
             onNavigate={onNavigate}
+            collapsed={collapsed}
           />
           <SidebarNavItem
             item={{ label: "Account Settings", href: "/dashboard/settings", icon: Settings }}
             pathname={pathname}
             onNavigate={onNavigate}
+            collapsed={collapsed}
           />
         </div>
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-700/55 font-serif text-sm text-white">
+        <div className={`flex items-center rounded-xl py-2 ${collapsed ? "justify-center px-0" : "gap-3 px-2"}`}>
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-700/55 font-serif text-sm text-white"
+            title={collapsed ? displayName : undefined}
+          >
             {initials}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-white">{displayName}</div>
-            <div className="truncate text-[11px] text-slate-500">{user.email}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => void onSignOut()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/[0.06] hover:text-white"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-          </button>
+          {!collapsed && (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-white">{displayName}</div>
+                <div className="truncate text-[11px] text-slate-500">{user.email}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void onSignOut()}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -224,11 +260,22 @@ export function AuthenticatedSidebar({
   showMobileControls?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-[272px] border-r border-white/10 bg-[#071728] text-white shadow-[18px_0_55px_-32px_rgba(2,12,27,.85)] lg:block">
-        <SidebarContents user={user} onSignOut={onSignOut} />
+      <aside
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        onFocus={() => setExpanded(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setExpanded(false);
+        }}
+        className={`fixed inset-y-0 left-0 z-50 hidden overflow-hidden border-r border-white/10 bg-[#071728] text-white shadow-[18px_0_55px_-32px_rgba(2,12,27,.85)] transition-[width] duration-200 ease-out lg:block ${
+          expanded ? "w-[272px]" : "w-16"
+        }`}
+      >
+        <SidebarContents user={user} onSignOut={onSignOut} collapsed={!expanded} />
       </aside>
 
       {showMobileControls && (

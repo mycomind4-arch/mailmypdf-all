@@ -19,7 +19,7 @@ The MailMyPDF ecosystem is a multi-repository system for guided document-respons
             |
      +------+------+
      |      |      |
-  FAIRPROCESS V1   MAILMYPDF-PLATFORM (dead weight — exclude)
+  FAIRPROCESS V1   MAILMYPDF-ALL SHARED PACKAGES (dead weight — exclude)
   (recordation
    integrity)
 ```
@@ -135,7 +135,7 @@ Three candidate evidence-storage implementations exist:
 2. **Don't build a second evidence vault.** Pick fairprocess-repo's R2 vault.
 3. **Don't use `*.pages.dev` URLs in mailmypdf vertical registry.** Use root-relative routes.
 4. **Don't extend `permit-signal`.** It's explicitly archived.
-5. **Don't rely on `mailmypdf-platform`.** Nothing imports `@mailmypdf/*` from it. Dead weight.
+5. **Don't rely on `this monorepo's shared packages`.** Nothing imports `@mailmypdf/*` from it. Dead weight.
 6. **Don't trust doc inventories over actual package lists.** FairProcess V1's README omits 4 real packages. mailmypdf's route migration is half-done but tests correctly flag it.
 7. **Don't assume the archive reflects live repo state.** The `code-enforcement` snapshot doesn't show agent wiring — verify the live repo directly.
 

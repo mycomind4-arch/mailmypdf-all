@@ -18,8 +18,7 @@ New production MailMyPDF work should normally land here.
 
 ## Tier 2 — Shared/specialized systems with independent value
 
-### `mycomind4-arch/mailmypdf-platform`
-Role: shared platform contracts, extraction/migration plans, workflow inventory, ecosystem audits, and source history for shared primitives. Before implementing here, check whether the canonical implementation already lives in `mailmypdf-all/packages/*`.
+The `mailmypdf-all` monorepo owns its shared platform contracts in `packages/*`; there is no separate Platform repository.
 
 ### `mycomind4-arch/fairprocessmaps`
 Role: FairProcess 2.0. Evidence-first property/case due-process analysis with GIS, evidence vault, timeline, findings, D1/R2, and Cloudflare deployment.

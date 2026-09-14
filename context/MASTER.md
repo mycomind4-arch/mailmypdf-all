@@ -18,7 +18,7 @@ Canonical vertical namespace currently includes:
 
 Shared concerns include payment, fulfillment, pricing, AI/provider abstraction, document handling/intelligence, workflow runtime/factory, evidence/proof primitives, account/access contracts, and design-system code.
 
-The monorepo currently contains shared `@mailmypdf/*` packages migrated from `mailmypdf-platform`. Treat `mailmypdf-platform` as an important contract/history/source repository, but verify whether the canonical implementation already exists in `mailmypdf-all/packages/*` before changing it there.
+The monorepo's `packages/*` directory is the canonical home for shared `@mailmypdf/*` contracts and implementations. Historical external-platform material is archival only; do not treat it as a source of truth.
 
 ## Related systems
 

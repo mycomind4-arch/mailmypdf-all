@@ -39,6 +39,13 @@ export class OpenAIAdapter implements LLMAdapter {
   }
 
   async generate(request: LLMRequest): Promise<LLMResponse> {
+    if (request.tools?.length) {
+      throw new LLMError(
+        "OpenAI adapter does not support tools yet (Anthropic is the only tool-capable provider today)",
+        "openai",
+        "INVALID_ARGUMENT",
+      );
+    }
     const timeoutMs = request.timeoutMs ?? 30000;
     const inputHash = await hashInput(
       `${request.systemPrompt}\n${request.userPrompt}`,

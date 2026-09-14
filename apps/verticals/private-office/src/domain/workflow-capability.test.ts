@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capabilityGraph } from "./capability-graph";
+import type { CapabilityGraph } from "./capability-graph";
 import { createInitialState } from "./state-engine";
 import {
   findCapabilityForWorkflow,
@@ -7,17 +7,26 @@ import {
 } from "./workflow-capability";
 
 describe("workflow capability mapping", () => {
+  const graph: CapabilityGraph = {
+    capabilities: {
+      "collect-evidence": { id: "collect-evidence", title: "Collect evidence", description: "", vertical: "private-office", family: "test", prerequisites: [], unlocks: [] },
+      "prepare-dispute": { id: "prepare-dispute", title: "Prepare dispute", description: "", vertical: "private-office", family: "test", workflowId: "contractor-dispute", prerequisites: ["collect-evidence"], unlocks: [] },
+    },
+    milestones: {},
+    entryPoints: ["collect-evidence"],
+  };
+
   it("resolves an executable workflow to its canonical capability", () => {
-    const match = findCapabilityForWorkflow(capabilityGraph, "form-llc");
+    const match = findCapabilityForWorkflow(graph, "contractor-dispute");
 
     expect(match).not.toBeNull();
-    expect(match?.capabilityId).toBe("form-llc");
-    expect(match?.workflowId).toBe("form-llc");
+    expect(match?.capabilityId).toBe("prepare-dispute");
+    expect(match?.workflowId).toBe("contractor-dispute");
   });
 
   it("returns null for workflows not represented in the capability graph", () => {
     expect(
-      findCapabilityForWorkflow(capabilityGraph, "unknown-workflow"),
+      findCapabilityForWorkflow(graph, "unknown-workflow"),
     ).toBeNull();
   });
 
@@ -25,26 +34,26 @@ describe("workflow capability mapping", () => {
     const state = createInitialState("user-1");
 
     const missing = getMissingWorkflowCapabilityPrerequisites(
-      capabilityGraph,
+      graph,
       state,
-      "obtain-ein",
+      "contractor-dispute",
     );
 
     expect(missing.length).toBeGreaterThan(0);
-    expect(missing).toContain("form-llc");
+    expect(missing).toContain("collect-evidence");
   });
 
   it("returns no missing prerequisites after required capabilities are complete", () => {
     const state = {
       ...createInitialState("user-1"),
-      completed: ["form-llc"],
+      completed: ["collect-evidence"],
     };
 
     expect(
       getMissingWorkflowCapabilityPrerequisites(
-        capabilityGraph,
+        graph,
         state,
-        "obtain-ein",
+        "contractor-dispute",
       ),
     ).toEqual([]);
   });

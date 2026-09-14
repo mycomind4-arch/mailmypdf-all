@@ -1,0 +1,30 @@
+{
+  "name": "@mailmypdf/step-workflow",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12",
+    "typescript": "^5.8.3"
+  }
+}

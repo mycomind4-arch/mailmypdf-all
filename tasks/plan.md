@@ -50,3 +50,47 @@ Turn the current `/studio` mockup into an owner-only workflow authoring layer ab
 | Owner-only access is inferred from authentication | High | Add an explicit owner identity or allowlist policy at the server boundary. |
 | UI grows into one large component | Medium | Split chat, canvas, inspector, simulation, and history into focused components. |
 
+---
+
+# Implementation Plan: Agent Command Center
+
+## Overview
+
+Evolve Studio into one command center for Claude and Codex. An owner describes an outcome, selects an available provider and model, and launches a bounded background team that can build, test, evaluate workflows, review UX and accessibility, audit safety, and prepare a release packet.
+
+## Architecture Decisions
+
+- Keep agents in disposable worktrees and merge only an independently reviewed, passing change into the integration branch.
+- Use an explicit, allowlisted role catalog rather than allowing generated shell commands or unrestricted role definitions.
+- Treat provider/model selection as validated server-side configuration.
+- Cap concurrent workers, attempts, duration, and token/cost budget per run.
+- Never copy ignored files or local credentials into agent worktrees. Claude runs without host-wide bypass permissions.
+
+## Task List
+
+### Phase 1: Safe, green foundation
+- [ ] Repair the existing Private Office test baseline and add regression coverage for the fixed contracts.
+- [ ] Make worktree setup fail closed; prevent secrets/ignored files from entering runs; serialize integration merges.
+- [ ] Add swarm unit tests for provider commands, cancellation, failed setup, and run-state transitions.
+
+### Phase 2: Unified command contract
+- [ ] Define typed provider, model, role, budget, and run-plan contracts.
+- [ ] Add outcome-driven background run planning while preserving the existing simple-run endpoint.
+
+### Phase 3: Command Center UI
+- [ ] Replace the separate Claude and Agents panels with one accessible command center.
+- [ ] Show provider/model controls, selected team, progress, evidence, budget, errors, and human approval state.
+
+### Phase 4: Useful agent capabilities
+- [ ] Workflow evaluator and regression-suite curator.
+- [ ] Browser/visual QA and accessibility reviewer.
+- [ ] Safety/compliance reviewer and release-packet generator.
+- [ ] Documentation and design-system steward roles.
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+| --- | --- | --- |
+| Agents leak credentials from a developer machine | Critical | Copy tracked files only, explicit secret exclusions, least-privilege CLI modes. |
+| Parallel agents conflict or exceed cost | High | Per-run concurrency/budget caps and a serialized integration queue. |
+| Model output influences unsafe execution | High | Fixed role catalog, validated inputs, isolated worktrees, and human integration approval. |

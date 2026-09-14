@@ -1,0 +1,7 @@
+{
+  "mustContain": ["Jordan A. Rivera", "MAI-2026-0417-CA", "50%"],
+  "mustNotContain": ["{{", "TODO", "undefined", "[object Object]", "lorem ipsum"],
+  "mustIncludeUploads": ["upl_claim_denial"],
+  "mustGenerate": ["response_letter"],
+  "minPageCount": 1
+}

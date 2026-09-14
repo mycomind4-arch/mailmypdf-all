@@ -37,6 +37,28 @@ export interface LLMProvenance {
   promptVersion?: string;
 }
 
+// ── Tool Use ─────────────────────────────────────────────────────────────
+//
+// Provider-agnostic shape for giving an LLM tools. Today only Anthropic's
+// server-side web search tool is wired (AnthropicAdapter); this is the seam
+// future tools (image generation, GitHub read access, SEO auditing, uploaded
+// reference retrieval) plug into once each has a provider/credential decision.
+
+/** A server-side tool the provider itself executes (e.g. Anthropic's web search). */
+export interface LLMServerTool {
+  type: "web_search";
+}
+
+export type LLMToolDefinition = LLMServerTool;
+
+/** Record of a tool invocation the provider made while generating the response. */
+export interface LLMToolCall {
+  tool: string;
+  input?: unknown;
+  /** Present for server-executed tools once the provider returns results. */
+  resultSummary?: string;
+}
+
 // ── Request / Response ───────────────────────────────────────────────────
 
 export interface LLMRequest {
@@ -50,11 +72,15 @@ export interface LLMRequest {
   timeoutMs?: number;
   /** Prompt version identifier for provenance tracing */
   promptVersion?: string;
+  /** Tools to make available to the model. Unsupported by an adapter -> LLMError, not a silent no-op. */
+  tools?: LLMToolDefinition[];
 }
 
 export interface LLMResponse {
   content: string;
   provenance: LLMProvenance;
+  /** Tool calls the provider made while producing this response, if any. */
+  toolCalls?: LLMToolCall[];
 }
 
 // ── Adapter Interface ────────────────────────────────────────────────────

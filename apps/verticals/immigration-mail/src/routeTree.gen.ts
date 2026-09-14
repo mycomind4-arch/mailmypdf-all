@@ -51,6 +51,7 @@ import { Route as WorkflowsRespondToNoticeRouteImport } from './routes/workflows
 import { Route as WorkflowsSupportingDocumentsRouteImport } from './routes/workflows/supporting-documents'
 import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as MattersMatterIdStepRouteImport } from './routes/matters/$matterId/$step'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -265,6 +266,11 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MattersMatterIdStepRoute = MattersMatterIdStepRouteImport.update({
+  id: '/matters/$matterId/$step',
+  path: '/matters/$matterId/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -309,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/workflows/': typeof WorkflowsIndexRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -352,6 +359,7 @@ export interface FileRoutesByTo {
   '/workflows': typeof WorkflowsIndexRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/workflows/': typeof WorkflowsIndexRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -443,6 +452,7 @@ export interface FileRouteTypes {
     | '/workflows/'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/matters/$matterId/$step'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -486,6 +496,7 @@ export interface FileRouteTypes {
     | '/workflows'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/matters/$matterId/$step'
   id:
     | '__root__'
     | '/'
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/workflows/'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/matters/$matterId/$step'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -570,6 +582,7 @@ export interface RootRouteChildren {
   VisaRefusalIndexRoute: typeof VisaRefusalIndexRoute
   ApiMailResponseRoute: typeof ApiMailResponseRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
+  MattersMatterIdStepRoute: typeof MattersMatterIdStepRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -868,6 +881,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/matters/$matterId/$step': {
+      id: '/matters/$matterId/$step'
+      path: '/matters/$matterId/$step'
+      fullPath: '/matters/$matterId/$step'
+      preLoaderRoute: typeof MattersMatterIdStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -929,6 +949,7 @@ const rootRouteChildren: RootRouteChildren = {
   VisaRefusalIndexRoute: VisaRefusalIndexRoute,
   ApiMailResponseRoute: ApiMailResponseRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
+  MattersMatterIdStepRoute: MattersMatterIdStepRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

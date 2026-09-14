@@ -3,7 +3,7 @@
 **Status: LOCKED / ACTIVE**
 **Last updated:** 2026-08-22
 **Canonical architecture:** MailMyPDF Ecosystem Lock
-**Shared platform source of truth:** `mailmypdf-platform`
+**Shared platform source of truth:** `this monorepo's shared packages`
 
 ## Product objective
 
@@ -131,8 +131,8 @@ After the next workflow build cycle, retrofit #1–#5 to the shared pricing engi
 - MailMyPDF owns document storage/upload.
 - MailMyPDF owns communications/mailing.
 - Benefits Appeal owns workflow/domain logic, readiness gates, Stripe checkout, and client UX.
-- `mailmypdf-platform` owns shared engines and cross-vertical contracts.
-- New cross-vertical pricing calculation belongs in `mailmypdf-platform`.
+- `this monorepo's shared packages` owns shared engines and cross-vertical contracts.
+- New cross-vertical pricing calculation belongs in `this monorepo's shared packages`.
 
 ## Execution policy
 

@@ -25,7 +25,7 @@ function DashboardLayout() {
     <div className="min-h-screen bg-background">
       <AuthenticatedSidebar user={user} onSignOut={handleSignOut} />
 
-      <div className="min-h-screen lg:pl-[272px]">
+      <div className="min-h-screen lg:pl-16">
         <main className="mx-auto max-w-[1480px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
           <Outlet />
         </main>

@@ -22,11 +22,26 @@ import { Route as StudioRouteImport } from './routes/studio'
 import { Route as WorkflowsIndexRouteImport } from './routes/workflows/index'
 import { Route as WorkflowsBankWireDisputeRouteImport } from './routes/workflows/bank-wire-dispute'
 import { Route as WorkflowsContractorDisputeRouteImport } from './routes/workflows/contractor-dispute'
+import { Route as WorkflowsGovernmentAccountabilityInvestigationRouteImport } from './routes/workflows/government-accountability-investigation'
+import { Route as WorkflowsGovernmentAccusationDefenseRouteImport } from './routes/workflows/government-accusation-defense'
+import { Route as WorkflowsPersonalLegalAutonomyAssetControlRouteImport } from './routes/workflows/personal-legal-autonomy-asset-control'
+import { Route as WorkflowsPropertyEstateReconstructionRouteImport } from './routes/workflows/property-estate-reconstruction'
 import { Route as WorkflowsPropertyInsuranceClaimRouteImport } from './routes/workflows/property-insurance-claim'
 import { Route as WorkflowsSecurityDepositDisputeRouteImport } from './routes/workflows/security-deposit-dispute'
 import { Route as WorkflowsTrustBeneficiaryNoticeRouteImport } from './routes/workflows/trust-beneficiary-notice'
-import { Route as ApiStudioChatRouteImport } from './routes/api/studio/chat'
 import { Route as ApiStudioRunRouteImport } from './routes/api/studio/run'
+import { Route as DevMatterPreviewStepRouteImport } from './routes/dev/matter-preview.$step'
+import { Route as MattersMatterIdStepRouteImport } from './routes/matters/$matterId/$step'
+import { Route as ApiStudioAcceptanceTestRouteImport } from './routes/api/studio/acceptance/test'
+import { Route as ApiStudioAgentsLaunchRouteImport } from './routes/api/studio/agents/launch'
+import { Route as ApiStudioAgentsRunsRouteImport } from './routes/api/studio/agents/runs'
+import { Route as ApiStudioAgentsStopRouteImport } from './routes/api/studio/agents/stop'
+import { Route as ApiStudioAgentsStreamRouteImport } from './routes/api/studio/agents/stream'
+import { Route as ApiStudioChatGateRouteImport } from './routes/api/studio/chat/gate'
+import { Route as ApiStudioChatMessageRouteImport } from './routes/api/studio/chat/message'
+import { Route as ApiStudioChatSessionsRouteImport } from './routes/api/studio/chat/sessions'
+import { Route as ApiStudioChatStartRouteImport } from './routes/api/studio/chat/start'
+import { Route as ApiStudioChatStopRouteImport } from './routes/api/studio/chat/stop'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,6 +110,30 @@ const WorkflowsContractorDisputeRoute =
     path: '/workflows/contractor-dispute',
     getParentRoute: () => rootRouteImport,
   } as any)
+const WorkflowsGovernmentAccountabilityInvestigationRoute =
+  WorkflowsGovernmentAccountabilityInvestigationRouteImport.update({
+    id: '/workflows/government-accountability-investigation',
+    path: '/workflows/government-accountability-investigation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkflowsGovernmentAccusationDefenseRoute =
+  WorkflowsGovernmentAccusationDefenseRouteImport.update({
+    id: '/workflows/government-accusation-defense',
+    path: '/workflows/government-accusation-defense',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkflowsPersonalLegalAutonomyAssetControlRoute =
+  WorkflowsPersonalLegalAutonomyAssetControlRouteImport.update({
+    id: '/workflows/personal-legal-autonomy-asset-control',
+    path: '/workflows/personal-legal-autonomy-asset-control',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const WorkflowsPropertyEstateReconstructionRoute =
+  WorkflowsPropertyEstateReconstructionRouteImport.update({
+    id: '/workflows/property-estate-reconstruction',
+    path: '/workflows/property-estate-reconstruction',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const WorkflowsPropertyInsuranceClaimRoute =
   WorkflowsPropertyInsuranceClaimRouteImport.update({
     id: '/workflows/property-insurance-claim',
@@ -113,14 +152,69 @@ const WorkflowsTrustBeneficiaryNoticeRoute =
     path: '/workflows/trust-beneficiary-notice',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiStudioChatRoute = ApiStudioChatRouteImport.update({
-  id: '/api/studio/chat',
-  path: '/api/studio/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiStudioRunRoute = ApiStudioRunRouteImport.update({
   id: '/api/studio/run',
   path: '/api/studio/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevMatterPreviewStepRoute = DevMatterPreviewStepRouteImport.update({
+  id: '/dev/matter-preview/$step',
+  path: '/dev/matter-preview/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MattersMatterIdStepRoute = MattersMatterIdStepRouteImport.update({
+  id: '/matters/$matterId/$step',
+  path: '/matters/$matterId/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioAcceptanceTestRoute = ApiStudioAcceptanceTestRouteImport.update({
+  id: '/api/studio/acceptance/test',
+  path: '/api/studio/acceptance/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioAgentsLaunchRoute = ApiStudioAgentsLaunchRouteImport.update({
+  id: '/api/studio/agents/launch',
+  path: '/api/studio/agents/launch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioAgentsRunsRoute = ApiStudioAgentsRunsRouteImport.update({
+  id: '/api/studio/agents/runs',
+  path: '/api/studio/agents/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioAgentsStopRoute = ApiStudioAgentsStopRouteImport.update({
+  id: '/api/studio/agents/stop',
+  path: '/api/studio/agents/stop',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioAgentsStreamRoute = ApiStudioAgentsStreamRouteImport.update({
+  id: '/api/studio/agents/stream',
+  path: '/api/studio/agents/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatGateRoute = ApiStudioChatGateRouteImport.update({
+  id: '/api/studio/chat/gate',
+  path: '/api/studio/chat/gate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatMessageRoute = ApiStudioChatMessageRouteImport.update({
+  id: '/api/studio/chat/message',
+  path: '/api/studio/chat/message',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatSessionsRoute = ApiStudioChatSessionsRouteImport.update({
+  id: '/api/studio/chat/sessions',
+  path: '/api/studio/chat/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatStartRoute = ApiStudioChatStartRouteImport.update({
+  id: '/api/studio/chat/start',
+  path: '/api/studio/chat/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatStopRoute = ApiStudioChatStopRouteImport.update({
+  id: '/api/studio/chat/stop',
+  path: '/api/studio/chat/stop',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -137,12 +231,27 @@ export interface FileRoutesByFullPath {
   '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
+  '/workflows/government-accountability-investigation': typeof WorkflowsGovernmentAccountabilityInvestigationRoute
+  '/workflows/government-accusation-defense': typeof WorkflowsGovernmentAccusationDefenseRoute
+  '/workflows/personal-legal-autonomy-asset-control': typeof WorkflowsPersonalLegalAutonomyAssetControlRoute
+  '/workflows/property-estate-reconstruction': typeof WorkflowsPropertyEstateReconstructionRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows/': typeof WorkflowsIndexRoute
-  '/api/studio/chat': typeof ApiStudioChatRoute
   '/api/studio/run': typeof ApiStudioRunRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
+  '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
+  '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
+  '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
+  '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
+  '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
+  '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
+  '/api/studio/chat/start': typeof ApiStudioChatStartRoute
+  '/api/studio/chat/stop': typeof ApiStudioChatStopRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,12 +266,27 @@ export interface FileRoutesByTo {
   '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
+  '/workflows/government-accountability-investigation': typeof WorkflowsGovernmentAccountabilityInvestigationRoute
+  '/workflows/government-accusation-defense': typeof WorkflowsGovernmentAccusationDefenseRoute
+  '/workflows/personal-legal-autonomy-asset-control': typeof WorkflowsPersonalLegalAutonomyAssetControlRoute
+  '/workflows/property-estate-reconstruction': typeof WorkflowsPropertyEstateReconstructionRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows': typeof WorkflowsIndexRoute
-  '/api/studio/chat': typeof ApiStudioChatRoute
   '/api/studio/run': typeof ApiStudioRunRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
+  '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
+  '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
+  '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
+  '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
+  '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
+  '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
+  '/api/studio/chat/start': typeof ApiStudioChatStartRoute
+  '/api/studio/chat/stop': typeof ApiStudioChatStopRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,12 +302,27 @@ export interface FileRoutesById {
   '/studio': typeof StudioRoute
   '/workflows/bank-wire-dispute': typeof WorkflowsBankWireDisputeRoute
   '/workflows/contractor-dispute': typeof WorkflowsContractorDisputeRoute
+  '/workflows/government-accountability-investigation': typeof WorkflowsGovernmentAccountabilityInvestigationRoute
+  '/workflows/government-accusation-defense': typeof WorkflowsGovernmentAccusationDefenseRoute
+  '/workflows/personal-legal-autonomy-asset-control': typeof WorkflowsPersonalLegalAutonomyAssetControlRoute
+  '/workflows/property-estate-reconstruction': typeof WorkflowsPropertyEstateReconstructionRoute
   '/workflows/property-insurance-claim': typeof WorkflowsPropertyInsuranceClaimRoute
   '/workflows/security-deposit-dispute': typeof WorkflowsSecurityDepositDisputeRoute
   '/workflows/trust-beneficiary-notice': typeof WorkflowsTrustBeneficiaryNoticeRoute
   '/workflows/': typeof WorkflowsIndexRoute
-  '/api/studio/chat': typeof ApiStudioChatRoute
   '/api/studio/run': typeof ApiStudioRunRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
+  '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
+  '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
+  '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
+  '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
+  '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
+  '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
+  '/api/studio/chat/start': typeof ApiStudioChatStartRoute
+  '/api/studio/chat/stop': typeof ApiStudioChatStopRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,12 +339,27 @@ export interface FileRouteTypes {
     | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
+    | '/workflows/government-accountability-investigation'
+    | '/workflows/government-accusation-defense'
+    | '/workflows/personal-legal-autonomy-asset-control'
+    | '/workflows/property-estate-reconstruction'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows/'
-    | '/api/studio/chat'
     | '/api/studio/run'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
+    | '/api/studio/acceptance/test'
+    | '/api/studio/agents/launch'
+    | '/api/studio/agents/runs'
+    | '/api/studio/agents/stop'
+    | '/api/studio/agents/stream'
+    | '/api/studio/chat/gate'
+    | '/api/studio/chat/message'
+    | '/api/studio/chat/sessions'
+    | '/api/studio/chat/start'
+    | '/api/studio/chat/stop'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,12 +374,27 @@ export interface FileRouteTypes {
     | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
+    | '/workflows/government-accountability-investigation'
+    | '/workflows/government-accusation-defense'
+    | '/workflows/personal-legal-autonomy-asset-control'
+    | '/workflows/property-estate-reconstruction'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows'
-    | '/api/studio/chat'
     | '/api/studio/run'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
+    | '/api/studio/acceptance/test'
+    | '/api/studio/agents/launch'
+    | '/api/studio/agents/runs'
+    | '/api/studio/agents/stop'
+    | '/api/studio/agents/stream'
+    | '/api/studio/chat/gate'
+    | '/api/studio/chat/message'
+    | '/api/studio/chat/sessions'
+    | '/api/studio/chat/start'
+    | '/api/studio/chat/stop'
   id:
     | '__root__'
     | '/'
@@ -240,12 +409,27 @@ export interface FileRouteTypes {
     | '/studio'
     | '/workflows/bank-wire-dispute'
     | '/workflows/contractor-dispute'
+    | '/workflows/government-accountability-investigation'
+    | '/workflows/government-accusation-defense'
+    | '/workflows/personal-legal-autonomy-asset-control'
+    | '/workflows/property-estate-reconstruction'
     | '/workflows/property-insurance-claim'
     | '/workflows/security-deposit-dispute'
     | '/workflows/trust-beneficiary-notice'
     | '/workflows/'
-    | '/api/studio/chat'
     | '/api/studio/run'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
+    | '/api/studio/acceptance/test'
+    | '/api/studio/agents/launch'
+    | '/api/studio/agents/runs'
+    | '/api/studio/agents/stop'
+    | '/api/studio/agents/stream'
+    | '/api/studio/chat/gate'
+    | '/api/studio/chat/message'
+    | '/api/studio/chat/sessions'
+    | '/api/studio/chat/start'
+    | '/api/studio/chat/stop'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,12 +445,27 @@ export interface RootRouteChildren {
   StudioRoute: typeof StudioRoute
   WorkflowsBankWireDisputeRoute: typeof WorkflowsBankWireDisputeRoute
   WorkflowsContractorDisputeRoute: typeof WorkflowsContractorDisputeRoute
+  WorkflowsGovernmentAccountabilityInvestigationRoute: typeof WorkflowsGovernmentAccountabilityInvestigationRoute
+  WorkflowsGovernmentAccusationDefenseRoute: typeof WorkflowsGovernmentAccusationDefenseRoute
+  WorkflowsPersonalLegalAutonomyAssetControlRoute: typeof WorkflowsPersonalLegalAutonomyAssetControlRoute
+  WorkflowsPropertyEstateReconstructionRoute: typeof WorkflowsPropertyEstateReconstructionRoute
   WorkflowsPropertyInsuranceClaimRoute: typeof WorkflowsPropertyInsuranceClaimRoute
   WorkflowsSecurityDepositDisputeRoute: typeof WorkflowsSecurityDepositDisputeRoute
   WorkflowsTrustBeneficiaryNoticeRoute: typeof WorkflowsTrustBeneficiaryNoticeRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
-  ApiStudioChatRoute: typeof ApiStudioChatRoute
   ApiStudioRunRoute: typeof ApiStudioRunRoute
+  DevMatterPreviewStepRoute: typeof DevMatterPreviewStepRoute
+  MattersMatterIdStepRoute: typeof MattersMatterIdStepRoute
+  ApiStudioAcceptanceTestRoute: typeof ApiStudioAcceptanceTestRoute
+  ApiStudioAgentsLaunchRoute: typeof ApiStudioAgentsLaunchRoute
+  ApiStudioAgentsRunsRoute: typeof ApiStudioAgentsRunsRoute
+  ApiStudioAgentsStopRoute: typeof ApiStudioAgentsStopRoute
+  ApiStudioAgentsStreamRoute: typeof ApiStudioAgentsStreamRoute
+  ApiStudioChatGateRoute: typeof ApiStudioChatGateRoute
+  ApiStudioChatMessageRoute: typeof ApiStudioChatMessageRoute
+  ApiStudioChatSessionsRoute: typeof ApiStudioChatSessionsRoute
+  ApiStudioChatStartRoute: typeof ApiStudioChatStartRoute
+  ApiStudioChatStopRoute: typeof ApiStudioChatStopRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -362,6 +561,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsContractorDisputeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workflows/government-accountability-investigation': {
+      id: '/workflows/government-accountability-investigation'
+      path: '/workflows/government-accountability-investigation'
+      fullPath: '/workflows/government-accountability-investigation'
+      preLoaderRoute: typeof WorkflowsGovernmentAccountabilityInvestigationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/government-accusation-defense': {
+      id: '/workflows/government-accusation-defense'
+      path: '/workflows/government-accusation-defense'
+      fullPath: '/workflows/government-accusation-defense'
+      preLoaderRoute: typeof WorkflowsGovernmentAccusationDefenseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/personal-legal-autonomy-asset-control': {
+      id: '/workflows/personal-legal-autonomy-asset-control'
+      path: '/workflows/personal-legal-autonomy-asset-control'
+      fullPath: '/workflows/personal-legal-autonomy-asset-control'
+      preLoaderRoute: typeof WorkflowsPersonalLegalAutonomyAssetControlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/property-estate-reconstruction': {
+      id: '/workflows/property-estate-reconstruction'
+      path: '/workflows/property-estate-reconstruction'
+      fullPath: '/workflows/property-estate-reconstruction'
+      preLoaderRoute: typeof WorkflowsPropertyEstateReconstructionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/property-insurance-claim': {
       id: '/workflows/property-insurance-claim'
       path: '/workflows/property-insurance-claim'
@@ -383,18 +610,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsTrustBeneficiaryNoticeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/studio/chat': {
-      id: '/api/studio/chat'
-      path: '/api/studio/chat'
-      fullPath: '/api/studio/chat'
-      preLoaderRoute: typeof ApiStudioChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/studio/run': {
       id: '/api/studio/run'
       path: '/api/studio/run'
       fullPath: '/api/studio/run'
       preLoaderRoute: typeof ApiStudioRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/matter-preview/$step': {
+      id: '/dev/matter-preview/$step'
+      path: '/dev/matter-preview/$step'
+      fullPath: '/dev/matter-preview/$step'
+      preLoaderRoute: typeof DevMatterPreviewStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/matters/$matterId/$step': {
+      id: '/matters/$matterId/$step'
+      path: '/matters/$matterId/$step'
+      fullPath: '/matters/$matterId/$step'
+      preLoaderRoute: typeof MattersMatterIdStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/acceptance/test': {
+      id: '/api/studio/acceptance/test'
+      path: '/api/studio/acceptance/test'
+      fullPath: '/api/studio/acceptance/test'
+      preLoaderRoute: typeof ApiStudioAcceptanceTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/agents/launch': {
+      id: '/api/studio/agents/launch'
+      path: '/api/studio/agents/launch'
+      fullPath: '/api/studio/agents/launch'
+      preLoaderRoute: typeof ApiStudioAgentsLaunchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/agents/runs': {
+      id: '/api/studio/agents/runs'
+      path: '/api/studio/agents/runs'
+      fullPath: '/api/studio/agents/runs'
+      preLoaderRoute: typeof ApiStudioAgentsRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/agents/stop': {
+      id: '/api/studio/agents/stop'
+      path: '/api/studio/agents/stop'
+      fullPath: '/api/studio/agents/stop'
+      preLoaderRoute: typeof ApiStudioAgentsStopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/agents/stream': {
+      id: '/api/studio/agents/stream'
+      path: '/api/studio/agents/stream'
+      fullPath: '/api/studio/agents/stream'
+      preLoaderRoute: typeof ApiStudioAgentsStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/gate': {
+      id: '/api/studio/chat/gate'
+      path: '/api/studio/chat/gate'
+      fullPath: '/api/studio/chat/gate'
+      preLoaderRoute: typeof ApiStudioChatGateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/message': {
+      id: '/api/studio/chat/message'
+      path: '/api/studio/chat/message'
+      fullPath: '/api/studio/chat/message'
+      preLoaderRoute: typeof ApiStudioChatMessageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/sessions': {
+      id: '/api/studio/chat/sessions'
+      path: '/api/studio/chat/sessions'
+      fullPath: '/api/studio/chat/sessions'
+      preLoaderRoute: typeof ApiStudioChatSessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/start': {
+      id: '/api/studio/chat/start'
+      path: '/api/studio/chat/start'
+      fullPath: '/api/studio/chat/start'
+      preLoaderRoute: typeof ApiStudioChatStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/stop': {
+      id: '/api/studio/chat/stop'
+      path: '/api/studio/chat/stop'
+      fullPath: '/api/studio/chat/stop'
+      preLoaderRoute: typeof ApiStudioChatStopRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -413,12 +717,31 @@ const rootRouteChildren: RootRouteChildren = {
   StudioRoute: StudioRoute,
   WorkflowsBankWireDisputeRoute: WorkflowsBankWireDisputeRoute,
   WorkflowsContractorDisputeRoute: WorkflowsContractorDisputeRoute,
+  WorkflowsGovernmentAccountabilityInvestigationRoute:
+    WorkflowsGovernmentAccountabilityInvestigationRoute,
+  WorkflowsGovernmentAccusationDefenseRoute:
+    WorkflowsGovernmentAccusationDefenseRoute,
+  WorkflowsPersonalLegalAutonomyAssetControlRoute:
+    WorkflowsPersonalLegalAutonomyAssetControlRoute,
+  WorkflowsPropertyEstateReconstructionRoute:
+    WorkflowsPropertyEstateReconstructionRoute,
   WorkflowsPropertyInsuranceClaimRoute: WorkflowsPropertyInsuranceClaimRoute,
   WorkflowsSecurityDepositDisputeRoute: WorkflowsSecurityDepositDisputeRoute,
   WorkflowsTrustBeneficiaryNoticeRoute: WorkflowsTrustBeneficiaryNoticeRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
-  ApiStudioChatRoute: ApiStudioChatRoute,
   ApiStudioRunRoute: ApiStudioRunRoute,
+  DevMatterPreviewStepRoute: DevMatterPreviewStepRoute,
+  MattersMatterIdStepRoute: MattersMatterIdStepRoute,
+  ApiStudioAcceptanceTestRoute: ApiStudioAcceptanceTestRoute,
+  ApiStudioAgentsLaunchRoute: ApiStudioAgentsLaunchRoute,
+  ApiStudioAgentsRunsRoute: ApiStudioAgentsRunsRoute,
+  ApiStudioAgentsStopRoute: ApiStudioAgentsStopRoute,
+  ApiStudioAgentsStreamRoute: ApiStudioAgentsStreamRoute,
+  ApiStudioChatGateRoute: ApiStudioChatGateRoute,
+  ApiStudioChatMessageRoute: ApiStudioChatMessageRoute,
+  ApiStudioChatSessionsRoute: ApiStudioChatSessionsRoute,
+  ApiStudioChatStartRoute: ApiStudioChatStartRoute,
+  ApiStudioChatStopRoute: ApiStudioChatStopRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

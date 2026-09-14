@@ -20,12 +20,16 @@
     { "path": "./packages/core" },
     { "path": "./packages/ai" },
     { "path": "./packages/documents" },
+    { "path": "./packages/packet-builder" },
+    { "path": "./packages/workflow-acceptance" },
     { "path": "./packages/intelligence" },
     { "path": "./packages/mailing-client" },
     { "path": "./packages/proof" },
     { "path": "./packages/payment-fulfillment" },
     { "path": "./packages/vertical-foundry" },
     { "path": "./packages/workflows" },
-    { "path": "./packages/agent-runtime" }
+    { "path": "./packages/agent-runtime" },
+    { "path": "./packages/workflow-ui" },
+    { "path": "./packages/step-workflow" }
   ]
 }

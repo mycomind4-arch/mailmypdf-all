@@ -137,4 +137,4 @@ Canonical public host: `https://mailmypdf.ai`.
 
 Prelaunch indexing remains subject to the owner's global launch switch even when a page passes the per-page Authority Gate.
 
-Architecture source of truth: `mailmypdf-platform`. Do not create a competing URL scheme, page architecture, global navigation model, workflow runtime, or fulfillment system.
+Architecture source of truth: `this monorepo's shared packages`. Do not create a competing URL scheme, page architecture, global navigation model, workflow runtime, or fulfillment system.

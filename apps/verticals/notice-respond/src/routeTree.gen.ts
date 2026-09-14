@@ -78,6 +78,8 @@ import { Route as ApiCasesCreateRouteImport } from './routes/api/cases/create'
 import { Route as ApiDocumentsExtractRouteImport } from './routes/api/documents/extract'
 import { Route as ApiMailResponseRouteImport } from './routes/api/mail/response'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as DevMatterPreviewStepRouteImport } from './routes/dev/matter-preview.$step'
+import { Route as MattersMatterIdStepRouteImport } from './routes/matters/$matterId/$step'
 import { Route as WorkflowsWorkflowIdLandingRouteImport } from './routes/workflows/$workflowId/landing'
 import { Route as ApiCasesCaseIdApproveRouteImport } from './routes/api/cases/$caseId/approve'
 import { Route as ApiCasesCaseIdEvidenceRouteImport } from './routes/api/cases/$caseId/evidence'
@@ -450,6 +452,16 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevMatterPreviewStepRoute = DevMatterPreviewStepRouteImport.update({
+  id: '/dev/matter-preview/$step',
+  path: '/dev/matter-preview/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MattersMatterIdStepRoute = MattersMatterIdStepRouteImport.update({
+  id: '/matters/$matterId/$step',
+  path: '/matters/$matterId/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowsWorkflowIdLandingRoute =
   WorkflowsWorkflowIdLandingRouteImport.update({
     id: '/workflows/$workflowId/landing',
@@ -536,6 +548,8 @@ export interface FileRoutesByFullPath {
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -610,6 +624,8 @@ export interface FileRoutesByTo {
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -685,6 +701,8 @@ export interface FileRoutesById {
   '/api/documents/extract': typeof ApiDocumentsExtractRoute
   '/api/mail/response': typeof ApiMailResponseRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
+  '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/workflows/$workflowId/landing': typeof WorkflowsWorkflowIdLandingRoute
   '/api/cases/': typeof ApiCasesIndexRoute
   '/api/cases/$caseId/approve': typeof ApiCasesCaseIdApproveRoute
@@ -761,6 +779,8 @@ export interface FileRouteTypes {
     | '/api/documents/extract'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
@@ -835,6 +855,8 @@ export interface FileRouteTypes {
     | '/api/documents/extract'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/landing'
     | '/api/cases'
     | '/api/cases/$caseId/approve'
@@ -909,6 +931,8 @@ export interface FileRouteTypes {
     | '/api/documents/extract'
     | '/api/mail/response'
     | '/api/webhooks/stripe'
+    | '/dev/matter-preview/$step'
+    | '/matters/$matterId/$step'
     | '/workflows/$workflowId/landing'
     | '/api/cases/'
     | '/api/cases/$caseId/approve'
@@ -983,6 +1007,8 @@ export interface RootRouteChildren {
   ApiCasesCreateRoute: typeof ApiCasesCreateRoute
   ApiMailResponseRoute: typeof ApiMailResponseRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
+  DevMatterPreviewStepRoute: typeof DevMatterPreviewStepRoute
+  MattersMatterIdStepRoute: typeof MattersMatterIdStepRoute
   WorkflowsWorkflowIdLandingRoute: typeof WorkflowsWorkflowIdLandingRoute
   ApiCasesIndexRoute: typeof ApiCasesIndexRoute
 }
@@ -1472,6 +1498,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/matter-preview/$step': {
+      id: '/dev/matter-preview/$step'
+      path: '/dev/matter-preview/$step'
+      fullPath: '/dev/matter-preview/$step'
+      preLoaderRoute: typeof DevMatterPreviewStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/matters/$matterId/$step': {
+      id: '/matters/$matterId/$step'
+      path: '/matters/$matterId/$step'
+      fullPath: '/matters/$matterId/$step'
+      preLoaderRoute: typeof MattersMatterIdStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/workflows/$workflowId/landing': {
       id: '/workflows/$workflowId/landing'
       path: '/workflows/$workflowId/landing'
@@ -1593,6 +1633,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCasesCreateRoute: ApiCasesCreateRoute,
   ApiMailResponseRoute: ApiMailResponseRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
+  DevMatterPreviewStepRoute: DevMatterPreviewStepRoute,
+  MattersMatterIdStepRoute: MattersMatterIdStepRoute,
   WorkflowsWorkflowIdLandingRoute: WorkflowsWorkflowIdLandingRoute,
   ApiCasesIndexRoute: ApiCasesIndexRoute,
 }

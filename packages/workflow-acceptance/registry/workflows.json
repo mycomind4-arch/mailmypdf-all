@@ -1,0 +1,10 @@
+{
+  "car-insurance-appeal": {
+    "vertical": "appeal-mail",
+    "verticalDir": "apps/verticals/appeal-mail",
+    "acceptanceConfig": "vitest.acceptance.config.ts",
+    "acceptanceTestFile": "tests/acceptance/car-insurance-appeal/run.acceptance.ts",
+    "scenariosDir": "tests/acceptance/car-insurance-appeal/scenarios",
+    "runsDir": "tests/acceptance/car-insurance-appeal/runs"
+  }
+}

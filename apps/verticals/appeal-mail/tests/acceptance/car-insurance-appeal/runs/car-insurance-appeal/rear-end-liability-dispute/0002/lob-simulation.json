@@ -1,0 +1,32 @@
+{
+  "provider": "lob_mock",
+  "recipient": {
+    "name": "Meridian Auto Insurance Co. - Appeals Department",
+    "address_line1": "500 Harborview Plaza, Suite 900",
+    "address_line2": null,
+    "city": "Columbus",
+    "state": "OH",
+    "postal_code": "43215",
+    "country": "US"
+  },
+  "mailType": "certified",
+  "pdfPath": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/car-insurance-appeal/runs/car-insurance-appeal/rear-end-liability-dispute/0002/packet/mail-ready-packet.pdf",
+  "pageCount": 3,
+  "metadata": {
+    "workflow_id": "car-insurance-appeal",
+    "source": "appeal-mail",
+    "stripe_session_id": "cs_test_acceptance_1",
+    "owner_user_id": "studio-test-user",
+    "approval_id": "60a69091-bc32-4714-bbea-e90c8cf09dd6",
+    "approved_draft_hash": "b173720cf7271511778f7ab870f42b8e22f126bc069a9a68ee82d8d0516ad43b",
+    "approved_evidence_hash": "385a1fd213d03c15b9a62156f5c2f337aa300b377e1fe704aa8157796f92bb6b",
+    "evidence_count": 1,
+    "fulfillment_source": "stripe-webhook",
+    "matter_reference": "MAI-2026-0417-CA",
+    "matter_type": "car-insurance-appeal"
+  },
+  "idempotencyKey": "stripe:cs_test_acceptance_1",
+  "workflowId": "car-insurance-appeal",
+  "runId": "pending",
+  "createCommunicationCalls": 1
+}

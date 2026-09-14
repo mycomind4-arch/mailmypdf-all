@@ -71,11 +71,31 @@ CREATE TABLE IF NOT EXISTS mailings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- A purchase unlocks final drafting; it is deliberately separate from a
+-- mailing so payment alone can never be interpreted as consent to send.
+CREATE TABLE IF NOT EXISTS appeal_payment_gates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  appeal_id UUID NOT NULL REFERENCES appeals(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  workflow_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('checkout_open', 'paid', 'draft_ready', 'approved', 'submitted', 'expired', 'refunded')),
+  mailing_method TEXT NOT NULL CHECK (mailing_method IN ('standard', 'certified', 'registered')),
+  quote_total_cents INTEGER NOT NULL CHECK (quote_total_cents > 0),
+  quote_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+  stripe_session_id TEXT UNIQUE,
+  stripe_payment_intent_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (appeal_id)
+);
+
 -- Fulfillment is keyed off the appeal id (one mailing intent per appeal).
 -- This index backs the MailingIntentStore adapter's lookups by appeal_id
 -- and by stripe_session_id (used for the browser-return fallback path).
 CREATE INDEX IF NOT EXISTS idx_mailings_appeal_id ON mailings(appeal_id);
 CREATE INDEX IF NOT EXISTS idx_mailings_stripe_session_id ON mailings(stripe_session_id);
+CREATE INDEX IF NOT EXISTS idx_appeal_payment_gates_owner ON appeal_payment_gates(owner_id);
+CREATE INDEX IF NOT EXISTS idx_appeal_payment_gates_session ON appeal_payment_gates(stripe_session_id);
 
 -- ═══════════════════════════════════════════════════════════
 -- RECIPIENTS TABLE (saved addresses for reuse)
@@ -130,6 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_occurred ON audit_events(occurred_at
 
 ALTER TABLE appeals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mailings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appeal_payment_gates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
@@ -146,6 +167,9 @@ CREATE POLICY "Users can view own mailings" ON mailings FOR SELECT USING (
 CREATE POLICY "Users can insert own mailings" ON mailings FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM appeals WHERE appeals.id = mailings.appeal_id AND appeals.user_id = auth.uid())
 );
+
+CREATE POLICY "Users can view own appeal payment gates" ON appeal_payment_gates
+  FOR SELECT USING (auth.uid() = owner_id);
 
 -- Recipients: users can only CRUD their own saved addresses
 CREATE POLICY "Users can view own recipients" ON recipients FOR SELECT USING (auth.uid() = user_id);
@@ -174,6 +198,10 @@ CREATE TRIGGER appeals_updated_at BEFORE UPDATE ON appeals
 
 DROP TRIGGER IF EXISTS mailings_updated_at ON mailings;
 CREATE TRIGGER mailings_updated_at BEFORE UPDATE ON mailings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS appeal_payment_gates_updated_at ON appeal_payment_gates;
+CREATE TRIGGER appeal_payment_gates_updated_at BEFORE UPDATE ON appeal_payment_gates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ═══════════════════════════════════════════════════════════

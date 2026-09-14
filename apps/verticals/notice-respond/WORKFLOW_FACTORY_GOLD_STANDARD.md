@@ -72,7 +72,7 @@ PROOF / TRACKING (order ID, tracking number, proof of delivery)
 
 ### Layer 1: SHARED FACTORY CAPABILITY
 
-These are engine-agnostic and domain-agnostic. They should live in `mailmypdf-platform` (or shared packages) and be imported by every vertical.
+These are engine-agnostic and domain-agnostic. They should live in `this monorepo's shared packages` (or shared packages) and be imported by every vertical.
 
 | Capability | Current Location | Target Location | Interface |
 |-----------|-----------------|-----------------|-----------|
@@ -289,12 +289,12 @@ To make the factory truly generative:
 - Dispute-mail has only basic UI shells
 - Neither has the full gold-standard intelligence layer (discrepancy, evidence, research, strategy, two-pass validation)
 - The notice-respond implementation should be promoted to dispute-mail, NOT discarded
-- Shared infrastructure should be extracted to mailmypdf-platform
+- Shared infrastructure should be extracted to this monorepo's shared packages
 
 ### Migration Plan
 
 1. **Phase A (current):** Registry metadata corrected. Code remains in notice-respond.
-2. **Phase B (next):** Extract shared infrastructure (security, workflow-shell, mailing-funnel, draft-provenance) to mailmypdf-platform as npm package or git submodule.
+2. **Phase B (next):** Extract shared infrastructure (security, workflow-shell, mailing-funnel, draft-provenance) to this monorepo's shared packages as npm package or git submodule.
 3. **Phase C:** Copy credit dispute domain logic (credit-dispute.ts, transunion-dispute.ts) to dispute-mail.
 4. **Phase D:** Copy route files to dispute-mail, update imports to use platform packages.
 5. **Phase E:** Add gold-standard intelligence layer (discrepancy, evidence, research, strategy, two-pass validation) to credit disputes in dispute-mail.

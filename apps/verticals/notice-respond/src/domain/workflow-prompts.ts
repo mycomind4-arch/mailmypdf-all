@@ -559,7 +559,7 @@ export const WORKFLOW_PROMPTS: Record<string, WorkflowPrompt> = {
       [
         "Sender's name and address",
         "Date",
-        "Equifax dispute address (P.O. Box 25022, Atlanta, GA 30307)",
+        "Equifax dispute address (P.O. Box 740256, Atlanta, GA 30374-0256)",
         "Re: Dispute of Inaccurate Information — [SSN if provided]",
         "Salutation",
         "Statement identifying the credit report and date",

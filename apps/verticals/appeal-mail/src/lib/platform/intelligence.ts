@@ -1,7 +1,7 @@
 /**
  * @platform/intelligence — Reusable intelligence primitives.
  *
- * Adapted from mailmypdf-platform/packages/intelligence.
+ * Adapted from packages/intelligence.
  * Provides evidence evaluation, contradiction detection, finding management,
  * and case assessment patterns that Appeal Mail's stress test and review
  * engine build on top of.

@@ -2,18 +2,18 @@
 
 ## Purpose
 
-Records Requests is a vertical application. Reusable infrastructure belongs in `mailmypdf-platform`; records-specific domain intelligence belongs here.
+Records Requests is a vertical application. Reusable infrastructure belongs in `this monorepo's shared packages`; records-specific domain intelligence belongs here.
 
 ## Reuse boundaries
 
 | Capability | Source of truth |
 |---|---|
-| Core identifiers/contracts | `mailmypdf-platform/packages/core` |
-| Intelligence primitives | `mailmypdf-platform/packages/intelligence` |
-| Workflow lifecycle / Gold Standard contracts | `mailmypdf-platform/packages/workflows` |
-| Fulfillment contracts | `mailmypdf-platform/packages/fulfillment` |
-| Proof/audit artifacts | `mailmypdf-platform/packages/proof` |
-| Vertical capability/approval contracts | `mailmypdf-platform/packages/vertical-foundry` |
+| Core identifiers/contracts | `packages/core` |
+| Intelligence primitives | `packages/intelligence` |
+| Workflow lifecycle / Gold Standard contracts | `packages/workflows` |
+| Fulfillment contracts | `packages/fulfillment` |
+| Proof/audit artifacts | `packages/proof` |
+| Vertical capability/approval contracts | `packages/vertical-foundry` |
 | Records request domain | this repository |
 
 ## Records-specific ownership

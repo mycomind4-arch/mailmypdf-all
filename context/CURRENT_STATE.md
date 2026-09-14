@@ -28,6 +28,19 @@ The repository records payment/fulfillment reconciliation for Notice Respond, Im
 
 `BUILD_STATUS.md` records that `pnpm-workspace.yaml` uses the current topology while `pnpm-lock.yaml` still contains importer/link paths from the pre-migration layout. The lockfile should be regenerated and the current head installed/built/tested before frozen-lockfile production readiness is claimed.
 
+## Step-workflow engine (2026-09-12)
+
+A generic linear step-matter engine (`packages/step-workflow`) and component
+kit (`packages/workflow-ui`) now exist for multi-step matter workflows
+(Intake → ... → Mail), wired into Private Office (`contractor-dispute`) and
+Immigration Mail (`noid-response`). See
+[docs/architecture/STEP_WORKFLOW_ENGINE.md](../docs/architecture/STEP_WORKFLOW_ENGINE.md)
+before adding another workflow or wiring another app — it documents the
+recipe, the per-app wiring checklist, and gotchas already hit (Node-builtin
+bundle leakage, the Node 20 Supabase-realtime crash, tsc not catching a wrong
+import path). `claim-proof`, `permit-reply`, `small-business`, `tenant-reply`
+remain excluded (non-standard build base) until rebuilt.
+
 ## Related systems
 
 - FairProcess 2.0 is independently implemented on Next.js/OpenNext + Cloudflare Workers, D1, and R2, with evidence, timeline, findings, parcel intelligence, and due-process rule analysis.

@@ -29,6 +29,9 @@ importers:
       '@mailmypdf/legal-defense':
         specifier: workspace:*
         version: link:../verticals/legal-defense
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../../packages/packet-builder
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../packages/pricing
@@ -121,7 +124,7 @@ importers:
         version: 2.112.4(@opentelemetry/api@1.9.1)
       '@tailwindcss/vite':
         specifier: ^4.2.1
-        version: 4.3.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 4.3.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       '@tanstack/react-query':
         specifier: ^5.101.1
         version: 5.102.8(react@19.2.8)
@@ -130,10 +133,10 @@ importers:
         version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-start':
         specifier: ^1.168.26
-        version: 1.168.49(crossws@0.4.12(srvx@0.12.7))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 1.168.49(crossws@0.4.12(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       '@tanstack/router-plugin':
         specifier: ^1.168.18
-        version: 1.168.35(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.2)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 1.168.35(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.2)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -202,7 +205,7 @@ importers:
         version: 1.1.2(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       vite-tsconfig-paths:
         specifier: ^6.0.2
-        version: 6.1.1(typescript@5.9.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 6.1.1(typescript@5.9.3)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -212,7 +215,7 @@ importers:
         version: 9.39.5
       '@lovable.dev/vite-tanstack-config':
         specifier: 2.7.0
-        version: 2.7.0(iyidlmixnm6ltikvucqw646x54)
+        version: 2.7.0(bmdzmh76nlomeo6m6fss52xbim)
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
@@ -227,28 +230,28 @@ importers:
         version: 19.2.7(@types/react@19.2.18)
       '@vitejs/plugin-react':
         specifier: ^5.2.0
-        version: 5.2.0(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 5.2.0(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       eslint:
         specifier: ^9.32.0
-        version: 9.39.5(jiti@2.7.0)
+        version: 9.39.5(jiti@1.21.7)
       eslint-config-prettier:
         specifier: ^10.1.1
-        version: 10.1.8(eslint@9.39.5(jiti@2.7.0))
+        version: 10.1.8(eslint@9.39.5(jiti@1.21.7))
       eslint-plugin-prettier:
         specifier: ^5.2.6
-        version: 5.5.6(eslint-config-prettier@10.1.8(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))(prettier@3.9.6)
+        version: 5.5.6(eslint-config-prettier@10.1.8(eslint@9.39.5(jiti@1.21.7)))(eslint@9.39.5(jiti@1.21.7))(prettier@3.9.6)
       eslint-plugin-react-hooks:
         specifier: ^5.2.0
-        version: 5.2.0(eslint@9.39.5(jiti@2.7.0))
+        version: 5.2.0(eslint@9.39.5(jiti@1.21.7))
       eslint-plugin-react-refresh:
         specifier: ^0.4.20
-        version: 0.4.26(eslint@9.39.5(jiti@2.7.0))
+        version: 0.4.26(eslint@9.39.5(jiti@1.21.7))
       globals:
         specifier: ^15.15.0
         version: 15.15.0
       nitro:
         specifier: 3.0.260603-beta
-        version: 3.0.260603-beta(dotenv@16.6.1)(jiti@2.7.0)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))(wrangler@4.127.1)
+        version: 3.0.260603-beta(dotenv@16.6.1)(jiti@1.21.7)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))(wrangler@4.127.1)
       prettier:
         specifier: ^3.7.3
         version: 3.9.6
@@ -260,25 +263,40 @@ importers:
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.56.1
-        version: 8.68.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+        version: 8.68.0(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3)
       vite:
         specifier: ^8.0.16
-        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
 
   apps/verticals/appeal-mail:
     dependencies:
+      '@mailmypdf/documents':
+        specifier: workspace:*
+        version: link:../../../packages/documents
       '@mailmypdf/fulfillment':
         specifier: workspace:*
         version: link:../../../packages/fulfillment
       '@mailmypdf/mailing-client':
         specifier: workspace:*
         version: link:../../../packages/mailing-client
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../../../packages/packet-builder
       '@mailmypdf/payment-fulfillment':
         specifier: workspace:*
         version: link:../../../packages/payment-fulfillment
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../../../packages/step-workflow
+      '@mailmypdf/workflow-acceptance':
+        specifier: workspace:*
+        version: link:../../../packages/workflow-acceptance
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../../../packages/workflow-ui
       '@supabase/supabase-js':
         specifier: ^2.110.0
         version: 2.112.4(@opentelemetry/api@1.9.1)
@@ -476,7 +494,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
-        version: 4.3.3(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.3.3(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       '@types/react':
         specifier: ^18.3.0
         version: 18.3.31
@@ -485,7 +503,7 @@ importers:
         version: 18.3.7(@types/react@18.3.31)
       '@vitejs/plugin-react':
         specifier: ^4.3.0
-        version: 4.7.0(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.7.0(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -494,7 +512,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9)
+        version: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
 
   apps/verticals/code-enforcement:
     dependencies:
@@ -680,6 +698,12 @@ importers:
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../../../packages/step-workflow
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../../../packages/workflow-ui
       '@supabase/supabase-js':
         specifier: ^2.110.0
         version: 2.112.4(@opentelemetry/api@1.9.1)
@@ -859,18 +883,30 @@ importers:
       '@mailmypdf/document-intelligence':
         specifier: workspace:*
         version: link:../../../packages/document-intelligence
+      '@mailmypdf/documents':
+        specifier: workspace:*
+        version: link:../../../packages/documents
       '@mailmypdf/fulfillment':
         specifier: workspace:*
         version: link:../../../packages/fulfillment
       '@mailmypdf/mailing-client':
         specifier: workspace:*
         version: link:../../../packages/mailing-client
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../../../packages/packet-builder
       '@mailmypdf/payment-fulfillment':
         specifier: workspace:*
         version: link:../../../packages/payment-fulfillment
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../../../packages/step-workflow
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../../../packages/workflow-ui
       '@supabase/supabase-js':
         specifier: ^2.110.0
         version: 2.112.4(@opentelemetry/api@1.9.1)
@@ -971,7 +1007,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
-        version: 4.3.3(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.3.3(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       '@types/react':
         specifier: ^18.3.0
         version: 18.3.31
@@ -980,7 +1016,7 @@ importers:
         version: 18.3.7(@types/react@18.3.31)
       '@vitejs/plugin-react':
         specifier: ^4.3.0
-        version: 4.7.0(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.7.0(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -989,10 +1025,13 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9)
+        version: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
 
   apps/verticals/private-office:
     dependencies:
+      '@mailmypdf/dev-agent-swarm':
+        specifier: workspace:*
+        version: link:../../../packages/dev-agent-swarm
       '@mailmypdf/fulfillment':
         specifier: workspace:*
         version: link:../../../packages/fulfillment
@@ -1005,6 +1044,12 @@ importers:
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../../../packages/pricing
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../../../packages/step-workflow
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../../../packages/workflow-ui
       '@mailmypdf/workflows':
         specifier: workspace:*
         version: link:../../../packages/workflows
@@ -1013,7 +1058,7 @@ importers:
         version: 2.112.4(@opentelemetry/api@1.9.1)
       '@tailwindcss/vite':
         specifier: ^4.2.1
-        version: 4.3.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 4.3.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       '@tanstack/react-query':
         specifier: ^5.101.1
         version: 5.102.8(react@19.2.8)
@@ -1022,10 +1067,10 @@ importers:
         version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-start':
         specifier: ^1.168.26
-        version: 1.168.49(crossws@0.4.12(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 1.168.49(crossws@0.4.12(srvx@0.12.7))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       '@tanstack/router-plugin':
         specifier: ^1.168.18
-        version: 1.168.35(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.2)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 1.168.35(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.2)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       '@tanstack/zod-adapter':
         specifier: ^1.167.0
         version: 1.167.0(@tanstack/react-router@1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(zod@3.25.76)
@@ -1052,7 +1097,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^8.0.16
-        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -1062,7 +1107,7 @@ importers:
         version: 9.39.5
       '@lovable.dev/vite-tanstack-config':
         specifier: 2.7.0
-        version: 2.7.0(bmdzmh76nlomeo6m6fss52xbim)
+        version: 2.7.0(iyidlmixnm6ltikvucqw646x54)
       '@types/node':
         specifier: ^22.16.5
         version: 22.20.1
@@ -1074,31 +1119,31 @@ importers:
         version: 19.2.7(@types/react@19.2.18)
       '@vitejs/plugin-react':
         specifier: ^5.2.0
-        version: 5.2.0(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 5.2.0(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       eslint:
         specifier: ^9.32.0
-        version: 9.39.5(jiti@1.21.7)
+        version: 9.39.5(jiti@2.7.0)
       eslint-config-prettier:
         specifier: ^10.1.1
-        version: 10.1.8(eslint@9.39.5(jiti@1.21.7))
+        version: 10.1.8(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react-hooks:
         specifier: ^5.2.0
-        version: 5.2.0(eslint@9.39.5(jiti@1.21.7))
+        version: 5.2.0(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react-refresh:
         specifier: ^0.4.20
-        version: 0.4.26(eslint@9.39.5(jiti@1.21.7))
+        version: 0.4.26(eslint@9.39.5(jiti@2.7.0))
       nitro:
         specifier: ^3.0.260603-beta
-        version: 3.0.260603-beta(dotenv@16.6.1)(jiti@1.21.7)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))(wrangler@4.127.1)
+        version: 3.0.260603-beta(dotenv@16.6.1)(jiti@2.7.0)(rollup@4.63.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))(wrangler@4.127.1)
       prettier:
         specifier: ^3.7.3
         version: 3.9.6
       typescript-eslint:
         specifier: ^8.56.1
-        version: 8.68.0(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3)
+        version: 8.68.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
 
   apps/verticals/records-request:
     dependencies:
@@ -1174,10 +1219,10 @@ importers:
         version: link:../../../packages/pricing
       '@trigger.dev/sdk':
         specifier: latest
-        version: 4.5.16(react@19.3.0)(zod@4.6.2)
+        version: 4.5.16(react@19.3.0)(zod@4.6.5)
       '@vitejs/plugin-react':
         specifier: latest
-        version: 6.1.1(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 6.1.1(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       lucide-react:
         specifier: latest
         version: 1.45.0(react@19.3.0)
@@ -1192,14 +1237,14 @@ importers:
         version: 7.0.2
       vite:
         specifier: latest
-        version: 8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+        version: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
       zod:
         specifier: latest
-        version: 4.6.2
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: latest
-        version: 22.20.2
+        version: 26.5.1
       '@types/react':
         specifier: latest
         version: 19.3.0
@@ -1208,7 +1253,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       vitest:
         specifier: latest
-        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
 
   apps/verticals/tenant-reply:
     dependencies:
@@ -1221,7 +1266,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
-        version: 4.3.3(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.3.3(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       '@types/react':
         specifier: ^18.3.0
         version: 18.3.31
@@ -1230,7 +1275,7 @@ importers:
         version: 18.3.7(@types/react@18.3.31)
       '@vitejs/plugin-react':
         specifier: ^4.3.0
-        version: 4.7.0(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))
+        version: 4.7.0(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -1239,7 +1284,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^5.4.0
-        version: 5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9)
+        version: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
 
   packages/agent-runtime:
     dependencies:
@@ -1270,6 +1315,8 @@ importers:
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
+
+  packages/dev-agent-swarm: {}
 
   packages/document-intelligence:
     dependencies:
@@ -1313,6 +1360,15 @@ importers:
 
   packages/mailing-client: {}
 
+  packages/packet-builder:
+    dependencies:
+      '@mailmypdf/documents':
+        specifier: workspace:*
+        version: link:../documents
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+
   packages/payment-fulfillment:
     dependencies:
       '@mailmypdf/core':
@@ -1334,6 +1390,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/step-workflow:
+    devDependencies:
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/vertical-foundry:
     dependencies:
       '@mailmypdf/agent-runtime':
@@ -1351,13 +1416,13 @@ importers:
     dependencies:
       '@livekit/agents':
         specifier: '>=1.6.0 <2'
-        version: 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2)
+        version: 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5)
       '@livekit/agents-plugin-openai':
         specifier: '>=1.6.0 <2'
-        version: 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2))(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(zod@4.6.2)
+        version: 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5))(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(zod@4.6.5)
       '@livekit/agents-plugin-silero':
         specifier: '>=1.6.0 <2'
-        version: 1.7.1(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2))(@livekit/rtc-node@0.13.34)
+        version: 1.7.1(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5))(@livekit/rtc-node@0.13.34)
       '@mailmypdf/core':
         specifier: workspace:*
         version: link:../core
@@ -1370,6 +1435,40 @@ importers:
       '@pipecat-ai/client-js':
         specifier: '>=1.13.0 <2'
         version: 1.13.0
+
+  packages/workflow-acceptance:
+    dependencies:
+      '@mailmypdf/documents':
+        specifier: workspace:*
+        version: link:../documents
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../packet-builder
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
+      pdfjs-dist:
+        specifier: ^5.6.205
+        version: 5.7.284
+    optionalDependencies:
+      '@napi-rs/canvas':
+        specifier: ^0.1.68
+        version: 0.1.100
+
+  packages/workflow-ui:
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      pdfjs-dist:
+        specifier: ^4.0.0
+        version: 4.10.38
+      react:
+        specifier: ^19.2.0
+        version: 19.3.0
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/workflows: {}
 
@@ -4615,11 +4714,8 @@ packages:
   '@types/node@22.20.1':
     resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
 
-  '@types/node@22.20.2':
-    resolution: {integrity: sha512-xlvWf4Vs9n1PEVYwP1n4vvG07M6y8WgvJ2t0vbrWTmijsIHp1cS+uJ2kMIRdY3nHZK0nCYKrPeD171+SzF4/zw==}
-
-  '@types/node@26.5.0':
-    resolution: {integrity: sha512-dVSGpriSoCgz8WnDNTuSSuSv1PC/ALXihO4ulRZt7Md8k9mlbdin3lGOcDE8SnWOgf513ByWlXd7BK4azmyg/A==}
+  '@types/node@26.5.1':
+    resolution: {integrity: sha512-CzNm2FezW4VR/LjG6yUdiEgLE/rAQ9Slj5gCu/C2VrdcW7I0ahNZ8DRbHT7zOZ6r3ONgd/bsQIeSaoDGrd1C6g==}
 
   '@types/pidusage@2.0.5':
     resolution: {integrity: sha512-MIiyZI4/MK9UGUXWt0jJcCZhVw7YdhBuTOuqP/BjuLDLZ2PmmViMIQgZiWxtaMicQfAz/kMrZ5T7PKxFSkTeUA==}
@@ -7469,8 +7565,8 @@ packages:
   zod@4.5.4:
     resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
-  zod@4.6.2:
-    resolution: {integrity: sha512-lh5RCAGFa1Cm2hjtNwLQhSs/AsqdWnTQaBER9fEwN/88pSh7KOtJavtBx/0VlkN/uFd61SwYmljLMDAsHlvzBQ==}
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
@@ -8478,14 +8574,14 @@ snapshots:
 
   '@jsonhero/path@1.0.21': {}
 
-  '@livekit/agents-plugin-openai@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2))(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(zod@4.6.2)':
+  '@livekit/agents-plugin-openai@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5))(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(zod@4.6.5)':
     dependencies:
-      '@livekit/agents': 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2)
+      '@livekit/agents': 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5)
       '@livekit/mutex': 1.1.1
       '@livekit/rtc-node': 0.13.34
-      openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.2)
+      openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.5)
       ws: 8.21.3
-      zod: 4.6.2
+      zod: 4.6.5
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
       - '@smithy/hash-node'
@@ -8493,9 +8589,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@livekit/agents-plugin-silero@1.7.1(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2))(@livekit/rtc-node@0.13.34)':
+  '@livekit/agents-plugin-silero@1.7.1(@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5))(@livekit/rtc-node@0.13.34)':
     dependencies:
-      '@livekit/agents': 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2)
+      '@livekit/agents': 1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5)
       '@livekit/rtc-node': 0.13.34
       onnxruntime-node: 1.24.3
       ws: 8.21.3
@@ -8503,7 +8599,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.2)':
+  '@livekit/agents@1.7.1(@aws-sdk/credential-provider-node@3.972.81)(@livekit/rtc-node@0.13.34)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(typescript@7.0.2)(zod@4.6.5)':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
       '@livekit/av': 10.0.0
@@ -8534,14 +8630,14 @@ snapshots:
       jsonrepair: 3.15.0
       livekit-server-sdk: 2.18.0
       ofetch: 1.5.1
-      openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.2)
+      openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.5)
       pidusage: 4.0.1
       pino: 8.21.0
       pino-pretty: 11.3.0
       sharp: 0.35.3
       ws: 8.21.3
-      zod: 4.6.2
-      zod-to-json-schema: 3.25.2(zod@4.6.2)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
       - '@smithy/hash-node'
@@ -10105,12 +10201,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
-  '@tailwindcss/vite@4.3.3(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))':
+  '@tailwindcss/vite@4.3.3(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))':
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9)
+      vite: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
 
   '@tailwindcss/vite@4.3.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
@@ -10359,7 +10455,7 @@ snapshots:
       jiti: 2.7.0
       magic-string: 0.30.21
       prettier: 3.9.6
-      zod: 4.6.2
+      zod: 4.6.5
     transitivePeerDependencies:
       - supports-color
 
@@ -10454,7 +10550,7 @@ snapshots:
       ufo: 1.6.4
       vitefu: 1.1.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       xmlbuilder2: 4.0.3
-      zod: 4.6.2
+      zod: 4.6.5
     optionalDependencies:
       vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
     transitivePeerDependencies:
@@ -10492,7 +10588,7 @@ snapshots:
       ufo: 1.6.4
       vitefu: 1.1.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       xmlbuilder2: 4.0.3
-      zod: 4.6.2
+      zod: 4.6.5
     optionalDependencies:
       vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
     transitivePeerDependencies:
@@ -10584,13 +10680,13 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@trigger.dev/sdk@4.5.16(react@19.3.0)(zod@4.6.2)':
+  '@trigger.dev/sdk@4.5.16(react@19.3.0)(zod@4.6.5)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/semantic-conventions': 1.41.1
       '@trigger.dev/core': 4.5.16
       uncrypto: 0.1.3
-      zod: 4.6.2
+      zod: 4.6.5
     optionalDependencies:
       react: 19.3.0
     transitivePeerDependencies:
@@ -10700,14 +10796,9 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.20.2':
-    dependencies:
-      undici-types: 6.21.0
-
-  '@types/node@26.5.0':
+  '@types/node@26.5.1':
     dependencies:
       undici-types: 8.9.0
-    optional: true
 
   '@types/pidusage@2.0.5': {}
 
@@ -10940,7 +11031,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9))':
+  '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
@@ -10948,7 +11039,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9)
+      vite: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
     transitivePeerDependencies:
       - supports-color
 
@@ -10981,10 +11072,10 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
 
-  '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
+  '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+      vite: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
 
   '@vitest/expect@4.1.11':
     dependencies:
@@ -10995,14 +11086,6 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 4.1.11
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
-
   '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.11
@@ -11011,14 +11094,14 @@ snapshots:
     optionalDependencies:
       vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
 
-  '@vitest/mocker@5.0.0(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
+  '@vitest/mocker@5.0.0(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.0
       estree-walker: 3.0.3
       magic-string: 1.2.3
     optionalDependencies:
-      vite: 8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+      vite: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.11':
     dependencies:
@@ -11618,14 +11701,14 @@ snapshots:
     dependencies:
       eslint: 9.39.5(jiti@2.7.0)
 
-  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))(prettier@3.9.6):
+  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@9.39.5(jiti@1.21.7)))(eslint@9.39.5(jiti@1.21.7))(prettier@3.9.6):
     dependencies:
-      eslint: 9.39.5(jiti@2.7.0)
+      eslint: 9.39.5(jiti@1.21.7)
       prettier: 3.9.6
       prettier-linter-helpers: 1.0.1
       synckit: 0.11.13
     optionalDependencies:
-      eslint-config-prettier: 10.1.8(eslint@9.39.5(jiti@2.7.0))
+      eslint-config-prettier: 10.1.8(eslint@9.39.5(jiti@1.21.7))
 
   eslint-plugin-react-hooks@5.2.0(eslint@9.39.5(jiti@1.21.7)):
     dependencies:
@@ -12397,13 +12480,13 @@ snapshots:
       global-agent: 3.0.0
       onnxruntime-common: 1.24.3
 
-  openai@6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.2):
+  openai@6.49.0(@aws-sdk/credential-provider-node@3.972.81)(@smithy/hash-node@4.5.2)(@smithy/signature-v4@5.7.3)(ws@8.21.3)(zod@4.6.5):
     optionalDependencies:
       '@aws-sdk/credential-provider-node': 3.972.81
       '@smithy/hash-node': 4.5.2
       '@smithy/signature-v4': 5.7.3
       ws: 8.21.3
-      zod: 4.6.2
+      zod: 4.6.5
 
   optionator@0.9.4:
     dependencies:
@@ -13353,8 +13436,7 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici-types@8.9.0:
-    optional: true
+  undici-types@8.9.0: {}
 
   undici@7.29.0:
     optional: true
@@ -13466,13 +13548,13 @@ snapshots:
       - supports-color
       - typescript
 
-  vite@5.4.21(@types/node@26.5.0)(lightningcss@1.33.0)(terser@5.16.9):
+  vite@5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.26
       rollup: 4.63.1
     optionalDependencies:
-      '@types/node': 26.5.0
+      '@types/node': 26.5.1
       fsevents: 2.3.3
       lightningcss: 1.33.0
       terser: 5.16.9
@@ -13509,7 +13591,7 @@ snapshots:
       tsx: 4.23.12
       yaml: 2.9.0
 
-  vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0):
+  vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -13517,7 +13599,7 @@ snapshots:
       rolldown: 1.2.6
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 22.20.2
+      '@types/node': 26.5.1
       esbuild: 0.28.2
       fsevents: 2.3.3
       jiti: 2.7.0
@@ -13532,34 +13614,6 @@ snapshots:
   vitefu@1.1.3(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)):
     optionalDependencies:
       vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
-
-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)):
-    dependencies:
-      '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/runner': 4.1.11
-      '@vitest/snapshot': 4.1.11
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
-      es-module-lexer: 2.3.2
-      expect-type: 1.4.0
-      magic-string: 0.30.21
-      obug: 2.1.4
-      pathe: 2.0.3
-      picomatch: 4.0.7
-      std-env: 4.2.0
-      tinybench: 2.9.0
-      tinyexec: 1.3.0
-      tinyglobby: 0.2.17
-      tinyrainbow: 3.1.1
-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@1.21.7)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      '@types/node': 22.20.1
-    transitivePeerDependencies:
-      - msw
 
   vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
@@ -13589,10 +13643,10 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  vitest@5.0.0(@opentelemetry/api@1.9.1)(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)):
+  vitest@5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.0(vite@8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
+      '@vitest/mocker': 5.0.0(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -13603,11 +13657,11 @@ snapshots:
       tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      vite: 8.3.0(@types/node@22.20.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
+      vite: 8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
-      '@types/node': 22.20.2
+      '@types/node': 26.5.1
     transitivePeerDependencies:
       - msw
 
@@ -13696,9 +13750,9 @@ snapshots:
       youch-core: 0.3.3
     optional: true
 
-  zod-to-json-schema@3.25.2(zod@4.6.2):
+  zod-to-json-schema@3.25.2(zod@4.6.5):
     dependencies:
-      zod: 4.6.2
+      zod: 4.6.5
 
   zod-validation-error@1.5.0(zod@3.25.76):
     dependencies:
@@ -13708,7 +13762,7 @@ snapshots:
 
   zod@4.5.4: {}
 
-  zod@4.6.2: {}
+  zod@4.6.5: {}
 
   zustand@4.5.7(@types/react@19.2.18)(react@19.2.8):
     dependencies:

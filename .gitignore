@@ -9,3 +9,12 @@ dist-test
 *.log
 .DS_Store
 coverage
+.agent-runs
+.tanstack
+*.tsbuildinfo
+
+# Claude Code's own per-session worktrees and local (non-shared) settings —
+# never commit another session's full working copy or personal permissions.
+# .claude/launch.json is deliberately NOT ignored: it's shared dev-server config.
+.claude/worktrees/
+.claude/settings.local.json

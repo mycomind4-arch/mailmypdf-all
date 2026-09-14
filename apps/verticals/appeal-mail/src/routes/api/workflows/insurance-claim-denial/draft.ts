@@ -17,6 +17,14 @@ export const Route = createFileRoute("/api/workflows/insurance-claim-denial/draf
       if (error || !appeal) return Response.json({ error: "Appeal case not found." }, { status: 404 });
       if (appeal.user_id !== user.id) return Response.json({ error: "You do not own this appeal case." }, { status: 403 });
       if (appeal.workflow_id !== "insurance-claim-denial") return Response.json({ error: "Appeal workflow mismatch." }, { status: 409 });
+      const { data: paymentGate, error: paymentGateError } = await supabase
+        .from("appeal_payment_gates")
+        .select("status,owner_id,workflow_id")
+        .eq("appeal_id", appeal.id)
+        .maybeSingle();
+      if (paymentGateError || !paymentGate || paymentGate.owner_id !== user.id || paymentGate.workflow_id !== appeal.workflow_id || !["paid", "draft_ready"].includes(paymentGate.status)) {
+        return Response.json({ error: "Payment is required before the final letter can be generated." }, { status: 402 });
+      }
 
       const workflow = getWorkflow("insurance-claim-denial");
       const draftConfig = await resolveAI("insurance-claim-denial", "draft");
@@ -44,6 +52,7 @@ export const Route = createFileRoute("/api/workflows/insurance-claim-denial/draf
       const currentVersion = appeal.version ?? 1;
       const { error: updateError } = await supabase.from("appeals").update({ draft, status: "in_progress", version: currentVersion + 1, updated_at: new Date().toISOString() }).eq("id", appeal.id).eq("user_id", user.id).eq("version", currentVersion);
       if (updateError) throw new Error(`Unable to persist draft: ${updateError.message}`);
+      await supabase.from("appeal_payment_gates").update({ status: "draft_ready", updated_at: new Date().toISOString() }).eq("appeal_id", appeal.id).eq("owner_id", user.id);
 
       return Response.json({ ok: true, appealId: appeal.id, draft, validation, draftValidation, draftProvider: draftConfig.provider, draftModel: draftConfig.model, validationProvider: validationConfig.provider, validationModel: validationConfig.model });
     } catch (error) {

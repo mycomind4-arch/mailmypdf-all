@@ -4,18 +4,21 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "pnpm run build:shared && vite dev",
+    "build": "pnpm run build:shared && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "verify:launch": "npm test && npm run build"
+    "verify:launch": "npm test && npm run build",
+    "build:shared": "pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },
   "dependencies": {
     "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
+    "@mailmypdf/step-workflow": "workspace:*",
+    "@mailmypdf/workflow-ui": "workspace:*",
     "@supabase/supabase-js": "^2.110.0",
     "@tanstack/react-query": "^5.101.1",
     "@tanstack/react-router": "^1.170.16",

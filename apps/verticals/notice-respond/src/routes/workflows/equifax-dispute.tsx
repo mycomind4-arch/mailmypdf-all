@@ -1,215 +1,223 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useCallback, useRef } from "react";
-  const llmAnalysis = useCombinedAnalysis("equifax-dispute");
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { Stepper, MailOptions, RecipientForm, ReviewChecks, MAIL_OPTIONS } from "@/components/workflow-shell";
-import { MailingFunnel } from "@/components/mailing-funnel";
-import { getWorkflowById } from "@/domain/workflow-catalog";
-import {
-  createWorkflowState, advanceStep, retreatStep, goToStep, canAdvance,
-  setUpload, setExtraction, setProcessing, setUserFacts, setUserObjective,
-  setDraft, setDraftValidation, setReviewChecks, setMailing,
-  type WorkflowState, type DocumentUpload,
-} from "@/domain/workflow-runtime";
-import { extractCreditDispute, generateCreditDisputeDraft, BUREAU_CONFIGS, type CreditDisputeExtraction } from "@/domain/credit-dispute";
-import { validateDraft } from "@/domain/draft-validator";
-import { recommendStrategies } from "@/domain/strategy";
-import { classifyContent, validateTextInput, validateFilename, validateFileSize, validateMimeType } from "@/domain/security";
-
-import { createWorkflowHead } from "@/domain/enhanced-head";
-import { useCombinedAnalysis } from "@/domain/use-combined-analysis";
-import { LLMAnalysisPanel } from "@/components/llm-analysis-panel";
 import { FAQSection } from "@/components/faq-section";
+import { useAuth } from "@/lib/auth";
+import { createStepMatter } from "@/lib/fns/step-matter";
+import { createWorkflowHead } from "@/domain/enhanced-head";
 import { getWorkflowSEO } from "@/domain/workflow-seo";
-import { handleDocumentUpload } from "@/platform/upload-handler";
+import { DISPUTE_CATEGORY_OPTIONS, EQUIFAX_DISPUTE_PRICING } from "@/domain/step-workflows/equifax-dispute";
+
+const WORKFLOW_ID = "equifax-dispute";
+
+/**
+ * SEO landing page + CTA for Equifax Dispute, on the step-matter engine
+ * (`/matters/$matterId/$step`) — the same engine transunion-dispute and
+ * experian-dispute run on — instead of the old ephemeral single-page wizard
+ * this route used to render.
+ *
+ * That old wizard carried BOTH bug classes found in the other two bureaus'
+ * original files, not just one:
+ * (1) a stray `const llmAnalysis = useCombinedAnalysis("equifax-dispute");`
+ *     call sitting at module scope between two import statements, outside
+ *     any component (`useCombinedAnalysis` is a React hook — calling it
+ *     outside a component violates the rules of hooks and would have thrown
+ *     immediately on any render of this module); and
+ * (2) an independent `handlePasteText` callback that called
+ *     `llmAnalysis.analyzeWithLLM(file, text)` — referencing a `file`
+ *     variable that was never defined anywhere in that closure (only the
+ *     separate `handleFileUpload` callback had one), so pasting report text
+ *     into that step would have thrown a `ReferenceError` at runtime. This
+ *     is the exact same bug experian-dispute's original file had.
+ * Both bugs are removed by this rewrite, which does not reuse any of that
+ * wizard's code. Neither bug was ever caught by the "testStatus: passing"
+ * claim in workflow-master-registry.ts, because no test exercised either
+ * code path (the existing test coverage only exercised the deterministic
+ * `credit-dispute.ts` extraction/draft functions and the legacy
+ * `workflow-catalog.ts` entry, never the page component itself).
+ *
+ * This conversion also corrects data, not just code: this app previously had
+ * TWO different, and BOTH WRONG, Equifax dispute mailing addresses — see the
+ * comment on `EQUIFAX_PROCESS_NOTES` in
+ * `domain/step-workflows/equifax-dispute.ts` for the verification and the
+ * full list of files corrected.
+ *
+ * "Equifax dispute" is a 6,600/mo search term — the third-highest-volume
+ * keyword in this app's registry, completing the credit-bureau trio — so
+ * this page is written to stand on its own against Equifax's own dispute
+ * page, Credit Karma, and credit-repair sites: an accurate explanation of
+ * the FCRA process, the real investigation timeline, and content those
+ * competitors don't emphasize — that Credit Karma's Direct Dispute feature
+ * does not cover Equifax either (only TransUnion), that Equifax's online
+ * tool ("myEquifax") is a separate system from TransUnion's or Experian's,
+ * and accurate, non-alarmist context on the 2017 data breach where it's
+ * genuinely relevant. See the FAQPage entries in `domain/workflow-seo.ts`
+ * for the full FAQ, verified against Equifax's own dispute form and
+ * independent sources rather than copied from either sibling page.
+ */
 export const Route = createFileRoute("/workflows/equifax-dispute")({
-  head: () => createWorkflowHead("equifax-dispute"),
-  component: EquifaxDispute,
+  head: () => createWorkflowHead(WORKFLOW_ID),
+  component: EquifaxDisputeLanding,
 });
 
-function EquifaxDispute() {
-  const definition = getWorkflowById("equifax-dispute")!;
-  const steps = definition.ux?.steps ?? [];
-  const [state, setState] = useState<WorkflowState>(() => createWorkflowState(definition));
-  const [extraction, setExtraction] = useState<CreditDisputeExtraction | null>(null);
-  const [extractionError, setExtractionError] = useState<string | null>(null);
-  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bureauCfg = BUREAU_CONFIGS.equifax;
+const PROCESS_STEPS = [
+  "Enter your name and address, and add every account or item you're disputing — each gets its own FCRA category.",
+  "Upload your Equifax credit report and any proof you have (identity, statements, payment records, an FTC report for identity theft).",
+  "We check each disputed item against what its category actually needs to hold up in a reinvestigation, and flag what's missing.",
+  "Review your generated FCRA dispute letter, referencing the exact accounts, amounts, and rights that apply to your dispute.",
+  "Approve and mail it — certified mail with proof of delivery starts the 30-day investigation clock and documents when Equifax received it.",
+];
 
-  const update = (fn: (s: WorkflowState) => WorkflowState) => setState(fn);
+const DISPUTE_REASON_LABELS = DISPUTE_CATEGORY_OPTIONS.map((option) => option.label);
 
-  const handleFileUpload = useCallback(async (file: File) => {
-    update((s) => setProcessing(s, true));
-    setExtractionError(null);
-    try {
-      const fv = validateFilename(file.name);
-      if (!fv.valid) { setExtractionError("File validation failed: " + fv.errors.join(", ")); return; }
-      const sv = validateFileSize(file.size);
-      if (!sv.valid) { setExtractionError(sv.error ?? "File size validation failed"); return; }
-      const mv = validateMimeType(file.type);
-      if (!mv.valid) { setExtractionError(mv.error ?? "File type not allowed"); return; }
-
-      let text = "";
-      const uploadResult = await handleDocumentUpload(file);
-      if (uploadResult.error) {
-        setExtractionError(uploadResult.error);
-        return;
-      }
-      if (uploadResult.ocrRequired) {
-        setExtractionError("We could not reliably extract text from this document. It appears to be a scanned image. Please provide a text-based PDF.");
-        return;
-      }
-      text = uploadResult.text;
-      if (uploadResult.securityWarning) {
-        setSecurityWarning(uploadResult.securityWarning);
-      } else {
-        setSecurityWarning(null);
-      }
-
-      const upload: DocumentUpload = { fileName: file.name, fileSize: file.size, fileType: file.type, rawText: text, uploadedAt: new Date().toISOString() };
-      update((s) => setUpload(s, upload));
-
-      if (text && text.length > 20) {
-        const cc = classifyContent(text);
-        setSecurityWarning(cc.detectedInjectionPatterns.length > 0 ? "Security notice: " + cc.detectedInjectionPatterns.length + " potential prompt injection pattern(s) detected." : null);
-        const tv = validateTextInput(text); text = tv.sanitized;
-        const ext = extractCreditDispute(text, "equifax");
-        setExtraction(ext);
-        update((s) => setExtraction(s, {
-          noticeType: "irs_cp14" as any, classificationConfidence: ext.classificationConfidence,
-          facts: ext.facts, deadlines: [], agency: "Equifax",
-          referenceNumber: ext.reportNumber ?? undefined, noticeDate: ext.reportDate ?? undefined,
-          rawText: text, extractionConfidence: ext.classificationConfidence,
-        }));
-      }
-    } catch (err) { setExtractionError("Failed to process document: " + (err instanceof Error ? err.message : "Unknown error")); }
-    finally { update((s) => setProcessing(s, false)); }
-  }, [update]);
-
-  const handlePasteText = useCallback((text: string) => {
-    const cc = classifyContent(text);
-    setSecurityWarning(cc.detectedInjectionPatterns.length > 0 ? "Security notice: " + cc.detectedInjectionPatterns.length + " potential prompt injection pattern(s) detected." : null);
-    const tv = validateTextInput(text); const sanitized = tv.sanitized;
-    const upload: DocumentUpload = { fileName: "Pasted text", fileSize: sanitized.length, fileType: "text/plain", rawText: sanitized, uploadedAt: new Date().toISOString() };
-    update((s) => setUpload(s, upload));
-    const ext = extractCreditDispute(sanitized, "equifax");
-    setExtraction(ext);
-    update((s) => setExtraction(s, {
-      noticeType: "irs_cp14" as any, classificationConfidence: ext.classificationConfidence,
-      facts: ext.facts, deadlines: [], agency: "Equifax",
-      referenceNumber: ext.reportNumber ?? undefined, noticeDate: ext.reportDate ?? undefined,
-      rawText: sanitized, extractionConfidence: ext.classificationConfidence,
-    }));
-
-    // LLM-powered analysis (alongside deterministic)
-    llmAnalysis.analyzeWithLLM(file, text);
-    }, [update, llmAnalysis]);
-
-  const handleGenerateDraft = useCallback(() => {
-    const draft = generateCreditDisputeDraft({
-      bureauId: "equifax", consumerName: extraction?.consumerName ?? "",
-      consumerAddress: extraction?.consumerAddress ?? null, reportDate: extraction?.reportDate ?? null,
-      reportNumber: extraction?.reportNumber ?? null, disputedItems: extraction?.disputedItems ?? [],
-      userFacts: state.userFacts, userObjective: state.userObjective,
-    });
-    update((s) => setDraft(s, draft));
-    const validation = validateDraft(draft, state.extractedFacts, definition, { expectedNoticeNumber: extraction?.reportNumber ?? undefined });
-    update((s) => setDraftValidation(s, validation));
-  }, [extraction, state.userFacts, state.userObjective, state.extractedFacts, definition, update]);
-
-  const canContinue = canAdvance(state, definition);
-  const next = () => { if (state.phase === "draft" && !state.draft) handleGenerateDraft(); if (state.phase === "checkout" || state.phase === "submitted") return; update((s) => advanceStep(s, definition)); };
-  const back = () => update((s) => retreatStep(s, definition));
-  const strategies = state.extraction ? recommendStrategies(state.extraction.noticeType) : [];
-  const defaultRecipient = { name: "", org: bureauCfg.mailingAddress.org, address1: bureauCfg.mailingAddress.line1, address2: bureauCfg.mailingAddress.line2, city: bureauCfg.mailingAddress.city, state: bureauCfg.mailingAddress.state, zip: bureauCfg.mailingAddress.zip };
-
+function EquifaxDisputeLanding() {
   return (
     <div className="min-h-screen command-center">
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <div className="mb-2"><Link to="/" className="text-sm text-muted-foreground hover:text-stamp transition-colors">← Notice Respond</Link></div>
-        <h1 className="mb-6 font-serif text-3xl">{definition.title}</h1>
-        <Stepper steps={steps} current={state.step} onStep={(i) => update((s) => goToStep(s, definition, i))} />
-        <div className="mt-10 envelope-card p-6 md:p-10">
-          {state.phase === "intro" && (
-            <div>
-              <div className="postmark w-fit">1 · Start</div>
-              <h2 className="mt-4 font-serif text-4xl">Dispute your Equifax credit report</h2>
-              <p className="mt-3 text-muted-foreground">Under the Fair Credit Reporting Act (FCRA), you have the right to dispute inaccurate information on your credit report. Equifax must investigate your dispute within 30 days and correct or delete inaccurate information.</p>
-              <div className="mt-6 rounded-md border border-rule/70 bg-paper-deep/40 p-4 text-sm text-muted-foreground"><div className="font-mono text-xs uppercase tracking-widest text-stamp">FCRA Rights</div><p className="mt-2">Under FCRA Section 611 (15 U.S.C. 1681i), you can dispute incomplete or inaccurate information. The bureau must investigate within 30 days. Under Section 605, most negative information must be removed after 7 years (10 years for bankruptcies).</p></div>
-              <div className="mt-6 rounded-md border border-rule/70 bg-paper-deep/40 p-4 text-sm text-muted-foreground"><div className="font-mono text-xs uppercase tracking-widest text-stamp">Disclaimer</div><p className="mt-2">{definition.ux?.disclaimerText ?? definition.disclaimer}</p></div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">{["Upload your Equifax credit report", "Review extracted consumer info and disputed items", "Add your facts and supporting evidence", "Prepare the FCRA-based dispute letter", "Mail with tracking and proof of delivery"].map((item, i) => (<div key={i} className="rounded-lg border border-rule/60 p-3 text-sm text-muted-foreground"><span className="font-mono text-xs text-stamp">{i + 1}</span> {item}</div>))}</div>
-            </div>
-          )}
-          {state.phase === "document" && (
-            <div>
-              <div className="postmark w-fit">2 · Upload</div>
-              <h2 className="mt-4 font-serif text-3xl">Upload your Equifax credit report</h2>
-              <p className="mt-3 text-muted-foreground">Upload a PDF or image of your Equifax credit report, or paste the text content directly.</p>
-              <label className="upload-zone mt-6 block cursor-pointer" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleFileUpload(f); }}>
-                <svg className="mx-auto text-muted-foreground" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-                <span className="mt-3 block font-medium text-foreground">Upload credit report</span>
-                <span className="mt-1 block text-xs text-muted-foreground">PDF, JPG, or PNG · Text is extracted for your review</span>
-                <input ref={fileInputRef} type="file" accept="application/pdf,image/jpeg,image/png" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file); }} />
-              </label>
-              {state.isProcessing && <div className="mt-4 rounded-md border border-rule/70 bg-paper-deep/40 p-4 text-sm"><div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-stamp border-t-transparent" /><span className="text-muted-foreground">Processing document…</span></div></div>}
-              {extractionError && <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{extractionError}</div>}
-              {securityWarning && <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"><span className="font-medium">⚠ Security:</span> {securityWarning}</div>}
-              <div className="mt-6 border-t border-rule/60 pt-4"><label className="input-label">Or paste report text</label><textarea className="input-field mt-2 min-h-32 font-mono text-sm" placeholder="Paste the text content of your Equifax credit report here…" onChange={(e) => { if (e.target.value.length > 50) handlePasteText(e.target.value); }} /></div>
-            </div>
-          )}
-          {state.phase === "extraction" && (
-            <div>
-
-              {llmAnalysis.llmAnalysis && (
-                <LLMAnalysisPanel analysis={llmAnalysis.llmAnalysis} provider={llmAnalysis.llmProvider} />
-              )}
-              {llmAnalysis.llmLoading && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm text-primary animate-pulse">✦ AI is analyzing your document…</div>
-              )}
-              <div className="postmark w-fit">3 · Review</div>
-              <h2 className="mt-4 font-serif text-3xl">Review extracted information</h2>
-              <p className="mt-3 text-muted-foreground">We extracted the following from your credit report. Verify each item — this information will be used to prepare your dispute.</p>
-              {extraction && (<div className="mt-6 space-y-4">
-                <div className="rounded-lg border border-rule/60 p-4"><div className="flex items-center justify-between"><span className="text-sm font-medium">Bureau Classification</span><span className={"rounded-full px-3 py-1 text-xs font-medium " + (extraction.isBureauReport ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{extraction.isBureauReport ? "Equifax Confirmed" : "Not confirmed"}</span></div><p className="mt-1 text-xs text-muted-foreground">Confidence: {(extraction.classificationConfidence * 100).toFixed(0)}%</p></div>
-                {extraction.warnings.length > 0 && (<div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><div className="font-mono text-xs uppercase tracking-widest text-amber-700">Warnings</div><ul className="mt-2 space-y-1">{extraction.warnings.map((w, i) => (<li key={i} className="text-sm text-amber-800">⚠ {w}</li>))}</ul></div>)}
-                {extraction.facts.length > 0 ? (<div className="rounded-lg border border-rule/60 p-4"><div className="font-mono text-xs uppercase tracking-widest text-stamp">Extracted Information</div><dl className="mt-3 space-y-2">{extraction.facts.map((fact) => (<div key={fact.id} className="border-b border-rule/30 pb-2 last:border-0"><div className="flex items-start justify-between gap-4"><dt className="text-sm font-medium text-foreground">{fact.label}</dt><dd className="text-sm text-muted-foreground">{fact.value || "—"}</dd></div></div>))}</dl></div>) : <div className="rounded-lg border border-rule/60 p-4 text-sm text-muted-foreground">No structured information was extracted. You can enter your dispute details manually in the next step.</div>}
-                {extraction.disputedItems.length > 0 && (<div className="rounded-lg border border-rule/60 p-4"><div className="font-mono text-xs uppercase tracking-widest text-stamp">Detected Disputed Items ({extraction.disputedItems.length})</div><ul className="mt-3 space-y-3">{extraction.disputedItems.map((item, i) => (<li key={i} className="rounded-md border border-rule/40 p-3"><div className="flex items-center justify-between"><span className="text-sm font-medium">{item.accountName ?? "Account " + (i + 1)}</span><span className="text-xs rounded-full bg-muted px-2 py-0.5">{item.errorType}</span></div><div className="mt-1 text-xs text-muted-foreground">{item.errorDescription}</div>{item.accountNumber && <div className="mt-1 text-xs text-muted-foreground">Acct: {item.accountNumber}</div>}</li>))}</ul></div>)}
-              </div>)}
-              {!extraction && !state.isProcessing && <div className="mt-6 rounded-md border border-rule/60 p-4 text-sm text-muted-foreground">No document has been processed yet. Go back to upload your credit report.</div>}
-            </div>
-          )}
-          {state.phase === "facts" && (<div><div className="postmark w-fit">4 · Facts</div><h2 className="mt-4 font-serif text-3xl">Add your dispute facts</h2><p className="mt-3 text-muted-foreground">Explain why each item is inaccurate and what the correct information should be. Include specific account names, numbers, and dates.</p><textarea className="input-field mt-6 min-h-48" value={state.userFacts} onChange={(e) => update((s) => setUserFacts(s, e.target.value))} placeholder="Example: The Capital One account (acct ending 4521) shows a balance of $3,200 but was paid in full on March 15, 2025. I have the payment confirmation. The Discover card account is not mine — I have never opened an account with Discover and believe this is identity theft or a mixed file…" /><div className="mt-4 rounded-md border border-rule/70 bg-paper-deep/40 p-3 text-sm text-muted-foreground"><strong>Tip:</strong> For each disputed item, state: (1) what's wrong, (2) what the correct information should be, and (3) what evidence you have. If identity theft, mention the FTC report or police report.</div></div>)}
-          {state.phase === "objective" && (<div><div className="postmark w-fit">5 · Objective</div><h2 className="mt-4 font-serif text-3xl">What do you want the dispute to accomplish?</h2><p className="mt-3 text-muted-foreground">State your objective clearly. The FCRA gives you the right to have inaccurate, incomplete, or unverifiable information corrected or removed.</p>{strategies.length > 0 && (<div className="mt-4 space-y-2"><div className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Suggested approaches</div>{strategies.slice(0, 4).map((strat, i) => (<button key={i} onClick={() => update((s) => setUserObjective(s, strat.type + (strat.reason ? ": " + strat.reason : "")))} className="block w-full rounded-lg border border-rule/60 bg-card p-3 text-left text-sm hover:border-stamp/40 transition-colors"><span className="font-medium text-foreground">{strat.type}</span>{strat.reason && <span className="mt-1 block text-xs text-muted-foreground">{strat.reason}</span>}</button>))}</div>)}<textarea className="input-field mt-6 min-h-40" value={state.userObjective} onChange={(e) => update((s) => setUserObjective(s, e.target.value))} placeholder="Example: I want Equifax to investigate the disputed items, remove the inaccurate Capital One balance, remove the Discover account as it is not mine, and send me an updated credit report reflecting the corrections." /></div>)}
-          {state.phase === "draft" && (<div><div className="postmark w-fit">6 · Draft</div><h2 className="mt-4 font-serif text-3xl">Your dispute letter</h2><p className="mt-3 text-muted-foreground">Review every fact, name, account number, and statement. This is editable — change anything. We've validated the draft against the extracted information.</p>{state.draftValidation && !state.draftValidation.passed && (<div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4"><div className="font-mono text-xs uppercase tracking-widest text-amber-700">Validation findings ({state.draftValidation.errors} errors, {state.draftValidation.warnings} warnings)</div><ul className="mt-2 space-y-1">{state.draftValidation.findings.filter((f) => !f.passed).map((f, i) => (<li key={i} className={"text-sm " + (f.severity === "error" ? "text-destructive" : "text-amber-800")}>{f.severity === "error" ? "✗" : "⚠"} {f.detail}</li>))}</ul></div>)}{state.draftValidation?.passed && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">✓ Draft passed all validation checks.</div>}<textarea className="input-field mt-6 min-h-72 font-mono text-sm leading-6" value={state.draft} onChange={(e) => update((s) => setDraft(s, e.target.value))} /><button
-                onClick={async () => {
-                  if (llmAnalysis.llmAnalysis) {
-                    const res = await fetch('/api/workflows/draft', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ workflowId: 'equifax-dispute', analysis: llmAnalysis.llmAnalysis, userFacts: state.userFacts, userObjective: state.userObjective, documentText: state.upload?.rawText }),
-                    });
-                    if (res.ok) { const data = await res.json(); update((s) => setDraft(s, data.draft)); if (data.validation) update((s) => setDraftValidation(s, data.validation)); }
-                  }
-                }}
-                disabled={!llmAnalysis.llmAnalysis}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-stamp transition-transform hover:-translate-y-0.5 disabled:opacity-30"
-              >✦ Generate with AI</button>
-              <button onClick={handleGenerateDraft} className="mt-4 rounded-full border border-rule px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Regenerate draft</button></div>)}
-          {state.phase === "review" && (<div><div className="postmark w-fit">7 · Review</div><h2 className="mt-4 font-serif text-3xl">Review before anything is mailed</h2><p className="mt-3 text-muted-foreground">Please confirm each item below.</p><ReviewChecks items={definition.ux?.reviewChecks ?? []} checks={state.reviewChecks} setChecks={(fn) => update((s) => setReviewChecks(s, fn(state.reviewChecks)))} />{state.reviewChecks.every(Boolean) && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">✓ All checks confirmed. You can proceed to the next step.</div>}</div>)}
-          {state.phase === "attachments" && (<div><div className="postmark w-fit">8 · Documents</div><h2 className="mt-4 font-serif text-3xl">Add supporting documents</h2><p className="mt-3 text-muted-foreground">Attach supporting documents — proof of identity, account statements, payment records, prior correspondence, police report if identity theft.</p><label className="upload-zone mt-6 block cursor-pointer"><svg className="mx-auto text-muted-foreground" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg><span className="mt-3 block font-medium text-foreground">Add attachments</span><span className="mt-1 block text-xs text-muted-foreground">ID, account statements, payment records, police report</span><input type="file" accept="application/pdf,image/jpeg,image/png" multiple className="sr-only" /></label><div className="mt-4 text-sm text-muted-foreground">Required: {definition.evidence.filter((e) => e.required).map((e) => e.label).join(", ")}</div></div>)}
-          {state.phase === "recipient" && (<div><div className="postmark w-fit">9 · Recipient</div><h2 className="mt-4 font-serif text-3xl">Where should we send it?</h2><p className="mt-3 text-muted-foreground">The Equifax dispute address is pre-filled. Certified mail is recommended for proof of timely submission.</p><RecipientForm recipient={state.mailing?.recipient ?? defaultRecipient} setRecipient={(fn) => update((s) => setMailing(s, { ...s.mailing ?? { method: "certified", recipient: defaultRecipient, status: "not_started" }, recipient: fn(s.mailing?.recipient ?? defaultRecipient) }))} orgPlaceholder={bureauCfg.mailingAddress.org} /></div>)}
-          {state.phase === "mailing" && (<div><div className="postmark w-fit">10 · Mail</div><h2 className="mt-4 font-serif text-3xl">Choose your mail type</h2><p className="mt-3 text-muted-foreground">For FCRA disputes, Certified mail is strongly recommended for proof of timely submission.</p><MailOptions selected={state.mailing?.method ?? "certified"} onSelect={(id) => update((s) => setMailing(s, { ...s.mailing ?? { recipient: defaultRecipient, status: "not_started" }, method: id }))} /></div>)}
-          {(state.phase === "checkout" || state.phase === "submitted") && (<MailingFunnel draft={state.draft} workflowId={definition.id} workflowTitle={definition.title} recipient={state.mailing?.recipient ?? null} extractionRef={extraction?.reportNumber ?? null} taxYear={null} mailOptions={definition.ux?.mailOptions ?? MAIL_OPTIONS} disclaimer={definition.ux?.disclaimerText ?? definition.disclaimer} onMailingStateChange={(s) => { if (s.phase === "submitted") update((st) => setMailing(st, { method: s.method, recipient: s.recipient, status: "submitted", providerOrderId: s.providerOrderId ?? undefined, trackingNumber: s.trackingNumber ?? undefined })); }} />)}
-          {state.phase !== "checkout" && state.phase !== "submitted" && (<div className="mt-8 flex items-center justify-between"><button onClick={back} disabled={state.step === 0} className="text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30">← Back</button><button onClick={next} disabled={!canContinue} className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-stamp transition-transform hover:-translate-y-0.5 disabled:opacity-30 disabled:transform-none disabled:shadow-none">{state.phase === "checkout" ? "Pay and send" : "Continue"} →</button></div>)}
-
-        {(() => { const seo = getWorkflowSEO("equifax-dispute"); return seo ? <FAQSection faq={seo.faq} /> : null; })()}
-
+        <div className="mb-2 text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-stamp transition-colors">Notice Respond</Link>
+          {" › "}
+          <Link to="/workflows" className="hover:text-stamp transition-colors">Workflows</Link>
+          {" › "}
+          <span>Equifax Dispute</span>
         </div>
-        {state.phase === "intro" && definition.seo?.faq && (<div className="mt-16"><h2 className="font-serif text-2xl">Frequently asked questions</h2><div className="mt-6 space-y-4">{definition.seo.faq.map((item, i) => (<div key={i} className="rounded-xl border border-rule bg-card p-5"><h3 className="font-medium text-foreground">{item.question}</h3><p className="mt-2 text-sm text-muted-foreground">{item.answer}</p></div>))}</div><div className="mt-8 text-sm text-muted-foreground"><Link to="/" className="hover:text-foreground transition-colors">← All Notice Respond workflows</Link></div></div>)}
+
+        <div className="postmark w-fit">FCRA credit report dispute</div>
+        <h1 className="mt-4 font-serif text-4xl">Dispute inaccurate information on your Equifax credit report</h1>
+        <p className="mt-4 text-muted-foreground leading-relaxed">
+          Under the Fair Credit Reporting Act (FCRA), you have the right to dispute any information on your Equifax
+          credit report that is inaccurate, incomplete, or unverifiable — wrong balances, accounts that aren't yours,
+          items that should have aged off, and more. Equifax must reinvestigate within 30 days (45 days if you submit
+          more information during that window) and correct or delete anything it can't verify. This workflow helps
+          you identify each disputed item, match it to the right FCRA category, organize your evidence, and prepare a
+          specific dispute letter — mailed with proof of delivery.
+        </p>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-md border border-rule/70 bg-paper-deep/40 p-4 text-sm text-muted-foreground">
+            <div className="font-mono text-xs uppercase tracking-widest text-stamp">Investigation timeline</div>
+            <p className="mt-2">Equifax must investigate within 30 days of receiving your dispute (45 days if you send more information during the investigation), under FCRA Section 611(a). If an item can't be verified, it must be corrected or deleted.</p>
+          </div>
+          <div className="rounded-md border border-rule/70 bg-paper-deep/40 p-4 text-sm text-muted-foreground">
+            <div className="font-mono text-xs uppercase tracking-widest text-stamp">If Equifax disagrees</div>
+            <p className="mt-2">You can request the method of verification within 15 days, and if you still disagree after reinvestigation, add a personal statement of dispute (up to 100 words) to your file, under Section 611(a)(7) and 611(b)-(c).</p>
+          </div>
+        </div>
+
+        <StartDisputeSection />
+
+        <section className="mt-14 border-t border-rule/60 pt-8">
+          <h2 className="font-serif text-2xl">What we help you do</h2>
+          <ol className="mt-6 space-y-4">
+            {PROCESS_STEPS.map((text, i) => (
+              <li key={text} className="flex gap-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">{i + 1}</span>
+                <span className="text-sm leading-7 text-muted-foreground">{text}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="mt-12 border-t border-rule/60 pt-8">
+          <h2 className="font-serif text-2xl">What you can dispute</h2>
+          <p className="mt-3 text-sm text-muted-foreground">You can dispute anything you believe is inaccurate, incomplete, or unverifiable, including:</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {DISPUTE_REASON_LABELS.map((label) => (
+              <div key={label} className="rounded-lg border border-rule/60 bg-card p-3 text-sm text-muted-foreground">{label}</div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12 border-t border-rule/60 pt-8">
+          <h2 className="font-serif text-2xl">Where the dispute goes, and how the process works</h2>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>Mail is sent to <strong className="text-foreground">Equifax Information Services LLC, P.O. Box 740256, Atlanta, GA 30374-0256</strong>. Certified mail with return receipt is recommended — it documents the exact date Equifax received your dispute, which is when the 30-day clock starts.</p>
+            <p>Equifax also runs its own online tool, <strong className="text-foreground">myEquifax</strong> (myequifax.com) — a separate system and account login from TransUnion's or Experian's dispute tools. One quirk worth knowing: unlike TransUnion, <strong className="text-foreground">Credit Karma's Direct Dispute feature does not cover Equifax</strong> — if Credit Karma shows you an error on your Equifax report, its Dispute Center redirects you to Equifax's own site rather than filing the dispute for you. Behind the scenes, all three bureaus forward disputes to the furnisher (the creditor or collector that reported the item) over the same industry-wide e-OSCAR network, review the furnisher's response, and either verify the information, correct it, or delete it if it can't be verified. You'll get written notice of the results, including the furnisher's name, address, and phone number.</p>
+            <p>If an item is corrected or deleted, you can ask Equifax to send the corrected report to anyone who received your report in the past six months — or the past two years, if it was pulled for employment purposes.</p>
+          </div>
+        </section>
+
+        <section className="mt-12 border-t border-rule/60 pt-8">
+          <h2 className="font-serif text-2xl">Transparent pricing</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            {[
+              ["Preparation", `$${EQUIFAX_DISPUTE_PRICING.preparationFee.toFixed(2)}`],
+              ["Included response pages", `${EQUIFAX_DISPUTE_PRICING.includedResponsePages} pages`],
+              ["Extra response page", `$${EQUIFAX_DISPUTE_PRICING.responsePagePrice.toFixed(2)}/sheet`],
+              ["Supporting evidence", `$${EQUIFAX_DISPUTE_PRICING.supportingPagePrice.toFixed(2)}/sheet`],
+              ["Standard mail", `$${EQUIFAX_DISPUTE_PRICING.standardMail.toFixed(2)}`],
+              ["Certified mail", `$${EQUIFAX_DISPUTE_PRICING.certifiedMail.toFixed(2)}`],
+              ["Registered mail", `$${EQUIFAX_DISPUTE_PRICING.registeredMail.toFixed(2)}`],
+            ].map(([a, b]) => (
+              <div key={a} className="rounded-xl bg-paper-deep p-4">
+                <div className="text-xs text-muted-foreground">{a}</div>
+                <div className="mt-1 font-semibold">{b}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-xs leading-6 text-muted-foreground">The exact price is calculated from your approved letter and exhibits. Supporting-document sheets are billed separately when included.</p>
+        </section>
+
+        {(() => {
+          const seo = getWorkflowSEO(WORKFLOW_ID);
+          return seo ? <FAQSection faq={seo.faq} /> : null;
+        })()}
+
+        <section className="mt-12 border-t border-rule/60 pt-8">
+          <h2 className="font-serif text-xl">Related workflows</h2>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            <Link to="/workflows/transunion-dispute" className="rounded-full border border-rule px-4 py-2 hover:border-stamp/40 transition-colors">TransUnion Dispute →</Link>
+            <Link to="/workflows/experian-dispute" className="rounded-full border border-rule px-4 py-2 hover:border-stamp/40 transition-colors">Experian Dispute →</Link>
+            <Link to="/workflows" className="rounded-full border border-rule px-4 py-2 hover:border-stamp/40 transition-colors">All Notice Respond workflows →</Link>
+          </div>
+        </section>
+
+        <p className="mt-10 text-xs text-muted-foreground">
+          Notice Respond is a document preparation and mailing tool, not a law firm or credit repair organization. We do not provide legal advice or guarantee specific credit outcomes. If your situation involves identity theft, active litigation, or a large financial loss, consider consulting a consumer law attorney.
+        </p>
       </main>
       <SiteFooter />
+    </div>
+  );
+}
+
+/**
+ * Replaces the old ephemeral single-page wizard with the step-matter engine:
+ * the CTA creates a persisted matter and hands off to
+ * `/matters/$matterId/intake`, gated by auth exactly like this app's other
+ * account-gated actions (see `src/lib/auth.tsx`'s `useAuth()`).
+ */
+function StartDisputeSection() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  async function startWorkflow() {
+    const { matter } = await createStepMatter({ data: { workflowId: WORKFLOW_ID } });
+    navigate({ to: "/matters/$matterId/$step", params: { matterId: matter.id, step: "intake" } });
+  }
+
+  return (
+    <div id="workflow-start" className="mt-8 rounded-2xl border border-rule bg-card p-7">
+      <h2 className="font-serif text-2xl">Start your dispute</h2>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        Starting price: <strong className="text-foreground">${EQUIFAX_DISPUTE_PRICING.preparationFee.toFixed(2)}</strong> plus mailing, including {EQUIFAX_DISPUTE_PRICING.includedResponsePages} response pages.
+      </p>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        We'll walk you through intake, documents, analysis, drafting, review, and mailing — one step at a time, with your approval required before anything is sent.
+      </p>
+      {user ? (
+        <button type="button" className="mt-6 w-full rounded-xl bg-foreground px-5 py-3 text-sm font-semibold text-background hover:opacity-90" onClick={() => void startWorkflow()}>
+          Start my Equifax dispute
+        </button>
+      ) : (
+        <Link
+          to={`/auth?returnTo=${encodeURIComponent("/workflows/equifax-dispute")}` as never}
+          className="mt-6 block w-full rounded-xl bg-foreground px-5 py-3 text-center text-sm font-semibold text-background hover:opacity-90"
+        >
+          Sign in to start your dispute
+        </Link>
+      )}
     </div>
   );
 }

@@ -10,13 +10,16 @@
     "lint": "eslint .",
     "test": "pnpm run build:shared && vitest run",
     "verify:launch": "npm test && npm run build",
-    "build:shared": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/intelligence build && pnpm --filter @mailmypdf/workflows build"
+    "build:shared": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/intelligence build && pnpm --filter @mailmypdf/workflows build && pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },
   "dependencies": {
+    "@mailmypdf/dev-agent-swarm": "workspace:*",
     "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/intelligence": "workspace:*",
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
+    "@mailmypdf/step-workflow": "workspace:*",
+    "@mailmypdf/workflow-ui": "workspace:*",
     "@mailmypdf/workflows": "workspace:*",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.2.1",

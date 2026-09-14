@@ -48,4 +48,4 @@ Pricing maturity follows the same discipline: profile-defined -> market-modeled 
 
 Canonical public host: https://mailmypdf.ai. Prelaunch indexing remains disabled until the owner's launch switch is enabled.
 
-Architecture source of truth: mailmypdf-platform. Do not create a competing page structure, URL scheme, global navigation model, or pricing engine.
+Architecture source of truth: this monorepo's shared packages. Do not create a competing page structure, URL scheme, global navigation model, or pricing engine.

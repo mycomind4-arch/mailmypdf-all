@@ -7,7 +7,7 @@ identifies deadlines, surfaces evidence and contradictions, and prepares a profe
 that can be mailed with proof of delivery.
 
 ## Constraints
-- Do NOT touch `mailmypdf-platform` repo.
+- Do not modify `packages/*` unless the task explicitly requires a shared-platform change.
 - Do NOT use sub-agents.
 - Work ONLY in this repository (`notice-respond`).
 - Use `appeal-mail` as a sophistication benchmark but do NOT copy its code blindly.

@@ -43,6 +43,7 @@
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/appeal/licensing</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/denied-claim</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/government-decision</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/administrative-decision-appeal</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/court-ruling</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/reconsideration</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://mycomind4-arch-appeal-mail.pages.dev/workflows/insurance-claim-denial</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>

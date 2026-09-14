@@ -15,22 +15,41 @@ export type StudioCatalogWorkflow = {
   description: string;
   publicPath: string;
   status: "planned" | "scaffolded" | "functional" | "authority" | "gold";
+  /**
+   * Live signal from the on-disk route tree, filled in by
+   * `scanWorkflowCatalog` (src/lib/fns/scan-workflow-catalog.ts) — absent on
+   * the static rows below until merged client-side:
+   * "file" a matching static route file was found, "dynamic" the vertical
+   * routes workflows through a catch-all `$workflowId` segment (so this id
+   * is plausibly servable but not independently verifiable from disk),
+   * "missing" neither was found (still genuinely planned).
+   */
+  onDisk?: "file" | "dynamic" | "missing";
+  /** True for a row synthesized from a route file with no catalog metadata. */
+  discovered?: boolean;
+  /** True when `packages/workflow-acceptance/registry/workflows.json` has this id. */
+  hasAcceptanceTest?: boolean;
+  /** Scenario ids available for this workflow's acceptance test, if any. */
+  acceptanceScenarios?: string[];
 };
 
+// Only verticals on the standard build base (@tanstack/react-start +
+// @lovable.dev/vite-tanstack-config + Nitro cloudflare-pages) are registered
+// here. claim-proof, permit-reply, small-business, and tenant-reply are plain
+// Vite SPAs on React 18 with no file-based routing — excluded from Studio
+// until they're rebuilt on the standard base, at which point they get added
+// back here.
 export const studioVerticals: StudioVertical[] = [
-  { id: "private-office", title: "Private Office", connection: "connected" },
-  { id: "appeal-mail", title: "Appeal Mail", connection: "adapter-required" },
-  { id: "benefits-appeal", title: "Benefits Appeal", connection: "adapter-required" },
-  { id: "claim-proof", title: "Claim Proof", connection: "adapter-required" },
-  { id: "code-enforcement", title: "Code Enforcement", connection: "adapter-required" },
-  { id: "dispute-mail", title: "Dispute Mail", connection: "adapter-required" },
-  { id: "immigration-mail", title: "Immigration Mail", connection: "adapter-required" },
-  { id: "insurance-claims", title: "Insurance Claims", connection: "adapter-required" },
+  { id: "mailmypdf", title: "MailMyPDF", connection: "connected" },
   { id: "notice-respond", title: "Notice Respond", connection: "adapter-required" },
-  { id: "permit-reply", title: "Permit Reply", connection: "adapter-required" },
+  { id: "appeal-mail", title: "Appeal Mail", connection: "adapter-required" },
+  { id: "immigration-mail", title: "Immigration Mail", connection: "adapter-required" },
+  { id: "dispute-mail", title: "Dispute Mail", connection: "adapter-required" },
+  { id: "benefits-appeal", title: "Benefits Appeal", connection: "adapter-required" },
+  { id: "insurance-claims", title: "Insurance Claims", connection: "adapter-required" },
+  { id: "code-enforcement", title: "Code Enforcement", connection: "adapter-required" },
   { id: "records-request", title: "Records Request", connection: "adapter-required" },
-  { id: "small-business", title: "Small Business", connection: "adapter-required" },
-  { id: "tenant-reply", title: "Tenant Reply", connection: "adapter-required" },
+  { id: "private-office", title: "Private Office", connection: "connected" },
 ];
 
 type RegisteredWorkflowRow = [
@@ -99,11 +118,6 @@ const registeredWorkflowRows: RegisteredWorkflowRow[] = [
   ["records-request", "property-records-request", "Property Records Request", "/workflows/property-records-request", "planned"],
   ["records-request", "permit-records-request", "Permit Records Request", "/workflows/permit-records-request", "planned"],
   ["code-enforcement", "code-enforcement-notice", "Respond to a Code Enforcement Notice", "/code-enforcement/respond-to-notice", "scaffolded"],
-  ["tenant-reply", "tenant-notice-response", "Respond to a Tenant Notice", "/workflows/tenant-notice-response", "planned"],
-  ["tenant-reply", "tenant-eviction-response", "Respond to an Eviction Notice", "/workflows/tenant-eviction-response", "functional"],
-  ["tenant-reply", "tenant-repair-demand", "Respond to a Repair Demand or Habitability Issue", "/workflows/tenant-repair-demand", "functional"],
-  ["claim-proof", "claim-proof-package", "Build a Claim Proof Package", "/workflows/claim-proof-package", "functional"],
-  ["permit-reply", "permit-denial-response", "Respond to a Permit Denial", "/workflows/permit-denial-response", "functional"],
 ];
 
 const localWorkflows: StudioCatalogWorkflow[] = workflowList.map((workflow) => ({

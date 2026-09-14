@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 ## Global shell
 
@@ -55,4 +55,4 @@ For triggered workflows, the trigger/context phase precedes secure execution and
 
 ## Anti-fragmentation
 
-Do not create separate global navigation, customer identity, sitemap, public domain or pipeline architecture. Business-specific rules, triggers, approvals and CRM integrations belong here; shared document/evidence/fulfillment/audit infrastructure belongs in `mailmypdf-platform`.
+Do not create separate global navigation, customer identity, sitemap, public domain or pipeline architecture. Business-specific rules, triggers, approvals and CRM integrations belong here; shared document/evidence/fulfillment/audit infrastructure belongs in `this monorepo's shared packages`.

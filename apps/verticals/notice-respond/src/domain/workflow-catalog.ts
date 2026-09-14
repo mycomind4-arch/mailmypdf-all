@@ -787,7 +787,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
     ],
     analysis: { capabilities: [...sharedCapabilities], orderedChecks: ["identify Equifax as bureau", "extract consumer information", "identify disputed accounts and items", "classify error types", "identify missing evidence", "prepare dispute strategy"], outputSections: ["consumer info", "disputed items", "error types", "evidence gaps", "FCRA rights", "dispute strategy"] },
     drafting: { requiredSections: ["date", "Equifax address", "report number", "consumer info", "disputed items list", "explanation", "requested action", "FCRA citation", "supporting documents list", "signature"], forbiddenBehavior: ["invent facts", "claim legal representation", "guarantee credit outcome", "state legal conclusions without support"], validationChecks: ["every disputed item traceable to report", "FCRA citation present", "consumer name present", "at least one disputed item specified"] },
-    submission: { methods: ["mail"], recipientRules: ["use Equifax dispute address: P.O. Box 105069, Atlanta, GA 30348"], proofRequirements: ["mailing record", "tracking when selected", "final approved document"] },
+    submission: { methods: ["mail"], recipientRules: ["use Equifax dispute address: P.O. Box 740256, Atlanta, GA 30374-0256"], proofRequirements: ["mailing record", "tracking when selected", "final approved document"] },
     capabilities: [...sharedCapabilities],
     qualityGate: sharedQualityGate,
     ux: {
@@ -803,7 +803,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
       openGraph: { title: "Dispute Your Equifax Credit Report", description: "Prepare an FCRA-based Equifax dispute letter with evidence and mail with proof of delivery." },
       faq: [
         { question: "How do I dispute inaccurate information on my Equifax credit report?", answer: "Under the FCRA, you can dispute inaccurate information by sending a letter to Equifax that identifies each disputed item, explains why it is inaccurate, and includes supporting documentation. Equifax must investigate within 30 days." },
-        { question: "Where do I mail an Equifax dispute?", answer: "Mail your dispute to Equifax Information Services LLC, P.O. Box 105069, Atlanta, GA 30348. Certified mail with tracking is recommended for proof of timely submission." },
+        { question: "Where do I mail an Equifax dispute?", answer: "Mail your dispute to Equifax Information Services LLC, P.O. Box 740256, Atlanta, GA 30374-0256. Certified mail with tracking is recommended for proof of timely submission." },
         { question: "How long does Equifax have to investigate a dispute?", answer: "Under FCRA Section 611, Equifax must complete their investigation within 30 days of receiving your dispute. If you submit additional information during that period, it extends to 45 days." },
         { question: "What should I include in my Equifax dispute letter?", answer: "Include your full name and address, the report number and date, each item you are disputing with the account name and number, why each item is inaccurate, what the correct information should be, copies of supporting documents, and proof of identity." },
         { question: "Can I dispute Equifax errors by mail?", answer: "Yes. While online disputes are available, mailing your dispute provides a paper trail and lets you include physical supporting documents. Certified mail gives you proof that Equifax received your dispute by a specific date." },
@@ -852,7 +852,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
       faq: [
         {
                 "question": "How long do I have to respond to a tax notice?",
-                "answer": "Most tax notices include a response deadline, typically 30 days from the notice date. If no deadline is stated, contact the issuing agency immediately to confirm the response window."
+                "answer": "It depends on the notice, and the deadline is not always 30 days. A math-error correction (e.g., CP11/CP12/CP13) gives you 60 days to request abatement (IRC § 6213(b)(2)(A)). A formal Notice of Deficiency (\"90-day letter\") gives 90 days (150 if you're outside the U.S.) to petition Tax Court, and that deadline cannot be extended. A Final Notice of Intent to Levy or a Notice of Federal Tax Lien gives 30 days to request a Collection Due Process hearing. Most other notices say to reply \"by the date listed\" — always use the exact date printed on your specific notice rather than assuming a default."
         },
         {
                 "question": "What should I include in my response to a tax notice?",
@@ -861,6 +861,14 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
         {
                 "question": "Can I disagree with a tax notice?",
                 "answer": "Yes. If you believe the notice is incorrect, state clearly which items you disagree with and provide evidence supporting your position. Include copies of relevant records, not originals."
+        },
+        {
+                "question": "I got an IRS notice like CP2000, CP14, CP504, or CP523 — should I use this workflow?",
+                "answer": "If your notice number matches one of those, a more specialized workflow already exists for it and will generally serve you better than the generic process here — this tool will detect the match from your notice number or text and point you to the dedicated CP2000, CP14, CP504, or CP523 workflow. Use this generic workflow for any other notice, including most state and local tax notices."
+        },
+        {
+                "question": "Does a CP504 notice give me the right to a Collection Due Process hearing?",
+                "answer": "Not by itself. CP504 (\"final notice before levy\") warns that the IRS may levy a state tax refund and offers Collection Appeals Program (CAP) rights, but the formal 30-day Collection Due Process (CDP) hearing right under IRC §§ 6330/6320 is triggered by a later, separate notice — a Final Notice of Intent to Levy (such as Letter 1058 or LT11) or a Notice of Federal Tax Lien (Letter 3172). Don't assume your CDP clock started from CP504."
         },
         {
                 "question": "Should I send original documents with my tax notice response?",

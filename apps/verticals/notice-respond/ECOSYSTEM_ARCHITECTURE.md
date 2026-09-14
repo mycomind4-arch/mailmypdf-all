@@ -12,7 +12,7 @@ MailMyPDF is a multi-repository ecosystem for guided document-response workflows
 ```
                     MAILMYPDF
                         |
-                MAILMYPDF-PLATFORM
+                MAILMYPDF-ALL SHARED PACKAGES
                         |
        +----------------+----------------+
        |                |                |
@@ -33,7 +33,7 @@ MailMyPDF is a multi-repository ecosystem for guided document-response workflows
 
 ---
 
-## Layer 1 — MailMyPDF Platform (mailmypdf-platform)
+## Layer 1 — MailMyPDF Platform (this monorepo's shared packages)
 
 **Owns:** Reusable technology primitives and stable ecosystem contracts.
 
@@ -122,7 +122,7 @@ Each vertical owns its domain logic, workflows, and user experience.
 **Code-level situation:** Notice-respond contains the superior credit dispute implementation (credit-dispute.ts with 299 lines of bureau-specific extraction + transunion-dispute.ts with 270 lines of TransUnion-specific logic). Dispute-mail has only basic UI shells (credit-report.tsx at 137 lines, no extraction, no security, no validation).
 
 **Migration plan:**
-1. The reusable infrastructure (security, validation, mailing, workflow-shell) should be extracted to mailmypdf-platform
+1. The reusable infrastructure (security, validation, mailing, workflow-shell) should be extracted to this monorepo's shared packages
 2. The domain-specific logic (bureau configs, FCRA extraction) should move to dispute-mail
 3. The workflow-specific configuration should stay as workflow definitions
 4. Migration is deferred until the factory architecture is finalized to avoid duplication

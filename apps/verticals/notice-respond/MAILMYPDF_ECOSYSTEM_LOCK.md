@@ -2,7 +2,7 @@
 
 **Status: LOCKED**
 **Canonical public host:** `https://mailmypdf.ai`
-**Cross-repo source of truth:** `mailmypdf-platform`
+**Cross-repo source of truth:** `this monorepo's shared packages`
 
 ## Global shell
 
@@ -53,4 +53,4 @@ Notice Respond is the reference implementation for workflow depth and quality. D
 
 ## Anti-fragmentation
 
-Do not create another global navigation, auth system, public canonical domain, sitemap architecture, or bespoke pipeline. Do not mark placeholder workflows executable. Exceptions require documentation in `mailmypdf-platform`.
+Do not create another global navigation, auth system, public canonical domain, sitemap architecture, or bespoke pipeline. Do not mark placeholder workflows executable. Exceptions require documentation in `this monorepo's shared packages`.
