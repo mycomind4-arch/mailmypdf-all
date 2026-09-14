@@ -200,11 +200,12 @@
 }
 
 
-/* Authenticated workspace chrome — the fixed left rail owns 272px on desktop. */
+/* Authenticated workspace chrome — the fixed left rail collapses to a 64px
+   icon column on desktop and expands over the content on hover/focus. */
 @media (min-width: 1024px) {
   body.mmp-auth-sidebar-active {
-    margin-left: 272px;
-    width: calc(100% - 272px);
+    margin-left: 64px;
+    width: calc(100% - 64px);
   }
 }
 

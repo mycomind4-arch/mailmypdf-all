@@ -2,8 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useState, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { SiteHeader, SiteFooter } from "@/components/site-chrome";
+import { AdminHeader } from "@/components/admin-header";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { isCurrentUserAdmin, listFulfillmentQueue, getAdminConfig } from "@/lib/admin.functions";
 import {
@@ -26,19 +25,12 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen">
+      <AdminHeader />
       <PaymentTestModeBanner />
-      <SiteHeader />
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="postmark w-fit">Admin</div>
-            <h1 className="mt-3 font-serif text-4xl">Dashboard</h1>
-          </div>
-          <button
-            onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}
-            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
-            Sign out
-          </button>
+        <div>
+          <div className="postmark w-fit">Admin</div>
+          <h1 className="mt-3 font-serif text-4xl">Dashboard</h1>
         </div>
 
         <div className="mt-6 flex gap-1 border-b border-rule">
@@ -59,7 +51,6 @@ function AdminPage() {
           <AdminContent tab={tab} />
         </Suspense>
       </main>
-      <SiteFooter />
     </div>
   );
 }

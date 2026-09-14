@@ -46,7 +46,7 @@ function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate({ to: "/auth" });
+    if (!authLoading && !user) navigate({ to: "/auth", search: { returnTo: "/dashboard" } });
   }, [user, authLoading, navigate]);
 
   const loadData = useCallback(async () => {

@@ -50,7 +50,7 @@ function CasesPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: { returnTo: "/cases" } });
     }
   }, [user, authLoading, navigate]);
 
