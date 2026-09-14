@@ -76,28 +76,34 @@ explicitly excludes `role` from profile metadata for this reason).
   NEEDS AUDIT per vertical: does each vertical's local shell match the public
   shell's required elements above? Does each vertical's authenticated area
   use an equivalent of `AuthenticatedSidebar`, or none at all?
-- **`appeal-reply.tsx` legacy redirect was broken, now fixed** (commit
-  `a2f1cab`): `/solutions/appeal-reply` → `/appeal-reply` (was pointing at a
-  dead `/appeal-mail` route). Pattern to check for elsewhere: any
-  `redirect({ to: "..." })` whose target string isn't a live route.
-- **Incomplete vertical rename discovered, NOT yet resolved (flagged, left for
-  a decision):** `apps/mailmypdf/tests/vertical-routing-integrity.test.mjs`'s
-  own `canonicalRoutes` map — and a separate uncommitted working-tree edit to
-  `apps/mailmypdf/src/verticals/registry.ts` — both expect the appeal
-  vertical's canonical route to be `/appeal-mail` (and, same pattern,
-  Notice Respond → `/notice-respond`, Small Business → `/small-business`).
-  None of those three routes exist as real pages — only `/appeal-reply`,
-  `/notice-response`, and `/small-business-mail` exist in
-  `routeTree.gen.ts`. This predates the current session (the test alone,
-  with today's registry edit reverted, already fails 2/5 against committed
-  `main`). Completing it means renaming the actual route files plus updating
-  ~8 files that reference the old path strings (`vertical-landing.tsx`,
-  `ecosystem.ts`, `workflow-navigation.ts`, `master-public-routes.ts`,
-  `routes/index.tsx`, `solutions.tsx`, plus the alias) and regenerating
-  `routeTree.gen.ts` — real navigation blast radius, not a one-line fix.
-  Until resolved, `git stash`/inspect the uncommitted `registry.ts` change
-  before trusting `vertical-routing-integrity.test.mjs`'s pass/fail as
-  ground truth for these 3 verticals.
+- **`solutions/appeal-reply.tsx` legacy alias, fixed twice — record both
+  passes so the mistake isn't repeated.** First pass (`a2f1cab`) wrongly
+  concluded `/appeal-mail` was a dead route (from a `tsc` error on
+  `redirect({ to: "/appeal-mail" })`) and repointed the alias to
+  `/appeal-reply` instead. That was backwards: `/appeal-mail` is the real
+  canonical URL — a fully configured entry in `PUBLIC_VERTICALS`
+  (`public-verticals.ts`) served dynamically through the root catch-all
+  (`routes/$.tsx`), not a static route file. `to:` requires a literal from
+  the static route union and rejects dynamically-served paths; `href:`
+  doesn't. `appeal-reply.tsx` and `notice-response.tsx` (the legacy page
+  stubs) already redirect via `href:` to `/appeal-mail` /
+  `/notice-respond` — that's the pattern to match, not evidence the target
+  is broken. Second pass (`e3ddea8`) corrected it: `redirect({ href:
+  "/appeal-mail" })`, matching the sitewide pattern, verified via
+  `tests/vertical-routing-integrity.test.mjs` (5/5) and `tsc --noEmit`.
+  **Lesson for future audits:** a `tsc` "not in route union" error on a
+  `to:` redirect does not by itself mean the target path is dead — check
+  whether it's served by a catch-all (`PUBLIC_VERTICALS` /
+  `workflowAuthorityForPath`) before concluding a route doesn't exist, and
+  check sibling files for the `href:` vs `to:` pattern already in use.
+- The vertical registry's `appeal-reply` / `notice-response` /
+  `small-business-mail` entries route to `/appeal-mail`, `/notice-respond`,
+  `/small-business` respectively — confirmed consistent with every other
+  reference (`ecosystem.ts`, `ecosystem-shell.tsx`,
+  `authenticated-sidebar.tsx`, `public-verticals.ts`,
+  `workflow-authority-registry.ts`, `routes/index.tsx`) and with the legacy
+  page stubs' own redirect targets. Not a rename in progress — this is the
+  shipped, correct state.
 - **9 public SEO catch-all routes fail typecheck** (pre-existing, not caused
   by recent work): `benefits/$.tsx`, `business/$.tsx`, `claim/$.tsx`,
   `future/$.tsx`, `mail/$.tsx`, `notice/$.tsx`, `permit/$.tsx`,
