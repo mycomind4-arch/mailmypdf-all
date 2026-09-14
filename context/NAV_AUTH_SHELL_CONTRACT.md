@@ -80,6 +80,24 @@ explicitly excludes `role` from profile metadata for this reason).
   `a2f1cab`): `/solutions/appeal-reply` → `/appeal-reply` (was pointing at a
   dead `/appeal-mail` route). Pattern to check for elsewhere: any
   `redirect({ to: "..." })` whose target string isn't a live route.
+- **Incomplete vertical rename discovered, NOT yet resolved (flagged, left for
+  a decision):** `apps/mailmypdf/tests/vertical-routing-integrity.test.mjs`'s
+  own `canonicalRoutes` map — and a separate uncommitted working-tree edit to
+  `apps/mailmypdf/src/verticals/registry.ts` — both expect the appeal
+  vertical's canonical route to be `/appeal-mail` (and, same pattern,
+  Notice Respond → `/notice-respond`, Small Business → `/small-business`).
+  None of those three routes exist as real pages — only `/appeal-reply`,
+  `/notice-response`, and `/small-business-mail` exist in
+  `routeTree.gen.ts`. This predates the current session (the test alone,
+  with today's registry edit reverted, already fails 2/5 against committed
+  `main`). Completing it means renaming the actual route files plus updating
+  ~8 files that reference the old path strings (`vertical-landing.tsx`,
+  `ecosystem.ts`, `workflow-navigation.ts`, `master-public-routes.ts`,
+  `routes/index.tsx`, `solutions.tsx`, plus the alias) and regenerating
+  `routeTree.gen.ts` — real navigation blast radius, not a one-line fix.
+  Until resolved, `git stash`/inspect the uncommitted `registry.ts` change
+  before trusting `vertical-routing-integrity.test.mjs`'s pass/fail as
+  ground truth for these 3 verticals.
 - **9 public SEO catch-all routes fail typecheck** (pre-existing, not caused
   by recent work): `benefits/$.tsx`, `business/$.tsx`, `claim/$.tsx`,
   `future/$.tsx`, `mail/$.tsx`, `notice/$.tsx`, `permit/$.tsx`,
