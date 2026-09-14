@@ -121,7 +121,12 @@ export function extractReplyText(stdout: string, provider: AgentProviderName): s
 /** Runs one agent CLI call to completion, streaming raw output as it arrives. */
 export async function runAgentCli(options: AgentCallOptions): Promise<AgentCallResult> {
   const { cwd, timeoutMs = 15 * 60 * 1000, onOutput, onProcessStart } = options;
-  const { command, args } = buildCommand(options);
+  const { command, args } = buildCommand({
+    ...options,
+    prompt: "Before working, read the repository's AGENTS.md and context/FACTORY_STATUS.md. " +
+      "Follow the MailMyPDF objective, current priorities, workspace constraints, and verification requirements. " +
+      "Report actual checks and unresolved issues; do not infer completion from an agent exit code.\n\n" + options.prompt,
+  });
 
   return new Promise((resolve) => {
     // stdin must be closed, not just unused: both CLIs treat a piped-but-open
