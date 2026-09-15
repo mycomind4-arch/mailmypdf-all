@@ -100,6 +100,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
   if (!config) return null;
   const pages = directoryPagesFor(config);
   const featured = pages.slice(0, 6);
+  const hasRegisteredWorkflows = pages.length > 0;
 
   return (
     <div className="min-h-screen bg-paper text-foreground">
@@ -114,7 +115,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
               <h1 className="mt-5 font-serif text-5xl leading-[0.98] sm:text-6xl lg:text-7xl">{config.heroTitle}</h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">{config.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition hover:-translate-y-0.5">Start a workflow <ArrowRight className="h-4 w-4" /></a>
+                {hasRegisteredWorkflows ? <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition hover:-translate-y-0.5">Browse workflows <ArrowRight className="h-4 w-4" /></a> : <Link to="/ecosystem" className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition hover:-translate-y-0.5">Browse available workflows <ArrowRight className="h-4 w-4" /></Link>}
                 <Link to="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-md border border-white/50 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15">Mail a PDF</Link>
               </div>
             </div>
@@ -148,9 +149,15 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
                 <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Start with the problem you actually have.</h2>
                 <p className="mt-4 text-base leading-7 text-muted-foreground">{config.directoryDescription}</p>
               </div>
-              <a href={`${config.path}/workflows`} className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-cobalt">
-                View all workflows <ArrowRight className="h-4 w-4" />
-              </a>
+              {hasRegisteredWorkflows ? (
+                <a href={`${config.path}/workflows`} className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-cobalt">
+                  View all workflows <ArrowRight className="h-4 w-4" />
+                </a>
+              ) : (
+                <Link to="/ecosystem" className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-cobalt">
+                  Browse available workflows <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
             </div>
 
             {featured.length ? (
@@ -161,8 +168,8 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
               </div>
             ) : (
               <div className="mt-10 rounded-xl border border-rule bg-card p-7">
-                <div className="font-serif text-2xl">More workflow guides are being reviewed.</div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Only reviewed, publishable workflow guides appear in the public directory.</p>
+                <div className="font-serif text-2xl">This product area is still being integrated.</div>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">No workflows are registered in the shared MailMyPDF directory for this product yet. Browse currently registered workflows or mail a finished PDF while integration continues.</p>
               </div>
             )}
           </div>
@@ -208,7 +215,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
               <p className="mt-4 max-w-3xl text-base leading-7 text-white/70">{config.helperDescription}</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-cobalt">Find a workflow <ArrowRight className="h-4 w-4" /></a>
+              {hasRegisteredWorkflows ? <a href={`${config.path}/workflows`} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-cobalt">Find a workflow <ArrowRight className="h-4 w-4" /></a> : <Link to="/ecosystem" className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-cobalt">Browse available workflows <ArrowRight className="h-4 w-4" /></Link>}
               <Link to="/mail-a-pdf" className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-3 text-sm font-semibold text-white">Mail a PDF</Link>
             </div>
           </div>
@@ -310,7 +317,7 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input aria-label={`Search ${config.product} workflows`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.product} workflows…`} className="h-12 w-full rounded-lg border border-rule bg-card pl-11 pr-4 text-sm outline-none transition focus:border-cobalt" />
                 </label>
-                <div aria-live="polite" className="flex h-12 items-center rounded-lg border border-rule bg-card px-4 text-xs text-muted-foreground">{filtered.length} of {directoryItems.length} workflows</div>
+                <div aria-live="polite" className="flex h-12 items-center rounded-lg border border-rule bg-card px-4 text-xs text-muted-foreground">{directoryItems.length ? `${filtered.length} of ${directoryItems.length} workflows` : "No workflows registered yet"}</div>
               </div>
 
               {filtered.length ? (
@@ -335,8 +342,9 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
               ) : (
                 <div className="mt-5 rounded-xl border border-dashed border-rule bg-card p-10 text-center">
                   <FileSearch className="mx-auto h-6 w-6 text-cobalt" />
-                  <h2 className="mt-3 font-serif text-2xl">No matching workflow</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Try a broader document name, agency, notice number, problem, or category.</p>
+                  <h2 className="mt-3 font-serif text-2xl">{directoryItems.length ? "No matching workflow" : "This directory is still being integrated"}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">{directoryItems.length ? "Try a broader document name, agency, notice number, problem, or category." : "No workflows are registered here yet. Browse the main workflow directory for currently available guides and workflows."}</p>
+                  {!directoryItems.length && <Link to="/ecosystem" className="mt-4 inline-flex text-sm font-semibold text-cobalt">Browse available workflows →</Link>}
                 </div>
               )}
             </div>
