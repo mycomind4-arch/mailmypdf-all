@@ -77,7 +77,8 @@ export const Route = createFileRoute("/api/workflows/insurance-denial-letter/ana
         rawText: JSON.stringify(analysis), extractedAt: new Date().toISOString(), extractionConfidence: analysis.confidence === "high" ? 0.9 : analysis.confidence === "medium" ? 0.7 : 0.5,
       });
       const grounds = (analysis.issues || []).map((issue, index) => createGround("factual_error", { id: `ground-${index}-${crypto.randomUUID()}`, claim: issue.issue || "Review a stated denial issue", source: issue.whyItMatters || "Identified by denial-letter analysis", confidence: 0.65, unresolvedIssue: issue.evidenceNeeded?.join(", ") }));
-      const evidence = [createEvidence("document", "Original insurance denial letter", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }))];
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = [createEvidence("document", "Original insurance denial letter", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
       if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
       const appeal = createAppeal("insurance-denial-letter", decision);
       appeal.grounds = grounds; appeal.evidence = evidence; appeal.updatedAt = new Date().toISOString();

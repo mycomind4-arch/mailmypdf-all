@@ -88,8 +88,9 @@ export const Route = createFileRoute("/api/workflows/medicaid-denial/analyze")({
         confidence: 0.65,
         unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
-      const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
-      if (!evidence.length) evidence.push(createEvidence("document", document.filename, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      if (!evidence.length) evidence.push(createEvidence("document", document.filename, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
       if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("medicaid-denial", decision);

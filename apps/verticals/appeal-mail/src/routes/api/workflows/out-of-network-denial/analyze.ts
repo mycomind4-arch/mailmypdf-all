@@ -82,8 +82,9 @@ export const Route = createFileRoute("/api/workflows/out-of-network-denial/analy
         source: item.whyItMatters || "Identified by document analysis", confidence: 0.65,
         unresolvedIssue: (item.evidenceNeeded || []).join(", "),
       }));
-      const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
-      evidence.unshift(createEvidence("document", "Original out-of-network denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      evidence.unshift(createEvidence("document", "Original out-of-network denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
       if (grounds.length && evidence.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("out-of-network-denial", decision);

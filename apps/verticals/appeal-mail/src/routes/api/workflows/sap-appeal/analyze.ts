@@ -87,8 +87,9 @@ export const Route = createFileRoute("/api/workflows/sap-appeal/analyze")({serve
       confidence: 0.65,
       unresolvedIssue: (x.evidenceNeeded || []).join(", "),
     }));
-    const evidence = (analysis.documentationMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
-    evidence.unshift(createEvidence("document", "Original SAP decision or notice", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
+    const groundIds = grounds.map((g) => g.id);
+    const evidence = (analysis.documentationMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+    evidence.unshift(createEvidence("document", "Original SAP decision or notice", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
     if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((x) => x.id);
 
     const appeal = createAppeal("sap-appeal", decision);

@@ -29,7 +29,23 @@ export const Route = createFileRoute("/api/workflows/claim-denial-letter/analyze
       if (file.size > 20 * 1024 * 1024) return Response.json({ error: "Documents must be 20 MB or smaller." }, { status: 413 });
       const document = await uploadDocument(file);
       const provider = await resolveAI("claim-denial-letter", "analysis");
-      const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = Buffer.from(rawBytes).toString("base64");
+      // Retain the uploaded bytes in our own storage (not just MailMyPDF's
+      // platform, which offers no way to fetch a previously-uploaded
+      // document's bytes back) so they can be re-enclosed in the mail-ready
+      // packet at fulfillment time. Mirrors car-insurance-appeal/analyze.ts,
+      // the one workflow that already had this -- without it, the customer's
+      // uploaded evidence is silently never mailed even when the draft letter
+      // says it's enclosed. See context/FACTORY_STATUS.md.
+      const evidenceStoragePath = `${user.id}/${document.id}/${file.name}`;
+      const evidenceHashDigest = await crypto.subtle.digest("SHA-256", rawBytes);
+      const evidenceFileHash = Array.from(new Uint8Array(evidenceHashDigest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      const storageClient = await getSupabaseServer();
+      const { error: storageError } = await storageClient.storage
+        .from("appeal-evidence")
+        .upload(evidenceStoragePath, rawBytes, { contentType: file.type, upsert: true });
+      if (storageError) throw new Error(`Unable to retain the uploaded document for mailing: ${storageError.message}`);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -55,7 +71,20 @@ export const Route = createFileRoute("/api/workflows/claim-denial-letter/analyze
         rawText: JSON.stringify(analysis), extractedAt: new Date().toISOString(), extractionConfidence: analysis.confidence === "high" ? 0.9 : analysis.confidence === "medium" ? 0.7 : 0.5,
       });
       const grounds = (analysis.issues || []).map((issue, index) => createGround("factual_error", { id: `ground-${index}-${crypto.randomUUID()}`, claim: issue.issue || "Review a stated denial issue", source: issue.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: issue.evidenceNeeded?.join(", ") }));
-      const evidence = [createEvidence("document", "Original claim denial letter", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }))];
+      // Evidence is linked to grounds via evidence[i].groundIds (read by
+      // src/domain/evidence.ts's unsupportedGrounds()/evidenceForGround(),
+      // which the readiness review calls) -- not ground.supportingEvidenceIds
+      // below, which nothing reads. See car-insurance-appeal/analyze.ts.
+      const groundIds = grounds.map((ground) => ground.id);
+      // Only this one entry carries storagePath/hash/mimeType: it is the
+      // single real uploaded file. The evidenceMentioned entries below are
+      // conceptual labels for things referenced *within* that same document,
+      // not independently uploaded files -- so they must not also claim the
+      // same storage reference, which would attach the same file twice.
+      const evidence = [createEvidence("document", "Original claim denial letter", {
+        documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds,
+        storagePath: evidenceStoragePath, mimeType: file.type, fileSize: rawBytes.byteLength, hash: evidenceFileHash,
+      }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
       if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
       const appeal = createAppeal("claim-denial-letter", decision);
       appeal.grounds = grounds; appeal.evidence = evidence; appeal.updatedAt = new Date().toISOString();

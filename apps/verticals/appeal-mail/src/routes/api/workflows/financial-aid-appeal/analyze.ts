@@ -89,7 +89,8 @@ export const Route = createFileRoute("/api/workflows/financial-aid-appeal/analyz
         confidence: 0.65,
         unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
-      const evidence = [createEvidence("document", file.name, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }))];
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = [createEvidence("document", file.name, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
       if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("financial-aid-appeal", decision);

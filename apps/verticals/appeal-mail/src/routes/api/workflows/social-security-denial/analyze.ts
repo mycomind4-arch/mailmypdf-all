@@ -75,8 +75,9 @@ export const Route = createFileRoute("/api/workflows/social-security-denial/anal
       const grounds = (analysis.issues || []).map((issue: any, index: number) => createGround("factual_error", {
         id: `ground-${index}-${crypto.randomUUID()}`, claim: issue.issue || "Review a stated Social Security decision issue", source: issue.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
-      const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
-      const sourceEvidence = createEvidence("document", "Original Social Security decision", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() });
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      const sourceEvidence = createEvidence("document", "Original Social Security decision", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds });
       evidence.unshift(sourceEvidence);
       if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
       const appeal = createAppeal("social-security-denial", decision);

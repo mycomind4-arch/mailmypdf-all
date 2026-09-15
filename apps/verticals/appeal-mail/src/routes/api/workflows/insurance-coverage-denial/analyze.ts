@@ -82,8 +82,9 @@ export const Route = createFileRoute("/api/workflows/insurance-coverage-denial/a
         confidence: 0.65,
         unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
-      const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
-      evidence.unshift(createEvidence("document", "Original insurance coverage denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      evidence.unshift(createEvidence("document", "Original insurance coverage denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
       if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("insurance-coverage-denial", decision);
