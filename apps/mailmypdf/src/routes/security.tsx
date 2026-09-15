@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { CheckCircle2, CreditCard, Eye, FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { SecurityTrustBand, SiteFooter, SiteHeader } from "@/components/site-chrome";
 
@@ -105,7 +106,7 @@ function SecurityPage() {
   );
 }
 
-function TrustCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+function TrustCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
     <article className="rounded-2xl border border-rule bg-card p-6">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cobalt/20 bg-cobalt/5 text-cobalt">
