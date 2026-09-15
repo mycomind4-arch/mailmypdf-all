@@ -9,7 +9,7 @@ const DESC = "Learn what certified mail is, when people use it, and how it diffe
 const FAQ = [
   {
     q: "Does MailMyPDF offer certified mail?",
-    a: "Yes. MailMyPDF offers Certified Mail (tracking + signature) and Registered Mail (insured + tracking) as add-on options at checkout.",
+    a: "Yes. MailMyPDF offers Certified Mail (delivery tracking + confirmation) and Registered Mail (insured + tracking) as add-on options at checkout.",
   },
   {
     q: "What is certified mail used for?",
@@ -111,7 +111,7 @@ function CertifiedMailGuidePage() {
             from sending a standard physical letter.
           </p>
           <div className="mt-6 rounded-md border border-rule/70 bg-paper-deep/60 p-4 text-sm text-foreground">
-            <span className="font-semibold text-cobalt">Good news:</span> MailMyPDF offers Certified Mail (tracking + signature) and Registered Mail (insured + tracking) as add-on options at checkout.
+            <span className="font-semibold text-cobalt">Good news:</span> MailMyPDF offers Certified Mail (delivery tracking + confirmation) and Registered Mail (insured + tracking) as add-on options at checkout.
           </div>
         </div>
       </section>
@@ -197,7 +197,7 @@ function CertifiedMailGuidePage() {
           <div className="postmark w-fit">Service</div>
           <h2 className="mt-4 text-3xl md:text-4xl">Does MailMyPDF offer certified mail?</h2>
           <p className="mt-6 text-lg text-ink-soft">
-            Yes. MailMyPDF offers Certified Mail (tracking + signature) and Registered Mail (insured + tracking) as add-on options at checkout. You can choose your preferred mail class when placing your order.
+            Yes. MailMyPDF offers Certified Mail (delivery tracking + confirmation) and Registered Mail (insured + tracking) as add-on options at checkout. You can choose your preferred mail class when placing your order.
           </p>
         </div>
       </section>
