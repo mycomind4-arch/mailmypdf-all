@@ -31,7 +31,32 @@ const APPROACH_STEPS = [
   },
 ] as const;
 
+const MAILING_APPROACH_STEPS = [
+  {
+    title: "Choose the finished document",
+    description: "Start with the PDF you actually want printed and mailed, not a draft or an unrelated source document.",
+  },
+  {
+    title: "Confirm the recipient",
+    description: "Check the recipient name and postal address before creating the mailing order.",
+  },
+  {
+    title: "Review the file",
+    description: "Confirm the PDF opens correctly, contains the intended pages, and is within the supported upload limits.",
+  },
+  {
+    title: "Choose the mailing service",
+    description: "Select the mail class that matches the delivery record you need and review the exact price before payment.",
+  },
+  {
+    title: "Approve and keep the record",
+    description: "Review the document and addresses before purchase, then keep the order and available tracking or delivery record together.",
+  },
+] as const;
+
 export function WorkflowAuthorityPage({ page }: Props) {
+  const isMailingWorkflow = page.vertical === "mail";
+  const approachSteps = isMailingWorkflow ? MAILING_APPROACH_STEPS : APPROACH_STEPS;
   return (
     <div className="min-h-screen bg-paper text-foreground">
       <SiteHeader />
@@ -43,7 +68,7 @@ export function WorkflowAuthorityPage({ page }: Props) {
             {
               icon: <Search className="h-4 w-4" />,
               label: "Start with the source",
-              description: "Use the actual notice, decision, or instructions",
+              description: isMailingWorkflow ? "Use the exact PDF you intend to mail" : "Use the actual notice, decision, or instructions",
             },
             {
               icon: <FileCheck2 className="h-4 w-4" />,
@@ -115,7 +140,7 @@ export function WorkflowAuthorityPage({ page }: Props) {
               </p>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-5">
-              {APPROACH_STEPS.map((step, index) => (
+              {approachSteps.map((step, index) => (
                 <article key={step.title} className="envelope-card p-5">
                   <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                     {String(index + 1).padStart(2, "0")}
@@ -128,8 +153,8 @@ export function WorkflowAuthorityPage({ page }: Props) {
           </div>
         </section>
 
-        <TimingAndMailing />
-        <SourceSection page={page} />
+        <TimingAndMailing mailingOnly={isMailingWorkflow} />
+        {!isMailingWorkflow && <SourceSection page={page} />}
         <QuestionSection page={page} />
         <RelatedSection page={page} />
 
@@ -263,22 +288,26 @@ function UseCard({ eyebrow, title, items, positive = false }: { eyebrow: string;
   );
 }
 
-function TimingAndMailing() {
+function TimingAndMailing({ mailingOnly = false }: { mailingOnly?: boolean }) {
   return (
     <section className="border-b border-rule/60 bg-paper-deep/20">
       <div className="mx-auto grid max-w-6xl gap-5 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2">
         <article className="envelope-card p-6 sm:p-7">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">Deadlines & timing</p>
-          <h2 className="mt-2 font-serif text-3xl">Use the deadline that actually controls your matter.</h2>
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">{mailingOnly ? "Recipient & timing" : "Deadlines & timing"}</p>
+          <h2 className="mt-2 font-serif text-3xl">{mailingOnly ? "Confirm where the PDF is going before you pay." : "Use the deadline that actually controls your matter."}</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
-            Do not substitute a generic web deadline for the date or instruction in the document you received. Confirm the current rule, what event starts the clock, whether receipt or postmark matters, and what to do when the instructions conflict or are unclear.
+            {mailingOnly
+              ? "Check the recipient name, postal address, document, and desired timing. MailMyPDF prints and mails what you approve, so these details should be correct before checkout."
+              : "Do not substitute a generic web deadline for the date or instruction in the document you received. Confirm the current rule, what event starts the clock, whether receipt or postmark matters, and what to do when the instructions conflict or are unclear."}
           </p>
         </article>
         <article className="envelope-card p-6 sm:p-7">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-cobalt">Mailing, tracking & proof</p>
-          <h2 className="mt-2 font-serif text-3xl">Choose delivery after you know the submission rule.</h2>
+          <h2 className="mt-2 font-serif text-3xl">{mailingOnly ? "Choose the mailing service that matches the record you need." : "Choose delivery after you know the submission rule."}</h2>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">
-            Standard, tracked, Certified, or other mailing services can create different records. The right choice depends on the recipient's instructions and the purpose of the mailing. A mailing receipt or tracking event does not by itself prove that every legal, court, agency, or contractual filing requirement was satisfied.
+            {mailingOnly
+              ? "Standard, Certified, and Registered Mail provide different handling and delivery records. Review the exact service, price, and available tracking information shown before payment."
+              : "Standard, Certified, or other mailing services can create different records. The right choice depends on the recipient's instructions and the purpose of the mailing. A mailing receipt or tracking event does not by itself prove that every legal, court, agency, or contractual filing requirement was satisfied."}
           </p>
         </article>
       </div>
