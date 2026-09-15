@@ -150,12 +150,24 @@ export function runReadinessReview(params: {
     status: !draft || draft.length < 50 ? "warning" : "pass",
     detail: !draft ? "No draft has been generated." : draft.length < 50 ? "Draft is very short — may be incomplete." : undefined,
   });
+  // A caller-reported `hasSignature: true` is not sufficient on its own --
+  // several workflows' draft.ts routes persist a literal, unresolved
+  // "[Your Name]" placeholder as the signature (and report hasSignature=true
+  // for it, since /\[your name\]/i matches). Left unresolved, that string
+  // mails to the recipient verbatim. Flag it here, in the one shared
+  // readiness engine every workflow's approve.ts calls, rather than relying
+  // on ~80 individual route files to each get this right.
+  const unresolvedSignaturePlaceholder = /\[your name\]/i.test(draft);
   checks.push({
     id: "missing_signature",
     label: "Signature placeholder present",
     description: "The draft includes a signature line.",
-    status: hasSignature ? "pass" : "warning",
-    detail: hasSignature ? undefined : "Add a signature line to the draft.",
+    status: hasSignature && !unresolvedSignaturePlaceholder ? "pass" : "warning",
+    detail: !hasSignature
+      ? "Add a signature line to the draft."
+      : unresolvedSignaturePlaceholder
+        ? "Replace the [Your Name] placeholder with your actual name before mailing."
+        : undefined,
   });
 
   /* Exhibit checks */
