@@ -90,6 +90,17 @@ else if (paymentsEnv === "live" && !stripeKey.startsWith("sk_live_")) fail("Stri
 else if (paymentsEnv === "sandbox" && !stripeKey.startsWith("sk_test_")) fail("Stripe server key", "sandbox mode is not using an sk_test_ key");
 else pass("Stripe server key", "configured for selected environment");
 
+const stripeClientToken = value("VITE_PAYMENTS_CLIENT_TOKEN");
+if (!stripeClientToken) {
+  fail("Stripe browser publishable key", "missing VITE_PAYMENTS_CLIENT_TOKEN");
+} else if (paymentsEnv === "live" && !stripeClientToken.startsWith("pk_live_")) {
+  fail("Stripe browser publishable key", "live mode is not using a pk_live_ key");
+} else if (paymentsEnv === "sandbox" && !stripeClientToken.startsWith("pk_test_")) {
+  fail("Stripe browser publishable key", "sandbox mode is not using a pk_test_ key");
+} else {
+  pass("Stripe browser publishable key", "configured for selected environment");
+}
+
 if (!stripeWebhook) fail("Stripe webhook secret", "missing for selected payment environment");
 else if (!stripeWebhook.startsWith("whsec_")) fail("Stripe webhook secret", "unexpected format");
 else pass("Stripe webhook secret", "configured");
