@@ -182,7 +182,7 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
               <NavLink to={config.howItWorksUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 How It Works
               </NavLink>
-              <a href="/#security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
+              <a href="/security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
                 Security & Trust
               </a>
               <NavLink to="/about" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex">
@@ -542,7 +542,7 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         <NavLink to={config.howItWorksUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           How It Works
         </NavLink>
-        <a href="/#security" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
+        <a href="/security" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           Security & Trust
         </a>
         <NavLink to="/about" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
