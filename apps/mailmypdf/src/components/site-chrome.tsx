@@ -77,6 +77,7 @@ export function SiteFooter() {
               <li><a href="/security" className="text-ink-soft transition-colors hover:text-foreground">Security & Trust</a></li>
               <li><Link to="/pro" className="text-ink-soft transition-colors hover:text-foreground">Pricing</Link></li>
               <li><Link to="/how-it-works" className="text-ink-soft transition-colors hover:text-foreground">How It Works</Link></li>
+              <li><Link to="/contact" className="text-ink-soft transition-colors hover:text-foreground">Contact & Support</Link></li>
               <li><Link to="/privacy" className="text-ink-soft transition-colors hover:text-foreground">Privacy</Link></li>
               <li><Link to="/retention" className="text-ink-soft transition-colors hover:text-foreground">Data Retention</Link></li>
               <li><Link to="/terms" className="text-ink-soft transition-colors hover:text-foreground">Terms</Link></li>
