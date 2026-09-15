@@ -1,0 +1,115 @@
+{
+  "appealId": "9fb9bce3-e0a9-4365-93fc-64e98e506971",
+  "appeals": [
+    {
+      "id": "9fb9bce3-e0a9-4365-93fc-64e98e506971",
+      "user_id": "studio-test-user",
+      "workflow_id": "claim-denial-letter",
+      "status": "in_progress",
+      "decision": {
+        "id": "627cf1bb-62c1-4c72-af83-de8c49e2b8cb",
+        "type": "claim_denial",
+        "documentId": "doc_test_0001_1",
+        "documentFilename": "claim-denial-letter.pdf",
+        "agency": "Bedrock Mutual Insurance",
+        "referenceNumber": "BMI-2026-0932-HC",
+        "decisionDate": "2026-07-10",
+        "decisionTypeLabel": "Claim denial letter citing the wear-and-tear exclusion",
+        "deadline": {
+          "date": "2027-02-01",
+          "type": "appeal",
+          "source": "extracted"
+        },
+        "facts": [
+          {
+            "id": "0-87c4b9af-eaf0-4003-a71c-d62b84a709bf",
+            "label": "Fact 1",
+            "value": "Storm date: 2026-06-18",
+            "source": "extracted",
+            "confidence": 0.8
+          },
+          {
+            "id": "1-c73f8280-df66-400d-bc81-030108fa65f3",
+            "label": "Fact 2",
+            "value": "Independent inspection from Highline Roofing & Restoration, licensed contractor report dated 2026-06-25: The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear.",
+            "source": "extracted",
+            "confidence": 0.8
+          },
+          {
+            "id": "2-99cba8a7-9d1b-4a49-8776-a72047a6f2ec",
+            "label": "Fact 3",
+            "value": "Repair estimate: $18,400.00",
+            "source": "extracted",
+            "confidence": 0.8
+          }
+        ],
+        "reasons": [
+          {
+            "id": "0-16f1c1a6-c662-4170-8b6a-9a2058fd43ba",
+            "text": "Denied under the policy's wear-and-tear exclusion, Section 6.3",
+            "confidence": 0.9
+          }
+        ],
+        "citedRules": [],
+        "chronology": [],
+        "issues": [
+          {
+            "id": "0-8dc5ae9d-b29a-48ad-9989-17d730110673",
+            "description": "Bedrock Mutual Insurance's wear-and-tear finding contradicts the independent inspection, which found wind-driven damage consistent with the 2026-06-18 storm.",
+            "type": "factual_dispute",
+            "severity": "medium",
+            "sourceExcerpt": "The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear."
+          }
+        ],
+        "extractedAt": "2026-09-15T00:39:51.350Z",
+        "extractionConfidence": 0.9,
+        "rawText": "{\"summary\":\"Bedrock Mutual Insurance denied Morgan T. Ellis's claim BMI-2026-0932-HC, attributing roof damage to wear and tear and contradicting a licensed contractor's storm-damage inspection.\",\"decision\":\"Claim denial letter citing the wear-and-tear exclusion\",\"decisionType\":\"claim_denial_letter\",\"issuer\":\"Bedrock Mutual Insurance\",\"referenceNumber\":\"BMI-2026-0932-HC\",\"decisionDate\":\"2026-07-10\",\"deadline\":\"2027-02-01\",\"reasons\":[\"Denied under the policy's wear-and-tear exclusion, Section 6.3\"],\"keyFacts\":[\"Storm date: 2026-06-18\",\"Independent inspection from Highline Roofing & Restoration, licensed contractor report dated 2026-06-25: The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear.\",\"Repair estimate: $18,400.00\"],\"issues\":[{\"issue\":\"Bedrock Mutual Insurance's wear-and-tear finding contradicts the independent inspection, which found wind-driven damage consistent with the 2026-06-18 storm.\",\"whyItMatters\":\"The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear.\",\"evidenceNeeded\":[\"Licensed contractor inspection report\"]}],\"evidenceMentioned\":[\"Inspection report from Highline Roofing & Restoration, licensed contractor report dated 2026-06-25\"],\"uncertainties\":[],\"confidence\":\"high\"}"
+      },
+      "grounds": [
+        {
+          "id": "ground-0-2aa2e06b-aa7f-431a-96d0-e43c3797b71d",
+          "type": "factual_error",
+          "claim": "Bedrock Mutual Insurance's wear-and-tear finding contradicts the independent inspection, which found wind-driven damage consistent with the 2026-06-18 storm.",
+          "source": "The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear.",
+          "supportingEvidenceIds": [
+            "6ac0c170-0fa4-434c-9d4f-6bc3338b8fa7",
+            "c7f47a54-05c1-4b38-9e1f-0417636c641c"
+          ],
+          "confidence": 0.65,
+          "unresolvedIssue": "Licensed contractor inspection report",
+          "userConfirmed": false,
+          "draftLanguage": ""
+        }
+      ],
+      "evidence": [
+        {
+          "id": "6ac0c170-0fa4-434c-9d4f-6bc3338b8fa7",
+          "type": "document",
+          "label": "Original claim denial letter",
+          "documentId": "doc_test_0001_1",
+          "documentFilename": "claim-denial-letter.pdf",
+          "groundIds": [],
+          "uploadedAt": "2026-09-15T00:39:51.360Z"
+        },
+        {
+          "id": "c7f47a54-05c1-4b38-9e1f-0417636c641c",
+          "type": "document",
+          "label": "Inspection report from Highline Roofing & Restoration, licensed contractor report dated 2026-06-25",
+          "documentId": "doc_test_0001_1",
+          "documentFilename": "claim-denial-letter.pdf",
+          "groundIds": [],
+          "uploadedAt": "2026-09-15T00:39:51.361Z"
+        }
+      ],
+      "arguments": [],
+      "draft": "Re: Appeal of Claim Denial -- Claim Number BMI-2026-0932-HC\n\nDear Claims Appeals Department,\n\nI am writing to appeal Bedrock Mutual Insurance's decision dated 2026-07-10 on the above claim, which denied coverage for roof damage under the wear and tear exclusion, Policy Section 6.3.\n\nThis finding contradicts the independent inspection performed by Highline Roofing & Restoration, licensed contractor report dated 2026-06-25. The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear. I am enclosing that report and ask that the wear-and-tear determination be reversed.\n\nThe claim should be reprocessed and paid at the independently estimated repair cost of $18,400.00 under Dwelling Coverage, Policy Section 3.1.\n\nPlease reconsider this denial and reverse the wear-and-tear determination in light of the enclosed evidence before the appeal deadline of 2027-02-01.\n\nSincerely,\n\nMorgan T. Ellis\n\nSincerely,\n[Your Name]",
+      "review": null,
+      "packet": null,
+      "proof": null,
+      "timeline": [],
+      "version": 2,
+      "created_at": "2026-09-15T00:39:51.361Z",
+      "updated_at": "2026-09-15T00:39:51.413Z"
+    }
+  ]
+}

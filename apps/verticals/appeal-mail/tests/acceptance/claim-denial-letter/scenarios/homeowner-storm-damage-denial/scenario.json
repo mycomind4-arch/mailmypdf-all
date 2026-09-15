@@ -1,0 +1,43 @@
+{
+  "id": "homeowner-storm-damage-denial",
+  "workflowId": "claim-denial-letter",
+  "title": "Homeowner's Claim: Insurer Called Storm Damage \"Wear and Tear\"",
+  "description": "Bedrock Mutual Insurance denied a roof-damage claim under the policy's wear-and-tear exclusion, contradicting a licensed roofing contractor's inspection report that found wind-driven damage matching a documented storm date.",
+  "seed": "homeowner-storm-damage-denial-v1",
+  "intake": {
+    "recipient": {
+      "name": "Bedrock Mutual Insurance - Claims Appeals",
+      "address1": "220 Riverside Commons, Floor 4",
+      "city": "Akron",
+      "state": "OH",
+      "zip": "44308"
+    },
+    "mailingMethod": "certified",
+    "facts": {
+      "claimantName": "Morgan T. Ellis",
+      "insurerName": "Bedrock Mutual Insurance",
+      "claimNumber": "BMI-2026-0932-HC",
+      "policyNumber": "POL-4471820",
+      "adjusterName": "Dana Whitfield",
+      "decisionDate": "2026-07-10",
+      "appealDeadline": "2027-02-01",
+      "stormDate": "2026-06-18",
+      "denialReason": "Denied under the policy's wear-and-tear exclusion, Section 6.3",
+      "disputedFinding": "Bedrock Mutual attributed the roof damage to gradual wear and tear rather than storm impact.",
+      "inspectionSource": "Highline Roofing & Restoration, licensed contractor report dated 2026-06-25",
+      "inspectionFinding": "The inspection found wind-driven granule loss and impact fractures consistent with the June 18, 2026 storm, not gradual wear.",
+      "repairEstimateAmount": "$18,400.00",
+      "coverageSection": "Dwelling Coverage, Policy Section 3.1"
+    }
+  },
+  "uploads": [
+    {
+      "id": "upl_claim_denial",
+      "file": "claim-denial-letter.pdf",
+      "mimeType": "application/pdf",
+      "label": "Claim Denial Letter (Bedrock Mutual Insurance)",
+      "isPrimary": true,
+      "includeInMail": true
+    }
+  ]
+}

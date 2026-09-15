@@ -1,0 +1,144 @@
+{
+  "runId": "0001",
+  "workflow": "claim-denial-letter",
+  "scenario": "homeowner-storm-damage-denial",
+  "startedAt": "2026-09-15T00:39:51.234Z",
+  "finishedAt": "2026-09-15T00:39:51.420Z",
+  "status": "failed",
+  "mailReady": false,
+  "checks": {
+    "workflow": "pass",
+    "uploads": "pass",
+    "analysis": "pass",
+    "documentGeneration": "pass",
+    "packetAssembly": "fail",
+    "payment": "blocked",
+    "mailSimulation": "blocked"
+  },
+  "failures": [
+    {
+      "code": "WORKFLOW_EXECUTION_FAILED",
+      "message": "approve rejected the appeal (409): Response is not ready for approval.. Readiness review score=68, issuesRequiringAttention=4.",
+      "severity": "hard_failure",
+      "context": {
+        "review": {
+          "score": 68,
+          "checks": [
+            {
+              "id": "deadline_expired",
+              "label": "Deadline not expired",
+              "description": "The appeal deadline has not passed.",
+              "status": "pass"
+            },
+            {
+              "id": "deadline_urgent",
+              "label": "Deadline is not urgent",
+              "description": "More than 7 days remain before the deadline.",
+              "status": "pass"
+            },
+            {
+              "id": "missing_deadline",
+              "label": "Deadline identified",
+              "description": "An appeal deadline has been identified from the decision.",
+              "status": "pass"
+            },
+            {
+              "id": "missing_recipient",
+              "label": "Recipient specified",
+              "description": "A mailing recipient has been provided.",
+              "status": "pass"
+            },
+            {
+              "id": "no_grounds",
+              "label": "Appeal grounds established",
+              "description": "At least one appeal ground has been defined.",
+              "status": "pass",
+              "detail": "1 ground(s) defined."
+            },
+            {
+              "id": "weak_grounds",
+              "label": "Grounds are well-supported",
+              "description": "All grounds have claims and reasonable confidence.",
+              "status": "pass"
+            },
+            {
+              "id": "unsupported_claims",
+              "label": "All claims supported",
+              "description": "Every appeal ground has supporting evidence.",
+              "status": "warning",
+              "detail": "1 ground(s) lack supporting evidence."
+            },
+            {
+              "id": "missing_evidence",
+              "label": "Evidence attached",
+              "description": "At least one piece of evidence has been attached.",
+              "status": "pass",
+              "detail": "2 item(s) attached."
+            },
+            {
+              "id": "unlinked_evidence",
+              "label": "Evidence linked to grounds",
+              "description": "All evidence is linked to at least one ground.",
+              "status": "warning",
+              "detail": "2 evidence item(s) not linked to any ground."
+            },
+            {
+              "id": "missing_outcome",
+              "label": "Requested outcome stated",
+              "description": "The draft states what outcome is being requested.",
+              "status": "pass"
+            },
+            {
+              "id": "missing_signature",
+              "label": "Signature placeholder present",
+              "description": "The draft includes a signature line.",
+              "status": "warning",
+              "detail": "Replace the [Your Name] placeholder with your actual name before mailing."
+            },
+            {
+              "id": "nonexistent_exhibits",
+              "label": "Exhibit references valid",
+              "description": "All exhibit references in the draft correspond to attached evidence.",
+              "status": "pass"
+            },
+            {
+              "id": "incomplete_packet",
+              "label": "Packet complete",
+              "description": "Appeal letter and all referenced exhibits are assembled.",
+              "status": "pass"
+            },
+            {
+              "id": "incomplete_instructions",
+              "label": "Appeal instructions reviewed",
+              "description": "Appeal instructions from the decision have been reviewed.",
+              "status": "warning",
+              "detail": "No appeal instructions extracted from the decision."
+            },
+            {
+              "id": "inconsistent_dates",
+              "label": "Dates are consistent",
+              "description": "Dates in the draft match the decision.",
+              "status": "pass"
+            },
+            {
+              "id": "contradictory_statements",
+              "label": "No contradictions detected",
+              "description": "The draft does not contradict the decision facts.",
+              "status": "pass"
+            }
+          ],
+          "issuesRequiringAttention": 4,
+          "generatedAt": "2026-09-15T00:39:51.418Z"
+        }
+      }
+    }
+  ],
+  "qualityFindings": [],
+  "artifacts": {
+    "report": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0001/report.json",
+    "trace": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0001/trace.json",
+    "manifest": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0001/packet-manifest.json",
+    "screenshots": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0001/screenshots",
+    "runDir": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0001"
+  }
+}

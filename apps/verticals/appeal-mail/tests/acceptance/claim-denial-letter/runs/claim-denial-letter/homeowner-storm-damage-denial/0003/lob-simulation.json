@@ -1,0 +1,32 @@
+{
+  "provider": "lob_mock",
+  "recipient": {
+    "name": "Bedrock Mutual Insurance - Claims Appeals",
+    "address_line1": "220 Riverside Commons, Floor 4",
+    "address_line2": null,
+    "city": "Akron",
+    "state": "OH",
+    "postal_code": "44308",
+    "country": "US"
+  },
+  "mailType": "certified",
+  "pdfPath": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0003/packet/mail-ready-packet.pdf",
+  "pageCount": 3,
+  "metadata": {
+    "workflow_id": "claim-denial-letter",
+    "source": "appeal-mail",
+    "stripe_session_id": "cs_test_acceptance_1",
+    "owner_user_id": "studio-test-user",
+    "approval_id": "0f574a64-51a7-4a73-8f91-e40bafbd60e6",
+    "approved_draft_hash": "59e174cb03a73bb5ecd92fc51969b3a6e0bcd5b0a3b2a5c7f080284fa325e7ad",
+    "approved_evidence_hash": "a7d980b10a11b35a553da7bc0806108a6617b576e2cc042e3bb94e1ba8a8d5a4",
+    "evidence_count": 1,
+    "fulfillment_source": "stripe-webhook",
+    "matter_reference": "BMI-2026-0932-HC",
+    "matter_type": "claim-denial-letter"
+  },
+  "idempotencyKey": "stripe:cs_test_acceptance_1",
+  "workflowId": "claim-denial-letter",
+  "runId": "0003",
+  "createCommunicationCalls": 1
+}

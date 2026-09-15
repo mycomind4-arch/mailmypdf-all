@@ -1,0 +1,52 @@
+[
+  {
+    "event": "workflow_started",
+    "at": "2026-09-15T00:39:51.235Z",
+    "detail": {
+      "workflowId": "claim-denial-letter",
+      "scenarioId": "homeowner-storm-damage-denial"
+    }
+  },
+  {
+    "event": "fixture_loaded",
+    "at": "2026-09-15T00:39:51.235Z",
+    "detail": {
+      "uploads": [
+        "upl_claim_denial"
+      ]
+    }
+  },
+  {
+    "event": "analyze",
+    "at": "2026-09-15T00:39:51.363Z",
+    "durationMs": 68
+  },
+  {
+    "event": "upload_added",
+    "at": "2026-09-15T00:39:51.364Z",
+    "detail": {
+      "uploadId": "upl_claim_denial"
+    }
+  },
+  {
+    "event": "analysis_completed",
+    "at": "2026-09-15T00:39:51.364Z",
+    "detail": {
+      "appealId": "9fb9bce3-e0a9-4365-93fc-64e98e506971"
+    }
+  },
+  {
+    "event": "document_generated",
+    "at": "2026-09-15T00:39:51.413Z",
+    "durationMs": 50
+  },
+  {
+    "event": "packet_started",
+    "at": "2026-09-15T00:39:51.419Z",
+    "durationMs": 5
+  },
+  {
+    "event": "test_finished",
+    "at": "2026-09-15T00:39:51.419Z"
+  }
+]

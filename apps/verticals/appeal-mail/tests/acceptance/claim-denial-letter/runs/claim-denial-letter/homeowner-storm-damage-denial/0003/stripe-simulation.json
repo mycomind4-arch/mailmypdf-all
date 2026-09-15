@@ -1,0 +1,20 @@
+{
+  "checkoutSessionId": "cs_test_acceptance_1",
+  "amountCents": 4493,
+  "currency": "usd",
+  "metadata": {
+    "appeal_id": "2b71f126-c9b1-4d95-811a-e02ef29b28f1",
+    "packet_id": "0f574a64-51a7-4a73-8f91-e40bafbd60e6",
+    "approved_draft_hash": "59e174cb03a73bb5ecd92fc51969b3a6e0bcd5b0a3b2a5c7f080284fa325e7ad",
+    "approved_recipient_hash": "1a1361f4096a34e3b250f0e421b2a3a504964b0a0dc806dfe3191056acbf480a",
+    "workflow_id": "claim-denial-letter",
+    "mailing_method": "certified",
+    "response_pages": "3",
+    "supporting_pages": "0",
+    "owner_user_id": "studio-test-user",
+    "pricing_source": "canonical",
+    "quote_total_cents": "4493"
+  },
+  "webhookDeliveries": 3,
+  "fulfillmentInvocations": 1
+}

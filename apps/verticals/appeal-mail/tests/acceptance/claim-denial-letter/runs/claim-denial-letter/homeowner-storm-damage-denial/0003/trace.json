@@ -1,0 +1,202 @@
+[
+  {
+    "event": "workflow_started",
+    "at": "2026-09-15T00:45:23.747Z",
+    "detail": {
+      "workflowId": "claim-denial-letter",
+      "scenarioId": "homeowner-storm-damage-denial"
+    }
+  },
+  {
+    "event": "fixture_loaded",
+    "at": "2026-09-15T00:45:23.747Z",
+    "detail": {
+      "uploads": [
+        "upl_claim_denial"
+      ]
+    }
+  },
+  {
+    "event": "analyze",
+    "at": "2026-09-15T00:45:23.895Z",
+    "durationMs": 95
+  },
+  {
+    "event": "upload_added",
+    "at": "2026-09-15T00:45:23.896Z",
+    "detail": {
+      "uploadId": "upl_claim_denial"
+    }
+  },
+  {
+    "event": "analysis_completed",
+    "at": "2026-09-15T00:45:23.896Z",
+    "detail": {
+      "appealId": "2b71f126-c9b1-4d95-811a-e02ef29b28f1"
+    }
+  },
+  {
+    "event": "document_generated",
+    "at": "2026-09-15T00:45:23.900Z",
+    "durationMs": 4
+  },
+  {
+    "event": "packet_started",
+    "at": "2026-09-15T00:45:23.919Z",
+    "durationMs": 6
+  },
+  {
+    "event": "packet_completed",
+    "at": "2026-09-15T00:45:23.922Z",
+    "detail": {
+      "packetId": "0f574a64-51a7-4a73-8f91-e40bafbd60e6",
+      "review": {
+        "score": 84,
+        "checks": [
+          {
+            "id": "deadline_expired",
+            "label": "Deadline not expired",
+            "description": "The appeal deadline has not passed.",
+            "status": "pass"
+          },
+          {
+            "id": "deadline_urgent",
+            "label": "Deadline is not urgent",
+            "description": "More than 7 days remain before the deadline.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_deadline",
+            "label": "Deadline identified",
+            "description": "An appeal deadline has been identified from the decision.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_recipient",
+            "label": "Recipient specified",
+            "description": "A mailing recipient has been provided.",
+            "status": "pass"
+          },
+          {
+            "id": "no_grounds",
+            "label": "Appeal grounds established",
+            "description": "At least one appeal ground has been defined.",
+            "status": "pass",
+            "detail": "1 ground(s) defined."
+          },
+          {
+            "id": "weak_grounds",
+            "label": "Grounds are well-supported",
+            "description": "All grounds have claims and reasonable confidence.",
+            "status": "pass"
+          },
+          {
+            "id": "unsupported_claims",
+            "label": "All claims supported",
+            "description": "Every appeal ground has supporting evidence.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_evidence",
+            "label": "Evidence attached",
+            "description": "At least one piece of evidence has been attached.",
+            "status": "pass",
+            "detail": "2 item(s) attached."
+          },
+          {
+            "id": "unlinked_evidence",
+            "label": "Evidence linked to grounds",
+            "description": "All evidence is linked to at least one ground.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_outcome",
+            "label": "Requested outcome stated",
+            "description": "The draft states what outcome is being requested.",
+            "status": "pass"
+          },
+          {
+            "id": "missing_signature",
+            "label": "Signature placeholder present",
+            "description": "The draft includes a signature line.",
+            "status": "warning",
+            "detail": "Replace the [Your Name] placeholder with your actual name before mailing."
+          },
+          {
+            "id": "nonexistent_exhibits",
+            "label": "Exhibit references valid",
+            "description": "All exhibit references in the draft correspond to attached evidence.",
+            "status": "pass"
+          },
+          {
+            "id": "incomplete_packet",
+            "label": "Packet complete",
+            "description": "Appeal letter and all referenced exhibits are assembled.",
+            "status": "pass"
+          },
+          {
+            "id": "incomplete_instructions",
+            "label": "Appeal instructions reviewed",
+            "description": "Appeal instructions from the decision have been reviewed.",
+            "status": "warning",
+            "detail": "No appeal instructions extracted from the decision."
+          },
+          {
+            "id": "inconsistent_dates",
+            "label": "Dates are consistent",
+            "description": "Dates in the draft match the decision.",
+            "status": "pass"
+          },
+          {
+            "id": "contradictory_statements",
+            "label": "No contradictions detected",
+            "description": "The draft does not contradict the decision facts.",
+            "status": "pass"
+          }
+        ],
+        "issuesRequiringAttention": 2,
+        "generatedAt": "2026-09-15T00:45:23.916Z"
+      }
+    }
+  },
+  {
+    "event": "payment_requested",
+    "at": "2026-09-15T00:45:23.948Z",
+    "durationMs": 26
+  },
+  {
+    "event": "payment_simulated_success",
+    "at": "2026-09-15T00:45:25.583Z",
+    "durationMs": 1635
+  },
+  {
+    "event": "payment_webhook_processed",
+    "at": "2026-09-15T00:45:25.583Z",
+    "detail": {
+      "status": 200,
+      "body": {
+        "received": true
+      }
+    }
+  },
+  {
+    "event": "page_rendering",
+    "at": "2026-09-15T00:45:29.117Z",
+    "detail": {
+      "rendered": true,
+      "pageCount": 3
+    }
+  },
+  {
+    "event": "mail_simulation_started",
+    "at": "2026-09-15T00:45:29.117Z"
+  },
+  {
+    "event": "mail_simulation_completed",
+    "at": "2026-09-15T00:45:29.118Z"
+  },
+  {
+    "event": "test_finished",
+    "at": "2026-09-15T00:45:29.119Z"
+  }
+]

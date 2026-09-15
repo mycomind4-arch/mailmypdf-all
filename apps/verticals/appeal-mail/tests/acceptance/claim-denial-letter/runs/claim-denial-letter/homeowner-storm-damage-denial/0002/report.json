@@ -1,0 +1,48 @@
+{
+  "runId": "0002",
+  "workflow": "claim-denial-letter",
+  "scenario": "homeowner-storm-damage-denial",
+  "startedAt": "2026-09-15T00:43:17.123Z",
+  "finishedAt": "2026-09-15T00:43:20.608Z",
+  "status": "failed",
+  "mailReady": false,
+  "checks": {
+    "workflow": "pass",
+    "uploads": "pass",
+    "analysis": "pass",
+    "documentGeneration": "pass",
+    "packetAssembly": "pass",
+    "payment": "pass",
+    "paymentIdempotency": "pass",
+    "requestedUploads": "fail",
+    "pdfPreflight": "fail",
+    "mailSimulation": "pass",
+    "mailDuplicateProtection": "pass"
+  },
+  "failures": [
+    {
+      "code": "PACKET_UPLOAD_MISSING",
+      "message": "1 of 1 upload(s) marked includeInMail were not present in the final mailed PDF.",
+      "severity": "hard_failure",
+      "context": {
+        "requestedUploadIds": [
+          "upl_claim_denial"
+        ]
+      }
+    },
+    {
+      "code": "PDF_PLACEHOLDER_PRESENT",
+      "message": "Mailed PDF contains unresolved placeholder text: [Your Name]. Root cause: apps/verticals/appeal-mail/src/routes/api/workflows/claim-denial-letter/draft.ts unconditionally appends \"\\n\\nSincerely,\\n[Your Name]\" to the persisted draft regardless of what the AI drafted or whether the customer later edits it in the wizard textarea -- see src/domain/review.ts's missing_signature check (now warns on this, but does not block approval) and context/FACTORY_STATUS.md for the full list of ~24 affected workflows.",
+      "severity": "hard_failure"
+    }
+  ],
+  "qualityFindings": [],
+  "artifacts": {
+    "report": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002/report.json",
+    "trace": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002/trace.json",
+    "manifest": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002/packet-manifest.json",
+    "packet": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002/packet/mail-ready-packet.pdf",
+    "screenshots": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002/screenshots",
+    "runDir": "/Users/macdizzle/dev/mailmypdf-all/apps/verticals/appeal-mail/tests/acceptance/claim-denial-letter/runs/claim-denial-letter/homeowner-storm-damage-denial/0002"
+  }
+}

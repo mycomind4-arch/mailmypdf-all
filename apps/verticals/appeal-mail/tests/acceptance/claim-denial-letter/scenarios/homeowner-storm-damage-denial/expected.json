@@ -1,0 +1,7 @@
+{
+  "mustContain": ["Morgan T. Ellis", "BMI-2026-0932-HC", "wear and tear"],
+  "mustNotContain": ["{{", "TODO", "undefined", "[object Object]", "lorem ipsum"],
+  "mustIncludeUploads": ["upl_claim_denial"],
+  "mustGenerate": ["response_letter"],
+  "minPageCount": 1
+}

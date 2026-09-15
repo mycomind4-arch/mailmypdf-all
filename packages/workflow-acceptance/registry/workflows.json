@@ -6,5 +6,13 @@
     "acceptanceTestFile": "tests/acceptance/car-insurance-appeal/run.acceptance.ts",
     "scenariosDir": "tests/acceptance/car-insurance-appeal/scenarios",
     "runsDir": "tests/acceptance/car-insurance-appeal/runs"
+  },
+  "claim-denial-letter": {
+    "vertical": "appeal-mail",
+    "verticalDir": "apps/verticals/appeal-mail",
+    "acceptanceConfig": "vitest.acceptance.config.ts",
+    "acceptanceTestFile": "tests/acceptance/claim-denial-letter/run.acceptance.ts",
+    "scenariosDir": "tests/acceptance/claim-denial-letter/scenarios",
+    "runsDir": "tests/acceptance/claim-denial-letter/runs"
   }
 }
