@@ -11,7 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { publicWorkflowAuthorityPages, type WorkflowAuthorityPageData } from "@/lib/workflow-authority-registry";
+import { publicWorkflowAuthorityPages, workflowAuthorityPages, type WorkflowAuthorityPageData } from "@/lib/workflow-authority-registry";
 import {
   categoryForWorkflow,
   publicVerticalById,
@@ -20,7 +20,14 @@ import {
 } from "@/lib/public-verticals";
 import { absoluteUrl } from "@/lib/site-url";
 
-function pagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageData[] {
+function directoryPagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageData[] {
+  // Product discovery and SEO publication are separate concerns. Registered
+  // workflows remain browsable even while their authority page is noindex.
+  return workflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
+}
+
+function indexablePagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageData[] {
+  // Only Authority-Gate-approved pages belong in indexable structured data.
   return publicWorkflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
 }
 
@@ -59,7 +66,7 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
         "@context": "https://schema.org",
         "@type": "ItemList",
         name: `${config.product} workflows`,
-        itemListElement: pagesFor(config).map((page, index) => ({
+        itemListElement: indexablePagesFor(config).map((page, index) => ({
           "@type": "ListItem",
           position: index + 1,
           name: page.title,
@@ -91,7 +98,7 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
 export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
   const config = publicVerticalById(id);
   if (!config) return null;
-  const pages = pagesFor(config);
+  const pages = directoryPagesFor(config);
   const featured = pages.slice(0, 6);
 
   return (
@@ -247,7 +254,7 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All workflows");
   if (!config) return null;
-  const pages = pagesFor(config);
+  const pages = directoryPagesFor(config);
   const directoryItems = pages.map((page) => ({
     page,
     category: categoryForWorkflow(config, `${page.title} ${page.description} ${page.path}`),
