@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { runsDir, runDir, appendEvent, git, prepareWorktree } from "./orchestrator";
+import { runsDir, runDir, appendEvent, git, prepareWorktree, cleanupWorktree } from "./orchestrator";
 import { runAgentCli, extractProviderSessionId, extractReplyText } from "./providers";
 import { runTester, runReviewer, runSeoCheck } from "./roles";
 import type { AgentProviderName, ChatSession, ChatMessage, RunEvent } from "./types";
@@ -222,4 +222,25 @@ export async function runChatGate(input: {
   session.status = "idle";
   await writeSession(input.repoRoot, session);
   return session;
+}
+
+/**
+ * Closes a chat session: removes its worktree and branch, since — unlike a
+ * batch run — nothing else in this file ever did. A chat session has no
+ * natural "done" point the way a batch run's merge/cancel does (the whole
+ * point is the user can keep coming back to it), so this has to be an
+ * explicit action rather than something triggered automatically. session.json
+ * and events.jsonl are left in place as history; only the worktree and its
+ * branch are removed, and a running message must be stopped first.
+ */
+export async function closeChatSession(repoRoot: string, sessionId: string): Promise<{ pass: boolean; detail: string }> {
+  const session = await getChatSession(repoRoot, sessionId);
+  if (!session) return { pass: false, detail: "Session not found." };
+  if (session.status === "running") return { pass: false, detail: "Stop the in-flight message before closing this session." };
+  const result = await cleanupWorktree(repoRoot, session);
+  if (result.pass) {
+    session.closedAt = new Date().toISOString();
+    await writeSession(repoRoot, session);
+  }
+  return result;
 }

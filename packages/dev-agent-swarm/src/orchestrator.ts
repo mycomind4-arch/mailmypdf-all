@@ -256,6 +256,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     state.status = "cancelled";
     await emit("orchestrator", "run.cancelled");
     await writeRunState(repoRoot, state);
+    await cleanupWorktree(repoRoot, state);
     return;
   }
 
@@ -306,6 +307,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       state.status = "cancelled";
       await emit("orchestrator", "run.cancelled");
       await writeRunState(repoRoot, state);
+      await cleanupWorktree(repoRoot, state);
       return;
     }
     if (results.some((result) => !result.approved)) {
@@ -354,6 +356,9 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   state.mergedInto = INTEGRATION_BRANCH;
   await emit("orchestrator", "merge.done", `Merged into ${INTEGRATION_BRANCH}.`);
   await writeRunState(repoRoot, state);
+  // The run's own branch is now fully captured in INTEGRATION_BRANCH's
+  // history — its worktree and branch have served their purpose.
+  await cleanupWorktree(repoRoot, state);
 }
 
 async function runWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
@@ -442,6 +447,52 @@ async function runInstall(cwd: string, onOutput: (chunk: string) => void): Promi
     child.on("close", (code) => resolve({ pass: code === 0, detail: output || `pnpm install exited ${code}` }));
     child.on("error", (error) => resolve({ pass: false, detail: String(error) }));
   });
+}
+
+/**
+ * Removes a run/session's worktree and branch. Nothing in this package
+ * called this before it existed — every batch run and every chat session
+ * left its worktree directory and its `agent/*`/`agent/chat-*` branch behind
+ * permanently, with no cleanup path at all, growing unbounded the moment the
+ * swarm was ever actually used. Safe to call on a run/session in any state;
+ * a still-running one is stopped first. `git worktree remove` handles the
+ * normal case; if a worktree is dirty or its administrative files are
+ * already gone, fall back to `--force` and then a plain directory removal so
+ * this never leaves an orphaned worktree registration behind.
+ */
+export async function cleanupWorktree(
+  repoRoot: string,
+  info: { worktreeDir: string; branch: string },
+): Promise<{ pass: boolean; detail: string }> {
+  const remove = await git(repoRoot, ["worktree", "remove", info.worktreeDir, "--force"]);
+  if (remove.exitCode !== 0) {
+    // The worktree's own directory may already be half-gone (e.g. a prior
+    // partial cleanup) while git still has it registered — prune first, then
+    // make sure the directory itself doesn't linger either way.
+    await git(repoRoot, ["worktree", "prune"]);
+    await fs.rm(info.worktreeDir, { recursive: true, force: true });
+  }
+  const branchDelete = await git(repoRoot, ["branch", "-D", info.branch]);
+  const detail = [remove.stderr, branchDelete.exitCode !== 0 ? branchDelete.stderr : ""].filter(Boolean).join(" / ");
+  return { pass: true, detail: detail || "Worktree and branch removed." };
+}
+
+/**
+ * Manual cleanup for a run a human has finished reviewing — the batch-run
+ * equivalent of closing a chat session. executeRun already cleans up
+ * automatically once a run reaches "merged" or "cancelled", where nothing
+ * further needs human eyes; "needs_human" and "failed" runs keep their
+ * worktree until this is called explicitly, since those are exactly the
+ * states where someone may want to inspect what the agents actually did.
+ * run.json/events.jsonl (small, no worktree content) are left in place as
+ * the audit trail; only the worktree directory and its branch are removed.
+ */
+export async function cleanupRun(repoRoot: string, runId: string): Promise<{ pass: boolean; detail: string }> {
+  const raw = await fs.readFile(path.join(runDir(repoRoot, runId), "run.json"), "utf8").catch(() => null);
+  if (!raw) return { pass: false, detail: "Run not found." };
+  const state = JSON.parse(raw) as RunState;
+  if (state.status === "running") return { pass: false, detail: "Stop the run before cleaning it up." };
+  return cleanupWorktree(repoRoot, state);
 }
 
 /** Lists run summaries for Studio's run list, newest first. */

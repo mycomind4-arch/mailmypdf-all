@@ -82,4 +82,6 @@ export type ChatSession = {
   status: "idle" | "running";
   createdAt: string;
   updatedAt: string;
+  /** Set once closeChatSession has removed this session's worktree/branch. */
+  closedAt?: string;
 };

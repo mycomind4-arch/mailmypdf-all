@@ -33,10 +33,12 @@ import { Route as ApiStudioRunRouteImport } from './routes/api/studio/run'
 import { Route as DevMatterPreviewStepRouteImport } from './routes/dev/matter-preview.$step'
 import { Route as MattersMatterIdStepRouteImport } from './routes/matters/$matterId/$step'
 import { Route as ApiStudioAcceptanceTestRouteImport } from './routes/api/studio/acceptance/test'
+import { Route as ApiStudioAgentsCleanupRouteImport } from './routes/api/studio/agents/cleanup'
 import { Route as ApiStudioAgentsLaunchRouteImport } from './routes/api/studio/agents/launch'
 import { Route as ApiStudioAgentsRunsRouteImport } from './routes/api/studio/agents/runs'
 import { Route as ApiStudioAgentsStopRouteImport } from './routes/api/studio/agents/stop'
 import { Route as ApiStudioAgentsStreamRouteImport } from './routes/api/studio/agents/stream'
+import { Route as ApiStudioChatCloseRouteImport } from './routes/api/studio/chat/close'
 import { Route as ApiStudioChatGateRouteImport } from './routes/api/studio/chat/gate'
 import { Route as ApiStudioChatMessageRouteImport } from './routes/api/studio/chat/message'
 import { Route as ApiStudioChatSessionsRouteImport } from './routes/api/studio/chat/sessions'
@@ -172,6 +174,11 @@ const ApiStudioAcceptanceTestRoute = ApiStudioAcceptanceTestRouteImport.update({
   path: '/api/studio/acceptance/test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStudioAgentsCleanupRoute = ApiStudioAgentsCleanupRouteImport.update({
+  id: '/api/studio/agents/cleanup',
+  path: '/api/studio/agents/cleanup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStudioAgentsLaunchRoute = ApiStudioAgentsLaunchRouteImport.update({
   id: '/api/studio/agents/launch',
   path: '/api/studio/agents/launch',
@@ -190,6 +197,11 @@ const ApiStudioAgentsStopRoute = ApiStudioAgentsStopRouteImport.update({
 const ApiStudioAgentsStreamRoute = ApiStudioAgentsStreamRouteImport.update({
   id: '/api/studio/agents/stream',
   path: '/api/studio/agents/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioChatCloseRoute = ApiStudioChatCloseRouteImport.update({
+  id: '/api/studio/chat/close',
+  path: '/api/studio/chat/close',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStudioChatGateRoute = ApiStudioChatGateRouteImport.update({
@@ -243,10 +255,12 @@ export interface FileRoutesByFullPath {
   '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
   '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/cleanup': typeof ApiStudioAgentsCleanupRoute
   '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
   '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
   '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
   '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/close': typeof ApiStudioChatCloseRoute
   '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
   '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
   '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
@@ -278,10 +292,12 @@ export interface FileRoutesByTo {
   '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
   '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/cleanup': typeof ApiStudioAgentsCleanupRoute
   '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
   '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
   '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
   '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/close': typeof ApiStudioChatCloseRoute
   '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
   '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
   '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
@@ -314,10 +330,12 @@ export interface FileRoutesById {
   '/dev/matter-preview/$step': typeof DevMatterPreviewStepRoute
   '/matters/$matterId/$step': typeof MattersMatterIdStepRoute
   '/api/studio/acceptance/test': typeof ApiStudioAcceptanceTestRoute
+  '/api/studio/agents/cleanup': typeof ApiStudioAgentsCleanupRoute
   '/api/studio/agents/launch': typeof ApiStudioAgentsLaunchRoute
   '/api/studio/agents/runs': typeof ApiStudioAgentsRunsRoute
   '/api/studio/agents/stop': typeof ApiStudioAgentsStopRoute
   '/api/studio/agents/stream': typeof ApiStudioAgentsStreamRoute
+  '/api/studio/chat/close': typeof ApiStudioChatCloseRoute
   '/api/studio/chat/gate': typeof ApiStudioChatGateRoute
   '/api/studio/chat/message': typeof ApiStudioChatMessageRoute
   '/api/studio/chat/sessions': typeof ApiStudioChatSessionsRoute
@@ -351,10 +369,12 @@ export interface FileRouteTypes {
     | '/dev/matter-preview/$step'
     | '/matters/$matterId/$step'
     | '/api/studio/acceptance/test'
+    | '/api/studio/agents/cleanup'
     | '/api/studio/agents/launch'
     | '/api/studio/agents/runs'
     | '/api/studio/agents/stop'
     | '/api/studio/agents/stream'
+    | '/api/studio/chat/close'
     | '/api/studio/chat/gate'
     | '/api/studio/chat/message'
     | '/api/studio/chat/sessions'
@@ -386,10 +406,12 @@ export interface FileRouteTypes {
     | '/dev/matter-preview/$step'
     | '/matters/$matterId/$step'
     | '/api/studio/acceptance/test'
+    | '/api/studio/agents/cleanup'
     | '/api/studio/agents/launch'
     | '/api/studio/agents/runs'
     | '/api/studio/agents/stop'
     | '/api/studio/agents/stream'
+    | '/api/studio/chat/close'
     | '/api/studio/chat/gate'
     | '/api/studio/chat/message'
     | '/api/studio/chat/sessions'
@@ -421,10 +443,12 @@ export interface FileRouteTypes {
     | '/dev/matter-preview/$step'
     | '/matters/$matterId/$step'
     | '/api/studio/acceptance/test'
+    | '/api/studio/agents/cleanup'
     | '/api/studio/agents/launch'
     | '/api/studio/agents/runs'
     | '/api/studio/agents/stop'
     | '/api/studio/agents/stream'
+    | '/api/studio/chat/close'
     | '/api/studio/chat/gate'
     | '/api/studio/chat/message'
     | '/api/studio/chat/sessions'
@@ -457,10 +481,12 @@ export interface RootRouteChildren {
   DevMatterPreviewStepRoute: typeof DevMatterPreviewStepRoute
   MattersMatterIdStepRoute: typeof MattersMatterIdStepRoute
   ApiStudioAcceptanceTestRoute: typeof ApiStudioAcceptanceTestRoute
+  ApiStudioAgentsCleanupRoute: typeof ApiStudioAgentsCleanupRoute
   ApiStudioAgentsLaunchRoute: typeof ApiStudioAgentsLaunchRoute
   ApiStudioAgentsRunsRoute: typeof ApiStudioAgentsRunsRoute
   ApiStudioAgentsStopRoute: typeof ApiStudioAgentsStopRoute
   ApiStudioAgentsStreamRoute: typeof ApiStudioAgentsStreamRoute
+  ApiStudioChatCloseRoute: typeof ApiStudioChatCloseRoute
   ApiStudioChatGateRoute: typeof ApiStudioChatGateRoute
   ApiStudioChatMessageRoute: typeof ApiStudioChatMessageRoute
   ApiStudioChatSessionsRoute: typeof ApiStudioChatSessionsRoute
@@ -638,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStudioAcceptanceTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/studio/agents/cleanup': {
+      id: '/api/studio/agents/cleanup'
+      path: '/api/studio/agents/cleanup'
+      fullPath: '/api/studio/agents/cleanup'
+      preLoaderRoute: typeof ApiStudioAgentsCleanupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/studio/agents/launch': {
       id: '/api/studio/agents/launch'
       path: '/api/studio/agents/launch'
@@ -664,6 +697,13 @@ declare module '@tanstack/react-router' {
       path: '/api/studio/agents/stream'
       fullPath: '/api/studio/agents/stream'
       preLoaderRoute: typeof ApiStudioAgentsStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/chat/close': {
+      id: '/api/studio/chat/close'
+      path: '/api/studio/chat/close'
+      fullPath: '/api/studio/chat/close'
+      preLoaderRoute: typeof ApiStudioChatCloseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/studio/chat/gate': {
@@ -733,10 +773,12 @@ const rootRouteChildren: RootRouteChildren = {
   DevMatterPreviewStepRoute: DevMatterPreviewStepRoute,
   MattersMatterIdStepRoute: MattersMatterIdStepRoute,
   ApiStudioAcceptanceTestRoute: ApiStudioAcceptanceTestRoute,
+  ApiStudioAgentsCleanupRoute: ApiStudioAgentsCleanupRoute,
   ApiStudioAgentsLaunchRoute: ApiStudioAgentsLaunchRoute,
   ApiStudioAgentsRunsRoute: ApiStudioAgentsRunsRoute,
   ApiStudioAgentsStopRoute: ApiStudioAgentsStopRoute,
   ApiStudioAgentsStreamRoute: ApiStudioAgentsStreamRoute,
+  ApiStudioChatCloseRoute: ApiStudioChatCloseRoute,
   ApiStudioChatGateRoute: ApiStudioChatGateRoute,
   ApiStudioChatMessageRoute: ApiStudioChatMessageRoute,
   ApiStudioChatSessionsRoute: ApiStudioChatSessionsRoute,
