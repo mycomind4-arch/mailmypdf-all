@@ -7,6 +7,7 @@ import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
 import { callAIWithDocument, parseAIJson, resolveAI } from "@/platform/control-plane-ai";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf") return "application/pdf";
@@ -30,7 +31,9 @@ export const Route = createFileRoute("/api/workflows/insurance-claim-denial/anal
 
       const document = await uploadDocument(file);
       const provider = await resolveAI("insurance-claim-denial", "analysis");
-      const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = Buffer.from(rawBytes).toString("base64");
+      const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -49,17 +52,28 @@ export const Route = createFileRoute("/api/workflows/insurance-claim-denial/anal
         evidenceMentioned?: string[]; uncertainties?: string[]; confidence?: string;
       };
 
-      const evidenceLabels = analysis.evidenceMentioned?.length ? analysis.evidenceMentioned : ["Source denial document"];
-      const evidence = evidenceLabels.map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
       const issueItems = analysis.issues?.length ? analysis.issues : [{ issue: "Review the stated denial basis against the supplied evidence", whyItMatters: "The denial should be evaluated against the actual source record.", evidenceNeeded: [] }];
       const grounds = issueItems.map((issue, index) => createGround("factual_error", {
         id: `ground-${index}-${crypto.randomUUID()}`,
         claim: issue.issue || "Review a stated denial issue",
         source: issue.whyItMatters || "Identified by document analysis",
         confidence: 0.65,
-        supportingEvidenceIds: evidence.map((item) => item.id),
         unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
+      // Evidence is linked to grounds via evidence[i].groundIds (read by
+      // src/domain/evidence.ts's unsupportedGrounds()/evidenceForGround(),
+      // which the readiness review calls) -- not ground.supportingEvidenceIds,
+      // which nothing reads. See car-insurance-appeal/analyze.ts.
+      const groundIds = grounds.map((ground) => ground.id);
+      const evidenceLabels = analysis.evidenceMentioned?.length ? analysis.evidenceMentioned : ["Source denial document"];
+      const evidence = evidenceLabels.map((label, index) => createEvidence("document", label, {
+        documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds,
+        // Only the first evidence item represents the actual uploaded file;
+        // see car-insurance-appeal/analyze.ts for why the rest must not also
+        // claim the same storage reference.
+        ...(index === 0 ? { storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash } : {}),
+      }));
+      if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const decision = createDecision("claim_denial", {
         id: crypto.randomUUID(), documentId: document.id, documentFilename: document.filename, agency: analysis.issuer || undefined,

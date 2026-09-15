@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf") return "application/pdf";
@@ -42,7 +43,9 @@ export const Route = createFileRoute("/api/workflows/insurance-coverage-denial/a
 
       const document = await uploadDocument(file);
       const gemini = await resolveGemini();
-      const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = Buffer.from(rawBytes).toString("base64");
+      const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -84,7 +87,7 @@ export const Route = createFileRoute("/api/workflows/insurance-coverage-denial/a
       }));
       const groundIds = grounds.map((ground) => ground.id);
       const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-      evidence.unshift(createEvidence("document", "Original insurance coverage denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      evidence.unshift(createEvidence("document", "Original insurance coverage denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds, storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash }));
       if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("insurance-coverage-denial", decision);

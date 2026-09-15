@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (["application/pdf", "image/png", "image/jpeg"].includes(file.type)) return file.type as never;
@@ -38,7 +39,9 @@ export const Route = createFileRoute("/api/workflows/sap-appeal/analyze")({serve
 
     const document = await uploadDocument(file);
     const gemini = await resolveGemini();
-    const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const rawBytes = new Uint8Array(await file.arrayBuffer());
+    const bytes = Buffer.from(rawBytes).toString("base64");
+    const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
     const prompt = [
       `Workflow: ${workflow.title}`,
       workflow.description,
@@ -89,7 +92,7 @@ export const Route = createFileRoute("/api/workflows/sap-appeal/analyze")({serve
     }));
     const groundIds = grounds.map((g) => g.id);
     const evidence = (analysis.documentationMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-    evidence.unshift(createEvidence("document", "Original SAP decision or notice", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+    evidence.unshift(createEvidence("document", "Original SAP decision or notice", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds, storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash }));
     if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((x) => x.id);
 
     const appeal = createAppeal("sap-appeal", decision);

@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf") return "application/pdf";
@@ -43,7 +44,9 @@ export const Route = createFileRoute("/api/workflows/medicaid-denial/analyze")({
 
       const document = await uploadDocument(file);
       const gemini = await resolveGemini();
-      const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = Buffer.from(rawBytes).toString("base64");
+      const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -89,8 +92,13 @@ export const Route = createFileRoute("/api/workflows/medicaid-denial/analyze")({
         unresolvedIssue: issue.evidenceNeeded?.join(", "),
       }));
       const groundIds = grounds.map((ground) => ground.id);
-      const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-      if (!evidence.length) evidence.push(createEvidence("document", document.filename, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      // Always retain the actual uploaded document as evidence (not just
+      // when evidenceMentioned is empty) so it's guaranteed to carry
+      // storagePath and be re-enclosed in the mail-ready packet.
+      const evidence = [createEvidence("document", "Original Medicaid denial document", {
+        documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds,
+        storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash,
+      }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
       if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("medicaid-denial", decision);

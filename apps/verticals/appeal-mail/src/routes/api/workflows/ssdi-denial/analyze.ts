@@ -7,6 +7,7 @@ import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
 import { callAIWithDocument, parseAIJson, resolveAI } from "@/platform/control-plane-ai";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf") return "application/pdf";
@@ -30,7 +31,9 @@ export const Route = createFileRoute("/api/workflows/ssdi-denial/analyze")({
 
       const document = await uploadDocument(file);
       const provider = await resolveAI("ssdi-denial", "analysis");
-      const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = Buffer.from(rawBytes).toString("base64");
+      const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -57,7 +60,10 @@ export const Route = createFileRoute("/api/workflows/ssdi-denial/analyze")({
       });
       const grounds = (analysis.issues || []).map((issue, index) => createGround("factual_error", { id: `ground-${index}-${crypto.randomUUID()}`, claim: issue.issue || "Review a stated SSDI decision issue", source: issue.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: issue.evidenceNeeded?.join(", ") }));
       const groundIds = grounds.map((ground) => ground.id);
-      const evidence = [createEvidence("document", "Original SSDI denial/decision", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
+      const evidence = [createEvidence("document", "Original SSDI denial/decision", {
+        documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds,
+        storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash,
+      }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
       if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("ssdi-denial", decision);

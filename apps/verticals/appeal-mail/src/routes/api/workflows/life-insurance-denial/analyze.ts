@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (["application/pdf", "image/png", "image/jpeg"].includes(file.type)) return file.type as never;
@@ -26,7 +27,8 @@ export const Route = createFileRoute("/api/workflows/life-insurance-denial/analy
     if (!(file instanceof File)) return Response.json({ error: "A life insurance denial is required." }, { status: 400 });
     if (!file.size) return Response.json({ error: "The source document is empty." }, { status: 400 });
     if (file.size > 20 * 1024 * 1024) return Response.json({ error: "Source documents must be 20 MB or smaller." }, { status: 413 });
-    const document = await uploadDocument(file); const gemini = await resolveGemini(); const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const document = await uploadDocument(file); const gemini = await resolveGemini(); const rawBytes = new Uint8Array(await file.arrayBuffer()); const bytes = Buffer.from(rawBytes).toString("base64");
+    const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
     const prompt = [
       `Workflow: ${workflow.title}`, workflow.description, workflow.workflowPrompt, `Focus areas: ${workflow.focusAreas.join(", ")}.`,
       "Analyze the actual life-insurance denial. Extract only supported facts and clearly distinguish insurer statements, policy text, and missing evidence.",
@@ -41,7 +43,7 @@ export const Route = createFileRoute("/api/workflows/life-insurance-denial/analy
     const grounds = (analysis.issues || []).map((x: any, i: number) => createGround("factual_error", { id: `ground-${i}-${crypto.randomUUID()}`, claim: x.issue || "Review a life-insurance finding", source: x.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: (x.evidenceNeeded || []).join(", ") }));
     const groundIds = grounds.map((g) => g.id);
     const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-    evidence.unshift(createEvidence("document", "Original life insurance denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds })); if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((x) => x.id);
+    evidence.unshift(createEvidence("document", "Original life insurance denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds, storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash })); if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map((x) => x.id);
     const appeal = createAppeal("life-insurance-denial", decision); appeal.grounds = grounds; appeal.evidence = evidence; appeal.updatedAt = new Date().toISOString();
     const supabase = await getSupabaseServer(); const { error } = await supabase.from("appeals").insert({ id: appeal.id, user_id: user.id, workflow_id: appeal.workflowId, status: appeal.status, decision: appeal.decision, grounds: appeal.grounds, evidence: appeal.evidence, arguments: appeal.arguments, draft: appeal.draft, review: null, packet: null, proof: null, timeline: appeal.timeline, version: 1, created_at: appeal.createdAt, updated_at: appeal.updatedAt }); if (error) throw new Error(`Unable to persist appeal case: ${error.message}`);
     return Response.json({ ok: true, appealId: appeal.id, workflowId: appeal.workflowId, workflow: { title: workflow.title, primaryKeyword: workflow.primaryKeyword }, document, analysis, provider: "gemini", model: gemini.model });

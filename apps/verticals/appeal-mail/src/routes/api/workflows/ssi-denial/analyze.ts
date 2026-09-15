@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf") return "application/pdf";
@@ -33,7 +34,9 @@ export const Route = createFileRoute("/api/workflows/ssi-denial/analyze")({serve
     if (file.size === 0) return Response.json({ error: "The source document is empty." }, { status: 400 });
     if (file.size > 20 * 1024 * 1024) return Response.json({ error: "Source documents must be 20 MB or smaller." }, { status: 413 });
     const document = await uploadDocument(file); const gemini = await resolveGemini();
-    const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const rawBytes = new Uint8Array(await file.arrayBuffer());
+    const bytes = Buffer.from(rawBytes).toString("base64");
+    const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
     const prompt = [
       `Workflow: ${workflow.title}`, workflow.description, workflow.workflowPrompt,
       `Focus areas: ${workflow.focusAreas.join(", ")}.`,
@@ -48,7 +51,14 @@ export const Route = createFileRoute("/api/workflows/ssi-denial/analyze")({serve
     const analysis = JSON.parse(text) as { summary?: string; decision?: string; issuer?: string; referenceNumber?: string; decisionDate?: string; deadline?: string; reasons?: string[]; keyFacts?: string[]; issues?: Array<{ issue?: string; whyItMatters?: string; evidenceNeeded?: string[] }>; evidenceMentioned?: string[]; uncertainties?: string[]; confidence?: string };
     const decision = createDecision("benefits_denial", { id: crypto.randomUUID(), documentId: document.id, documentFilename: document.filename, agency: analysis.issuer || "Social Security Administration", referenceNumber: analysis.referenceNumber || undefined, decisionDate: analysis.decisionDate || undefined, decisionTypeLabel: analysis.decision || "SSI denial", appealInstructions: undefined, deadline: analysis.deadline ? { date: analysis.deadline, type: "appeal", source: "extracted" } : undefined, facts: (analysis.keyFacts || []).map((value, index) => ({ id: `${index}-${crypto.randomUUID()}`, label: `Fact ${index + 1}`, value, source: "extracted", confidence: 0.8 })), reasons: (analysis.reasons || []).map((text, index) => ({ id: `${index}-${crypto.randomUUID()}`, text, confidence: 0.9 })), issues: (analysis.issues || []).map((item, index) => ({ id: `${index}-${crypto.randomUUID()}`, description: item.issue || "Issue identified in SSI decision", type: "factual_dispute", severity: "medium", sourceExcerpt: item.whyItMatters })), rawText: JSON.stringify(analysis), extractedAt: new Date().toISOString(), extractionConfidence: analysis.confidence === "high" ? 0.9 : analysis.confidence === "medium" ? 0.7 : 0.5 });
     const grounds = (analysis.issues || []).map((issue, index) => createGround("factual_error", { id: `ground-${index}-${crypto.randomUUID()}`, claim: issue.issue || "Review a stated SSI decision issue", source: issue.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: issue.evidenceNeeded?.join(", ") }));
-    const evidence = (analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString() }));
+    const groundIds = grounds.map((ground) => ground.id);
+    // Always retain the actual uploaded document as evidence (this route
+    // previously never represented it at all, only AI-derived labels).
+    const evidence = [createEvidence("document", "Original SSI decision/notice", {
+      documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds,
+      storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash,
+    }), ...(analysis.evidenceMentioned || []).map((label) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }))];
+    if (grounds.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
     const appeal = createAppeal("ssi-denial", decision); appeal.grounds = grounds; appeal.evidence = evidence; appeal.updatedAt = new Date().toISOString();
     const supabase = await getSupabaseServer();
     const { error } = await supabase.from("appeals").insert({ id: appeal.id, user_id: user.id, workflow_id: appeal.workflowId, status: appeal.status, decision: appeal.decision, grounds: appeal.grounds, evidence: appeal.evidence, arguments: appeal.arguments, draft: appeal.draft, review: null, packet: null, proof: null, timeline: appeal.timeline, version: 1, created_at: appeal.createdAt, updated_at: appeal.updatedAt });

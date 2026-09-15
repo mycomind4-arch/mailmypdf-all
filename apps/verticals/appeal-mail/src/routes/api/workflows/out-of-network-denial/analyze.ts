@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (file.type === "application/pdf" || file.type === "image/png" || file.type === "image/jpeg") return file.type;
@@ -43,7 +44,9 @@ export const Route = createFileRoute("/api/workflows/out-of-network-denial/analy
 
       const document = await uploadDocument(file);
       const gemini = await resolveGemini();
-      const data = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawBytes = new Uint8Array(await file.arrayBuffer());
+      const data = Buffer.from(rawBytes).toString("base64");
+      const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
       const prompt = [
         `Workflow: ${workflow.title}`,
         workflow.description,
@@ -84,7 +87,7 @@ export const Route = createFileRoute("/api/workflows/out-of-network-denial/analy
       }));
       const groundIds = grounds.map((ground) => ground.id);
       const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-      evidence.unshift(createEvidence("document", "Original out-of-network denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+      evidence.unshift(createEvidence("document", "Original out-of-network denial", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds, storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash }));
       if (grounds.length && evidence.length) grounds[0].supportingEvidenceIds = evidence.map((item) => item.id);
 
       const appeal = createAppeal("out-of-network-denial", decision);

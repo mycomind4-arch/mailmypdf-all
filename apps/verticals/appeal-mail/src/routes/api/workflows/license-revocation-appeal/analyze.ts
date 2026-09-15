@@ -6,6 +6,7 @@ import { createAppeal } from "@/domain/appeal";
 import { createGround } from "@/domain/ground";
 import { createEvidence } from "@/domain/evidence";
 import { getWorkflow } from "@/domain/workflows";
+import { retainEvidenceForMailing } from "@/platform/evidence-retention";
 
 function mediaType(file: File): "application/pdf" | "image/png" | "image/jpeg" {
   if (["application/pdf", "image/png", "image/jpeg"].includes(file.type)) return file.type as "application/pdf" | "image/png" | "image/jpeg";
@@ -31,7 +32,9 @@ export const Route = createFileRoute("/api/workflows/license-revocation-appeal/a
     if (file.size > 20 * 1024 * 1024) return Response.json({ error: "Source documents must be 20 MB or smaller." }, { status: 413 });
     const document = await uploadDocument(file);
     const gemini = await resolveGemini();
-    const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const rawBytes = new Uint8Array(await file.arrayBuffer());
+    const bytes = Buffer.from(rawBytes).toString("base64");
+    const retainedEvidence = await retainEvidenceForMailing(await getSupabaseServer(), user.id, document.id, file, rawBytes);
     const prompt = [`Workflow: ${workflow.title}`, workflow.description, workflow.workflowPrompt, `Focus areas: ${workflow.focusAreas.join(", ")}.`, "Analyze the actual license revocation decision. Extract only supported facts and distinguish agency findings from uncertain or user-supplied facts.", "Identify the issuing agency, license or case reference, revocation reason, decision date, effective date, deadline, hearing or appeal instructions, reinstatement information, records referenced, findings, disputed issues, and evidence needed.", "Do not invent jurisdiction-specific rules, deadlines, hearing rights, driving history, or legal authority.", "Return strict JSON only.", '{"summary":"","decision":"","issuer":"","referenceNumber":"","decisionDate":"","effectiveDate":"","deadline":"","appealPath":"","revocationReason":"","reinstatementInformation":"","findings":[],"evidenceMentioned":[],"issues":[{"issue":"","whyItMatters":"","evidenceNeeded":[]}],"uncertainties":[],"confidence":"high|medium|low"}'].join("\n\n");
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gemini.model)}:generateContent?key=${encodeURIComponent(gemini.apiKey)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ inlineData: { mimeType: mediaType(file), data: bytes } }, { text: gemini.promptOverride || prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.1 } }) });
     const body = await response.json().catch(() => null) as any;
@@ -43,7 +46,7 @@ export const Route = createFileRoute("/api/workflows/license-revocation-appeal/a
     const grounds = (analysis.issues || []).map((x: any, i: number) => createGround("factual_error", { id: `ground-${i}-${crypto.randomUUID()}`, claim: x.issue || "Review a stated revocation finding", source: x.whyItMatters || "Identified by document analysis", confidence: 0.65, unresolvedIssue: (x.evidenceNeeded || []).join(", ") }));
     const groundIds = grounds.map((g) => g.id);
     const evidence = (analysis.evidenceMentioned || []).map((label: string) => createEvidence("document", label, { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
-    evidence.unshift(createEvidence("document", "Original license revocation decision", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds }));
+    evidence.unshift(createEvidence("document", "Original license revocation decision", { documentId: document.id, documentFilename: document.filename, uploadedAt: new Date().toISOString(), groundIds, storagePath: retainedEvidence.storagePath, mimeType: retainedEvidence.mimeType, fileSize: retainedEvidence.fileSize, hash: retainedEvidence.hash }));
     if (evidence.length && grounds.length) grounds[0].supportingEvidenceIds = evidence.map(x => x.id);
     const appeal = createAppeal("license-revocation-appeal", decision);
     appeal.grounds = grounds; appeal.evidence = evidence; appeal.updatedAt = new Date().toISOString();
