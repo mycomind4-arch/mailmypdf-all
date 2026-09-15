@@ -183,12 +183,32 @@ export const Route = createFileRoute("/api/checkout")({
           const appUrl =
             process.env.APP_URL || new URL(request.url).origin;
 
+          // Verify correspondence ownership before attaching it as a
+          // reference on this user's mailing intent — mirrors the caseId
+          // ownership check in dispute-mail's /api/checkout.
+          let ownedCorrespondenceId: string | null = null;
+          if (input?.correspondenceId) {
+            const { data: ownedCorrespondence } = await supabase
+              .from("case_correspondence")
+              .select("id")
+              .eq("id", input.correspondenceId)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (!ownedCorrespondence) {
+              return Response.json(
+                { error: "Correspondence not found." },
+                { status: 404 }
+              );
+            }
+            ownedCorrespondenceId = ownedCorrespondence.id;
+          }
+
           const { data: intent, error: intentError } = await supabase
             .from("mailing_intents")
             .insert({
               user_id: user.id,
               workflow_id: workflowId,
-              correspondence_id: input?.correspondenceId || null,
+              correspondence_id: ownedCorrespondenceId,
               status: "pending",
               mailing_method: method,
               draft_content: draft,
