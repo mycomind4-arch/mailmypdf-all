@@ -29,7 +29,7 @@ export const Route = createFileRoute("/products")({
               <h2 className="mt-2 font-serif text-xl">{p.name}</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{p.description}</p>
               {p.status === "planned" && (
-                <span className="mt-3 inline-block rounded-full border border-rule px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Coming Soon</span>
+                <span className="mt-3 inline-block rounded-full border border-rule px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">In development</span>
               )}
               {p.status === "beta" && (
                 <span className="mt-3 inline-block rounded-full border border-violet-300/50 bg-violet-50 px-2.5 py-1 text-[10px] uppercase tracking-wider text-violet-800">Beta · workflow available</span>
