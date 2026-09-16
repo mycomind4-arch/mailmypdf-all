@@ -18,12 +18,13 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import type { PlatformId } from "@mailmypdf/core";
-import type { DocumentKind, PageMetadata, SourceRef } from "@mailmypdf/documents";
 import type {
   DocumentExtractionRequest,
   DocumentIntelligenceProvider,
-  ExtractedDocument,
+  ProviderExtractedDocument,
   ExtractedTable,
+  SourceRef,
+  ExtractedPage,
 } from "./index.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -42,7 +43,7 @@ export class PdfJsProvider implements DocumentIntelligenceProvider {
     this.maxPages = config.maxPages ?? 500;
   }
 
-  async extract(request: DocumentExtractionRequest): Promise<ExtractedDocument> {
+  async extract(request: DocumentExtractionRequest): Promise<ProviderExtractedDocument> {
     const arrayBuffer = request.content.buffer.slice(
       request.content.byteOffset,
       request.content.byteOffset + request.content.byteLength,
@@ -57,7 +58,7 @@ export class PdfJsProvider implements DocumentIntelligenceProvider {
     const pdf = await loadingTask.promise;
     const pageCount = Math.min(pdf.numPages, this.maxPages);
 
-    const pages: PageMetadata[] = [];
+    const pages: ExtractedPage[] = [];
     const sourceRefs: SourceRef[] = [];
     const warnings: string[] = [];
     const pageTexts: string[] = [];
@@ -76,17 +77,19 @@ export class PdfJsProvider implements DocumentIntelligenceProvider {
       pages.push({
         pageNumber: i,
         text: pageText,
-        charCount: pageText.length,
       });
 
       // Collect source refs from text items with position info
       for (const item of textContent.items) {
         if ("str" in item && item.str.length > 2) {
           sourceRefs.push({
+            documentId: String(request.documentId),
+            documentName: request.filename,
             page: i,
-            text: item.str,
-            bbox: "transform" in item ? [item.transform[4], item.transform[5], 0, 0] : [0, 0, 0, 0],
-          } as SourceRef);
+            excerpt: item.str.slice(0, 200),
+            extractionMethod: "pdf_text",
+            confidence: 0.95,
+          });
         }
       }
     }
@@ -98,10 +101,11 @@ export class PdfJsProvider implements DocumentIntelligenceProvider {
       warnings.push("PDF appears to be image-only (scanned). No extractable text found. Use OCR for content extraction.");
     }
 
-    const kind: DocumentKind = isImageOnly ? "image" : "pdf";
+    const kind = isImageOnly ? "image_only_pdf" as const : "text_pdf" as const;
 
     return {
       documentId: request.documentId,
+      documentName: request.filename,
       kind,
       text,
       pages,

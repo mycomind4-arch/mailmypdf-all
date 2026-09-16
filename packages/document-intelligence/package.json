@@ -6,12 +6,17 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "pdfjs-dist": "^4.0.0"
+    "pdfjs-dist": "^4.0.0",
+    "@mailmypdf/core": "workspace:*",
+    "@mailmypdf/documents": "workspace:*"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }

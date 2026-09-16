@@ -10,6 +10,9 @@
  * Document content is DATA, never INSTRUCTIONS.
  */
 
+import type { PlatformId } from "@mailmypdf/core";
+import { computeSha256 } from "@mailmypdf/documents";
+
 // ── Types ─────────────────────────────────────────────────────
 
 export type ExtractionMethod = "pdf_text" | "text_plain" | "ocr_required" | "empty";
@@ -45,19 +48,8 @@ export interface ExtractedDocument {
 
 // ── Hash ──────────────────────────────────────────────────────
 
-async function sha256(buffer: ArrayBuffer): Promise<string> {
-  if (typeof crypto !== "undefined" && crypto.subtle) {
-    const hash = await crypto.subtle.digest("SHA-256", buffer);
-    return Array.from(new Uint8Array(hash))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  let h = 0;
-  const view = new Uint8Array(buffer);
-  for (let i = 0; i < view.length; i++) {
-    h = ((h << 5) - h + view[i]) | 0;
-  }
-  return `fallback-${h.toString(16)}`;
+function sha256(buffer: ArrayBuffer): string {
+  return computeSha256(new Uint8Array(buffer));
 }
 
 // ── PDF.js lazy import ────────────────────────────────────────
@@ -254,4 +246,44 @@ export function createSourceRef(
   };
 }
 
+
+// ── Provider-neutral extraction contract ─────────────────────
+
+export interface DocumentExtractionRequest {
+  documentId: PlatformId;
+  contentType: string;
+  content: Uint8Array;
+  filename: string;
+}
+
+export interface ExtractedTable {
+  page?: number;
+  rows: readonly (readonly string[])[];
+}
+
+export type ProviderDocumentKind =
+  | "text_pdf"
+  | "image_only_pdf"
+  | "image"
+  | "text"
+  | "unknown";
+
+export interface ProviderExtractedDocument {
+  documentId: PlatformId;
+  documentName: string;
+  kind: ProviderDocumentKind;
+  text: string;
+  pages: readonly ExtractedPage[];
+  tables: readonly ExtractedTable[];
+  sourceRefs: readonly SourceRef[];
+  warnings: readonly string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface DocumentIntelligenceProvider {
+  readonly name: string;
+  extract(request: DocumentExtractionRequest): Promise<ProviderExtractedDocument>;
+}
+
 export * from "./vision.js";
+export * from "./docling-provider.js";
