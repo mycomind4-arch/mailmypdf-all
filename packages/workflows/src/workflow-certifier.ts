@@ -1,5 +1,6 @@
 import { composeWorkflow } from "./workflow-factory.js";
 import { getPipeline } from "./pipeline-registry.js";
+import { certifyWorkflowCapabilities } from "./capability-certification.js";
 import { getWorkflowAuthorityPage } from "./workflow-page-registry.js";
 import type { WorkflowManifest } from "./workflow-manifest.js";
 
@@ -43,6 +44,30 @@ export function certifyWorkflowManifest(manifest: WorkflowManifest): WorkflowCer
     passed: routeMatchesPage,
     message: routeMatchesPage ? "Workflow route matches authority-page canonical path." : `Route mismatch: ${manifest.route} vs ${page?.canonicalPath}.`,
   });
+
+  const capabilities = certifyWorkflowCapabilities(manifest);
+  checks.push({
+    id: "capability-dependencies",
+    passed:
+      capabilities.dependencyErrors.length === 0 &&
+      capabilities.nonProductionRequired.length === 0,
+    message:
+      capabilities.dependencyErrors.length === 0 &&
+      capabilities.nonProductionRequired.length === 0
+        ? "Required capability dependencies are implemented at production status."
+        : capabilities.issues.map((issue) => issue.message).join(" "),
+  });
+
+  if (manifest.maturity === "production-verified") {
+    checks.push({
+      id: "production-capability-baseline",
+      passed: capabilities.productionBaselineMissing.length === 0,
+      message:
+        capabilities.productionBaselineMissing.length === 0
+          ? "Production capability baseline is complete."
+          : `Missing production baseline: ${capabilities.productionBaselineMissing.join(", ")}.`,
+    });
+  }
 
   const goldEligible = ["gold", "production-verified"].includes(manifest.maturity);
   if (goldEligible) {
