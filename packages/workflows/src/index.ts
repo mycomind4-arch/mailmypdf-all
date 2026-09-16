@@ -41,3 +41,5 @@ export * from "./platform-capability-bundle.js";
 export * from "./durable-manifest-runner.js";
 
 export * from "./workflow-conditions.js";
+
+export * from "./draft-validator.js";
