@@ -20,3 +20,6 @@ export * from "./capability-registry.js";
 
 export * from "./execution-reliability.js";
 export * from "./workflow-observability.js";
+
+export * from "./capability-runtime.js";
+export * from "./define-workflow.js";

@@ -8,6 +8,8 @@ const STAGE_ORDER: readonly PipelineStage[] = [
   "blockingGate", "review", "approval", "mailing", "tracking", "proofAudit",
 ];
 
+const CONSEQUENTIAL_STAGES = new Set<PipelineStage>(["review", "approval", "mailing", "tracking", "proofAudit"]);
+
 type StageFn = (input: GoldStandardInput, prior: readonly StageResult[]) => Promise<StageResult>;
 
 const methodFor: Readonly<Record<PipelineStage, keyof DomainPack>> = {
@@ -20,8 +22,7 @@ const methodFor: Readonly<Record<PipelineStage, keyof DomainPack>> = {
 };
 
 function method(pack: DomainPack, stage: PipelineStage): StageFn {
-  const fn = pack[methodFor[stage]] as unknown as StageFn;
-  return fn;
+  return pack[methodFor[stage]] as unknown as StageFn;
 }
 
 export async function runConfiguredPipeline(
@@ -32,7 +33,10 @@ export async function runConfiguredPipeline(
   enabledOptionalStages: readonly PipelineStage[] = [],
 ): Promise<PipelineResult> {
   const pipeline = getPipeline(pipelineId);
-  const active = new Set<PipelineStage>([...pipeline.requiredStages as PipelineStage[], ...enabledOptionalStages]);
+  const active = new Set<PipelineStage>([
+    ...(pipeline.requiredStages as PipelineStage[]),
+    ...enabledOptionalStages,
+  ]);
   const stages: StageResult[] = [];
 
   const push = async (stage: PipelineStage): Promise<boolean> => {
@@ -43,34 +47,51 @@ export async function runConfiguredPipeline(
         return false;
       }
       stages.push(result);
-      return result.status !== "failed" && result.status !== "blocked" && result.status !== "warning";
+      // Fail closed: warnings require resolution before consequential action.
+      return result.status === "passed";
     } catch (error) {
       stages.push({ stage, status: "failed", messages: [error instanceof Error ? error.message : String(error)] });
       return false;
     }
   };
 
+  // Intelligence/preparation stages must complete before the blocking gate.
   for (const stage of STAGE_ORDER) {
-    if (stage === "blockingGate" || !active.has(stage)) continue;
+    if (stage === "blockingGate" || CONSEQUENTIAL_STAGES.has(stage) || !active.has(stage)) continue;
     if (!(await push(stage))) {
-      stages.push({ stage: "blockingGate", status: "blocked", messages: [`Required stage ${stage} did not pass.`] });
+      stages.push({
+        stage: "blockingGate",
+        status: "blocked",
+        messages: [`Required stage ${stage} did not pass.`],
+      });
       return { workflowId, status: "blocked", stages };
     }
   }
 
-  const blockingGate: StageResult = { stage: "blockingGate", status: "passed", messages: ["Configured pipeline intelligence passed; consequential stages remain gated."] };
-  stages.push(blockingGate);
+  stages.push({
+    stage: "blockingGate",
+    status: "passed",
+    messages: ["Configured pipeline preparation passed; consequential stages may now proceed through explicit gates."],
+  });
 
+  // Consequential stages execute exactly once, and only after the gate.
   for (const stage of ["review", "approval", "mailing", "tracking", "proofAudit"] as const) {
     if (!active.has(stage)) continue;
     if (!(await push(stage))) return { workflowId, status: "blocked", stages };
   }
 
-  return { workflowId, status: active.has("review") ? "completed" : "ready_for_review", stages };
+  return {
+    workflowId,
+    status: active.has("review") ? "completed" : "ready_for_review",
+    stages,
+  };
 }
 
-export function configuredPipelineStages(pipelineId: PipelineId, enabledOptionalStages: readonly PipelineStage[] = []): readonly PipelineStage[] {
+export function configuredPipelineStages(
+  pipelineId: PipelineId,
+  enabledOptionalStages: readonly PipelineStage[] = [],
+): readonly PipelineStage[] {
   const pipeline = getPipeline(pipelineId);
-  return [...new Set([...pipeline.requiredStages as PipelineStage[], ...enabledOptionalStages])]
+  return [...new Set([...(pipeline.requiredStages as PipelineStage[]), ...enabledOptionalStages])]
     .sort((a, b) => STAGE_ORDER.indexOf(a) - STAGE_ORDER.indexOf(b));
 }

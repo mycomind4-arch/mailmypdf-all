@@ -98,3 +98,14 @@ describe("gold-standard pipeline", () => {
     assert.equal(isGoldStandardPipeline(result), false);
   });
 });
+
+
+test("warning in preparation blocks Gold consequential stages", async () => {
+  const pack = makePack();
+  let mailed = false;
+  pack.risk = async () => ({ stage: "risk", status: "warning", messages: ["uncertainty remains"] });
+  pack.mailing = async () => { mailed = true; return passed("mailing"); };
+  const result = await runGoldStandardPipeline("fixture", pack, { documents: [] });
+  assert.equal(result.status, "blocked");
+  assert.equal(mailed, false);
+});

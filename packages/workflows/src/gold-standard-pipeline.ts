@@ -103,7 +103,7 @@ export async function runGoldStandardPipeline(
         return false;
       }
       stages.push(result);
-      return result.status !== "failed" && result.status !== "blocked";
+      // Fail closed: a warning represents unresolved state and must be resolved before consequential action.\n      return result.status === "passed";
     } catch (error) {
       stages.push({ stage, status: "failed", messages: [error instanceof Error ? error.message : String(error)] });
       return false;

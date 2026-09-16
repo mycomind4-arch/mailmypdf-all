@@ -3,8 +3,56 @@ import type { AdapterId } from "./adapter-registry.js";
 import type { PipelineId } from "./pipeline-registry.js";
 
 export type WorkflowMaturity = "catalog" | "placeholder" | "wired" | "executable" | "gold" | "production-verified";
-
 export type WorkflowCapability = CapabilityId;
+
+export type WorkflowStepManifest = {
+  id: string;
+  title: string;
+  description?: string;
+  uses: readonly WorkflowCapability[];
+  requires?: readonly string[];
+  completeWhen?: readonly string[];
+  optional?: boolean;
+};
+
+export type WorkflowDocumentRequirement = {
+  id: string;
+  label: string;
+  role: "primary" | "supporting" | "evidence" | "generated";
+  required: boolean;
+  acceptedKinds?: readonly string[];
+  extractionSchema?: string;
+};
+
+export type WorkflowGateKind =
+  | "document_ready"
+  | "fact_confirmation"
+  | "evidence_ready"
+  | "human_review"
+  | "approval"
+  | "payment"
+  | "mailing_authorization"
+  | "custom";
+
+export type WorkflowGateManifest = {
+  id: string;
+  kind: WorkflowGateKind;
+  label: string;
+  beforeCapability?: WorkflowCapability;
+  required: boolean;
+};
+
+export type WorkflowOutputManifest = {
+  id: string;
+  kind: "draft" | "pdf" | "packet" | "receipt" | "tracking" | "proof" | "archive" | "other";
+  required: boolean;
+};
+
+export type WorkflowAcceptanceScenario = {
+  id: string;
+  description: string;
+  required: boolean;
+};
 
 export type WorkflowManifest = {
   id: string;
@@ -20,7 +68,25 @@ export type WorkflowManifest = {
   primaryInput: "document" | "case" | "event" | "request" | "claim";
   requiresHumanReview: boolean;
   allowsConsequentialAction: boolean;
+
+  /** Optional v2 workflow-definition fields. Existing manifests remain valid. */
+  version?: number;
+  steps?: readonly WorkflowStepManifest[];
+  documents?: readonly WorkflowDocumentRequirement[];
+  gates?: readonly WorkflowGateManifest[];
+  outputs?: readonly WorkflowOutputManifest[];
+  acceptanceScenarios?: readonly WorkflowAcceptanceScenario[];
 };
+
+function duplicates(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const duplicate = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) duplicate.add(value);
+    seen.add(value);
+  }
+  return [...duplicate];
+}
 
 export function validateManifestShape(manifest: WorkflowManifest): string[] {
   const errors: string[] = [];
@@ -30,11 +96,49 @@ export function validateManifestShape(manifest: WorkflowManifest): string[] {
   if (!manifest.route.startsWith("/")) errors.push("route must start with /");
   if (manifest.adapters.length === 0 && manifest.pipeline !== "P01_CORE_MAIL") errors.push("domain workflows require at least one adapter");
   if (!manifest.requiresHumanReview && manifest.allowsConsequentialAction) errors.push("consequential workflows must require human review");
-  if (new Set(manifest.requiredCapabilities).size !== manifest.requiredCapabilities.length) errors.push("requiredCapabilities contains duplicates");
-  if (new Set(manifest.optionalCapabilities).size !== manifest.optionalCapabilities.length) errors.push("optionalCapabilities contains duplicates");
-  if (new Set(manifest.notApplicableCapabilities).size !== manifest.notApplicableCapabilities.length) errors.push("notApplicableCapabilities contains duplicates");
+  if (duplicates(manifest.requiredCapabilities).length) errors.push("requiredCapabilities contains duplicates");
+  if (duplicates(manifest.optionalCapabilities).length) errors.push("optionalCapabilities contains duplicates");
+  if (duplicates(manifest.notApplicableCapabilities).length) errors.push("notApplicableCapabilities contains duplicates");
+
   const required = new Set(manifest.requiredCapabilities);
-  for (const capability of manifest.notApplicableCapabilities) if (required.has(capability)) errors.push(`capability ${capability} cannot be both required and not applicable`);
+  const optional = new Set(manifest.optionalCapabilities);
+  for (const capability of manifest.notApplicableCapabilities) {
+    if (required.has(capability)) errors.push(`capability ${capability} cannot be both required and not applicable`);
+    if (optional.has(capability)) errors.push(`capability ${capability} cannot be both optional and not applicable`);
+  }
+
+  if (manifest.version !== undefined && (!Number.isInteger(manifest.version) || manifest.version < 1)) {
+    errors.push("version must be a positive integer");
+  }
+
+  const stepIds = new Set<string>();
+  for (const step of manifest.steps ?? []) {
+    if (!step.id.trim() || !step.title.trim()) errors.push("workflow steps require id and title");
+    if (stepIds.has(step.id)) errors.push(`duplicate workflow step: ${step.id}`);
+    stepIds.add(step.id);
+    if (step.uses.length === 0) errors.push(`workflow step ${step.id} must use at least one capability`);
+    for (const used of step.uses) {
+      if (!required.has(used) && !optional.has(used)) {
+        errors.push(`workflow step ${step.id} uses undeclared capability ${used}`);
+      }
+    }
+  }
+
+  const gateIds = new Set<string>();
+  for (const gate of manifest.gates ?? []) {
+    if (!gate.id.trim() || !gate.label.trim()) errors.push("workflow gates require id and label");
+    if (gateIds.has(gate.id)) errors.push(`duplicate workflow gate: ${gate.id}`);
+    gateIds.add(gate.id);
+    if (gate.beforeCapability && !required.has(gate.beforeCapability) && !optional.has(gate.beforeCapability)) {
+      errors.push(`workflow gate ${gate.id} targets undeclared capability ${gate.beforeCapability}`);
+    }
+  }
+
+  if (manifest.allowsConsequentialAction && manifest.gates) {
+    const hasReviewGate = manifest.gates.some((gate) => gate.required && (gate.kind === "human_review" || gate.kind === "approval"));
+    if (!hasReviewGate) errors.push("v2 consequential workflow must declare a required human-review or approval gate");
+  }
+
   return errors;
 }
 
