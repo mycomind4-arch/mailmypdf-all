@@ -23,7 +23,7 @@ function AnalyticsPage() {
   const checkAdmin = useServerFn(isCurrentUserAdmin);
   const { data: admin } = useSuspenseQuery({ queryKey: ["analytics-admin"], queryFn: () => checkAdmin(), retry: false });
 
-  if (!admin.isAdmin) return <div className="min-h-screen"><AdminHeader /><main className="mx-auto max-w-6xl px-6 py-12"><div className="envelope-card p-8"><h1 className="font-serif text-3xl">Not authorized</h1><p className="mt-2 text-sm text-muted-foreground">Analytics is restricted to administrators.</p></div></main></div>;
+  if (!admin.isAdmin) return <div className="min-h-screen"><main className="mx-auto max-w-6xl px-6 py-12"><div className="envelope-card p-8"><h1 className="font-serif text-3xl">Not authorized</h1><p className="mt-2 text-sm text-muted-foreground">Analytics is restricted to administrators.</p></div></main></div>;
 
   return <AnalyticsDashboard />;
 }
@@ -34,7 +34,7 @@ function AnalyticsDashboard() {
   const { data } = useSuspenseQuery({ queryKey: ["analytics-dashboard", days], queryFn: () => getData({ data: { days } }) });
 
   const d = data;
-  return <div className="min-h-screen"><AdminHeader /><main className="mx-auto max-w-7xl px-6 py-10">
+  return <div className="min-h-screen"><main className="mx-auto max-w-7xl px-6 py-10">
     <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="postmark w-fit">Admin intelligence</div><h1 className="mt-3 font-serif text-4xl">Analytics &amp; Cookies</h1><p className="mt-2 max-w-2xl text-sm text-muted-foreground">First-party, opt-in visitor intelligence. Raw event data stays server-side and is restricted to admins.</p></div><div className="flex gap-1 rounded-md border border-rule p-1">{[7,30,90].map(n => <button key={n} onClick={() => setDays(n)} className={`px-3 py-1.5 text-xs ${days === n ? "bg-foreground text-background" : "text-muted-foreground"}`}>{n}d</button>)}</div></div>
 
     <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6"><Metric label="Visitors" value={d.totals.visitors.toLocaleString()} /><Metric label="Sessions" value={d.totals.sessions.toLocaleString()} /><Metric label="Events" value={d.totals.events.toLocaleString()} /><Metric label="Page views" value={d.totals.pageViews.toLocaleString()} /><Metric label="Interactions" value={d.totals.interactions.toLocaleString()} /><Metric label="Authenticated" value={d.totals.authenticated.toLocaleString()} /></div>

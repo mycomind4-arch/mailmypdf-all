@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useState } from 'react';
-import { AdminHeader } from '@/components/admin-header';
 import { listAIControlPlane, setEcosystemVariable, upsertAIProvider, upsertAIWorkflowRoute } from '@/lib/admin-ai.functions';
 import { isCurrentUserAdmin } from '@/lib/admin.functions';
 
@@ -25,12 +24,12 @@ function AIControlPlane() {
   const refresh = async () => setData(await load());
   useEffect(() => { checkAdmin().then((r) => { setAdmin(r.isAdmin); if (r.isAdmin) refresh(); }); }, []);
 
-  if (!admin) return <div className="min-h-screen"><AdminHeader /><main className="mx-auto max-w-5xl px-6 py-16"><div className="envelope-card p-8"><h1 className="font-serif text-3xl">Not authorized</h1><p className="mt-2 text-sm text-muted-foreground">AI control plane is restricted to administrators.</p></div></main></div>;
+  if (!admin) return <div className="min-h-screen"><main className="mx-auto max-w-5xl px-6 py-16"><div className="envelope-card p-8"><h1 className="font-serif text-3xl">Not authorized</h1><p className="mt-2 text-sm text-muted-foreground">AI control plane is restricted to administrators.</p></div></main></div>;
 
   const saveP = async () => { setMessage(''); await saveProvider({ data: provider as any }); setMessage('Provider saved.'); await refresh(); setProvider({ ...provider, apiKey: '' }); };
   const saveV = async () => { setMessage(''); await saveVariable({ data: variable }); setMessage('Variable saved.'); await refresh(); setVariable({ key: '', value: '', isSecret: true, description: '' }); };
 
-  return <div className="min-h-screen"><AdminHeader /><main className="mx-auto max-w-6xl px-6 py-10">
+  return <div className="min-h-screen"><main className="mx-auto max-w-6xl px-6 py-10">
     <div><div className="postmark w-fit">Ecosystem control plane</div><h1 className="mt-3 font-serif text-4xl">AI, Models &amp; Runtime Variables</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Configure providers once in MailMyPDF. Vertical repos consume server-side routing rather than carrying separate API-key sprawl.</p></div>
     {message && <div className="mt-6 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
 
