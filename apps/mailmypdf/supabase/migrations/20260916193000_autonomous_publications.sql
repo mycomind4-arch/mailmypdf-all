@@ -1,0 +1,61 @@
+-- Autonomous publication persistence.
+-- Server/admin only: RLS is enabled and no client policies are granted.
+
+create extension if not exists vector with schema extensions;
+
+create table if not exists public.publication_runs (
+  run_id text primary key,
+  publication_id text not null,
+  edition_id text,
+  subject text,
+  status text not null check (status in ('running', 'awaiting_approval', 'published', 'failed')),
+  stage text not null,
+  run_json jsonb not null,
+  rendered_json jsonb,
+  provider_id text,
+  publication_url text,
+  approved_by uuid references auth.users(id) on delete set null,
+  approved_at timestamptz,
+  rejected_by uuid references auth.users(id) on delete set null,
+  rejected_at timestamptz,
+  approval_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists publication_runs_publication_updated_idx
+  on public.publication_runs (publication_id, updated_at desc);
+
+create index if not exists publication_runs_status_updated_idx
+  on public.publication_runs (status, updated_at desc);
+
+create table if not exists public.publication_story_memory (
+  publication_id text not null,
+  publication_story_id text not null,
+  url text not null,
+  title text not null,
+  published_at timestamptz not null,
+  embedding extensions.vector(384),
+  embedding_model text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  primary key (publication_id, publication_story_id)
+);
+
+create index if not exists publication_story_memory_published_at_idx
+  on public.publication_story_memory (publication_id, published_at desc);
+
+-- HNSW index for the planned 384-dimensional local FastEmbed model.
+create index if not exists publication_story_memory_embedding_hnsw_idx
+  on public.publication_story_memory
+  using hnsw (embedding extensions.vector_cosine_ops)
+  where embedding is not null;
+
+alter table public.publication_runs enable row level security;
+alter table public.publication_story_memory enable row level security;
+
+comment on table public.publication_runs is
+  'Durable Studio autonomous-publication runs, verified rendered artifacts, approval state, and delivery metadata.';
+
+comment on table public.publication_story_memory is
+  'Per-publication historical story memory used for repeat and semantic-near-duplicate detection.';
