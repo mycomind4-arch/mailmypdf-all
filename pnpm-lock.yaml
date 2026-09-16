@@ -1392,7 +1392,11 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
 
-  packages/mailing-client: {}
+  packages/mailing-client:
+    devDependencies:
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
 
   packages/packet-builder:
     dependencies:
