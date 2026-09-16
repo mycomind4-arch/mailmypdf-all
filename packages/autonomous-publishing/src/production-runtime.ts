@@ -7,7 +7,14 @@ import {
   createClaudeVerificationAdapter,
   type ClaudePublishingOptions,
 } from "./claude-adapters.js";
-import { createListmonkPublisher, createUmamiAnalyticsAdapter, type ListmonkPublisherOptions, type UmamiAnalyticsOptions } from "./delivery.js";
+import {
+  createListmonkPublisher,
+  createResendPublisher,
+  createUmamiAnalyticsAdapter,
+  type ListmonkPublisherOptions,
+  type ResendPublisherOptions,
+  type UmamiAnalyticsOptions,
+} from "./delivery.js";
 import { createExtractingResearchAdapter } from "./enrichment.js";
 import type { PublicationManifest } from "./manifest.js";
 import { createNoopAnalyticsAdapter, createNoopPublisher } from "./publishers.js";
@@ -27,6 +34,7 @@ export interface ProductionPublishingRuntimeOptions extends ClaudePublishingOpti
     maxArticleChars?: number;
   };
   listmonk?: ListmonkPublisherOptions;
+  resend?: ResendPublisherOptions;
   umami?: UmamiAnalyticsOptions;
   overrides?: Partial<PublishingAdapters>;
 }
@@ -37,7 +45,7 @@ export interface ProductionPublishingRuntimeOptions extends ClaudePublishingOpti
  * External services remain optional and independently deployable:
  * - Horizon replaces RSS discovery when configured.
  * - Crawl4AI decorates research with full-article extraction.
- * - listmonk replaces preview-only publishing.
+ * - Resend or listmonk replaces preview-only publishing.
  * - Umami replaces no-op analytics.
  *
  * Claude always uses the existing hardened @mailmypdf/ai provider boundary.
@@ -63,6 +71,13 @@ export function createProductionPublishingAdapters(
         )
       : baseResearch;
 
+  const publisher =
+    options.resend && manifest.integrations.resend !== false
+      ? createResendPublisher(options.resend)
+      : options.listmonk && manifest.integrations.listmonk !== false
+        ? createListmonkPublisher(options.listmonk)
+        : createNoopPublisher();
+
   const defaults: PublishingAdapters = {
     discovery,
     scoring: createClaudeScoringAdapter(provider),
@@ -70,10 +85,7 @@ export function createProductionPublishingAdapters(
     planning: createClaudePlanningAdapter(provider),
     verification: createClaudeVerificationAdapter(provider),
     rendering: createHtmlRenderAdapter(),
-    publisher:
-      options.listmonk && manifest.integrations.listmonk !== false
-        ? createListmonkPublisher(options.listmonk)
-        : createNoopPublisher(),
+    publisher,
     analytics:
       options.umami && manifest.integrations.umami !== false
         ? createUmamiAnalyticsAdapter(options.umami)
