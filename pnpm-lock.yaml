@@ -1312,6 +1312,19 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
 
+  packages/autonomous-publishing:
+    dependencies:
+      '@mailmypdf/ai':
+        specifier: workspace:*
+        version: link:../ai
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+
   packages/core:
     devDependencies:
       tsx:
