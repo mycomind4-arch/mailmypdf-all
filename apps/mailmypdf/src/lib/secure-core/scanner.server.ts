@@ -1,5 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
-import { computeSha256 } from "@mailmypdf/documents";
+import {
+  computeSha256,
+  evaluateQuarantinedDocument,
+  type MalwareScanVerdict,
+  type SecureDocumentEnvelope,
+} from "@mailmypdf/documents";
 
 const BUCKET = "secure-documents";
 const DEFAULT_BATCH_SIZE = 10;
@@ -8,51 +13,70 @@ const MAX_SCAN_RESPONSE_BYTES = 16_384;
 type ClaimedDocument = {
   id: string;
   owner_id: string;
+  workflow_id: string;
   storage_path: string;
+  safe_filename: string;
   mime_type: string;
+  size_bytes: number;
   sha256: string;
+  security_status: "scanning";
+  retention_until: string;
   scan_attempts: number;
   deletion_requested_at: string | null;
-};
-
-type ScannerVerdict = {
-  status: "clean" | "infected";
-  engine: string;
-  signature?: string;
-  definitionsVersion?: string;
+  deleted_at: string | null;
 };
 
 function configuredSecret(name: string): string {
   const value = process.env[name];
-  if (!value || value.length < 32) throw new Error(`${name} must contain at least 32 characters`);
+  if (!value || value.length < 32) {
+    throw new Error(`${name} must contain at least 32 characters`);
+  }
   return value;
 }
 
 function equalSecret(candidate: string, expected: string): boolean {
   const candidateBytes = Buffer.from(candidate);
   const expectedBytes = Buffer.from(expected);
-  return candidateBytes.length === expectedBytes.length && timingSafeEqual(candidateBytes, expectedBytes);
+  return (
+    candidateBytes.length === expectedBytes.length &&
+    timingSafeEqual(candidateBytes, expectedBytes)
+  );
 }
 
 export function requireScannerAuthorization(request: Request): void {
   const authorization = request.headers.get("authorization");
-  const supplied = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
-  if (!supplied || !equalSecret(supplied, configuredSecret("MAILMYPDF_SCANNER_JOB_SECRET"))) {
+  const supplied = authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : "";
+
+  if (
+    !supplied ||
+    !equalSecret(supplied, configuredSecret("MAILMYPDF_SCANNER_JOB_SECRET"))
+  ) {
     throw new Response("Unauthorized", { status: 401 });
   }
 }
 
 function scannerUrl(): URL {
   const configured = process.env.MAILMYPDF_MALWARE_SCANNER_URL;
-  if (!configured) throw new Error("MAILMYPDF_MALWARE_SCANNER_URL is not configured");
+  if (!configured) {
+    throw new Error("MAILMYPDF_MALWARE_SCANNER_URL is not configured");
+  }
+
   const url = new URL(configured);
-  if (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && url.hostname === "127.0.0.1")) {
+  if (
+    url.protocol !== "https:" &&
+    !(process.env.NODE_ENV !== "production" && url.hostname === "127.0.0.1")
+  ) {
     throw new Error("Malware scanner must use HTTPS");
   }
   return url;
 }
 
-async function scan(content: Uint8Array, mimeType: string): Promise<ScannerVerdict> {
+async function scan(
+  content: Uint8Array,
+  mimeType: string,
+): Promise<MalwareScanVerdict> {
   const response = await fetch(scannerUrl(), {
     method: "POST",
     headers: {
@@ -63,65 +87,107 @@ async function scan(content: Uint8Array, mimeType: string): Promise<ScannerVerdi
     body: Uint8Array.from(content).buffer,
     signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) throw new Error(`Scanner returned HTTP ${response.status}`);
+
+  if (!response.ok) {
+    throw new Error(`Scanner returned HTTP ${response.status}`);
+  }
+
   const responseText = await response.text();
-  if (Buffer.byteLength(responseText) > MAX_SCAN_RESPONSE_BYTES) throw new Error("Scanner response is too large");
-  const result = JSON.parse(responseText) as Partial<ScannerVerdict>;
-  if ((result.status !== "clean" && result.status !== "infected") || !result.engine?.trim()) {
+  if (Buffer.byteLength(responseText) > MAX_SCAN_RESPONSE_BYTES) {
+    throw new Error("Scanner response is too large");
+  }
+
+  const result = JSON.parse(responseText) as Partial<MalwareScanVerdict>;
+  if (
+    (result.status !== "clean" && result.status !== "infected") ||
+    !result.engine?.trim()
+  ) {
     throw new Error("Scanner returned an invalid verdict");
   }
-  return result as ScannerVerdict;
+
+  return result as MalwareScanVerdict;
 }
 
-/**
- * Signature scanning plus structural rules for PDFs.
- *
- * ClamAV has no opinion about a PDF that carries /JavaScript or an /OpenAction
- * that launches a file — those are legitimate PDF features, not malware
- * signatures. This is a document that will be merged into a packet and mailed,
- * so a clean signature verdict is necessary but not sufficient.
- */
-async function scanWithPdfHardening(content: Uint8Array, mimeType: string): Promise<ScannerVerdict> {
-  const verdict = await scan(content, mimeType);
-  if (verdict.status !== "clean" || mimeType !== "application/pdf") return verdict;
-
-  const { findUnsafePdfFeature } = await import("@/lib/pdf-validation.server");
-  const unsafe = findUnsafePdfFeature(content);
-  if (!unsafe) return verdict;
-
+function toSecureEnvelope(document: ClaimedDocument): SecureDocumentEnvelope {
   return {
-    status: "infected",
-    engine: `${verdict.engine} + mailmypdf-pdf-safety`,
-    signature: `Pdf.${unsafe}`,
-    definitionsVersion: verdict.definitionsVersion,
+    id: document.id,
+    ownerId: document.owner_id,
+    workflowId: document.workflow_id,
+    purpose: "security_scan",
+    safeFilename: document.safe_filename,
+    mimeType: document.mime_type,
+    sizeBytes: document.size_bytes,
+    sha256: document.sha256,
+    storagePath: document.storage_path,
+    securityStatus: "scanning",
+    retentionUntil: document.retention_until,
+    deletionRequestedAt: document.deletion_requested_at,
+    deletedAt: document.deleted_at,
   };
 }
 
-export async function scanQuarantinedDocuments(batchSize = DEFAULT_BATCH_SIZE) {
+/**
+ * Claim quarantined documents, verify their immutable intake metadata, run the
+ * external malware scanner, and release only documents that pass BOTH the
+ * platform's structural document validation and the external scanner.
+ */
+export async function scanQuarantinedDocuments(
+  batchSize = DEFAULT_BATCH_SIZE,
+) {
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 25) {
     throw new Error("Scanner batch size must be between 1 and 25");
   }
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const admin = supabaseAdmin;
-  const { data, error } = await admin.rpc("claim_secure_documents_for_scan", {
-    batch_limit: batchSize,
-  });
-  if (error) throw new Error(`Could not claim quarantined documents: ${error.message}`);
 
-  const result = { claimed: data?.length ?? 0, clean: 0, rejected: 0, deletion_queued: 0, failed: 0 };
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const admin = supabaseAdmin;
+
+  const { data, error } = await admin.rpc(
+    "claim_secure_documents_for_scan",
+    { batch_limit: batchSize },
+  );
+  if (error) {
+    throw new Error(
+      `Could not claim quarantined documents: ${error.message}`,
+    );
+  }
+
+  const result = {
+    claimed: data?.length ?? 0,
+    clean: 0,
+    rejected: 0,
+    deletion_queued: 0,
+    failed: 0,
+  };
+
   for (const document of (data ?? []) as ClaimedDocument[]) {
     try {
       const { data: stored, error: downloadError } = await admin.storage
         .from(BUCKET)
         .download(document.storage_path);
-      if (downloadError || !stored) throw new Error("Quarantined object is unavailable");
-      const content = new Uint8Array(await stored.arrayBuffer());
-      if (computeSha256(content) !== document.sha256) throw new Error("Quarantined object hash mismatch");
 
-      const verdict = await scanWithPdfHardening(content, document.mime_type);
+      if (downloadError || !stored) {
+        throw new Error("Quarantined object is unavailable");
+      }
+
+      const content = new Uint8Array(await stored.arrayBuffer());
+
+      const evaluation = await evaluateQuarantinedDocument(
+        toSecureEnvelope(document),
+        content,
+        {
+          async scan(input) {
+            return scan(input.bytes, input.mimeType);
+          },
+        },
+      );
+
+      const verdict = evaluation.verdict;
       const securityStatus = document.deletion_requested_at
         ? "deleting"
-        : verdict.status === "clean" ? "clean" : "rejected";
+        : evaluation.securityStatus;
+
       const { error: updateError } = await admin
         .from("secure_documents")
         .update({
@@ -137,7 +203,12 @@ export async function scanQuarantinedDocuments(batchSize = DEFAULT_BATCH_SIZE) {
         })
         .eq("id", document.id)
         .eq("security_status", "scanning");
-      if (updateError) throw new Error(`Could not save scanner verdict: ${updateError.message}`);
+
+      if (updateError) {
+        throw new Error(
+          `Could not save scanner verdict: ${updateError.message}`,
+        );
+      }
 
       if (securityStatus === "rejected") {
         await admin.storage.from(BUCKET).remove([document.storage_path]);
@@ -149,16 +220,24 @@ export async function scanQuarantinedDocuments(batchSize = DEFAULT_BATCH_SIZE) {
       }
     } catch (error) {
       result.failed += 1;
-      const message = error instanceof Error ? error.message.slice(0, 500) : "Unknown scanner failure";
+
+      const message =
+        error instanceof Error
+          ? error.message.slice(0, 500)
+          : "Unknown scanner failure";
+
       await admin
         .from("secure_documents")
         .update({
-          security_status: document.deletion_requested_at ? "deleting" : "quarantined",
+          security_status: document.deletion_requested_at
+            ? "deleting"
+            : "quarantined",
           last_scan_error: message,
         })
         .eq("id", document.id)
         .eq("security_status", "scanning");
     }
   }
+
   return result;
 }
