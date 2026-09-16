@@ -11,17 +11,35 @@ export const aiIndustryDaily: PublicationManifest = {
     timezone: "America/Los_Angeles",
     time: "06:00",
   },
+  sources: [
+    {
+      id: "hacker-news",
+      type: "rss",
+      url: "https://hnrss.org/frontpage",
+      publisher: "Hacker News",
+      primary: false,
+      tags: ["technology", "developers"],
+    },
+    {
+      id: "techcrunch-ai",
+      type: "rss",
+      url: "https://techcrunch.com/category/artificial-intelligence/feed/",
+      publisher: "TechCrunch AI",
+      primary: false,
+      tags: ["ai", "industry"],
+    },
+  ],
   editorial: {
     voice: "clear, analytical, concise, evidence-first",
     storyCount: 7,
     minimumStoryScore: 72,
     sections: ["top-story", "developments", "research", "tools", "what-to-watch"],
-    requirePrimarySource: true,
+    requirePrimarySource: false,
     avoidRepeatDays: 30,
   },
   ai: {
     provider: "anthropic",
-    model: "claude-sonnet",
+    model: "claude-sonnet-4-6",
     apiKeyEnv: "ANTHROPIC_API_KEY",
   },
   autonomy: {
