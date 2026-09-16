@@ -53,6 +53,11 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Build shared test dependencies
+        run: |
+          pnpm --filter @mailmypdf/core build
+          pnpm --filter @mailmypdf/documents build
+          pnpm --filter @mailmypdf/workflows build
       - name: Core capability tests
         run: |
           pnpm --filter @mailmypdf/core test
