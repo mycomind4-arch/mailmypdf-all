@@ -59,3 +59,20 @@ comment on table public.publication_runs is
 
 comment on table public.publication_story_memory is
   'Per-publication historical story memory used for repeat and semantic-near-duplicate detection.';
+
+
+create table if not exists public.publication_schedule_claims (
+  publication_id text not null,
+  schedule_key text not null,
+  status text not null default 'claimed' check (status in ('claimed', 'completed', 'failed')),
+  run_id text references public.publication_runs(run_id) on delete set null,
+  error text,
+  claimed_at timestamptz not null default now(),
+  completed_at timestamptz,
+  primary key (publication_id, schedule_key)
+);
+
+alter table public.publication_schedule_claims enable row level security;
+
+comment on table public.publication_schedule_claims is
+  'Idempotency claims preventing duplicate autonomous publication runs for the same schedule window.';
