@@ -1,3 +1,13 @@
+export interface PublicationSource {
+  id: string;
+  type: "rss" | "api" | "web" | "social" | "internal";
+  url: string;
+  publisher?: string;
+  primary?: boolean;
+  enabled?: boolean;
+  tags?: readonly string[];
+}
+
 export interface PublicationManifest {
   id: string;
   name: string;
@@ -9,6 +19,7 @@ export interface PublicationManifest {
     timezone: string;
     time?: string;
   };
+  sources?: readonly PublicationSource[];
   editorial: {
     voice: string;
     storyCount: number;
@@ -56,5 +67,21 @@ export function validatePublicationManifest(value: PublicationManifest): Publica
     throw new Error("AI secrets must use a server-only environment variable");
   }
   if (!value.ai.apiKeyEnv.trim()) throw new Error("AI apiKeyEnv is required");
+
+  const ids = new Set<string>();
+  for (const source of value.sources ?? []) {
+    if (!source.id.trim()) throw new Error("Source id is required");
+    if (ids.has(source.id)) throw new Error(`Duplicate source id: ${source.id}`);
+    ids.add(source.id);
+    let url: URL;
+    try {
+      url = new URL(source.url);
+    } catch {
+      throw new Error(`Invalid source URL: ${source.id}`);
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error(`Source URL must use http/https: ${source.id}`);
+    }
+  }
   return value;
 }
