@@ -4,6 +4,7 @@ import {
   type CapabilityExecutionResult,
 } from "./capability-runtime.js";
 import type { DefinedWorkflow } from "./define-workflow.js";
+import { evaluateWorkflowStepCondition } from "./workflow-conditions.js";
 
 export type ManifestWorkflowRunStatus = "completed" | "blocked" | "failed";
 
@@ -21,6 +22,7 @@ export interface ManifestWorkflowCheckpoint {
   status: "running" | ManifestWorkflowRunStatus;
   completedStepIds: readonly string[];
   executions: readonly ManifestCapabilityExecution[];
+  skippedStepIds?: readonly string[];
   currentStepId?: string;
   stoppedAt?: {
     stepId: string;
@@ -35,6 +37,7 @@ export interface ManifestWorkflowRun {
   status: ManifestWorkflowRunStatus;
   completedStepIds: readonly string[];
   executions: readonly ManifestCapabilityExecution[];
+  skippedStepIds?: readonly string[];
   stoppedAt?: {
     stepId: string;
     capability: CapabilityId;
@@ -166,6 +169,7 @@ export async function runManifestWorkflow(
   const reusable = passedResumeExecutions(workflow, input.resume);
   const executions: ManifestCapabilityExecution[] = [];
   const completedStepIds: string[] = [];
+  const skippedStepIds: string[] = [];
   const prior = new Map<CapabilityId, CapabilityExecutionResult>();
 
   // Reusable results are inserted into prior only when execution reaches their
@@ -186,6 +190,7 @@ export async function runManifestWorkflow(
       status,
       completedStepIds: [...completedStepIds],
       executions: [...executions],
+      skippedStepIds: [...skippedStepIds],
       currentStepId,
       stoppedAt,
       message,
@@ -193,6 +198,17 @@ export async function runManifestWorkflow(
   };
 
   for (const { step, capabilities } of workflow.plan.steps) {
+    if (
+      !evaluateWorkflowStepCondition(step.when, {
+        rootInput: input.rootInput,
+        prior,
+      })
+    ) {
+      skippedStepIds.push(step.id);
+      await emitCheckpoint("running", step.id);
+      continue;
+    }
+
     for (const capability of capabilities) {
       const key = executionKey(step.id, capability);
       const existing = reusable.get(key);
@@ -213,6 +229,7 @@ export async function runManifestWorkflow(
           status: "failed",
           completedStepIds,
           executions,
+          skippedStepIds,
           stoppedAt,
           message,
         };
@@ -252,6 +269,7 @@ export async function runManifestWorkflow(
           status: "failed",
           completedStepIds,
           executions,
+          skippedStepIds,
           stoppedAt,
           message,
         };
@@ -276,6 +294,7 @@ export async function runManifestWorkflow(
           status: "failed",
           completedStepIds,
           executions,
+          skippedStepIds,
           stoppedAt,
           message,
         };
@@ -296,6 +315,7 @@ export async function runManifestWorkflow(
           status: "blocked",
           completedStepIds,
           executions,
+          skippedStepIds,
           stoppedAt,
           message,
         };
@@ -314,5 +334,6 @@ export async function runManifestWorkflow(
     status: "completed",
     completedStepIds,
     executions,
+    skippedStepIds,
   };
 }

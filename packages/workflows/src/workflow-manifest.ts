@@ -6,6 +6,28 @@ import { validateWorkflowFields, type WorkflowFieldManifest } from "./workflow-f
 export type WorkflowMaturity = "catalog" | "placeholder" | "wired" | "executable" | "gold" | "production-verified";
 export type WorkflowCapability = CapabilityId;
 
+export type WorkflowConditionPrimitive = string | number | boolean | null;
+
+export type WorkflowStepCondition =
+  | {
+      kind: "input_equals" | "input_not_equals";
+      path: string;
+      value: WorkflowConditionPrimitive;
+    }
+  | {
+      kind: "input_truthy" | "input_falsy";
+      path: string;
+    }
+  | {
+      kind: "capability_status";
+      capability: WorkflowCapability;
+      status: "passed" | "warning" | "blocked" | "failed";
+    }
+  | {
+      kind: "all" | "any";
+      conditions: readonly WorkflowStepCondition[];
+    };
+
 export type WorkflowStepManifest = {
   id: string;
   title: string;
@@ -15,6 +37,7 @@ export type WorkflowStepManifest = {
   completeWhen?: readonly string[];
   optional?: boolean;
   fields?: readonly WorkflowFieldManifest[];
+  when?: WorkflowStepCondition;
 };
 
 export type WorkflowDocumentRequirement = {
@@ -80,6 +103,48 @@ export type WorkflowManifest = {
   acceptanceScenarios?: readonly WorkflowAcceptanceScenario[];
 };
 
+const CONDITION_PATH = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/;
+const FORBIDDEN_CONDITION_PATH_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
+
+function validateStepCondition(
+  condition: WorkflowStepCondition,
+  declared: ReadonlySet<WorkflowCapability>,
+  priorCapabilities: ReadonlySet<WorkflowCapability>,
+  label: string,
+): string[] {
+  const errors: string[] = [];
+
+  if (condition.kind === "all" || condition.kind === "any") {
+    if (condition.conditions.length === 0) {
+      errors.push(`${label} condition group cannot be empty`);
+    }
+    for (const nested of condition.conditions) {
+      errors.push(...validateStepCondition(nested, declared, priorCapabilities, label));
+    }
+    return errors;
+  }
+
+  if (condition.kind === "capability_status") {
+    if (!declared.has(condition.capability)) {
+      errors.push(`${label} condition references undeclared capability ${condition.capability}`);
+    } else if (!priorCapabilities.has(condition.capability)) {
+      errors.push(`${label} condition must reference a capability from an earlier step: ${condition.capability}`);
+    }
+    return errors;
+  }
+
+  if (
+    !CONDITION_PATH.test(condition.path) ||
+    condition.path
+      .split(".")
+      .some((segment) => FORBIDDEN_CONDITION_PATH_SEGMENTS.has(segment))
+  ) {
+    errors.push(`${label} condition has invalid input path ${condition.path}`);
+  }
+
+  return errors;
+}
+
 function duplicates(values: readonly string[]): string[] {
   const seen = new Set<string>();
   const duplicate = new Set<string>();
@@ -114,6 +179,11 @@ export function validateManifestShape(manifest: WorkflowManifest): string[] {
   }
 
   const stepIds = new Set<string>();
+  const priorCapabilities = new Set<WorkflowCapability>();
+  const declaredCapabilities = new Set<WorkflowCapability>([
+    ...manifest.requiredCapabilities,
+    ...manifest.optionalCapabilities,
+  ]);
   for (const step of manifest.steps ?? []) {
     if (!step.id.trim() || !step.title.trim()) errors.push("workflow steps require id and title");
     if (stepIds.has(step.id)) errors.push(`duplicate workflow step: ${step.id}`);
@@ -122,10 +192,21 @@ export function validateManifestShape(manifest: WorkflowManifest): string[] {
     for (const fieldError of validateWorkflowFields(step.fields ?? [])) {
       errors.push(`workflow step ${step.id}: ${fieldError}`);
     }
+    if (step.when) {
+      errors.push(
+        ...validateStepCondition(
+          step.when,
+          declaredCapabilities,
+          priorCapabilities,
+          `workflow step ${step.id}`,
+        ),
+      );
+    }
     for (const used of step.uses) {
       if (!required.has(used) && !optional.has(used)) {
         errors.push(`workflow step ${step.id} uses undeclared capability ${used}`);
       }
+      priorCapabilities.add(used);
     }
   }
 

@@ -122,6 +122,7 @@ export interface BuildWorkflowFromBlueprintInput {
   documents?: readonly WorkflowDocumentRequirement[];
   acceptanceScenarios?: readonly WorkflowAcceptanceScenario[];
   stepFields?: Readonly<Record<string, readonly WorkflowFieldManifest[]>>;
+  stepConditions?: Readonly<Record<string, WorkflowStepManifest["when"]>>;
 }
 
 function unique<T>(items: readonly T[]): T[] {
@@ -464,15 +465,21 @@ export function buildWorkflowManifest(
     steps: (() => {
       const steps = buildSteps(capabilitySet);
       const known = new Set(steps.map((step) => step.id));
-      for (const stepId of Object.keys(input.stepFields ?? {})) {
+      for (const stepId of [
+        ...Object.keys(input.stepFields ?? {}),
+        ...Object.keys(input.stepConditions ?? {}),
+      ]) {
         if (!known.has(stepId)) {
-          throw new Error(`Workflow fields target unknown generated step: ${stepId}`);
+          throw new Error(`Workflow customization targets unknown generated step: ${stepId}`);
         }
       }
       return steps.map((step) => ({
         ...step,
         ...(input.stepFields?.[step.id]?.length
           ? { fields: [...input.stepFields[step.id]!] }
+          : {}),
+        ...(input.stepConditions?.[step.id]
+          ? { when: input.stepConditions[step.id] }
           : {}),
       }));
     })(),
