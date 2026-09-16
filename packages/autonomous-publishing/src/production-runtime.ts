@@ -57,13 +57,13 @@ export function createProductionPublishingAdapters(
   const provider = createClaudeProvider(manifest, options);
 
   const discovery =
-    options.horizon && manifest.integrations.horizon !== false
+    options.horizon && manifest.integrations.horizon === true
       ? createHorizonDiscoveryAdapter(options.horizon)
       : createRssDiscoveryAdapter(options.rss);
 
   const baseResearch = createClaudeResearchAdapter(provider);
   const research =
-    options.crawl4ai && manifest.integrations.crawl4ai !== false
+    options.crawl4ai && manifest.integrations.crawl4ai === true
       ? createExtractingResearchAdapter(
           createCrawl4AiExtractionAdapter(options.crawl4ai),
           baseResearch,
@@ -72,9 +72,9 @@ export function createProductionPublishingAdapters(
       : baseResearch;
 
   const publisher =
-    options.resend && manifest.integrations.resend !== false
+    options.resend && manifest.integrations.resend === true
       ? createResendPublisher(options.resend)
-      : options.listmonk && manifest.integrations.listmonk !== false
+      : options.listmonk && manifest.integrations.listmonk === true
         ? createListmonkPublisher(options.listmonk)
         : createNoopPublisher();
 
@@ -87,7 +87,7 @@ export function createProductionPublishingAdapters(
     rendering: createHtmlRenderAdapter(),
     publisher,
     analytics:
-      options.umami && manifest.integrations.umami !== false
+      options.umami && manifest.integrations.umami === true
         ? createUmamiAnalyticsAdapter(options.umami)
         : createNoopAnalyticsAdapter(),
   };
