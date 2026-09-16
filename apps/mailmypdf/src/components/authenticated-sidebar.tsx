@@ -105,7 +105,8 @@ function WorkflowNavigator({
   onNavigate?: () => void
 }) {
   const current = findWorkflowNavigationItem(pathname)
-  const [open, setOpen] = useState(Boolean(current))
+  const workflowAreaActive = pathname === "/dashboard/workflows" || pathname.startsWith("/dashboard/workflows/")
+  const [open, setOpen] = useState(Boolean(current) || workflowAreaActive)
   const [query, setQuery] = useState("")
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => new Set(current ? [current.section.id] : []),
@@ -136,28 +137,43 @@ function WorkflowNavigator({
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        title={collapsed ? "Workflows" : undefined}
-        aria-expanded={open}
+      <div
         className={`group flex min-h-10 w-full items-center rounded-md text-sm transition ${
-          collapsed ? "justify-center px-0" : "gap-3 px-3"
+          collapsed ? "justify-center px-0" : "gap-1 px-1"
         } ${
-          current ? "bg-white/15 text-white shadow-sm" : "text-white/68 hover:bg-white/10 hover:text-white"
+          workflowAreaActive ? "bg-white/15 text-white shadow-sm" : "text-white/68 hover:bg-white/10 hover:text-white"
         }`}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          title={collapsed ? "Workflows" : "Expand workflows"}
+          aria-expanded={open}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded hover:bg-white/10"
+        >
           <Workflow className="h-[17px] w-[17px]" strokeWidth={1.7} aria-hidden="true" />
-        </span>
+        </button>
         {!collapsed && (
           <>
-            <a href="/dashboard/workflows" onClick={onNavigate} className="min-w-0 flex-1 text-left hover:text-white">Workflows</a>
+            <a
+              href="/dashboard/workflows"
+              onClick={onNavigate}
+              className="min-w-0 flex-1 px-1 text-left hover:text-white"
+            >
+              Workflows
+            </a>
             <span className="text-[10px] tabular-nums text-white/40">{WORKFLOW_NAV_COUNT}</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+            <button
+              type="button"
+              onClick={() => setOpen((value) => !value)}
+              aria-label={open ? "Collapse workflows" : "Expand workflows"}
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10"
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
           </>
         )}
-      </button>
+      </div>
 
       {!collapsed && open && (
         <div className="mt-2 rounded-md bg-black/15 p-2">
