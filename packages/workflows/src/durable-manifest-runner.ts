@@ -46,6 +46,7 @@ function completedRun(
     status: "completed",
     completedStepIds: checkpoint.completedStepIds,
     executions: checkpoint.executions,
+    skippedStepIds: checkpoint.skippedStepIds,
     stoppedAt: checkpoint.stoppedAt,
     message: checkpoint.message,
   };
