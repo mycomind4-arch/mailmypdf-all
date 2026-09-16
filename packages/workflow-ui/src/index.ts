@@ -27,3 +27,4 @@ export * from "./ProofTimeline";
 export * from "./DocumentSummaryCard";
 export * from "./StatePanel";
 export * from "./StepStatusList";
+export * from "./ChoiceCardGrid";
