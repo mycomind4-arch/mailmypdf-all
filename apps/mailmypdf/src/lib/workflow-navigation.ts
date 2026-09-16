@@ -2680,3 +2680,20 @@ export function findWorkflowNavigationItem(pathname: string) {
   }
   return null
 }
+
+
+/**
+ * Backwards-compatible public product grouping derived from the canonical
+ * navigation sections. Keep consumers on one source of truth while older
+ * product-family pages migrate to WORKFLOW_NAV_SECTIONS.
+ */
+export const WORKFLOW_NAV_GROUPS = WORKFLOW_NAV_SECTIONS.map((section) => ({
+  product: section.label,
+  route: section.publicHref,
+  workflows: section.workflows.map((workflow) => ({
+    slug: workflow.slug,
+    label: workflow.label,
+    href: workflow.publicHref,
+    pipeline: "Guided workflow",
+  })),
+}))
