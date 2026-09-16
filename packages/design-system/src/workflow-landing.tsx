@@ -13,6 +13,10 @@ export interface WorkflowLandingConfig {
   eyebrow: string
   heroTitle: string
   heroDescription: string
+  /** Canonical workflow visual. Reuse this same asset for directory thumbnails. */
+  heroImage?: string
+  heroImageAlt?: string
+  heroTone?: "light" | "dark"
   indexable: boolean
   contentStatus: "scaffold" | "reviewed" | "published"
   whatYouDo?: ReadonlyArray<string>
@@ -75,7 +79,29 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         </div>
       </nav>
 
-      <section className="mmp-section">
+      {config.heroImage ? <section
+        className={`mmp-vertical-hero mmp-vertical-hero--${config.heroTone ?? "dark"}`}
+        data-mmp-hero-theme={config.sectionId}
+      >
+        <div
+          className="mmp-vertical-hero__media mmp-vertical-hero__media--background"
+          role="img"
+          aria-label={config.heroImageAlt ?? config.title}
+          style={{ backgroundImage: `url("${config.heroImage}")`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+        <div className="mmp-vertical-hero__scrim" aria-hidden="true" />
+        <div className="mmp-vertical-hero__inner">
+          <div className="mmp-vertical-hero__copy">
+            <div className="mmp-vertical-hero__eyebrow">{config.eyebrow}</div>
+            <h1 className="mmp-vertical-hero__title">{config.heroTitle}</h1>
+            <p className="mmp-vertical-hero__lede">{config.heroDescription}</p>
+            <div className="mmp-vertical-hero__actions">
+              <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
+              <a className="mmp-button-secondary" href={config.sectionPath + "/workflows"}>Browse related workflows</a>
+            </div>
+          </div>
+        </div>
+      </section> : <section className="mmp-section">
         <div className="mmp-section__inner">
           <div className="mmp-section-heading">
             <div>
@@ -91,7 +117,7 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       <section className="mmp-section mmp-section--tight">
         <div className="mmp-section__inner">
