@@ -24,12 +24,24 @@ export interface AddressCorrections {
   postal?: string;
 }
 
+export interface VerifiedPostalAddress {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal: string | null;
+}
+
 export interface AddressValidationResult {
   level: AddressValidationLevel;
   isDeliverable: boolean;
   warnings: string[];
   corrections?: AddressCorrections | null;
+  verifiedAddress?: VerifiedPostalAddress | null;
   provider?: string;
+  providerSucceeded?: boolean;
+  /** Optional provider evidence retained for proof/audit adapters. */
+  rawResponse?: unknown;
 }
 
 export interface AddressVerifier {
@@ -90,6 +102,8 @@ export interface LobAddressVerifierOptions {
   apiKey: string;
   apiBaseUrl?: string;
   timeoutMs?: number;
+  maxAttempts?: number;
+  retryDelayMs?: number;
   fetchImpl?: typeof fetch;
 }
 
@@ -103,6 +117,8 @@ export function createLobAddressVerifier(options: LobAddressVerifierOptions): Ad
   const fetchImpl = options.fetchImpl ?? fetch;
   const base = (options.apiBaseUrl ?? "https://api.lob.com/v1").replace(/\/$/, "");
   const timeoutMs = options.timeoutMs ?? 10_000;
+  const maxAttempts = Math.max(1, Math.min(3, Math.floor(options.maxAttempts ?? 2)));
+  const retryDelayMs = Math.max(0, Math.min(5_000, Math.floor(options.retryDelayMs ?? 500)));
 
   return {
     name: "lob",
@@ -128,11 +144,14 @@ export function createLobAddressVerifier(options: LobAddressVerifierOptions): Ad
       form.set("address[state]", address.state);
       form.set("address[zip]", address.postal.trim());
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let lastProviderError: unknown;
 
-      try {
-        const response = await fetchImpl(`${base}/us_verifications`, {
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          const response = await fetchImpl(`${base}/us_verifications`, {
           method: "POST",
           headers: {
             Authorization: `Basic ${globalThis.btoa(`${options.apiKey}:`)}`,
@@ -142,23 +161,32 @@ export function createLobAddressVerifier(options: LobAddressVerifierOptions): Ad
           signal: controller.signal,
         });
 
-        if (response.status === 422) {
-          return {
-            level: "missing_information",
-            isDeliverable: false,
-            warnings: [...warnings, "Address could not be verified"],
-            provider: "lob",
-          };
-        }
+          if (response.status === 422) {
+            return {
+              level: "missing_information",
+              isDeliverable: false,
+              warnings: [...warnings, "Address could not be verified"],
+              provider: "lob",
+              providerSucceeded: true,
+              rawResponse: { status: 422 },
+            };
+          }
 
-        if (!response.ok) {
-          return {
-            level: "provider_unavailable",
-            isDeliverable: true,
-            warnings: [...warnings, `Lob verification unavailable (HTTP ${response.status})`],
-            provider: "lob",
-          };
-        }
+          if (!response.ok) {
+            const retryable = response.status === 429 || response.status >= 500;
+            if (retryable && attempt < maxAttempts) {
+              await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+              continue;
+            }
+            return {
+              level: "provider_unavailable",
+              isDeliverable: true,
+              warnings: [...warnings, `Lob verification unavailable (HTTP ${response.status})`],
+              provider: "lob",
+              providerSucceeded: false,
+              rawResponse: { status: response.status },
+            };
+          }
 
         const payload = (await response.json()) as {
           deliverability?: string;
@@ -215,28 +243,47 @@ export function createLobAddressVerifier(options: LobAddressVerifierOptions): Ad
           warnings.push("Address provider suggests corrections");
         }
 
-        return {
-          level,
-          isDeliverable,
-          warnings,
-          corrections: Object.keys(corrections).length ? corrections : null,
-          provider: "lob",
-        };
-      } catch (error) {
-        return {
-          level: "provider_unavailable",
-          isDeliverable: true,
-          warnings: [
-            ...warnings,
-            error instanceof Error && error.name === "AbortError"
-              ? "Address verification timed out"
-              : "Address verification provider unavailable",
-          ],
-          provider: "lob",
-        };
-      } finally {
-        clearTimeout(timer);
+          return {
+            level,
+            isDeliverable,
+            warnings,
+            corrections: Object.keys(corrections).length ? corrections : null,
+            verifiedAddress: verified
+              ? {
+                  line1: verified.address_line1 ?? null,
+                  line2: verified.address_line2 ?? null,
+                  city: verified.address_city ?? null,
+                  state: verified.address_state ?? null,
+                  postal: verified.address_zip ?? null,
+                }
+              : null,
+            provider: "lob",
+            providerSucceeded: true,
+            rawResponse: payload,
+          };
+        } catch (error) {
+          lastProviderError = error;
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+            continue;
+          }
+        } finally {
+          clearTimeout(timer);
+        }
       }
+
+      return {
+        level: "provider_unavailable",
+        isDeliverable: true,
+        warnings: [
+          ...warnings,
+          lastProviderError instanceof Error && lastProviderError.name === "AbortError"
+            ? "Address verification timed out"
+            : "Address verification provider unavailable",
+        ],
+        provider: "lob",
+        providerSucceeded: false,
+      };
     },
   };
 }
