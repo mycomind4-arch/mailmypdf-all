@@ -1733,3 +1733,129 @@
 .wf-source-confidence--medium { color: var(--wf-color-warning); }
 .wf-source-confidence--low { color: var(--wf-color-error); }
 
+/* ── Matter actions and communications ───────────────────────────── */
+.wf-action-list,
+.wf-communication-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.wf-action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  border: 1px solid var(--wf-color-rule);
+  border-left-width: 3px;
+  border-radius: var(--wf-radius-md);
+  padding: 0.85rem;
+  background: var(--wf-color-paper);
+}
+
+.wf-action-row--critical { border-left-color: var(--wf-color-error); }
+.wf-action-row--high,
+.wf-action-row--medium { border-left-color: var(--wf-color-warning); }
+.wf-action-row--low { border-left-color: var(--wf-color-rule); }
+
+.wf-action-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.wf-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.5rem;
+  color: var(--wf-color-stone-light);
+  font-size: 0.72rem;
+}
+
+.wf-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.wf-filter-chip {
+  border: 1px solid var(--wf-color-rule);
+  border-radius: 999px;
+  background: var(--wf-color-paper);
+  color: var(--wf-color-stone);
+  padding: 0.34rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wf-filter-chip.is-active {
+  border-color: var(--wf-color-navy);
+  background: var(--wf-color-navy);
+  color: var(--wf-color-paper);
+}
+
+.wf-communication-row {
+  width: 100%;
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-color-paper);
+  padding: 0.85rem;
+  text-align: left;
+  color: inherit;
+}
+
+button.wf-communication-row:not(:disabled) {
+  cursor: pointer;
+}
+
+button.wf-communication-row:not(:disabled):hover {
+  border-color: var(--wf-color-stone-light);
+  background: var(--wf-color-paper-deep);
+}
+
+button.wf-communication-row:disabled {
+  opacity: 1;
+}
+
+.wf-communication-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wf-communication-top time {
+  color: var(--wf-color-stone-light);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.wf-communication-title {
+  color: var(--wf-color-charcoal);
+  font-size: 0.86rem;
+}
+
+.wf-communication-recipient,
+.wf-communication-excerpt,
+.wf-communication-meta {
+  color: var(--wf-color-stone);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.wf-communication-excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-communication-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  color: var(--wf-color-stone-light);
+}
+
