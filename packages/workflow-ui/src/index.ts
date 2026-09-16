@@ -32,3 +32,4 @@ export * from "./DeadlineSummary";
 export * from "./SourceReference";
 export * from "./ActionList";
 export * from "./CommunicationList";
+export * from "./MatterList";
