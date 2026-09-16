@@ -78,6 +78,10 @@ export function createPublishingPipeline(
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
           .slice(0, manifest.editorial.storyCount);
 
+        if (selected.length === 0) {
+          throw new Error("NO_STORIES_SELECTED");
+        }
+
         run.stage = "enrich";
         const evidence = new Map<string, Awaited<ReturnType<typeof adapters.research.enrich>>>();
         for (const story of selected) {
