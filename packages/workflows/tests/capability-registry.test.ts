@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CAPABILITIES, capabilityIds, hasCapability, validateCapabilityRegistry } from "../src/capability-registry.js";
@@ -19,4 +21,19 @@ test("capability registry includes the complete cross-workflow platform surface"
 
 test("capability dependency graph is acyclic and consequential actions remain gated", () => {
   assert.deepEqual(validateCapabilityRegistry(), []);
+});
+
+
+test("every capability implementation package exists in the workspace", () => {
+  const packagesRoot = path.resolve(process.cwd(), "..");
+
+  for (const capability of Object.values(CAPABILITIES)) {
+    const packageFolder = capability.implementation.replace("@mailmypdf/", "");
+    const packageJson = path.join(packagesRoot, packageFolder, "package.json");
+    assert.equal(
+      existsSync(packageJson),
+      true,
+      `${capability.id} points to missing package ${capability.implementation}`,
+    );
+  }
 });
