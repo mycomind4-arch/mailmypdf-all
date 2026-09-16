@@ -10,6 +10,7 @@ import {
   getPipeline,
   type PipelineId,
 } from "./pipeline-registry.js";
+import type { WorkflowFieldManifest } from "./workflow-fields.js";
 import type {
   WorkflowAcceptanceScenario,
   WorkflowDocumentRequirement,
@@ -120,6 +121,7 @@ export interface BuildWorkflowFromBlueprintInput {
   additionalOptionalCapabilities?: readonly CapabilityId[];
   documents?: readonly WorkflowDocumentRequirement[];
   acceptanceScenarios?: readonly WorkflowAcceptanceScenario[];
+  stepFields?: Readonly<Record<string, readonly WorkflowFieldManifest[]>>;
 }
 
 function unique<T>(items: readonly T[]): T[] {
@@ -459,7 +461,21 @@ export function buildWorkflowManifest(
     allowsConsequentialAction:
       required.has("payment") || required.has("mailing") || required.has("approval"),
     version: 2,
-    steps: buildSteps(capabilitySet),
+    steps: (() => {
+      const steps = buildSteps(capabilitySet);
+      const known = new Set(steps.map((step) => step.id));
+      for (const stepId of Object.keys(input.stepFields ?? {})) {
+        if (!known.has(stepId)) {
+          throw new Error(`Workflow fields target unknown generated step: ${stepId}`);
+        }
+      }
+      return steps.map((step) => ({
+        ...step,
+        ...(input.stepFields?.[step.id]?.length
+          ? { fields: [...input.stepFields[step.id]!] }
+          : {}),
+      }));
+    })(),
     documents: [...(input.documents ?? [])],
     gates: buildGates(capabilitySet),
     outputs: buildOutputs(capabilitySet),

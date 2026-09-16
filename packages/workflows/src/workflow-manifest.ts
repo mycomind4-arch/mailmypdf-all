@@ -1,6 +1,7 @@
 import type { CapabilityId } from "./capability-registry.js";
 import type { AdapterId } from "./adapter-registry.js";
 import type { PipelineId } from "./pipeline-registry.js";
+import { validateWorkflowFields, type WorkflowFieldManifest } from "./workflow-fields.js";
 
 export type WorkflowMaturity = "catalog" | "placeholder" | "wired" | "executable" | "gold" | "production-verified";
 export type WorkflowCapability = CapabilityId;
@@ -13,6 +14,7 @@ export type WorkflowStepManifest = {
   requires?: readonly string[];
   completeWhen?: readonly string[];
   optional?: boolean;
+  fields?: readonly WorkflowFieldManifest[];
 };
 
 export type WorkflowDocumentRequirement = {
@@ -117,6 +119,9 @@ export function validateManifestShape(manifest: WorkflowManifest): string[] {
     if (stepIds.has(step.id)) errors.push(`duplicate workflow step: ${step.id}`);
     stepIds.add(step.id);
     if (step.uses.length === 0) errors.push(`workflow step ${step.id} must use at least one capability`);
+    for (const fieldError of validateWorkflowFields(step.fields ?? [])) {
+      errors.push(`workflow step ${step.id}: ${fieldError}`);
+    }
     for (const used of step.uses) {
       if (!required.has(used) && !optional.has(used)) {
         errors.push(`workflow step ${step.id} uses undeclared capability ${used}`);

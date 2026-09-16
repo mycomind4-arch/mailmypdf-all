@@ -29,3 +29,5 @@ export * from "./capability-certification.js";
 export * from "./workflow-blueprints.js";
 
 export * from "./manifest-runner.js";
+
+export * from "./workflow-fields.js";
