@@ -76,6 +76,9 @@
     },
     {
       "path": "./packages/notifications"
+    },
+    {
+      "path": "./packages/autonomous-publishing"
     }
   ]
 }
