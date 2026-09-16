@@ -70,7 +70,7 @@ export const listPublicationsForAdmin = createServerFn({ method: "GET" })
             configured:
               configured("RESEND_API_KEY") &&
               configured("RESEND_SEGMENT_ID") &&
-              configured("RESEND_FROM"),
+              (configured("RESEND_FROM") || configured("RESEND_FROM_ADDRESS")),
           },
           listmonk: {
             enabled: manifest.integrations.listmonk === true,
