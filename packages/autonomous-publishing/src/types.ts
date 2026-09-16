@@ -96,7 +96,7 @@ export interface PublicationRun {
   id: string;
   publicationId: string;
   stage: PublicationStage;
-  status: "running" | "awaiting_approval" | "published" | "failed";
+  status: "running" | "awaiting_approval" | "published" | "rejected" | "failed";
   startedAt: string;
   completedAt?: string;
   error?: string;
