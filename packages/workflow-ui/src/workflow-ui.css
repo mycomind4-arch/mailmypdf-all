@@ -1859,3 +1859,120 @@ button.wf-communication-row:disabled {
   color: var(--wf-color-stone-light);
 }
 
+/* ── Searchable matter list ───────────────────────────────────────── */
+.wf-matter-list-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wf-matter-search {
+  width: min(15rem, 40vw);
+  min-height: 2.2rem;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-sm);
+  background: var(--wf-color-paper);
+  color: var(--wf-color-charcoal);
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.wf-matter-search:focus {
+  outline: 2px solid color-mix(in srgb, var(--wf-color-navy), transparent 75%);
+  outline-offset: 1px;
+}
+
+.wf-matter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.wf-matter-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-color-paper);
+  padding: 0.8rem 0.9rem;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wf-matter-row:hover {
+  border-color: var(--wf-color-stone-light);
+  background: var(--wf-color-paper-deep);
+}
+
+.wf-matter-row.is-selected {
+  border-color: var(--wf-color-navy);
+  box-shadow: inset 0 0 0 1px var(--wf-color-navy);
+}
+
+.wf-matter-main {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.wf-matter-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.wf-matter-title-row strong {
+  color: var(--wf-color-charcoal);
+  font-size: 0.86rem;
+}
+
+.wf-matter-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--wf-color-stone);
+  font-size: 0.76rem;
+}
+
+.wf-matter-side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  color: var(--wf-color-stone-light);
+  font-size: 0.71rem;
+}
+
+.wf-matter-count,
+.wf-matter-deadline {
+  color: var(--wf-color-stone);
+}
+
+@media (max-width: 760px) {
+  .wf-matter-list-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wf-matter-search {
+    width: 100%;
+  }
+
+  .wf-matter-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wf-matter-side {
+    justify-content: flex-start;
+  }
+}
+
