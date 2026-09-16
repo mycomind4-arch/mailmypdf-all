@@ -280,3 +280,5 @@ export * from "./vision.js";
 export * from "./docling-provider.js";
 
 export * from "./anthropic-vision-provider.js";
+
+export * from "./extraction-schema.js";
