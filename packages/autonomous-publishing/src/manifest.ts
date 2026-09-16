@@ -1,0 +1,60 @@
+export interface PublicationManifest {
+  id: string;
+  name: string;
+  audience: {
+    description: string;
+  };
+  schedule: {
+    frequency: "hourly" | "daily" | "weekly" | "manual";
+    timezone: string;
+    time?: string;
+  };
+  editorial: {
+    voice: string;
+    storyCount: number;
+    minimumStoryScore: number;
+    sections: readonly string[];
+    requirePrimarySource: boolean;
+    avoidRepeatDays: number;
+  };
+  ai: {
+    provider: "anthropic" | "openai" | "gemini" | (string & {});
+    model: string;
+    apiKeyEnv: string;
+  };
+  autonomy: {
+    discover: "automatic" | "manual";
+    research: "automatic" | "manual";
+    draft: "automatic" | "manual";
+    verify: "automatic" | "manual";
+    publish: "approval_required" | "automatic";
+  };
+  integrations: {
+    horizon?: boolean;
+    crawl4ai?: boolean;
+    rsshub?: boolean;
+    listmonk?: boolean;
+    umami?: boolean;
+    postiz?: boolean;
+  };
+}
+
+export function validatePublicationManifest(value: PublicationManifest): PublicationManifest {
+  if (!value.id.trim() || !/^[a-z0-9][a-z0-9-]*$/.test(value.id)) {
+    throw new Error("Publication id must be lowercase kebab-case");
+  }
+  if (!value.name.trim()) throw new Error("Publication name is required");
+  if (!value.audience.description.trim()) throw new Error("Audience description is required");
+  if (value.editorial.storyCount < 1 || value.editorial.storyCount > 50) {
+    throw new Error("storyCount must be between 1 and 50");
+  }
+  if (value.editorial.minimumStoryScore < 0 || value.editorial.minimumStoryScore > 100) {
+    throw new Error("minimumStoryScore must be between 0 and 100");
+  }
+  if (!value.editorial.sections.length) throw new Error("At least one editorial section is required");
+  if (/^(NEXT_PUBLIC_|VITE_|PUBLIC_)/i.test(value.ai.apiKeyEnv)) {
+    throw new Error("AI secrets must use a server-only environment variable");
+  }
+  if (!value.ai.apiKeyEnv.trim()) throw new Error("AI apiKeyEnv is required");
+  return value;
+}
