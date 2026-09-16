@@ -8,7 +8,7 @@ create table if not exists public.publication_runs (
   publication_id text not null,
   edition_id text,
   subject text,
-  status text not null check (status in ('running', 'awaiting_approval', 'published', 'failed')),
+  status text not null check (status in ('running', 'awaiting_approval', 'published', 'rejected', 'failed')),
   stage text not null,
   run_json jsonb not null,
   rendered_json jsonb,
