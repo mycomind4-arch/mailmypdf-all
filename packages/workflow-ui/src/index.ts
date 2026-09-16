@@ -33,3 +33,6 @@ export * from "./SourceReference";
 export * from "./ActionList";
 export * from "./CommunicationList";
 export * from "./MatterList";
+export * from "./StructuredAnalysisPanel";
+export * from "./WorkflowBrowser";
+export * from "./WorkflowDetailSummary";
