@@ -14,6 +14,21 @@ export interface ManifestCapabilityExecution {
   reused: boolean;
 }
 
+export interface ManifestWorkflowCheckpoint {
+  workflowId: string;
+  version: number;
+  matterId: string;
+  status: "running" | ManifestWorkflowRunStatus;
+  completedStepIds: readonly string[];
+  executions: readonly ManifestCapabilityExecution[];
+  currentStepId?: string;
+  stoppedAt?: {
+    stepId: string;
+    capability: CapabilityId;
+  };
+  message?: string;
+}
+
 export interface ManifestWorkflowRun {
   workflowId: string;
   version: number;
@@ -61,6 +76,13 @@ export interface RunManifestWorkflowInput {
    * policy.
    */
   continueOnWarning?: boolean;
+  /**
+   * Called after durable progress is made and before the runner advances.
+   * Hosts can persist this snapshot with optimistic concurrency.
+   */
+  onCheckpoint?: (
+    checkpoint: ManifestWorkflowCheckpoint,
+  ) => void | Promise<void>;
 }
 
 function executionKey(stepId: string, capability: CapabilityId): string {
@@ -150,6 +172,26 @@ export async function runManifestWorkflow(
   // original step. Earlier capabilities must never observe future-step state.
   const optional = new Set(workflow.manifest.optionalCapabilities);
 
+  const emitCheckpoint = async (
+    status: ManifestWorkflowCheckpoint["status"],
+    currentStepId?: string,
+    stoppedAt?: ManifestWorkflowRun["stoppedAt"],
+    message?: string,
+  ) => {
+    if (!input.onCheckpoint) return;
+    await input.onCheckpoint({
+      workflowId: workflow.manifest.id,
+      version: workflow.plan.version,
+      matterId: input.matterId,
+      status,
+      completedStepIds: [...completedStepIds],
+      executions: [...executions],
+      currentStepId,
+      stoppedAt,
+      message,
+    });
+  };
+
   for (const { step, capabilities } of workflow.plan.steps) {
     for (const capability of capabilities) {
       const key = executionKey(step.id, capability);
@@ -162,14 +204,17 @@ export async function runManifestWorkflow(
 
       if (!runtime.has(capability)) {
         if (optional.has(capability)) continue;
+        const stoppedAt = { stepId: step.id, capability };
+        const message = `Required capability handler is unavailable: ${capability}`;
+        await emitCheckpoint("failed", step.id, stoppedAt, message);
         return {
           workflowId: workflow.manifest.id,
           version: workflow.plan.version,
           status: "failed",
           completedStepIds,
           executions,
-          stoppedAt: { stepId: step.id, capability },
-          message: `Required capability handler is unavailable: ${capability}`,
+          stoppedAt,
+          message,
         };
       }
 
@@ -198,14 +243,17 @@ export async function runManifestWorkflow(
           },
         );
       } catch (error) {
+        const stoppedAt = { stepId: step.id, capability };
+        const message = error instanceof Error ? error.message : String(error);
+        await emitCheckpoint("failed", step.id, stoppedAt, message);
         return {
           workflowId: workflow.manifest.id,
           version: workflow.plan.version,
           status: "failed",
           completedStepIds,
           executions,
-          stoppedAt: { stepId: step.id, capability },
-          message: error instanceof Error ? error.message : String(error),
+          stoppedAt,
+          message,
         };
       }
 
@@ -216,16 +264,20 @@ export async function runManifestWorkflow(
         reused: false,
       });
       prior.set(capability, result);
+      await emitCheckpoint("running", step.id);
 
       if (result.status === "failed") {
+        const stoppedAt = { stepId: step.id, capability };
+        const message = result.messages.join(" ") || `${capability} failed`;
+        await emitCheckpoint("failed", step.id, stoppedAt, message);
         return {
           workflowId: workflow.manifest.id,
           version: workflow.plan.version,
           status: "failed",
           completedStepIds,
           executions,
-          stoppedAt: { stepId: step.id, capability },
-          message: result.messages.join(" ") || `${capability} failed`,
+          stoppedAt,
+          message,
         };
       }
 
@@ -233,22 +285,28 @@ export async function runManifestWorkflow(
         result.status === "blocked" ||
         (result.status === "warning" && !input.continueOnWarning)
       ) {
+        const stoppedAt = { stepId: step.id, capability };
+        const message =
+          result.messages.join(" ") ||
+          `${capability} requires resolution before continuing`;
+        await emitCheckpoint("blocked", step.id, stoppedAt, message);
         return {
           workflowId: workflow.manifest.id,
           version: workflow.plan.version,
           status: "blocked",
           completedStepIds,
           executions,
-          stoppedAt: { stepId: step.id, capability },
-          message:
-            result.messages.join(" ") ||
-            `${capability} requires resolution before continuing`,
+          stoppedAt,
+          message,
         };
       }
     }
 
     completedStepIds.push(step.id);
+    await emitCheckpoint("running", step.id);
   }
+
+  await emitCheckpoint("completed");
 
   return {
     workflowId: workflow.manifest.id,

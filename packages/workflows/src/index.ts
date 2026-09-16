@@ -37,3 +37,5 @@ export * from "./workflow-domain-spec.js";
 export * from "./workflow-quality-certification.js";
 
 export * from "./platform-capability-bundle.js";
+
+export * from "./durable-manifest-runner.js";
