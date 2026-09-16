@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import "../../../../packages/design-system/src/tokens.css";
 import "../../../../packages/design-system/src/patterns.css";
+import "../../../../packages/workflow-ui/src/workflow-ui.css";
 import appCss from "../styles.css?url";
 import { AnalyticsConsent } from "../components/analytics-consent";
 import { startPageTracking } from "../lib/analytics";
