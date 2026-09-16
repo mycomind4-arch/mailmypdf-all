@@ -1,8 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, CircleAlert, Newspaper, ShieldCheck } from "lucide-react";
-import { listPublicationsForAdmin } from "@/lib/publication-admin.functions";
+import { CheckCircle2, CircleAlert, Loader2, Newspaper, Play, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import {
+  listPublicationsForAdmin,
+  runPublicationPreviewForAdmin,
+} from "@/lib/publication-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/publications")({
   head: () => ({
@@ -24,11 +28,28 @@ function StatusDot({ ready }: { ready: boolean }) {
 
 function PublicationsPage() {
   const listPublications = useServerFn(listPublicationsForAdmin);
-  const { data } = useSuspenseQuery({
+  const runPreview = useServerFn(runPublicationPreviewForAdmin);
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+
+  const { data, refetch } = useSuspenseQuery({
     queryKey: ["studio-publications"],
     queryFn: () => listPublications(),
     retry: false,
   });
+
+  async function startPreview(publicationId: string) {
+    setRunningId(publicationId);
+    setRunError(null);
+    try {
+      const result = await runPreview({ data: { publicationId } });
+      await refetch();
+      window.location.href = `/admin/publications/${publicationId}/${result.runId}`;
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+      setRunningId(null);
+    }
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -45,6 +66,18 @@ function PublicationsPage() {
         </div>
       </div>
 
+      {!data.persistenceReady && (
+        <div className="mt-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Publication persistence is not deployed yet. Apply the autonomous-publications Supabase migration before running previews.
+        </div>
+      )}
+
+      {runError && (
+        <div className="mt-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          {runError}
+        </div>
+      )}
+
       <div className="mt-8 space-y-6">
         {data.publications.map((publication) => {
           const deliveryReady =
@@ -55,6 +88,9 @@ function PublicationsPage() {
             (!publication.integrations.horizon.enabled || publication.integrations.horizon.configured) &&
             (!publication.integrations.crawl4ai.enabled || publication.integrations.crawl4ai.configured) &&
             deliveryReady;
+          const recentRuns = data.runs
+            .filter((run: any) => run.publication_id === publication.id)
+            .slice(0, 5);
 
           return (
             <section key={publication.id} className="envelope-card overflow-hidden">
@@ -69,7 +105,7 @@ function PublicationsPage() {
                       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{publication.audience}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="rounded-full border border-rule px-3 py-1 uppercase tracking-wider">
                       {publication.status}
                     </span>
@@ -77,6 +113,15 @@ function PublicationsPage() {
                       {productionReady ? <ShieldCheck className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
                       {productionReady ? "Production wired" : "Setup incomplete"}
                     </span>
+                    <button
+                      type="button"
+                      disabled={!data.persistenceReady || !publication.ai.configured || runningId !== null}
+                      onClick={() => void startPreview(publication.id)}
+                      className="flex items-center gap-2 rounded-full bg-cobalt px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {runningId === publication.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      {runningId === publication.id ? "Running…" : "Run Preview"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -123,6 +168,25 @@ function PublicationsPage() {
                       </dd>
                     </div>
                   </dl>
+
+                  <div className="mt-6">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Recent runs</h3>
+                    <div className="mt-3 space-y-2">
+                      {recentRuns.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No persisted runs yet.</p>
+                      ) : recentRuns.map((run: any) => (
+                        <Link
+                          key={run.run_id}
+                          to="/admin/publications/$publicationId/$runId"
+                          params={{ publicationId: publication.id, runId: run.run_id }}
+                          className="flex items-center justify-between rounded border border-rule px-3 py-2 text-xs hover:bg-paper-deep"
+                        >
+                          <span className="min-w-0 truncate">{run.subject || run.edition_id || run.run_id}</span>
+                          <span className="ml-3 shrink-0 font-mono text-[10px] uppercase text-muted-foreground">{run.status}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
