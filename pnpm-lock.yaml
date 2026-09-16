@@ -1311,10 +1311,26 @@ importers:
   packages/core: {}
 
   packages/design-system:
+    dependencies:
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@19.2.8)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.8
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
+
+  packages/seo:
+    dependencies:
+      '@mailmypdf/design-system':
+        specifier: workspace:*
+        version: link:../design-system
 
   packages/dev-agent-swarm: {}
 

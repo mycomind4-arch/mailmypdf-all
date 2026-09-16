@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { createSectionHead, SectionLandingPage } from "../shared/section-landing"
-import { sectionLandingConfigs } from "../shared/section-catalog"
-
-const config = sectionLandingConfigs["benefits-appeal"]
+import { SectionLandingPage } from "@mailmypdf/design-system"
+import { createSectionHead } from "@mailmypdf/seo"
+import benefitsAppealConfig from "./config"
 
 export const Route = createFileRoute("/benefits-appeal/")({
-  head: () => createSectionHead(config),
-  component: () => <SectionLandingPage config={config} />,
+  head: () => createSectionHead(benefitsAppealConfig),
+  component: () => <SectionLandingPage config={benefitsAppealConfig} />,
 })

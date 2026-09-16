@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { createSectionHead, SectionLandingPage } from "../shared/section-landing"
-import { sectionLandingConfigs } from "../shared/section-catalog"
-
-const config = sectionLandingConfigs["tenant-reply"]
+import { SectionLandingPage } from "@mailmypdf/design-system"
+import { createSectionHead } from "@mailmypdf/seo"
+import tenantReplyConfig from "./config"
 
 export const Route = createFileRoute("/tenant-reply/")({
-  head: () => createSectionHead(config),
-  component: () => <SectionLandingPage config={config} />,
+  head: () => createSectionHead(tenantReplyConfig),
+  component: () => <SectionLandingPage config={tenantReplyConfig} />,
 })

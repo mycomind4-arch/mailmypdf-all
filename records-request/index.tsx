@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { createSectionHead, SectionLandingPage } from "../shared/section-landing"
-import { sectionLandingConfigs } from "../shared/section-catalog"
-
-const config = sectionLandingConfigs["records-request"]
+import { SectionLandingPage } from "@mailmypdf/design-system"
+import { createSectionHead } from "@mailmypdf/seo"
+import recordsRequestConfig from "./config"
 
 export const Route = createFileRoute("/records-request/")({
-  head: () => createSectionHead(config),
-  component: () => <SectionLandingPage config={config} />,
+  head: () => createSectionHead(recordsRequestConfig),
+  component: () => <SectionLandingPage config={recordsRequestConfig} />,
 })

@@ -27,6 +27,11 @@
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.12",
+    "@types/react": "^19.2.0"
+  },
+  "dependencies": {
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.0"
   }
 }

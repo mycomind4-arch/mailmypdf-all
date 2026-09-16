@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { createSectionHead, SectionLandingPage } from "../shared/section-landing"
-import { sectionLandingConfigs } from "../shared/section-catalog"
-
-const config = sectionLandingConfigs["private-office"]
+import { SectionLandingPage } from "@mailmypdf/design-system"
+import { createSectionHead } from "@mailmypdf/seo"
+import privateOfficeConfig from "./config"
 
 export const Route = createFileRoute("/private-office/")({
-  head: () => createSectionHead(config),
-  component: () => <SectionLandingPage config={config} />,
+  head: () => createSectionHead(privateOfficeConfig),
+  component: () => <SectionLandingPage config={privateOfficeConfig} />,
 })
