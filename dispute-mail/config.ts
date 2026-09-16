@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const disputeMailConfig = {
   "id": "dispute-mail",
@@ -10,7 +11,7 @@ export const disputeMailConfig = {
   "eyebrow": "Credit · debt · billing · collections · unauthorized charges",
   "heroTitle": "Prepare a dispute from the records you have.",
   "heroDescription": "Choose the dispute that matches the problem, organize the account information and evidence, prepare a focused letter, review the exact claims, and keep mailing and follow-up proof with the matter.",
-  "heroImage": "/heroes/dispute-mail.jpg",
+  "heroImage": heroImage,
   "introTitle": "Match the dispute letter to the actual problem.",
   "introText": "A credit-report error, debt-validation request, billing error, unauthorized charge, medical debt, and collection dispute require different facts and supporting records. Use a workflow built for that issue.",
   "trustLead": "Problem-specific dispute intake",

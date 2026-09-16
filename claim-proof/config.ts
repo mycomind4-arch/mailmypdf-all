@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const claimProofConfig = {
   "id": "claim-proof",
@@ -10,7 +11,7 @@ export const claimProofConfig = {
   "eyebrow": "Claim evidence · supporting documents · timelines · proof",
   "heroTitle": "Build the evidence record before you build the argument.",
   "heroDescription": "Start from the claim, decision, denial, or reimbursement issue. Organize the facts and supporting documents, prepare a reviewable proof package, and keep submission and mailing evidence connected.",
-  "heroImage": "/heroes/claim-proof.jpg",
+  "heroImage": heroImage,
   "introTitle": "Claims are easier to evaluate when the record is organized.",
   "introText": "Claim Proof focuses on the supporting record: documents, dates, amounts, photos, reports, correspondence, and evidence tied to the issue they support.",
   "trustLead": "Evidence-first claim organization",

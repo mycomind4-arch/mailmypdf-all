@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const permitReplyConfig = {
   "id": "permit-reply",
@@ -10,7 +11,7 @@ export const permitReplyConfig = {
   "eyebrow": "Permits · plan review · inspections · zoning · closeout",
   "heroTitle": "Respond to permit and inspection issues with the project record in hand.",
   "heroDescription": "Start from the denial, correction list, inspection result, zoning decision, or permit deficiency. Organize project facts and supporting documents, prepare reviewable correspondence, and keep delivery proof connected.",
-  "heroImage": "/heroes/permit-reply.jpg",
+  "heroImage": heroImage,
   "introTitle": "Permit correspondence should follow the project issue.",
   "introText": "A plan-review correction, failed inspection, permit denial, zoning decision, and closeout problem are different jobs. The selected workflow keeps the property, permit, agency, reviewer comments, evidence, and response together.",
   "trustLead": "Project and permit context preserved",

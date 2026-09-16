@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const immigrationMailConfig = {
   "id": "immigration-mail",
@@ -10,7 +11,7 @@ export const immigrationMailConfig = {
   "eyebrow": "USCIS · RFE · NOID · evidence · immigration correspondence",
   "heroTitle": "Prepare USCIS responses and immigration correspondence with confidence.",
   "heroDescription": "Start from the notice, request for evidence, case correspondence, or filing objective. Organize the requested information and supporting documents, review the packet, and keep mailing and proof connected.",
-  "heroImage": "/heroes/immigration-mail.jpg",
+  "heroImage": heroImage,
   "introTitle": "Build the packet around the USCIS document or filing objective.",
   "introText": "A request for evidence, notice of intent, supplemental submission, cover letter, or case follow-up needs different inputs. The workflow keeps the source notice, evidence, draft, attachments, and mailing record together.",
   "trustLead": "USCIS notice and evidence structure",

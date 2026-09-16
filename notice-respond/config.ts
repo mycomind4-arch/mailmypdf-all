@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const noticeRespondConfig = {
   "id": "notice-respond",
@@ -10,7 +11,7 @@ export const noticeRespondConfig = {
   "eyebrow": "IRS · tax · agency · court · compliance notices",
   "heroTitle": "Respond to the notice in front of you.",
   "heroDescription": "Start from the official notice you actually received. Identify the agency, notice type, dates, requested action, and supporting records, then prepare a reviewable response and keep mailing proof connected.",
-  "heroImage": "/heroes/notice-respond.jpg",
+  "heroImage": heroImage,
   "introTitle": "The notice should drive the workflow.",
   "introText": "An IRS notice, benefits notice, licensing letter, court notice, and regulatory deficiency should not be treated as the same problem. The workflow starts with the source document and routes the matter from there.",
   "trustLead": "Notice-first intake and deadlines",

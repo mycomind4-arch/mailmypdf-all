@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.svg"
 
 export const legalDefenseConfig = {
   "id": "legal-defense",
@@ -10,7 +11,7 @@ export const legalDefenseConfig = {
   "eyebrow": "Arrest · search · discovery · evidence · case reconstruction",
   "heroTitle": "Organize the case record before important decisions are made.",
   "heroDescription": "Build a structured matter from police reports, video, dispatch records, discovery, witness statements, timelines, and other evidence. Surface gaps and contradictions while keeping legal decisions with the user and counsel.",
-  "heroImage": "/heroes/legal-defense.svg",
+  "heroImage": heroImage,
   "introTitle": "Defense work starts with the record, not a generic letter.",
   "introText": "Legal Defense is designed to organize source materials, chronology, evidence, discovery, search and seizure issues, witness statements, and open questions into a reviewable case record.",
   "trustLead": "Evidence and provenance preserved",

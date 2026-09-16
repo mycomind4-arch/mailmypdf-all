@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const benefitsAppealConfig = {
   "id": "benefits-appeal",
@@ -10,7 +11,7 @@ export const benefitsAppealConfig = {
   "eyebrow": "SSDI · SSI · unemployment · Medicaid · benefits appeals",
   "heroTitle": "Appeal a benefits decision from the actual determination.",
   "heroDescription": "Start with the denial or adverse benefits decision. Organize the stated reason, dates, evidence, and requested review, then prepare a clear appeal and keep the mailing record with the matter.",
-  "heroImage": "/heroes/benefits-appeal.jpg",
+  "heroImage": heroImage,
   "introTitle": "Start with the program and decision you received.",
   "introText": "SSDI, SSI, unemployment, Medicaid, VA, disability, and other benefits programs use different procedures and records. The workflow keeps the source decision and supporting evidence visible throughout the appeal.",
   "trustLead": "Benefits-specific decision workflows",

@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const recordsRequestConfig = {
   "id": "records-request",
@@ -10,7 +11,7 @@ export const recordsRequestConfig = {
   "eyebrow": "Public records · FOIA · police · court · property",
   "heroTitle": "Request public records with a clear, documented process.",
   "heroDescription": "Choose the records request that matches what you need, identify the agency and scope, prepare a focused request, and keep the request, response, follow-up, mailing, and proof record connected.",
-  "heroImage": "/heroes/records-request.jpg",
+  "heroImage": heroImage,
   "introTitle": "Start with the records you actually need.",
   "introText": "Public-records requests work better when the agency, record family, date range, subject, and requested material are clearly defined. Use a focused workflow instead of starting from a generic blank letter.",
   "trustLead": "Agency-aware request structure",

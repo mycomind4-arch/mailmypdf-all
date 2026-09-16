@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const smallBusinessConfig = {
   "id": "small-business",
@@ -10,7 +11,7 @@ export const smallBusinessConfig = {
   "eyebrow": "Payments · contracts · vendors · notices · business correspondence",
   "heroTitle": "Prepare important business correspondence from one connected record.",
   "heroDescription": "Use focused workflows for payment collection, invoice notices, contract changes, customer and vendor disputes, policy updates, compliance correspondence, records requests, and other formal business letters.",
-  "heroImage": "/heroes/small-business.jpg",
+  "heroImage": heroImage,
   "introTitle": "Recurring business correspondence should not start from a blank page.",
   "introText": "Payment notices, vendor disputes, contract renewals, policy changes, records requests, and other formal communications can share the same controlled workflow while keeping the business facts and recipient context reusable.",
   "trustLead": "Reusable business and recipient context",

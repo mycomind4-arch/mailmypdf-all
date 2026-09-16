@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const appealMailConfig = {
   "id": "appeal-mail",
@@ -10,7 +11,7 @@ export const appealMailConfig = {
   "eyebrow": "Appeals · reconsideration · denied claims · adverse decisions",
   "heroTitle": "Build a clear appeal from the decision you received.",
   "heroDescription": "Start with the denial, determination, suspension, or adverse decision. Organize the reasons, evidence, deadlines, and requested outcome, then prepare a reviewable appeal packet and keep proof of what you sent.",
-  "heroImage": "/heroes/appeal-mail.jpg",
+  "heroImage": heroImage,
   "introTitle": "Different decisions need different appeals.",
   "introText": "Appeal Mail routes the matter by the decision you received rather than forcing every denial into the same letter. The decision, stated reason, deadline, evidence, and review path remain connected.",
   "trustLead": "Decision-first appeal workflows",

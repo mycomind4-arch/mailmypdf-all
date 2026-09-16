@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const privateOfficeConfig = {
   "id": "private-office",
@@ -10,7 +11,7 @@ export const privateOfficeConfig = {
   "eyebrow": "Private matters · evidence · correspondence · proof",
   "heroTitle": "Handle consequential private matters with an evidence-first record.",
   "heroDescription": "Organize the facts, documents, chronology, evidence, analysis, drafting, approval, mailing, and proof for complex personal and professional matters in one controlled workspace.",
-  "heroImage": "/heroes/private-office.jpg",
+  "heroImage": heroImage,
   "introTitle": "Complex matters need a durable record.",
   "introText": "Private Office is designed for high-stakes matters where documents, chronology, evidence, competing claims, formal correspondence, and proof of what happened need to stay connected.",
   "trustLead": "Matter-centric private record",

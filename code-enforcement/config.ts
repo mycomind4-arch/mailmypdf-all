@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const codeEnforcementConfig = {
   "id": "code-enforcement",
@@ -10,7 +11,7 @@ export const codeEnforcementConfig = {
   "eyebrow": "Code violations · inspections · nuisance · compliance · appeals",
   "heroTitle": "Turn a code enforcement notice into documented action.",
   "heroDescription": "Start from the notice, inspection request, violation, citation, or abatement action. Organize the property facts and evidence, prepare a reviewable response, and keep the case and mailing record together.",
-  "heroImage": "/heroes/code-enforcement.jpg",
+  "heroImage": heroImage,
   "introTitle": "Start with the action the agency actually took.",
   "introText": "An inspection request, notice of violation, nuisance allegation, abatement order, correction notice, and hearing request each create a different workflow. Keep the notice and property record at the center.",
   "trustLead": "Notice and property record first",

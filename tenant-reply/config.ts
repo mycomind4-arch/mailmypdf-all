@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const tenantReplyConfig = {
   "id": "tenant-reply",
@@ -10,7 +11,7 @@ export const tenantReplyConfig = {
   "eyebrow": "Tenant notices · repairs · deposits · rent · lease correspondence",
   "heroTitle": "Turn housing correspondence into a record you can review.",
   "heroDescription": "Start with the landlord notice, lease, repair problem, deposit statement, rent issue, or access request. Organize the facts and evidence, prepare editable correspondence, and preserve mailing and delivery proof.",
-  "heroImage": "/heroes/tenant-reply.jpg",
+  "heroImage": heroImage,
   "introTitle": "Start from the notice, condition, or charge that created the dispute.",
   "introText": "Repair issues, deposit deductions, rent notices, access requests, lease violations, and move-out charges require different facts. The workflow keeps property, tenancy, source documents, evidence, and correspondence connected.",
   "trustLead": "Property and tenancy context preserved",

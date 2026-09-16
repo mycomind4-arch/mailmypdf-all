@@ -1,4 +1,5 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/hero.jpg"
 
 export const insuranceClaimsConfig = {
   "id": "insurance-claims",
@@ -10,7 +11,7 @@ export const insuranceClaimsConfig = {
   "eyebrow": "Insurance claims · denials · property loss · coverage disputes",
   "heroTitle": "Build the claim record. Challenge the denial.",
   "heroDescription": "Choose a focused workflow for a new claim, denied claim, property loss, coverage dispute, health or disability matter. Organize the evidence, prepare reviewable correspondence, and keep mailing and proof connected.",
-  "heroImage": "/heroes/insurance-claims.jpg",
+  "heroImage": heroImage,
   "introTitle": "Start with the insurance problem you actually have.",
   "introText": "A new property claim, denied auto claim, roof loss, water damage, coverage denial, health claim, and disability denial each need a different record. The workflow keeps policy, loss, evidence, and correspondence organized.",
   "trustLead": "Claim-specific evidence structure",
