@@ -21,6 +21,8 @@ Repository inventory sweep:
 - 6,430 tracked file blobs
 - 5,419 text-like files
 - 1,208 TSX files repository-wide
+- repeated workflow-step families found across 9 implementations each for Overview, Intake, Documents, Draft, Review, and Mail; 7 Analyze implementations; 4 Evidence; 3 Timeline
+- those repeated files are mostly domain-distinct rather than exact-SHA duplicates, confirming that the right consolidation target is their presentation primitives + manifest/runtime data rather than copying one vertical step wholesale
 - 286 component TS/TSX files under the consolidated app and `apps/verticals/*/src/components`
 - 269 unique component blobs after exact-SHA deduplication
 
@@ -86,6 +88,10 @@ The following patterns were extracted from standalone verticals and promoted int
 | `EvidenceSummary` | Private Office results/evidence builder | Generic evidence status and source labels |
 | `StrategyList` | Private Office results + workflow next-step patterns | Generic recommendations/next-action list |
 | `DraftReview` | Private Office results + vertical Draft steps | Generic generated-draft review surface without AI/provider calls |
+| `ProofTimeline` | `apps/mailmypdf/src/components/shared/design-system.tsx` | Generic mailing/tracking/proof chronology |
+| `DocumentSummaryCard` | app-local `DocumentPreview` | Generic packet/document metadata without route styling |
+| `StatePanel` | `apps/mailmypdf/src/components/shared/states.tsx` | Generic loading, processing, error, waiting, empty and success states |
+| `StepStatusList` | nine vertical `Overview.tsx` step implementations | Generic matter-overview step navigation and state |
 
 All are exported by `packages/workflow-ui/src/index.ts` and styled in `workflow-ui.css`.
 
@@ -196,7 +202,12 @@ The public layer is already substantially centralized:
 
 This is the correct boundary.
 
-One outstanding public-design change from the current product specification: workflow directory cards and workflow landing pages need a real workflow-specific hero/thumbnail asset contract. The existing directory media block is primarily decorative, and `WorkflowLandingConfig` does not yet expose the shared workflow hero image required by the new design. That should be handled in `@mailmypdf/design-system`, not by restoring old vertical hero components.
+The shared public design system now has the workflow visual contract required by the new design:
+- `WorkflowLandingConfig.heroImage` / `heroImageAlt` / `heroTone`
+- `PublicWorkflowDirectoryItem.imageSrc` / `imageAlt`
+- the directory card renders the configured hero asset as its thumbnail
+
+The fields are currently backward-compatible/optional so existing configs do not fail while assets are migrated. The next asset pass should populate them workflow-by-workflow; the same configured asset should be used for the landing hero and directory card.
 
 ## Backend reuse findings
 
