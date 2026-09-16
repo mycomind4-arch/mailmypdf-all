@@ -156,6 +156,8 @@ export async function generateDraftResponse(
 
   const workflowFacts = caseInput ? JSON.stringify(caseInput.input, null, 2) : "(not applicable for this workflow)";
   const { text, model } = await askModel({
+    caseId,
+    context,
     systemPrompt: `${DRAFT_SYSTEM_PROMPT}\n\n${workflow.draftInstructions}`,
     instruction:
       "Draft a response letter using only the analysis and enclosure list below.\n\n" +

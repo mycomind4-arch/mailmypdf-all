@@ -54,7 +54,7 @@ function harness(t: TestContext) {
     onAudit: () => {},
     onStorageRead: () => {},
     storageResponse: () => new Response(PDF),
-    modelResponse: () => Response.json({ content: [{ type: "text", text: "Synthetic result" }], stop_reason: "end_turn" }),
+    modelResponse: () => Response.json({ content: [{ type: "text", text: "Synthetic result" }], stop_reason: "end_turn", model: "claude-sonnet-5" }),
     calls: [] as string[],
     audits: [] as Record<string, unknown>[],
     providerBodies: [] as Record<string, unknown>[],
@@ -70,6 +70,11 @@ function harness(t: TestContext) {
       return state.modelResponse();
     }
     assert.equal(url.origin, vaultUrl, "unexpected network destination");
+    if (url.pathname === "/rest/v1/workflow_cases") {
+      assert.equal(url.searchParams.get("owner_id"), `eq.${OWNER}`);
+      assert.equal(url.searchParams.get("id"), `eq.${CASE}`);
+      return Response.json({ id: CASE });
+    }
     if (url.pathname === "/rest/v1/case_documents") {
       assert.equal(url.searchParams.get("owner_id"), `eq.${OWNER}`);
       assert.equal(url.searchParams.get("case_id"), `eq.${CASE}`);
@@ -284,42 +289,42 @@ describe("provider failure containment", () => {
       state.modelResponse = () => new Response(new ReadableStream({
         pull(controller) { bodyRead = true; controller.enqueue(new TextEncoder().encode("SYNTHETIC_PRIVATE_CASE_DATA")); controller.close(); },
       }, { highWaterMark: 0 }), { status: 400 });
-      const call = withDocument ? disclose() : askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" });
+      const call = withDocument ? disclose() : askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" });
       await assert.rejects(call, (error: Error) => error instanceof AiGatewayError && !error.message.includes("SYNTHETIC_PRIVATE_CASE_DATA"));
       assert.equal(bodyRead, false);
     });
   }
 
   test("network errors become generic gateway errors", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     state.modelResponse = () => { throw new Error("SYNTHETIC_PRIVATE_CASE_DATA"); };
-    await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" }),
+    await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" }),
       (error: Error) => error instanceof AiGatewayError && !error.message.includes("SYNTHETIC_PRIVATE_CASE_DATA"));
   });
 
   test("truncated provider output cannot be presented as a complete draft", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     state.modelResponse = () => Response.json({ content: [{ type: "text", text: "Partial synthetic letter" }], stop_reason: "max_tokens" });
-    await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" }), AiGatewayError);
+    await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" }), AiGatewayError);
   });
 
   test("malformed response JSON never exposes provider content through parse errors", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     state.modelResponse = () => new Response("SYNTHETIC_PRIVATE_CASE_DATA");
-    await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" }),
+    await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" }),
       (error: Error) => error instanceof AiGatewayError && !error.message.includes("SYNTHETIC_PRIVATE_CASE_DATA"));
   });
 
   test("invalid response token limits fail before the provider request", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     for (const maxTokens of [0, -1, 1.5, 8193, Number.NaN, Number.POSITIVE_INFINITY]) {
-      await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic", maxTokens }), AiGatewayError);
+      await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic", maxTokens }), AiGatewayError);
     }
     assert.equal(state.providerBodies.length, 0);
   });
 
   test("aborts a stalled provider response without reflecting its failure", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     t.mock.timers.enable({ apis: ["setTimeout"] });
     let aborted = false;
     state.modelResponse = () => new Response(new ReadableStream({
@@ -331,13 +336,13 @@ describe("provider failure containment", () => {
         queueMicrotask(() => t.mock.timers.tick(90_001));
       },
     }));
-    await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" }),
+    await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" }),
       (error: Error) => error instanceof AiGatewayError && error.message === "Model request timed out");
     assert.equal(aborted, true);
   });
 
   test("unbounded provider output is cancelled before the entire body is read", async (t) => {
-    const { state } = harness(t);
+    const { state, context } = harness(t);
     let reads = 0;
     let cancelled = false;
     const chunk = new Uint8Array(64 * 1024);
@@ -345,7 +350,7 @@ describe("provider failure containment", () => {
       pull(controller) { reads += 1; controller.enqueue(chunk); if (reads === 100) controller.close(); },
       cancel() { cancelled = true; },
     }));
-    await assert.rejects(askModel({ systemPrompt: "Synthetic", instruction: "Synthetic" }), AiGatewayError);
+    await assert.rejects(askModel({ caseId: CASE, context, systemPrompt: "Synthetic", instruction: "Synthetic" }), AiGatewayError);
     assert.ok(reads < 100);
     assert.equal(cancelled, true);
   });

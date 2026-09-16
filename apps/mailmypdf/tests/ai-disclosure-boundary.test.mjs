@@ -44,8 +44,11 @@ describe("recording the disclosure", () => {
   test("the audit is written before the request leaves", async () => {
     const source = await read(GATEWAY);
     const audit = source.indexOf("await auditDisclosure(");
-    const call = source.indexOf("https://api.anthropic.com/v1/messages");
-    assert.ok(audit > 0 && call > audit, "auditDisclosure must run before the model request");
+    const call = source.indexOf("return executeSharedAi(", audit);
+    assert.ok(audit > 0 && call > audit, "auditDisclosure must run before the shared model request");
+    assert.doesNotMatch(source, /https:\/\/api\.anthropic\.com\/v1\/messages/);
+    assert.match(source, /createSecureAiGateway/);
+    assert.match(source, /createAnthropicProvider/);
   });
 
   test("a disclosure that cannot be recorded is not made", async () => {
