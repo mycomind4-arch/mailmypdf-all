@@ -145,3 +145,61 @@ export function scheduleDeadlineReminder(input: {
     status: "scheduled",
   };
 }
+
+
+export interface ScheduledNotificationStore {
+  listDue(now: string, limit: number): Promise<readonly ScheduledNotification[]>;
+  markDelivered(id: string, deliveredAt: string): Promise<void>;
+  markFailed(id: string, error: string, failedAt: string): Promise<void>;
+}
+
+export interface NotificationProviderResolver {
+  resolve(channel: NotificationChannel): NotificationProvider;
+}
+
+/**
+ * Dispatches due reminders from durable storage. Each command remains
+ * independently idempotent through NotificationDeliveryStore.
+ */
+export async function dispatchDueNotifications(input: {
+  schedules: ScheduledNotificationStore;
+  deliveries: NotificationDeliveryStore;
+  providers: NotificationProviderResolver;
+  now?: string;
+  limit?: number;
+}): Promise<{ processed: number; delivered: number; failed: number; skipped: number; duplicates: number }> {
+  const now = input.now ?? new Date().toISOString();
+  const limit = Math.max(1, Math.min(500, Math.floor(input.limit ?? 100)));
+  const due = await input.schedules.listDue(now, limit);
+  const result = { processed: 0, delivered: 0, failed: 0, skipped: 0, duplicates: 0 };
+
+  for (const schedule of due) {
+    if (!isNotificationDue(schedule, Date.parse(now))) continue;
+    result.processed += 1;
+    try {
+      const provider = input.providers.resolve(schedule.command.channel);
+      const dispatched = await dispatchNotification(schedule.command, provider, input.deliveries, now);
+      if (dispatched.status === "delivered") {
+        result.delivered += 1;
+        await input.schedules.markDelivered(schedule.id, now);
+      } else if (dispatched.status === "duplicate") {
+        result.duplicates += 1;
+        await input.schedules.markDelivered(schedule.id, now);
+      } else if (dispatched.status === "skipped") {
+        result.skipped += 1;
+        await input.schedules.markFailed(schedule.id, dispatched.reason, now);
+      } else {
+        result.failed += 1;
+        await input.schedules.markFailed(schedule.id, dispatched.error, now);
+      }
+    } catch (error) {
+      result.failed += 1;
+      await input.schedules.markFailed(
+        schedule.id,
+        error instanceof Error ? error.message : String(error),
+        now,
+      );
+    }
+  }
+  return result;
+}

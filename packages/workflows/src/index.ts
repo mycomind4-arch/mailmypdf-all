@@ -17,3 +17,6 @@ export * from "./workflow-certifier.js";
 export * from "./reference-pipeline-profiles.js";
 
 export * from "./capability-registry.js";
+
+export * from "./execution-reliability.js";
+export * from "./workflow-observability.js";

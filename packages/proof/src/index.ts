@@ -189,3 +189,38 @@ export function computeResponseWindowEnds(sentAt: string | null, days: number | 
   if (!Number.isFinite(sent) || !Number.isFinite(days) || days <= 0) return null;
   return new Date(sent + days * 86_400_000).toISOString();
 }
+
+
+export interface MatterArchiveManifest {
+  matterId: string;
+  workflowId: string;
+  finalDocumentSha256: string;
+  artifactIds: readonly string[];
+  proofBundleSha256?: string | null;
+  completedAt: string;
+  createdAt: string;
+  archiveSha256: string;
+}
+
+export function createMatterArchiveManifest(
+  input: Omit<MatterArchiveManifest, "archiveSha256">,
+): MatterArchiveManifest {
+  if (!input.matterId.trim() || !input.workflowId.trim()) throw new Error("Matter archive identity is required");
+  if (!/^[0-9a-f]{64}$/i.test(input.finalDocumentSha256)) throw new Error("Matter archive requires final document SHA-256");
+  if (input.proofBundleSha256 && !/^[0-9a-f]{64}$/i.test(input.proofBundleSha256)) {
+    throw new Error("Matter archive proof hash is invalid");
+  }
+  const normalized = {
+    ...input,
+    artifactIds: [...new Set(input.artifactIds)].sort(),
+  };
+  return {
+    ...normalized,
+    archiveSha256: hashRecord(normalized as unknown as Record<string, unknown>),
+  };
+}
+
+export function verifyMatterArchiveManifest(manifest: MatterArchiveManifest): boolean {
+  const { archiveSha256, ...content } = manifest;
+  return archiveSha256 === hashRecord(content as unknown as Record<string, unknown>);
+}

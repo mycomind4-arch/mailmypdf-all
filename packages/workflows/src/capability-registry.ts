@@ -9,6 +9,7 @@ export type CapabilityLayer =
 export type CapabilityId =
   | "identity"
   | "matterState"
+  | "aiExecution"
   | "security"
   | "secureUpload"
   | "documentStorage"
@@ -44,7 +45,11 @@ export type CapabilityId =
   | "mailing"
   | "tracking"
   | "notifications"
-  | "proofAudit";
+  | "resilience"
+  | "observability"
+  | "acceptanceTesting"
+  | "proofAudit"
+  | "archive";
 
 export type CapabilityDefinition = {
   id: CapabilityId;
@@ -66,7 +71,8 @@ const def = (
 
 export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> = {
   identity: def("identity","Identity & authorization","platform","foundation","@mailmypdf/ecosystem","Shared identity, authenticated access, entitlements, and authorization context."),
-  matterState: def("matterState","Matter state","platform","foundation","@mailmypdf/step-workflow","Durable matter state, versioning, progress, conditional steps, and ownership."),
+  matterState: def("matterState","Matter state","platform","foundation","@mailmypdf/step-workflow","Durable matter state, optimistic versioning, dynamic conditional steps, progress, and ownership."),
+  aiExecution: def("aiExecution","AI execution gateway","platform","foundation","@mailmypdf/ai","Authorized model routing, timeouts, fallback, schema validation, confidence, prompt versions, and AI provenance."),
   security: def("security","Security boundary","platform","foundation","@mailmypdf/core + @mailmypdf/documents","Fail-closed validation, trusted context, input boundaries, and security controls."),
   secureUpload: def("secureUpload","Secure document intake","platform","documents","@mailmypdf/documents","Consent-aware validation, owner-scoped paths, hashing, quarantine, and rollback-safe registration."),
   documentStorage: def("documentStorage","Document storage","platform","documents","@mailmypdf/documents","Provider-neutral quarantine storage and immutable document metadata contracts."),
@@ -101,8 +107,12 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   addressVerification: def("addressVerification","Address verification","platform","delivery","@mailmypdf/fulfillment","Provider-neutral address preflight, verification, and deliverability semantics."),
   mailing: def("mailing","Authorized mailing","platform","delivery","@mailmypdf/mailing-client + @mailmypdf/payment-fulfillment","Idempotent submission of the approved packet to physical-mail fulfillment."),
   tracking: def("tracking","Tracking","platform","delivery","@mailmypdf/fulfillment + @mailmypdf/mailing-client","Canonical provider lifecycle and tracking state."),
-  notifications: def("notifications","Notifications & reminders","platform","experience","@mailmypdf/ecosystem","Idempotent notification dispatch plus deadline-reminder scheduling primitives."),
+  notifications: def("notifications","Notifications & reminders","platform","experience","@mailmypdf/ecosystem","Idempotent dispatch plus durable due-reminder processing primitives."),
+  resilience: def("resilience","Execution resilience","platform","foundation","@mailmypdf/workflows","Reusable idempotency claims, bounded retries, replay-safe results, and duplicate-action prevention."),
+  observability: def("observability","Workflow observability","platform","foundation","@mailmypdf/workflows","Structured workflow telemetry with sensitive-content filtering."),
+  acceptanceTesting: def("acceptanceTesting","Workflow acceptance testing","platform","foundation","@mailmypdf/workflow-acceptance","Synthetic scenarios, Stripe and mailing simulation, production PDF assembly, run artifacts, and acceptance reports."),
   proofAudit: def("proofAudit","Proof / audit","platform","delivery","@mailmypdf/proof","Tamper-evident custody chains, proof bundle integrity, and delivery artifacts."),
+  archive: def("archive","Matter completion archive","platform","delivery","@mailmypdf/proof","Tamper-evident final matter manifest tying the approved document, artifacts, and proof bundle together."),
 };
 
 export const capabilityIds = Object.keys(CAPABILITIES) as CapabilityId[];

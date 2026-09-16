@@ -32,6 +32,7 @@ export interface DocumentVisionProvider {
   analyze<T>(input: {
     document: VerifiedVisualDocument;
     request: DocumentVisionRequest;
+    signal?: AbortSignal;
   }): Promise<DocumentVisionProviderResult<T>>;
 }
 
@@ -46,7 +47,37 @@ export interface DocumentVisionAnalysis<T> extends DocumentVisionProviderResult<
   promptVersion: string;
 }
 
-const MAX_VISUAL_DOCUMENT_BYTES = 24 * 1024 * 1024;
+export const MAX_VISUAL_DOCUMENT_BYTES = 24 * 1024 * 1024;
+
+export interface DocumentVisionPolicy {
+  maxBytes: number;
+  timeoutMs: number;
+  allowedProviders?: readonly string[];
+}
+
+export const DEFAULT_DOCUMENT_VISION_POLICY: DocumentVisionPolicy = {
+  maxBytes: MAX_VISUAL_DOCUMENT_BYTES,
+  timeoutMs: 90_000,
+};
+
+async function withVisionTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("Vision timeout must be positive");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await Promise.race([
+      operation(controller.signal),
+      new Promise<T>((_, reject) => {
+        controller.signal.addEventListener("abort", () => reject(new Error("VISION_ANALYSIS_TIMEOUT")), { once: true });
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const stable = new Uint8Array(bytes.byteLength);
@@ -75,10 +106,14 @@ export async function analyzeVisualDocument<T>(
   request: DocumentVisionRequest,
   provider: DocumentVisionProvider,
   validateOutput: (value: unknown) => value is T,
+  policy: DocumentVisionPolicy = DEFAULT_DOCUMENT_VISION_POLICY,
 ): Promise<DocumentVisionAnalysis<T>> {
   if (document.securityStatus !== "clean") throw new Error("Document has not cleared security scanning");
   if (!document.documentId.trim() || !document.fileName.trim()) throw new Error("Document identity is incomplete");
-  if (!document.bytes.byteLength || document.bytes.byteLength > MAX_VISUAL_DOCUMENT_BYTES) {
+  if (!Number.isFinite(policy.maxBytes) || policy.maxBytes <= 0 || policy.maxBytes > MAX_VISUAL_DOCUMENT_BYTES) {
+    throw new Error("Vision maxBytes is outside the allowed range");
+  }
+  if (!document.bytes.byteLength || document.bytes.byteLength > policy.maxBytes) {
     throw new Error("Document is outside the supported visual-analysis size range");
   }
   if (!/^[0-9a-f]{64}$/i.test(document.sha256)) throw new Error("Document SHA-256 is invalid");
@@ -89,7 +124,17 @@ export async function analyzeVisualDocument<T>(
   if (!request.outputSchema.trim()) throw new Error("Vision-analysis output schema is required");
   if (!request.promptVersion.trim()) throw new Error("Vision-analysis prompt version is required");
 
-  const result = await provider.analyze<T>({ document, request: { ...request, purpose } });
+  if (request.instruction.length > 20_000) throw new Error("Vision-analysis instruction is too large");
+  if (request.outputSchema.length > 20_000) throw new Error("Vision-analysis output schema is too large");
+
+  const result = await withVisionTimeout(
+    (signal) => provider.analyze<T>({ document, request: { ...request, purpose }, signal }),
+    policy.timeoutMs,
+  );
+  if (policy.allowedProviders?.length && !policy.allowedProviders.includes(result.provider)) {
+    throw new Error(`Vision-analysis provider is not allowed: ${result.provider}`);
+  }
+  if (!result.provider.trim() || !result.model.trim()) throw new Error("Vision-analysis provider identity is incomplete");
   if (!validateOutput(result.output)) throw new Error("Vision-analysis output failed schema validation");
   if (!Number.isFinite(result.confidence) || result.confidence < 0 || result.confidence > 1) {
     throw new Error("Vision-analysis confidence must be between 0 and 1");

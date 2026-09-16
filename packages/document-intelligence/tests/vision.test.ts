@@ -32,3 +32,36 @@ test("visual analysis refuses swapped bytes before invoking provider", async () 
   ), /SHA-256/);
   assert.equal(called,false);
 });
+
+
+test("vision analysis enforces timeout and provider policy", async () => {
+  const bytes = new TextEncoder().encode("%PDF-1.4 example");
+  const hash = await sha256(bytes);
+  await assert.rejects(
+    () => analyzeVisualDocument(
+      { documentId:"doc-2",fileName:"notice.pdf",mimeType:"application/pdf",bytes,sha256:hash,securityStatus:"clean" },
+      { purpose:"notice_analysis",instruction:"Analyze",outputSchema:"object",promptVersion:"v1" },
+      { async analyze({signal}) {
+          await new Promise((resolve,reject) => {
+            const timer=setTimeout(resolve,100);
+            signal?.addEventListener("abort",()=>{clearTimeout(timer);reject(new Error("aborted"));},{once:true});
+          });
+          return {output:{ok:true},provider:"anthropic",model:"claude",confidence:1};
+        } },
+      (value): value is {ok:boolean} => typeof value === "object" && value !== null,
+      { maxBytes:1024*1024, timeoutMs:5, allowedProviders:["anthropic"] },
+    ),
+    /TIMEOUT|aborted/,
+  );
+
+  await assert.rejects(
+    () => analyzeVisualDocument(
+      { documentId:"doc-3",fileName:"notice.pdf",mimeType:"application/pdf",bytes,sha256:hash,securityStatus:"clean" },
+      { purpose:"notice_analysis",instruction:"Analyze",outputSchema:"object",promptVersion:"v1" },
+      { async analyze(){return {output:{ok:true},provider:"unknown",model:"x",confidence:1};} },
+      (value): value is {ok:boolean} => typeof value === "object" && value !== null,
+      { maxBytes:1024*1024, timeoutMs:1000, allowedProviders:["anthropic"] },
+    ),
+    /not allowed/,
+  );
+});

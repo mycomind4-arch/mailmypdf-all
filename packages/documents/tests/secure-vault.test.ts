@@ -77,3 +77,30 @@ test("only clean, unexpired documents are disclosable and retention is purgeable
   assert.equal(shouldPurgeSecureDocument(base, Date.parse("2026-09-21T00:00:00Z")), true);
   assert.throws(() => buildSecureDocumentPath("../user","doc","x.pdf"));
 });
+
+
+test("verified retrieval refuses cross-owner access and re-verifies stored bytes", async () => {
+  const {
+    loadVerifiedDocumentBytes,
+  } = await import("../src/index.js");
+  const document: SecureDocumentEnvelope = {
+    id:"doc-read",ownerId:"user-1",workflowId:"w",purpose:"evidence",safeFilename:"notice.pdf",
+    mimeType:"application/pdf",sizeBytes:pdf.byteLength,sha256:computeSha256(pdf),
+    storagePath:"user-1/doc-read/notice.pdf",securityStatus:"clean",retentionUntil:"2026-10-16T00:00:00Z",
+  };
+  let reads=0;
+  const storage={
+    async put(){}, async remove(){},
+    async get(){reads+=1;return pdf;},
+  };
+  await assert.rejects(
+    () => loadVerifiedDocumentBytes(document,"user-2","analysis",storage,undefined,Date.parse("2026-09-16T00:00:00Z")),
+    /owner/,
+  );
+  assert.equal(reads,0);
+  const loaded=await loadVerifiedDocumentBytes(
+    document,"user-1","analysis",storage,undefined,Date.parse("2026-09-16T00:00:00Z"),
+  );
+  assert.equal(computeSha256(loaded),document.sha256);
+  assert.equal(reads,1);
+});

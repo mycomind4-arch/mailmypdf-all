@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCustodyEvent, createVerifiableProofBundle, verifyCustodyChain, verifyProofBundle } from "../src/index.ts";
+import { createCustodyEvent, createMatterArchiveManifest, createVerifiableProofBundle, verifyCustodyChain, verifyMatterArchiveManifest, verifyProofBundle } from "../src/index.ts";
 
 test("custody chain detects metadata tampering", () => {
   const first=createCustodyEvent({priorEventHash:null,timestamp:"2026-09-16T00:00:00Z",eventType:"created",description:"Created",metadata:{document:"abc"}});
@@ -18,4 +18,16 @@ test("proof bundle hash covers the entire custody chain and delivery metadata", 
   });
   assert.equal(verifyProofBundle(bundle),true);
   assert.equal(verifyProofBundle({...bundle,trackingNumber:"TRACK-CHANGED"}),false);
+});
+
+
+test("matter archive manifest detects post-completion mutation", () => {
+  const archive=createMatterArchiveManifest({
+    matterId:"m1",workflowId:"cp2000-response",finalDocumentSha256:"b".repeat(64),
+    artifactIds:["receipt","packet","packet"],proofBundleSha256:"c".repeat(64),
+    completedAt:"2026-09-16T00:00:00Z",createdAt:"2026-09-16T00:00:01Z",
+  });
+  assert.deepEqual(archive.artifactIds,["packet","receipt"]);
+  assert.equal(verifyMatterArchiveManifest(archive),true);
+  assert.equal(verifyMatterArchiveManifest({...archive,artifactIds:["other"]}),false);
 });

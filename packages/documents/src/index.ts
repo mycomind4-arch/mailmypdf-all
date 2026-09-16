@@ -1026,3 +1026,61 @@ export function shouldPurgeSecureDocument(
   const retention = Date.parse(document.retentionUntil);
   return Number.isFinite(retention) && retention <= now;
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERIFIED DOCUMENT RETRIEVAL — never disclose storage bytes without re-checking
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SecureDocumentStorage extends QuarantineStorage {
+  get(path: string): Promise<Uint8Array>;
+}
+
+export interface SecureDocumentAccessAudit {
+  record(input: {
+    documentId: string;
+    ownerId: string;
+    purpose: string;
+    action: "read";
+    occurredAt: string;
+  }): Promise<void>;
+}
+
+/**
+ * Reads a clean document from storage for an authorized owner and verifies the
+ * bytes against the immutable intake metadata before returning them.
+ *
+ * This is the canonical seam for downstream extraction/vision. Callers should
+ * not read secure storage directly.
+ */
+export async function loadVerifiedDocumentBytes(
+  document: SecureDocumentEnvelope,
+  ownerId: string,
+  purpose: string,
+  storage: SecureDocumentStorage,
+  audit?: SecureDocumentAccessAudit,
+  now = Date.now(),
+): Promise<Uint8Array> {
+  if (!ownerId.trim() || document.ownerId !== ownerId) {
+    throw new ValidationError("Document is not accessible for this owner");
+  }
+  assertDocumentDisclosable(document, now);
+  if (!document.storagePath.startsWith(`${document.ownerId}/`)) {
+    throw new ValidationError("Document storage path is outside the owner scope");
+  }
+
+  const bytes = await storage.get(document.storagePath);
+  const verification = verifyStoredDocument(document, bytes);
+  if (!verification.ok) throw verification.error;
+
+  if (audit) {
+    await audit.record({
+      documentId: document.id,
+      ownerId,
+      purpose: validateDocumentPurpose(purpose),
+      action: "read",
+      occurredAt: new Date(now).toISOString(),
+    });
+  }
+  return bytes;
+}

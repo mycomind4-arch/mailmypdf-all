@@ -24,3 +24,29 @@ test("deadline reminders produce deterministic due times", () => {
   assert.equal(schedule.dueAt,"2026-09-19T12:00:00.000Z");
   assert.equal(isNotificationDue(schedule,Date.parse("2026-09-19T12:00:00Z")),true);
 });
+
+
+test("due notification dispatcher records durable completion", async () => {
+  const { dispatchDueNotifications } = await import("../src/notifications.js");
+  const delivered=new Set<string>();
+  const completed:string[]=[];
+  const schedule={
+    id:"s1",dueAt:"2026-09-16T10:00:00Z",status:"scheduled" as const,
+    command:{idempotencyKey:"s1",kind:"deadline_reminder" as const,channel:"email" as const,message:{to:"a@example.com",subject:"Due",html:"Due"}},
+  };
+  const result=await dispatchDueNotifications({
+    schedules:{
+      async listDue(){return [schedule];},
+      async markDelivered(id){completed.push(id);},
+      async markFailed(){throw new Error("should not fail");},
+    },
+    deliveries:{
+      async wasDelivered(key){return delivered.has(key);},
+      async record(input){if(input.status==="delivered") delivered.add(input.idempotencyKey);},
+    },
+    providers:{resolve(){return {name:"test",isConfigured:()=>true,async send(){return {ok:true,messageId:"m1"};}};}},
+    now:"2026-09-16T10:00:00Z",
+  });
+  assert.deepEqual(result,{processed:1,delivered:1,failed:0,skipped:0,duplicates:0});
+  assert.deepEqual(completed,["s1"]);
+});
