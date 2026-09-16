@@ -154,3 +154,4 @@ export async function verifyAddressForMailing(
 }
 
 export * from "./address-verification.js";
+export * from "./lob-provider.js";
