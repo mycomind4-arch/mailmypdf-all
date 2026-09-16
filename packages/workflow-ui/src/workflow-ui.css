@@ -1491,3 +1491,58 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Matter overview step status list ─────────────────────────────── */
+.wf-step-status-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-step-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-top: 1px solid var(--wf-color-rule);
+  padding: 0.65rem 0;
+}
+
+.wf-step-status-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wf-step-status-action {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wf-step-status-action:disabled {
+  cursor: default;
+}
+
+.wf-step-status-copy {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.wf-step-status-copy strong {
+  font-size: 0.85rem;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-step-status-copy span {
+  font-size: 0.76rem;
+  color: var(--wf-color-stone);
+}
+
