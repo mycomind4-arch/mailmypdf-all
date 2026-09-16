@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Loader2, Send, ShieldCheck, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Loader2, Send, ShieldCheck, TriangleAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 import {
   approvePublicationRunForAdmin,
   getPublicationRunForAdmin,
+  rejectPublicationRunForAdmin,
 } from "@/lib/publication-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/publications/$publicationId/$runId")({
@@ -22,7 +23,9 @@ function PublicationRunReviewPage() {
   const { publicationId, runId } = Route.useParams();
   const loadRun = useServerFn(getPublicationRunForAdmin);
   const approveRun = useServerFn(approvePublicationRunForAdmin);
+  const rejectRun = useServerFn(rejectPublicationRunForAdmin);
   const [publishing, setPublishing] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -47,6 +50,19 @@ function PublicationRunReviewPage() {
       setActionError(error instanceof Error ? error.message : String(error));
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function reject() {
+    setRejecting(true);
+    setActionError(null);
+    try {
+      await rejectRun({ data: { publicationId, runId, note: note || undefined } });
+      await refetch();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -156,15 +172,26 @@ function PublicationRunReviewPage() {
                     placeholder="Optional approval note"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => void approve()}
-                  disabled={publishing || !verification?.passed}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-cobalt px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {publishing ? "Publishing…" : "Approve & Publish"}
-                </button>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void reject()}
+                    disabled={publishing || rejecting}
+                    className="flex items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {rejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                    {rejecting ? "Rejecting…" : "Reject"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void approve()}
+                    disabled={publishing || rejecting || !verification?.passed}
+                    className="flex items-center justify-center gap-2 rounded-md bg-cobalt px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {publishing ? "Publishing…" : "Approve & Publish"}
+                  </button>
+                </div>
               </>
             ) : (
               <div className="mt-3 rounded-md border border-rule bg-paper-deep p-3 text-sm">
