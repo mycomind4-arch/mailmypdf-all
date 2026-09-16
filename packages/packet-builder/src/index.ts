@@ -485,3 +485,5 @@ export async function assemblePacket(
   const bytes = await packet.save({ useObjectStreams: false });
   return { bytes, sha256: computeSha256(bytes), responsePages, supportingPages, manifest };
 }
+
+export * from "./pdf-validation.js";
