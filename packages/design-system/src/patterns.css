@@ -239,3 +239,73 @@
   .mmp-process-step { border-right: 0; }
   .mmp-workspace-content { width: min(100% - 2rem, 1280px); }
 }
+
+/* Unified SEO-first section landing pages.
+ * Shared by the simplified root-level MailMyPDF sections.
+ */
+.mmp-breadcrumbs {
+  border-bottom: 1px solid var(--mmp-border);
+  background: var(--mmp-paper);
+  font-size: .78rem;
+  color: var(--mmp-ink-muted);
+}
+.mmp-breadcrumbs .mmp-section__inner {
+  min-height: 2.6rem;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+.mmp-breadcrumbs a { color: var(--mmp-ink-muted); text-decoration: none; }
+.mmp-breadcrumbs a:hover { color: var(--mmp-accent); }
+.mmp-seo-centered-action { display: flex; justify-content: center; margin-top: 2rem; }
+.mmp-seo-topics { background: var(--mmp-paper-deep); border-block: 1px solid var(--mmp-border); }
+.mmp-seo-topic-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
+.mmp-seo-topic-card { padding: 1.5rem; }
+.mmp-seo-topic-card h3,
+.mmp-seo-related-card h3 { margin: 0; font: 400 1.55rem/1.08 var(--mmp-font-display); }
+.mmp-seo-topic-card p,
+.mmp-seo-related-card p { margin: .75rem 0 0; color: var(--mmp-ink-muted); font-size: .9rem; line-height: 1.65; }
+.mmp-seo-eyebrow-light { color: color-mix(in srgb, var(--mmp-accent-soft) 78%, white); }
+.mmp-seo-outcome-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; }
+.mmp-seo-outcome {
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--mmp-radius-lg);
+  background: rgba(255,255,255,.06);
+}
+.mmp-seo-outcome svg { flex: 0 0 auto; color: color-mix(in srgb, var(--mmp-accent-soft) 70%, white); }
+.mmp-seo-faq-wrap { display: grid; grid-template-columns: minmax(0,.7fr) minmax(0,1.3fr); gap: clamp(2rem,6vw,6rem); align-items: start; }
+.mmp-seo-faq-title { margin: .8rem 0 0; font: 400 clamp(2.6rem,4vw,4.4rem)/.98 var(--mmp-font-display); }
+.mmp-seo-faq-list { border-top: 1px solid var(--mmp-border); }
+.mmp-seo-faq { border-bottom: 1px solid var(--mmp-border); padding: 1.15rem 0; }
+.mmp-seo-faq summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; cursor: pointer; list-style: none; font-weight: 650; }
+.mmp-seo-faq summary::-webkit-details-marker { display:none; }
+.mmp-seo-faq summary span { font: 400 1.5rem/1 var(--mmp-font-display); color: var(--mmp-accent); transition: transform .18s ease; }
+.mmp-seo-faq[open] summary span { transform: rotate(45deg); }
+.mmp-seo-faq p { max-width: 52rem; margin: .8rem 0 0; color: var(--mmp-ink-muted); line-height: 1.7; }
+.mmp-seo-related { border-block: 1px solid var(--mmp-border); background: var(--mmp-surface); }
+.mmp-seo-related-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; }
+.mmp-seo-related-card { display: block; padding: 1.5rem; color: var(--mmp-ink); text-decoration: none; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.mmp-seo-related-card:hover { transform: translateY(-2px); border-color: var(--mmp-border-strong); box-shadow: var(--mmp-shadow-md); }
+.mmp-seo-related-card strong { display: block; margin-top: 1rem; font-size: .84rem; color: var(--mmp-accent); }
+.mmp-seo-footer { padding: 2.5rem 0; border-top: 1px solid var(--mmp-border); background: var(--mmp-paper-deep); }
+.mmp-seo-footer__inner { display: flex; justify-content: space-between; align-items: center; gap: 2rem; }
+.mmp-seo-footer p { margin: .45rem 0 0; color: var(--mmp-ink-muted); font-size: .82rem; }
+.mmp-seo-footer nav { display: flex; flex-wrap: wrap; gap: 1.1rem; }
+.mmp-seo-footer a { color: var(--mmp-ink-muted); text-decoration: none; font-size: .82rem; }
+.mmp-seo-footer a:hover { color: var(--mmp-accent); }
+
+@media (max-width: 1100px) {
+  .mmp-seo-topic-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 720px) {
+  .mmp-seo-topic-grid,
+  .mmp-seo-outcome-grid,
+  .mmp-seo-related-grid,
+  .mmp-seo-faq-wrap { grid-template-columns: 1fr; }
+  .mmp-seo-footer__inner { align-items: flex-start; flex-direction: column; }
+}
