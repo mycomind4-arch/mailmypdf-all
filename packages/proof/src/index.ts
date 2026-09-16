@@ -224,3 +224,103 @@ export function verifyMatterArchiveManifest(manifest: MatterArchiveManifest): bo
   const { archiveSha256, ...content } = manifest;
   return archiveSha256 === hashRecord(content as unknown as Record<string, unknown>);
 }
+
+
+export interface MatterArchiveArtifact {
+  id: string;
+  kind: ProofArtifact["kind"];
+  sha256: string;
+  sizeBytes?: number;
+}
+
+export interface VerifiedMatterArchiveManifest {
+  matterId: string;
+  workflowId: string;
+  finalDocumentSha256: string;
+  artifacts: readonly MatterArchiveArtifact[];
+  proofBundleSha256?: string | null;
+  completedAt: string;
+  createdAt: string;
+  archiveSha256: string;
+}
+
+function normalizeArchiveArtifacts(
+  artifacts: readonly MatterArchiveArtifact[],
+): MatterArchiveArtifact[] {
+  const byId = new Map<string, MatterArchiveArtifact>();
+
+  for (const artifact of artifacts) {
+    if (!artifact.id.trim()) throw new Error("Archive artifact id is required");
+    if (!/^[0-9a-f]{64}$/i.test(artifact.sha256)) {
+      throw new Error(`Archive artifact ${artifact.id} requires a valid SHA-256`);
+    }
+    if (
+      artifact.sizeBytes !== undefined &&
+      (!Number.isSafeInteger(artifact.sizeBytes) || artifact.sizeBytes < 0)
+    ) {
+      throw new Error(`Archive artifact ${artifact.id} has invalid sizeBytes`);
+    }
+
+    const existing = byId.get(artifact.id);
+    if (
+      existing &&
+      (existing.sha256 !== artifact.sha256 ||
+        existing.kind !== artifact.kind ||
+        existing.sizeBytes !== artifact.sizeBytes)
+    ) {
+      throw new Error(
+        `Archive artifact ${artifact.id} was supplied with conflicting metadata`,
+      );
+    }
+    byId.set(artifact.id, { ...artifact });
+  }
+
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function createVerifiedMatterArchiveManifest(
+  input: Omit<VerifiedMatterArchiveManifest, "archiveSha256">,
+): VerifiedMatterArchiveManifest {
+  if (!input.matterId.trim() || !input.workflowId.trim()) {
+    throw new Error("Matter archive identity is required");
+  }
+  if (!/^[0-9a-f]{64}$/i.test(input.finalDocumentSha256)) {
+    throw new Error("Matter archive requires final document SHA-256");
+  }
+  if (
+    input.proofBundleSha256 &&
+    !/^[0-9a-f]{64}$/i.test(input.proofBundleSha256)
+  ) {
+    throw new Error("Matter archive proof hash is invalid");
+  }
+
+  const normalized = {
+    ...input,
+    artifacts: normalizeArchiveArtifacts(input.artifacts),
+  };
+
+  return {
+    ...normalized,
+    archiveSha256: hashRecord(
+      normalized as unknown as Record<string, unknown>,
+    ),
+  };
+}
+
+export function verifyVerifiedMatterArchiveManifest(
+  manifest: VerifiedMatterArchiveManifest,
+): boolean {
+  try {
+    const { archiveSha256, ...content } = manifest;
+    const normalized = {
+      ...content,
+      artifacts: normalizeArchiveArtifacts(content.artifacts),
+    };
+    return (
+      archiveSha256 ===
+      hashRecord(normalized as unknown as Record<string, unknown>)
+    );
+  } catch {
+    return false;
+  }
+}
