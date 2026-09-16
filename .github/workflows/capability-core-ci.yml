@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'packages/core/**'
       - 'packages/ai/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
@@ -20,6 +21,7 @@ on:
       - '.github/workflows/capability-core-ci.yml'
   pull_request:
     paths:
+      - 'packages/core/**'
       - 'packages/ai/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
