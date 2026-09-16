@@ -20,12 +20,15 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
+    "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@mailmypdf/core": "workspace:*",
     "@mailmypdf/documents": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }

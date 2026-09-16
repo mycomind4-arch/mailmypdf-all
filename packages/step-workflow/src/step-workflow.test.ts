@@ -93,7 +93,7 @@ describe("step workflow runtime", () => {
 });
 
 
-test("conditional steps are skipped until their declarative condition is true", () => {
+it("conditional steps are skipped until their declarative condition is true", () => {
   const conditional: StepWorkflowDefinition = {
     id: "conditional",
     title: "Conditional",
