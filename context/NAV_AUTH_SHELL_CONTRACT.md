@@ -215,3 +215,15 @@ meant to be completed in one pass.
 - Admins receive a `Studio / Admin` group for Studio Home, Analytics, AI Control Plane, Audit Log, and Entitlements.
 - Dashboard no longer mounts a second sidebar.
 - Legacy AdminHeader chrome was removed from the core admin pages so Studio/Admin uses the same authenticated shell as the rest of MailMyPDF.
+
+
+## 9. 2026-09-16 public vs authenticated workflow experience
+
+The workflow experience is deliberately split by audience:
+
+- Public SEO/discovery remains at `/<product>/workflows` and `/<product>/workflows/<workflow>`. These pages may use marketing copy, hero photography, workflow thumbnails, schema, and indexable metadata.
+- Signed-in navigation uses `/dashboard/workflows`, `/dashboard/workflows/<product>`, and `/dashboard/workflows/<product>/<workflow>`.
+- Authenticated workflow pages are operational workspace pages: no marketing hero, no workflow thumbnail requirement, no sales copy, and `robots=noindex`.
+- The shared Studio-style sidebar points only to authenticated workspace URLs. It does not route signed-in users through public SEO pages.
+- Customer accounts see workflow availability and start actions. Server-verified admins additionally see publication, SEO/indexing, authority, review, and runtime status plus Studio controls.
+- Public hero assets remain public-content assets and may be reused for public directory cards and social metadata; authenticated workspace pages do not render them.

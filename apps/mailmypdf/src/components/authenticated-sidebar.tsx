@@ -152,7 +152,7 @@ function WorkflowNavigator({
         </span>
         {!collapsed && (
           <>
-            <span className="min-w-0 flex-1 text-left">Workflows</span>
+            <a href="/dashboard/workflows" onClick={onNavigate} className="min-w-0 flex-1 text-left hover:text-white">Workflows</a>
             <span className="text-[10px] tabular-nums text-white/40">{WORKFLOW_NAV_COUNT}</span>
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
           </>
@@ -178,8 +178,8 @@ function WorkflowNavigator({
                   <p className="px-2 py-3 text-xs text-white/45">No matching workflows.</p>
                 ) : matches.map(({ section, workflow }) => (
                   <a
-                    key={workflow.href}
-                    href={workflow.href}
+                    key={workflow.workspaceHref}
+                    href={workflow.workspaceHref}
                     onClick={onNavigate}
                     className="block rounded px-2.5 py-2 text-xs text-white/72 hover:bg-white/10 hover:text-white"
                   >
@@ -205,15 +205,15 @@ function WorkflowNavigator({
                       </button>
                       {sectionOpen && (
                         <div className="ml-5 border-l border-white/10 pl-1">
-                          <a href={section.href} onClick={onNavigate} className="block rounded px-2 py-1.5 text-[11px] font-medium text-[#d1ad72] hover:bg-white/10">
+                          <a href={section.workspaceHref} onClick={onNavigate} className="block rounded px-2 py-1.5 text-[11px] font-medium text-[#d1ad72] hover:bg-white/10">
                             {section.label} overview
                           </a>
                           {section.workflows.map((workflow) => {
-                            const active = pathname === workflow.href || pathname.startsWith(workflow.href + "/")
+                            const active = pathname === workflow.workspaceHref || pathname.startsWith(workflow.workspaceHref + "/")
                             return (
                               <a
-                                key={workflow.href}
-                                href={workflow.href}
+                                key={workflow.workspaceHref}
+                                href={workflow.workspaceHref}
                                 onClick={onNavigate}
                                 aria-current={active ? "page" : undefined}
                                 className={`block rounded px-2 py-1.5 text-[11px] leading-snug ${
@@ -291,7 +291,7 @@ function SidebarContents({
       </div>
 
       <div className={collapsed ? "px-2 pt-3" : "px-3 pt-3"}>
-        <a href="/workflows" onClick={onNavigate} title={collapsed ? "New Matter" : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
+        <a href="/dashboard/workflows" onClick={onNavigate} title={collapsed ? "New Matter" : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
           <Sparkles className="h-4 w-4 text-[#d1ad72]" />
           {!collapsed && <span>New Matter</span>}
         </a>
@@ -372,7 +372,7 @@ export function AuthenticatedSidebar({
             <Menu className="h-4 w-4" />
           </button>
           <Link to="/" className="font-serif text-lg">MailMyPDF</Link>
-          <a href="/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">New Matter</a>
+          <a href="/dashboard/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">New Matter</a>
         </div>
       )}
 
