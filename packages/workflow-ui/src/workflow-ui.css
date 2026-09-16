@@ -933,3 +933,273 @@
   color: var(--wf-color-error);
   font-size: 0.85rem;
 }
+
+/* ── Shared findings / X-Ray surfaces ─────────────────────────────── */
+.wf-empty {
+  margin: 0;
+  color: var(--wf-color-stone-light);
+  font-size: 0.85rem;
+}
+
+.wf-finding-list,
+.wf-stress-list,
+.wf-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wf-finding,
+.wf-stress-item {
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-md);
+  padding: 1rem;
+  background: var(--wf-color-paper);
+}
+
+.wf-finding-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.wf-finding-meta .wf-card-eyebrow {
+  margin: 0 0.25rem 0 0;
+}
+
+.wf-finding-title {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-finding-description {
+  margin: 0.35rem 0 0;
+  color: var(--wf-color-stone);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.wf-finding-source {
+  margin-top: 0.55rem;
+  color: var(--wf-color-stone-light);
+  font-size: 0.75rem;
+}
+
+.wf-finding-detail {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--wf-color-rule);
+}
+
+.wf-finding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.wf-finding-actions .wf-btn {
+  padding: 0.42rem 0.72rem;
+  font-size: 0.78rem;
+}
+
+.wf-stress-recommendation {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--wf-radius-sm);
+  background: var(--wf-color-paper-deep);
+  color: var(--wf-color-stone);
+  font-size: 0.8rem;
+}
+
+.wf-stress-recommendation strong {
+  color: var(--wf-color-charcoal);
+}
+
+/* ── Final review / approval ──────────────────────────────────────── */
+.wf-review-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-review-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--wf-color-rule);
+}
+
+.wf-review-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.wf-review-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.wf-review-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-review-detail {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--wf-color-stone);
+}
+
+.wf-confirmation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--wf-color-rule);
+}
+
+/* ── Packet inventory ─────────────────────────────────────────────── */
+.wf-packet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.wf-packet-item {
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-color-paper-deep);
+  padding: 0.9rem;
+}
+
+.wf-packet-item-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 0.875rem;
+}
+
+.wf-packet-meta {
+  margin-top: 0.2rem;
+  color: var(--wf-color-stone-light);
+  font-size: 0.75rem;
+}
+
+.wf-packet-description {
+  margin: 0.4rem 0 0;
+  color: var(--wf-color-stone);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 680px) {
+  .wf-packet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Fulfillment / mailing / proof ───────────────────────────────── */
+.wf-fulfillment-details {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.wf-fulfillment-detail {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--wf-color-rule);
+  font-size: 0.85rem;
+}
+
+.wf-fulfillment-detail:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wf-fulfillment-detail dt {
+  color: var(--wf-color-stone);
+}
+
+.wf-fulfillment-detail dd {
+  margin: 0;
+  color: var(--wf-color-charcoal);
+  font-weight: 500;
+}
+
+.wf-fulfillment-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.wf-fulfillment-reference {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-sm);
+  background: var(--wf-color-paper-deep);
+}
+
+.wf-fulfillment-reference span {
+  color: var(--wf-color-stone);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wf-fulfillment-reference strong {
+  font-family: var(--wf-font-mono);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.wf-callout {
+  margin-top: 1rem;
+  border-radius: var(--wf-radius-sm);
+  padding: 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.wf-callout--danger {
+  border: 1px solid rgba(184, 68, 46, 0.35);
+  background: var(--wf-color-error-bg);
+  color: var(--wf-color-error);
+}
+
+/* ── Timeline conflicts, gaps, and deadlines ─────────────────────── */
+.wf-insights-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.wf-compact-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--wf-color-rule);
+  font-size: 0.84rem;
+}
+
+.wf-compact-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
