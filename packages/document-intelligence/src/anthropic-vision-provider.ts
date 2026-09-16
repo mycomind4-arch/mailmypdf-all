@@ -15,6 +15,31 @@ export interface AnthropicVisionProviderOptions {
 
 const API="https://api.anthropic.com/v1/messages";
 const VERSION="2023-06-01";
+const MAX_RESPONSE_BYTES=512*1024;
+
+async function readBoundedJson(response:Response,maxBytes=MAX_RESPONSE_BYTES):Promise<any>{
+  const declared=Number(response.headers.get("content-length") ?? 0);
+  if(declared && declared>maxBytes){
+    await response.body?.cancel().catch(()=>{});
+    throw new Error("Anthropic vision response exceeds configured size");
+  }
+  if(!response.body) throw new Error("Anthropic vision returned no response body");
+  const reader=response.body.getReader();
+  const chunks:Uint8Array[]=[]; let total=0;
+  try{
+    while(true){
+      const {done,value}=await reader.read();
+      if(done) break;
+      total+=value.byteLength;
+      if(total>maxBytes) throw new Error("Anthropic vision response exceeds configured size");
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes=new Uint8Array(total); let offset=0;
+  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+  try{return JSON.parse(new TextDecoder().decode(bytes));}
+  catch{throw new Error("Anthropic vision returned invalid provider JSON");}
+}
 
 function base64(bytes:Uint8Array):string {
   let binary="";
@@ -78,7 +103,7 @@ export function createAnthropicVisionProvider(options:AnthropicVisionProviderOpt
         await response.body?.cancel().catch(()=>{});
         throw new Error(`Anthropic vision request failed (${response.status})`);
       }
-      const payload=await response.json() as {model?:string;stop_reason?:string;content?:Array<{type?:string;text?:string}>};
+      const payload=await readBoundedJson(response) as {model?:string;stop_reason?:string;content?:Array<{type?:string;text?:string}>};
       if(payload.stop_reason!=="end_turn") throw new Error("Anthropic vision response did not complete");
       const text=payload.content?.filter((b)=>b.type==="text"&&typeof b.text==="string").map((b)=>b.text).join("").trim();
       if(!text) throw new Error("Anthropic vision returned no text");
