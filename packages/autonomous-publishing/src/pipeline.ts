@@ -2,6 +2,7 @@ import { deduplicateCandidates, type StoryMemory } from "./memory.js";
 import { verifyEvidencePacket } from "./evidence.js";
 import { validatePublicationManifest, type PublicationManifest } from "./manifest.js";
 import type { PublishingAdapters } from "./adapters.js";
+import type { PublicationRunStore } from "./run-store.js";
 import type { PublicationRun, RenderedEdition, StoryCandidate } from "./types.js";
 
 export interface RunResult {
@@ -14,6 +15,7 @@ export interface PipelineOptions {
   now?: () => Date;
   id?: () => string;
   semanticDuplicateThreshold?: number;
+  runStore?: PublicationRunStore;
 }
 
 export function createPublishingPipeline(
@@ -24,6 +26,12 @@ export function createPublishingPipeline(
   const now = options.now ?? (() => new Date());
   const id = options.id ?? (() => crypto.randomUUID());
   const semanticThreshold = options.semanticDuplicateThreshold ?? 0.92;
+  const runStore = options.runStore;
+
+  async function persist(run: PublicationRun, rendered?: RenderedEdition): Promise<void> {
+    if (!runStore) return;
+    await runStore.save({ run: structuredClone(run), rendered });
+  }
 
   async function filterHistoricalDuplicates(
     candidates: readonly StoryCandidate[],
@@ -54,6 +62,8 @@ export function createPublishingPipeline(
         status: "running",
         startedAt: now().toISOString(),
       };
+
+      await persist(run);
 
       try {
         const discovered = await adapters.discovery.discover(manifest);
@@ -92,10 +102,12 @@ export function createPublishingPipeline(
         if (manifest.autonomy.publish === "approval_required" && !approved) {
           run.stage = "approval";
           run.status = "awaiting_approval";
+          await persist(run, rendered);
           return { run, rendered };
         }
 
         run.stage = "publish";
+        await persist(run, rendered);
         const publication = await adapters.publisher.publish(rendered, manifest);
 
         const publishedAt = now().toISOString();
@@ -114,11 +126,13 @@ export function createPublishingPipeline(
 
         run.status = "published";
         run.completedAt = publishedAt;
+        await persist(run, rendered);
         return { run, rendered, publication };
       } catch (error) {
         run.status = "failed";
         run.error = error instanceof Error ? error.message : String(error);
         run.completedAt = now().toISOString();
+        await persist(run);
         throw Object.assign(error instanceof Error ? error : new Error(run.error), { run });
       }
     },
