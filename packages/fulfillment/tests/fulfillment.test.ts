@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeMailMyPDFStatus, preflightPostalAddress, verifyAddressForMailing } from "../src/index.js";
+import { normalizeMailMyPDFStatus, preflightPostalAddress, verifyAddressForMailing } from "../src/index.ts";
 
 test("canonical mailing status preserves returned and refusal outcomes", () => {
   assert.equal(normalizeMailMyPDFStatus("printed"),"provider_processing");

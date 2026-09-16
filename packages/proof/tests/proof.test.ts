@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCustodyEvent, createVerifiableProofBundle, verifyCustodyChain, verifyProofBundle } from "../src/index.js";
+import { createCustodyEvent, createVerifiableProofBundle, verifyCustodyChain, verifyProofBundle } from "../src/index.ts";
 
 test("custody chain detects metadata tampering", () => {
   const first=createCustodyEvent({priorEventHash:null,timestamp:"2026-09-16T00:00:00Z",eventType:"created",description:"Created",metadata:{document:"abc"}});
