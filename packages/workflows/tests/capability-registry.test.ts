@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CAPABILITIES, capabilityIds, hasCapability } from "../src/capability-registry.js";
+import { CAPABILITIES, capabilityIds, hasCapability, validateCapabilityRegistry } from "../src/capability-registry.js";
 import type { WorkflowCapability } from "../src/workflow-manifest.js";
 
 test("capability registry includes the complete cross-workflow platform surface", () => {
@@ -14,4 +14,9 @@ test("capability registry includes the complete cross-workflow platform surface"
     assert.ok(CAPABILITIES[id].implementation.startsWith("@mailmypdf/"));
   }
   assert.equal(new Set(capabilityIds).size,capabilityIds.length);
+});
+
+
+test("capability dependency graph is acyclic and consequential actions remain gated", () => {
+  assert.deepEqual(validateCapabilityRegistry(), []);
 });

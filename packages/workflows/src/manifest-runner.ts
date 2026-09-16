@@ -1,0 +1,267 @@
+import type { CapabilityId } from "./capability-registry.js";
+import {
+  CapabilityRuntime,
+  type CapabilityExecutionResult,
+} from "./capability-runtime.js";
+import type { DefinedWorkflow } from "./define-workflow.js";
+
+export type ManifestWorkflowRunStatus = "completed" | "blocked" | "failed";
+
+export interface ManifestCapabilityExecution {
+  stepId: string;
+  capability: CapabilityId;
+  result: CapabilityExecutionResult;
+  reused: boolean;
+}
+
+export interface ManifestWorkflowRun {
+  workflowId: string;
+  version: number;
+  status: ManifestWorkflowRunStatus;
+  completedStepIds: readonly string[];
+  executions: readonly ManifestCapabilityExecution[];
+  stoppedAt?: {
+    stepId: string;
+    capability: CapabilityId;
+  };
+  message?: string;
+}
+
+export interface ManifestWorkflowInputContext {
+  workflow: DefinedWorkflow;
+  stepId: string;
+  capability: CapabilityId;
+  prior: ReadonlyMap<CapabilityId, CapabilityExecutionResult>;
+  rootInput: unknown;
+}
+
+export interface RunManifestWorkflowInput {
+  workflow: DefinedWorkflow;
+  runtime: CapabilityRuntime;
+  matterId: string;
+  actorId: string;
+  scopes: readonly string[];
+  approvals: readonly string[];
+  rootInput: unknown;
+  /**
+   * Resolve capability-specific input from the workflow's root matter input and
+   * already-completed capability results.
+   */
+  resolveInput?: (
+    context: ManifestWorkflowInputContext,
+  ) => unknown | Promise<unknown>;
+  /**
+   * Successful executions from a previous interrupted run. Passed capabilities
+   * are reused only when both the step id and capability id match.
+   */
+  resume?: readonly ManifestCapabilityExecution[];
+  /**
+   * High-quality workflows fail closed on warnings by default. A specialized
+   * host may opt into continuing only when it has its own warning-resolution
+   * policy.
+   */
+  continueOnWarning?: boolean;
+}
+
+function executionKey(stepId: string, capability: CapabilityId): string {
+  return `${stepId}:${capability}`;
+}
+
+function passedResumeExecutions(
+  workflow: DefinedWorkflow,
+  resume: readonly ManifestCapabilityExecution[] | undefined,
+): Map<string, ManifestCapabilityExecution> {
+  const validStepCapabilities = new Set(
+    workflow.plan.steps.flatMap(({ step, capabilities }) =>
+      capabilities.map((capability) => executionKey(step.id, capability)),
+    ),
+  );
+  const reusable = new Map<string, ManifestCapabilityExecution>();
+
+  for (const execution of resume ?? []) {
+    const key = executionKey(execution.stepId, execution.capability);
+    if (!validStepCapabilities.has(key)) {
+      throw new Error(
+        `Resume state contains capability outside workflow plan: ${key}`,
+      );
+    }
+    if (
+      execution.result.capability === execution.capability &&
+      execution.result.status === "passed"
+    ) {
+      reusable.set(key, { ...execution, reused: true });
+    }
+  }
+
+  return reusable;
+}
+
+function requiredStepCapabilities(workflow: DefinedWorkflow): Set<CapabilityId> {
+  return new Set(
+    workflow.plan.steps.flatMap(({ capabilities }) => [...capabilities]),
+  );
+}
+
+function assertExecutableHandlers(
+  workflow: DefinedWorkflow,
+  runtime: CapabilityRuntime,
+): void {
+  const required = new Set(workflow.manifest.requiredCapabilities);
+  const missingRequired: CapabilityId[] = [];
+
+  for (const capability of requiredStepCapabilities(workflow)) {
+    if (runtime.has(capability)) continue;
+    if (required.has(capability)) missingRequired.push(capability);
+  }
+
+  if (missingRequired.length) {
+    throw new Error(
+      `Workflow runtime is missing required handler(s): ${missingRequired.join(", ")}`,
+    );
+  }
+}
+
+/**
+ * Executes a compiled WorkflowManifest step-by-step through the shared
+ * CapabilityRuntime.
+ *
+ * Static correctness belongs to defineWorkflow(); provider implementations live
+ * in CapabilityRuntime; this runner only owns sequencing, prior-result flow,
+ * resume semantics, and fail-closed stop behavior.
+ */
+export async function runManifestWorkflow(
+  input: RunManifestWorkflowInput,
+): Promise<ManifestWorkflowRun> {
+  const { workflow, runtime } = input;
+  if (!input.matterId.trim()) throw new Error("matterId is required");
+  if (!input.actorId.trim()) throw new Error("actorId is required");
+  if (workflow.plan.steps.length === 0) {
+    throw new Error(`Workflow ${workflow.manifest.id} has no executable steps`);
+  }
+
+  assertExecutableHandlers(workflow, runtime);
+
+  const reusable = passedResumeExecutions(workflow, input.resume);
+  const executions: ManifestCapabilityExecution[] = [];
+  const completedStepIds: string[] = [];
+  const prior = new Map<CapabilityId, CapabilityExecutionResult>();
+
+  // Seed prior context from reusable results in plan order, not arbitrary input
+  // order, so downstream handlers see deterministic state.
+  for (const { step, capabilities } of workflow.plan.steps) {
+    for (const capability of capabilities) {
+      const existing = reusable.get(executionKey(step.id, capability));
+      if (existing) prior.set(capability, existing.result);
+    }
+  }
+
+  const optional = new Set(workflow.manifest.optionalCapabilities);
+
+  for (const { step, capabilities } of workflow.plan.steps) {
+    for (const capability of capabilities) {
+      const key = executionKey(step.id, capability);
+      const existing = reusable.get(key);
+      if (existing) {
+        executions.push(existing);
+        prior.set(capability, existing.result);
+        continue;
+      }
+
+      if (!runtime.has(capability)) {
+        if (optional.has(capability)) continue;
+        return {
+          workflowId: workflow.manifest.id,
+          version: workflow.plan.version,
+          status: "failed",
+          completedStepIds,
+          executions,
+          stoppedAt: { stepId: step.id, capability },
+          message: `Required capability handler is unavailable: ${capability}`,
+        };
+      }
+
+      const capabilityInput = input.resolveInput
+        ? await input.resolveInput({
+            workflow,
+            stepId: step.id,
+            capability,
+            prior,
+            rootInput: input.rootInput,
+          })
+        : input.rootInput;
+
+      let result: CapabilityExecutionResult;
+      try {
+        result = await runtime.executeCapability(
+          workflow.manifest,
+          capability,
+          {
+            matterId: input.matterId,
+            actorId: input.actorId,
+            scopes: input.scopes,
+            approvals: input.approvals,
+            input: capabilityInput,
+            prior,
+          },
+        );
+      } catch (error) {
+        return {
+          workflowId: workflow.manifest.id,
+          version: workflow.plan.version,
+          status: "failed",
+          completedStepIds,
+          executions,
+          stoppedAt: { stepId: step.id, capability },
+          message: error instanceof Error ? error.message : String(error),
+        };
+      }
+
+      executions.push({
+        stepId: step.id,
+        capability,
+        result,
+        reused: false,
+      });
+      prior.set(capability, result);
+
+      if (result.status === "failed") {
+        return {
+          workflowId: workflow.manifest.id,
+          version: workflow.plan.version,
+          status: "failed",
+          completedStepIds,
+          executions,
+          stoppedAt: { stepId: step.id, capability },
+          message: result.messages.join(" ") || `${capability} failed`,
+        };
+      }
+
+      if (
+        result.status === "blocked" ||
+        (result.status === "warning" && !input.continueOnWarning)
+      ) {
+        return {
+          workflowId: workflow.manifest.id,
+          version: workflow.plan.version,
+          status: "blocked",
+          completedStepIds,
+          executions,
+          stoppedAt: { stepId: step.id, capability },
+          message:
+            result.messages.join(" ") ||
+            `${capability} requires resolution before continuing`,
+        };
+      }
+    }
+
+    completedStepIds.push(step.id);
+  }
+
+  return {
+    workflowId: workflow.manifest.id,
+    version: workflow.plan.version,
+    status: "completed",
+    completedStepIds,
+    executions,
+  };
+}

@@ -151,3 +151,63 @@ export function assertCapabilityDependencies(ids: readonly CapabilityId[]): stri
   }
   return errors;
 }
+
+
+/**
+ * Audits the registry itself independently of any one workflow selection.
+ * This catches unknown dependencies and dependency cycles before manifests are
+ * generated from the registry.
+ */
+export function validateCapabilityRegistry(): string[] {
+  const errors: string[] = [];
+
+  for (const id of capabilityIds) {
+    for (const dependency of capabilityDependencies(id)) {
+      if (!hasCapability(dependency)) {
+        errors.push(`${id} declares unknown dependency ${dependency}`);
+      }
+    }
+  }
+
+  const visiting = new Set<CapabilityId>();
+  const visited = new Set<CapabilityId>();
+
+  const visit = (id: CapabilityId, path: readonly CapabilityId[]) => {
+    if (visited.has(id)) return;
+    if (visiting.has(id)) {
+      const cycleStart = path.indexOf(id);
+      const cycle = [...path.slice(Math.max(0, cycleStart)), id];
+      errors.push(`capability dependency cycle: ${cycle.join(" -> ")}`);
+      return;
+    }
+
+    visiting.add(id);
+    for (const dependency of capabilityDependencies(id)) {
+      visit(dependency, [...path, id]);
+    }
+    visiting.delete(id);
+    visited.add(id);
+  };
+
+  for (const id of capabilityIds) visit(id, []);
+
+  for (const id of capabilityIds.filter(isConsequentialCapability)) {
+    const reachable = new Set<CapabilityId>();
+    const queue = [...capabilityDependencies(id)];
+    while (queue.length) {
+      const dependency = queue.shift()!;
+      if (reachable.has(dependency)) continue;
+      reachable.add(dependency);
+      queue.push(...capabilityDependencies(dependency));
+    }
+
+    if (!reachable.has("humanReview")) {
+      errors.push(`consequential capability ${id} must depend on humanReview directly or transitively`);
+    }
+    if (!reachable.has("blockingGate")) {
+      errors.push(`consequential capability ${id} must depend on blockingGate directly or transitively`);
+    }
+  }
+
+  return [...new Set(errors)];
+}
