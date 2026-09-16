@@ -9,6 +9,7 @@ on:
       - "apps/mailmypdf/src/lib/publication-*.ts"
       - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
       - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "apps/mailmypdf/src/lib/workflow-navigation.ts"
       - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
       - "apps/mailmypdf/.env.example"
       - ".github/workflows/publications-studio-ci.yml"
@@ -19,6 +20,7 @@ on:
       - "apps/mailmypdf/src/lib/publication-*.ts"
       - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
       - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "apps/mailmypdf/src/lib/workflow-navigation.ts"
       - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
       - ".github/workflows/publications-studio-ci.yml"
 
