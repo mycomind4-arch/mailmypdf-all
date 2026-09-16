@@ -80,6 +80,71 @@ export function createListmonkPublisher(options: ListmonkPublisherOptions): Publ
   };
 }
 
+export interface ResendPublisherOptions {
+  apiKey: string;
+  segmentId: string;
+  from: string;
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
+  sendImmediately?: boolean;
+  replyTo?: string;
+  topicId?: string;
+}
+
+function appendResendUnsubscribe(html: string): string {
+  if (html.includes("RESEND_UNSUBSCRIBE_URL")) return html;
+  const footer =
+    '<p style="margin-top:32px;font-size:12px;color:#666">' +
+    '<a href="{{{RESEND_UNSUBSCRIBE_URL}}}">Unsubscribe</a>' +
+    "</p>";
+  return html.includes("</body>")
+    ? html.replace("</body>", `${footer}</body>`)
+    : `${html}${footer}`;
+}
+
+export function createResendPublisher(options: ResendPublisherOptions): PublisherAdapter {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseUrl = (options.baseUrl ?? "https://api.resend.com").replace(/\/$/, "");
+
+  return {
+    async publish(rendered, manifest: PublicationManifest) {
+      if (!options.apiKey.trim()) throw new Error("RESEND_API_KEY_REQUIRED");
+      if (!options.segmentId.trim()) throw new Error("RESEND_SEGMENT_ID_REQUIRED");
+      if (!options.from.trim()) throw new Error("RESEND_FROM_REQUIRED");
+
+      const response = await fetchImpl(`${baseUrl}/broadcasts`, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          authorization: `Bearer ${options.apiKey}`,
+          "content-type": "application/json",
+          "user-agent": "StudioAutonomousPublishing/1.0",
+        },
+        body: JSON.stringify({
+          segment_id: options.segmentId,
+          from: options.from,
+          subject: rendered.edition.subject,
+          html: appendResendUnsubscribe(rendered.html),
+          text: rendered.text,
+          name: `${manifest.name} — ${rendered.edition.editionId}`,
+          preview_text: rendered.edition.preheader,
+          reply_to: options.replyTo,
+          topic_id: options.topicId,
+          send: options.sendImmediately ?? true,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`RESEND_BROADCAST_FAILED:${response.status}`);
+      const payload = await response.json() as { id?: string };
+      if (!payload.id) throw new Error("RESEND_BROADCAST_INVALID_RESPONSE");
+
+      return {
+        providerId: `resend:${payload.id}`,
+      };
+    },
+  };
+}
+
 export interface UmamiAnalyticsOptions {
   baseUrl: string;
   websiteId: string;
