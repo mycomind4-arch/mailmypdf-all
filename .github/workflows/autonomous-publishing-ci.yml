@@ -1,0 +1,40 @@
+name: Autonomous Publishing CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/autonomous-publishing/**"
+      - "Projects/Publications/**"
+      - "packages/ai/**"
+      - "packages/core/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/autonomous-publishing-ci.yml"
+  pull_request:
+    paths:
+      - "packages/autonomous-publishing/**"
+      - "Projects/Publications/**"
+      - "packages/ai/**"
+      - "packages/core/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/autonomous-publishing-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mailmypdf/autonomous-publishing typecheck
+      - run: pnpm --filter @mailmypdf/autonomous-publishing test
