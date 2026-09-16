@@ -1,7 +1,24 @@
+export type CapabilityLayer =
+  | "foundation"
+  | "documents"
+  | "intelligence"
+  | "experience"
+  | "commerce"
+  | "delivery";
+
 export type CapabilityId =
+  | "identity"
+  | "matterState"
   | "security"
+  | "secureUpload"
+  | "documentStorage"
+  | "documentScanning"
+  | "retention"
   | "classification"
   | "extraction"
+  | "visionAnalysis"
+  | "understand"
+  | "facts"
   | "provenance"
   | "timeline"
   | "deadlines"
@@ -19,45 +36,81 @@ export type CapabilityId =
   | "blockingGate"
   | "humanReview"
   | "approval"
+  | "pdfGeneration"
+  | "packetAssembly"
+  | "pricing"
+  | "payment"
+  | "addressVerification"
   | "mailing"
   | "tracking"
+  | "notifications"
   | "proofAudit";
 
 export type CapabilityDefinition = {
   id: CapabilityId;
   name: string;
   owner: "platform" | "vertical" | "hybrid";
+  layer: CapabilityLayer;
+  implementation: string;
   description: string;
 };
 
+const def = (
+  id: CapabilityId,
+  name: string,
+  owner: CapabilityDefinition["owner"],
+  layer: CapabilityLayer,
+  implementation: string,
+  description: string,
+): CapabilityDefinition => ({ id, name, owner, layer, implementation, description });
+
 export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> = {
-  security: { id: "security", name: "Secure Ingest", owner: "platform", description: "Authorization, safe intake, validation, tenant isolation, and security controls." },
-  classification: { id: "classification", name: "Domain Classification", owner: "hybrid", description: "Classify source material using domain-aware rules." },
-  extraction: { id: "extraction", name: "Structured Extraction", owner: "hybrid", description: "Extract structured facts from source documents." },
-  provenance: { id: "provenance", name: "Source Provenance", owner: "platform", description: "Attach material facts and findings to source evidence." },
-  timeline: { id: "timeline", name: "Timeline", owner: "platform", description: "Chronology and event normalization." },
-  deadlines: { id: "deadlines", name: "Deadline Engine", owner: "hybrid", description: "Derive and validate deadlines from sources and authoritative rules." },
-  findings: { id: "findings", name: "Findings", owner: "hybrid", description: "Domain-specific factual findings and requirement detection." },
-  contradictions: { id: "contradictions", name: "Contradiction Detection", owner: "platform", description: "Cross-document and intra-document contradiction analysis." },
-  discrepancies: { id: "discrepancies", name: "Discrepancy Detection", owner: "platform", description: "Identify mismatches between source claims, facts, and evidence." },
-  requirements: { id: "requirements", name: "Requirements Analysis", owner: "hybrid", description: "Map source and domain requirements to case evidence and response obligations." },
-  evidence: { id: "evidence", name: "Evidence", owner: "platform", description: "Evidence organization, sufficiency, linkage, and traceability." },
-  research: { id: "research", name: "Authority / Research", owner: "hybrid", description: "Ground domain rules and authoritative sources when required." },
-  risk: { id: "risk", name: "Risk Assessment", owner: "platform", description: "Assess supported strength, uncertainty, and consequential risk." },
-  strategy: { id: "strategy", name: "Case Strategy", owner: "hybrid", description: "Translate verified facts and domain rules into case-specific strategy." },
-  draft: { id: "draft", name: "Grounded Drafting", owner: "platform", description: "Generate correspondence constrained by verified case state." },
-  draftProvenance: { id: "draftProvenance", name: "Draft Provenance", owner: "platform", description: "Trace material draft claims back to sources and structured facts." },
-  validation: { id: "validation", name: "Validation", owner: "platform", description: "Validate facts, requirements, documents, recipients, and draft integrity." },
-  blockingGate: { id: "blockingGate", name: "Blocking Gates", owner: "platform", description: "Prevent consequential action while critical requirements remain unresolved." },
-  humanReview: { id: "humanReview", name: "Human Review", owner: "platform", description: "Explicit review before consequential action." },
-  approval: { id: "approval", name: "Approval", owner: "hybrid", description: "Role- or policy-based approval where required." },
-  mailing: { id: "mailing", name: "Authorized Mailing", owner: "platform", description: "Real MailMyPDF fulfillment integration." },
-  tracking: { id: "tracking", name: "Tracking", owner: "platform", description: "Real provider tracking state." },
-  proofAudit: { id: "proofAudit", name: "Proof / Audit", owner: "platform", description: "Durable proof, custody, and audit information." },
+  identity: def("identity","Identity & authorization","platform","foundation","@mailmypdf/ecosystem","Shared identity, authenticated access, entitlements, and authorization context."),
+  matterState: def("matterState","Matter state","platform","foundation","@mailmypdf/step-workflow","Durable matter state, versioning, progress, conditional steps, and ownership."),
+  security: def("security","Security boundary","platform","foundation","@mailmypdf/core + @mailmypdf/documents","Fail-closed validation, trusted context, input boundaries, and security controls."),
+  secureUpload: def("secureUpload","Secure document intake","platform","documents","@mailmypdf/documents","Consent-aware validation, owner-scoped paths, hashing, quarantine, and rollback-safe registration."),
+  documentStorage: def("documentStorage","Document storage","platform","documents","@mailmypdf/documents","Provider-neutral quarantine storage and immutable document metadata contracts."),
+  documentScanning: def("documentScanning","Malware & structural scan","platform","documents","@mailmypdf/documents","Hash re-verification, malware verdicts, and static document safety before disclosure."),
+  retention: def("retention","Document retention","platform","documents","@mailmypdf/documents","Retention deadlines, deletion-request handling, and purge eligibility."),
+  classification: def("classification","Domain classification","hybrid","intelligence","@mailmypdf/document-intelligence","Classify source material using document and domain signals."),
+  extraction: def("extraction","Structured extraction","hybrid","intelligence","@mailmypdf/document-intelligence","Extract page text and structured source data while preserving source identity."),
+  visionAnalysis: def("visionAnalysis","Visual document analysis","hybrid","intelligence","@mailmypdf/document-intelligence","Provider-neutral PDF/image analysis over scanned-clean, hash-verified source bytes."),
+  understand: def("understand","Document understanding","hybrid","intelligence","@mailmypdf/workflows","Convert extracted material into workflow-specific structured understanding."),
+  facts: def("facts","Fact model","platform","intelligence","@mailmypdf/intelligence","Normalized facts, entities, statuses, and source-linked assertions."),
+  provenance: def("provenance","Source provenance","platform","intelligence","@mailmypdf/intelligence + @mailmypdf/documents","Trace material facts, events, findings, and draft claims back to source documents."),
+  timeline: def("timeline","Timeline","platform","intelligence","@mailmypdf/intelligence","Chronology, event normalization, duplicate detection, and gap analysis."),
+  deadlines: def("deadlines","Deadline engine","hybrid","intelligence","@mailmypdf/intelligence","Source-grounded temporal rules, deadline computation, and status."),
+  findings: def("findings","Findings","hybrid","intelligence","@mailmypdf/intelligence","Domain findings with severity, confidence, provenance, and recommended actions."),
+  contradictions: def("contradictions","Contradiction detection","platform","intelligence","@mailmypdf/intelligence","Detect and resolve conflicting source-grounded facts."),
+  discrepancies: def("discrepancies","Discrepancy detection","platform","intelligence","@mailmypdf/workflows + @mailmypdf/intelligence","Detect mismatches among claims, facts, requirements, and evidence."),
+  requirements: def("requirements","Requirements analysis","hybrid","intelligence","@mailmypdf/workflows","Map source and domain requirements to evidence and response obligations."),
+  evidence: def("evidence","Evidence system","platform","intelligence","@mailmypdf/intelligence","Evidence organization, sufficiency, contradictions, gaps, and traceability."),
+  research: def("research","Authority / research","hybrid","intelligence","@mailmypdf/workflows","Ground workflow decisions in reviewed authoritative sources when required."),
+  risk: def("risk","Risk assessment","platform","intelligence","@mailmypdf/intelligence","Assess supported strength, uncertainty, consequence, and readiness."),
+  strategy: def("strategy","Case strategy","hybrid","intelligence","@mailmypdf/workflows","Translate verified facts, requirements, and evidence into a proposed next action."),
+  draft: def("draft","Grounded drafting","platform","experience","@mailmypdf/ai + @mailmypdf/workflows","Generate correspondence constrained by verified case state and workflow rules."),
+  draftProvenance: def("draftProvenance","Draft provenance","platform","experience","@mailmypdf/intelligence","Trace material draft claims back to verified facts and sources."),
+  validation: def("validation","Validation","platform","foundation","@mailmypdf/workflows","Validate required facts, evidence, recipient, packet, and consequential readiness."),
+  blockingGate: def("blockingGate","Blocking gates","platform","foundation","@mailmypdf/workflows","Prevent consequential action while critical requirements remain unresolved."),
+  humanReview: def("humanReview","Human review","platform","experience","@mailmypdf/step-workflow + @mailmypdf/workflows","Explicit owner review before consequential action."),
+  approval: def("approval","Approval","hybrid","experience","@mailmypdf/agent-runtime + @mailmypdf/step-workflow","Role- or policy-based approval with durable state."),
+  pdfGeneration: def("pdfGeneration","PDF generation","platform","delivery","@mailmypdf/packet-builder","Produce deterministic printable correspondence PDFs."),
+  packetAssembly: def("packetAssembly","Packet assembly","platform","delivery","@mailmypdf/packet-builder","Merge approved correspondence and source attachments with integrity checks and page manifests."),
+  pricing: def("pricing","Pricing","platform","commerce","@mailmypdf/pricing","Server-authoritative workflow, page, and mail-service quote calculation."),
+  payment: def("payment","Payment","platform","commerce","@mailmypdf/payment-fulfillment","Stripe-backed payment intent/session lifecycle and immutable approval-to-payment binding."),
+  addressVerification: def("addressVerification","Address verification","platform","delivery","@mailmypdf/fulfillment","Provider-neutral address preflight, verification, and deliverability semantics."),
+  mailing: def("mailing","Authorized mailing","platform","delivery","@mailmypdf/mailing-client + @mailmypdf/payment-fulfillment","Idempotent submission of the approved packet to physical-mail fulfillment."),
+  tracking: def("tracking","Tracking","platform","delivery","@mailmypdf/fulfillment + @mailmypdf/mailing-client","Canonical provider lifecycle and tracking state."),
+  notifications: def("notifications","Notifications & reminders","platform","experience","@mailmypdf/ecosystem","Idempotent notification dispatch plus deadline-reminder scheduling primitives."),
+  proofAudit: def("proofAudit","Proof / audit","platform","delivery","@mailmypdf/proof","Tamper-evident custody chains, proof bundle integrity, and delivery artifacts."),
 };
 
 export const capabilityIds = Object.keys(CAPABILITIES) as CapabilityId[];
 
 export function hasCapability(id: string): id is CapabilityId {
   return Object.prototype.hasOwnProperty.call(CAPABILITIES, id);
+}
+
+export function capabilitiesByLayer(layer: CapabilityLayer): CapabilityDefinition[] {
+  return capabilityIds.map((id) => CAPABILITIES[id]).filter((capability) => capability.layer === layer);
 }

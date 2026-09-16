@@ -222,6 +222,8 @@ export async function extractDocument(
 // ── Source reference ──────────────────────────────────────────
 
 export interface SourceRef {
+  documentId: string;
+  documentName: string;
   page: number | null;
   excerpt: string;
   extractionMethod: ExtractionMethod;
@@ -243,9 +245,13 @@ export function createSourceRef(
     }
   }
   return {
+    documentId: document.documentId,
+    documentName: document.fileName,
     page: foundPage,
     excerpt: excerpt.substring(0, 200),
     extractionMethod: document.extractionMethod,
     confidence: document.extractionConfidence,
   };
 }
+
+export * from "./vision.js";

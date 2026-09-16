@@ -790,3 +790,239 @@ export type { Confidence, PlatformId, ValidationResult } from "@mailmypdf/core";
 
 // ── Local Result type alias (matches core's Result) ───────────────────────────
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURE DOCUMENT VAULT — shared quarantine / scan / retention capability
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type DocumentSecurityStatus =
+  | "quarantined"
+  | "scanning"
+  | "clean"
+  | "rejected"
+  | "deleting"
+  | "deleted";
+
+export interface SecureDocumentEnvelope {
+  readonly id: string;
+  readonly ownerId: string;
+  readonly workflowId: string;
+  readonly purpose: string;
+  readonly safeFilename: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly sha256: string;
+  readonly storagePath: string;
+  readonly securityStatus: DocumentSecurityStatus;
+  readonly retentionUntil: string;
+  readonly deletedAt?: string | null;
+  readonly deletionRequestedAt?: string | null;
+}
+
+export interface DocumentProcessingConsentStore {
+  recordConsent(input: {
+    ownerId: string;
+    workflowId: string;
+    purpose: string;
+    consentVersion: string;
+    recordedAt: string;
+  }): Promise<string>;
+}
+
+export interface QuarantineStorage {
+  put(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
+  remove(path: string): Promise<void>;
+}
+
+export interface SecureDocumentRegistry {
+  register(input: SecureDocumentEnvelope & { consentId: string }): Promise<SecureDocumentEnvelope>;
+}
+
+export interface MalwareScanVerdict {
+  status: "clean" | "infected";
+  engine: string;
+  signature?: string;
+  definitionsVersion?: string;
+}
+
+export interface MalwareScanner {
+  scan(input: {
+    bytes: Uint8Array;
+    mimeType: string;
+    sha256: string;
+  }): Promise<MalwareScanVerdict>;
+}
+
+export interface SecureDocumentIntakeRequest {
+  ownerId: string;
+  workflowId: string;
+  purpose: string;
+  consent: boolean;
+  filename: string;
+  mimeType: string;
+  bytes: Uint8Array;
+  retentionUntil: string;
+  documentId?: string;
+  now?: string;
+}
+
+export function validateDocumentPurpose(purpose: string): string {
+  const normalized = purpose.trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(normalized)) {
+    throw new ValidationError("Document purpose must be a 3-64 character purpose code");
+  }
+  return normalized;
+}
+
+export function buildSecureDocumentPath(ownerId: string, documentId: string, filename: string): string {
+  const owner = ownerId.trim();
+  const id = documentId.trim();
+  if (!owner || owner.includes("/") || owner.includes("\\") || owner.includes("..")) {
+    throw new ValidationError("Invalid document owner id");
+  }
+  if (!id || id.includes("/") || id.includes("\\") || id.includes("..")) {
+    throw new ValidationError("Invalid document id");
+  }
+  return `${owner}/${id}/${sanitizeFilename(filename)}`;
+}
+
+export function computeRetentionUntil(days: number, now = new Date()): string {
+  if (!Number.isInteger(days) || days < 1 || days > 3650) {
+    throw new ValidationError("Retention days must be an integer between 1 and 3650");
+  }
+  return new Date(now.getTime() + days * 86_400_000).toISOString();
+}
+
+export function isDocumentDisclosable(
+  document: Pick<SecureDocumentEnvelope, "securityStatus" | "retentionUntil" | "deletedAt" | "deletionRequestedAt">,
+  now = Date.now(),
+): boolean {
+  return (
+    document.securityStatus === "clean" &&
+    !document.deletedAt &&
+    !document.deletionRequestedAt &&
+    Number.isFinite(Date.parse(document.retentionUntil)) &&
+    Date.parse(document.retentionUntil) > now
+  );
+}
+
+export function assertDocumentDisclosable(
+  document: Pick<SecureDocumentEnvelope, "securityStatus" | "retentionUntil" | "deletedAt" | "deletionRequestedAt">,
+  now = Date.now(),
+): void {
+  if (!isDocumentDisclosable(document, now)) {
+    throw new ValidationError("Document is not cleared for disclosure");
+  }
+}
+
+export function verifyStoredDocument(
+  document: Pick<SecureDocumentEnvelope, "mimeType" | "sizeBytes" | "sha256" | "safeFilename">,
+  bytes: Uint8Array,
+): ValidationResult {
+  if (bytes.byteLength !== document.sizeBytes) {
+    return err(new ValidationError("Stored document size does not match intake metadata"));
+  }
+  if (computeSha256(bytes) !== document.sha256) {
+    return err(new ValidationError("Stored document hash does not match intake metadata"));
+  }
+  return validateDocument({
+    filename: document.safeFilename,
+    mimeType: document.mimeType,
+    sizeBytes: bytes.byteLength,
+    content: bytes,
+  });
+}
+
+export async function intakeDocumentToQuarantine(
+  input: SecureDocumentIntakeRequest,
+  deps: {
+    consents: DocumentProcessingConsentStore;
+    storage: QuarantineStorage;
+    registry: SecureDocumentRegistry;
+  },
+): Promise<SecureDocumentEnvelope> {
+  if (!input.consent) throw new ValidationError("Explicit document-processing consent is required");
+  if (!input.ownerId.trim()) throw new ValidationError("Document owner is required");
+  if (!input.workflowId.trim()) throw new ValidationError("Workflow id is required");
+
+  const purpose = validateDocumentPurpose(input.purpose);
+  const validation = validateDocument({
+    filename: input.filename,
+    mimeType: input.mimeType,
+    sizeBytes: input.bytes.byteLength,
+    content: input.bytes,
+  });
+  if (!validation.ok) throw validation.error;
+
+  const retentionMs = Date.parse(input.retentionUntil);
+  const now = input.now ?? new Date().toISOString();
+  if (!Number.isFinite(retentionMs) || retentionMs <= Date.parse(now)) {
+    throw new ValidationError("Document retention must end in the future");
+  }
+
+  const id = input.documentId ?? globalThis.crypto.randomUUID();
+  const safeFilename = sanitizeFilename(input.filename);
+  const storagePath = buildSecureDocumentPath(input.ownerId, id, safeFilename);
+  const consentId = await deps.consents.recordConsent({
+    ownerId: input.ownerId,
+    workflowId: input.workflowId,
+    purpose,
+    consentVersion: "secure-document-intake-v1",
+    recordedAt: now,
+  });
+
+  await deps.storage.put(storagePath, input.bytes, input.mimeType);
+  const envelope: SecureDocumentEnvelope = {
+    id,
+    ownerId: input.ownerId,
+    workflowId: input.workflowId,
+    purpose,
+    safeFilename,
+    mimeType: input.mimeType,
+    sizeBytes: input.bytes.byteLength,
+    sha256: computeSha256(input.bytes),
+    storagePath,
+    securityStatus: "quarantined",
+    retentionUntil: new Date(retentionMs).toISOString(),
+  };
+
+  try {
+    return await deps.registry.register({ ...envelope, consentId });
+  } catch (error) {
+    await deps.storage.remove(storagePath).catch(() => {});
+    throw error;
+  }
+}
+
+export async function evaluateQuarantinedDocument(
+  document: SecureDocumentEnvelope,
+  bytes: Uint8Array,
+  scanner: MalwareScanner,
+): Promise<{
+  securityStatus: "clean" | "rejected";
+  verdict: MalwareScanVerdict;
+}> {
+  if (document.securityStatus !== "quarantined" && document.securityStatus !== "scanning") {
+    throw new ValidationError("Only quarantined documents may be security scanned");
+  }
+  const integrity = verifyStoredDocument(document, bytes);
+  if (!integrity.ok) {
+    return {
+      securityStatus: "rejected",
+      verdict: { status: "infected", engine: "mailmypdf-static-validation", signature: integrity.error.message },
+    };
+  }
+  const verdict = await scanner.scan({ bytes, mimeType: document.mimeType, sha256: document.sha256 });
+  return { securityStatus: verdict.status === "clean" ? "clean" : "rejected", verdict };
+}
+
+export function shouldPurgeSecureDocument(
+  document: Pick<SecureDocumentEnvelope, "securityStatus" | "retentionUntil" | "deletionRequestedAt">,
+  now = Date.now(),
+): boolean {
+  if (document.securityStatus === "deleted") return false;
+  if (document.deletionRequestedAt) return true;
+  const retention = Date.parse(document.retentionUntil);
+  return Number.isFinite(retention) && retention <= now;
+}

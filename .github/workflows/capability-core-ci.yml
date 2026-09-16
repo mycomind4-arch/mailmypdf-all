@@ -1,0 +1,82 @@
+name: Shared capability verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/ai/**'
+      - 'packages/documents/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/ecosystem/**'
+      - 'packages/fulfillment/**'
+      - 'packages/intelligence/**'
+      - 'packages/mailing-client/**'
+      - 'packages/packet-builder/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/pricing/**'
+      - 'packages/proof/**'
+      - 'packages/step-workflow/**'
+      - 'packages/workflows/**'
+      - '.github/workflows/capability-core-ci.yml'
+  pull_request:
+    paths:
+      - 'packages/ai/**'
+      - 'packages/documents/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/ecosystem/**'
+      - 'packages/fulfillment/**'
+      - 'packages/intelligence/**'
+      - 'packages/mailing-client/**'
+      - 'packages/packet-builder/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/pricing/**'
+      - 'packages/proof/**'
+      - 'packages/step-workflow/**'
+      - 'packages/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capability-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Core capability tests
+        run: |
+          pnpm --filter @mailmypdf/core test
+          pnpm --filter @mailmypdf/documents test
+          pnpm --filter @mailmypdf/document-intelligence test
+          pnpm --filter @mailmypdf/ai test
+          pnpm --filter @mailmypdf/intelligence test
+          pnpm --filter @mailmypdf/step-workflow test
+          pnpm --filter @mailmypdf/packet-builder test
+          pnpm --filter @mailmypdf/mailing-client test
+          pnpm --filter @mailmypdf/fulfillment test
+          pnpm --filter @mailmypdf/payment-fulfillment test
+          pnpm --filter @mailmypdf/pricing test
+          pnpm --filter @mailmypdf/proof test
+          pnpm --filter @mailmypdf/ecosystem test
+          pnpm --filter @mailmypdf/workflows test
+      - name: Typecheck hardened capability packages
+        run: |
+          pnpm --filter @mailmypdf/documents typecheck
+          pnpm --filter @mailmypdf/document-intelligence typecheck
+          pnpm --filter @mailmypdf/ai typecheck
+          pnpm --filter @mailmypdf/step-workflow typecheck
+          pnpm --filter @mailmypdf/packet-builder typecheck
+          pnpm --filter @mailmypdf/mailing-client typecheck
+          pnpm --filter @mailmypdf/fulfillment typecheck
+          pnpm --filter @mailmypdf/proof typecheck
+          pnpm --filter @mailmypdf/workflows typecheck

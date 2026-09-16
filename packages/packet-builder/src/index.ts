@@ -62,78 +62,74 @@ export async function generateLetterPdf(args: {
   recipientPostal: string;
 }): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.TimesRoman);
+  const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-  const today = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const sourceLines = [
+    today, "",
+    args.senderName, args.senderLine1,
+    ...(args.senderLine2 ? [args.senderLine2] : []),
+    `${args.senderCity}, ${args.senderState} ${args.senderPostal}`, "",
+    args.recipientName, args.recipientLine1,
+    ...(args.recipientLine2 ? [args.recipientLine2] : []),
+    `${args.recipientCity}, ${args.recipientState} ${args.recipientPostal}`, "",
+    ...args.letterText.split("\n"),
+  ].map(normalizeForStandardPdfFont);
 
-  const header: string[] = [
-    today,
-    "",
-    args.senderName,
-    args.senderLine1,
-  ];
-  if (args.senderLine2) header.push(args.senderLine2);
-  header.push(`${args.senderCity}, ${args.senderState} ${args.senderPostal}`);
-  header.push("");
-  header.push(args.recipientName);
-  header.push(args.recipientLine1);
-  if (args.recipientLine2) header.push(args.recipientLine2);
-  header.push(`${args.recipientCity}, ${args.recipientState} ${args.recipientPostal}`);
-  header.push("");
+  let pageIndex = 0;
+  let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let y = PAGE_HEIGHT - LOB_FIRST_PAGE_TOP_MARGIN;
 
-  const bodyLines = args.letterText.split("\n");
-  const allLines = [...header, ...bodyLines];
+  const newPage = () => {
+    pageIndex += 1;
+    page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    y = PAGE_HEIGHT - MARGIN;
+  };
 
-  const pages: string[][] = [];
-  for (let i = 0; i < allLines.length; ) {
-    const capacity = pages.length === 0 ? FIRST_PAGE_MAX_LINES : MAX_LINES_PER_PAGE;
-    pages.push(allLines.slice(i, i + capacity));
-    i += capacity;
-  }
-  if (pages.length === 0) pages.push([""]);
-
-  pages.forEach((pageLines, pageIndex) => {
-    const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    let y = PAGE_HEIGHT - (pageIndex === 0 ? LOB_FIRST_PAGE_TOP_MARGIN : MARGIN);
-
-    for (const line of pageLines) {
-      const wrappedLines = wrapText(line, font, FONT_SIZE, PAGE_WIDTH - 2 * MARGIN);
-      for (const wrapped of wrappedLines) {
-        page.drawText(wrapped, {
-          x: MARGIN,
-          y,
-          size: FONT_SIZE,
-          font,
-          color: rgb(0, 0, 0),
-        });
-        y -= LINE_HEIGHT;
-      }
+  for (const sourceLine of sourceLines) {
+    const wrappedLines = wrapText(sourceLine, font, FONT_SIZE, PAGE_WIDTH - 2 * MARGIN);
+    for (const line of wrappedLines) {
+      if (y < MARGIN + LINE_HEIGHT) newPage();
+      page.drawText(line, { x: MARGIN, y, size: FONT_SIZE, font, color: rgb(0, 0, 0) });
+      y -= LINE_HEIGHT;
     }
-  });
+  }
 
   return doc.save();
 }
 
 function wrapText(text: string, font: any, size: number, maxWidth: number): string[] {
   if (!text) return [""];
-  const words = text.split(" ");
   const lines: string[] = [];
   let current = "";
 
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    const width = font.widthOfTextAtSize(test, size);
-    if (width > maxWidth && current) {
+  const flushLongWord = (word: string) => {
+    let fragment = "";
+    for (const char of word) {
+      const next = fragment + char;
+      if (fragment && font.widthOfTextAtSize(next, size) > maxWidth) {
+        lines.push(fragment);
+        fragment = char;
+      } else {
+        fragment = next;
+      }
+    }
+    return fragment;
+  };
+
+  for (const word of text.split(" ")) {
+    if (font.widthOfTextAtSize(word, size) > maxWidth) {
+      if (current) { lines.push(current); current = ""; }
+      current = flushLongWord(word);
+      continue;
+    }
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
       lines.push(current);
       current = word;
     } else {
-      current = test;
+      current = candidate;
     }
   }
   if (current) lines.push(current);

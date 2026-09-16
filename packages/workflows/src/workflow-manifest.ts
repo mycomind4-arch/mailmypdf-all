@@ -1,34 +1,10 @@
+import type { CapabilityId } from "./capability-registry.js";
 import type { AdapterId } from "./adapter-registry.js";
 import type { PipelineId } from "./pipeline-registry.js";
 
 export type WorkflowMaturity = "catalog" | "placeholder" | "wired" | "executable" | "gold" | "production-verified";
 
-export type WorkflowCapability =
-  | "security"
-  | "classification"
-  | "extraction"
-  | "understand"
-  | "facts"
-  | "provenance"
-  | "timeline"
-  | "deadlines"
-  | "requirements"
-  | "findings"
-  | "contradictions"
-  | "discrepancies"
-  | "evidence"
-  | "research"
-  | "risk"
-  | "strategy"
-  | "draft"
-  | "draftProvenance"
-  | "validation"
-  | "blockingGate"
-  | "humanReview"
-  | "approval"
-  | "mailing"
-  | "tracking"
-  | "proofAudit";
+export type WorkflowCapability = CapabilityId;
 
 export type WorkflowManifest = {
   id: string;

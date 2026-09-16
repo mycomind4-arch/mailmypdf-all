@@ -87,10 +87,19 @@ async function sha256(value: unknown): Promise<string> {
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new ValidationError("timeoutMs must be positive");
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 export function createSecureAiGateway(providers: ReadonlyMap<AiProviderId, AiProvider>): SecureAiGateway {

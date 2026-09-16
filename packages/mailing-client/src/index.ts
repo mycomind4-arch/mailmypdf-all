@@ -156,6 +156,25 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload as T;
 }
 
+function requireDocument(value: unknown): MailMyPDFDocument {
+  const candidate = value && typeof value === "object" && "document" in value
+    ? (value as { document?: unknown }).document
+    : value;
+  if (!candidate || typeof candidate !== "object") throw new MailMyPDFPlatformError("MailMyPDF returned an invalid document response", 502, "INVALID_DOCUMENT_RESPONSE");
+  const document = candidate as Partial<MailMyPDFDocument>;
+  if (!document.id || !document.filename || !document.mime_type || !document.sha256 || !Number.isFinite(document.size_bytes)) {
+    throw new MailMyPDFPlatformError("MailMyPDF returned incomplete document metadata", 502, "INVALID_DOCUMENT_RESPONSE");
+  }
+  return document as MailMyPDFDocument;
+}
+
+function requireCommunication(value: unknown): MailMyPDFCommunication {
+  if (!value || typeof value !== "object" || typeof (value as { id?: unknown }).id !== "string" || !(value as { id: string }).id.trim()) {
+    throw new MailMyPDFPlatformError("MailMyPDF returned an invalid communication response", 502, "INVALID_COMMUNICATION_RESPONSE");
+  }
+  return value as MailMyPDFCommunication;
+}
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -171,8 +190,7 @@ export async function uploadDocument(file: File): Promise<MailMyPDFDocument> {
   );
   // Normalize response shape: some deployments return { document: ... },
   // others return the document directly.
-  if ("document" in result && result.document) return result.document;
-  return result as MailMyPDFDocument;
+  return requireDocument(result);
 }
 
 /**
@@ -206,8 +224,7 @@ export async function uploadPacket(input: {
     "/api/v1/documents",
     { method: "POST", body: form },
   );
-  if ("document" in result && result.document) return result.document;
-  return result as MailMyPDFDocument;
+  return requireDocument(result);
 }
 
 /**
@@ -232,18 +249,21 @@ export async function uploadDocumentBase64(input: {
  * for maximum compatibility across MailMyPDF API versions.
  */
 export async function createCommunication(input: CreateCommunicationInput): Promise<MailMyPDFCommunication> {
-  return request<MailMyPDFCommunication>("/api/v1/communications", {
+  if (!input.idempotency_key.trim()) throw new MailMyPDFPlatformError("Communication idempotency key is required", 400, "MISSING_IDEMPOTENCY_KEY");
+  const result = await request<unknown>("/api/v1/communications", {
     method: "POST",
     headers: { "Idempotency-Key": input.idempotency_key },
     body: JSON.stringify(input),
   });
+  return requireCommunication(result);
 }
 
 /**
  * Retrieve the status of a communication by id.
  */
 export async function getCommunication(id: string): Promise<MailMyPDFCommunication> {
-  return request<MailMyPDFCommunication>(`/api/v1/communications/${encodeURIComponent(id)}`);
+  if (!id.trim()) throw new MailMyPDFPlatformError("Communication id is required", 400, "MISSING_COMMUNICATION_ID");
+  return requireCommunication(await request<unknown>(`/api/v1/communications/${encodeURIComponent(id)}`));
 }
 
 // ── Factory ─────────────────────────────────────────────────────────────────

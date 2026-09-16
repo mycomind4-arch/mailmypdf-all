@@ -91,3 +91,26 @@ describe("step workflow runtime", () => {
     assert.doesNotThrow(() => assertStepMatterOwner(state, "owner-1"));
   });
 });
+
+
+test("conditional steps are skipped until their declarative condition is true", () => {
+  const conditional: StepWorkflowDefinition = {
+    id: "conditional",
+    title: "Conditional",
+    steps: [
+      { id: "intake", label: "Intake" },
+      { id: "evidence", label: "Evidence", condition: { kind: "data_equals", stepId: "intake", path: "needsEvidence", value: true } },
+      { id: "review", label: "Review" },
+    ],
+  };
+  let state = createStepMatterState({ id:"m1",ownerId:"u1",definition:conditional,now });
+  assert.deepEqual(getStepMatterProgress(conditional,state),{completed:0,total:2});
+  state = completeStep(state,conditional,"intake",now);
+  assert.equal(state.currentStepId,"review");
+
+  let state2 = createStepMatterState({ id:"m2",ownerId:"u1",definition:conditional,now });
+  state2 = updateStepData(state2,"intake",{needsEvidence:true},now);
+  assert.deepEqual(getStepMatterProgress(conditional,state2),{completed:0,total:3});
+  state2 = completeStep(state2,conditional,"intake",now);
+  assert.equal(state2.currentStepId,"evidence");
+});

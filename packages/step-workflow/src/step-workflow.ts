@@ -10,9 +10,15 @@
 
 export type StepStatus = "not_started" | "in_progress" | "complete" | "needs_review";
 
+export type StepCondition =
+  | { kind: "step_complete"; stepId: string }
+  | { kind: "data_present"; stepId: string; path: string }
+  | { kind: "data_equals"; stepId: string; path: string; value: string | number | boolean | null };
+
 export type StepDefinition = {
   id: string;
   label: string;
+  condition?: StepCondition;
 };
 
 export type StepWorkflowDefinition = {
@@ -53,6 +59,29 @@ function initialStepState(): StepState {
   return { status: "not_started", checklist: [], data: {}, completedAt: null };
 }
 
+function readPath(value: unknown, path: string): unknown {
+  if (!path.trim()) return undefined;
+  return path.split(".").reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string, unknown>)[segment];
+  }, value);
+}
+
+export function isStepActive(definition: StepDefinition, state: StepMatterState): boolean {
+  const condition = definition.condition;
+  if (!condition) return true;
+  const source = state.steps[condition.stepId];
+  if (!source) return false;
+  if (condition.kind === "step_complete") return source.status === "complete";
+  const value = readPath(source.data, condition.path);
+  if (condition.kind === "data_present") return value !== undefined && value !== null && value !== "";
+  return Object.is(value, condition.value);
+}
+
+export function getActiveSteps(definition: StepWorkflowDefinition, state: StepMatterState): StepDefinition[] {
+  return definition.steps.filter((step) => isStepActive(step, state));
+}
+
 export function createStepMatterState(input: {
   id: string;
   ownerId: string;
@@ -61,25 +90,27 @@ export function createStepMatterState(input: {
 }): StepMatterState {
   const now = input.now ?? new Date().toISOString();
   const steps: Record<string, StepState> = {};
-  input.definition.steps.forEach((step, index) => {
-    steps[step.id] = { ...initialStepState(), status: index === 0 ? "in_progress" : "not_started" };
+  input.definition.steps.forEach((step) => {
+    steps[step.id] = initialStepState();
   });
 
-  const firstStep = input.definition.steps[0];
-  if (!firstStep) throw new Error(`Step workflow ${input.definition.id} has no steps`);
-
-  return {
+  const provisional: StepMatterState = {
     id: input.id,
     ownerId: input.ownerId,
     workflowId: input.definition.id,
     version: 1,
     createdAt: now,
     updatedAt: now,
-    currentStepId: firstStep.id,
+    currentStepId: "",
     steps,
     approved: false,
     approvedAt: null,
   };
+  const firstStep = getActiveSteps(input.definition, provisional)[0];
+  if (!firstStep) throw new Error(`Step workflow ${input.definition.id} has no active steps`);
+  steps[firstStep.id] = { ...steps[firstStep.id]!, status: "in_progress" };
+
+  return { ...provisional, currentStepId: firstStep.id, steps };
 }
 
 function requireStep(definition: StepWorkflowDefinition, stepId: string): StepDefinition {
@@ -151,15 +182,17 @@ export function completeStep(
     throw new Error(`Cannot complete ${stepId}; the current step is ${state.currentStepId}.`);
   }
 
-  const index = definition.steps.findIndex((step) => step.id === stepId);
-  const nextStep = definition.steps[index + 1];
-
   const steps: Record<string, StepState> = {
     ...state.steps,
     [stepId]: { ...current, status: "complete" as const, completedAt: now },
   };
+  const completedState: StepMatterState = { ...state, steps };
+  const currentIndex = definition.steps.findIndex((step) => step.id === stepId);
+  const nextStep = definition.steps
+    .slice(currentIndex + 1)
+    .find((candidate) => isStepActive(candidate, completedState));
   if (nextStep && steps[nextStep.id]?.status === "not_started") {
-    steps[nextStep.id] = { ...steps[nextStep.id], status: "in_progress" };
+    steps[nextStep.id] = { ...steps[nextStep.id]!, status: "in_progress" };
   }
 
   return {
@@ -180,8 +213,9 @@ export function getStepMatterProgress(
   definition: StepWorkflowDefinition,
   state: StepMatterState,
 ): { completed: number; total: number } {
-  const total = definition.steps.length;
-  const completed = definition.steps.filter((step) => state.steps[step.id]?.status === "complete").length;
+  const active = getActiveSteps(definition, state);
+  const total = active.length;
+  const completed = active.filter((step) => state.steps[step.id]?.status === "complete").length;
   return { completed, total };
 }
 
