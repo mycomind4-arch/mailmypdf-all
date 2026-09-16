@@ -1,7 +1,13 @@
-import { computeSha256, sanitizeFilename, validateDocument } from "@mailmypdf/documents";
+import {
+  computeRetentionUntil,
+  intakeDocumentToQuarantine,
+  type SecureDocumentEnvelope,
+} from "@mailmypdf/documents";
+import { ValidationError } from "@mailmypdf/core";
 import type { AuthenticatedUserContext } from "./auth.server";
 
 const DOCUMENT_BUCKET = "secure-documents";
+const RETENTION_DAYS = 30;
 
 export interface SecureDocumentInput {
   file: File;
@@ -12,70 +18,121 @@ export interface SecureDocumentInput {
 
 export class SecureDocumentValidationError extends Error {}
 
+type RegisteredDocument = {
+  id: string;
+  workflow_id: string;
+  safe_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  security_status: string;
+  created_at: string;
+};
+
+/**
+ * Application adapter for @mailmypdf/documents secure-vault intake.
+ *
+ * The package owns validation, owner-scoped path construction, hashing,
+ * consent sequencing, quarantine semantics, retention validation, and cleanup.
+ * This adapter only maps those contracts onto the canonical Supabase tables.
+ */
 export async function intakeSecureDocument(
   input: SecureDocumentInput,
   context: AuthenticatedUserContext,
-) {
-  if (!input.consent) throw new SecureDocumentValidationError("Explicit document-processing consent is required");
-  if (!input.workflowId.trim()) throw new SecureDocumentValidationError("A workflow ID is required");
-  const purposeCode = input.purpose.trim().toLowerCase();
-  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(purposeCode)) {
-    throw new SecureDocumentValidationError("Document purpose must be a 3-64 character purpose code");
+): Promise<RegisteredDocument> {
+  const bytes = new Uint8Array(await input.file.arrayBuffer());
+  let registered: RegisteredDocument | null = null;
+
+  try {
+    await intakeDocumentToQuarantine(
+      {
+        ownerId: context.user.id,
+        workflowId: input.workflowId,
+        purpose: input.purpose,
+        consent: input.consent,
+        filename: input.file.name,
+        mimeType: input.file.type,
+        bytes,
+        retentionUntil: computeRetentionUntil(RETENTION_DAYS),
+      },
+      {
+        consents: {
+          async recordConsent(consent) {
+            const { data, error } = await context.supabase
+              .from("document_consents")
+              .insert({
+                owner_id: consent.ownerId,
+                workflow_id: consent.workflowId,
+                purpose: consent.purpose,
+                consent_version: consent.consentVersion,
+                consented_at: consent.recordedAt,
+              })
+              .select("id")
+              .single();
+
+            if (error || !data) {
+              throw new Error("Unable to record document-processing consent");
+            }
+            return data.id;
+          },
+        },
+
+        storage: {
+          async put(path, data, contentType) {
+            const { error } = await context.supabase.storage
+              .from(DOCUMENT_BUCKET)
+              .upload(path, data, { contentType, upsert: false });
+            if (error) throw new Error("Unable to store document in quarantine");
+          },
+
+          async remove(path) {
+            const { error } = await context.supabase.storage
+              .from(DOCUMENT_BUCKET)
+              .remove([path]);
+            if (error) throw new Error("Unable to remove quarantined document");
+          },
+        },
+
+        registry: {
+          async register(document): Promise<SecureDocumentEnvelope> {
+            const { data, error } = await context.supabase
+              .from("secure_documents")
+              .insert({
+                id: document.id,
+                owner_id: document.ownerId,
+                workflow_id: document.workflowId,
+                consent_id: (document as SecureDocumentEnvelope & { consentId: string }).consentId,
+                original_filename: input.file.name,
+                safe_filename: document.safeFilename,
+                storage_path: document.storagePath,
+                mime_type: document.mimeType,
+                size_bytes: document.sizeBytes,
+                sha256: document.sha256,
+                security_status: document.securityStatus,
+                retention_until: document.retentionUntil,
+              })
+              .select(
+                "id, workflow_id, safe_filename, mime_type, size_bytes, sha256, security_status, created_at",
+              )
+              .single();
+
+            if (error || !data) {
+              throw new Error("Unable to register quarantined document");
+            }
+
+            registered = data as RegisteredDocument;
+            return document;
+          },
+        },
+      },
+    );
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new SecureDocumentValidationError(error.message);
+    }
+    throw error;
   }
 
-  const content = new Uint8Array(await input.file.arrayBuffer());
-  const validation = validateDocument({
-    filename: input.file.name,
-    mimeType: input.file.type,
-    sizeBytes: content.byteLength,
-    content,
-  });
-  if (!validation.ok) throw new SecureDocumentValidationError(validation.error.message);
-
-  const documentId = crypto.randomUUID();
-  const safeFilename = sanitizeFilename(input.file.name);
-  const storagePath = `${context.user.id}/${documentId}/${safeFilename}`;
-  const sha256 = computeSha256(content);
-
-  const { data: consent, error: consentError } = await context.supabase
-    .from("document_consents")
-    .insert({
-      owner_id: context.user.id,
-      workflow_id: input.workflowId,
-      purpose: purposeCode,
-      consent_version: "secure-document-intake-v1",
-    })
-    .select("id")
-    .single();
-  if (consentError || !consent) throw new Error("Unable to record document-processing consent");
-
-  const { error: uploadError } = await context.supabase.storage
-    .from(DOCUMENT_BUCKET)
-    .upload(storagePath, content, { contentType: input.file.type, upsert: false });
-  if (uploadError) throw new Error("Unable to store document in quarantine");
-
-  const { data: document, error: documentError } = await context.supabase
-    .from("secure_documents")
-    .insert({
-      id: documentId,
-      owner_id: context.user.id,
-      workflow_id: input.workflowId,
-      consent_id: consent.id,
-      original_filename: input.file.name,
-      safe_filename: safeFilename,
-      storage_path: storagePath,
-      mime_type: input.file.type,
-      size_bytes: content.byteLength,
-      sha256,
-      security_status: "quarantined",
-    })
-    .select("id, workflow_id, safe_filename, mime_type, size_bytes, sha256, security_status, created_at")
-    .single();
-
-  if (documentError || !document) {
-    await context.supabase.storage.from(DOCUMENT_BUCKET).remove([storagePath]);
-    throw new Error("Unable to register quarantined document");
-  }
-
-  return document;
+  if (!registered) throw new Error("Unable to register quarantined document");
+  return registered;
 }
