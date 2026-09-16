@@ -1,8 +1,9 @@
 import { ExtractionSchemaRegistry } from "@mailmypdf/document-intelligence";
 import {
-  certifyWorkflowCapabilities,
-  certifyWorkflowDomain,
+  certifyWorkflowQuality,
   defineWorkflow,
+  type CapabilityId,
+  type WorkflowAcceptanceEvidence,
 } from "@mailmypdf/workflows";
 import cp2000DomainSpec from "./domain";
 import cp2000ExtractionSchema from "./extraction-schema";
@@ -13,28 +14,22 @@ export const cp2000Workflow = defineWorkflow(cp2000Manifest);
 export const cp2000ExtractionSchemas = new ExtractionSchemaRegistry()
   .register(cp2000ExtractionSchema);
 
-export function certifyCp2000Definition(
-  now: string | Date = new Date(),
-) {
+export function certifyCp2000Definition(input?: {
+  now?: string | Date;
+  runtimeCapabilities?: readonly CapabilityId[];
+  acceptance?: readonly WorkflowAcceptanceEvidence[];
+}) {
   for (const schemaId of cp2000DomainSpec.extractionSchemaIds) {
     cp2000ExtractionSchemas.get(schemaId);
   }
 
-  const capabilities = certifyWorkflowCapabilities(cp2000Manifest);
-  const domain = certifyWorkflowDomain(
-    cp2000Manifest,
-    cp2000DomainSpec,
-    now,
-  );
-
-  return {
-    workflowId: cp2000Manifest.id,
-    capabilities,
-    domain,
-    ready:
-      capabilities.productionReady &&
-      domain.ready,
-  };
+  return certifyWorkflowQuality({
+    manifest: cp2000Manifest,
+    domain: cp2000DomainSpec,
+    now: input?.now ?? new Date(),
+    runtimeCapabilities: input?.runtimeCapabilities,
+    acceptance: input?.acceptance,
+  });
 }
 
 export const cp2000Definition = {
