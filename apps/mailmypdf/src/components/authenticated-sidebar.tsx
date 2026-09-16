@@ -14,6 +14,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Newspaper,
   Search,
   Settings,
   Sparkles,
@@ -51,6 +52,7 @@ const adminItems: SidebarItem[] = [
   { label: "Studio Home", href: "/admin", icon: Sparkles, exact: true },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "AI Control Plane", href: "/admin/ai", icon: Bot },
+  { label: "Publications", href: "/admin/publications", icon: Newspaper },
   { label: "Audit Log", href: "/admin/audit-log", icon: FileClock },
   { label: "Entitlements", href: "/admin/entitlements", icon: KeyRound },
 ]
