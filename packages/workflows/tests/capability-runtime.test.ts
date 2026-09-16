@@ -58,3 +58,36 @@ test("runtime blocks consequential capability until explicit gates are approved"
   });
   assert.equal(passed.status, "passed");
 });
+
+
+test("readiness requires handlers only for executable manifest steps", () => {
+  const runtime = new CapabilityRuntime();
+  runtime.register({
+    id: "security",
+    async execute() {
+      return { capability: "security", status: "passed", messages: [] };
+    },
+  });
+
+  const stepScoped: WorkflowManifest = {
+    id: "step-scoped",
+    vertical: "fixture",
+    title: "Step Scoped",
+    route: "/fixture/step-scoped",
+    pipeline: "P01_CORE_MAIL",
+    adapters: ["business"],
+    requiredCapabilities: ["security", "observability", "acceptanceTesting"],
+    optionalCapabilities: [],
+    notApplicableCapabilities: [],
+    maturity: "wired",
+    primaryInput: "case",
+    requiresHumanReview: false,
+    allowsConsequentialAction: false,
+    version: 2,
+    steps: [
+      { id: "intake", title: "Intake", uses: ["security"] },
+    ],
+  };
+
+  assert.doesNotThrow(() => runtime.assertWorkflowReady(stepScoped));
+});

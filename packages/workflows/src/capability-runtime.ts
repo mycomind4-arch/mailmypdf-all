@@ -51,11 +51,28 @@ export class CapabilityRuntime {
   }
 
   assertWorkflowReady(manifest: WorkflowManifest): void {
-    const required = manifest.requiredCapabilities;
-    const missingHandlers = required.filter((id) => !this.handlers.has(id));
-    const dependencyErrors = assertCapabilityDependencies([...required, ...manifest.optionalCapabilities]);
+    const declared = [
+      ...manifest.requiredCapabilities,
+      ...manifest.optionalCapabilities,
+    ];
+    const dependencyErrors = assertCapabilityDependencies(declared);
+
+    // V2 manifests execute only capabilities explicitly attached to steps.
+    // Operational/build-time capabilities such as observability, resilience,
+    // retention jobs, and acceptance testing can still be required by
+    // certification without pretending they are per-step handlers.
+    const requiredSet = new Set(manifest.requiredCapabilities);
+    const stepCapabilities = (manifest.steps ?? []).flatMap((step) => step.uses);
+    const runtimeRequired =
+      stepCapabilities.length > 0
+        ? [...new Set(stepCapabilities)].filter((id) => requiredSet.has(id))
+        : [...manifest.requiredCapabilities];
+
+    const missingHandlers = runtimeRequired.filter((id) => !this.handlers.has(id));
     const errors = [
-      ...missingHandlers.map((id) => `missing handler for ${id} (${CAPABILITIES[id].implementation})`),
+      ...missingHandlers.map(
+        (id) => `missing handler for ${id} (${CAPABILITIES[id].implementation})`,
+      ),
       ...dependencyErrors,
     ];
     if (errors.length) throw new Error(errors.join("\n"));
