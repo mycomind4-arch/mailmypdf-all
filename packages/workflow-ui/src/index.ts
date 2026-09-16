@@ -8,6 +8,7 @@ export * from "./SectionCard";
 export * from "./DataTable";
 export * from "./FileList";
 export * from "./Dropzone";
+export * from "./DocumentUpload";
 export * from "./RecommendedStepsRow";
 export * from "./StepShell";
 export * from "./FormFields";
