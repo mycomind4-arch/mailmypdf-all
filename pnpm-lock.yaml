@@ -23,6 +23,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.86.0(react@19.2.8))(zod@3.25.76)
+      '@mailmypdf/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@mailmypdf/fulfillment':
+        specifier: workspace:*
+        version: link:../../packages/fulfillment
       '@mailmypdf/documents':
         specifier: workspace:*
         version: link:../../packages/documents
