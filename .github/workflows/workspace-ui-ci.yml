@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'packages/design-system/**'
+      - 'packages/workflow-ui/**'
       - 'apps/mailmypdf/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - 'packages/design-system/**'
+      - 'packages/workflow-ui/**'
       - 'apps/mailmypdf/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
@@ -43,8 +45,10 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify canonical product topology
         run: node scripts/verify-product-topology.mjs
-      - name: Typecheck design system
-        run: pnpm --filter @mailmypdf/design-system typecheck
+      - name: Typecheck shared UI packages
+        run: |
+          pnpm --filter @mailmypdf/design-system typecheck
+          pnpm --filter @mailmypdf/workflow-ui typecheck
 
   authority-gate:
     name: Workflow SEO Authority Gate
