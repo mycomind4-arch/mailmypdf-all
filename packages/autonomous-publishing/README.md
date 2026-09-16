@@ -86,3 +86,59 @@ The package exposes adapters so Studio can swap or upgrade external components w
 5. Connect listmonk/Resend-compatible delivery through the publisher boundary.
 6. Connect Umami and email engagement events through the analytics boundary.
 7. Put the pipeline behind Trigger.dev for schedules, retries, durable execution and approval/resume.
+
+
+## Studio admin workspace
+
+The MailMyPDF app now exposes the publication engine under:
+
+`/admin/publications`
+
+The route is inside the existing authenticated workspace and every publication server action independently verifies the current user has the `admin` role.
+
+The Studio surface supports:
+
+1. inspect publication manifests and source configuration;
+2. see which production integrations are configured without exposing secret values;
+3. run a preview through the real discovery → Claude → evidence → verification pipeline;
+4. persist the exact rendered edition and run state;
+5. review the stored HTML in a sandboxed iframe plus verification issues and story/evidence counts;
+6. approve and publish the exact stored artifact.
+
+Approval does **not** rerun discovery, research, or drafting. The database approval claim is compare-and-set against `awaiting_approval` and a null reviewer, which prevents a second reviewer or duplicate click from claiming the same run.
+
+## Database
+
+Apply:
+
+`apps/mailmypdf/supabase/migrations/20260916193000_autonomous_publications.sql`
+
+This creates:
+
+- `publication_runs`: durable run state, rendered approval artifacts, reviewer metadata, and delivery metadata;
+- `publication_story_memory`: per-publication historical story memory with a reserved 384-dimensional pgvector embedding column and HNSW index.
+
+Both tables have RLS enabled and intentionally expose no browser policies. Studio accesses them through the server-side Supabase admin client.
+
+## Production delivery
+
+The example publication now defaults to **Resend Broadcasts**. listmonk remains available as the self-hosted alternative.
+
+Required for Resend delivery:
+
+- `RESEND_API_KEY`
+- `RESEND_SEGMENT_ID`
+- `RESEND_FROM` or the existing `RESEND_FROM_ADDRESS`
+
+Broadcast HTML automatically receives Resend's unsubscribe variable when the template does not already contain one.
+
+## Graceful degradation
+
+A production publication does not have to wait for every auxiliary service:
+
+- no Horizon endpoint → RSS/Atom discovery remains available;
+- no Crawl4AI endpoint → feed summary evidence is used conservatively;
+- no Umami → publishing still works without analytics;
+- no Trigger.dev → an admin can run and approve previews manually in Studio.
+
+Delivery is never silently simulated after approval. A real enabled publisher must be configured for production use.
