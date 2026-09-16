@@ -302,3 +302,21 @@ export {
   isActionRequired,
   explainAssessment as explainCaseAssessment,
 } from "./case-assessment.js";
+
+
+// ── Document Understanding ───────────────────────────────────────────────────
+export type {
+  UnderstandingObservationKind,
+  UnderstandingObservation,
+  DocumentUnderstanding,
+  UnderstandingObservationInput,
+  CreateDocumentUnderstandingInput,
+} from "./understanding.js";
+export {
+  createDocumentUnderstanding,
+  observationsByKind,
+  observationsForKey,
+  verifyUnderstandingObservation,
+  replaceUnderstandingObservation,
+  understandingToFacts,
+} from "./understanding.js";
