@@ -9,3 +9,6 @@ export * from "./claude-adapters.js";
 export * from "./render.js";
 export * from "./publishers.js";
 export * from "./runtime.js";
+export * from "./service-adapters.js";
+export * from "./pgvector-memory.js";
+export * from "./run-store.js";
