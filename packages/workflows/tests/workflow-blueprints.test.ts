@@ -100,3 +100,38 @@ test("free records workflow omits payment but preserves mailing proof controls",
   assert.ok(manifest.requiredCapabilities.includes("approval"));
   assert.ok(manifest.requiredCapabilities.includes("proofAudit"));
 });
+
+
+test("all ten archetypes compile with compatible reference adapters", () => {
+  const fixtures = [
+    ["simple-mail", ["business"]],
+    ["official-response", ["government"]],
+    ["appeal", ["government"]],
+    ["court-response", ["court-procedure"]],
+    ["immigration-response", ["immigration"]],
+    ["dispute", ["credit-debt"]],
+    ["business-correspondence", ["business"]],
+    ["records-request", ["records"]],
+    ["regulatory-response", ["permits-regulatory"]],
+    ["claim-proof", ["government"]],
+  ] as const;
+
+  for (const [archetype, adapters] of fixtures) {
+    const defined = defineWorkflowFromBlueprint({
+      id: `fixture-${archetype}`,
+      vertical: "fixture",
+      title: `Fixture ${archetype}`,
+      route: `/fixture/${archetype}`,
+      archetype,
+      adapters,
+      commerce: "paid",
+    });
+    assert.equal(defined.plan.version, 2, archetype);
+    assert.ok(defined.manifest.requiredCapabilities.includes("facts"), archetype);
+    assert.equal(
+      certifyWorkflowCapabilities(defined.manifest).dependencyErrors.length,
+      0,
+      archetype,
+    );
+  }
+});

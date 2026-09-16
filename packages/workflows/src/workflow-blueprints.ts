@@ -1,5 +1,6 @@
 import type { AdapterId } from "./adapter-registry.js";
 import {
+  capabilityDependencies,
   capabilityIds,
   type CapabilityId,
 } from "./capability-registry.js";
@@ -138,6 +139,18 @@ function has(
   id: CapabilityId,
 ): boolean {
   return capabilities.has(id);
+}
+
+function addDependencyClosure(capabilities: Set<CapabilityId>): void {
+  const queue = [...capabilities];
+  while (queue.length) {
+    const current = queue.shift()!;
+    for (const dependency of capabilityDependencies(current)) {
+      if (capabilities.has(dependency)) continue;
+      capabilities.add(dependency);
+      queue.push(dependency);
+    }
+  }
 }
 
 function buildSteps(capabilities: ReadonlySet<CapabilityId>): WorkflowStepManifest[] {
@@ -408,10 +421,22 @@ export function buildWorkflowManifest(
 
   for (const id of input.additionalRequiredCapabilities ?? []) required.add(id);
 
+  // Capabilities declare their own prerequisites. Resolve them transitively so
+  // workflow authors never have to know infrastructure dependency trivia.
+  addDependencyClosure(required);
+
   const optional = new Set<CapabilityId>([
     ...capabilitiesForStages(pipeline.optionalStages),
     ...(input.additionalOptionalCapabilities ?? []),
   ]);
+
+  // Optional features must also have their prerequisites available if enabled.
+  const optionalDependencyClosure = new Set(optional);
+  addDependencyClosure(optionalDependencyClosure);
+  for (const dependency of optionalDependencyClosure) {
+    if (!optional.has(dependency)) required.add(dependency);
+  }
+  addDependencyClosure(required);
 
   // Never declare a capability both required and optional.
   for (const id of required) optional.delete(id);
