@@ -30,3 +30,5 @@ export * from "./StepStatusList";
 export * from "./ChoiceCardGrid";
 export * from "./DeadlineSummary";
 export * from "./SourceReference";
+export * from "./ActionList";
+export * from "./CommunicationList";
