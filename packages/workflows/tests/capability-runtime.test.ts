@@ -12,7 +12,7 @@ const manifest: WorkflowManifest = {
   pipeline: "P02_OFFICIAL_RESPONSE",
   adapters: ["government"],
   requiredCapabilities: [
-    "security", "classification", "extraction", "provenance", "deadlines", "findings",
+    "security", "classification", "extraction", "aiExecution", "facts", "provenance", "deadlines", "findings",
     "requirements", "evidence", "strategy", "draft", "draftProvenance", "validation",
     "blockingGate", "humanReview", "approval", "pdfGeneration", "packetAssembly",
     "addressVerification", "mailing", "tracking", "proofAudit",
