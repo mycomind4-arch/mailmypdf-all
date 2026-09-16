@@ -7,7 +7,7 @@ export type FactoryDiagnosticSeverity = "error" | "warning";
 export type FactoryDiagnostic = { severity: FactoryDiagnosticSeverity; code: string; message: string };
 export type WorkflowFactoryResult = { executable: boolean; manifest: WorkflowManifest; pipeline: ReturnType<typeof getPipeline>; adapters: ReturnType<typeof getAdapter>[]; diagnostics: readonly FactoryDiagnostic[] };
 
-const PIPELINE_STAGE_TO_CAPABILITY: Readonly<Record<string, WorkflowCapability>> = {
+export const PIPELINE_STAGE_TO_CAPABILITY: Readonly<Record<string, WorkflowCapability>> = {
   security: "security", classification: "classification", extraction: "extraction", understand: "understand", facts: "facts",
   provenance: "provenance", deadline: "deadlines", timeline: "timeline", requirements: "requirements", contradiction: "contradictions",
   findings: "findings", discrepancy: "discrepancies", evidence: "evidence", research: "research", risk: "risk", strategy: "strategy",

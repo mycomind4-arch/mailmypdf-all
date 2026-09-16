@@ -25,3 +25,5 @@ export * from "./capability-runtime.js";
 export * from "./define-workflow.js";
 
 export * from "./capability-certification.js";
+
+export * from "./workflow-blueprints.js";
