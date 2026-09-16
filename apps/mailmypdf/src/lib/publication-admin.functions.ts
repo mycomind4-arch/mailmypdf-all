@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertAdmin(userId: string) {
@@ -21,10 +22,13 @@ export const listPublicationsForAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-
     const { publicationCatalog } = await import("../../../../Projects/Publications/catalog");
+    const { listPublicationRuns } = await import("@/lib/publication-runtime.server");
+    const runData = await listPublicationRuns();
 
     return {
+      persistenceReady: runData.persistenceReady,
+      runs: runData.runs,
       publications: publicationCatalog.map(({ manifest, projectPath, status }) => ({
         id: manifest.id,
         name: manifest.name,
@@ -85,5 +89,59 @@ export const listPublicationsForAdmin = createServerFn({ method: "GET" })
           },
         },
       })),
+    };
+  });
+
+export const runPublicationPreviewForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((value: unknown) =>
+    z.object({ publicationId: z.string().min(1).max(100) }).parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { runPublicationPreview } = await import("@/lib/publication-runtime.server");
+    const result = await runPublicationPreview(data.publicationId);
+    return {
+      runId: result.run.id,
+      status: result.run.status,
+      editionId: result.rendered.edition.editionId,
+      subject: result.rendered.edition.subject,
+    };
+  });
+
+export const getPublicationRunForAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((value: unknown) =>
+    z.object({ runId: z.string().min(1).max(200) }).parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { getPublicationRun } = await import("@/lib/publication-runtime.server");
+    return getPublicationRun(data.runId);
+  });
+
+export const approvePublicationRunForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((value: unknown) =>
+    z.object({
+      publicationId: z.string().min(1).max(100),
+      runId: z.string().min(1).max(200),
+      note: z.string().max(1000).optional(),
+    }).parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { publishStoredPublication } = await import("@/lib/publication-runtime.server");
+    const result = await publishStoredPublication(
+      data.publicationId,
+      data.runId,
+      context.userId,
+      data.note,
+    );
+    return {
+      ok: true as const,
+      status: result.run.status,
+      providerId: result.publication?.providerId,
+      publicationUrl: result.publication?.publicationUrl,
     };
   });
