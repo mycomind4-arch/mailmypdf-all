@@ -152,3 +152,5 @@ export async function verifyAddressForMailing(
   }
   return { ...result, warnings: [...preflight.warnings, ...result.warnings] };
 }
+
+export * from "./address-verification.js";
