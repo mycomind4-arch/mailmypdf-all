@@ -1,0 +1,42 @@
+name: Publications Studio CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/autonomous-publishing/**"
+      - "Projects/Publications/**"
+      - "apps/mailmypdf/src/lib/publication-*.ts"
+      - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
+      - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
+      - "apps/mailmypdf/.env.example"
+      - ".github/workflows/publications-studio-ci.yml"
+  pull_request:
+    paths:
+      - "packages/autonomous-publishing/**"
+      - "Projects/Publications/**"
+      - "apps/mailmypdf/src/lib/publication-*.ts"
+      - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
+      - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
+      - ".github/workflows/publications-studio-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mailmypdf/autonomous-publishing typecheck
+      - run: pnpm --filter @mailmypdf/autonomous-publishing test
+      - run: pnpm --dir apps/mailmypdf build
