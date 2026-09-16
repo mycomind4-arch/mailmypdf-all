@@ -40,3 +40,10 @@ This hardening pass closes the remaining package-level gaps that would otherwise
 A workflow should declare and configure capabilities. It should not implement storage, malware scanning, model routing, PDF generation, pricing, Stripe state, mailing submission, notification delivery, retries, proof hashing, or acceptance simulation itself.
 
 Provider-specific production adapters can remain in the canonical MailMyPDF application while the provider-neutral contracts and invariants live in packages. This keeps secrets and infrastructure configuration centralized without duplicating runtime logic across workflows.
+
+
+## Canonical Claude adapters
+
+This pass also adds a canonical Anthropic text/structured provider in `@mailmypdf/ai` and a canonical PDF/image vision provider in `@mailmypdf/document-intelligence`. New workflow implementations should use these shared adapters rather than adding another product-local `claude.ts` HTTP client.
+
+The existing product-local Claude integrations can be migrated incrementally after the capability layer is stable.

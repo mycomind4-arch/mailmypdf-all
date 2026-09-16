@@ -12,11 +12,28 @@ export type NotificationKind =
 
 export type NotificationChannel = "email" | "in_app";
 
-export interface NotificationMessage {
+export interface EmailNotificationMessage {
   to: string;
   subject: string;
   html: string;
   text?: string;
+}
+
+export interface InAppNotificationMessage {
+  accountId: string;
+  title: string;
+  body: string;
+  href?: string;
+}
+
+export type NotificationMessage = EmailNotificationMessage | InAppNotificationMessage;
+
+export function isEmailNotificationMessage(message: NotificationMessage): message is EmailNotificationMessage {
+  return "to" in message;
+}
+
+export function isInAppNotificationMessage(message: NotificationMessage): message is InAppNotificationMessage {
+  return "accountId" in message;
 }
 
 export interface NotificationProviderResult {
@@ -68,8 +85,15 @@ export async function dispatchNotification(
   now = new Date().toISOString(),
 ): Promise<NotificationDispatchResult> {
   if (!command.idempotencyKey.trim()) throw new Error("Notification idempotency key is required");
-  if (!command.message.to.trim()) throw new Error("Notification recipient is required");
-  if (!command.message.subject.trim()) throw new Error("Notification subject is required");
+  if (command.channel === "email") {
+    if (!isEmailNotificationMessage(command.message)) throw new Error("Email notification payload is required");
+    if (!command.message.to.trim()) throw new Error("Notification recipient is required");
+    if (!command.message.subject.trim()) throw new Error("Notification subject is required");
+  } else {
+    if (!isInAppNotificationMessage(command.message)) throw new Error("In-app notification payload is required");
+    if (!command.message.accountId.trim()) throw new Error("In-app notification account is required");
+    if (!command.message.title.trim() || !command.message.body.trim()) throw new Error("In-app notification title and body are required");
+  }
 
   if (await store.wasDelivered(command.idempotencyKey)) return { status: "duplicate" };
 
@@ -121,7 +145,7 @@ export interface ScheduledNotification {
   id: string;
   dueAt: string;
   command: NotificationCommand;
-  status: "scheduled" | "delivered" | "cancelled";
+  status: "scheduled" | "delivered" | "failed" | "cancelled";
 }
 
 export function isNotificationDue(schedule: ScheduledNotification, now = Date.now()): boolean {

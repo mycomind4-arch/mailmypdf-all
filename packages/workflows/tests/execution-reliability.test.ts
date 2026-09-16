@@ -23,3 +23,25 @@ test("idempotent workflow action retries and replays completed results", async (
   assert.deepEqual(replay,{result:"ok",replayed:true,attempts:2});
   assert.equal(calls,2);
 });
+
+
+test("records the actual attempt count for a non-retryable failure", async () => {
+  let record:any=null;
+  const store={
+    async load(){return record;},
+    async claim(key:string,now:string){record={key,status:"running",attempts:0,updatedAt:now};return true;},
+    async succeed(){throw new Error("should not succeed");},
+    async fail(key:string,error:string,attempts:number,now:string){record={key,status:"failed",error,attempts,updatedAt:now};},
+  };
+  await assert.rejects(
+    () => runIdempotentWorkflowAction({
+      key:"payment:m1",store,
+      action:async()=>{throw new Error("card rejected");},
+      policy:{maxAttempts:5,baseDelayMs:1,maxDelayMs:1,retryable:()=>false},
+      sleep:async()=>{},
+      now:()=>"2026-09-16T00:00:00Z",
+    }),
+    /card rejected/,
+  );
+  assert.equal(record.attempts,1);
+});

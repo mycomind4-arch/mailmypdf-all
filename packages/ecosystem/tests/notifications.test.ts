@@ -50,3 +50,21 @@ test("due notification dispatcher records durable completion", async () => {
   assert.deepEqual(result,{processed:1,delivered:1,failed:0,skipped:0,duplicates:0});
   assert.deepEqual(completed,["s1"]);
 });
+
+
+test("in-app notification payload is validated by channel", async () => {
+  const store={async wasDelivered(){return false;},async record(){}};
+  const provider={name:"in-app",isConfigured:()=>true,async send(){return {ok:true,messageId:"n1"};}};
+  const result=await dispatchNotification({
+    idempotencyKey:"matter:m1:action",kind:"action_required",channel:"in_app",
+    message:{accountId:"u1",title:"Action required",body:"Review your draft",href:"/dashboard"},
+  },provider,store);
+  assert.equal(result.status,"delivered");
+  await assert.rejects(
+    () => dispatchNotification({
+      idempotencyKey:"bad",kind:"action_required",channel:"in_app",
+      message:{to:"x@example.com",subject:"Wrong payload",html:"Wrong"},
+    },provider,store),
+    /In-app notification payload/,
+  );
+});

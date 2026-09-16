@@ -278,3 +278,5 @@ export interface DocumentIntelligenceProvider {
 
 export * from "./vision.js";
 export * from "./docling-provider.js";
+
+export * from "./anthropic-vision-provider.js";

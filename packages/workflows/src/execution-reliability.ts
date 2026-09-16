@@ -71,7 +71,9 @@ export async function runIdempotentWorkflowAction<T>(input: {
   const now = input.now ?? (() => new Date().toISOString());
   const sleep = input.sleep ?? wait;
   let lastError: unknown;
+  let attemptsUsed = 0;
   for (let attempt = 1; attempt <= policy.maxAttempts; attempt += 1) {
+    attemptsUsed = attempt;
     try {
       const result = await input.action(attempt);
       await input.store.succeed(input.key, result, attempt, now());
@@ -84,6 +86,6 @@ export async function runIdempotentWorkflowAction<T>(input: {
     }
   }
   const message = lastError instanceof Error ? lastError.message : String(lastError);
-  await input.store.fail(input.key, message, policy.maxAttempts, now());
+  await input.store.fail(input.key, message, attemptsUsed, now());
   throw lastError instanceof Error ? lastError : new Error(message);
 }

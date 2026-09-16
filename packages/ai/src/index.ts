@@ -159,3 +159,5 @@ export function readServerSecret(env: Record<string, string | undefined>, key: s
   if (!value) throw new SecurityError(`Missing server secret: ${key}`);
   return value;
 }
+
+export * from "./anthropic-provider.js";
