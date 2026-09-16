@@ -260,3 +260,58 @@ export async function getPublicationRun(runId: string) {
   if (!data) throw new Error("Publication run not found");
   return data;
 }
+
+
+export async function rejectStoredPublication(
+  publicationId: string,
+  runId: string,
+  reviewerUserId: string,
+  note?: string,
+) {
+  const db = supabaseAdmin as any;
+  const now = new Date().toISOString();
+
+  const { data: row, error: readError } = await db
+    .from("publication_runs")
+    .select("run_json")
+    .eq("run_id", runId)
+    .eq("publication_id", publicationId)
+    .eq("status", "awaiting_approval")
+    .is("approved_by", null)
+    .is("rejected_by", null)
+    .maybeSingle();
+
+  if (readError) throw new Error(readError.message);
+  if (!row) throw new Error("This publication run was already reviewed or is no longer awaiting approval.");
+
+  const run = {
+    ...row.run_json,
+    status: "rejected",
+    stage: "approval",
+    completedAt: now,
+  };
+
+  const { data: rejected, error } = await db
+    .from("publication_runs")
+    .update({
+      status: "rejected",
+      stage: "approval",
+      run_json: run,
+      rejected_by: reviewerUserId,
+      rejected_at: now,
+      approval_note: note?.trim() || null,
+      updated_at: now,
+    })
+    .eq("run_id", runId)
+    .eq("publication_id", publicationId)
+    .eq("status", "awaiting_approval")
+    .is("approved_by", null)
+    .is("rejected_by", null)
+    .select("run_id");
+
+  if (error) throw new Error(error.message);
+  if (!rejected?.length) {
+    throw new Error("This publication run was already reviewed by another request.");
+  }
+  return { ok: true as const, status: "rejected" as const };
+}
