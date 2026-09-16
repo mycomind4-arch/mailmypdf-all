@@ -6,14 +6,14 @@ function textBetween(block: string, tag: string): string | undefined {
   const match = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i"));
   if (!match) return undefined;
   return match[1]
-    ?.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1")
+    ?.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -44,8 +44,8 @@ export function parseSyndicationFeed(
   retrievedAt = new Date().toISOString(),
 ): StoryCandidate[] {
   const blocks = [
-    ...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi),
-    ...xml.matchAll(/<entry(?:\\s[^>]*)?>([\\s\\S]*?)<\\/entry>/gi),
+    ...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi),
+    ...xml.matchAll(/<entry(?:\s[^>]*)?>([\s\S]*?)<\/entry>/gi),
   ].map((match) => match[1] ?? "");
 
   const stories: StoryCandidate[] = [];
