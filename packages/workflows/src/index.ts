@@ -35,3 +35,5 @@ export * from "./workflow-fields.js";
 export * from "./workflow-domain-spec.js";
 
 export * from "./workflow-quality-certification.js";
+
+export * from "./platform-capability-bundle.js";
