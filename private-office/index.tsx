@@ -24,7 +24,7 @@ import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
 import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
 
-export const Route = createFileRoute("/")({ component: HomePage });
+export const Route = createFileRoute("/private-office/")({ component: HomePage });
 
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);

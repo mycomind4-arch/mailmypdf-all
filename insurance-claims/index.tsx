@@ -7,7 +7,7 @@ import { PublicFooter, PublicHeader } from '../components/public-chrome'
 
 const VerticalHero=createVerticalHero(createElement)
 const TrustStrip=createTrustStrip(createElement)
-export const Route=createFileRoute('/')({component:Home})
+export const Route=createFileRoute("/insurance-claims/")({component:Home})
 function Home(){const featured=INSURANCE_WORKFLOWS.filter((w,i,a)=>a.findIndex(x=>x.family===w.family)===i).slice(0,6);return <main><PublicHeader/>
 <VerticalHero theme='insurance-claims' tone='light' eyebrow='Insurance Claims · Build the record' title='Build the claim record. Challenge the denial.' description='Choose a focused workflow for a new claim, denied claim, property loss, coverage dispute, health or disability appeal, or specialized insurance matter. Organize the evidence, review the response, and keep mailing and proof connected.' imageSrc='/hero-bg.png' imageAlt='Insurance claim documents and property-loss records' actions={<><Link to='/workflows' className='mmp-button-primary'>Find My Claim Workflow <ArrowRight size={16}/></Link><a href='/' className='mmp-button-secondary'>Mail a PDF</a></>} meta={<><span>Problem-specific claim workflows</span><span>Review before mailing</span><span>Tracking & proof options</span></>}/>
 <TrustStrip items={[{icon:<FileText size={16}/>,title:'Claim-specific guidance',description:'Start from the claim or denial in front of you'},{icon:<Search size={16}/>,title:'Evidence organized',description:'Keep policy, loss, and correspondence records together'},{icon:<ShieldCheck size={16}/>,title:'Human review required',description:'Consequential responses require your review'},{icon:<Mail size={16}/>,title:'Mailing & proof options',description:'Available through MailMyPDF'}]}/>

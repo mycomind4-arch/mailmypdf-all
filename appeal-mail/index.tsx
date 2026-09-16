@@ -102,7 +102,7 @@ const faqItems = [
   },
 ];
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/appeal-mail/")({
   component: HomePage,
   head: () => ({
     meta: [

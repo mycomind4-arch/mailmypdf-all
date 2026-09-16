@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router"
 import { createElement } from 'react'
 import { SiteHeader } from './components/site-header'
 import { SiteFooter } from './components/site-footer'
@@ -14,6 +15,12 @@ const situations = [
   ['Rent or lease correspondence', 'Document the notice, lease terms, amounts, dates, prior communications, and the factual response or question you intend to send.'],
   ['Entry and access correspondence', 'Record the notice, requested date and purpose, prior access communications, and the response you intend to make.'],
 ]
+
+export const Route = createFileRoute("/tenant-reply/")({ component: SectionLandingRoute })
+
+function SectionLandingRoute() {
+  return <PublicLanding onStart={() => { window.location.href = "/tenant-reply/workflows" }} />
+}
 
 export function PublicLanding({ onStart }: { onStart: () => void }) {
   return <div className="mmp-app">

@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router"
 import { createElement } from 'react'
 import { SiteHeader } from './components/site-header'
 import { SiteFooter } from './components/site-footer'
@@ -14,6 +15,12 @@ const situations = [
   ['Variance or zoning decision', 'Keep the application, decision, conditions, supporting facts, exhibits, and review or reconsideration correspondence together.'],
   ['Certificate / closeout issue', 'Organize outstanding items, approvals, inspections, corrections, and correspondence needed to document project closeout.'],
 ]
+
+export const Route = createFileRoute("/permit-reply/")({ component: SectionLandingRoute })
+
+function SectionLandingRoute() {
+  return <PublicLanding onStart={() => { window.location.href = "/permit-reply/workflows" }} />
+}
 
 export function PublicLanding({ onStart }: { onStart: () => void }) {
   return <div className="mmp-app">

@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router"
 import { createElement } from 'react'
 import { createTrustStrip, createVerticalHero } from '../../../../packages/design-system/src/index'
 import { SMALL_BUSINESS_WORKFLOWS } from './domain/workflows'
@@ -23,6 +24,8 @@ const productLoop = [
   ['Prove', 'Retain the document, mailing record, and available delivery evidence together.'],
   ['Archive', 'Preserve correspondence history so the next workflow starts with context instead of a blank page.'],
 ]
+
+export const Route = createFileRoute("/small-business/")({ component: PublicLanding })
 
 export function PublicLanding() {
   return (

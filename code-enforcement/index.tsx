@@ -15,7 +15,7 @@ const featured=[
   ['request-case-closure','Request Case Closure','Case status & closure','Document the basis for asking the agency to close the matter.'],
 ] as const
 
-export const Route=createFileRoute('/')({component:Home})
+export const Route=createFileRoute("/code-enforcement/")({component:Home})
 function Home(){return <main>
   <PublicHeader/>
   <VerticalHero theme='code-enforcement' tone='dark' eyebrow='Code Enforcement · Respond with a record' title='Turn a code enforcement notice into documented action.' description='Start from the notice, inspection request, violation, citation, or abatement action. Organize the facts and evidence, prepare a reviewable response, and keep the mailing and proof record together.' imageSrc='/hero.svg' imageAlt='Residential property and municipal inspection documents' actions={<><Link className='mmp-button-primary' to='/workflows'>Find a Workflow <ArrowRight size={16}/></Link><a className='mmp-button-secondary' href='/'>Mail a PDF</a></>} meta={<><span>Public workflow discovery</span><span>Private execution</span><span>Review before mailing</span></>}/>

@@ -10,7 +10,7 @@ const SITE_ORIGIN = "https://notice-respond.pages.dev";
 const VerticalHero = createVerticalHero(createElement);
 const TrustStrip = createTrustStrip(createElement);
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/notice-respond/")({
   head: () => ({
     meta: [
       { title: "Notice Respond — Respond to Government & Official Notices | MailMyPDF" },

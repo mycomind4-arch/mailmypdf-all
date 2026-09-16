@@ -9,7 +9,7 @@ import { createTrustStrip, createVerticalHero } from "../../../../../packages/de
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/immigration-mail/")({
   head: () => ({
     meta: [
       { title: "Immigration Mail — Prepare and mail important immigration correspondence" },

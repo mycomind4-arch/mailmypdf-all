@@ -10,7 +10,7 @@ const SITE_ORIGIN = "https://dispute-mail.pages.dev";
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/dispute-mail/")({
   head: () => ({
     meta: [
       { title: "Dispute Mail — Handle disputes with confidence" },

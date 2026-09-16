@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router"
 import { createElement } from 'react'
 import { SiteHeader } from './components/site-header'
 import { SiteFooter } from './components/site-footer'
@@ -22,6 +23,12 @@ const steps = [
   ['04', 'Review before action', 'Verify names, dates, amounts, attachments, recipient instructions, and the exact document before approval.'],
   ['05', 'Send and preserve proof', 'When mailing is appropriate, choose a MailMyPDF delivery option and keep tracking and proof with the matter.'],
 ]
+
+export const Route = createFileRoute("/claim-proof/")({ component: SectionLandingRoute })
+
+function SectionLandingRoute() {
+  return <PublicLanding onStart={() => { window.location.href = "/claim-proof/workflows" }} />
+}
 
 export function PublicLanding({ onStart }: { onStart: () => void }) {
   return (

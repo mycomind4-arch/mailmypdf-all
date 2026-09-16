@@ -9,7 +9,7 @@ import { createTrustStrip, createVerticalHero } from '../../../../../packages/de
 const VerticalHero = createVerticalHero(createElement)
 const SharedTrustStrip = createTrustStrip(createElement)
 
-export const Route = createFileRoute('/')({ component: HomePage })
+export const Route = createFileRoute("/benefits-appeal/")({ component: HomePage })
 
 function HomePage() {
   const featured = Object.values(workflows).slice(0, 6)
