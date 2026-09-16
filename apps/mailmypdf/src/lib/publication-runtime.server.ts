@@ -36,7 +36,7 @@ function productionOptions(manifest: PublicationManifest) {
   const crawlEndpoint = envValue("CRAWL4AI_ENDPOINT");
   const resendKey = envValue("RESEND_API_KEY");
   const resendSegment = envValue("RESEND_SEGMENT_ID");
-  const resendFrom = envValue("RESEND_FROM");
+  const resendFrom = envValue("RESEND_FROM") ?? envValue("RESEND_FROM_ADDRESS");
   const listmonkUrl = envValue("LISTMONK_URL");
   const listmonkUsername = envValue("LISTMONK_USERNAME");
   const listmonkToken = envValue("LISTMONK_API_TOKEN");
