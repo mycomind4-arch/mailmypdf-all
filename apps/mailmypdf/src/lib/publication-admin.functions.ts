@@ -145,3 +145,24 @@ export const approvePublicationRunForAdmin = createServerFn({ method: "POST" })
       publicationUrl: result.publication?.publicationUrl,
     };
   });
+
+
+export const rejectPublicationRunForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((value: unknown) =>
+    z.object({
+      publicationId: z.string().min(1).max(100),
+      runId: z.string().min(1).max(200),
+      note: z.string().max(1000).optional(),
+    }).parse(value),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { rejectStoredPublication } = await import("@/lib/publication-runtime.server");
+    return rejectStoredPublication(
+      data.publicationId,
+      data.runId,
+      context.userId,
+      data.note,
+    );
+  });
