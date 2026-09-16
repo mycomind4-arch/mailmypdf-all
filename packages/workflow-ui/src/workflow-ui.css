@@ -1203,3 +1203,113 @@
   border-top: 0;
 }
 
+/* ── Pipeline / evidence / strategy / draft review ───────────────── */
+.wf-pipeline-list,
+.wf-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.wf-pipeline-row,
+.wf-evidence-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--wf-color-rule);
+}
+
+.wf-pipeline-row:first-child,
+.wf-evidence-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wf-pipeline-copy,
+.wf-evidence-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.84rem;
+}
+
+.wf-pipeline-copy strong,
+.wf-evidence-copy strong {
+  color: var(--wf-color-charcoal);
+}
+
+.wf-pipeline-copy span,
+.wf-evidence-copy p {
+  margin: 0;
+  color: var(--wf-color-stone);
+  line-height: 1.5;
+}
+
+.wf-evidence-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.wf-strategy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.wf-strategy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.wf-strategy-item strong {
+  font-size: 0.86rem;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-strategy-item p {
+  margin: 0.1rem 0 0;
+  color: var(--wf-color-stone);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.wf-draft-preview {
+  margin: 0;
+  max-height: 32rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-color-paper-deep);
+  padding: 1rem;
+  font-family: var(--wf-font-sans);
+  font-size: 0.86rem;
+  line-height: 1.65;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.wf-callout--warning {
+  border: 1px solid rgba(184, 132, 62, 0.35);
+  background: var(--wf-color-warning-bg);
+  color: var(--wf-color-warning);
+}
+
+.wf-callout-list {
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+}
+
