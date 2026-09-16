@@ -1,15 +1,8 @@
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useServerFn } from "@tanstack/react-start"
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  CircleSlash2,
-  ExternalLink,
-  ShieldCheck,
-  Wrench,
-} from "lucide-react"
+import { ArrowLeft, ExternalLink, ShieldCheck, Wrench } from "lucide-react"
+import { WorkflowDetailSummary } from "../../../../packages/workflow-ui/src/WorkflowDetailSummary"
 import { isCurrentUserAdmin } from "@/lib/admin.functions"
 import { workflowNavigationItem } from "@/lib/workflow-navigation"
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry"
@@ -44,37 +37,22 @@ export function AuthenticatedWorkflowDetail({
 
   const { section, workflow } = entry
   const authority = workflowAuthorityForPath(workflow.publicHref)
-  const executionHref = authority?.executionHref ?? null
+  const executionHref = authority?.executionHref ?? undefined
 
   return (
     <div className="space-y-6">
-      <div>
-        <a href={section.workspaceHref} className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> {section.label}
-        </a>
-        <div className="mt-5 flex flex-col gap-4 border-b border-rule/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{section.label}</div>
-            <h1 className="mt-2 font-serif text-4xl leading-none">{workflow.label}</h1>
-          </div>
-          {executionHref ? (
-            <a href={executionHref} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-cobalt px-5 text-sm font-semibold text-white hover:bg-cobalt/90">
-              Start workflow <ArrowRight className="h-4 w-4" />
-            </a>
-          ) : (
-            <span className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-rule bg-muted/40 px-5 text-sm font-medium text-muted-foreground">
-              <CircleSlash2 className="h-4 w-4" /> Runtime not connected
-            </span>
-          )}
-        </div>
-      </div>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatusCard label="Execution" value={executionHref ? "Ready" : "Not connected"} ready={Boolean(executionHref)} />
-        <StatusCard label="Workspace" value="Available" ready />
-        <StatusCard label="Account" value="Authenticated" ready />
-        <StatusCard label="Product" value={section.label} />
-      </section>
+      <WorkflowDetailSummary
+        title={workflow.label}
+        sectionLabel={section.label}
+        backHref={section.workspaceHref}
+        startHref={executionHref}
+        metrics={[
+          { label: "Execution", value: executionHref ? "Ready" : "Not connected", tone: executionHref ? "success" : "neutral" },
+          { label: "Workspace", value: "Available", tone: "success" },
+          { label: "Account", value: "Authenticated", tone: "success" },
+          { label: "Product", value: section.label },
+        ]}
+      />
 
       {isAdmin && (
         <section className="rounded-md border border-rule/70 bg-card">
@@ -105,27 +83,6 @@ export function AuthenticatedWorkflowDetail({
           </div>
         </section>
       )}
-    </div>
-  )
-}
-
-function StatusCard({
-  label,
-  value,
-  ready,
-}: {
-  label: string
-  value: string
-  ready?: boolean
-}) {
-  return (
-    <div className="rounded-md border border-rule/70 bg-card p-4">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
-      <div className="mt-2 flex items-center gap-2 text-sm font-semibold">
-        {ready === true && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-        {ready === false && <CircleSlash2 className="h-4 w-4 text-muted-foreground" />}
-        <span>{value}</span>
-      </div>
     </div>
   )
 }
