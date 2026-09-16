@@ -49,6 +49,7 @@
 [data-mmp-theme="dispute-mail"] { --mmp-accent: #6d526f; --mmp-accent-soft: #f0e9f1; }
 [data-mmp-theme="immigration-mail"] { --mmp-accent: #8b6c39; --mmp-accent-soft: #f4ebdb; }
 [data-mmp-theme="insurance-claims"] { --mmp-accent: #3f6479; --mmp-accent-soft: #e8f0f4; }
+[data-mmp-theme="legal-defense"] { --mmp-accent: #5c5f72; --mmp-accent-soft: #ececf2; }
 [data-mmp-theme="notice-respond"] { --mmp-accent: #315f75; --mmp-accent-soft: #e7f0f4; }
 [data-mmp-theme="permit-reply"] { --mmp-accent: #6d6045; --mmp-accent-soft: #f1ede4; }
 [data-mmp-theme="private-office"] { --mmp-accent: #705d48; --mmp-accent-soft: #efe9e1; }

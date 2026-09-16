@@ -47,6 +47,7 @@ export type EcosystemTheme =
   | 'dispute-mail'
   | 'immigration-mail'
   | 'insurance-claims'
+  | 'legal-defense'
   | 'notice-respond'
   | 'permit-reply'
   | 'private-office'
@@ -73,6 +74,7 @@ export const ecosystemThemes: Record<EcosystemTheme, Omit<VerticalThemeConfig, '
   'dispute-mail': { accent: '#6d526f', accentSoft: '#f0e9f1', displayName: 'Dispute Mail', tone: 'dispute' },
   'immigration-mail': { accent: '#8b6c39', accentSoft: '#f4ebdb', displayName: 'Immigration Mail', tone: 'correspondence' },
   'insurance-claims': { accent: '#3f6479', accentSoft: '#e8f0f4', displayName: 'Insurance Claims', tone: 'proof' },
+  'legal-defense': { accent: '#5c5f72', accentSoft: '#ececf2', displayName: 'Legal Defense', tone: 'private' },
   'notice-respond': { accent: '#315f75', accentSoft: '#e7f0f4', displayName: 'Notice Respond', tone: 'civic' },
   'permit-reply': { accent: '#6d6045', accentSoft: '#f1ede4', displayName: 'Permit Reply', tone: 'civic' },
   'private-office': { accent: '#705d48', accentSoft: '#efe9e1', displayName: 'Private Office', tone: 'private' },

@@ -20,13 +20,13 @@ export interface SectionLandingConfig {
   introTitle: string
   introText: string
   trustLead: string
-  topics: Array<{ title: string; text: string }>
-  featured: Array<{ slug: string; title: string; description: string }>
-  outcomes: string[]
+  topics: ReadonlyArray<{ title: string; text: string }>
+  featured: ReadonlyArray<{ slug: string; title: string; description: string }>
+  outcomes: ReadonlyArray<string>
   safetyTitle: string
   safetyBody: string
-  faqs: Array<[string, string]>
-  related: Array<{ name: string; path: string; description: string }>
+  faqs: ReadonlyArray<readonly [string, string]>
+  related: ReadonlyArray<{ name: string; path: string; description: string }>
 }
 
 const VerticalHero = createVerticalHero(createElement)
