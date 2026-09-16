@@ -8,10 +8,13 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "tsx --test src/**/*.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@mailmypdf/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }
