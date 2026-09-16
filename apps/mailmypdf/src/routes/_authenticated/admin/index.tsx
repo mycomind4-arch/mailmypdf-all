@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useState, useMemo } from "react";
-import { AdminHeader } from "@/components/admin-header";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { isCurrentUserAdmin, listFulfillmentQueue, getAdminConfig } from "@/lib/admin.functions";
 import {
@@ -25,12 +24,11 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader />
       <PaymentTestModeBanner />
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div>
-          <div className="postmark w-fit">Admin</div>
-          <h1 className="mt-3 font-serif text-4xl">Dashboard</h1>
+          <div className="postmark w-fit">Studio / Admin</div>
+          <h1 className="mt-3 font-serif text-4xl">MailMyPDF Studio</h1>
         </div>
 
         <div className="mt-6 flex gap-1 border-b border-rule">

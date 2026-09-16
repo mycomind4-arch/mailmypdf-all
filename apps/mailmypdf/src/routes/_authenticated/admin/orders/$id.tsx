@@ -2,7 +2,6 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useState } from "react";
-import { AdminHeader } from "@/components/admin-header";
 import {
   getAdminOrder,
   getAdminPdfUrl,
@@ -20,7 +19,6 @@ function Page() {
   const { id } = Route.useParams();
   return (
     <div className="min-h-screen">
-      <AdminHeader />
       <main className="mx-auto max-w-5xl px-6 py-10">
         <Link to="/admin" className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">← Back to queue</Link>
         <Suspense fallback={<div className="mt-6 text-sm text-muted-foreground">Loading order…</div>}>

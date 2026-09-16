@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { AdminHeader } from "@/components/admin-header";
 import { isCurrentUserAdmin } from "@/lib/admin.functions";
 import { getAnalyticsDashboard } from "@/lib/admin-analytics.functions";
 

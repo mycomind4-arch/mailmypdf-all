@@ -24,9 +24,7 @@ Reference implementation: `apps/mailmypdf/src/components/site-chrome.tsx`
 (`SiteHeader`/`SiteFooter`).
 
 ### Authenticated shell
-Required: `EcosystemShell` wrapping `AuthenticatedSidebar`
-(`apps/mailmypdf/src/components/ecosystem-shell.tsx`,
-`apps/mailmypdf/src/components/authenticated-sidebar.tsx`). Sidebar must stay
+Required: the parent `/_authenticated` route mounts `AuthenticatedSidebar` once for the entire authenticated route tree (`apps/mailmypdf/src/routes/_authenticated/route.tsx`, `apps/mailmypdf/src/components/authenticated-sidebar.tsx`). Public `EcosystemShell` may also render the sidebar when a signed-in user is browsing a public page. Sidebar must stay
 mounted across dashboard, matters, workflows, workflow steps, account, and
 completed-workflow pages — a route that intentionally leaves it (a focused
 workflow mode) must say so here explicitly, not by accident.
@@ -36,7 +34,7 @@ Auth guard: `apps/mailmypdf/src/routes/_authenticated/route.tsx` —
 presence should be checked; do not re-implement it per route.
 
 ### Admin shell
-Authenticated shell plus admin-only navigation/tools. Role source of truth is
+Authenticated shell plus the Studio / Admin navigation group in the same shared sidebar. Admin pages no longer introduce a competing AdminHeader. Role source of truth is
 the `user_roles` table, checked server-side only
 (`apps/mailmypdf/src/lib/admin.functions.ts: assertAdmin`), via the
 server-only `supabaseAdmin` client. **Never** trust `user_metadata` or
@@ -206,3 +204,14 @@ date them, and link evidence (commit hash or file path) rather than
 restating old claims. This file is expected to grow the route matrix
 incrementally as the audit/repair loop touches each vertical — it is not
 meant to be completed in one pass.
+
+
+## 8. 2026-09-16 authenticated Studio sidebar integration
+
+- `/_authenticated` now owns the shared sidebar so it stays mounted across the complete authenticated route tree.
+- The sidebar mirrors Studio's interaction model: 64px collapsed rail, 300px hover/focus expansion, dark `#202b39` surface.
+- Workflows is a searchable tree generated from the canonical colocated workflow folders: 14 sections, 420 workflows.
+- Admin visibility is driven by the existing server-verified `isCurrentUserAdmin` check against `user_roles`; profile metadata is not trusted.
+- Admins receive a `Studio / Admin` group for Studio Home, Analytics, AI Control Plane, Audit Log, and Entitlements.
+- Dashboard no longer mounts a second sidebar.
+- Legacy AdminHeader chrome was removed from the core admin pages so Studio/Admin uses the same authenticated shell as the rest of MailMyPDF.
