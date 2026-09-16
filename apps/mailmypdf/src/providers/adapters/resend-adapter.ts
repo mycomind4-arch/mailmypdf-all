@@ -29,27 +29,47 @@ export class ResendAdapter implements NotificationProvider {
       const config = getConfig();
       const from = message.from || config.email.fromAddress || DEFAULT_FROM;
 
-      const res = await fetch(RESEND_API_BASE, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.email.resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from,
-          to: [message.to],
-          subject: message.subject,
-          html: message.html,
-        }),
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const res = await fetch(RESEND_API_BASE, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.email.resendApiKey}`,
+          },
+          redirect: "error",
+          signal: controller.signal,
+          body: JSON.stringify({
+            from,
+            to: [message.to],
+            subject: message.subject,
+            html: message.html,
+          }),
+        });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        return { ok: false, error: `Resend ${res.status}: ${text.slice(0, 200)}` };
+        if (!res.ok) {
+          await res.body?.cancel().catch(() => {});
+          return { ok: false, error: `Resend ${res.status}` };
+        }
+
+        const declared = Number(res.headers.get("content-length") ?? 0);
+        if (declared > 64 * 1024) {
+          await res.body?.cancel().catch(() => {});
+          return { ok: false, error: "Resend response too large" };
+        }
+
+        const data = await res.json().catch(() => ({}));
+        return {
+          ok: true,
+          messageId:
+            data && typeof data === "object" && typeof (data as any).id === "string"
+              ? (data as any).id
+              : undefined,
+        };
+      } finally {
+        clearTimeout(timer);
       }
-
-      const data = await res.json().catch(() => ({}));
-      return { ok: true, messageId: data.id };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }

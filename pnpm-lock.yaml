@@ -23,6 +23,9 @@ importers:
       '@mailmypdf/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@mailmypdf/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.86.0(react@19.2.8))(zod@3.25.76)

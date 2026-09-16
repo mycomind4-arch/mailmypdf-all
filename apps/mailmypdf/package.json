@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "prebuild": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/ai build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/fulfillment build",
+    "prebuild": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/ai build && pnpm --filter @mailmypdf/notifications build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/fulfillment build",
     "build": "vite build && node scripts/fix-ssr-chunk-cycle.mjs .output/server",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -82,7 +82,8 @@
     "zod": "^3.24.2",
     "@mailmypdf/core": "workspace:*",
     "@mailmypdf/fulfillment": "workspace:*",
-    "@mailmypdf/ai": "workspace:*"
+    "@mailmypdf/ai": "workspace:*",
+    "@mailmypdf/notifications": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

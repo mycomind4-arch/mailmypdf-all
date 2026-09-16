@@ -1,11 +1,18 @@
 import { getConfig } from "@/config";
 import { flags } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
+import { providers } from "@/providers";
+import { createNotificationDeliveryStore } from "@/lib/notification-delivery.server";
+import {
+  DEFAULT_NOTIFICATION_RETRY_POLICY,
+  sendNotificationOnce,
+  type NotificationKind,
+  type NotificationMessage,
+  type NotificationProvider as SharedNotificationProvider,
+} from "@mailmypdf/notifications";
 
 // Server-only email helpers. Safe to no-op when RESEND_API_KEY is not
 // configured — every send is idempotent via an order_events marker row.
-
-const RESEND_API_BASE = "https://api.resend.com/emails";
 
 /**
  * Get the configured sender address for transactional emails.
@@ -78,34 +85,89 @@ function isConfigured(): boolean {
   return flags.isEmailEnabled();
 }
 
-async function sendViaResend(payload: {
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function sharedNotificationProvider(): SharedNotificationProvider {
+  const provider = providers.notification();
+
+  return {
+    name: provider.name,
+    async send(message) {
+      if (message.channel !== "email") {
+        throw new Error("Configured notification provider supports email only");
+      }
+
+      const html =
+        message.html?.trim() ||
+        `<pre style="white-space:pre-wrap">${escapeHtml(message.text ?? "")}</pre>`;
+      const result = await provider.send({
+        to: message.recipient,
+        subject: message.subject,
+        html,
+      });
+
+      if (!result.ok) {
+        throw new Error(result.error || "Notification provider failed");
+      }
+      return { messageId: result.messageId };
+    },
+  };
+}
+
+function retryableNotificationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const status = /Resend\s+(\d{3})/.exec(message)?.[1];
+  if (!status) return true;
+  const code = Number(status);
+  return code === 429 || code >= 500;
+}
+
+async function sendTransactionalEmailOnce(input: {
+  admin: any;
+  idempotencyKey: string;
+  kind: NotificationKind;
+  to: string;
+  subject: string;
+  html: string;
+  orderId: string;
+}): Promise<void> {
+  const message: NotificationMessage = {
+    idempotencyKey: input.idempotencyKey,
+    kind: input.kind,
+    channel: "email",
+    recipient: input.to,
+    subject: input.subject,
+    html: input.html,
+    metadata: { orderId: input.orderId },
+  };
+
+  await sendNotificationOnce({
+    message,
+    provider: sharedNotificationProvider(),
+    store: createNotificationDeliveryStore(input.admin),
+    policy: {
+      ...DEFAULT_NOTIFICATION_RETRY_POLICY,
+      retryable: retryableNotificationError,
+    },
+  });
+}
+
+async function sendEmailThroughProvider(payload: {
   to: string;
   subject: string;
   html: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const from = getFromAddress();
-    const res = await fetch(RESEND_API_BASE, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getConfig().email.resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from,
-        to: [payload.to],
-        subject: payload.subject,
-        html: payload.html,
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return { ok: false, error: `Resend ${res.status}: ${text.slice(0, 200)}` };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
+  const result = await providers.notification().send(payload);
+  return result.ok
+    ? { ok: true }
+    : { ok: false, error: result.error || "Notification provider failed" };
 }
 
 function paymentHtml(o: {
@@ -169,24 +231,28 @@ export async function sendPaymentConfirmationEmail(
   }
 
   const trackUrl = trackingUrl(appOrigin(requestOrigin), orderId, order.lookup_token);
-  const result = await sendViaResend({
-    to: order.email,
-    subject: "Payment received — MailMyPDF",
-    html: paymentHtml({
+  try {
+    await sendTransactionalEmailOnce({
+      admin,
+      idempotencyKey: `order:${orderId}:payment-confirmation`,
+      kind: "payment_received",
+      to: order.email,
+      subject: "Payment received — MailMyPDF",
+      html: paymentHtml({
+        orderId,
+        recipientCity: order.recipient_city,
+        recipientState: order.recipient_state,
+        priceCents: order.price_cents,
+        trackUrl,
+      }),
       orderId,
-      recipientCity: order.recipient_city,
-      recipientState: order.recipient_state,
-      priceCents: order.price_cents,
-      trackUrl,
-    }),
-  });
-
-  if (result.ok) {
+    });
     await logEvent(admin, orderId, "email.payment_confirmation_sent", "Payment confirmation email sent");
-  } else {
-    logger.error("Payment confirmation email failed", { error: result.error, orderId });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Payment confirmation email failed", { error: message, orderId });
     await logEvent(admin, orderId, "email.failed", "Payment confirmation email failed", {
-      error: result.error,
+      error: message,
     });
   }
 }
@@ -210,22 +276,26 @@ export async function sendMailedEmail(admin: any, orderId: string): Promise<void
   }
 
   const trackUrl = trackingUrl(appOrigin(), orderId, order.lookup_token);
-  const result = await sendViaResend({
-    to: order.email,
-    subject: "Your MailMyPDF letter has been mailed",
-    html: mailedHtml({
+  try {
+    await sendTransactionalEmailOnce({
+      admin,
+      idempotencyKey: `order:${orderId}:mailed`,
+      kind: "mailed",
+      to: order.email,
+      subject: "Your MailMyPDF letter has been mailed",
+      html: mailedHtml({
+        orderId,
+        recipientCity: order.recipient_city,
+        recipientState: order.recipient_state,
+        trackUrl,
+      }),
       orderId,
-      recipientCity: order.recipient_city,
-      recipientState: order.recipient_state,
-      trackUrl,
-    }),
-  });
-
-  if (result.ok) {
+    });
     await logEvent(admin, orderId, "email.mailed_sent", "Mailed notification email sent");
-  } else {
-    logger.error("Mailed email failed", { error: result.error, orderId });
-    await logEvent(admin, orderId, "email.failed", "Mailed email failed", { error: result.error });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Mailed email failed", { error: message, orderId });
+    await logEvent(admin, orderId, "email.failed", "Mailed email failed", { error: message });
   }
 }
 
@@ -269,7 +339,7 @@ export async function sendOrderRecoveryEmail(
     <table style="width:100%;border-collapse:collapse">${rows}</table>
     <p style="font-size:12px;color:#666;margin-top:20px">If you didn't request this, you can safely ignore it. Questions? Contact ${support}.</p>
   </div>`;
-  const result = await sendViaResend({
+  const result = await sendEmailThroughProvider({
     to: email,
     subject: `Your MailMyPDF order links (${orders.length})`,
     html,
