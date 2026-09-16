@@ -1313,3 +1313,181 @@
   padding-left: 1.1rem;
 }
 
+/* ── Proof timeline / document summary / state panel ───────────────── */
+.wf-proof-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wf-proof-step {
+  display: flex;
+  gap: 0.8rem;
+  min-height: 3.4rem;
+}
+
+.wf-proof-marker-wrap {
+  width: 1.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wf-proof-marker {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--wf-color-rule);
+  display: grid;
+  place-items: center;
+  background: var(--wf-color-paper);
+  color: var(--wf-color-stone-light);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.wf-proof-line {
+  width: 1px;
+  flex: 1;
+  background: var(--wf-color-rule);
+}
+
+.wf-proof-step--complete .wf-proof-marker,
+.wf-proof-step--current .wf-proof-marker {
+  border-color: var(--wf-color-navy);
+  background: var(--wf-color-navy);
+  color: var(--wf-color-paper);
+}
+
+.wf-proof-step--complete .wf-proof-line {
+  background: color-mix(in srgb, var(--wf-color-navy), transparent 55%);
+}
+
+.wf-proof-step--failed .wf-proof-marker {
+  border-color: var(--wf-color-error);
+  background: var(--wf-color-error-bg);
+  color: var(--wf-color-error);
+}
+
+.wf-proof-copy {
+  padding-bottom: 1rem;
+}
+
+.wf-proof-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-proof-copy p {
+  margin: 0.2rem 0 0;
+  color: var(--wf-color-stone);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.wf-proof-copy time {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--wf-color-stone-light);
+  font-size: 0.72rem;
+}
+
+.wf-document-summary {
+  margin: 0;
+  display: grid;
+}
+
+.wf-document-summary > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--wf-color-rule);
+  font-size: 0.82rem;
+}
+
+.wf-document-summary > div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wf-document-summary dt {
+  color: var(--wf-color-stone);
+}
+
+.wf-document-summary dd {
+  margin: 0;
+  color: var(--wf-color-charcoal);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.wf-document-hash {
+  font-family: var(--wf-font-mono);
+  font-size: 0.72rem;
+}
+
+.wf-state-panel {
+  min-height: 10rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: center;
+  padding: 2rem 1.25rem;
+  border: 1px solid var(--wf-color-rule);
+  border-radius: var(--wf-radius-lg);
+  background: var(--wf-color-paper);
+}
+
+.wf-state-title {
+  color: var(--wf-color-charcoal);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.wf-state-description {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--wf-color-stone);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.wf-state-icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--wf-color-paper-deep);
+  color: var(--wf-color-navy);
+  font-weight: 700;
+}
+
+.wf-state-panel--error .wf-state-icon {
+  background: var(--wf-color-error-bg);
+  color: var(--wf-color-error);
+}
+
+.wf-state-panel--success .wf-state-icon {
+  background: var(--wf-color-success-bg);
+  color: var(--wf-color-success);
+}
+
+.wf-state-spinner {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 2px solid var(--wf-color-rule);
+  border-top-color: var(--wf-color-navy);
+  animation: wf-spin .8s linear infinite;
+}
+
+@keyframes wf-spin {
+  to { transform: rotate(360deg); }
+}
+
