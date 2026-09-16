@@ -49,10 +49,9 @@ export interface DocumentVisionAnalysis<T> extends DocumentVisionProviderResult<
 const MAX_VISUAL_DOCUMENT_BYTES = 24 * 1024 * 1024;
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest(
-    "SHA-256",
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-  );
+  const stable = new Uint8Array(bytes.byteLength);
+  stable.set(bytes);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", stable.buffer as ArrayBuffer);
   return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("");
 }
 

@@ -78,7 +78,6 @@ async function extractPdfText(
   const pdfjs = await loadPdfjs();
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
-    useWorker: false,
     disableFontFace: true,
     isEvalSupported: false,
   });
@@ -92,19 +91,11 @@ async function extractPdfText(
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
 
-    const textItems = content.items
-      .filter((item): item is { str: string; transform: number[]; hasEOL?: boolean } =>
-        "str" in item && typeof (item as { str: unknown }).str === "string",
-      )
-      .map((item) => ({
-        str: item.str,
-        hasEOL: item.hasEOL ?? false,
-      }));
-
     let pageText = "";
-    for (const item of textItems) {
+    for (const item of content.items) {
+      if (!("str" in item) || typeof item.str !== "string") continue;
       pageText += item.str;
-      if (item.hasEOL) {
+      if ("hasEOL" in item && item.hasEOL === true) {
         pageText += "\n";
       }
     }
