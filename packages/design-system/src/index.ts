@@ -133,3 +133,5 @@ export * from './workflow-hub.js'
 export * from './workflow-directory.js'
 
 export * from './section-landing.js'
+
+export * from './workflow-landing.js'
