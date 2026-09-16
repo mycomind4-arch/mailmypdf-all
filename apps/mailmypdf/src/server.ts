@@ -82,26 +82,29 @@ async function handleScheduled(
   // Determine the base URL — use the env var or fall back to the deployed URL
   const baseUrl = env.MAILMYPDF_BASE_URL || "https://mailmypdf.mycomind4.workers.dev";
 
-  console.log(`[scheduled] cron "${controller.cron}" fired — calling proof-processor`);
+  console.log(`[scheduled] cron "${controller.cron}" fired — calling internal processors`);
 
-  try {
-    const response = await fetch(`${baseUrl}/api/internal/proof-processor`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${cleanupSecret}`,
-        "Content-Type": "application/json",
-      },
-    });
+  const jobs = ["proof-processor", "publication-scheduler"] as const;
+  for (const job of jobs) {
+    try {
+      const response = await fetch(`${baseUrl}/api/internal/${job}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${cleanupSecret}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.error(`[scheduled] proof-processor returned ${response.status}: ${body}`);
-    } else {
-      const result = await response.json().catch(() => ({}));
-      console.log(`[scheduled] proof-processor completed:`, result);
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        console.error(`[scheduled] ${job} returned ${response.status}: ${body}`);
+      } else {
+        const result = await response.json().catch(() => ({}));
+        console.log(`[scheduled] ${job} completed:`, result);
+      }
+    } catch (error) {
+      console.error(`[scheduled] failed to call ${job}:`, error);
     }
-  } catch (error) {
-    console.error(`[scheduled] failed to call proof-processor:`, error);
   }
 }
 
