@@ -45,6 +45,7 @@ export interface PublicationManifest {
     crawl4ai?: boolean;
     rsshub?: boolean;
     listmonk?: boolean;
+    resend?: boolean;
     umami?: boolean;
     postiz?: boolean;
   };
