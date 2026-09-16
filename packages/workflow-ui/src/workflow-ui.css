@@ -1641,3 +1641,95 @@
   }
 }
 
+/* ── Deadline and provenance references ───────────────────────────── */
+.wf-deadline-date {
+  font-family: var(--wf-font-serif);
+  font-size: 1.55rem;
+  color: var(--wf-color-charcoal);
+}
+
+.wf-deadline-count {
+  margin-top: 0.25rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.wf-deadline-count--normal { color: var(--wf-color-success); }
+.wf-deadline-count--urgent { color: var(--wf-color-warning); }
+.wf-deadline-count--overdue { color: var(--wf-color-error); }
+
+.wf-deadline-source {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--wf-color-rule);
+  color: var(--wf-color-stone);
+  font-size: 0.77rem;
+}
+
+.wf-link-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--wf-color-navy);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wf-source-reference {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  color: var(--wf-color-stone);
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.wf-source-reference--button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.wf-source-reference--button:hover .wf-source-document {
+  text-decoration: underline;
+}
+
+.wf-source-document {
+  color: var(--wf-color-charcoal);
+  font-weight: 600;
+}
+
+.wf-source-page {
+  color: var(--wf-color-stone-light);
+}
+
+.wf-source-excerpt {
+  flex-basis: 100%;
+  margin-top: 0.15rem;
+  color: var(--wf-color-stone-light);
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.wf-source-confidence {
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--wf-color-paper-deep);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wf-source-confidence--high { color: var(--wf-color-success); }
+.wf-source-confidence--medium { color: var(--wf-color-warning); }
+.wf-source-confidence--low { color: var(--wf-color-error); }
+
