@@ -146,15 +146,8 @@ export async function runManifestWorkflow(
   const completedStepIds: string[] = [];
   const prior = new Map<CapabilityId, CapabilityExecutionResult>();
 
-  // Seed prior context from reusable results in plan order, not arbitrary input
-  // order, so downstream handlers see deterministic state.
-  for (const { step, capabilities } of workflow.plan.steps) {
-    for (const capability of capabilities) {
-      const existing = reusable.get(executionKey(step.id, capability));
-      if (existing) prior.set(capability, existing.result);
-    }
-  }
-
+  // Reusable results are inserted into prior only when execution reaches their
+  // original step. Earlier capabilities must never observe future-step state.
   const optional = new Set(workflow.manifest.optionalCapabilities);
 
   for (const { step, capabilities } of workflow.plan.steps) {

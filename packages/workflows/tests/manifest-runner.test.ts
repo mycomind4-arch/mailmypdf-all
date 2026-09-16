@@ -167,3 +167,58 @@ test("manifest runner resumes only exact passed step-capability executions", asy
   );
   assert.equal(result.executions[0]?.reused, true);
 });
+
+
+test("resume state never leaks future capability output into earlier steps", async () => {
+  const workflow = fixture();
+  const lastStep = workflow.plan.steps.at(-1)!;
+  const futureCapability = lastStep.capabilities.at(-1)!;
+  let firstSawFuture = false;
+  const runtime = new CapabilityRuntime();
+
+  for (const { capabilities } of workflow.plan.steps) {
+    for (const capability of capabilities) {
+      if (runtime.has(capability)) continue;
+      runtime.register({
+        id: capability,
+        async execute(context) {
+          if (capability === workflow.plan.steps[0]!.capabilities[0]!) {
+            firstSawFuture = context.prior.has(futureCapability);
+          }
+          return {
+            capability,
+            status: "passed",
+            output: { capability },
+            messages: [],
+          };
+        },
+      });
+    }
+  }
+
+  const resume: ManifestCapabilityExecution[] = [{
+    stepId: lastStep.step.id,
+    capability: futureCapability,
+    reused: false,
+    result: {
+      capability: futureCapability,
+      status: "passed",
+      output: { future: true },
+      messages: [],
+    },
+  }];
+
+  const result = await runManifestWorkflow({
+    workflow,
+    runtime,
+    matterId: "matter-1",
+    actorId: "user-1",
+    scopes: [],
+    approvals: allGateApprovals(workflow),
+    rootInput: {},
+    resume,
+  });
+
+  assert.equal(result.status, "completed");
+  assert.equal(firstSawFuture, false);
+});
