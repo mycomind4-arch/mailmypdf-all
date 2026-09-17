@@ -89,3 +89,19 @@ export {
   resolveOwnershipRights,
   ownershipRightsToFinding,
 } from "./ownership-rights.js";
+
+export type {
+  ObligationTermField,
+  ObligationTermValue,
+  ObligationTermEffect,
+  ObligationResolutionDisposition,
+  ObligationTermClaim,
+  EvaluatedObligationTermClaim,
+  ResolvedObligationTerm,
+  ObligationResolutionResult,
+} from "./obligation-resolution.js";
+export {
+  OBLIGATION_RESOLUTION_RULES,
+  resolveObligation,
+  obligationResolutionToFinding,
+} from "./obligation-resolution.js";
