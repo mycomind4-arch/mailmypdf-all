@@ -18,7 +18,7 @@ export const noticeRespondConfig = {
   "topics": [
     {
       "title": "IRS & tax notices",
-      "text": "CP2000, collection notices, penalty notices, underreporter correspondence, audit letters, and state tax notices."
+      "text": "CP14 balance-due notices, CP2000 notices, collection notices, penalty notices, underreporter correspondence, audit letters, and state tax notices."
     },
     {
       "title": "Benefits & agency notices",
@@ -34,6 +34,11 @@ export const noticeRespondConfig = {
     }
   ],
   "featured": [
+    {
+      "slug": "cp14-response",
+      "title": "IRS CP14 Response",
+      "description": "Organize an IRS CP14 balance-due notice, confirm the tax period, amount and response path, prepare supported correspondence when appropriate, and retain mailing proof."
+    },
     {
       "slug": "cp2000-response",
       "title": "CP2000 Response",
