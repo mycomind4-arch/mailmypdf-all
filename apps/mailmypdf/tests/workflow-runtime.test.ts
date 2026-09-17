@@ -16,6 +16,8 @@ test("accepts explicit uncertainty without inventing missing facts", () => {
   assert.deepEqual(validateNoticeAnalysis(analysis), {
     ...analysis,
     workflowDetails: {
+      appealStage: "unknown",
+      decisionBasis: "unknown",
       taxYear: null,
       amountDue: null,
       proposedTax: null,
