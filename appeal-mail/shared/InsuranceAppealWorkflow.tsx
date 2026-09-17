@@ -38,7 +38,7 @@ export interface InsuranceAppealWorkflowUiConfig {
   defaultRequestedOutcome?: string;
 }
 
-interface AppealFacts extends Record<string, unknown> {
+interface AppealFacts {
   claimantName: string;
   claimantAddress: string;
   phone: string;
@@ -372,7 +372,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     setBusy("save-facts");
     setError("");
     try {
-      await client.saveInput(matterId, facts);
+      await client.saveInput(matterId, { ...facts });
       setFactsSaved(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save appeal facts.");
@@ -387,7 +387,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     setError("");
     try {
       const nextFacts: AppealFacts = { ...facts, evidenceReviewComplete: true };
-      await client.saveInput(matterId, nextFacts);
+      await client.saveInput(matterId, { ...nextFacts });
       setFacts(nextFacts);
       setFactsSaved(true);
       invalidateAfterDraftChange();
@@ -718,7 +718,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
                 className="wf-btn wf-btn--primary"
                 type="button"
                 onClick={() => void completeEvidenceReview()}
-                disabled={!factsSaved || !facts.evidenceReviewComplete || Boolean(busy)}
+                disabled={!factsSaved || Boolean(busy)}
               >
                 {busy === "review-evidence"
                   ? "Saving review…"
@@ -777,7 +777,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
                 className="wf-btn wf-btn--outline"
                 type="button"
                 onClick={() => void generateDraft()}
-                disabled={!factsSaved || Boolean(busy)}
+                disabled={!factsSaved || !facts.evidenceReviewComplete || Boolean(busy)}
               >
                 Generate draft
               </button>
