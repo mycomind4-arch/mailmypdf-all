@@ -60,6 +60,9 @@
       "path": "./packages/identity-capacity"
     },
     {
+      "path": "./packages/registry-adapters"
+    },
+    {
       "path": "./packages/mailing-client"
     },
     {
