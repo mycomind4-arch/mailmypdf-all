@@ -148,9 +148,23 @@ export interface WorkflowRuntimePolicy {
     caseInput: WorkflowRuntimeStoredInput;
   }): WorkflowMatterAnalysis["result"] | Promise<WorkflowMatterAnalysis["result"]>;
   validateAnalysis?(analysis: WorkflowMatterAnalysis): void;
-  validateInput(input: Record<string, unknown>, analysis: WorkflowMatterAnalysis | null): Record<string, unknown>;
+  validateInput(
+    input: Record<string, unknown>,
+    analysis: WorkflowMatterAnalysis | null,
+    matter: WorkflowMatterSnapshot,
+  ): Record<string, unknown>;
   validateDocumentsBeforeDraft?(documents: readonly WorkflowMatterDocument[], analysis: WorkflowMatterAnalysis): void;
+  validateBeforeDraft?(input: {
+    matter: WorkflowMatterSnapshot;
+    caseInput: WorkflowRuntimeStoredInput;
+    analysis: WorkflowMatterAnalysis;
+  }): void;
   validateDocumentsBeforePacket?(documents: readonly WorkflowMatterDocument[], analysis: WorkflowMatterAnalysis): void;
+  validateBeforePacket?(input: {
+    matter: WorkflowMatterSnapshot;
+    caseInput: WorkflowRuntimeStoredInput;
+    analysis: WorkflowMatterAnalysis;
+  }): void;
 }
 
 export interface WorkflowRuntimeServerDependencies {
@@ -422,7 +436,7 @@ export function createWorkflowRuntimeRequestHandler(
         if (request.method === "POST") {
           const body = await readJson(request);
           const analysis = await deps.store.loadAnalysis(actor.id, matterId);
-          const validated = policy.validateInput(body, analysis);
+          const validated = policy.validateInput(body, analysis, matter);
           const stored = await deps.store.saveInput(actor.id, matterId, validated);
           return json({ version: stored.version });
         }
@@ -440,6 +454,7 @@ export function createWorkflowRuntimeRequestHandler(
           requireIncludedDocumentsReady(matter.documents);
           const analysis = await resolveDraftAnalysis({ deps, policy, actor, matter, caseInput, now });
           policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
+          policy.validateBeforeDraft?.({ matter, caseInput, analysis });
           const generated = await deps.intelligence.generateDraft({ actor, matter, analysis, caseInput });
           return json({
             bodyText: generated.bodyText,
@@ -462,10 +477,13 @@ export function createWorkflowRuntimeRequestHandler(
         if (!analysis) throw new HttpError(409, "Analysis is required before packet construction");
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "A saved draft is required before packet construction");
+        const caseInput = await deps.store.loadInput(actor.id, matterId);
+        if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before packet construction");
         matter = await requireMatter(deps, actor, matterId);
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+        policy.validateBeforePacket?.({ matter, caseInput, analysis });
         const packet = await deps.packet.preview({
           actor,
           matter,
@@ -498,10 +516,13 @@ export function createWorkflowRuntimeRequestHandler(
           if (!analysis) throw new HttpError(409, "Analysis is required before approval");
           const draft = await deps.store.loadDraft(actor.id, matterId);
           if (!draft) throw new HttpError(409, "A saved draft is required before approval");
+          const caseInput = await deps.store.loadInput(actor.id, matterId);
+          if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before approval");
           matter = await requireMatter(deps, actor, matterId);
           requireSourceForPolicy(policy, matter.documents);
           const included = requireIncludedDocumentsReady(matter.documents);
           policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+          policy.validateBeforePacket?.({ matter, caseInput, analysis });
           const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: selectedMailClass });
           if (current.packetSha256 !== expectedPacketSha256 || current.quote.totalCents !== expectedTotalCents) {
             throw new HttpError(409, "Packet or price changed after preview; review the new packet");
@@ -532,9 +553,12 @@ export function createWorkflowRuntimeRequestHandler(
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
         if (!analysis) throw new HttpError(409, "Analysis is missing");
+        const caseInput = await deps.store.loadInput(actor.id, matterId);
+        if (!caseInput) throw new HttpError(409, "Saved workflow facts are missing");
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+        policy.validateBeforePacket?.({ matter, caseInput, analysis });
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
         assertPacketMatchesApproval(approval, current);
         return json(await deps.checkout.checkout({ actor, matter, approval, sender }));
