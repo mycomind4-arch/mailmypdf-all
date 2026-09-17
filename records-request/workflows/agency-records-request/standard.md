@@ -15,7 +15,7 @@ Prepare, review, send, and track a public or agency records request without inve
 7. The user reviews the exact final packet and destination before approval.
 8. Approval binds to the exact packet hash and server-authoritative price. Any packet or price change requires new approval.
 9. Payment and mailing are idempotent consequential actions.
-10. Response tracking begins only from the confirmed actual send date. Draft, approval, checkout, print, and payment timestamps are not substitutes.
+10. Response tracking begins only from the confirmed actual send date. Draft, approval, checkout, print, payment, submission, and provider-processing timestamps are not substitutes.
 11. A received response is recorded with its real response date and artifacts.
 12. Non-response is never inferred automatically. Recording non-response requires an explicit observation date.
 13. Tracking, delivery evidence, provider receipts, request artifacts, responses, and the final matter record remain auditable.
@@ -28,7 +28,7 @@ Prepare, review, send, and track a public or agency records request without inve
 4. **Draft** — grounded request generated from confirmed facts plus clean context and verified authority only.
 5. **Review** — deterministic PDF/packet, address verification, server pricing, exact-content review, explicit approval.
 6. **Send** — payment and idempotent fulfillment of only the approved packet; preserve provider identifiers and proof.
-7. **Response** — response/non-response event tracking from the actual send date; preserve response artifacts and audit history.
+7. **Response** — response/non-response event tracking from the provider-confirmed actual send date; preserve response artifacts and audit history.
 
 ## Production acceptance scenarios
 
@@ -41,9 +41,12 @@ Prepare, review, send, and track a public or agency records request without inve
 - Generated request contains placeholders or open questions: drafting is blocked.
 - Packet content changes after approval: approval becomes invalid.
 - Provider/payment retry: no duplicate mailing.
-- Actual send date differs from payment/print date: response tracking uses actual send date.
+- Checkout, payment, submission, or processing occurs before mailing: none starts response tracking.
+- Actual send date differs from payment/print/submission date: response tracking uses only the provider-confirmed actual send date.
 - No agency response: non-response cannot be recorded without an explicit observation date.
 
 ## Current runtime integration note
 
-The canonical shared matter runtime is presently optimized for document-first workflows and requires a `subject_notice` before analysis/draft generation. That behavior is correct for SSDI/notice-response workflows but conflicts with the facts-only acceptance scenario above. The Agency Records Request manifest therefore remains `wired`, not `executable`, until the shared runtime supports request-first workflows without weakening the default document-first safety boundary for existing workflows.
+The canonical shared matter runtime now supports request-first workflows through an explicit opt-in policy while preserving document-first as the default safety posture. Agency Records Request uses that request-first path and can generate structured workflow analysis from validated user input without fabricating a `subject_notice`.
+
+The shared payment/fulfillment layer remains responsible for immutable approved-artifact fulfillment and idempotent provider submission. Provider submission alone does not start Records Request response tracking. The Records Request fulfillment bridge creates `records_request_sent` only when a canonical provider event carries an explicit provider-confirmed `actualSentAt` value. A deployment still must mount the shared runtime and supply its authenticated persistence, document, intelligence, packet, checkout, fulfillment-event, and proof adapters; those deployment adapters are platform infrastructure rather than workflow-specific code.
