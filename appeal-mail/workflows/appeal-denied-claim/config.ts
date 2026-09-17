@@ -14,7 +14,7 @@ export const workflowConfig = {
   heroTitle: "Appeal Denied Claim",
   heroDescription: "Upload the denial letter, confirm the facts, organize supporting evidence, prepare the appeal, review the exact packet, and mail it with proof.",
   indexable: false,
-  contentStatus: "executable",
+  contentStatus: "reviewed",
 } as const satisfies WorkflowLandingConfig
 
 export default workflowConfig
