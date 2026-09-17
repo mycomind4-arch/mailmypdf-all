@@ -208,6 +208,7 @@ export const timelyFilingDenialWorkflow = defineInsuranceAppealWorkflow({
     "Never invent a filing deadline, receipt date, submission date, claim number, delivery event, exception, coverage term, procedural rule, or outcome.",
     "Keep the insurer's stated filing rule separate from evidence of when and how the claim was actually submitted, received, rejected, corrected, or resubmitted.",
     "A date appearing on a claim, invoice, portal screenshot, fax confirmation, or mailing record proves only what that source actually supports; do not silently convert it into a verified receipt date.",
+    "A claim, service, submission, invoice, denial, or correspondence date is not automatically an appeal deadline unless the controlling source or verified authority establishes that meaning.",
     "Do not assume one timely-filing period applies across plans, policies, programs, providers, jurisdictions, or claim types.",
     "Any exception, waiver, reconsideration right, or escalation path must be grounded in the controlling notice, plan or policy materials, or a verified authoritative source.",
     "Unsupported timing or procedural conclusions remain unresolved and block confident ready-to-send status.",
