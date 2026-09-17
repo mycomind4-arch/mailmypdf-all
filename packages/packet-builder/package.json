@@ -13,6 +13,10 @@
     "./storage-adapter": {
       "types": "./src/storage-adapter.ts",
       "import": "./dist/storage-adapter.js"
+    },
+    "./exhibit-index": {
+      "types": "./src/exhibit-index.ts",
+      "import": "./dist/exhibit-index.js"
     }
   },
   "files": [
