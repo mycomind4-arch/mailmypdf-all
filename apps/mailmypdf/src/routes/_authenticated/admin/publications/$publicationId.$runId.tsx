@@ -154,6 +154,19 @@ function PublicationRunReviewPage() {
             </div>
           </section>
 
+          {(data.run_json?.warnings?.length ?? 0) > 0 && (
+            <section className="envelope-card p-5">
+              <h2 className="font-serif text-xl">Run warnings</h2>
+              <div className="mt-3 space-y-2">
+                {data.run_json.warnings.map((warning: string, index: number) => (
+                  <div key={index} className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="envelope-card p-5">
             <h2 className="font-serif text-xl">Approval</h2>
             {data.provider_id && (
