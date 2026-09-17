@@ -5,6 +5,16 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./canonical": {
+      "types": "./src/canonical-workflow-pricing.ts",
+      "import": "./dist/canonical-workflow-pricing.js"
+    }
+  },
   "files": [
     "dist"
   ],
