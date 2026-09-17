@@ -7,6 +7,11 @@ import type {
   WorkflowPacketPreview,
 } from "./matter-runtime-client.js";
 import {
+  createWorkflowDraftBasis,
+  workflowDraftBasisMatches,
+  type WorkflowDraftBasis,
+} from "./draft-basis.js";
+import {
   assertPacketMatchesApproval,
   createExactPacketApproval,
   requireCleanSourceDocument,
@@ -30,6 +35,12 @@ export interface WorkflowRuntimeStoredDraft {
   version: number;
   bodyText: string;
   createdAt: string;
+  /**
+   * Server-authored snapshot of the exact workflow state this reviewed draft
+   * was saved against. Older persisted drafts may lack it and fail closed
+   * until they are reviewed and saved again.
+   */
+  basis?: WorkflowDraftBasis;
 }
 
 export interface WorkflowRuntimeStore {
@@ -61,7 +72,11 @@ export interface WorkflowRuntimeStore {
   ): Promise<WorkflowRuntimeStoredInput>;
   loadInput(ownerId: string, matterId: string): Promise<WorkflowRuntimeStoredInput | null>;
 
-  saveDraft(ownerId: string, matterId: string, bodyText: string): Promise<WorkflowRuntimeStoredDraft>;
+  saveDraft(
+    ownerId: string,
+    matterId: string,
+    input: { bodyText: string; basis: WorkflowDraftBasis },
+  ): Promise<WorkflowRuntimeStoredDraft>;
   loadDraft(ownerId: string, matterId: string): Promise<WorkflowRuntimeStoredDraft | null>;
 
   saveApproval(ownerId: string, matterId: string, approval: ExactPacketApproval): Promise<void>;
@@ -273,6 +288,32 @@ function requireSourceForPolicy(
   return source;
 }
 
+function requireFreshDraft(input: {
+  draft: WorkflowRuntimeStoredDraft;
+  analysis: WorkflowMatterAnalysis;
+  caseInput: WorkflowRuntimeStoredInput;
+  documents: readonly WorkflowMatterDocument[];
+}): void {
+  const current = createWorkflowDraftBasis({
+    analysis: input.analysis,
+    inputVersion: input.caseInput.version,
+    documents: input.documents,
+  });
+
+  if (!input.draft.basis) {
+    throw new WorkflowRuntimeError(
+      "This saved draft predates draft freshness tracking. Review and save the draft again before building a packet.",
+      "DRAFT_BASIS_MISSING",
+    );
+  }
+  if (!workflowDraftBasisMatches(input.draft.basis, current)) {
+    throw new WorkflowRuntimeError(
+      "Workflow facts, analysis, or documents changed after this draft was saved. Review and save the draft again.",
+      "DRAFT_BASIS_STALE",
+    );
+  }
+}
+
 async function resolveDraftAnalysis(input: {
   deps: WorkflowRuntimeServerDependencies;
   policy: WorkflowRuntimePolicy;
@@ -466,7 +507,20 @@ export function createWorkflowRuntimeRequestHandler(
         if (request.method === "POST" && parts.length === 3) {
           const body = await readJson(request);
           const bodyText = requiredString(body.bodyText, "bodyText");
-          const stored = await deps.store.saveDraft(actor.id, matterId, bodyText);
+          const caseInput = await deps.store.loadInput(actor.id, matterId);
+          if (!caseInput) throw new HttpError(409, "Save workflow facts before saving a draft");
+          matter = await requireMatter(deps, actor, matterId);
+          requireSourceForPolicy(policy, matter.documents);
+          requireIncludedDocumentsReady(matter.documents);
+          const analysis = await resolveDraftAnalysis({ deps, policy, actor, matter, caseInput, now });
+          policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
+          policy.validateBeforeDraft?.({ matter, caseInput, analysis });
+          const basis = createWorkflowDraftBasis({
+            analysis,
+            inputVersion: caseInput.version,
+            documents: matter.documents,
+          });
+          const stored = await deps.store.saveDraft(actor.id, matterId, { bodyText, basis });
           return json({ version: stored.version });
         }
       }
@@ -478,15 +532,14 @@ export function createWorkflowRuntimeRequestHandler(
         if (!analysis) throw new HttpError(409, "Analysis is required before packet construction");
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "A saved draft is required before packet construction");
+        const caseInput = await deps.store.loadInput(actor.id, matterId);
+        if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before packet construction");
         matter = await requireMatter(deps, actor, matterId);
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-        if (policy.validateBeforePacket) {
-          const caseInput = await deps.store.loadInput(actor.id, matterId);
-          if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before packet construction");
-          policy.validateBeforePacket({ matter, caseInput, analysis });
-        }
+        policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
         const packet = await deps.packet.preview({
           actor,
           matter,
@@ -519,15 +572,14 @@ export function createWorkflowRuntimeRequestHandler(
           if (!analysis) throw new HttpError(409, "Analysis is required before approval");
           const draft = await deps.store.loadDraft(actor.id, matterId);
           if (!draft) throw new HttpError(409, "A saved draft is required before approval");
+          const caseInput = await deps.store.loadInput(actor.id, matterId);
+          if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before approval");
           matter = await requireMatter(deps, actor, matterId);
           requireSourceForPolicy(policy, matter.documents);
           const included = requireIncludedDocumentsReady(matter.documents);
           policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-          if (policy.validateBeforePacket) {
-            const caseInput = await deps.store.loadInput(actor.id, matterId);
-            if (!caseInput) throw new HttpError(409, "Saved workflow facts are required before approval");
-            policy.validateBeforePacket({ matter, caseInput, analysis });
-          }
+          policy.validateBeforePacket?.({ matter, caseInput, analysis });
+          requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
           const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: selectedMailClass });
           if (current.packetSha256 !== expectedPacketSha256 || current.quote.totalCents !== expectedTotalCents) {
             throw new HttpError(409, "Packet or price changed after preview; review the new packet");
@@ -558,14 +610,13 @@ export function createWorkflowRuntimeRequestHandler(
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
         if (!analysis) throw new HttpError(409, "Analysis is missing");
+        const caseInput = await deps.store.loadInput(actor.id, matterId);
+        if (!caseInput) throw new HttpError(409, "Saved workflow facts are missing");
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-        if (policy.validateBeforePacket) {
-          const caseInput = await deps.store.loadInput(actor.id, matterId);
-          if (!caseInput) throw new HttpError(409, "Saved workflow facts are missing");
-          policy.validateBeforePacket({ matter, caseInput, analysis });
-        }
+        policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
         assertPacketMatchesApproval(approval, current);
         return json(await deps.checkout.checkout({ actor, matter, approval, sender }));
