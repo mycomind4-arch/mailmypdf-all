@@ -9,6 +9,22 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./dist/index.js"
+    },
+    "./matter-document-policy": {
+      "types": "./src/matter-document-policy.ts",
+      "import": "./dist/matter-document-policy.js"
+    },
+    "./matter-input-store": {
+      "types": "./src/matter-input-store.ts",
+      "import": "./dist/matter-input-store.js"
+    },
+    "./approval/packet-approval": {
+      "types": "./src/approval/packet-approval.ts",
+      "import": "./dist/approval/packet-approval.js"
+    },
+    "./runtime-safety": {
+      "types": "./src/runtime-safety.ts",
+      "import": "./dist/runtime-safety.js"
     }
   },
   "files": [
