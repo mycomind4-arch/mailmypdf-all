@@ -129,16 +129,30 @@ export function createPublishingPipeline(
 
         const publishedAt = now().toISOString();
         if (memory) {
-          for (const story of selected) await memory.remember(story, publishedAt);
+          try {
+            for (const story of selected) await memory.remember(story, publishedAt);
+          } catch (error) {
+            run.warnings = [
+              ...(run.warnings ?? []),
+              `STORY_MEMORY_FAILED:${error instanceof Error ? error.message : String(error)}`,
+            ];
+          }
         }
 
         if (adapters.analytics) {
           run.stage = "analytics";
-          await adapters.analytics.recordPublication({
-            publicationId: manifest.id,
-            editionId: verified.editionId,
-            ...publication,
-          });
+          try {
+            await adapters.analytics.recordPublication({
+              publicationId: manifest.id,
+              editionId: verified.editionId,
+              ...publication,
+            });
+          } catch (error) {
+            run.warnings = [
+              ...(run.warnings ?? []),
+              `ANALYTICS_FAILED:${error instanceof Error ? error.message : String(error)}`,
+            ];
+          }
         }
 
         run.status = "published";
