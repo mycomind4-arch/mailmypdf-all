@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/workflow-hero.png"
 
 export const workflowConfig = {
   id: "appeal-financial-aid-decision",
@@ -13,6 +14,8 @@ export const workflowConfig = {
   eyebrow: "Appeal Mail workflow",
   heroTitle: "Appeal Financial Aid Decision",
   heroDescription: "Use a guided appeal financial aid decision workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroImage,
+  heroImageAlt: "Financial aid appeal form for satisfactory academic progress",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
