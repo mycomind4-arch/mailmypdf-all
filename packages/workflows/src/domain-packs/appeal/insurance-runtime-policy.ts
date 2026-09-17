@@ -1,5 +1,12 @@
-import type { WorkflowMatterAnalysis } from "../../matter-runtime-client.js";
-import type { WorkflowRuntimePolicy } from "../../matter-runtime-server.js";
+import type {
+  WorkflowMatterAnalysis,
+  WorkflowMatterDocument,
+  WorkflowMatterSnapshot,
+} from "../../matter-runtime-client.js";
+import type {
+  WorkflowRuntimePolicy,
+  WorkflowRuntimeStoredInput,
+} from "../../matter-runtime-server.js";
 import { WorkflowRuntimeError } from "../../matter-runtime.js";
 import { assertStoredAnalysisReadyForDraft } from "../../runtime-safety.js";
 import { insuranceAppealWorkflowSpecs } from "./insurance-workflows.js";
@@ -22,6 +29,7 @@ export interface InsuranceAppealRuntimeInput extends Record<string, unknown> {
   requestedOutcome: string;
   additionalFacts: string;
   evidenceReviewComplete: boolean;
+  evidenceReviewFingerprint: string;
 }
 
 function text(
@@ -68,7 +76,55 @@ export function validateInsuranceAppealRuntimeInput(
     requestedOutcome: text(input.requestedOutcome, "Requested outcome", { required: true, maxLength: 4_000 }),
     additionalFacts: text(input.additionalFacts, "Additional facts", { maxLength: 12_000 }),
     evidenceReviewComplete: booleanValue(input.evidenceReviewComplete, "Evidence review complete"),
+    // This value is server-authored below. Ignore any client-supplied fingerprint.
+    evidenceReviewFingerprint: "",
   };
+}
+
+export function insuranceAppealEvidenceReviewFingerprint(
+  documents: readonly WorkflowMatterDocument[],
+): string {
+  const source = documents.find((document) => document.role === "subject_notice");
+  const evidence = documents
+    .filter((document) => document.role === "evidence")
+    .map((document) => ({
+      documentId: document.documentId,
+      evidenceKind: document.evidenceKind,
+      included: document.included,
+      position: document.position,
+      securityStatus: document.securityStatus,
+      usable: document.usable,
+    }))
+    .sort((left, right) =>
+      left.position - right.position ||
+      left.documentId.localeCompare(right.documentId),
+    );
+
+  return JSON.stringify({
+    sourceDocumentId: source?.documentId ?? null,
+    evidence,
+  });
+}
+
+function assertEvidenceReviewCurrent(
+  matter: WorkflowMatterSnapshot,
+  caseInput: WorkflowRuntimeStoredInput,
+): void {
+  if (caseInput.input.evidenceReviewComplete !== true) {
+    throw new WorkflowRuntimeError(
+      "Complete the supporting-evidence review before drafting.",
+      "EVIDENCE_REVIEW_REQUIRED",
+    );
+  }
+
+  const storedFingerprint = caseInput.input.evidenceReviewFingerprint;
+  const currentFingerprint = insuranceAppealEvidenceReviewFingerprint(matter.documents);
+  if (typeof storedFingerprint !== "string" || storedFingerprint !== currentFingerprint) {
+    throw new WorkflowRuntimeError(
+      "Supporting evidence changed after review. Review the current evidence set again.",
+      "EVIDENCE_REVIEW_STALE",
+    );
+  }
 }
 
 function validateInsuranceAnalysis(analysis: WorkflowMatterAnalysis): void {
@@ -114,14 +170,26 @@ export function createInsuranceAppealRuntimePolicy(
       }
     },
     validateAnalysis: validateInsuranceAnalysis,
-    validateInput(input, _analysis) {
-      return validateInsuranceAppealRuntimeInput(input);
+    validateInput(input, _analysis, matter) {
+      const normalized = validateInsuranceAppealRuntimeInput(input);
+      return {
+        ...normalized,
+        evidenceReviewFingerprint: normalized.evidenceReviewComplete
+          ? insuranceAppealEvidenceReviewFingerprint(matter.documents)
+          : "",
+      };
     },
     validateDocumentsBeforeDraft(documents, analysis) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
+    validateBeforeDraft({ matter, caseInput }) {
+      assertEvidenceReviewCurrent(matter, caseInput);
+    },
     validateDocumentsBeforePacket(documents, analysis) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
+    },
+    validateBeforePacket({ matter, caseInput }) {
+      assertEvidenceReviewCurrent(matter, caseInput);
     },
   };
 
