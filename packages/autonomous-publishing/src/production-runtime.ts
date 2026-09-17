@@ -20,7 +20,7 @@ import type { PublicationManifest } from "./manifest.js";
 import { createNoopAnalyticsAdapter, createNoopPublisher } from "./publishers.js";
 import { createHtmlRenderAdapter } from "./render.js";
 import { createRssDiscoveryAdapter, type RssDiscoveryOptions } from "./rss.js";
-import { createCrawl4AiExtractionAdapter, createHorizonDiscoveryAdapter } from "./service-adapters.js";
+import { createCrawl4AiExtractionAdapter, createEmbeddingServiceAdapter, createHorizonDiscoveryAdapter } from "./service-adapters.js";
 
 export interface ProductionPublishingRuntimeOptions extends ClaudePublishingOptions {
   rss?: RssDiscoveryOptions;
@@ -32,6 +32,11 @@ export interface ProductionPublishingRuntimeOptions extends ClaudePublishingOpti
     endpoint: string;
     token?: string;
     maxArticleChars?: number;
+  };
+  embeddings?: {
+    endpoint: string;
+    token?: string;
+    dimensions?: number;
   };
   listmonk?: ListmonkPublisherOptions;
   resend?: ResendPublisherOptions;
@@ -92,6 +97,9 @@ export function createProductionPublishingAdapters(
   const defaults: PublishingAdapters = {
     discovery,
     scoring: createClaudeScoringAdapter(provider),
+    embeddings: options.embeddings
+      ? createEmbeddingServiceAdapter(options.embeddings)
+      : undefined,
     research,
     planning: createClaudePlanningAdapter(provider),
     verification: createClaudeVerificationAdapter(provider),
