@@ -293,3 +293,67 @@ test("document-first remains the default when a policy does not opt out", async 
   assert.notEqual(response.status, 200);
   assert.match((await json(response)).error, /source/i);
 });
+
+test("request-first packet rejects a draft saved against an older input version", async () => {
+  const deps = requestFirstDependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  let response = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "request-first", verticalId: "records" }),
+  }));
+  const matterId = (await json(response)).matter.id as string;
+
+  response = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recordsSought: "inspection reports" }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/draft/generate`, { method: "POST" }));
+  assert.equal(response.status, 200);
+  const draft = (await json(response)).bodyText as string;
+
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: draft }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recordsSought: "inspection reports and photographs" }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  assert.equal(response.status, 409);
+  assert.equal((await json(response)).code, "DRAFT_BASIS_STALE");
+
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: draft }),
+  }));
+  assert.equal(response.status, 200);
+
+  const analysis = await deps.store.loadAnalysis("user-1", matterId);
+  assert.equal(analysis?.version, 2);
+  assert.equal(analysis?.documentId, "workflow-input:2");
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  assert.equal(response.status, 200);
+});
+
