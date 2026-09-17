@@ -37,3 +37,4 @@ export * from "./MatterList";
 export * from "./StructuredAnalysisPanel";
 export * from "./WorkflowBrowser";
 export * from "./WorkflowDetailSummary";
+export * from "./WorkflowStepRegistry";
