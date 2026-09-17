@@ -8,6 +8,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 }, "Expected a real calendar date").nullable();
 const text = z.string().trim().min(1).max(16000);
 const workflowDetailsSchema = z.object({
+  appealStage: z.enum(["reconsideration", "hearing", "appeals_council", "unknown"]).default("unknown"),
   taxYear: z.string().regex(/^\d{4}$/).nullable().default(null),
   amountDue: text.nullable().default(null),
   proposedTax: text.nullable().default(null),
@@ -24,6 +25,7 @@ const workflowDetailsSchema = z.object({
   }).nullable().default(null),
   paymentInstructions: text.nullable().default(null),
 }).default({
+  appealStage: "unknown",
   taxYear: null,
   amountDue: null,
   proposedTax: null,
