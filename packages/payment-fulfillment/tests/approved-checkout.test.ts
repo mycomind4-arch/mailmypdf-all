@@ -6,7 +6,16 @@ import {
   type ApprovalBoundOrder,
   type ApprovalOrderStore,
   type ApprovedPacketForCheckout,
+  type CheckoutMailingAddress,
 } from "../src/approved-checkout.js";
+
+const address: CheckoutMailingAddress = {
+  name: "Sender",
+  line1: "1 Main St",
+  city: "Somewhere",
+  state: "CA",
+  postal: "95521",
+};
 
 const packet: ApprovedPacketForCheckout = {
   approvalId: "approval-1",
@@ -19,7 +28,7 @@ const packet: ApprovedPacketForCheckout = {
   supportingPages: 1,
   totalCents: 1494,
   mailClass: "certified",
-  recipient: { name: "Agency" },
+  recipient: { ...address, name: "Agency" },
 };
 
 function order(overrides: Partial<ApprovalBoundOrder> = {}): ApprovalBoundOrder {
@@ -47,6 +56,8 @@ function baseStore(): ApprovalOrderStore {
   };
 }
 
+const approvedHash = async () => packet.packetSha256;
+
 test("reconciles a concurrent one-approval/one-order race", async () => {
   let lookupCount = 0;
   let uploaded = false;
@@ -65,8 +76,9 @@ test("reconciles a concurrent one-approval/one-order race", async () => {
     packet,
     ownerId: "user-1",
     email: "user@example.test",
-    sender: { name: "Sender" },
+    sender: address,
     store,
+    hashBytes: approvedHash,
     vault: {
       async validatePdf() { return { pageCount: 3 }; },
       async upload() { uploaded = true; return { storagePath: "temp" }; },
@@ -80,13 +92,30 @@ test("reconciles a concurrent one-approval/one-order race", async () => {
   assert.equal(lookupCount, 2);
 });
 
+test("fails closed if exact packet bytes no longer match approved hash", async () => {
+  await assert.rejects(() => createOrLoadApprovalOrder({
+    packet,
+    ownerId: "user-1",
+    email: "user@example.test",
+    sender: address,
+    store: baseStore(),
+    hashBytes: async () => "b".repeat(64),
+    vault: {
+      async validatePdf() { throw new Error("must fail before PDF validation"); },
+      async upload() { throw new Error("must not upload"); },
+      async remove() {},
+    },
+  }), /packet bytes changed/i);
+});
+
 test("fails closed if PDF recount differs from approved page totals", async () => {
   await assert.rejects(() => createOrLoadApprovalOrder({
     packet,
     ownerId: "user-1",
     email: "user@example.test",
-    sender: { name: "Sender" },
+    sender: address,
     store: baseStore(),
+    hashBytes: approvedHash,
     vault: {
       async validatePdf() { return { pageCount: 99 }; },
       async upload() { throw new Error("must not upload"); },
