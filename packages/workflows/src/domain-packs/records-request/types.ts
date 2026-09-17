@@ -1,5 +1,6 @@
 export type RecordsRequestDeliveryMethod =
   | "certified_mail"
+  | "registered_mail"
   | "first_class_mail"
   | "email"
   | "portal"
