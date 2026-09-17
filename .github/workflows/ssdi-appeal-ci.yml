@@ -74,6 +74,7 @@ jobs:
           pnpm --filter @mailmypdf/ai build
           pnpm --filter @mailmypdf/forms build
           pnpm --filter @mailmypdf/workflows build
+          pnpm --filter @mailmypdf/workflow-acceptance build
           pnpm --filter @mailmypdf/workflow-ui build
       - name: Unit tests
         run: pnpm --filter @mailmypdf/appeal-mail test
