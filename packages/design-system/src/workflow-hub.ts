@@ -8,6 +8,9 @@ export interface WorkflowHubItem {
   badge?: string
   meta?: string
   icon?: any
+  /** Reuse the workflow landing hero so every workflow link keeps the same visual identity. */
+  imageSrc?: string
+  imageAlt?: string
 }
 
 export interface WorkflowHubProps {
@@ -22,6 +25,9 @@ export function createWorkflowHub(h: ElementFactory) {
   return function WorkflowHub({ title, description, items, actions, renderLink }: WorkflowHubProps) {
     const cards = items.map((item) => {
       const children = [
+        item.imageSrc ? h('div', { className: 'mmp-workflow-hub-card__media', key: 'media' },
+          h('img', { src: item.imageSrc, alt: item.imageAlt ?? '' }),
+        ) : null,
         h('div', { className: 'mmp-workflow-hub-card__top', key: 'top' },
           item.icon ? h('span', { className: 'mmp-workflow-hub-card__icon', 'aria-hidden': 'true' }, item.icon) : null,
           h('div', { className: 'mmp-workflow-hub-card__labels' },
