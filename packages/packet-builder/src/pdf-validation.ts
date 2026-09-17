@@ -71,6 +71,75 @@ function assertStaticPdfStructure(bytes: Uint8Array): void {
   throw new PdfValidationError("PDF contains active or embedded content that cannot be mailed safely.");
 }
 
+/**
+ * Rewrites a server-owned static PDF (for example, an official government
+ * form bundled with a workflow) into the same static representation accepted
+ * by the normal mailing validator.
+ *
+ * IMPORTANT: this is intentionally NOT an upload-normalization escape hatch.
+ * Callers must only pass immutable, application-controlled assets whose bytes
+ * are shipped with the workflow. User uploads continue through
+ * validatePdfForMailing() and remain fail-closed for encryption and active
+ * content.
+ *
+ * Some official government PDFs carry permission encryption even though they
+ * are publicly distributed and require no password to view. pdf-lib refuses
+ * those by default. For this narrowly-scoped trusted input we permit parsing,
+ * copy the visible pages into a brand-new document (dropping document-level
+ * encryption/metadata), save deterministically, and then run the resulting
+ * bytes back through the strict mailing validator. If unsafe features survive
+ * the rewrite, validation still rejects the output.
+ */
+export async function normalizeTrustedStaticPdfForMailing(bytes: Uint8Array): Promise<Uint8Array> {
+  if (bytes.byteLength < 16 || bytes.byteLength > MAX_PDF_BYTES) {
+    throw new PdfValidationError("Trusted static PDF size is outside the supported range.");
+  }
+  if (latin1(bytes.slice(0, 5)) !== "%PDF-") {
+    throw new PdfValidationError("Trusted static file does not have a valid PDF header.");
+  }
+  const trailer = latin1(bytes.slice(Math.max(0, bytes.byteLength - TRAILER_SCAN_BYTES)));
+  if (!trailer.includes("%%EOF")) {
+    throw new PdfValidationError("Trusted static PDF is missing its end-of-file marker.");
+  }
+
+  const { PDFDocument } = await import("pdf-lib");
+
+  let source;
+  try {
+    source = await PDFDocument.load(bytes, {
+      ignoreEncryption: true,
+      throwOnInvalidObject: false,
+      updateMetadata: false,
+      capNumbers: true,
+    });
+  } catch {
+    throw new PdfValidationError("Trusted static PDF could not be parsed.");
+  }
+
+  const sourceIndices = source.getPageIndices();
+  if (sourceIndices.length < 1) {
+    throw new PdfValidationError("Trusted static PDF has no pages.");
+  }
+  if (sourceIndices.length > MAX_PAGES) {
+    throw new PdfValidationError(`Trusted static PDF exceeds ${MAX_PAGES} pages.`);
+  }
+
+  const normalized = await PDFDocument.create();
+  normalized.setCreationDate(new Date(0));
+  normalized.setModificationDate(new Date(0));
+
+  try {
+    const pages = await normalized.copyPages(source, sourceIndices);
+    for (const page of pages) normalized.addPage(page);
+  } catch {
+    throw new PdfValidationError("Trusted static PDF pages could not be normalized.");
+  }
+
+  const output = await normalized.save({ useObjectStreams: false });
+  await validatePdfForMailing(output);
+  return output;
+}
+
 export async function validatePdfForMailing(bytes: Uint8Array): Promise<ValidatedPdf> {
   assertStaticPdfStructure(bytes);
 
