@@ -100,4 +100,5 @@ export interface PublicationRun {
   startedAt: string;
   completedAt?: string;
   error?: string;
+  warnings?: string[];
 }
