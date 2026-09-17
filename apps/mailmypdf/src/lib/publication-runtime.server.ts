@@ -168,14 +168,14 @@ export function createSupabasePublicationRunStore(): PublicationRunStore {
   };
 }
 
-function publicationVectorLiteral(values: readonly number[]): string {
+function publicationEmbedding(values: readonly number[]): number[] {
   if (
     values.length !== 384 ||
     values.some((value) => !Number.isFinite(value))
   ) {
     throw new Error("Publication story embedding must contain 384 finite values");
   }
-  return `[${values.join(",")}]`;
+  return [...values];
 }
 
 export function createSupabaseStoryMemory(publicationId: string): StoryMemory {
@@ -185,7 +185,7 @@ export function createSupabaseStoryMemory(publicationId: string): StoryMemory {
         const { data: vectorRows, error: vectorError } = await (supabaseAdmin as any)
           .rpc("match_publication_story_memory", {
             p_publication_id: publicationId,
-            p_embedding: publicationVectorLiteral(story.embedding),
+            p_embedding: publicationEmbedding(story.embedding),
             p_limit: limit,
           });
         if (vectorError) throw new Error(vectorError.message);
@@ -238,7 +238,7 @@ export function createSupabaseStoryMemory(publicationId: string): StoryMemory {
             title: story.title,
             published_at: publishedAt,
             embedding: story.embedding?.length
-              ? publicationVectorLiteral(story.embedding)
+              ? publicationEmbedding(story.embedding)
               : null,
             embedding_model:
               typeof story.metadata?.embeddingModel === "string"
