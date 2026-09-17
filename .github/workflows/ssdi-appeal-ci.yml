@@ -1,0 +1,67 @@
+name: SSDI Appeal verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'appeal-mail/**'
+      - 'packages/documents/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/ai/**'
+      - 'packages/intelligence/**'
+      - 'packages/workflows/**'
+      - 'packages/step-workflow/**'
+      - 'packages/workflow-ui/**'
+      - 'packages/packet-builder/**'
+      - 'packages/pricing/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/fulfillment/**'
+      - 'packages/proof/**'
+      - 'packages/workflow-acceptance/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/ssdi-appeal-ci.yml'
+  pull_request:
+    paths:
+      - 'appeal-mail/**'
+      - 'packages/documents/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/ai/**'
+      - 'packages/intelligence/**'
+      - 'packages/workflows/**'
+      - 'packages/step-workflow/**'
+      - 'packages/workflow-ui/**'
+      - 'packages/packet-builder/**'
+      - 'packages/pricing/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/fulfillment/**'
+      - 'packages/proof/**'
+      - 'packages/workflow-acceptance/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ssdi-appeal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Unit tests
+        run: pnpm --filter @mailmypdf/appeal-mail test
+      - name: Typecheck Appeal Mail
+        run: pnpm --filter @mailmypdf/appeal-mail typecheck
+      - name: SSDI acceptance
+        run: pnpm --filter @mailmypdf/appeal-mail test:acceptance
