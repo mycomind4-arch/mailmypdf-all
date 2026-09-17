@@ -13,6 +13,7 @@ Reusable, provenance-first engines for identity, capacity, authority, ownership,
 - ownership and rights resolution
 - obligation reconstruction
 - party-role resolution
+- jurisdiction resolution driven by explicit purpose-specific policy
 
 ## Design boundaries
 
@@ -23,3 +24,5 @@ They do not treat capitalization, aliases, role labels, possession, invoices, fi
 The package CI builds workspace dependencies before executing the runtime test suite.
 
 Shared dependency build errors are repaired before runtime verification.
+
+Purpose-specific legal/domain policies are registered in the shared `@mailmypdf/intelligence/authority` registry so engines can remain generic and deterministic.
