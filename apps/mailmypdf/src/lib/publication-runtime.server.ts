@@ -168,9 +168,34 @@ export function createSupabasePublicationRunStore(): PublicationRunStore {
   };
 }
 
+function publicationVectorLiteral(values: readonly number[]): string {
+  if (
+    values.length !== 384 ||
+    values.some((value) => !Number.isFinite(value))
+  ) {
+    throw new Error("Publication story embedding must contain 384 finite values");
+  }
+  return `[${values.join(",")}]`;
+}
+
 export function createSupabaseStoryMemory(publicationId: string): StoryMemory {
   return {
     async findSimilar(story, limit = 5): Promise<readonly StoryMemoryMatch[]> {
+      if (story.embedding?.length) {
+        const { data: vectorRows, error: vectorError } = await (supabaseAdmin as any)
+          .rpc("match_publication_story_memory", {
+            p_publication_id: publicationId,
+            p_embedding: publicationVectorLiteral(story.embedding),
+            p_limit: limit,
+          });
+        if (vectorError) throw new Error(vectorError.message);
+        return (vectorRows ?? []).map((row: any) => ({
+          storyId: row.publication_story_id,
+          similarity: Number(row.similarity),
+          publishedAt: row.published_at,
+        }));
+      }
+
       const { data: urlRows, error: urlError } = await (supabaseAdmin as any)
         .from("publication_story_memory")
         .select("publication_story_id,published_at")
@@ -212,6 +237,13 @@ export function createSupabaseStoryMemory(publicationId: string): StoryMemory {
             url: story.url,
             title: story.title,
             published_at: publishedAt,
+            embedding: story.embedding?.length
+              ? publicationVectorLiteral(story.embedding)
+              : null,
+            embedding_model:
+              typeof story.metadata?.embeddingModel === "string"
+                ? story.metadata.embeddingModel
+                : null,
             metadata: story.metadata ?? {},
           },
           { onConflict: "publication_id,publication_story_id" },
