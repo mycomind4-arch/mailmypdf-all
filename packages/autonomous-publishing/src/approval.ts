@@ -36,8 +36,11 @@ export async function publishApprovedEdition(
   run.stage = "publish";
   await options.runStore?.save({ run, rendered, publication: stored.publication });
 
+  let publication = stored.publication;
+
   try {
-    const publication = await adapters.publisher.publish(rendered, manifest);
+    publication = await adapters.publisher.publish(rendered, manifest);
+    await options.runStore?.save({ run, rendered, publication });
     const publishedAt = now().toISOString();
 
     if (options.memory) {
@@ -64,7 +67,7 @@ export async function publishApprovedEdition(
     run.status = "failed";
     run.error = error instanceof Error ? error.message : String(error);
     run.completedAt = now().toISOString();
-    await options.runStore?.save({ run, rendered, publication: stored.publication });
+    await options.runStore?.save({ run, rendered, publication });
     throw Object.assign(error instanceof Error ? error : new Error(run.error), { run });
   }
 }
