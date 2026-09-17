@@ -6,7 +6,6 @@ import { computeSha256 } from "../../documents/src/index.ts";
 import {
   assemblePacket,
   generateLetterPdf,
-  normalizeTrustedStaticPdfForMailing,
   type PacketDocumentRow,
 } from "../src/index.ts";
 import {
@@ -38,16 +37,6 @@ const FORM_ROOT = new URL("../../../appeal-mail/workflows/appeal-ssdi-denial/for
 
 async function loadForm(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(name, FORM_ROOT)));
-}
-
-async function normalizeBundledForm(label: string, filename: string): Promise<Uint8Array> {
-  const raw = await loadForm(filename);
-  try {
-    return await normalizeTrustedStaticPdfForMailing(raw);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} (${filename}) normalization failed: ${message}`, { cause: error });
-  }
 }
 
 function packetRow(id: string, filename: string, kind: string, bytes: Uint8Array, position: number): PacketDocumentRow {
@@ -159,11 +148,9 @@ test("shared runtime blocks unscanned SSDI source and included evidence", () => 
 });
 
 test("medical SSDI packet uses the real SSA-561, SSA-3441, and SSA-827 PDFs", async () => {
-  // Normalize sequentially so a malformed official form is identified by
-  // name in CI instead of being hidden by Promise.all's first rejection.
   const ssa561 = await loadForm("ssa-561-u2.normalized.pdf");
-  const ssa3441 = await normalizeBundledForm("SSA-3441", "ssa-3441.pdf");
-  const ssa827 = await normalizeBundledForm("SSA-827", "ssa-827.pdf");
+  const ssa3441 = await loadForm("ssa-3441.normalized.pdf");
+  const ssa827 = await loadForm("ssa-827.normalized.pdf");
 
   for (const [name, bytes] of [["SSA-561", ssa561], ["SSA-3441", ssa3441], ["SSA-827", ssa827]] as const) {
     const pdf = await PDFDocument.load(bytes);
