@@ -177,8 +177,29 @@ export const lifeInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
   authoritySources: [],
 });
 
+
+export const carInsuranceClaimWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-car-insurance-claim",
+  title: "Appeal a Car Insurance Claim",
+  lifecycle: "authority",
+  specializedChecks: ["auto-claim-source-resolution"],
+  authorityRules: [
+    "Use the actual insurer decision, claim correspondence, policy documents supplied by the user, repair or valuation materials supplied by the user, and current official regulator or insurer sources as the controlling record.",
+    "Never invent coverage terms, exclusions, fault findings, damage estimates, vehicle values, repair costs, deductible amounts, deadlines, filing methods, or outcomes.",
+    "Keep coverage, liability, valuation, repairability, total-loss, deductible, payment, and procedural disputes distinct unless the source record supports combining them.",
+    "Treat estimates, valuations, photographs, invoices, and expert opinions as evidence only to the extent the uploaded material actually supports them.",
+    "A claim date, loss date, decision date, or payment date is not automatically an appeal deadline unless the controlling notice or verified authority establishes that meaning.",
+    "Unsupported policy, factual, valuation, repair, liability, or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise payment, coverage, a valuation change, repair authorization, or reversal of the insurer decision.",
+  ],
+  authoritySources: [
+    { title: "NAIC — Consumer Insurance Information", url: "https://content.naic.org/consumer", freshnessRule: "verify-before-use" },
+  ],
+});
+
 export const insuranceAppealWorkflowSpecs = [
   insuranceClaimDenialWorkflow,
+  carInsuranceClaimWorkflow,
   medicalInsuranceDenialWorkflow,
   priorAuthorizationDenialWorkflow,
   insuranceCoverageDenialWorkflow,
