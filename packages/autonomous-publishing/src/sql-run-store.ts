@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS publication_runs (
   stage text NOT NULL,
   run_json jsonb NOT NULL,
   rendered_json jsonb,
+  provider_id text,
+  publication_url text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -31,14 +33,16 @@ export function createSqlPublicationRunStore(client: SqlClient): PublicationRunS
     async save(value) {
       await client.query(
         `INSERT INTO publication_runs
-          (run_id, publication_id, status, stage, run_json, rendered_json, updated_at)
-         VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, now())
+          (run_id, publication_id, status, stage, run_json, rendered_json, provider_id, publication_url, updated_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, now())
          ON CONFLICT (run_id) DO UPDATE SET
            publication_id = EXCLUDED.publication_id,
            status = EXCLUDED.status,
            stage = EXCLUDED.stage,
            run_json = EXCLUDED.run_json,
            rendered_json = EXCLUDED.rendered_json,
+           provider_id = EXCLUDED.provider_id,
+           publication_url = EXCLUDED.publication_url,
            updated_at = now()`,
         [
           value.run.id,
@@ -47,13 +51,15 @@ export function createSqlPublicationRunStore(client: SqlClient): PublicationRunS
           value.run.stage,
           JSON.stringify(value.run),
           value.rendered ? JSON.stringify(value.rendered) : null,
+          value.publication?.providerId ?? null,
+          value.publication?.publicationUrl ?? null,
         ],
       );
     },
 
     async get(runId) {
-      const result = await client.query<{ run_json: unknown; rendered_json: unknown }>(
-        `SELECT run_json, rendered_json
+      const result = await client.query<{ run_json: unknown; rendered_json: unknown; provider_id: string | null; publication_url: string | null }>(
+        `SELECT run_json, rendered_json, provider_id, publication_url
            FROM publication_runs
           WHERE run_id = $1
           LIMIT 1`,
@@ -68,7 +74,17 @@ export function createSqlPublicationRunStore(client: SqlClient): PublicationRunS
           : typeof row.rendered_json === "string"
             ? JSON.parse(row.rendered_json)
             : row.rendered_json;
-      return decodeStored({ run, rendered });
+      return decodeStored({
+        run,
+        rendered,
+        publication:
+          row.provider_id || row.publication_url
+            ? {
+                providerId: row.provider_id ?? undefined,
+                publicationUrl: row.publication_url ?? undefined,
+              }
+            : undefined,
+      });
     },
   };
 }
