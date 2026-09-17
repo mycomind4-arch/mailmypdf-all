@@ -26,16 +26,17 @@ class MemoryStore implements ManifestWorkflowCheckpointStore {
   async commit(input: {
     expectedRevision: number | null;
     checkpoint: any;
-  }) {
+  }): Promise<StoredManifestWorkflowCheckpoint> {
     const actual = this.value?.revision ?? null;
     if (actual !== input.expectedRevision) {
       throw new Error("checkpoint revision conflict");
     }
-    this.value = {
+    const next: StoredManifestWorkflowCheckpoint = {
       ...input.checkpoint,
       revision: (actual ?? 0) + 1,
     };
-    return this.value;
+    this.value = next;
+    return next;
   }
 }
 
