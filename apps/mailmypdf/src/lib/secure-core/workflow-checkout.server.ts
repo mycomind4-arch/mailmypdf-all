@@ -148,6 +148,7 @@ export async function ensureCheckoutSession(input: {
   approvalId: string;
   caseId: string;
   workflowId: string;
+  verticalId: string;
   email: string;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -204,7 +205,13 @@ export async function ensureCheckoutSession(input: {
   successUrl.searchParams.set("token", input.order.lookup_token);
   successUrl.searchParams.set("paid", "1");
 
-  const cancelUrl = new URL(`/notice/${input.workflowId}`, `${baseUrl}/`);
+  const cancelPath =
+    input.verticalId === "appeal-mail" && input.workflowId === "ssdi-denial"
+      ? "/appeal-mail/workflows/appeal-ssdi-denial/start"
+      : input.verticalId === "notice-response"
+        ? `/notice/${input.workflowId}`
+        : "/dashboard/workflows";
+  const cancelUrl = new URL(cancelPath, `${baseUrl}/`);
   cancelUrl.searchParams.set("case", input.caseId);
 
   const session = await stripe.checkout.sessions.create({
