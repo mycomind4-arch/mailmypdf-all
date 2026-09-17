@@ -499,7 +499,7 @@ export default function SsdiDenialWorkflow() {
       title="Appeal SSDI Denial"
       subtitle="Build a source-grounded reconsideration packet from the actual SSA denial, claimant facts, supporting evidence, and official SSA forms."
       lastSavedLabel={caseId ? "Secure matter active" : undefined}
-      steps={SSDI_STEPS}
+      steps={[...SSDI_STEPS]}
       currentStepId={currentStep.id}
       completedStepIds={completedStepIds}
       onStepClick={goToStep}
