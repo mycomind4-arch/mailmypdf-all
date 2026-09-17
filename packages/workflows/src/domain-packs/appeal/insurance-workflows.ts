@@ -83,7 +83,7 @@ export const priorAuthorizationDenialWorkflow = defineInsuranceAppealWorkflow({
   title: "Appeal a Prior Authorization Denial",
   lifecycle: "authority",
   pricingWorkflowId: "prior-authorization-denial",
-  specializedChecks: ["prior-authorization-path-analysis"],
+  specializedChecks: [],
   authorityRules: [
     "Use the actual denial notice, plan or policy documents supplied by the user, and current official plan/regulator sources as the controlling record.",
     "Never invent authorization criteria, coverage rules, deadlines, filing methods, medical facts, or outcomes.",
@@ -96,10 +96,105 @@ export const priorAuthorizationDenialWorkflow = defineInsuranceAppealWorkflow({
   authoritySources: [],
 });
 
+export const insuranceCoverageDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-insurance-coverage-denial",
+  title: "Appeal an Insurance Coverage Denial",
+  lifecycle: "authority",
+  pricingWorkflowId: "insurance-coverage-denial",
+  specializedChecks: ["coverage-analysis"],
+  authorityRules: [
+    "Use the actual coverage denial, policy or plan documents supplied by the user, issuer instructions, applicable regulator guidance, and current authoritative sources as the controlling record.",
+    "Never invent coverage terms, exclusions, medical facts, policy language, deadlines, appeal rights, or outcomes.",
+    "Do not assume all coverage denials share one appeal timeline or procedure; identify issuer, plan type, jurisdiction, and notice-specific instructions.",
+    "Separate coverage interpretation, claim denial, prior authorization, internal appeal, external review, regulator complaint, and litigation paths when supported; never collapse them into one universal process.",
+    "Unsupported procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise that coverage will be approved or a denial will be reversed.",
+  ],
+  authoritySources: [],
+});
+
+export const medicalNecessityDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-medical-necessity-denial",
+  title: "Appeal a Medical Necessity Denial",
+  lifecycle: "authority",
+  pricingWorkflowId: "medical-necessity-appeal",
+  specializedChecks: [],
+  authorityRules: [
+    "Use the actual denial notice, plan/policy language supplied by the user, applicable plan documents, and current authoritative sources as the controlling record.",
+    "Never invent diagnoses, clinical history, medical necessity criteria, policy terms, regulations, deadlines, appeal rights, or outcomes.",
+    "Keep insurer assertions separate from documented clinical facts and from unresolved medical questions.",
+    "Do not treat a generic medical-necessity standard as the controlling rule when the notice identifies a plan-specific or program-specific criterion.",
+    "Separate internal appeal, external review, peer review, regulator complaint, and other escalation mechanisms when the controlling sources support them.",
+    "A deadline extracted from a notice remains unverified until the controlling notice/rule set supports its procedural meaning.",
+    "Unsupported clinical or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise that an appeal will overturn the medical-necessity determination.",
+  ],
+  authoritySources: [],
+});
+
+export const outOfNetworkDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-out-of-network-denial",
+  title: "Appeal an Out-of-Network Denial",
+  lifecycle: "authority",
+  pricingWorkflowId: "out-of-network-denial",
+  specializedChecks: [],
+  authorityRules: [
+    "Use the actual denial notice, plan or policy documents supplied by the user, and current official plan/regulator sources as the controlling record.",
+    "Never invent network status, plan provisions, exceptions, balance-billing rules, deadlines, filing methods, medical facts, or outcomes.",
+    "Distinguish an out-of-network denial from prior authorization, medical necessity, post-service claim denial, emergency/access exceptions, external review, and regulator complaints.",
+    "Treat network status and exception eligibility as source-dependent facts; never infer them from provider type, ZIP code, or general practice.",
+    "Separate insurer/plan instructions from general guidance and require source verification before procedural conclusions are treated as settled.",
+    "Unsupported network, clinical, or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise coverage, reimbursement, or an in-network exception.",
+  ],
+  authoritySources: [],
+});
+
+export const dentalInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-dental-insurance-denial",
+  title: "Dental Insurance Appeal",
+  lifecycle: "authority",
+  pricingWorkflowId: "dental-insurance-appeal",
+  specializedChecks: [],
+  authorityRules: [
+    "Use the actual dental decision, plan/policy documents supplied by the user, and current official insurer/regulator sources as the controlling record.",
+    "Never invent dental findings, procedure history, coverage limitations, deadlines, filing methods, or outcomes.",
+    "Distinguish dental claim denial, medical necessity, prior authorization, network issues, coordination of benefits, and regulator complaint paths.",
+    "A decision date is not automatically a deadline unless the notice or authoritative source supports that interpretation.",
+    "Separate plan instructions from general guidance and verify procedural conclusions before treating them as settled.",
+    "Unsupported dental, clinical, coverage, or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise claim payment, coverage, or appeal success.",
+  ],
+  authoritySources: [],
+});
+
+export const lifeInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-life-insurance-denial",
+  title: "Life Insurance Denial Appeal",
+  lifecycle: "authority",
+  pricingWorkflowId: "life-insurance-denial",
+  specializedChecks: ["policy-source-resolution"],
+  authorityRules: [
+    "Use the actual denial notice, policy/certificate documents supplied by the user, and current official regulator or insurer sources as the controlling record.",
+    "Never invent policy provisions, exclusions, contestability rules, deadlines, filing methods, beneficiary facts, underwriting facts, or outcomes.",
+    "Keep policy interpretation, factual disputes, underwriting/contestability issues, beneficiary information, and procedural requirements distinct.",
+    "A claim or denial date is not automatically a filing deadline unless the notice or authoritative source supports that conclusion.",
+    "Treat insurer instructions as specific to the notice and policy; require source verification before presenting general guidance as controlling.",
+    "Unsupported policy, legal, medical, beneficiary, or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise claim payment, policy reinstatement, or reversal of the denial.",
+  ],
+  authoritySources: [],
+});
+
 export const insuranceAppealWorkflowSpecs = [
   insuranceClaimDenialWorkflow,
   medicalInsuranceDenialWorkflow,
   priorAuthorizationDenialWorkflow,
+  insuranceCoverageDenialWorkflow,
+  medicalNecessityDenialWorkflow,
+  outOfNetworkDenialWorkflow,
+  dentalInsuranceDenialWorkflow,
+  lifeInsuranceDenialWorkflow,
 ] as const;
 
 const insuranceAppealWorkflowRegistry = new Map(
