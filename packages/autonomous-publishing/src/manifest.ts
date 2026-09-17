@@ -45,6 +45,7 @@ export interface PublicationManifest {
   integrations: {
     horizon?: boolean;
     crawl4ai?: boolean;
+    embeddings?: boolean;
     rsshub?: boolean;
     listmonk?: boolean;
     resend?: boolean;
