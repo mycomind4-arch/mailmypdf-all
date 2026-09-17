@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'packages/core/**'
+      - 'packages/security/**'
       - 'packages/ai/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
@@ -24,6 +25,7 @@ on:
   pull_request:
     paths:
       - 'packages/core/**'
+      - 'packages/security/**'
       - 'packages/ai/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
@@ -62,11 +64,13 @@ jobs:
       - name: Build shared test dependencies
         run: |
           pnpm --filter @mailmypdf/core build
+          pnpm --filter @mailmypdf/security build
           pnpm --filter @mailmypdf/documents build
           pnpm --filter @mailmypdf/workflows build
       - name: Core capability tests
         run: |
           pnpm --filter @mailmypdf/core test
+          pnpm --filter @mailmypdf/security test
           pnpm --filter @mailmypdf/documents test
           pnpm --filter @mailmypdf/document-intelligence test
           pnpm --filter @mailmypdf/ai test
@@ -83,6 +87,7 @@ jobs:
           pnpm --filter @mailmypdf/workflows test
       - name: Typecheck hardened capability packages
         run: |
+          pnpm --filter @mailmypdf/security typecheck
           pnpm --filter @mailmypdf/documents typecheck
           pnpm --filter @mailmypdf/document-intelligence typecheck
           pnpm --filter @mailmypdf/ai typecheck
