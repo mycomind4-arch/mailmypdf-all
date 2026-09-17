@@ -9,6 +9,18 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./dist/index.js"
+    },
+    "./adapters/secure-intake": {
+      "types": "./src/adapters/secure-intake.ts",
+      "import": "./dist/adapters/secure-intake.js"
+    },
+    "./scanning": {
+      "types": "./src/scanning/scanner.ts",
+      "import": "./dist/scanning/scanner.js"
+    },
+    "./retention": {
+      "types": "./src/retention/retention.ts",
+      "import": "./dist/retention/retention.js"
     }
   },
   "files": [
