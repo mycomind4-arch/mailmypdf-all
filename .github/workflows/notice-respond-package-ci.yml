@@ -1,0 +1,71 @@
+name: Notice Respond package verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'notice-respond/**'
+      - 'packages/design-system/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/seo/**'
+      - 'packages/workflow-ui/**'
+      - 'packages/workflows/**'
+      - 'packages/packet-builder/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/proof/**'
+      - 'packages/workflow-acceptance/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/notice-respond-package-ci.yml'
+  pull_request:
+    paths:
+      - 'notice-respond/**'
+      - 'packages/design-system/**'
+      - 'packages/document-intelligence/**'
+      - 'packages/seo/**'
+      - 'packages/workflow-ui/**'
+      - 'packages/workflows/**'
+      - 'packages/packet-builder/**'
+      - 'packages/payment-fulfillment/**'
+      - 'packages/proof/**'
+      - 'packages/workflow-acceptance/**'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/notice-respond-package-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Sync lockfile importer
+        if: github.event_name == 'push'
+        run: |
+          pnpm install --lockfile-only --no-frozen-lockfile
+          if ! git diff --quiet -- pnpm-lock.yaml; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add pnpm-lock.yaml
+            git commit -m "build(notice-respond): sync workspace lockfile"
+            git push
+          fi
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck Notice Respond
+        run: pnpm --filter @mailmypdf/notice-respond typecheck
+      - name: Unit tests
+        run: pnpm --filter @mailmypdf/notice-respond test
+      - name: Acceptance tests
+        run: pnpm --filter @mailmypdf/notice-respond test:acceptance
