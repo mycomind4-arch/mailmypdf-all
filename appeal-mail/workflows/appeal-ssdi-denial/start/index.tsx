@@ -47,7 +47,10 @@ import {
   SSDI_WORKFLOW_ID,
   hasRequiredSsdiForms,
   isSsdiReconsiderationStage,
+  isSupportedSsdiDecisionBasis,
+  requiredSsdiFormsForBasis,
   ssdiCompletedSteps,
+  type SsdiDecisionBasis,
   type SsdiEvidenceKind,
   type SsdiStepId,
 } from "./workflow";
@@ -109,6 +112,13 @@ function currentAppealStage(analysis: WorkflowAnalysis | null): string {
   return typeof value === "string" ? value : "unknown";
 }
 
+function currentDecisionBasis(analysis: WorkflowAnalysis | null): SsdiDecisionBasis {
+  const details = analysis?.result.workflowDetails;
+  if (!details || typeof details !== "object") return "unknown";
+  const value = (details as Record<string, unknown>).decisionBasis;
+  return value === "medical" || value === "nonmedical" ? value : "unknown";
+}
+
 function responseAddressFromAnalysis(analysis: WorkflowAnalysis | null): MailingAddress | null {
   const details = analysis?.result.workflowDetails;
   if (!details || typeof details !== "object") return null;
@@ -162,9 +172,15 @@ export default function SsdiDenialWorkflow() {
   const subjectNotice = documents.find((document) => document.role === "subject_notice") ?? null;
   const evidence = documents.filter((document) => document.role === "evidence");
   const appealStage = currentAppealStage(analysis);
+  const decisionBasis = currentDecisionBasis(analysis);
   const cleanDecision = Boolean(subjectNotice?.usable);
-  const reconsiderationAnalysis = Boolean(analysis && isSsdiReconsiderationStage(appealStage));
-  const requiredFormsComplete = hasRequiredSsdiForms(documents);
+  const reconsiderationAnalysis = Boolean(
+    analysis &&
+    isSsdiReconsiderationStage(appealStage) &&
+    isSupportedSsdiDecisionBasis(decisionBasis),
+  );
+  const requiredForms = requiredSsdiFormsForBasis(decisionBasis);
+  const requiredFormsComplete = hasRequiredSsdiForms(documents, decisionBasis);
 
   const completedStepIds = useMemo(
     () =>
@@ -185,7 +201,7 @@ export default function SsdiDenialWorkflow() {
     { id: "analysis", label: "Reconsideration level confirmed", done: reconsiderationAnalysis },
     { id: "facts", label: "Claimant facts saved", done: factsSaved },
     { id: "draft", label: "Response draft saved", done: draftSaved },
-    { id: "forms", label: "SSA-561, SSA-3441 and SSA-827 included", done: requiredFormsComplete },
+    { id: "forms", label: decisionBasis === "medical" ? "SSA-561, SSA-3441 and SSA-827 included" : decisionBasis === "nonmedical" ? "SSA-561 included" : "Required SSA forms identified", done: requiredFormsComplete },
     { id: "approval", label: "Exact packet approved", done: Boolean(approvalId) },
   ];
 
@@ -220,10 +236,14 @@ export default function SsdiDenialWorkflow() {
 
       const inferred = ssdiCompletedSteps({
         hasCleanDecision: snapshot.documents.some((document) => document.role === "subject_notice" && document.usable),
-        hasReconsiderationAnalysis: Boolean(storedAnalysis && isSsdiReconsiderationStage(currentAppealStage(storedAnalysis))),
+        hasReconsiderationAnalysis: Boolean(
+          storedAnalysis &&
+          isSsdiReconsiderationStage(currentAppealStage(storedAnalysis)) &&
+          isSupportedSsdiDecisionBasis(currentDecisionBasis(storedAnalysis)),
+        ),
         hasClaimantFacts: Boolean(storedInput),
         hasDraft: Boolean(storedDraft?.bodyText),
-        hasRequiredForms: hasRequiredSsdiForms(snapshot.documents),
+        hasRequiredForms: hasRequiredSsdiForms(snapshot.documents, currentDecisionBasis(storedAnalysis)),
         hasApproval: Boolean(storedApproval?.approvalId),
       });
       setStepIndex(Math.min(inferred.length, SSDI_STEPS.length - 1));
@@ -563,6 +583,7 @@ export default function SsdiDenialWorkflow() {
                   { id: "date", label: "Decision date", value: analysis.result.decisionDate ?? "Not confirmed" },
                   { id: "deadline", label: "Deadline printed on notice", value: analysis.result.deadline ?? "Not confirmed" },
                   { id: "stage", label: "Appeal level shown", value: appealStage },
+                  { id: "basis", label: "Decision basis", value: decisionBasis },
                 ]}
                 issues={analysis.result.reasons.map((reason, index) => ({
                   id: `reason-${index}`,
@@ -577,6 +598,11 @@ export default function SsdiDenialWorkflow() {
                   {appealStage === "unknown"
                     ? "This workflow cannot continue until the notice confirms that reconsideration is the correct appeal level."
                     : `This notice appears to call for ${appealStage.replaceAll("_", " ")}. This SSDI workflow is limited to reconsideration and will not generate or mail the wrong appeal packet.`}
+                </div>
+              )}
+              {isSsdiReconsiderationStage(appealStage) && !isSupportedSsdiDecisionBasis(decisionBasis) && (
+                <div className="wf-callout wf-callout--danger">
+                  The notice does not clearly establish whether this is a medical or non-medical reconsideration. The workflow will not choose the form set by guesswork.
                 </div>
               )}
             </>
@@ -681,14 +707,14 @@ export default function SsdiDenialWorkflow() {
             description="Download the official PDFs, complete and sign them as required, then upload the completed versions. MailMyPDF does not fabricate signatures or replace official SSA forms with look-alikes."
           >
             <div className="wf-action-list">
-              {SSDI_REQUIRED_FORMS.map((form) => (
+              {requiredForms.map((form) => (
                 <a key={form.kind} className="wf-btn wf-btn--outline" href={form.href} target="_blank" rel="noreferrer">
                   Download {form.label}
                 </a>
               ))}
             </div>
           </SectionCard>
-          {SSDI_REQUIRED_FORMS.map((form) => {
+          {requiredForms.map((form) => {
             const attached = evidence.filter((document) => document.evidence_kind === form.kind);
             return (
               <DocumentUpload
@@ -712,9 +738,19 @@ export default function SsdiDenialWorkflow() {
               />
             );
           })}
+          {decisionBasis === "medical" && (
+            <div className="wf-callout wf-callout--info">
+              Medical reconsideration: this workflow requires SSA-561, SSA-3441 and SSA-827.
+            </div>
+          )}
+          {decisionBasis === "nonmedical" && (
+            <div className="wf-callout wf-callout--info">
+              Non-medical reconsideration: this workflow requires SSA-561. It does not force the medical appeal forms into the packet.
+            </div>
+          )}
           {!requiredFormsComplete && (
             <div className="wf-callout wf-callout--warning">
-              Packet review stays locked until all three completed SSA forms are attached, included, and clean.
+              Packet review stays locked until the required completed SSA form set is attached, included, and clean.
             </div>
           )}
         </>
