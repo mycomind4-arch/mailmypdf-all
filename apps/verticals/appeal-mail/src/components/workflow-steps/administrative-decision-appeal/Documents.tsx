@@ -1,5 +1,5 @@
 import { SectionCard, Dropzone, FileList, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "../types";
+import type { StepComponentProps } from "@mailmypdf/workflow-ui";
 
 type DocumentFile = { id: string; name: string; category: string };
 
