@@ -28,9 +28,6 @@ export const EVIDENCE_KINDS = [
   "corrected_tax_document",
   "irs_transcript",
   "payment_record",
-  "ssa_561",
-  "ssa_3441",
-  "ssa_827",
   "other",
 ] as const;
 
