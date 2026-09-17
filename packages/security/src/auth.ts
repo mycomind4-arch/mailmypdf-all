@@ -5,22 +5,29 @@ export class AuthenticationError extends Error {
   }
 }
 
-export interface ServerValidatedUserClient<User> {
+export interface ServerValidatedUserClient {
   auth: {
     getUser(accessToken: string): Promise<{
-      data: { user: User | null };
+      data: { user: unknown | null };
       error?: unknown;
     }>;
   };
 }
 
-export interface AuthenticatedUserContext<Client, User> {
+type ClientUser<Client extends ServerValidatedUserClient> = NonNullable<
+  Awaited<ReturnType<Client["auth"]["getUser"]>>["data"]["user"]
+>;
+
+export interface AuthenticatedUserContext<
+  Client extends ServerValidatedUserClient,
+  User = ClientUser<Client>,
+> {
   client: Client;
   user: User;
   accessToken: string;
 }
 
-export interface BearerAuthenticatorDependencies<Client extends ServerValidatedUserClient<User>, User> {
+export interface BearerAuthenticatorDependencies<Client extends ServerValidatedUserClient> {
   /**
    * Must return a user-scoped client configured with the supplied bearer token.
    * Deliberately no service-role/admin credential is accepted by this contract.
@@ -43,12 +50,12 @@ export function readBearerToken(request: Request): string {
  * Creates an authenticator that validates the bearer token with the identity
  * provider on the server. It never trusts a locally decoded JWT payload.
  */
-export function createBearerAuthenticator<Client extends ServerValidatedUserClient<User>, User>(
-  dependencies: BearerAuthenticatorDependencies<Client, User>,
+export function createBearerAuthenticator<Client extends ServerValidatedUserClient>(
+  dependencies: BearerAuthenticatorDependencies<Client>,
 ) {
   return async function requireAuthenticatedUser(
     request: Request,
-  ): Promise<AuthenticatedUserContext<Client, User>> {
+  ): Promise<AuthenticatedUserContext<Client>> {
     const accessToken = readBearerToken(request);
     const client = dependencies.createUserScopedClient(accessToken);
     const { data, error } = await client.auth.getUser(accessToken);
@@ -57,6 +64,10 @@ export function createBearerAuthenticator<Client extends ServerValidatedUserClie
       throw new AuthenticationError("The access token is invalid or expired");
     }
 
-    return { client, user: data.user, accessToken };
+    return {
+      client,
+      user: data.user as ClientUser<Client>,
+      accessToken,
+    };
   };
 }
