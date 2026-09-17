@@ -224,7 +224,10 @@ export async function publishStoredPublication(
   const stored = await runStore.get(runId);
   if (!stored) throw new Error("Publication run not found");
 
-  const adapters = createProductionPublishingAdapters(manifest, productionOptions(manifest));
+  const adapters = createProductionPublishingAdapters(manifest, {
+    ...productionOptions(manifest),
+    requireDelivery: true,
+  });
   const memory = createSupabaseStoryMemory(publicationId);
 
   return publishApprovedEdition(adapters, manifest, stored, {
