@@ -142,3 +142,34 @@ A production publication does not have to wait for every auxiliary service:
 - no Trigger.dev → an admin can run and approve previews manually in Studio.
 
 Delivery is never silently simulated after approval. A real enabled publisher must be configured for production use.
+
+
+## Semantic story memory
+
+Publications may opt into `integrations.embeddings`. When
+`PUBLICATION_EMBEDDINGS_ENDPOINT` is configured, Studio batches discovered
+story title/summary text to a FastEmbed-compatible HTTP service and expects
+384-dimensional vectors.
+
+The vectors are attached before historical deduplication, stored in
+`publication_story_memory.embedding`, and matched with cosine distance through
+the service-role-only `match_publication_story_memory` database function.
+
+If the embedding service is unavailable or returns an invalid response, the
+pipeline falls back to URL/title repeat matching rather than blocking the
+newsletter.
+
+## Delivery invariants
+
+Approval is intentionally fail-closed:
+
+- an enabled, configured Resend or listmonk provider is required before the
+  database approval claim is taken;
+- the exact reviewed artifact is delivered without rerunning research or Claude;
+- the provider receipt is persisted immediately after the delivery API accepts
+  the edition;
+- analytics or story-memory failures after delivery become run warnings and do
+  not change a successfully sent edition back to `failed`.
+
+This avoids accidental duplicate sends caused by retrying an edition that was
+actually accepted by the delivery provider.
