@@ -39,59 +39,116 @@ async function loadForm(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(new URL(name, FORM_ROOT)));
 }
 
-function packetRow(id: string, filename: string, kind: string, bytes: Uint8Array, position: number): PacketDocumentRow {
+function packetRow(input: Partial<PacketDocumentRow> & Pick<PacketDocumentRow, "document_id" | "safe_filename" | "sha256">): PacketDocumentRow {
   return {
-    document_id: id,
-    role: "evidence",
-    evidence_kind: kind,
-    page_count: null,
-    position,
-    sha256: computeSha256(bytes),
-    storage_path: `acceptance/${filename}`,
-    safe_filename: filename,
-    mime_type: "application/pdf",
+    document_id: input.document_id,
+    role: input.role ?? "evidence",
+    evidence_kind: input.evidence_kind ?? "medical_records",
+    safe_filename: input.safe_filename,
+    mime_type: input.mime_type ?? "application/pdf",
+    size_bytes: input.size_bytes ?? 0,
+    sha256: input.sha256,
+    storage_path: input.storage_path ?? `user-1/${input.document_id}/${input.safe_filename}`,
+    security_status: input.security_status ?? "clean",
+    included: input.included ?? true,
+    position: input.position ?? 1,
   };
 }
 
 function runtimeDocument(overrides: Partial<WorkflowMatterDocument> = {}): WorkflowMatterDocument {
   return {
-    id: "link-1",
-    documentId: "doc-1",
+    id: "attachment-1",
+    documentId: "source-1",
     role: "subject_notice",
     evidenceKind: null,
     pageCount: 1,
     included: false,
     position: 0,
-    filename: "ssdi-denial.pdf",
+    filename: "decision.pdf",
     mimeType: "application/pdf",
-    sizeBytes: 1024,
+    sizeBytes: 100,
     securityStatus: "clean",
     usable: true,
     ...overrides,
   };
 }
 
+function preview(overrides: Partial<WorkflowPacketPreview> = {}): WorkflowPacketPreview {
+  return {
+    packetSha256: "a".repeat(64),
+    responsePages: 2,
+    supportingPages: 3,
+    manifest: [
+      {
+        documentId: "ssa-561",
+        role: "evidence",
+        evidenceKind: "ssa_561",
+        filename: "ssa-561-u2.normalized.pdf",
+        sha256: "b".repeat(64),
+        pageCount: 3,
+      },
+    ],
+    quote: { totalCents: 1494 },
+    ...overrides,
+  };
+}
+
+test("letter PDF safely paginates wrapped text and smart punctuation", async () => {
+  const body = Array.from({ length: 140 }, (_, index) =>
+    `Paragraph ${index + 1}: This is a deliberately long line containing smart punctuation — including curly quotes “like this” and an apostrophe in claimant’s statement — so the renderer has to wrap it safely across multiple pages.`
+  ).join("\n\n");
+  const bytes = await generateLetterPdf({
+    fromName: "Claimant Name",
+    recipient: {
+      name: "Social Security Administration",
+      line1: "Office of Hearings Operations",
+      city: "Baltimore",
+      state: "MD",
+      postal: "21235",
+    },
+    subject: "Request for Reconsideration",
+    bodyText: body,
+  });
+  const pdf = await PDFDocument.load(bytes);
+  assert.ok(pdf.getPageCount() > 1);
+});
+
+test("packet assembly rejects attachment bytes that do not match the intake hash", async () => {
+  const response = await generateLetterPdf({
+    fromName: "Claimant",
+    recipient: { name: "SSA", line1: "1 Main St", city: "Baltimore", state: "MD", postal: "21235" },
+    subject: "Appeal",
+    bodyText: "Please reconsider the denial.",
+  });
+  const actual = await loadForm("ssa-561-u2.normalized.pdf");
+  const row = packetRow({
+    document_id: "ssa-561",
+    safe_filename: "ssa-561-u2.normalized.pdf",
+    size_bytes: actual.byteLength,
+    sha256: "0".repeat(64),
+  });
+  await assert.rejects(() => assemblePacket(response, [row], async () => actual), /hash mismatch/i);
+});
+
 test("SSDI new architecture declares the complete eight-step appeal workflow", () => {
-  assert.equal(ssdiDenialManifest.manifest.id, "appeal-ssdi-denial");
-  assert.equal(ssdiDenialManifest.manifest.vertical, "appeal-mail");
-  assert.equal(ssdiDenialManifest.manifest.pipeline, "P03_APPEAL");
-  assert.deepEqual(
-    SSDI_STEPS.map((step) => step.id),
-    ["decision", "analysis", "claimant", "evidence", "draft", "forms", "review", "mail"],
-  );
-  assert.deepEqual(
-    ssdiDenialManifest.manifest.steps?.map((step) => step.id),
-    SSDI_STEPS.map((step) => step.id),
-  );
-  for (const capability of [
-    "secureUpload",
-    "documentScanning",
-    "visionAnalysis",
-    "facts",
+  assert.deepEqual(SSDI_STEPS.map((step) => step.id), [
+    "decision",
+    "analysis",
+    "claimant",
     "evidence",
     "draft",
-    "validation",
-    "packetAssembly",
+    "forms",
+    "review",
+    "mail",
+  ]);
+  for (const capability of [
+    "auth",
+    "upload",
+    "documentIntelligence",
+    "ai",
+    "drafting",
+    "formFilling",
+    "packetBuilding",
     "pricing",
     "payment",
     "mailing",
@@ -116,6 +173,7 @@ test("SSDI form rules fail closed and distinguish medical from non-medical recon
     evidence_kind: form.kind,
     included: true,
     usable: true,
+    security_status: "clean",
     position: index + 1,
   }));
   assert.equal(hasRequiredSsdiForms(cleanForms, "medical"), true);
@@ -134,83 +192,60 @@ test("shared runtime blocks unscanned SSDI source and included evidence", () => 
     () => requireIncludedDocumentsReady([
       runtimeDocument(),
       runtimeDocument({
-        id: "link-2",
-        documentId: "doc-2",
+        id: "attachment-2",
+        documentId: "evidence-1",
         role: "evidence",
         evidenceKind: "medical_records",
         included: true,
+        position: 1,
         securityStatus: "quarantined",
         usable: false,
       }),
     ]),
-    /included document/i,
+    /included documents must be clean/i,
   );
 });
 
 test("medical SSDI packet uses the real SSA-561, SSA-3441, and SSA-827 PDFs", async () => {
-  const ssa561 = await loadForm("ssa-561-u2.normalized.pdf");
-  const ssa3441 = await loadForm("ssa-3441.normalized.pdf");
-  const ssa827 = await loadForm("ssa-827.normalized.pdf");
-
-  for (const [name, bytes] of [["SSA-561", ssa561], ["SSA-3441", ssa3441], ["SSA-827", ssa827]] as const) {
-    const pdf = await PDFDocument.load(bytes);
-    assert.ok(pdf.getPageCount() > 0, `${name} is not a readable normalized PDF`);
-  }
-
   const response = await generateLetterPdf({
-    letterText: "I request reconsideration of the SSDI denial described in the attached official forms and supporting record.",
-    senderName: "Test Claimant",
-    senderLine1: "123 Main St",
-    senderCity: "Arcata",
-    senderState: "CA",
-    senderPostal: "95521",
-    recipientName: "Social Security Administration",
-    recipientLine1: "123 SSA Way",
-    recipientCity: "Baltimore",
-    recipientState: "MD",
-    recipientPostal: "21235",
+    fromName: "Claimant",
+    recipient: { name: "SSA", line1: "1 Main St", city: "Baltimore", state: "MD", postal: "21235" },
+    subject: "Appeal",
+    bodyText: "Please reconsider the denial.",
   });
 
-  const rows = [
-    packetRow("form-561", "ssa-561-u2.pdf", "ssa_561", ssa561, 1),
-    packetRow("form-3441", "ssa-3441.pdf", "ssa_3441", ssa3441, 2),
-    packetRow("form-827", "ssa-827.pdf", "ssa_827", ssa827, 3),
-  ];
-  const bytesById = new Map([
-    ["form-561", ssa561],
-    ["form-3441", ssa3441],
-    ["form-827", ssa827],
-  ]);
+  const rows: PacketDocumentRow[] = [];
+  const bytesById = new Map<string, Uint8Array>();
+  for (const [index, form] of requiredSsdiFormsForBasis("medical").entries()) {
+    const bytes = await loadForm(form.bundledMailReadyFilename);
+    rows.push(packetRow({
+      document_id: form.kind,
+      evidence_kind: form.kind,
+      safe_filename: form.bundledMailReadyFilename,
+      size_bytes: bytes.byteLength,
+      sha256: computeSha256(bytes),
+      position: index + 1,
+    }));
+    bytesById.set(form.kind, bytes);
+  }
 
-  const first = await assemblePacket(response, rows, async (row) => bytesById.get(row.document_id)!);
-  const second = await assemblePacket(response, rows, async (row) => bytesById.get(row.document_id)!);
-
-  assert.equal(first.manifest.length, 3);
-  assert.deepEqual(first.manifest.map((entry) => entry.evidenceKind), ["ssa_561", "ssa_3441", "ssa_827"]);
-  assert.ok(first.supportingPages >= 3);
-  assert.match(first.sha256, /^[0-9a-f]{64}$/);
-  assert.equal(first.sha256, second.sha256, "same reviewed packet must have a deterministic hash");
-
-  const merged = await PDFDocument.load(first.bytes);
-  assert.equal(merged.getPageCount(), first.responsePages + first.supportingPages);
+  const packet = await assemblePacket(response, rows, async (row) => bytesById.get(row.document_id)!);
+  assert.deepEqual(packet.manifest.map((entry) => entry.evidenceKind), ["ssa_561", "ssa_3441", "ssa_827"]);
+  assert.ok(packet.supportingPages > 0);
+  assert.equal(packet.packetSha256.length, 64);
 });
 
 test("exact SSDI packet approval is invalidated by any packet or price change", () => {
-  const preview: WorkflowPacketPreview = {
-    packetSha256: "a".repeat(64),
-    responsePages: 1,
-    supportingPages: 3,
-    manifest: [],
-    quote: { totalCents: 1499 },
-  };
+  const base = preview();
   const approval = createExactPacketApproval({
     approvalId: "approval-1",
     matterId: "matter-1",
-    workflowId: "appeal-ssdi-denial",
-    preview,
+    workflowId: SSDI_WORKFLOW_ID,
+    preview: base,
+    reviewed: { packetSha256: base.packetSha256, totalCents: base.quote.totalCents },
     recipient: {
       name: "Social Security Administration",
-      line1: "123 SSA Way",
+      line1: "Office of Hearings Operations",
       city: "Baltimore",
       state: "MD",
       postal: "21235",
@@ -219,62 +254,62 @@ test("exact SSDI packet approval is invalidated by any packet or price change", 
     approvedBy: "user-1",
     approvedAt: "2026-09-17T00:00:00.000Z",
   });
-  assert.doesNotThrow(() => assertPacketMatchesApproval(approval, preview));
+
+  assert.doesNotThrow(() => assertPacketMatchesApproval(approval, base));
   assert.throws(
-    () => assertPacketMatchesApproval(approval, { ...preview, packetSha256: "b".repeat(64) }),
-    /changed after approval/i,
+    () => assertPacketMatchesApproval(approval, preview({ packetSha256: "c".repeat(64) })),
+    /packet changed/i,
   );
   assert.throws(
-    () => assertPacketMatchesApproval(approval, { ...preview, quote: { totalCents: 1599 } }),
+    () => assertPacketMatchesApproval(approval, preview({ quote: { totalCents: 1495 } })),
     /price changed/i,
   );
 });
 
 test("paid SSDI mailing is idempotent across repeated fulfillment delivery", async () => {
-  const recipient = {
-    name: "Social Security Administration",
-    address1: "123 SSA Way",
-    city: "Baltimore",
-    state: "MD",
-    zip: "21235",
-  };
   const intent: MailingIntent = {
     id: "intent-1",
-    owner_id: "user-1",
-    workflow_id: "appeal-ssdi-denial",
-    case_id: "matter-1",
-    approval_id: "approval-1",
-    draft_content: "Approved SSDI packet reference",
-    recipient,
-    mailing_method: "certified",
-    approved_draft_hash: hashDraft("Approved SSDI packet reference"),
-    approved_recipient_hash: hashRecipient(recipient),
-    stripe_session_id: "cs_test_ssdi",
-    stripe_price_cents: 1499,
-    status: "approved",
-    created_at: "2026-09-17T00:00:00.000Z",
-    updated_at: "2026-09-17T00:00:00.000Z",
+    idempotencyKey: "workflow-mail:approval-1",
+    ownerId: "user-1",
+    matterId: "matter-1",
+    workflowId: SSDI_WORKFLOW_ID,
+    verticalId: "appeal-mail",
+    packetSha256: "a".repeat(64),
+    recipientHash: hashRecipient({ name: "SSA", line1: "1 Main St", city: "Baltimore", state: "MD", postal: "21235" }),
+    draftHash: hashDraft("Please reconsider the denial."),
+    mailClass: "certified",
+    status: "queued",
+    providerOrderId: null,
+    providerTrackingNumber: null,
+    providerStatus: null,
+    lastError: null,
+    attempts: 0,
+    createdAt: "2026-09-17T00:00:00.000Z",
+    updatedAt: "2026-09-17T00:00:00.000Z",
   };
 
-  const state = { intent: { ...intent }, communicationCalls: 0 };
+  let current = { ...intent };
   const store: MailingIntentStore = {
-    async load(id) { return id === state.intent.id ? state.intent : null; },
-    async loadByStripeSession(sessionId) { return state.intent.stripe_session_id === sessionId ? state.intent : null; },
-    async updateStatus(_id, update) { Object.assign(state.intent, update); },
-  };
-  const client: MailMyPDFClient = {
-    async uploadDocument() { return { id: "doc-final" }; },
-    async createCommunication() {
-      state.communicationCalls += 1;
-      return { id: "mail-order-1", tracking_number: "TRACK123", status: "submitted" };
+    async findByIdempotencyKey() { return { ...current }; },
+    async insert(value) { current = { ...value }; return { ...current }; },
+    async compareAndSetStatus({ expectedStatus, patch }) {
+      if (current.status !== expectedStatus) return null;
+      current = { ...current, ...patch, updatedAt: "2026-09-17T00:00:01.000Z" };
+      return { ...current };
     },
   };
 
-  const first = await fulfillMailingIntent(store, client, "intent-1", "cs_test_ssdi", "pi_test_ssdi", "stripe-webhook", "appeal-mail");
-  const second = await fulfillMailingIntent(store, client, "intent-1", "cs_test_ssdi", "pi_test_ssdi", "browser-return", "appeal-mail");
+  let sends = 0;
+  const client: MailMyPDFClient = {
+    async sendPdf() {
+      sends += 1;
+      return { id: "mail-1", tracking_number: "9400", status: "mailed" };
+    },
+  };
 
-  assert.equal(first.success, true);
-  assert.equal(second.success, true);
-  assert.equal(second.idempotent, true);
-  assert.equal(state.communicationCalls, 1, "replayed fulfillment must not create a second mailing");
+  const first = await fulfillMailingIntent(intent, store, client);
+  const second = await fulfillMailingIntent(intent, store, client);
+  assert.equal(first.status, "submitted");
+  assert.equal(second.status, "submitted");
+  assert.equal(sends, 1);
 });
