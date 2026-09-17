@@ -22,5 +22,13 @@
     "acceptanceTestFile": "tests/acceptance/appeal-ssdi-denial/run.acceptance.ts",
     "scenariosDir": "tests/acceptance/appeal-ssdi-denial/scenarios",
     "runsDir": "tests/acceptance/appeal-ssdi-denial/runs"
+  },
+  "appeal-denied-claim": {
+    "vertical": "appeal-mail",
+    "verticalDir": "appeal-mail",
+    "acceptanceConfig": "vitest.acceptance.config.ts",
+    "acceptanceTestFile": "tests/acceptance/appeal-denied-claim/run.acceptance.ts",
+    "scenariosDir": "tests/acceptance/appeal-denied-claim/scenarios",
+    "runsDir": "tests/acceptance/appeal-denied-claim/runs"
   }
 }
