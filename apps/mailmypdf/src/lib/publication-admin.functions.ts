@@ -65,6 +65,10 @@ export const listPublicationsForAdmin = createServerFn({ method: "GET" })
             enabled: manifest.integrations.crawl4ai === true,
             configured: configured("CRAWL4AI_ENDPOINT"),
           },
+          embeddings: {
+            enabled: manifest.integrations.embeddings === true,
+            configured: configured("PUBLICATION_EMBEDDINGS_ENDPOINT"),
+          },
           resend: {
             enabled: manifest.integrations.resend === true,
             configured:
