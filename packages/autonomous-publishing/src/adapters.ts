@@ -24,6 +24,13 @@ export interface ScoringAdapter {
   score(stories: readonly StoryCandidate[], manifest: PublicationManifest): Promise<readonly StoryCandidate[]>;
 }
 
+export interface StoryEmbeddingAdapter {
+  embed(
+    stories: readonly StoryCandidate[],
+    manifest: PublicationManifest,
+  ): Promise<readonly StoryCandidate[]>;
+}
+
 export interface PlanningAdapter {
   plan(
     stories: readonly StoryCandidate[],
@@ -61,6 +68,7 @@ export interface AnalyticsAdapter {
 export interface PublishingAdapters {
   discovery: DiscoveryAdapter;
   scoring: ScoringAdapter;
+  embeddings?: StoryEmbeddingAdapter;
   research: ResearchAdapter;
   planning: PlanningAdapter;
   verification: DraftVerificationAdapter;
