@@ -53,6 +53,7 @@ function assertDeliveryConfigured(manifest: PublicationManifest) {
 function productionOptions(manifest: PublicationManifest) {
   const horizonEndpoint = envValue("HORIZON_ENDPOINT");
   const crawlEndpoint = envValue("CRAWL4AI_ENDPOINT");
+  const embeddingsEndpoint = envValue("PUBLICATION_EMBEDDINGS_ENDPOINT");
   const resendKey = envValue("RESEND_API_KEY");
   const resendSegment = envValue("RESEND_SEGMENT_ID");
   const resendFrom = envValue("RESEND_FROM") ?? envValue("RESEND_FROM_ADDRESS");
@@ -73,6 +74,14 @@ function productionOptions(manifest: PublicationManifest) {
     crawl4ai:
       manifest.integrations.crawl4ai === true && crawlEndpoint
         ? { endpoint: crawlEndpoint, token: envValue("CRAWL4AI_TOKEN") }
+        : undefined,
+    embeddings:
+      manifest.integrations.embeddings === true && embeddingsEndpoint
+        ? {
+            endpoint: embeddingsEndpoint,
+            token: envValue("PUBLICATION_EMBEDDINGS_TOKEN"),
+            dimensions: 384,
+          }
         : undefined,
     resend:
       manifest.integrations.resend === true && resendKey && resendSegment && resendFrom
