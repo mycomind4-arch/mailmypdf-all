@@ -6,12 +6,14 @@ import { NOTICE_WORKFLOW_CONFIGS, isNoticeWorkflowId, type NoticeWorkflowId } fr
 
 const bounded = (max: number) => z.string().trim().max(max);
 const optionalBounded = (max: number) => bounded(max).optional().default("");
+
 const sharedNoticeIdentity = {
   taxpayerName: bounded(200).min(1),
   ssnOrItin: bounded(20).min(1),
   taxpayerAddress: bounded(800).min(1),
   returnAddress: optionalBounded(800),
 };
+
 const cp14Input = z.object({
   ...sharedNoticeIdentity,
   taxYear: bounded(20).min(1),
@@ -24,7 +26,6 @@ const cp14Input = z.object({
   userFacts: optionalBounded(12000),
   requestedOutcome: optionalBounded(2000),
 });
-
 
 const cp523Input = z.object({
   ...sharedNoticeIdentity,
@@ -59,7 +60,32 @@ const cp2000Input = z.object({
   userFacts: optionalBounded(12000),
 });
 
-export type NoticeResponseInput = z.infer<typeof cp14Input> | z.infer<typeof cp2000Input> | z.infer<typeof cp504Input> | z.infer<typeof cp523Input>;
+const ssdiReconsiderationInput = z.object({
+  claimantName: bounded(200).min(1),
+  claimantAddress: bounded(1000).min(1),
+  phone: bounded(60).min(1),
+  representativeName: optionalBounded(200),
+  responseMode: z.literal("reconsideration"),
+  confirmedReconsideration: z.literal(true),
+  reasonsForDisagreement: bounded(8000).min(1),
+  conditionChanges: optionalBounded(8000),
+  newConditions: optionalBounded(8000),
+  treatmentChanges: optionalBounded(8000),
+  medicationChanges: optionalBounded(8000),
+  workChanges: optionalBounded(8000),
+  dailyFunctionChanges: optionalBounded(8000),
+  additionalFacts: optionalBounded(12000),
+  requestedOutcome: optionalBounded(2000),
+});
+
+export type NoticeResponseInput =
+  | z.infer<typeof cp14Input>
+  | z.infer<typeof cp2000Input>
+  | z.infer<typeof cp504Input>
+  | z.infer<typeof cp523Input>;
+
+export type SsdiReconsiderationInput = z.infer<typeof ssdiReconsiderationInput>;
+export type WorkflowCaseInput = NoticeResponseInput | SsdiReconsiderationInput;
 
 const NOTICE_INPUT_SCHEMAS = {
   "cp14-response": cp14Input,
@@ -68,8 +94,17 @@ const NOTICE_INPUT_SCHEMAS = {
   "cp523-response": cp523Input,
 } as const satisfies Record<NoticeWorkflowId, z.ZodTypeAny>;
 
-export function validateCaseInput(workflowId: string, value: unknown): NoticeResponseInput {
-  if (!isNoticeWorkflowId(workflowId)) throw new CaseError("This workflow does not accept notice-response inputs");
+export function validateCaseInput(workflowId: string, value: unknown): WorkflowCaseInput {
+  if (workflowId === "ssdi-denial") {
+    const parsed = ssdiReconsiderationInput.safeParse(value);
+    if (!parsed.success) throw new CaseError("The SSDI reconsideration information is incomplete or invalid");
+    return parsed.data;
+  }
+
+  if (!isNoticeWorkflowId(workflowId)) {
+    throw new CaseError("This workflow does not accept structured case inputs");
+  }
+
   const schema = NOTICE_INPUT_SCHEMAS[workflowId];
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new CaseError("The workflow information is incomplete or invalid");
@@ -107,7 +142,7 @@ export async function saveCaseInput(
 export async function loadLatestCaseInput(
   caseId: string,
   context: AuthenticatedUserContext,
-): Promise<{ version: number; input: NoticeResponseInput } | null> {
+): Promise<{ version: number; input: WorkflowCaseInput } | null> {
   const workflowCase = await loadCase(caseId, context);
   resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
   const { data, error } = await context.supabase
