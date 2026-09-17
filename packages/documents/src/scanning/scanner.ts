@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import {
   computeSha256,
   evaluateQuarantinedDocument,
@@ -53,9 +52,14 @@ export interface MalwareScannerClient {
 }
 
 function equalSecret(candidate: string, expected: string): boolean {
-  const candidateBytes = Buffer.from(candidate);
-  const expectedBytes = Buffer.from(expected);
-  return candidateBytes.length === expectedBytes.length && timingSafeEqual(candidateBytes, expectedBytes);
+  const left = new TextEncoder().encode(candidate);
+  const right = new TextEncoder().encode(expected);
+  const length = Math.max(left.length, right.length);
+  let difference = left.length ^ right.length;
+  for (let index = 0; index < length; index += 1) {
+    difference |= (left[index] ?? 0) ^ (right[index] ?? 0);
+  }
+  return difference === 0;
 }
 
 export function requireJobAuthorization(
@@ -109,7 +113,7 @@ export function createHttpMalwareScanner(input: {
 
       if (!response.ok) throw new Error(`Scanner returned HTTP ${response.status}`);
       const responseText = await response.text();
-      if (Buffer.byteLength(responseText) > maxResponseBytes) {
+      if (new TextEncoder().encode(responseText).byteLength > maxResponseBytes) {
         throw new Error("Scanner response is too large");
       }
 
