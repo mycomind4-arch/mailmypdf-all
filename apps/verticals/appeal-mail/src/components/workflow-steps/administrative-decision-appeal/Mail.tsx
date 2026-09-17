@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, CheckboxField, StatusPill } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
 import type { AdministrativeDecisionAppealIntake } from "@/domain/step-workflows/administrative-decision-appeal";
 import { ADMINISTRATIVE_DECISION_APPEAL_PRICING } from "@/domain/administrative-decision-appeal-gold";
 
