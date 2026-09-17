@@ -24,7 +24,7 @@ jobs:
             -dDetectDuplicateImages=true -dCompressFonts=true \
             -sOutputFile=/tmp/ssa-normalized/ssa-561-u2.normalized.pdf \
             appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.pdf
-          pdfinfo /tmp/ssa-normalized/ssa-561-u2.normalized.pdf
+          test -s /tmp/ssa-normalized/ssa-561-u2.normalized.pdf
           base64 -w 0 /tmp/ssa-normalized/ssa-561-u2.normalized.pdf > /tmp/ssa-normalized/ssa-561-u2.normalized.pdf.b64
       - name: Upload normalized form
         uses: actions/upload-artifact@v4
