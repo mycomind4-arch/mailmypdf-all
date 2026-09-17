@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Social Security reconsideration document</title>
+  <desc id="desc">A document-style illustration for the SSDI denial appeal workflow showing a Request for Reconsideration, Form SSA-561.</desc>
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8a5b3c"/>
+      <stop offset="1" stop-color="#5f3a27"/>
+    </linearGradient>
+    <linearGradient id="book" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#243f5f"/>
+      <stop offset="1" stop-color="#10283d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#142638" flood-opacity=".24"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#wood)"/>
+  <g opacity=".22" stroke="#d7b090" stroke-width="3">
+    <path d="M0 90 C250 40 430 150 720 95 S1020 45 1200 100" fill="none"/>
+    <path d="M0 650 C260 600 470 715 760 655 S1040 600 1200 660" fill="none"/>
+  </g>
+
+  <g transform="translate(-90,-80) rotate(-6 400 300)" filter="url(#shadow)">
+    <rect x="0" y="0" width="820" height="520" rx="28" fill="url(#book)"/>
+    <path d="M70 30 H760" stroke="#496887" stroke-width="3" opacity=".55"/>
+    <path d="M55 480 H745" stroke="#0b2032" stroke-width="5" opacity=".65"/>
+  </g>
+
+  <g transform="translate(165,150) rotate(-7 500 300)" filter="url(#shadow)">
+    <rect x="0" y="0" width="910" height="590" rx="8" fill="#fffdf9"/>
+    <rect x="0" y="0" width="910" height="590" rx="8" fill="none" stroke="#ded6c8" stroke-width="2"/>
+
+    <text x="86" y="112" fill="#142638" font-family="Georgia, 'Times New Roman', serif" font-size="44">Social Security Administration</text>
+    <line x1="82" y1="146" x2="820" y2="146" stroke="#142638" stroke-width="3"/>
+
+    <text x="86" y="244" fill="#10283d" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="700">Request for Reconsideration</text>
+    <line x1="82" y1="286" x2="820" y2="286" stroke="#142638" stroke-width="3"/>
+
+    <text x="86" y="366" fill="#142638" font-family="Georgia, 'Times New Roman', serif" font-size="52">Form SSA-561</text>
+
+    <g opacity=".48" stroke="#c9bdab" stroke-width="2">
+      <line x1="86" y1="430" x2="650" y2="430"/>
+      <line x1="86" y1="474" x2="742" y2="474"/>
+      <line x1="86" y1="518" x2="580" y2="518"/>
+    </g>
+  </g>
+
+  <g transform="translate(835,510) rotate(30)" filter="url(#shadow)">
+    <rect x="0" y="0" width="330" height="44" rx="22" fill="#0f2740"/>
+    <rect x="20" y="4" width="210" height="36" rx="18" fill="#173a5e"/>
+    <rect x="230" y="5" width="58" height="34" fill="#c7b08c"/>
+    <path d="M288 5 L350 22 L288 39 Z" fill="#d7c7ac"/>
+    <path d="M342 19 L365 22 L342 25 Z" fill="#4b5563"/>
+  </g>
+</svg>
