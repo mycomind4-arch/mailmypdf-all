@@ -13,6 +13,10 @@
     "./case-analysis-orchestrator": {
       "types": "./src/case-analysis-orchestrator.ts",
       "import": "./dist/case-analysis-orchestrator.js"
+    },
+    "./schemas/claim-denial-letter": {
+      "types": "./src/schemas/claim-denial-letter.ts",
+      "import": "./dist/schemas/claim-denial-letter.js"
     }
   },
   "dependencies": {
