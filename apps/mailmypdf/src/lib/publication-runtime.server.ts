@@ -326,7 +326,7 @@ export async function listPublicationRuns(publicationId?: string) {
 export async function getPublicationRun(runId: string) {
   const { data, error } = await (supabaseAdmin as any)
     .from("publication_runs")
-    .select("run_id,publication_id,edition_id,subject,status,stage,rendered_json,provider_id,publication_url,approved_by,approved_at,approval_note,created_at,updated_at")
+    .select("run_id,publication_id,edition_id,subject,status,stage,run_json,rendered_json,provider_id,publication_url,approved_by,approved_at,approval_note,created_at,updated_at")
     .eq("run_id", runId)
     .maybeSingle();
   if (error) throw new Error(error.message);
