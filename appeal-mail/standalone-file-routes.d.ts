@@ -19,6 +19,7 @@ declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
     "/appeal-mail/": StandaloneRouteInfo<"/appeal-mail/">;
     "/appeal-mail/workflows/appeal-car-insurance-claim/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-car-insurance-claim/">;
+    "/appeal-mail/workflows/appeal-car-insurance-claim/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-car-insurance-claim/start/">;
     "/appeal-mail/workflows/appeal-denied-claim/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-denied-claim/">;
     "/appeal-mail/workflows/appeal-denied-claim/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-denied-claim/start/">;
     "/appeal-mail/workflows/appeal-dental-insurance-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-dental-insurance-denial/">;
@@ -48,6 +49,7 @@ declare module "@tanstack/react-router" {
     "/appeal-mail/workflows/appeal-ssdi-denial/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssdi-denial/start/">;
     "/appeal-mail/workflows/appeal-ssi-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssi-denial/">;
     "/appeal-mail/workflows/appeal-timely-filing-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-timely-filing-denial/">;
+    "/appeal-mail/workflows/appeal-timely-filing-denial/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-timely-filing-denial/start/">;
     "/appeal-mail/workflows/appeal-unemployment-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-unemployment-denial/">;
     "/appeal-mail/workflows/dmv-suspension-revocation-appeal/": StandaloneRouteInfo<"/appeal-mail/workflows/dmv-suspension-revocation-appeal/">;
     "/appeal-mail/workflows/fafsa-special-circumstances-appeal/": StandaloneRouteInfo<"/appeal-mail/workflows/fafsa-special-circumstances-appeal/">;
