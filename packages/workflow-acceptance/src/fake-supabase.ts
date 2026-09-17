@@ -72,7 +72,9 @@ export class FakeSupabaseClient {
       download: async (path: string): Promise<{ data: Blob | null; error: Error | null }> => {
         const bytes = this.storageObjects.get(`${bucket}/${path}`);
         if (!bytes) return { data: null, error: new Error(`Object not found: ${bucket}/${path}`) };
-        return { data: new Blob([bytes]), error: null };
+        const owned = new Uint8Array(bytes.byteLength);
+        owned.set(bytes);
+        return { data: new Blob([owned.buffer]), error: null };
       },
     }),
   };
