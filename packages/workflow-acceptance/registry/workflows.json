@@ -38,5 +38,13 @@
     "acceptanceTestFile": "tests/acceptance/cp14-response/run.acceptance.ts",
     "scenariosDir": "tests/acceptance/cp14-response/scenarios",
     "runsDir": "tests/acceptance/cp14-response/runs"
+  },
+  "immigration-filing-cover-letter": {
+    "vertical": "immigration-mail",
+    "verticalDir": "immigration-mail",
+    "acceptanceConfig": "vitest.acceptance.config.ts",
+    "acceptanceTestFile": "tests/acceptance/immigration-filing-cover-letter/run.acceptance.ts",
+    "scenariosDir": "tests/acceptance/immigration-filing-cover-letter/scenarios",
+    "runsDir": "tests/acceptance/immigration-filing-cover-letter/runs"
   }
 }
