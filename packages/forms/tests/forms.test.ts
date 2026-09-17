@@ -55,6 +55,21 @@ test("requirement rules resolve a deterministic form set", () => {
   assert.deepEqual(medical.map((form) => form.kind), ["form_a", "form_b"]);
 });
 
+test("requirement rules reject duplicate ids", () => {
+  assert.throws(
+    () =>
+      resolveRequiredOfficialForms(
+        registry,
+        [
+          { id: "same", when: () => true, require: ["form_a"] as const },
+          { id: "same", when: () => true, require: ["form_b"] as const },
+        ],
+        {},
+      ),
+    /Duplicate official form requirement rule id: same/,
+  );
+});
+
 test("form readiness fails closed unless every required form is clean and included", () => {
   const required = [...registry];
   const documents = [
