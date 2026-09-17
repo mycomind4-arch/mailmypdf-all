@@ -78,6 +78,8 @@ export const agencyRecordsRequestManifest = defineWorkflow({
         { id: "preferred-format", label: "Preferred production format", type: "text", required: false, origin: "user", maxLength: 300 },
         { id: "fee-limit", label: "Maximum fees authorized without further approval", type: "money", required: false, origin: "user", maxLength: 128 },
         { id: "fee-waiver-basis", label: "Fee waiver or reduction basis", type: "textarea", required: false, origin: "user", maxLength: 4000 },
+        { id: "additional-instructions", label: "Additional verified request instructions", type: "textarea", required: false, origin: "user", maxLength: 6000 },
+        { id: "scope-confirmed", label: "I confirm the agency, records scope, references, and material request facts above", type: "checkbox", required: true, origin: "user" },
       ],
     },
     {
@@ -111,6 +113,7 @@ export const agencyRecordsRequestManifest = defineWorkflow({
         { id: "authority-citation", label: "Verified citation", type: "text", required: false, origin: "either", maxLength: 500 },
         { id: "response-timing-description", label: "Verified response timing rule", type: "textarea", required: false, origin: "either", maxLength: 3000 },
         { id: "withholding-instruction", label: "Withholding or redaction instruction", type: "textarea", required: false, origin: "either", maxLength: 3000 },
+        { id: "authority-verified", label: "I verified any authority, citation, withholding, or timing language entered above", type: "checkbox", required: false, origin: "user" },
       ],
     },
     {
