@@ -46,7 +46,6 @@ export const Route = createFileRoute("/api/v2/cases/$id/checkout")({
             approvalId,
             caseId: params.id,
             workflowId: packet.workflowId,
-            verticalId: packet.verticalId,
             email: context.user.email,
           });
 
