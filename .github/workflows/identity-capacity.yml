@@ -1,8 +1,9 @@
-name: Identity Capacity
+name: Shared Intelligence
 
 on:
   push:
     paths:
+      - "packages/intelligence/**"
       - "packages/identity-capacity/**"
       - "pnpm-lock.yaml"
       - "tsconfig.json"
@@ -29,5 +30,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mailmypdf/intelligence typecheck
+      - run: pnpm turbo test --filter=@mailmypdf/intelligence
       - run: pnpm --filter @mailmypdf/identity-capacity typecheck
       - run: pnpm turbo test --filter=@mailmypdf/identity-capacity
