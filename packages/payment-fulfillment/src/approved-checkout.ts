@@ -1,3 +1,12 @@
+export interface CheckoutMailingAddress {
+  name: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postal: string;
+}
+
 export interface ApprovedPacketForCheckout {
   approvalId: string;
   matterId: string;
@@ -8,8 +17,8 @@ export interface ApprovedPacketForCheckout {
   responsePages: number;
   supportingPages: number;
   totalCents: number;
-  mailClass: string;
-  recipient: Record<string, unknown>;
+  mailClass: "standard" | "certified" | "registered";
+  recipient: CheckoutMailingAddress;
 }
 
 export interface ApprovalBoundOrder {
@@ -32,7 +41,7 @@ export interface ApprovalOrderStore {
     lookupToken: string;
     ownerId: string;
     email: string;
-    sender: Record<string, unknown>;
+    sender: CheckoutMailingAddress;
     packet: ApprovedPacketForCheckout;
     filename: string;
     pageCount: number;
@@ -106,6 +115,25 @@ function assertPacketIdentity(order: ApprovalBoundOrder, packet: ApprovedPacketF
   }
 }
 
+function assertPacketMetadata(packet: ApprovedPacketForCheckout): void {
+  if (!/^[0-9a-f]{64}$/i.test(packet.packetSha256)) {
+    throw new ApprovalCheckoutError("Approved packet hash is invalid.", "APPROVED_PACKET_HASH_INVALID");
+  }
+  if (!Number.isSafeInteger(packet.responsePages) || packet.responsePages < 1 ||
+      !Number.isSafeInteger(packet.supportingPages) || packet.supportingPages < 0) {
+    throw new ApprovalCheckoutError("Approved packet page counts are invalid.", "APPROVED_PAGE_COUNT_INVALID");
+  }
+  if (!Number.isSafeInteger(packet.totalCents) || packet.totalCents < 0) {
+    throw new ApprovalCheckoutError("Approved packet price is invalid.", "APPROVED_PRICE_INVALID");
+  }
+}
+
+async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+  const copy = Uint8Array.from(bytes);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", copy);
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 function randomToken(bytes = 24): string {
   const data = new Uint8Array(bytes);
   globalThis.crypto.getRandomValues(data);
@@ -114,23 +142,34 @@ function randomToken(bytes = 24): string {
 
 /**
  * Creates exactly one order for one immutable approval. The exact PDF is
- * parsed and recounted before storage. A concurrent unique-conflict winner is
- * reloaded and revalidated instead of creating a second order.
+ * re-hashed, parsed and recounted before storage. A concurrent unique-conflict
+ * winner is reloaded and revalidated instead of creating a second order.
  */
 export async function createOrLoadApprovalOrder(input: {
   packet: ApprovedPacketForCheckout;
   ownerId: string;
   email: string;
-  sender: Record<string, unknown>;
+  sender: CheckoutMailingAddress;
   store: ApprovalOrderStore;
   vault: ApprovalPacketVault;
   id?: () => string;
   token?: () => string;
+  hashBytes?: (bytes: Uint8Array) => Promise<string>;
 }): Promise<ApprovalBoundOrder> {
+  assertPacketMetadata(input.packet);
+
   const existing = await input.store.loadByApproval(input.packet.approvalId);
   if (existing) {
     assertPacketIdentity(existing, input.packet);
     return existing;
+  }
+
+  const actualHash = await (input.hashBytes ?? sha256Bytes)(input.packet.bytes);
+  if (actualHash.toLowerCase() !== input.packet.packetSha256.toLowerCase()) {
+    throw new ApprovalCheckoutError(
+      "Approved packet bytes changed before order creation.",
+      "APPROVED_PACKET_CHANGED",
+    );
   }
 
   const validated = await input.vault.validatePdf(input.packet.bytes);
