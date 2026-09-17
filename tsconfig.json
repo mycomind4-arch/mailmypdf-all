@@ -45,6 +45,9 @@
       "path": "./packages/forms"
     },
     {
+      "path": "./packages/audit"
+    },
+    {
       "path": "./packages/packet-builder"
     },
     {
