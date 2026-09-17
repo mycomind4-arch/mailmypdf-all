@@ -48,15 +48,19 @@ function baseStore(): ApprovalOrderStore {
 }
 
 test("reconciles a concurrent one-approval/one-order race", async () => {
+  let lookupCount = 0;
+  let uploaded = false;
   let removed = "";
   const winner = order({ id: "winner" });
   const store: ApprovalOrderStore = {
     ...baseStore(),
-    async loadByApproval() { return winner; },
+    async loadByApproval() {
+      lookupCount += 1;
+      return lookupCount === 1 ? null : winner;
+    },
+    async create() { return { conflict: true }; },
   };
 
-  // Existing winner should short-circuit before a second upload.
-  let uploaded = false;
   const result = await createOrLoadApprovalOrder({
     packet,
     ownerId: "user-1",
@@ -69,9 +73,11 @@ test("reconciles a concurrent one-approval/one-order race", async () => {
       async remove(path) { removed = path; },
     },
   });
+
   assert.equal(result.id, "winner");
-  assert.equal(uploaded, false);
-  assert.equal(removed, "");
+  assert.equal(uploaded, true);
+  assert.equal(removed, "temp");
+  assert.equal(lookupCount, 2);
 });
 
 test("fails closed if PDF recount differs from approved page totals", async () => {
