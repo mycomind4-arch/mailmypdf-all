@@ -1,3 +1,11 @@
+import {
+  createOfficialFormRegistry,
+  hasRequiredOfficialForms,
+  resolveRequiredOfficialFormKinds,
+  resolveRequiredOfficialForms,
+  type OfficialFormRequirementRule,
+} from "@mailmypdf/forms";
+
 export const SSDI_WORKFLOW_ID = "appeal-ssdi-denial";
 export const SSDI_VERTICAL_ID = "appeal-mail";
 
@@ -14,31 +22,51 @@ export const SSDI_STEPS = [
 
 export type SsdiStepId = (typeof SSDI_STEPS)[number]["id"];
 
-export const SSDI_REQUIRED_FORMS = [
+export const SSDI_OFFICIAL_FORM_REGISTRY = createOfficialFormRegistry([
   {
     kind: "ssa_561",
-    label: "SSA-561-U2 — Request for Reconsideration",
-    filename: "ssa-561-u2.pdf",
-    bundledMailReadyFilename: "ssa-561-u2.normalized.pdf",
-    href: new URL("../forms/generated/ssa-561-u2.normalized.pdf", import.meta.url).href,
+    agency: "Social Security Administration",
+    formNumber: "SSA-561-U2",
+    title: "Request for Reconsideration",
+    sourceFilename: "ssa-561-u2.pdf",
+    mailReadyFilename: "ssa-561-u2.normalized.pdf",
+    downloadHref: new URL("../forms/generated/ssa-561-u2.normalized.pdf", import.meta.url).href,
+    source: { authority: "Social Security Administration" },
+    signatures: ["claimant"],
   },
   {
     kind: "ssa_3441",
-    label: "SSA-3441 — Disability Report — Appeal",
-    filename: "ssa-3441.pdf",
-    bundledMailReadyFilename: "ssa-3441.normalized.pdf",
-    href: new URL("../forms/generated/ssa-3441.normalized.pdf", import.meta.url).href,
+    agency: "Social Security Administration",
+    formNumber: "SSA-3441",
+    title: "Disability Report — Appeal",
+    sourceFilename: "ssa-3441.pdf",
+    mailReadyFilename: "ssa-3441.normalized.pdf",
+    downloadHref: new URL("../forms/generated/ssa-3441.normalized.pdf", import.meta.url).href,
+    source: { authority: "Social Security Administration" },
+    signatures: ["claimant"],
   },
   {
     kind: "ssa_827",
-    label: "SSA-827 — Authorization to Disclose Information",
-    filename: "ssa-827.pdf",
-    bundledMailReadyFilename: "ssa-827.normalized.pdf",
-    href: new URL("../forms/generated/ssa-827.normalized.pdf", import.meta.url).href,
+    agency: "Social Security Administration",
+    formNumber: "SSA-827",
+    title: "Authorization to Disclose Information",
+    sourceFilename: "ssa-827.pdf",
+    mailReadyFilename: "ssa-827.normalized.pdf",
+    downloadHref: new URL("../forms/generated/ssa-827.normalized.pdf", import.meta.url).href,
+    source: { authority: "Social Security Administration" },
+    signatures: ["claimant"],
   },
-] as const;
+] as const);
 
-export type SsdiOfficialFormKind = (typeof SSDI_REQUIRED_FORMS)[number]["kind"];
+export type SsdiOfficialFormKind = (typeof SSDI_OFFICIAL_FORM_REGISTRY)[number]["kind"];
+
+export const SSDI_REQUIRED_FORMS = SSDI_OFFICIAL_FORM_REGISTRY.map((form) => ({
+  kind: form.kind,
+  label: `${form.formNumber} — ${form.title}`,
+  filename: form.sourceFilename,
+  bundledMailReadyFilename: form.mailReadyFilename!,
+  href: form.downloadHref!,
+}));
 
 export const SSDI_EVIDENCE_KINDS = [
   ["medical_records", "Medical records"],
@@ -56,6 +84,19 @@ export type SsdiEvidenceKind = (typeof SSDI_EVIDENCE_KINDS)[number][0];
 
 export type SsdiDecisionBasis = "medical" | "nonmedical" | "unknown";
 
+const SSDI_FORM_REQUIREMENT_RULES: readonly OfficialFormRequirementRule<SsdiDecisionBasis, SsdiOfficialFormKind>[] = [
+  {
+    id: "medical-reconsideration",
+    when: (basis) => basis === "medical",
+    require: ["ssa_561", "ssa_3441", "ssa_827"],
+  },
+  {
+    id: "nonmedical-reconsideration",
+    when: (basis) => basis === "nonmedical",
+    require: ["ssa_561"],
+  },
+];
+
 export function isSsdiReconsiderationStage(value: unknown): boolean {
   return value === "reconsideration";
 }
@@ -65,9 +106,8 @@ export function isSupportedSsdiDecisionBasis(value: unknown): value is Exclude<S
 }
 
 export function requiredSsdiFormsForBasis(basis: SsdiDecisionBasis) {
-  if (basis === "medical") return [...SSDI_REQUIRED_FORMS];
-  if (basis === "nonmedical") return SSDI_REQUIRED_FORMS.filter((form) => form.kind === "ssa_561");
-  return [];
+  const requiredKinds = resolveRequiredOfficialFormKinds(SSDI_FORM_REQUIREMENT_RULES, basis);
+  return SSDI_REQUIRED_FORMS.filter((form) => requiredKinds.includes(form.kind));
 }
 
 export function hasRequiredSsdiForms(
@@ -79,16 +119,12 @@ export function hasRequiredSsdiForms(
   }[],
   basis: SsdiDecisionBasis,
 ): boolean {
-  const required = requiredSsdiFormsForBasis(basis);
-  return required.length > 0 && required.every((form) =>
-    documents.some(
-      (document) =>
-        document.evidence_kind === form.kind &&
-        document.included &&
-        document.usable &&
-        document.security_status === "clean",
-    ),
+  const requiredForms = resolveRequiredOfficialForms(
+    SSDI_OFFICIAL_FORM_REGISTRY,
+    SSDI_FORM_REQUIREMENT_RULES,
+    basis,
   );
+  return hasRequiredOfficialForms(documents, requiredForms);
 }
 
 export function ssdiCompletedSteps(input: {
