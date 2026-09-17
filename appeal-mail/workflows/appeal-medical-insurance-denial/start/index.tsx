@@ -1,7 +1,8 @@
+import { createFileRoute } from "@tanstack/react-router";
 import InsuranceAppealWorkflow from "../../../shared/InsuranceAppealWorkflow";
 import workflow from "../manifest";
 
-export default function MedicalInsuranceDenialStart() {
+export function MedicalInsuranceDenialStart() {
   return (
     <InsuranceAppealWorkflow
       config={{
@@ -13,3 +14,9 @@ export default function MedicalInsuranceDenialStart() {
     />
   );
 }
+
+export const Route = createFileRoute("/appeal-mail/workflows/appeal-medical-insurance-denial/start/")({
+  component: MedicalInsuranceDenialStart,
+});
+
+export default MedicalInsuranceDenialStart;
