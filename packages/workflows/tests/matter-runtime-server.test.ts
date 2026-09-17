@@ -210,6 +210,26 @@ test("shared runtime requires authentication", async () => {
   assert.equal(response.status, 401);
 });
 
+test("shared runtime exposes workflow state gates as conflicts instead of server failures", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(created)).matter.id as string;
+
+  await deps.store.saveInput("user-1", matterId, { reason: "I disagree." });
+
+  const response = await handle(request(`/matters/${matterId}/draft/generate`, { method: "POST" }));
+  assert.equal(response.status, 409);
+  const payload = await body(response);
+  assert.equal(payload.code, "SOURCE_DOCUMENT_MISSING");
+  assert.match(payload.error, /source decision notice/i);
+});
+
 test("shared runtime drives matter -> source -> analysis -> facts -> draft -> forms -> approval -> checkout", async () => {
   const deps = dependencies();
   const handle = createWorkflowRuntimeRequestHandler(deps);
