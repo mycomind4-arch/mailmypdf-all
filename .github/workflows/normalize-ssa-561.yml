@@ -1,4 +1,4 @@
-name: Normalize bundled SSA-561
+name: Finalize normalized SSA-561 migration
 
 on:
   push:
@@ -9,32 +9,25 @@ permissions:
   contents: write
 
 jobs:
-  normalize:
+  finalize:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Ghostscript
+      - name: Point SSDI acceptance at mail-ready SSA-561 and remove this migration job
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ghostscript
-      - name: Rewrite bundled SSA-561 as static PDF
-        run: |
-          mkdir -p /tmp/ssa-normalized
-          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.7 \
-            -dDetectDuplicateImages=true -dCompressFonts=true \
-            -sOutputFile=/tmp/ssa-normalized/ssa-561-u2.normalized.pdf \
-            appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.pdf
-          test -s /tmp/ssa-normalized/ssa-561-u2.normalized.pdf
-      - name: Commit normalized SSDI asset
-        run: |
-          cp /tmp/ssa-normalized/ssa-561-u2.normalized.pdf \
-            appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.normalized.pdf
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("packages/packet-builder/tests/ssdi-new-architecture.test.ts")
+          text = path.read_text()
+          old = 'const ssa561 = await normalizeBundledForm("SSA-561", "ssa-561-u2.pdf");'
+          new = 'const ssa561 = await loadForm("ssa-561-u2.normalized.pdf");'
+          if old not in text:
+              raise SystemExit("expected SSDI SSA-561 normalization line not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.normalized.pdf
-          if git diff --cached --quiet; then
-            echo "Normalized SSA-561 already committed."
-          else
-            git commit -m "fix: add mail-ready normalized SSA-561"
-            git push origin HEAD:main
-          fi
+          git add packages/packet-builder/tests/ssdi-new-architecture.test.ts
+          git rm .github/workflows/normalize-ssa-561.yml
+          git commit -m "test: use mail-ready SSA-561 asset"
+          git push origin HEAD:main
