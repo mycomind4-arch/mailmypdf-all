@@ -1,7 +1,8 @@
+import { createFileRoute } from "@tanstack/react-router";
 import InsuranceAppealWorkflow from "../../../shared/InsuranceAppealWorkflow";
 import workflow from "../manifest";
 
-export default function OutOfNetworkDenialStart() {
+export function OutOfNetworkDenialStart() {
   return (
     <InsuranceAppealWorkflow
       config={{
@@ -13,3 +14,9 @@ export default function OutOfNetworkDenialStart() {
     />
   );
 }
+
+export const Route = createFileRoute("/appeal-mail/workflows/appeal-out-of-network-denial/start/")({
+  component: OutOfNetworkDenialStart,
+});
+
+export default OutOfNetworkDenialStart;
