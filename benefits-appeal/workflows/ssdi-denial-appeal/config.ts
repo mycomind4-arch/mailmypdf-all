@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import { requireBenefitsWorkflowLaunchPath } from "../registry"
 
 export const workflowConfig = {
   id: "ssdi-denial-appeal",
@@ -6,13 +7,13 @@ export const workflowConfig = {
   sectionName: "Benefits Appeal",
   sectionPath: "/benefits-appeal",
   path: "/benefits-appeal/workflows/ssdi-denial-appeal",
-  startPath: "/benefits-appeal/workflows/ssdi-denial-appeal/start",
+  startPath: requireBenefitsWorkflowLaunchPath("ssdi-denial-appeal"),
   title: "SSDI Denial Appeal",
   seoTitle: "SSDI Denial Appeal | Benefits Appeal | MailMyPDF",
   seoDescription: "Use the SSDI Denial Appeal workflow to organize the source record, relevant facts, supporting documents, reviewable correspondence, and mailing or proof record.",
   eyebrow: "Benefits Appeal workflow",
   heroTitle: "SSDI Denial Appeal",
-  heroDescription: "Use a guided ssdi denial appeal workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroDescription: "Use a guided SSDI denial appeal workflow built around the actual decision, facts, dates, evidence, review, and correspondence involved in this matter.",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
