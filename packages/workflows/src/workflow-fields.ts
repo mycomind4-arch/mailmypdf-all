@@ -38,7 +38,9 @@ export interface WorkflowFieldManifest {
   options?: readonly WorkflowFieldOption[];
 }
 
-const FIELD_ID = /^[a-z][a-z0-9._-]{1,63}$/;
+// Field ids may use kebab/snake/dotted form or lower-camelCase. Keep the first
+// character lowercase so ids remain stable and URL/JSON friendly.
+const FIELD_ID = /^[a-z][A-Za-z0-9._-]{1,63}$/;
 
 export function validateWorkflowField(field: WorkflowFieldManifest): string[] {
   const errors: string[] = [];
