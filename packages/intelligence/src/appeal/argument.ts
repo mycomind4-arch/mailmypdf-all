@@ -110,8 +110,8 @@ export function detectContradictions(
 ): AppealContradiction[] {
   const contradictions: AppealContradiction[] = [];
   const datePattern = /\b(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})\b/g;
-  const draftDates = draftText.match(datePattern) ?? [];
-  const reasonDates = decisionReasons.join(" ").match(datePattern) ?? [];
+  const draftDates: string[] = draftText.match(datePattern) ?? [];
+  const reasonDates: string[] = decisionReasons.join(" ").match(datePattern) ?? [];
 
   for (const date of draftDates) {
     if (reasonDates.length > 0 && !reasonDates.includes(date)) {
