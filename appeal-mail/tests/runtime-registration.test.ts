@@ -7,6 +7,7 @@ import {
 } from "../runtime.js";
 
 const expectedInsuranceWorkflows = [
+  "appeal-car-insurance-claim",
   "appeal-denied-claim",
   "appeal-insurance-claim-denial",
   "appeal-medical-insurance-denial",
