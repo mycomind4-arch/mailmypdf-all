@@ -12,6 +12,7 @@ on:
       - 'packages/workflows/**'
       - 'packages/step-workflow/**'
       - 'packages/workflow-ui/**'
+      - 'packages/forms/**'
       - 'packages/packet-builder/**'
       - 'packages/pricing/**'
       - 'packages/payment-fulfillment/**'
@@ -31,6 +32,7 @@ on:
       - 'packages/workflows/**'
       - 'packages/step-workflow/**'
       - 'packages/workflow-ui/**'
+      - 'packages/forms/**'
       - 'packages/packet-builder/**'
       - 'packages/pricing/**'
       - 'packages/payment-fulfillment/**'
@@ -59,6 +61,10 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Build source-test workspace dependencies
+        run: |
+          pnpm --filter @mailmypdf/forms build
+          pnpm --filter @mailmypdf/workflows build
       - name: Unit tests
         run: pnpm --filter @mailmypdf/appeal-mail test
       - name: Typecheck Appeal Mail
