@@ -8,3 +8,4 @@ export * from "./pdf-utils.js";
 export * from "./report.js";
 export * from "./gold-standard-gate.js";
 export * from "./appeal-audit.js";
+export * from "./matter-runtime-harness.js";
