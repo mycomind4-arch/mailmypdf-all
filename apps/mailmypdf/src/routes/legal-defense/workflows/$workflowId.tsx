@@ -8,7 +8,7 @@ export const Route = createFileRoute("/legal-defense/workflows/$workflowId")({
     meta: [
       { title: params.workflowId === STOLEN_VEHICLE_WORKFLOW.id ? `${STOLEN_VEHICLE_WORKFLOW.title} | MailMyPDF` : "Legal Defense Workflow | MailMyPDF" },
       { name: "description", content: "Reconstruct the stop, arrest, search, vehicle purchase record, and derivative evidence into an attorney-ready defense intelligence packet." },
-      { name: "robots", content: "noindex,nofollow" },
+      { name: "robots", content: params.workflowId === STOLEN_VEHICLE_WORKFLOW.id ? "index,follow" : "noindex,nofollow" },
     ],
   }),
   component: WorkflowDetail,
