@@ -59,18 +59,20 @@
 .mmp-workflow-hub__header p { max-width: 720px; margin: .55rem 0 0; color: var(--mmp-ink-muted); font-size: .86rem; line-height: 1.6; }
 .mmp-workflow-hub__actions { flex: 0 0 auto; }
 .mmp-workflow-hub__grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .9rem; }
-.mmp-workflow-hub-card { min-height: 220px; padding: 1.15rem; display: flex; flex-direction: column; border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); color: var(--mmp-ink); background: var(--mmp-surface); box-shadow: var(--mmp-shadow-sm); text-decoration: none; transition: transform var(--mmp-motion-normal), border-color var(--mmp-motion-normal), box-shadow var(--mmp-motion-normal); }
+.mmp-workflow-hub-card { min-height: 220px; padding: 0; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); color: var(--mmp-ink); background: var(--mmp-surface); box-shadow: var(--mmp-shadow-sm); text-decoration: none; transition: transform var(--mmp-motion-normal), border-color var(--mmp-motion-normal), box-shadow var(--mmp-motion-normal); }
 .mmp-workflow-hub-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--mmp-accent) 34%, var(--mmp-border)); box-shadow: var(--mmp-shadow-md); }
-.mmp-workflow-hub-card__top { min-height: 1.9rem; display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.mmp-workflow-hub-card__media { height: 112px; overflow: hidden; border-bottom: 1px solid var(--mmp-border); background: var(--mmp-accent-soft); }
+.mmp-workflow-hub-card__media img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.mmp-workflow-hub-card__top { min-height: 1.9rem; margin: 1.15rem 1.15rem 0; display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
 .mmp-workflow-hub-card__icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; color: var(--mmp-accent); background: var(--mmp-accent-soft); }
 .mmp-workflow-hub-card__icon svg { width: 1rem; height: 1rem; }
 .mmp-workflow-hub-card__labels { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
 .mmp-workflow-hub-card__eyebrow { color: var(--mmp-accent); font-size: .61rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .mmp-workflow-hub-card__badge { padding: .18rem .45rem; border-radius: 999px; color: var(--mmp-accent); background: var(--mmp-accent-soft); font-size: .63rem; font-weight: 700; }
-.mmp-workflow-hub-card__title { margin: 1.1rem 0 .45rem; font: 400 1.55rem/1.05 var(--mmp-font-display); }
-.mmp-workflow-hub-card__description { margin: 0; color: var(--mmp-ink-muted); font-size: .82rem; line-height: 1.55; }
-.mmp-workflow-hub-card__meta { margin-top: .8rem; color: var(--mmp-ink-muted); font-size: .68rem; }
-.mmp-workflow-hub-card__action { margin-top: auto; padding-top: 1rem; color: var(--mmp-accent); font-size: .78rem; font-weight: 700; }
+.mmp-workflow-hub-card__title { margin: 1.1rem 1.15rem .45rem; font: 400 1.55rem/1.05 var(--mmp-font-display); }
+.mmp-workflow-hub-card__description { margin: 0 1.15rem; color: var(--mmp-ink-muted); font-size: .82rem; line-height: 1.55; }
+.mmp-workflow-hub-card__meta { margin: .8rem 1.15rem 0; color: var(--mmp-ink-muted); font-size: .68rem; }
+.mmp-workflow-hub-card__action { margin: auto 1.15rem 0; padding: 1rem 0 1.15rem; color: var(--mmp-accent); font-size: .78rem; font-weight: 700; }
 @media (max-width: 1100px) {
   .mmp-workspace { grid-template-columns: 1fr; }
   .mmp-workspace-sidebar { position: static; height: auto; display: block; border-right: 0; border-bottom: 1px solid var(--mmp-border); }
