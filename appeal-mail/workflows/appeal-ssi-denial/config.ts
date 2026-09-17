@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/ssi-appeal-hero.jpg"
 
 export const workflowConfig = {
   id: "appeal-ssi-denial",
@@ -13,6 +14,8 @@ export const workflowConfig = {
   eyebrow: "Appeal Mail workflow",
   heroTitle: "Appeal SSI Denial",
   heroDescription: "Use a guided appeal ssi denial workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroImage,
+  heroImageAlt: "Supplemental Security Income request for reconsideration appeal form",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
