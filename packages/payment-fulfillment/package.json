@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
