@@ -1,11 +1,11 @@
 import type { DomainPackManifest } from "../../domain-pack-contract.js";
+import type { AppealDraftValidationPolicy } from "../../draft-validator.js";
 
 /**
  * Reusable insurance-appeal configuration promoted from the legacy Appeal Mail
  * domain layer. This file configures the shared workflow engine; it does not
  * implement or duplicate the engine itself.
  */
-
 export interface AppealDocumentPackConfig {
   name: string;
   acceptedTypes: readonly string[];
@@ -45,7 +45,7 @@ export interface AppealDraftPackConfig {
   toneRules: readonly string[];
 }
 
-export interface AppealValidationPackConfig {
+export interface AppealValidationPackConfig extends AppealDraftValidationPolicy {
   name: string;
   factualChecks: readonly string[];
   requirementChecks: readonly string[];
@@ -232,6 +232,8 @@ export const insuranceDraftPack: AppealDraftPackConfig = {
 
 export const insuranceValidationPack: AppealValidationPackConfig = {
   name: "Insurance Appeal Two-Pass Validation Pack",
+  requiredSections: insuranceDraftPack.requiredSections,
+  prohibitedUnsupportedClaims: insuranceDraftPack.prohibitedUnsupportedClaims,
   factualChecks: [
     "every amount in draft matches extraction or user facts",
     "claim number present and consistent",
