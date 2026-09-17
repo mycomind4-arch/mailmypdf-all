@@ -19,6 +19,7 @@ on:
       - 'packages/proof/**'
       - 'packages/step-workflow/**'
       - 'packages/workflows/**'
+      - 'appeal-mail/workflows/appeal-ssdi-denial/**'
       - '.github/workflows/capability-core-ci.yml'
   pull_request:
     paths:
@@ -37,6 +38,7 @@ on:
       - 'packages/proof/**'
       - 'packages/step-workflow/**'
       - 'packages/workflows/**'
+      - 'appeal-mail/workflows/appeal-ssdi-denial/**'
   workflow_dispatch:
 
 permissions:
