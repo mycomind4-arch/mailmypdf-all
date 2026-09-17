@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, StatusPill, CheckboxField, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
 
 /**
  * Mirrors the fields the real independent validator
