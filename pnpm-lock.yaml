@@ -1295,7 +1295,7 @@ importers:
         version: 6.1.1(vite@8.3.0(@types/node@22.20.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.16.9)(tsx@4.23.12)(yaml@2.9.0))
       lucide-react:
         specifier: latest
-        version: 1.46.0(react@19.3.0)
+        version: 1.47.0(react@19.3.0)
       react:
         specifier: latest
         version: 19.3.0
@@ -1355,6 +1355,58 @@ importers:
       vite:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@26.5.1)(lightningcss@1.33.0)(terser@5.16.9)
+
+  notice-respond:
+    dependencies:
+      '@mailmypdf/design-system':
+        specifier: workspace:*
+        version: link:../packages/design-system
+      '@mailmypdf/document-intelligence':
+        specifier: workspace:*
+        version: link:../packages/document-intelligence
+      '@mailmypdf/seo':
+        specifier: workspace:*
+        version: link:../packages/seo
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../packages/workflow-ui
+      '@mailmypdf/workflows':
+        specifier: workspace:*
+        version: link:../packages/workflows
+      '@tanstack/react-router':
+        specifier: ^1.170.16
+        version: 1.170.32(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.2.0
+        version: 19.3.0
+    devDependencies:
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../packages/packet-builder
+      '@mailmypdf/payment-fulfillment':
+        specifier: workspace:*
+        version: link:../packages/payment-fulfillment
+      '@mailmypdf/proof':
+        specifier: workspace:*
+        version: link:../packages/proof
+      '@mailmypdf/workflow-acceptance':
+        specifier: workspace:*
+        version: link:../packages/workflow-acceptance
+      '@types/node':
+        specifier: ^22.16.5
+        version: 22.20.3
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.3)(lightningcss@1.33.0)(terser@5.16.9)
 
   packages/agent-runtime:
     dependencies:
@@ -6347,8 +6399,8 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.46.0:
-    resolution: {integrity: sha512-Bv+FZXgZPrxc/NCl1e7JJVQFLdiCxYgxNVhqoV7X0p6I8ADJo8DxBnK1auH0fZz4AmqOJ3jgneL4f1i8LJQRAA==}
+  lucide-react@1.47.0:
+    resolution: {integrity: sha512-o8C23aXpNQypRY73W7fW02EyvWJinEMXgKeGjFoKym0zj3Q73hD97A1IQps1g8C14HTGsOpZL0Am+xjfgFZAbg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -12623,7 +12675,7 @@ snapshots:
     dependencies:
       react: 19.2.8
 
-  lucide-react@1.46.0(react@19.3.0):
+  lucide-react@1.47.0(react@19.3.0):
     dependencies:
       react: 19.3.0
 
