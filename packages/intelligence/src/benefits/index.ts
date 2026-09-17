@@ -11,3 +11,9 @@ export {
   canValidateBenefitsAppeal,
   assertNoBenefitsOutcomeClaims,
 } from "./contract.js";
+
+export type { BenefitsDraftingPolicy } from "./drafting-policy.js";
+export {
+  BENEFITS_DRAFTING_POLICY,
+  benefitsDraftingInstructions,
+} from "./drafting-policy.js";
