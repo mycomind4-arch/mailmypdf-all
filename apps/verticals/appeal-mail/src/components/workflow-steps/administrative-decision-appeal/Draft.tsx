@@ -1,5 +1,5 @@
 import { SectionCard, DataTable, StatusPill, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "../types";
+import type { StepComponentProps } from "@mailmypdf/workflow-ui";
 import type { AdministrativeDecisionAppealIntake } from "@/domain/step-workflows/administrative-decision-appeal";
 import { ISSUES } from "./Evidence";
 
