@@ -8,4 +8,19 @@ export * from "./xray.js";
 export * from "./stress-test.js";
 export * from "./strategy.js";
 export * from "./readiness.js";
-export * from "./timeline.js";
+export {
+  APPEAL_EVENT_CATEGORY_LABELS,
+  buildAppealTimeline,
+  explainAppealTimelineConflict,
+  appealTimelineConflictToGround,
+} from "./timeline.js";
+export type {
+  AppealEventCategory,
+  AppealTimelineDocument,
+  AppealTimelineEvent as AppealIntelligenceTimelineEvent,
+  AppealTimelineConflict,
+  AppealTimelineGap,
+  AppealDeadlineAssessment,
+  AppealTimelineResult,
+  BuildAppealTimelineInput,
+} from "./timeline.js";
