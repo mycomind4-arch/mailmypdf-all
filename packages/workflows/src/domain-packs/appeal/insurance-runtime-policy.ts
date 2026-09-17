@@ -21,6 +21,7 @@ export interface InsuranceAppealRuntimeInput extends Record<string, unknown> {
   reasonsForDisagreement: string;
   requestedOutcome: string;
   additionalFacts: string;
+  evidenceReviewComplete: boolean;
 }
 
 function text(
@@ -46,6 +47,14 @@ function text(
   return normalized;
 }
 
+function booleanValue(value: unknown, label: string): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value !== "boolean") {
+    throw new WorkflowRuntimeError(`${label} must be true or false.`, "APPEAL_INPUT_INVALID");
+  }
+  return value;
+}
+
 export function validateInsuranceAppealRuntimeInput(
   input: Record<string, unknown>,
 ): InsuranceAppealRuntimeInput {
@@ -58,6 +67,7 @@ export function validateInsuranceAppealRuntimeInput(
     reasonsForDisagreement: text(input.reasonsForDisagreement, "Reasons for disagreement", { required: true, maxLength: 12_000 }),
     requestedOutcome: text(input.requestedOutcome, "Requested outcome", { required: true, maxLength: 4_000 }),
     additionalFacts: text(input.additionalFacts, "Additional facts", { maxLength: 12_000 }),
+    evidenceReviewComplete: booleanValue(input.evidenceReviewComplete, "Evidence review complete"),
   };
 }
 
