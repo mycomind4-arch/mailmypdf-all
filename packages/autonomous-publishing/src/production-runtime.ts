@@ -17,7 +17,7 @@ import {
 } from "./delivery.js";
 import { createExtractingResearchAdapter } from "./enrichment.js";
 import type { PublicationManifest } from "./manifest.js";
-import { createNoopAnalyticsAdapter, createNoopPublisher } from "./publishers.js";
+import { createNoopAnalyticsAdapter, createNoopPublisher, createRequiredDeliveryPublisher } from "./publishers.js";
 import { createHtmlRenderAdapter } from "./render.js";
 import { createRssDiscoveryAdapter, type RssDiscoveryOptions } from "./rss.js";
 import { createCrawl4AiExtractionAdapter, createEmbeddingServiceAdapter, createHorizonDiscoveryAdapter } from "./service-adapters.js";
@@ -87,11 +87,7 @@ export function createProductionPublishingAdapters(
       : options.listmonk && manifest.integrations.listmonk === true
         ? createListmonkPublisher(options.listmonk)
         : options.requireDelivery
-          ? {
-              async publish() {
-                throw new Error("DELIVERY_NOT_CONFIGURED");
-              },
-            }
+          ? createRequiredDeliveryPublisher()
           : createNoopPublisher();
 
   const defaults: PublishingAdapters = {
