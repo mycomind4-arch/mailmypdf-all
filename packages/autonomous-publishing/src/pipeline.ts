@@ -117,6 +117,7 @@ export function createPublishingPipeline(
         run.stage = "publish";
         await persist(run, rendered);
         const publication = await adapters.publisher.publish(rendered, manifest);
+        await persist(run, rendered, publication);
 
         const publishedAt = now().toISOString();
         if (memory) {
