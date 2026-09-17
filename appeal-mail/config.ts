@@ -1,5 +1,8 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
 import heroImage from "./assets/hero.jpg"
+import insuranceClaimHero from "./workflows/appeal-insurance-claim-denial/assets/workflow-hero.png"
+import ssdiHero from "./workflows/appeal-ssdi-denial/assets/workflow-hero.png"
+import unemploymentHero from "./workflows/appeal-unemployment-denial/assets/workflow-hero.png"
 
 export const appealMailConfig = {
   "id": "appeal-mail",
@@ -37,7 +40,9 @@ export const appealMailConfig = {
     {
       "slug": "appeal-insurance-claim-denial",
       "title": "Insurance Claim Denial Appeal",
-      "description": "Build an appeal from the denial reason, claim record, supporting evidence, and requested reconsideration."
+      "description": "Build an appeal from the denial reason, claim record, supporting evidence, and requested reconsideration.",
+      "imageSrc": insuranceClaimHero,
+      "imageAlt": "Health insurance claim appeal denial review form"
     },
     {
       "slug": "appeal-medical-insurance-denial",
@@ -47,12 +52,16 @@ export const appealMailConfig = {
     {
       "slug": "appeal-ssdi-denial",
       "title": "SSDI Denial Appeal",
-      "description": "Prepare a structured Social Security disability appeal from the decision and supporting record."
+      "description": "Prepare a structured Social Security disability appeal from the decision and supporting record.",
+      "imageSrc": ssdiHero,
+      "imageAlt": "Social Security Administration Request for Reconsideration, Form SSA-561"
     },
     {
       "slug": "appeal-unemployment-denial",
       "title": "Unemployment Denial Appeal",
-      "description": "Organize the determination, work-separation facts, dates, supporting records, and appeal."
+      "description": "Organize the determination, work-separation facts, dates, supporting records, and appeal.",
+      "imageSrc": unemploymentHero,
+      "imageAlt": "Unemployment benefits appeal request form"
     },
     {
       "slug": "sap-appeal",
