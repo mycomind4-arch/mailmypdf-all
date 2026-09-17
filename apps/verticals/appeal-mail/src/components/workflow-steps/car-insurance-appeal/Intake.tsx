@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, Field, TextField, TextArea, FileList, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "../types";
+import type { StepComponentProps } from "@mailmypdf/workflow-ui";
 import type { CarInsuranceAppealIntake } from "@/domain/step-workflows/car-insurance-appeal";
 
 const LIABILITY_OPTIONS = [
