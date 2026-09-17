@@ -137,8 +137,8 @@ export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
   id: workflow.id,
   vertical: workflow.vertical,
   route: workflow.route,
-  state: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest" ? "EXECUTABLE" : "DRAFT",
-  reviewStatus: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest" ? "AUTHORITY_REVIEWED" : "NEEDS_INDIVIDUAL_REVIEW",
+  state: "DRAFT",
+  reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
   provenance: [
     {
       kind: "modeled-inventory",
@@ -146,9 +146,7 @@ export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
       note: "Imported as topology only; prior maturity/content flags do not constitute authority review.",
     },
   ],
-  execution: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest"
-    ? { href: "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start", verified: true }
-    : undefined,
+  execution: undefined,
 }));
 
 export function defineWorkflowSeoEntry<T extends WorkflowSeoCatalogEntry>(entry: T): T {
