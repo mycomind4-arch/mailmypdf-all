@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/unemployment-appeal-hero.jpg"
 
 export const workflowConfig = {
   id: "appeal-unemployment-denial",
@@ -13,6 +14,8 @@ export const workflowConfig = {
   eyebrow: "Appeal Mail workflow",
   heroTitle: "Appeal Unemployment Denial",
   heroDescription: "Use a guided appeal unemployment denial workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroImage,
+  heroImageAlt: "Unemployment benefits appeal request form",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
