@@ -18,6 +18,8 @@ export interface PublicationManifest {
     frequency: "hourly" | "daily" | "weekly" | "manual";
     timezone: string;
     time?: string;
+    /** JavaScript weekday: 0=Sunday ... 6=Saturday. Required for weekly schedules. */
+    dayOfWeek?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   };
   sources?: readonly PublicationSource[];
   editorial: {
@@ -68,6 +70,12 @@ export function validatePublicationManifest(value: PublicationManifest): Publica
     throw new Error("AI secrets must use a server-only environment variable");
   }
   if (!value.ai.apiKeyEnv.trim()) throw new Error("AI apiKeyEnv is required");
+  if (value.schedule.frequency === "weekly" && value.schedule.dayOfWeek === undefined) {
+    throw new Error("Weekly schedules require dayOfWeek (0=Sunday ... 6=Saturday)");
+  }
+  if (value.schedule.time && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value.schedule.time)) {
+    throw new Error("Schedule time must use HH:MM 24-hour format");
+  }
 
   const ids = new Set<string>();
   for (const source of value.sources ?? []) {
