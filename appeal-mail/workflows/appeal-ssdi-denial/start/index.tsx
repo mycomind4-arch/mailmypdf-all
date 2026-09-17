@@ -257,9 +257,11 @@ export default function SsdiDenialWorkflow() {
   }
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("mailmypdf:ssdi-denial:case");
+    const fromUrl = new URLSearchParams(window.location.search).get("case");
+    const stored = fromUrl || sessionStorage.getItem("mailmypdf:ssdi-denial:case");
     if (stored) {
       setCaseId(stored);
+      sessionStorage.setItem("mailmypdf:ssdi-denial:case", stored);
       void restore(stored);
     }
   }, []);
