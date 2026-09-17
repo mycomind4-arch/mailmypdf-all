@@ -76,3 +76,37 @@ alter table public.publication_schedule_claims enable row level security;
 
 comment on table public.publication_schedule_claims is
   'Idempotency claims preventing duplicate autonomous publication runs for the same schedule window.';
+
+
+create or replace function public.match_publication_story_memory(
+  p_publication_id text,
+  p_embedding extensions.vector(384),
+  p_limit integer default 5
+)
+returns table (
+  publication_story_id text,
+  published_at timestamptz,
+  similarity double precision
+)
+language sql
+stable
+security invoker
+as $$
+  select
+    memory.publication_story_id,
+    memory.published_at,
+    1 - (memory.embedding <=> p_embedding) as similarity
+  from public.publication_story_memory as memory
+  where memory.publication_id = p_publication_id
+    and memory.embedding is not null
+  order by memory.embedding <=> p_embedding
+  limit greatest(1, least(coalesce(p_limit, 5), 50));
+$$;
+
+revoke all on function public.match_publication_story_memory(text, extensions.vector, integer)
+  from public, anon, authenticated;
+grant execute on function public.match_publication_story_memory(text, extensions.vector, integer)
+  to service_role;
+
+comment on function public.match_publication_story_memory(text, extensions.vector, integer) is
+  'Service-role-only cosine similarity search for autonomous publication story memory.';
