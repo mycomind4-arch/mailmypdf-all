@@ -30,5 +30,13 @@
     "acceptanceTestFile": "tests/acceptance/appeal-denied-claim/run.acceptance.ts",
     "scenariosDir": "tests/acceptance/appeal-denied-claim/scenarios",
     "runsDir": "tests/acceptance/appeal-denied-claim/runs"
+  },
+  "cp14-response": {
+    "vertical": "notice-respond",
+    "verticalDir": "notice-respond",
+    "acceptanceConfig": "vitest.acceptance.config.ts",
+    "acceptanceTestFile": "tests/acceptance/cp14-response/run.acceptance.ts",
+    "scenariosDir": "tests/acceptance/cp14-response/scenarios",
+    "runsDir": "tests/acceptance/cp14-response/runs"
   }
 }
