@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/sap-appeal-hero.jpg"
 
 export const workflowConfig = {
   id: "sap-appeal",
@@ -13,6 +14,8 @@ export const workflowConfig = {
   eyebrow: "Appeal Mail workflow",
   heroTitle: "SAP Appeal",
   heroDescription: "Use a guided sap appeal workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroImage,
+  heroImageAlt: "Financial aid appeal for satisfactory academic progress",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
