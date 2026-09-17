@@ -8,8 +8,6 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 }, "Expected a real calendar date").nullable();
 const text = z.string().trim().min(1).max(16000);
 const workflowDetailsSchema = z.object({
-  appealStage: z.enum(["reconsideration", "hearing", "appeals_council", "unknown"]).default("unknown"),
-  decisionBasis: z.enum(["medical", "nonmedical", "unknown"]).default("unknown"),
   taxYear: z.string().regex(/^\d{4}$/).nullable().default(null),
   amountDue: text.nullable().default(null),
   proposedTax: text.nullable().default(null),
@@ -26,8 +24,6 @@ const workflowDetailsSchema = z.object({
   }).nullable().default(null),
   paymentInstructions: text.nullable().default(null),
 }).default({
-  appealStage: "unknown",
-  decisionBasis: "unknown",
   taxYear: null,
   amountDue: null,
   proposedTax: null,
@@ -74,9 +70,7 @@ const ssdi: CaseWorkflowDefinition = Object.freeze({
   responseModes: ["reconsideration"],
   analysisInstructions:
     "This workflow prepares a response to an SSDI denial notice. Identify the " +
-    "decision, stated reasons and appeal stage only if the notice supplies them. Set " +
-    "workflowDetails.appealStage to reconsideration, hearing, appeals_council, or unknown, and " +
-    "workflowDetails.decisionBasis to medical, nonmedical, or unknown based only on the notice. " +
+    "decision, stated reasons and appeal stage only if the notice supplies them. " +
     "Distinguish medical reasons from work or other eligibility reasons in the summary. " +
     "If this is not an SSDI denial, report that mismatch in missingInformation. " +
     "Never calculate an appeal deadline from a general rule. Treat suggested medical " +
