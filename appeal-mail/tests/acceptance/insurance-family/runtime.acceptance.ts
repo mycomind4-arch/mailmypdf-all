@@ -204,6 +204,36 @@ describe("Insurance appeal shared matter runtime", () => {
 
       response = await harness.handle(
         harness.request(
+          `/matters/${matterId}/input`,
+          jsonBody({
+            ...facts,
+            additionalFacts: "Synthetic facts changed after draft review.",
+            evidenceReviewComplete: true,
+          }),
+        ),
+      );
+      expect(response.status).toBe(200);
+
+      response = await harness.handle(
+        harness.request(
+          `/matters/${matterId}/packet`,
+          jsonBody({ mailClass: "certified" }),
+        ),
+      );
+      expect(response.status).toBe(409);
+      payload = await harness.json<any>(response);
+      expect(payload.code).toBe("DRAFT_BASIS_STALE");
+
+      response = await harness.handle(
+        harness.request(
+          `/matters/${matterId}/draft`,
+          jsonBody({ bodyText: generated.bodyText }),
+        ),
+      );
+      expect(response.status).toBe(200);
+
+      response = await harness.handle(
+        harness.request(
           `/matters/${matterId}/packet`,
           jsonBody({ mailClass: "certified" }),
         ),
