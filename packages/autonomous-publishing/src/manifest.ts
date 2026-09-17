@@ -71,6 +71,11 @@ export function validatePublicationManifest(value: PublicationManifest): Publica
     throw new Error("AI secrets must use a server-only environment variable");
   }
   if (!value.ai.apiKeyEnv.trim()) throw new Error("AI apiKeyEnv is required");
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value.schedule.timezone }).format(new Date(0));
+  } catch {
+    throw new Error(`Invalid schedule timezone: ${value.schedule.timezone}`);
+  }
   if (value.schedule.frequency === "weekly" && value.schedule.dayOfWeek === undefined) {
     throw new Error("Weekly schedules require dayOfWeek (0=Sunday ... 6=Saturday)");
   }
