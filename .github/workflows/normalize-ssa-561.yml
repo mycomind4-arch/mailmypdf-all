@@ -1,0 +1,35 @@
+name: Normalize bundled SSA-561
+
+on:
+  push:
+    paths:
+      - ".github/workflows/normalize-ssa-561.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  normalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ghostscript
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghostscript
+      - name: Rewrite bundled SSA-561 as static PDF
+        run: |
+          mkdir -p /tmp/ssa-normalized
+          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.7 \
+            -dDetectDuplicateImages=true -dCompressFonts=true \
+            -sOutputFile=/tmp/ssa-normalized/ssa-561-u2.normalized.pdf \
+            appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.pdf
+          pdfinfo /tmp/ssa-normalized/ssa-561-u2.normalized.pdf
+          base64 -w 0 /tmp/ssa-normalized/ssa-561-u2.normalized.pdf > /tmp/ssa-normalized/ssa-561-u2.normalized.pdf.b64
+      - name: Upload normalized form
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssa-561-normalized
+          path: /tmp/ssa-normalized/
+          if-no-files-found: error
+          retention-days: 1
