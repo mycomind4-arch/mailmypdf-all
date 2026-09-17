@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   assertAttestationMatchesArtifact,
   createWorkflowAttestation,
-} from "../src/approval/attestation";
+} from "../src/approval/attestation.js";
 
 const packet = { kind: "packet" as const, id: "packet-1", sha256: "a".repeat(64) };
 
