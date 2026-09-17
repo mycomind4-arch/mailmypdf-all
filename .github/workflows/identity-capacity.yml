@@ -10,6 +10,7 @@ on:
       - ".github/workflows/identity-capacity.yml"
   pull_request:
     paths:
+      - "packages/intelligence/**"
       - "packages/identity-capacity/**"
       - "pnpm-lock.yaml"
       - "tsconfig.json"
