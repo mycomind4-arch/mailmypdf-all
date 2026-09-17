@@ -15,7 +15,7 @@ and proposes privacy-reviewed reusable templates. Read
 
 ## Required starting context
 
-Read `context/FACTORY_STATUS.md`, then the relevant sections of `context/MASTER.md`
+Read `context/CURRENT_WORK.md` first, then `context/FACTORY_STATUS.md`, then the relevant sections of `context/MASTER.md`
 and applicable nested instructions. Inspect actual code and git status before
 editing. Old chat reports, commit counts, and archive tags are evidence to examine,
 not proof that a feature is missing, integrated, or production-ready.
