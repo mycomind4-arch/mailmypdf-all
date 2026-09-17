@@ -74,3 +74,18 @@ export {
   resolveAuthorityToAct,
   authorityToActToFinding,
 } from "./authority-to-act.js";
+
+export type {
+  AssetInterestType,
+  OwnershipClaimEffect,
+  OwnershipRightsDisposition,
+  AssetInterestClaim,
+  EvaluatedAssetInterestClaim,
+  ResolvedAssetInterest,
+  OwnershipRightsResult,
+} from "./ownership-rights.js";
+export {
+  OWNERSHIP_RIGHTS_RULES,
+  resolveOwnershipRights,
+  ownershipRightsToFinding,
+} from "./ownership-rights.js";
