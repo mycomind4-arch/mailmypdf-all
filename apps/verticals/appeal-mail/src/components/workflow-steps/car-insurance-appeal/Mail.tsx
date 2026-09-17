@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, CheckboxField, StatusPill } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
 import type { CarInsuranceAppealIntake } from "@/domain/step-workflows/car-insurance-appeal";
 import { CAR_INSURANCE_APPEAL_PRICING } from "@/domain/car-insurance-appeal-pricing";
 
