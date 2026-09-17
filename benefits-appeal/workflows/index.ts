@@ -8,5 +8,6 @@ export {
   BENEFITS_APPEAL_WORKFLOWS,
   getBenefitsWorkflowEntry,
   getBenefitsWorkflowLaunchPath,
+  requireBenefitsWorkflowLaunchPath,
   isBenefitsWorkflowExecutable,
 } from "./registry";
