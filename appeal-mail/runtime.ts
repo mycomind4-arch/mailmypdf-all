@@ -8,6 +8,11 @@ export interface AppealMailStartRouteRegistration {
 
 export const appealMailStartRoutes = Object.freeze([
   {
+    workflowId: "appeal-car-insurance-claim",
+    path: "/appeal-mail/workflows/appeal-car-insurance-claim/start/",
+    load: () => import("./workflows/appeal-car-insurance-claim/start/index"),
+  },
+  {
     workflowId: "appeal-denied-claim",
     path: "/appeal-mail/workflows/appeal-denied-claim/start/",
     load: () => import("./workflows/appeal-denied-claim/start/index"),
