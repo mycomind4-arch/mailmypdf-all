@@ -133,13 +133,14 @@ function validateStepCondition(
     return errors;
   }
 
+  const path = condition.path;
   if (
-    !CONDITION_PATH.test(condition.path) ||
-    condition.path
+    !CONDITION_PATH.test(path) ||
+    path
       .split(".")
-      .some((segment) => FORBIDDEN_CONDITION_PATH_SEGMENTS.has(segment))
+      .some((segment: string) => FORBIDDEN_CONDITION_PATH_SEGMENTS.has(segment))
   ) {
-    errors.push(`${label} condition has invalid input path ${condition.path}`);
+    errors.push(`${label} condition has invalid input path ${path}`);
   }
 
   return errors;
