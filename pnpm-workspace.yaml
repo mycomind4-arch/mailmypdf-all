@@ -1,6 +1,5 @@
 packages:
   - "packages/*"
-  - "appeal-mail"
   - "apps/*"
   - "apps/verticals/*"
   - "services/*"
