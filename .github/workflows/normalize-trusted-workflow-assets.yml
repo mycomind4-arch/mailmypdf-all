@@ -1,0 +1,71 @@
+name: Normalize trusted workflow assets
+
+on:
+  push:
+    paths:
+      - ".github/workflows/normalize-trusted-workflow-assets.yml"
+      - "pnpm-workspace.yaml"
+      - "appeal-mail/package.json"
+      - "appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-561-u2.pdf"
+      - "appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-3441.pdf"
+      - "appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-827.pdf"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Refresh workspace lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+
+      - name: Normalize trusted SSA PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v gs >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y ghostscript; }
+
+          dir="appeal-mail/workflows/appeal-ssdi-denial/forms/generated"
+          for source in ssa-561-u2.pdf ssa-3441.pdf ssa-827.pdf; do
+            output="${source%.pdf}.normalized.pdf"
+            tmp="${dir}/.${output}.tmp.pdf"
+            gs -q -dSAFER -dBATCH -dNOPAUSE \
+              -sDEVICE=pdfwrite \
+              -dCompatibilityLevel=1.7 \
+              -dDetectDuplicateImages=true \
+              -dCompressFonts=true \
+              -sOutputFile="$tmp" \
+              "${dir}/${source}"
+            mv "$tmp" "${dir}/${output}"
+            pdfinfo "${dir}/${output}" | grep -q '^Encrypted:[[:space:]]*no$'
+          done
+
+      - name: Commit generated assets and lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add pnpm-lock.yaml appeal-mail/workflows/appeal-ssdi-denial/forms/generated/*.normalized.pdf
+          if git diff --cached --quiet; then
+            echo "Trusted assets and lockfile are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: normalize trusted SSA forms and workspace lock"
+          git push
