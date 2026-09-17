@@ -105,3 +105,21 @@ export {
   resolveObligation,
   obligationResolutionToFinding,
 } from "./obligation-resolution.js";
+
+export type {
+  PartyRole,
+  PartyRoleEffect,
+  PartyRoleResolutionDisposition,
+  PartyRoleClaim,
+  EvaluatedPartyRoleClaim,
+  ResolvedPartyRole,
+  PartyRoleResolutionResult,
+} from "./party-role-resolution.js";
+export {
+  PARTY_ROLE_RULES,
+  resolvePartyRoles,
+  partyRoleClaimsFromObligation,
+  partyRoleClaimsFromOwnership,
+  partyRoleClaimsFromCapacity,
+  partyRoleResolutionToFinding,
+} from "./party-role-resolution.js";
