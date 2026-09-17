@@ -19,3 +19,5 @@ Reusable, provenance-first engines for identity, capacity, authority, ownership,
 These engines resolve what supported evidence establishes for a specific purpose. They preserve uncertainty, conflicts, provenance, and human-review gates.
 
 They do not treat capitalization, aliases, role labels, possession, invoices, filings, or AI inference as automatic proof of legal identity, ownership, enforceability, authority, or priority.
+
+The package CI builds workspace dependencies before executing the runtime test suite.
