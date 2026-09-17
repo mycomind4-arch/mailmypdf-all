@@ -1668,6 +1668,9 @@ importers:
       '@mailmypdf/packet-builder':
         specifier: workspace:*
         version: link:../packet-builder
+      '@mailmypdf/workflows':
+        specifier: workspace:*
+        version: link:../workflows
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
