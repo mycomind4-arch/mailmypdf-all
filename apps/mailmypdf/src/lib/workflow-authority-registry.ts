@@ -123,6 +123,14 @@ function normalizePath(path: string): string {
   return withSlash.replace(/\/+$/, "") || "/";
 }
 
+const WORKFLOW_ROUTE_ALIASES: Readonly<Record<string, string>> = {
+  "/appeal-mail/workflows/appeal-ssdi-denial": "/appeal/ssdi-denial",
+};
+
+const WORKFLOW_EXECUTION_OVERRIDES: Readonly<Record<string, string>> = {
+  "/appeal-mail/workflows/appeal-ssdi-denial": "/appeal-mail/workflows/appeal-ssdi-denial/start",
+};
+
 function titleFromSlug(slug: string): string {
   const acronyms: Record<string, string> = {
     cp14: "CP14",
@@ -219,7 +227,8 @@ function relatedFor(entry: CombinedWorkflow, authority: WorkflowSeoAuthorityCont
 
 export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageData | null {
   const normalized = normalizePath(path);
-  const entry = WORKFLOWS.find((candidate) => normalizePath(candidate.route) === normalized);
+  const canonicalLookupPath = WORKFLOW_ROUTE_ALIASES[normalized] ?? normalized;
+  const entry = WORKFLOWS.find((candidate) => normalizePath(candidate.route) === canonicalLookupPath);
   if (!entry) return null;
 
   const product = PRODUCT_BY_VERTICAL[entry.vertical];
@@ -279,7 +288,8 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
     authorityGate: gate,
     authority,
     executionHref:
-      publicationState === "EXECUTABLE" && seoEntry?.execution?.verified ? seoEntry.execution.href : null,
+      WORKFLOW_EXECUTION_OVERRIDES[normalized] ??
+      (publicationState === "EXECUTABLE" && seoEntry?.execution?.verified ? seoEntry.execution.href : null),
     // Publication state is not enough. The page must pass the Authority Gate.
     indexable: Boolean(gate?.eligibleForIndexing),
   };
