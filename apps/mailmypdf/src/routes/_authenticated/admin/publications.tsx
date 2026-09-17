@@ -194,6 +194,7 @@ function PublicationsPage() {
                   <div className="mt-4 space-y-2">
                     <ServiceRow name="Horizon" enabled={publication.integrations.horizon.enabled} ready={publication.integrations.horizon.configured} />
                     <ServiceRow name="Crawl4AI" enabled={publication.integrations.crawl4ai.enabled} ready={publication.integrations.crawl4ai.configured} />
+                    <ServiceRow name="Semantic memory" enabled={publication.integrations.embeddings.enabled} ready={publication.integrations.embeddings.configured} />
                     <ServiceRow name="Resend" enabled={publication.integrations.resend.enabled} ready={publication.integrations.resend.configured} />
                     <ServiceRow name="listmonk" enabled={publication.integrations.listmonk.enabled} ready={publication.integrations.listmonk.configured} />
                     <ServiceRow name="Umami" enabled={publication.integrations.umami.enabled} ready={publication.integrations.umami.configured} />
