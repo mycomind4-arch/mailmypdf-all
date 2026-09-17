@@ -36,6 +36,11 @@ export interface ProductionPublishingRuntimeOptions extends ClaudePublishingOpti
   listmonk?: ListmonkPublisherOptions;
   resend?: ResendPublisherOptions;
   umami?: UmamiAnalyticsOptions;
+  /**
+   * When true, publishing without a real delivery provider throws instead of
+   * returning a preview provider id.
+   */
+  requireDelivery?: boolean;
   overrides?: Partial<PublishingAdapters>;
 }
 
@@ -76,7 +81,13 @@ export function createProductionPublishingAdapters(
       ? createResendPublisher(options.resend)
       : options.listmonk && manifest.integrations.listmonk === true
         ? createListmonkPublisher(options.listmonk)
-        : createNoopPublisher();
+        : options.requireDelivery
+          ? {
+              async publish() {
+                throw new Error("DELIVERY_NOT_CONFIGURED");
+              },
+            }
+          : createNoopPublisher();
 
   const defaults: PublishingAdapters = {
     discovery,
