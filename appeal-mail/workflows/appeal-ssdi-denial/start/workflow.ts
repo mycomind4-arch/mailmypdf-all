@@ -1,4 +1,4 @@
-export const SSDI_WORKFLOW_ID = "ssdi-denial";
+export const SSDI_WORKFLOW_ID = "appeal-ssdi-denial";
 export const SSDI_VERTICAL_ID = "appeal-mail";
 
 export const SSDI_STEPS = [
@@ -94,8 +94,6 @@ export function ssdiCompletedSteps(input: {
   if (input.hasCleanDecision) completed.push("decision");
   if (input.hasReconsiderationAnalysis) completed.push("analysis");
   if (input.hasClaimantFacts) completed.push("claimant");
-  // Evidence is intentionally optional; the user may have no additional
-  // records to enclose. The step is complete once claimant facts are saved.
   if (input.hasClaimantFacts) completed.push("evidence");
   if (input.hasDraft) completed.push("draft");
   if (input.hasRequiredForms) completed.push("forms");
