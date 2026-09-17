@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "prebuild": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/ai build && pnpm --filter @mailmypdf/notifications build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/fulfillment build",
+    "prebuild": "node scripts/copy-workflow-assets.mjs && pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/ai build && pnpm --filter @mailmypdf/notifications build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/fulfillment build",
     "build": "vite build && node scripts/fix-ssr-chunk-cycle.mjs .output/server",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -14,7 +14,9 @@
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "seo:authority:validate": "tsx scripts/validate-workflow-authority.ts",
     "verify:launch": "npm test && npm run seo:authority:validate && npm run build",
-    "verify:production-config": "node scripts/production-readiness.mjs"
+    "verify:production-config": "node scripts/production-readiness.mjs",
+    "prepare:workflow-assets": "node scripts/copy-workflow-assets.mjs",
+    "predev": "node scripts/copy-workflow-assets.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
