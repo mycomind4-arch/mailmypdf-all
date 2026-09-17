@@ -4,3 +4,7 @@ export * from "./evidence.js";
 export * from "./argument.js";
 export * from "./ground.js";
 export * from "./appeal.js";
+export * from "./xray.js";
+export * from "./stress-test.js";
+export * from "./strategy.js";
+export * from "./readiness.js";
