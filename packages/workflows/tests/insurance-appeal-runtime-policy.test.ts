@@ -70,7 +70,7 @@ test("insurance policy binds matter identity to its exact workflow and appeal-ma
   );
 });
 
-test("insurance appeal facts are trimmed and required facts fail closed", () => {
+test("insurance appeal facts are trimmed and evidence review defaults fail closed", () => {
   const value = validateInsuranceAppealRuntimeInput({
     claimantName: "  Jane Doe  ",
     claimantAddress: "  1 Main St\nArcata, CA 95521  ",
@@ -84,6 +84,17 @@ test("insurance appeal facts are trimmed and required facts fail closed", () => 
   assert.equal(value.claimantName, "Jane Doe");
   assert.equal(value.claimNumber, "CLM-1");
   assert.equal(value.reasonsForDisagreement, "The denial does not address the enclosed record.");
+  assert.equal(value.evidenceReviewComplete, false);
+
+  const reviewed = validateInsuranceAppealRuntimeInput({
+    claimantName: "Jane Doe",
+    claimantAddress: "1 Main St",
+    reasonsForDisagreement: "Reason",
+    requestedOutcome: "Review",
+    evidenceReviewComplete: true,
+  });
+  assert.equal(reviewed.evidenceReviewComplete, true);
+
   assert.throws(
     () => validateInsuranceAppealRuntimeInput({
       claimantName: "",
@@ -92,6 +103,16 @@ test("insurance appeal facts are trimmed and required facts fail closed", () => 
       requestedOutcome: "Review",
     }),
     /Claimant name is required/i,
+  );
+  assert.throws(
+    () => validateInsuranceAppealRuntimeInput({
+      claimantName: "Jane Doe",
+      claimantAddress: "1 Main St",
+      reasonsForDisagreement: "Reason",
+      requestedOutcome: "Review",
+      evidenceReviewComplete: "yes",
+    }),
+    /Evidence review complete must be true or false/i,
   );
 });
 
