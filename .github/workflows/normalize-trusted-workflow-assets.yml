@@ -39,7 +39,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          command -v gs >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y ghostscript; }
+          if ! command -v gs >/dev/null 2>&1 || ! command -v pdfinfo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ghostscript poppler-utils
+          fi
 
           dir="appeal-mail/workflows/appeal-ssdi-denial/forms/generated"
           for source in ssa-561-u2.pdf ssa-3441.pdf ssa-827.pdf; do
