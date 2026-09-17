@@ -57,6 +57,9 @@
       "path": "./packages/intelligence"
     },
     {
+      "path": "./packages/identity-capacity"
+    },
+    {
       "path": "./packages/mailing-client"
     },
     {
