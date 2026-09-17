@@ -56,3 +56,5 @@ export * from "./matter-document-policy.js";
 export * from "./matter-input-store.js";
 export * from "./approval/packet-approval.js";
 export * from "./runtime-safety.js";
+export * from "./runtime-policy-registry.js";
+export * from "./platform-runtime-policies.js";
