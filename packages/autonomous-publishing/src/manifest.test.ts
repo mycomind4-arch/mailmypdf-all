@@ -36,3 +36,24 @@ test("rejects public AI secret names", () => {
     ai: { ...base.ai, apiKeyEnv: "NEXT_PUBLIC_ANTHROPIC_API_KEY" },
   }));
 });
+
+
+test("rejects invalid schedule timezones", () => {
+  assert.throws(
+    () => validatePublicationManifest({
+      ...base,
+      schedule: { frequency: "daily", timezone: "Not/A_Timezone", time: "06:00" },
+    }),
+    /Invalid schedule timezone/,
+  );
+});
+
+test("weekly schedules require an explicit weekday", () => {
+  assert.throws(
+    () => validatePublicationManifest({
+      ...base,
+      schedule: { frequency: "weekly", timezone: "America/Los_Angeles", time: "06:00" },
+    }),
+    /Weekly schedules require dayOfWeek/,
+  );
+});
