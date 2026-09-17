@@ -59,11 +59,7 @@ export interface ApprovalOrderStore {
 
 export interface ApprovalPacketVault {
   validatePdf(bytes: Uint8Array): Promise<{ pageCount: number }>;
-  upload(input: {
-    orderId: string;
-    filename: string;
-    bytes: Uint8Array;
-  }): Promise<{ storagePath: string }>;
+  upload(input: { orderId: string; filename: string; bytes: Uint8Array }): Promise<{ storagePath: string }>;
   remove(storagePath: string): Promise<void>;
 }
 
@@ -149,14 +145,11 @@ export async function createOrLoadApprovalOrder(input: {
   const orderId = (input.id ?? (() => globalThis.crypto.randomUUID()))();
   const lookupToken = (input.token ?? randomToken)();
   const filename = `${input.packet.workflowId}-${input.packet.matterId.slice(0, 8)}.pdf`;
-  const uploaded = await input.vault.upload({
-    orderId,
-    filename,
-    bytes: input.packet.bytes,
-  });
+  const uploaded = await input.vault.upload({ orderId, filename, bytes: input.packet.bytes });
 
+  let created: { order: ApprovalBoundOrder } | { conflict: true };
   try {
-    const created = await input.store.create({
+    created = await input.store.create({
       orderId,
       lookupToken,
       ownerId: input.ownerId,
@@ -167,47 +160,49 @@ export async function createOrLoadApprovalOrder(input: {
       pageCount: validated.pageCount,
       storagePath: uploaded.storagePath,
     });
-
-    if ("conflict" in created) {
-      await input.vault.remove(uploaded.storagePath).catch(() => undefined);
-      const raced = await input.store.loadByApproval(input.packet.approvalId);
-      if (!raced) {
-        throw new ApprovalCheckoutError(
-          "Concurrent order creation could not be reconciled.",
-          "ORDER_RACE_UNRESOLVED",
-        );
-      }
-      assertPacketIdentity(raced, input.packet);
-      return raced;
-    }
-
-    assertPacketIdentity(created.order, input.packet);
-    await input.store.recordEvents?.([
-      {
-        orderId: created.order.id,
-        type: "order.created",
-        label: "Approved workflow packet prepared for checkout",
-        metadata: {
-          workflowMatterId: input.packet.matterId,
-          approvalId: input.packet.approvalId,
-          packetSha256: input.packet.packetSha256,
-        },
-      },
-      {
-        orderId: created.order.id,
-        type: "workflow.packet_bound",
-        label: "Order bound to immutable approved packet",
-        metadata: {
-          packetSha256: input.packet.packetSha256,
-          totalCents: input.packet.totalCents,
-        },
-      },
-    ]);
-    return created.order;
   } catch (error) {
     await input.vault.remove(uploaded.storagePath).catch(() => undefined);
     throw error;
   }
+
+  if ("conflict" in created) {
+    await input.vault.remove(uploaded.storagePath).catch(() => undefined);
+    const raced = await input.store.loadByApproval(input.packet.approvalId);
+    if (!raced) {
+      throw new ApprovalCheckoutError(
+        "Concurrent order creation could not be reconciled.",
+        "ORDER_RACE_UNRESOLVED",
+      );
+    }
+    assertPacketIdentity(raced, input.packet);
+    return raced;
+  }
+
+  // From this point onward the order owns the uploaded packet. A secondary
+  // event/audit failure must not orphan the persisted order by deleting bytes.
+  assertPacketIdentity(created.order, input.packet);
+  await input.store.recordEvents?.([
+    {
+      orderId: created.order.id,
+      type: "order.created",
+      label: "Approved workflow packet prepared for checkout",
+      metadata: {
+        workflowMatterId: input.packet.matterId,
+        approvalId: input.packet.approvalId,
+        packetSha256: input.packet.packetSha256,
+      },
+    },
+    {
+      orderId: created.order.id,
+      type: "workflow.packet_bound",
+      label: "Order bound to immutable approved packet",
+      metadata: {
+        packetSha256: input.packet.packetSha256,
+        totalCents: input.packet.totalCents,
+      },
+    },
+  ]);
+  return created.order;
 }
 
 /**
@@ -248,7 +243,6 @@ export async function ensureApprovalCheckoutSession(input: {
       expectedStatus: "draft",
       expectedSessionId: priorSessionId,
     });
-
     if (!released) {
       const current = await input.store.loadById(order.id);
       if (!current || current.status !== "draft") {
@@ -293,9 +287,7 @@ export async function ensureApprovalCheckoutSession(input: {
     expectedSessionId: null,
     sessionId: session.id,
   });
-  if (claimed) {
-    return { checkoutUrl: session.url, sessionId: session.id };
-  }
+  if (claimed) return { checkoutUrl: session.url, sessionId: session.id };
 
   const winner = await input.store.loadById(order.id);
   if (winner?.stripeSessionId === session.id && winner.status === "draft") {
