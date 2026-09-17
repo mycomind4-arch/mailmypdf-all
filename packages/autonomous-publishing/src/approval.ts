@@ -44,18 +44,32 @@ export async function publishApprovedEdition(
     const publishedAt = now().toISOString();
 
     if (options.memory) {
-      for (const planned of rendered.edition.plannedStories) {
-        await options.memory.remember(planned.story, publishedAt);
+      try {
+        for (const planned of rendered.edition.plannedStories) {
+          await options.memory.remember(planned.story, publishedAt);
+        }
+      } catch (error) {
+        run.warnings = [
+          ...(run.warnings ?? []),
+          `STORY_MEMORY_FAILED:${error instanceof Error ? error.message : String(error)}`,
+        ];
       }
     }
 
     if (adapters.analytics) {
       run.stage = "analytics";
-      await adapters.analytics.recordPublication({
-        publicationId: manifest.id,
-        editionId: rendered.edition.editionId,
-        ...publication,
-      });
+      try {
+        await adapters.analytics.recordPublication({
+          publicationId: manifest.id,
+          editionId: rendered.edition.editionId,
+          ...publication,
+        });
+      } catch (error) {
+        run.warnings = [
+          ...(run.warnings ?? []),
+          `ANALYTICS_FAILED:${error instanceof Error ? error.message : String(error)}`,
+        ];
+      }
     }
 
     run.status = "published";
