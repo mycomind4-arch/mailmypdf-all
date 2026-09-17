@@ -81,8 +81,8 @@ function PublicationsPage() {
       <div className="mt-8 space-y-6">
         {data.publications.map((publication) => {
           const deliveryReady =
-            publication.integrations.resend.configured ||
-            publication.integrations.listmonk.configured;
+            (publication.integrations.resend.enabled && publication.integrations.resend.configured) ||
+            (publication.integrations.listmonk.enabled && publication.integrations.listmonk.configured);
           const productionReady =
             publication.ai.configured &&
             (!publication.integrations.horizon.enabled || publication.integrations.horizon.configured) &&
