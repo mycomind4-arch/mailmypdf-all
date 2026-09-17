@@ -43,3 +43,5 @@ export * from "./durable-manifest-runner.js";
 export * from "./workflow-conditions.js";
 
 export * from "./draft-validator.js";
+export * from "./matter-runtime-client.js";
+export * from "./matter-runtime.js";
