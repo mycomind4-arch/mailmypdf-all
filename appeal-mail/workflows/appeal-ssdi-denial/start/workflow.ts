@@ -51,14 +51,28 @@ export const SSDI_EVIDENCE_KINDS = [
 
 export type SsdiEvidenceKind = (typeof SSDI_EVIDENCE_KINDS)[number][0];
 
+export type SsdiDecisionBasis = "medical" | "nonmedical" | "unknown";
+
 export function isSsdiReconsiderationStage(value: unknown): boolean {
   return value === "reconsideration";
 }
 
+export function isSupportedSsdiDecisionBasis(value: unknown): value is Exclude<SsdiDecisionBasis, "unknown"> {
+  return value === "medical" || value === "nonmedical";
+}
+
+export function requiredSsdiFormsForBasis(basis: SsdiDecisionBasis) {
+  if (basis === "medical") return [...SSDI_REQUIRED_FORMS];
+  if (basis === "nonmedical") return SSDI_REQUIRED_FORMS.filter((form) => form.kind === "ssa_561");
+  return [];
+}
+
 export function hasRequiredSsdiForms(
   documents: readonly { evidence_kind: string | null; included: boolean; usable: boolean }[],
+  basis: SsdiDecisionBasis,
 ): boolean {
-  return SSDI_REQUIRED_FORMS.every((form) =>
+  const required = requiredSsdiFormsForBasis(basis);
+  return required.length > 0 && required.every((form) =>
     documents.some(
       (document) =>
         document.evidence_kind === form.kind &&
