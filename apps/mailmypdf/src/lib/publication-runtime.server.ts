@@ -108,6 +108,8 @@ export function createSupabasePublicationRunStore(): PublicationRunStore {
             stage: value.run.stage,
             run_json: value.run,
             rendered_json: value.rendered ?? null,
+            provider_id: value.publication?.providerId ?? null,
+            publication_url: value.publication?.publicationUrl ?? null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "run_id" },
@@ -118,7 +120,7 @@ export function createSupabasePublicationRunStore(): PublicationRunStore {
     async get(runId: string) {
       const { data, error } = await (supabaseAdmin as any)
         .from("publication_runs")
-        .select("run_json, rendered_json")
+        .select("run_json, rendered_json, provider_id, publication_url")
         .eq("run_id", runId)
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -126,6 +128,13 @@ export function createSupabasePublicationRunStore(): PublicationRunStore {
       return {
         run: data.run_json,
         rendered: data.rendered_json ?? undefined,
+        publication:
+          data.provider_id || data.publication_url
+            ? {
+                providerId: data.provider_id ?? undefined,
+                publicationUrl: data.publication_url ?? undefined,
+              }
+            : undefined,
       } as StoredPublicationRun;
     },
   };
