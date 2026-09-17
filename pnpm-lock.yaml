@@ -23,6 +23,9 @@ importers:
       '@mailmypdf/design-system':
         specifier: workspace:*
         version: link:../packages/design-system
+      '@mailmypdf/forms':
+        specifier: workspace:*
+        version: link:../packages/forms
       '@mailmypdf/seo':
         specifier: workspace:*
         version: link:../packages/seo
@@ -1434,6 +1437,18 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
 
+  packages/audit:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.16.5
+        version: 22.20.3
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/autonomous-publishing:
     dependencies:
       '@mailmypdf/ai':
@@ -1505,6 +1520,18 @@ importers:
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
+
+  packages/forms:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.16.5
+        version: 22.20.3
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/fulfillment:
     dependencies:
