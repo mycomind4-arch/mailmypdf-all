@@ -1,16 +1,40 @@
-import {
-  providerConfirmedActualSentAt,
-  type MailingClass,
-  type ProviderFulfillmentEvent,
-} from "@mailmypdf/fulfillment";
 import { recordRecordsRequestSent } from "./tracking.js";
 import type {
   RecordsRequestDeliveryMethod,
   RecordsRequestTrackingResult,
 } from "./types.js";
 
+/** Structurally compatible with the canonical @mailmypdf/fulfillment event. */
+export interface RecordsRequestFulfillmentEvent {
+  providerOrderId: string;
+  status: string;
+  occurredAt: string;
+  providerEventId?: string | null;
+  trackingNumber?: string | null;
+  actualSentAt?: string | null;
+  deliveredAt?: string | null;
+  proofArtifactId?: string | null;
+}
+
+export type RecordsRequestMailingClass = "standard" | "certified" | "registered";
+
+const SENT_CONFIRMING_STATUSES = new Set([
+  "mailed",
+  "in_transit",
+  "delivered",
+  "returned",
+  "undeliverable",
+  "refused",
+]);
+
+function isIsoTimestamp(value: unknown): value is string {
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T/.test(value) &&
+    Number.isFinite(Date.parse(value));
+}
+
 export function recordsRequestDeliveryMethodForMailClass(
-  mailingClass: MailingClass,
+  mailingClass: RecordsRequestMailingClass,
 ): RecordsRequestDeliveryMethod {
   switch (mailingClass) {
     case "standard": return "first_class_mail";
@@ -28,32 +52,38 @@ export function recordsRequestDeliveryMethodForMailClass(
  * provider-confirmed `actualSentAt` value.
  */
 export function recordRecordsRequestSentFromFulfillment(input: {
-  event: ProviderFulfillmentEvent;
-  mailingClass: MailingClass;
+  event: RecordsRequestFulfillmentEvent;
+  mailingClass: RecordsRequestMailingClass;
 }): RecordsRequestTrackingResult {
-  let actualSentAt: string | null;
-  try {
-    actualSentAt = providerConfirmedActualSentAt(input.event);
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Invalid fulfillment event.",
-    };
+  const { event } = input;
+  if (!event.providerOrderId.trim()) {
+    return { ok: false, error: "A provider order ID is required for fulfillment tracking." };
   }
-
-  if (!actualSentAt) {
+  if (!isIsoTimestamp(event.occurredAt)) {
+    return { ok: false, error: "A valid provider event timestamp is required." };
+  }
+  if (!event.actualSentAt) {
     return {
       ok: false,
       error:
         "A provider-confirmed actual send timestamp is required before records-request response tracking can begin.",
     };
   }
+  if (!SENT_CONFIRMING_STATUSES.has(event.status)) {
+    return {
+      ok: false,
+      error: `${event.status} does not confirm that the records request was actually sent.`,
+    };
+  }
+  if (!isIsoTimestamp(event.actualSentAt)) {
+    return { ok: false, error: "The provider-confirmed actual send timestamp is invalid." };
+  }
 
   return recordRecordsRequestSent({
-    sentDate: actualSentAt.slice(0, 10),
+    sentDate: event.actualSentAt.slice(0, 10),
     method: recordsRequestDeliveryMethodForMailClass(input.mailingClass),
-    providerId: input.event.providerOrderId,
-    trackingNumber: input.event.trackingNumber ?? undefined,
-    receiptArtifactId: input.event.proofArtifactId ?? undefined,
+    providerId: event.providerOrderId,
+    trackingNumber: event.trackingNumber ?? undefined,
+    receiptArtifactId: event.proofArtifactId ?? undefined,
   });
 }
