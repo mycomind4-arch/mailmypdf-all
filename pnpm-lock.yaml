@@ -1523,6 +1523,10 @@ importers:
         version: 0.1.100
 
   packages/workflow-ui:
+    dependencies:
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../step-workflow
     devDependencies:
       '@types/react':
         specifier: ^19.2.0
