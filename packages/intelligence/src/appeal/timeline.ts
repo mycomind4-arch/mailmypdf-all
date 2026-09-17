@@ -128,7 +128,7 @@ const CATEGORY_KEYWORDS: Record<AppealEventCategory, readonly string[]> = {
   correspondence: ["email", "letter", "correspondence", "notified", "mailed", "sent", "response", "reply"],
   hearing: ["hearing", "interview", "conference", "meeting", "appearance"],
   decision: ["decision", "denial", "denied", "approved", "granted", "rejected", "ruling", "judgment", "order", "determination"],
-  deadline: ["deadline", "due", "within", "appeal period", "must file", "no later than"],
+  deadline: ["deadline", "due", "appeal period", "must file by", "must submit by", "no later than", "postmarked by"],
   agency_action: ["agency", "reviewed", "examined", "evaluated", "assessed", "considered", "requested", "required"],
   user_action: ["appellant", "claimant", "petitioner", "applicant", "you submitted", "you filed"],
   other: [],
@@ -160,6 +160,26 @@ function classifyContext(context: string): AppealEventCategory {
   return best;
 }
 
+/**
+ * Classify the specific date mention before considering the broader paragraph.
+ * Relative language such as "appeal within 30 days" must not turn a nearby
+ * decision date into an explicit deadline date. Explicit deadline dates need
+ * date-adjacent language such as "due", "no later than", or "file by".
+ */
+function classifyDateMention(localContext: string, broaderContext: string): AppealEventCategory {
+  const local = localContext.toLowerCase();
+  if (/\b(deadline|due(?:\s+date)?|no later than|must\s+(?:file|submit|appeal)\s+by|postmarked\s+by|file\s+by|submit\s+by)\b/.test(local)) {
+    return "deadline";
+  }
+  if (/\b(decision|determination|denial|denied|ruling|judgment|order|issued|dated)\b/.test(local)) {
+    return "decision";
+  }
+  if (/\b(submitted|received|filed|mailed|sent|uploaded|postmarked)\b/.test(local)) {
+    return classifyContext(localContext);
+  }
+  return classifyContext(broaderContext);
+}
+
 function parseDate(raw: string): string | null {
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
@@ -189,8 +209,17 @@ function extractDocumentEvents(caseId: string, doc: AppealTimelineDocument, find
       if (!date) continue;
       const start = Math.max(0, match.index - 120);
       const end = Math.min(doc.text.length, match.index + match[0].length + 120);
+      const localStart = Math.max(0, match.index - 45);
+      const localEnd = Math.min(doc.text.length, match.index + match[0].length + 45);
       const context = cleanContext(doc.text.slice(start, end));
-      extracted.push({ date, context, raw: match[0], offset: match.index, category: classifyContext(context) });
+      const localContext = cleanContext(doc.text.slice(localStart, localEnd));
+      extracted.push({
+        date,
+        context,
+        raw: match[0],
+        offset: match.index,
+        category: classifyDateMention(localContext, context),
+      });
     }
   }
 
@@ -338,7 +367,8 @@ function buildConflicts(caseId: string, events: AppealTimelineEvent[], findings:
 
 function extractAppealPeriod(documents: readonly AppealTimelineDocument[]): { days: number; source?: SourceRef } | null {
   for (const doc of documents) {
-    for (const pattern of APPEAL_PERIOD_PATTERNS) {
+    for (const basePattern of APPEAL_PERIOD_PATTERNS) {
+      const pattern = new RegExp(basePattern.source, basePattern.flags);
       const match = pattern.exec(doc.text);
       if (!match) continue;
       const days = Number.parseInt(match[1] ?? "", 10);
@@ -351,7 +381,7 @@ function extractAppealPeriod(documents: readonly AppealTimelineDocument[]): { da
 }
 
 function assessDeadline(
-  caseId: string,
+  _caseId: string,
   events: AppealTimelineEvent[],
   documents: readonly AppealTimelineDocument[],
   decision: Decision,
