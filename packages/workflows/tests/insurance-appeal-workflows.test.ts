@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  carInsuranceClaimWorkflow,
   dentalInsuranceDenialWorkflow,
   getInsuranceAppealWorkflowSpec,
   insuranceAppealManifest,
@@ -16,7 +17,7 @@ import {
 
 describe("Insurance appeal workflow overlays", () => {
   test("all migrated canonical workflow identities inherit the reusable insurance appeal capabilities", () => {
-    assert.equal(insuranceAppealWorkflowSpecs.length, 8);
+    assert.equal(insuranceAppealWorkflowSpecs.length, 9);
     for (const spec of insuranceAppealWorkflowSpecs) {
       assert.ok(spec.workflowId.startsWith("appeal-"));
       assert.equal(spec.baseDomainPackId, insuranceAppealManifest.id);
@@ -27,6 +28,13 @@ describe("Insurance appeal workflow overlays", () => {
       assert.equal(getInsuranceAppealWorkflowSpec(spec.workflowId), spec);
       assert.equal("pricingWorkflowId" in spec, false);
     }
+  });
+
+  test("car insurance claim overlay preserves source-bound valuation and liability distinctions", () => {
+    assert.deepEqual(carInsuranceClaimWorkflow.specializedChecks, ["auto-claim-source-resolution"]);
+    assert.ok(carInsuranceClaimWorkflow.authorityRules.some((rule) => rule.includes("Never invent coverage terms")));
+    assert.ok(carInsuranceClaimWorkflow.authorityRules.some((rule) => rule.includes("Keep coverage, liability, valuation")));
+    assert.ok(carInsuranceClaimWorkflow.authoritySources.every((source) => source.freshnessRule === "verify-before-use"));
   });
 
   test("medical denial preserves the mature no-invention and medical-necessity distinctions", () => {
