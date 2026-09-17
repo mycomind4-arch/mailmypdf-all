@@ -25,6 +25,11 @@ function optionalBoolean(value: unknown, label: string): boolean | undefined {
   return value;
 }
 
+function storedText(input: Record<string, unknown>, key: string): string {
+  const value = input[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function hasAuthorityClaim(input: Record<string, unknown>): boolean {
   return [
     input.authorityName,
@@ -52,6 +57,11 @@ function assertIncludedDocumentsClean(documents: readonly WorkflowMatterDocument
 }
 
 export const agencyRecordsRequestRuntimePolicy: WorkflowRuntimePolicy = {
+  // Records requests can be created from confirmed user facts alone. The shared
+  // runtime remains document-first by default for every policy that does not
+  // explicitly opt out like this one.
+  requiresSourceDocument: false,
+
   validateMatter(input) {
     if (
       input.workflowId !== AGENCY_RECORDS_REQUEST_WORKFLOW_ID ||
@@ -61,9 +71,46 @@ export const agencyRecordsRequestRuntimePolicy: WorkflowRuntimePolicy = {
     }
   },
 
+  createAnalysisFromInput({ caseInput }) {
+    const input = caseInput.input;
+    const agency = storedText(input, "agency");
+    const custodian = storedText(input, "custodian");
+    const caseReference = storedText(input, "caseReference");
+    const propertyReference = storedText(input, "propertyReference");
+    const dateRange = storedText(input, "dateRange");
+    const recordsSought = storedText(input, "recordsSought");
+
+    if (!agency || !recordsSought) {
+      throw new Error("Confirmed agency and records scope are required before request-first analysis can be created.");
+    }
+
+    return {
+      decision: null,
+      issuer: agency,
+      referenceNumber: caseReference || null,
+      decisionDate: null,
+      deadline: null,
+      confidence: "high",
+      summary: `Records request to ${agency} for the user-confirmed records scope.`,
+      reasons: [],
+      missingInformation: [],
+      suggestedEvidence: [],
+      promptInjectionObserved: false,
+      workflowDetails: {
+        agency,
+        custodian: custodian || null,
+        caseReference: caseReference || null,
+        propertyReference: propertyReference || null,
+        dateRange: dateRange || null,
+        recordCategories: [],
+        contactDetails: [],
+      },
+    };
+  },
+
   validateAnalysis(analysis: WorkflowMatterAnalysis) {
     if (!analysis.result.summary.trim()) {
-      throw new Error("Request-context analysis must contain a summary when context analysis is performed.");
+      throw new Error("Records Request analysis must contain a summary.");
     }
     // promptInjectionObserved is intentionally retained as provenance. The secure
     // AI boundary must treat uploaded content as data, never instructions.
