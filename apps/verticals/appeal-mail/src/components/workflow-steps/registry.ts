@@ -1,6 +1,4 @@
-import type { ComponentType } from "react";
-import type { ChecklistItemState, StepMatterState } from "@mailmypdf/step-workflow";
-import type { StepComponentProps } from "./types";
+import type { WorkflowStepUiConfig } from "@mailmypdf/workflow-ui";
 import { administrativeDecisionAppealStepComponents } from "./administrative-decision-appeal";
 import {
   getAdministrativeDecisionAppealReadiness,
@@ -11,12 +9,6 @@ import {
   getCarInsuranceAppealReadiness,
   carInsuranceAppealMailingPackage,
 } from "@/domain/step-workflows/car-insurance-appeal";
-
-export type WorkflowStepUiConfig = {
-  stepComponents: Record<string, ComponentType<StepComponentProps>>;
-  getReadiness: (matter: StepMatterState) => ChecklistItemState[];
-  mailingPackage: { label: string }[];
-};
 
 /**
  * The one place a new step-based workflow registers its UI. The route
