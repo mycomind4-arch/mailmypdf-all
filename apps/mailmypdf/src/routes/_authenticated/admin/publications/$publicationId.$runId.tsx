@@ -156,6 +156,22 @@ function PublicationRunReviewPage() {
 
           <section className="envelope-card p-5">
             <h2 className="font-serif text-xl">Approval</h2>
+            {data.provider_id && (
+              <div className="mb-4 rounded-md border border-rule bg-paper-deep p-3 text-xs">
+                <div className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">Delivery receipt</div>
+                <div className="mt-2 font-mono">{data.provider_id}</div>
+                {data.publication_url ? (
+                  <a
+                    href={data.publication_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 block break-all text-cobalt underline-offset-2 hover:underline"
+                  >
+                    {data.publication_url}
+                  </a>
+                ) : null}
+              </div>
+            )}
             {awaitingApproval ? (
               <>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
