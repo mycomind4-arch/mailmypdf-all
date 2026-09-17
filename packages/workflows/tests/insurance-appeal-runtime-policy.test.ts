@@ -4,9 +4,12 @@ import {
   INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS,
   createInsuranceAppealRuntimePolicy,
   getInsuranceAppealRuntimePolicy,
+  insuranceAppealEvidenceReviewFingerprint,
   validateInsuranceAppealRuntimeInput,
   type WorkflowMatterAnalysis,
   type WorkflowMatterDocument,
+  type WorkflowMatterSnapshot,
+  type WorkflowRuntimeStoredInput,
 } from "../src/index.js";
 
 const cleanSource: WorkflowMatterDocument = {
@@ -151,3 +154,125 @@ test("insurance policy allows a clean current source and clean included evidence
   assert.doesNotThrow(() => policy.validateDocumentsBeforeDraft?.([cleanSource, evidence], analysis()));
   assert.doesNotThrow(() => policy.validateDocumentsBeforePacket?.([cleanSource, evidence], analysis()));
 });
+
+function matterSnapshot(
+  workflowId: string,
+  documents: readonly WorkflowMatterDocument[],
+): WorkflowMatterSnapshot {
+  return {
+    matter: {
+      id: "matter-1",
+      workflowId,
+      verticalId: "appeal-mail",
+      status: "active",
+      createdAt: "2026-09-17T00:00:00.000Z",
+      updatedAt: "2026-09-17T00:00:00.000Z",
+    },
+    documents: [...documents],
+  };
+}
+
+function reviewedInput(
+  input: Record<string, unknown>,
+): WorkflowRuntimeStoredInput {
+  return {
+    version: 1,
+    input,
+    createdAt: "2026-09-17T00:00:00.000Z",
+  };
+}
+
+test("insurance evidence review is bound to the exact current source and evidence set", () => {
+  const workflowId = "appeal-medical-necessity-denial";
+  const policy = getInsuranceAppealRuntimePolicy(workflowId)!;
+  const evidence: WorkflowMatterDocument = {
+    ...cleanSource,
+    id: "evidence-link",
+    documentId: "evidence-doc",
+    role: "evidence",
+    evidenceKind: "medical_record",
+    included: true,
+    position: 1,
+    filename: "medical-record.pdf",
+  };
+  const currentMatter = matterSnapshot(workflowId, [cleanSource, evidence]);
+  const normalized = policy.validateInput(
+    {
+      claimantName: "Jane Doe",
+      claimantAddress: "1 Main St",
+      reasonsForDisagreement: "The denial does not address the current record.",
+      requestedOutcome: "Reconsider the denial.",
+      evidenceReviewComplete: true,
+      evidenceReviewFingerprint: "client-spoofed-value",
+    },
+    analysis(),
+    currentMatter,
+  );
+
+  assert.equal(normalized.evidenceReviewComplete, true);
+  assert.equal(
+    normalized.evidenceReviewFingerprint,
+    insuranceAppealEvidenceReviewFingerprint(currentMatter.documents),
+  );
+  assert.notEqual(normalized.evidenceReviewFingerprint, "client-spoofed-value");
+
+  const stored = reviewedInput(normalized);
+  assert.doesNotThrow(() =>
+    policy.validateBeforeDraft?.({
+      matter: currentMatter,
+      caseInput: stored,
+      analysis: analysis(),
+    }),
+  );
+
+  const changedMatter = matterSnapshot(workflowId, [
+    cleanSource,
+    { ...evidence, included: false },
+  ]);
+  assert.throws(
+    () =>
+      policy.validateBeforeDraft?.({
+        matter: changedMatter,
+        caseInput: stored,
+        analysis: analysis(),
+      }),
+    /changed after review/i,
+  );
+  assert.throws(
+    () =>
+      policy.validateBeforePacket?.({
+        matter: changedMatter,
+        caseInput: stored,
+        analysis: analysis(),
+      }),
+    /changed after review/i,
+  );
+});
+
+test("insurance drafting fails closed until evidence review is explicitly completed", () => {
+  const workflowId = "appeal-dental-insurance-denial";
+  const policy = getInsuranceAppealRuntimePolicy(workflowId)!;
+  const currentMatter = matterSnapshot(workflowId, [cleanSource]);
+  const normalized = policy.validateInput(
+    {
+      claimantName: "Jane Doe",
+      claimantAddress: "1 Main St",
+      reasonsForDisagreement: "The denial is incomplete.",
+      requestedOutcome: "Reconsider the denial.",
+      evidenceReviewComplete: false,
+    },
+    analysis(),
+    currentMatter,
+  );
+
+  assert.throws(
+    () =>
+      policy.validateBeforeDraft?.({
+        matter: currentMatter,
+        caseInput: reviewedInput(normalized),
+        analysis: analysis(),
+      }),
+    /complete the supporting-evidence review/i,
+  );
+});
+
