@@ -72,7 +72,8 @@ const ssdi: CaseWorkflowDefinition = Object.freeze({
   responseModes: ["reconsideration"],
   analysisInstructions:
     "This workflow prepares a response to an SSDI denial notice. Identify the " +
-    "decision, stated reasons and appeal stage only if the notice supplies them. " +
+    "decision, stated reasons and appeal stage only if the notice supplies them. Set " +
+    "workflowDetails.appealStage to reconsideration, hearing, appeals_council, or unknown. " +
     "Distinguish medical reasons from work or other eligibility reasons in the summary. " +
     "If this is not an SSDI denial, report that mismatch in missingInformation. " +
     "Never calculate an appeal deadline from a general rule. Treat suggested medical " +
