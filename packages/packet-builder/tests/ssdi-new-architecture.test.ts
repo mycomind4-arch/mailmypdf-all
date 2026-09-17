@@ -3,7 +3,12 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
 import { computeSha256 } from "../../documents/src/index.ts";
-import { assemblePacket, generateLetterPdf, type PacketDocumentRow } from "../src/index.ts";
+import {
+  assemblePacket,
+  generateLetterPdf,
+  normalizeTrustedStaticPdfForMailing,
+  type PacketDocumentRow,
+} from "../src/index.ts";
 import {
   createExactPacketApproval,
   assertPacketMatchesApproval,
@@ -144,15 +149,25 @@ test("shared runtime blocks unscanned SSDI source and included evidence", () => 
 });
 
 test("medical SSDI packet uses the real SSA-561, SSA-3441, and SSA-827 PDFs", async () => {
-  const [ssa561, ssa3441, ssa827] = await Promise.all([
+  const [ssa561Raw, ssa3441Raw, ssa827Raw] = await Promise.all([
     loadForm("ssa-561-u2.pdf"),
     loadForm("ssa-3441.pdf"),
     loadForm("ssa-827.pdf"),
   ]);
 
+  // Official SSA distributions can carry permission encryption. These are
+  // immutable application-owned assets, so they go through the dedicated
+  // trusted-static normalizer before they enter the ordinary strict packet
+  // path. User uploads never use this normalizer.
+  const [ssa561, ssa3441, ssa827] = await Promise.all([
+    normalizeTrustedStaticPdfForMailing(ssa561Raw),
+    normalizeTrustedStaticPdfForMailing(ssa3441Raw),
+    normalizeTrustedStaticPdfForMailing(ssa827Raw),
+  ]);
+
   for (const [name, bytes] of [["SSA-561", ssa561], ["SSA-3441", ssa3441], ["SSA-827", ssa827]] as const) {
     const pdf = await PDFDocument.load(bytes);
-    assert.ok(pdf.getPageCount() > 0, `${name} is not a readable PDF`);
+    assert.ok(pdf.getPageCount() > 0, `${name} is not a readable normalized PDF`);
   }
 
   const response = await generateLetterPdf({
