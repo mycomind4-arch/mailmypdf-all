@@ -42,6 +42,9 @@
       "path": "./packages/documents"
     },
     {
+      "path": "./packages/forms"
+    },
+    {
       "path": "./packages/packet-builder"
     },
     {
