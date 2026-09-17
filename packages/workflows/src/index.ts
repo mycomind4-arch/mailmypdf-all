@@ -44,5 +44,6 @@ export * from "./workflow-conditions.js";
 
 export * from "./draft-validator.js";
 export * from "./matter-runtime-client.js";
+export * from "./browser-workflow-runtime-client.js";
 export * from "./matter-runtime.js";
 export * from "./matter-runtime-server.js";
