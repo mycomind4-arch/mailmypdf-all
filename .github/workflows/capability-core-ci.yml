@@ -75,6 +75,10 @@ jobs:
           pnpm --filter @mailmypdf/documents build
           pnpm --filter @mailmypdf/forms build
           pnpm --filter @mailmypdf/workflows build
+      - name: Official forms capability verification
+        run: |
+          pnpm --filter @mailmypdf/forms test
+          pnpm --filter @mailmypdf/forms typecheck
       - name: Core capability tests
         run: |
           pnpm --filter @mailmypdf/core test
@@ -83,7 +87,6 @@ jobs:
           pnpm --filter @mailmypdf/document-intelligence test
           pnpm --filter @mailmypdf/ai test
           pnpm --filter @mailmypdf/autonomous-publishing test
-          pnpm --filter @mailmypdf/forms test
           pnpm --filter @mailmypdf/intelligence test
           pnpm --filter @mailmypdf/step-workflow test
           pnpm --filter @mailmypdf/packet-builder test
@@ -101,7 +104,6 @@ jobs:
           pnpm --filter @mailmypdf/document-intelligence typecheck
           pnpm --filter @mailmypdf/ai typecheck
           pnpm --filter @mailmypdf/autonomous-publishing typecheck
-          pnpm --filter @mailmypdf/forms typecheck
           pnpm --filter @mailmypdf/step-workflow typecheck
           pnpm --filter @mailmypdf/packet-builder typecheck
           pnpm --filter @mailmypdf/mailing-client typecheck
