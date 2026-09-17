@@ -19,7 +19,7 @@ export interface SectionLandingConfig {
   introText: string
   trustLead: string
   topics: ReadonlyArray<{ title: string; text: string }>
-  featured: ReadonlyArray<{ slug: string; title: string; description: string }>
+  featured: ReadonlyArray<{ slug: string; title: string; description: string; imageSrc?: string; imageAlt?: string }>
   outcomes: ReadonlyArray<string>
   safetyTitle: string
   safetyBody: string
@@ -112,6 +112,9 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
           </div>
           <div className="mmp-workflow-grid">
             {config.featured.map((workflow) => <article className="mmp-workflow-card" key={workflow.slug}>
+              {workflow.imageSrc ? <a className="mmp-workflow-card__media" href={directory + "/" + workflow.slug} aria-label={workflow.title}>
+                <img src={workflow.imageSrc} alt={workflow.imageAlt ?? ""}/>
+              </a> : null}
               <div className="mmp-workflow-card__body">
                 <div className="mmp-eyebrow">{config.name}</div>
                 <h3>{workflow.title}</h3>
