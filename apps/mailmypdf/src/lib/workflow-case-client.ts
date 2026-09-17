@@ -237,6 +237,34 @@ export async function saveWorkflowDraft(caseId: string, bodyText: string): Promi
   return payload.version;
 }
 
+
+export async function loadWorkflowDraft(caseId: string): Promise<{ version: number; bodyText: string; createdAt: string } | null> {
+  const payload = await requestJson<{ draft: { version: number; bodyText: string; createdAt: string } | null }>(
+    `/api/v2/cases/${caseId}/draft`,
+  );
+  return payload.draft;
+}
+
+export async function loadWorkflowApproval(caseId: string): Promise<{
+  approvalId: string;
+  packetSha256: string;
+  quote: PacketPreview["quote"];
+} | null> {
+  const payload = await requestJson<{
+    approval: null | {
+      approval_id: string;
+      packet_sha256: string;
+      quote: PacketPreview["quote"];
+    };
+  }>(`/api/v2/cases/${caseId}/approve`);
+  if (!payload.approval) return null;
+  return {
+    approvalId: payload.approval.approval_id,
+    packetSha256: payload.approval.packet_sha256,
+    quote: payload.approval.quote,
+  };
+}
+
 export async function previewWorkflowPacket(caseId: string, mailClass: "standard" | "certified" | "registered"): Promise<PacketPreview> {
   const payload = await requestJson<{ packet: PacketPreview }>(`/api/v2/cases/${caseId}/packet`, {
     method: "POST",
