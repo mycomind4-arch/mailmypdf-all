@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@mailmypdf/ai": "workspace:*",
     "@mailmypdf/design-system": "workspace:*",
     "@mailmypdf/forms": "workspace:*",
     "@mailmypdf/seo": "workspace:*",
