@@ -129,6 +129,7 @@ const WORKFLOW_ROUTE_ALIASES: Readonly<Record<string, string>> = {
 
 const WORKFLOW_EXECUTION_OVERRIDES: Readonly<Record<string, string>> = {
   "/appeal-mail/workflows/appeal-ssdi-denial": "/appeal-mail/workflows/appeal-ssdi-denial/start",
+  "/legal-defense/workflows/wrongful-stolen-vehicle-arrest": "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start",
 };
 
 function titleFromSlug(slug: string): string {
