@@ -13,11 +13,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "baseUrl": ".",
-    "paths": {
-      "@mailmypdf/*": ["packages/*/src/index.ts"]
-    }
+    "allowImportingTsExtensions": true
   },
   "files": [],
   "references": [
