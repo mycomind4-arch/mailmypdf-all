@@ -1,4 +1,4 @@
-import type { DiscoveryAdapter, ExtractionAdapter } from "./adapters.js";
+import type { DiscoveryAdapter, ExtractionAdapter, StoryEmbeddingAdapter } from "./adapters.js";
 import type { PublicationManifest } from "./manifest.js";
 import type { SourceRef, StoryCandidate } from "./types.js";
 
@@ -91,6 +91,67 @@ export function createCrawl4AiExtractionAdapter(options: Crawl4AiServiceOptions)
         sourceType: "web",
       };
       return { text: result.text, source };
+    },
+  };
+}
+
+
+export interface EmbeddingServiceOptions {
+  endpoint: string;
+  token?: string;
+  fetchImpl?: typeof fetch;
+  dimensions?: number;
+}
+
+/**
+ * Narrow HTTP boundary for a separately deployed FastEmbed-compatible service.
+ * Expected response: { embeddings: number[][], model?: string }.
+ */
+export function createEmbeddingServiceAdapter(
+  options: EmbeddingServiceOptions,
+): StoryEmbeddingAdapter {
+  const dimensions = options.dimensions ?? 384;
+
+  return {
+    async embed(stories, manifest) {
+      if (!stories.length) return [];
+
+      const result = await postJson<{ embeddings?: number[][]; model?: string }>(
+        options.endpoint,
+        {
+          publicationId: manifest.id,
+          texts: stories.map((story) =>
+            [story.title, story.summary].filter(Boolean).join("\n\n").slice(0, 12_000),
+          ),
+          dimensions,
+        },
+        options,
+      );
+
+      if (!Array.isArray(result.embeddings) || result.embeddings.length !== stories.length) {
+        throw new Error("EMBEDDING_SERVICE_INVALID_RESPONSE");
+      }
+
+      return stories.map((story, index) => {
+        const embedding = result.embeddings![index];
+        if (
+          !Array.isArray(embedding) ||
+          embedding.length !== dimensions ||
+          embedding.some((value) => !Number.isFinite(value))
+        ) {
+          throw new Error(`EMBEDDING_SERVICE_INVALID_VECTOR:${story.id}`);
+        }
+
+        return {
+          ...story,
+          embedding,
+          metadata: {
+            ...story.metadata,
+            embeddingModel: result.model ?? "external-fastembed",
+            embeddingDimensions: dimensions,
+          },
+        };
+      });
     },
   };
 }
