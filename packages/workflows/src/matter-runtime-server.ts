@@ -11,6 +11,7 @@ import {
   createExactPacketApproval,
   requireCleanSourceDocument,
   requireIncludedDocumentsReady,
+  WorkflowRuntimeError,
   type ExactPacketApproval,
 } from "./matter-runtime.js";
 
@@ -573,6 +574,10 @@ export function createWorkflowRuntimeRequestHandler(
       throw new HttpError(404, "Workflow runtime route not found");
     } catch (error) {
       if (error instanceof HttpError) return json({ error: error.message }, error.status);
+      if (error instanceof WorkflowRuntimeError) {
+        const status = error.code.includes("INPUT_") ? 400 : 409;
+        return json({ error: error.message, code: error.code }, status);
+      }
       const message = error instanceof Error ? error.message : "Workflow runtime failed";
       return json({ error: message }, 500);
     }
