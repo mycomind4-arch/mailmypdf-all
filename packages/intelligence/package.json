@@ -18,6 +18,10 @@
     "./benefits": {
       "types": "./src/benefits/index.ts",
       "import": "./dist/benefits/index.js"
+    },
+    "./authority": {
+      "types": "./src/authority/index.ts",
+      "import": "./dist/authority/index.js"
     }
   },
   "files": [
