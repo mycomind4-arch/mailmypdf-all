@@ -20,9 +20,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "build": "pnpm --filter @mailmypdf/step-workflow build && tsc",
+    "typecheck": "pnpm --filter @mailmypdf/step-workflow build && tsc --noEmit",
+    "lint": "pnpm --filter @mailmypdf/step-workflow build && tsc --noEmit"
   },
   "peerDependencies": {
     "react": "^19.0.0",
