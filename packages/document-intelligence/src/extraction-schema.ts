@@ -62,7 +62,10 @@ export interface ExtractionValidationResult {
   value?: StructuredDocumentExtraction;
 }
 
-const FIELD_ID = /^[a-z][a-z0-9._-]{1,63}$/;
+// Workflow field IDs are used as stable JSON keys throughout the ecosystem.
+// Accept conventional lower-camelCase as well as lowercase snake/kebab/dotted
+// IDs, but require the first character to remain lowercase for consistency.
+const FIELD_ID = /^[a-z][A-Za-z0-9._-]{1,63}$/;
 const SCHEMA_ID = /^[a-z0-9][a-z0-9._-]{2,127}$/;
 
 function assertFieldDefinition(field: ExtractionFieldDefinition): void {
