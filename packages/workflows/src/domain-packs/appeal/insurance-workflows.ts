@@ -12,6 +12,7 @@ export interface AppealAuthoritySource {
  * It carries only distinctions that actually vary by workflow. The shared
  * engine remains responsible for extraction, evidence, timeline, strategy,
  * drafting, validation, packet generation, mailing, tracking, and proof.
+ * Pricing compatibility belongs exclusively to @mailmypdf/pricing.
  */
 export interface InsuranceAppealWorkflowSpec {
   workflowId: string;
@@ -22,7 +23,6 @@ export interface InsuranceAppealWorkflowSpec {
   specializedChecks: readonly string[];
   authorityRules: readonly string[];
   authoritySources: readonly AppealAuthoritySource[];
-  pricingWorkflowId: string;
 }
 
 function defineInsuranceAppealWorkflow(
@@ -31,7 +31,6 @@ function defineInsuranceAppealWorkflow(
   if (!spec.workflowId.startsWith("appeal-")) {
     throw new Error(`Insurance appeal workflow id must use canonical appeal identity: ${spec.workflowId}`);
   }
-  if (!spec.pricingWorkflowId.trim()) throw new Error(`Insurance appeal workflow ${spec.workflowId} requires pricingWorkflowId`);
   if (!spec.authorityRules.length) throw new Error(`Insurance appeal workflow ${spec.workflowId} requires authority rules`);
   return {
     ...spec,
@@ -44,7 +43,6 @@ export const insuranceClaimDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-insurance-claim-denial",
   title: "Appeal an Insurance Claim Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "denied-claim",
   specializedChecks: [],
   authorityRules: [
     "Use the actual denial notice, policy/plan documents supplied by the user, applicable regulator guidance, and current authoritative sources as the controlling record.",
@@ -65,7 +63,6 @@ export const medicalInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-medical-insurance-denial",
   title: "Appeal a Medical Insurance Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "medical-insurance-denial",
   specializedChecks: ["medical-necessity-analysis"],
   authorityRules: [
     "Treat the actual denial notice, plan or policy documents, applicable federal or state requirements, and current official sources as controlling.",
@@ -82,7 +79,6 @@ export const priorAuthorizationDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-prior-authorization-denial",
   title: "Appeal a Prior Authorization Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "prior-authorization-denial",
   specializedChecks: [],
   authorityRules: [
     "Use the actual denial notice, plan or policy documents supplied by the user, and current official plan/regulator sources as the controlling record.",
@@ -100,7 +96,6 @@ export const insuranceCoverageDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-insurance-coverage-denial",
   title: "Appeal an Insurance Coverage Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "insurance-coverage-denial",
   specializedChecks: ["coverage-analysis"],
   authorityRules: [
     "Use the actual coverage denial, policy or plan documents supplied by the user, issuer instructions, applicable regulator guidance, and current authoritative sources as the controlling record.",
@@ -117,7 +112,6 @@ export const medicalNecessityDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-medical-necessity-denial",
   title: "Appeal a Medical Necessity Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "medical-necessity-appeal",
   specializedChecks: [],
   authorityRules: [
     "Use the actual denial notice, plan/policy language supplied by the user, applicable plan documents, and current authoritative sources as the controlling record.",
@@ -136,7 +130,6 @@ export const outOfNetworkDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-out-of-network-denial",
   title: "Appeal an Out-of-Network Denial",
   lifecycle: "authority",
-  pricingWorkflowId: "out-of-network-denial",
   specializedChecks: [],
   authorityRules: [
     "Use the actual denial notice, plan or policy documents supplied by the user, and current official plan/regulator sources as the controlling record.",
@@ -154,7 +147,6 @@ export const dentalInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-dental-insurance-denial",
   title: "Dental Insurance Appeal",
   lifecycle: "authority",
-  pricingWorkflowId: "dental-insurance-appeal",
   specializedChecks: [],
   authorityRules: [
     "Use the actual dental decision, plan/policy documents supplied by the user, and current official insurer/regulator sources as the controlling record.",
@@ -172,7 +164,6 @@ export const lifeInsuranceDenialWorkflow = defineInsuranceAppealWorkflow({
   workflowId: "appeal-life-insurance-denial",
   title: "Life Insurance Denial Appeal",
   lifecycle: "authority",
-  pricingWorkflowId: "life-insurance-denial",
   specializedChecks: ["policy-source-resolution"],
   authorityRules: [
     "Use the actual denial notice, policy/certificate documents supplied by the user, and current official regulator or insurer sources as the controlling record.",
