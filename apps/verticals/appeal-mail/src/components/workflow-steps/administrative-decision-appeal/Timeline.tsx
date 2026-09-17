@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, TimelineList, DataTable, StatusPill, TextField, RecommendedStepsRow, type TimelineEvent } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "../types";
+import type { StepComponentProps } from "@mailmypdf/workflow-ui";
 import type { AdministrativeDecisionAppealIntake } from "@/domain/step-workflows/administrative-decision-appeal";
 
 function defaultEvents(intake: AdministrativeDecisionAppealIntake): TimelineEvent[] {
