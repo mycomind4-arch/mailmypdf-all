@@ -37,6 +37,14 @@ export function createWebhookPublisher(options: WebhookPublisherOptions): Publis
   };
 }
 
+export function createRequiredDeliveryPublisher(): PublisherAdapter {
+  return {
+    async publish() {
+      throw new Error("DELIVERY_NOT_CONFIGURED");
+    },
+  };
+}
+
 export function createNoopPublisher(): PublisherAdapter {
   return {
     async publish(rendered) {
