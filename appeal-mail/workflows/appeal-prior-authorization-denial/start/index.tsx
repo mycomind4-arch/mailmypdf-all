@@ -1,7 +1,8 @@
+import { createFileRoute } from "@tanstack/react-router";
 import InsuranceAppealWorkflow from "../../../shared/InsuranceAppealWorkflow";
 import workflow from "../manifest";
 
-export default function PriorAuthorizationDenialStart() {
+export function PriorAuthorizationDenialStart() {
   return (
     <InsuranceAppealWorkflow
       config={{
@@ -13,3 +14,9 @@ export default function PriorAuthorizationDenialStart() {
     />
   );
 }
+
+export const Route = createFileRoute("/appeal-mail/workflows/appeal-prior-authorization-denial/start/")({
+  component: PriorAuthorizationDenialStart,
+});
+
+export default PriorAuthorizationDenialStart;
