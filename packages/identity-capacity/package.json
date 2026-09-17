@@ -1,0 +1,32 @@
+{
+  "name": "@mailmypdf/identity-capacity",
+  "version": "0.1.0",
+  "description": "Reusable identity, naming, source-authority, capacity, and party-resolution primitives for MailMyPDF",
+  "private": false,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mailmypdf/core": "workspace:*",
+    "@mailmypdf/intelligence": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
+  }
+}
