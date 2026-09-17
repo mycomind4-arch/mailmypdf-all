@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertNoBenefitsOutcomeClaims,
+  BENEFITS_DRAFTING_POLICY,
+  benefitsDraftingInstructions,
   canDraftBenefitsAppeal,
   canValidateBenefitsAppeal,
   createBenefitsCase,
@@ -78,4 +80,15 @@ test("generated benefits correspondence cannot promise an outcome", () => {
     () => assertNoBenefitsOutcomeClaims("This definitely entitled claimant must be approved."),
     /unsupported eligibility or outcome claim/i,
   );
+});
+
+test("shared drafting policy requires grounded facts and independent validation", () => {
+  assert.ok(BENEFITS_DRAFTING_POLICY.requiredGrounding.some((rule) => /do not invent medical/i.test(rule)));
+  assert.ok(BENEFITS_DRAFTING_POLICY.validationChecks.includes("Evidence support for each material appeal issue"));
+  assert.ok(BENEFITS_DRAFTING_POLICY.forbiddenClaims.includes("guaranteed approval"));
+
+  const instructions = benefitsDraftingInstructions();
+  assert.match(instructions, /ground every factual statement/i);
+  assert.match(instructions, /independently validate/i);
+  assert.match(instructions, /no categorical eligibility or outcome promise/i);
 });
