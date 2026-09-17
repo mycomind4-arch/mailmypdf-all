@@ -136,6 +136,17 @@ export interface WorkflowRuntimeCheckoutGateway {
 
 export interface WorkflowRuntimePolicy {
   validateMatter(input: { workflowId: string; verticalId: string }): void;
+  /** Defaults to true. Request-first workflows may explicitly opt out. */
+  requiresSourceDocument?: boolean;
+  /**
+   * Request-first workflows can deterministically create structured analysis
+   * from validated user input. This preserves one downstream analysis contract
+   * without fabricating or requiring a source document.
+   */
+  createAnalysisFromInput?(input: {
+    matter: WorkflowMatterSnapshot;
+    caseInput: WorkflowRuntimeStoredInput;
+  }): WorkflowMatterAnalysis["result"] | Promise<WorkflowMatterAnalysis["result"]>;
   validateAnalysis?(analysis: WorkflowMatterAnalysis): void;
   validateInput(input: Record<string, unknown>, analysis: WorkflowMatterAnalysis | null): Record<string, unknown>;
   validateDocumentsBeforeDraft?(documents: readonly WorkflowMatterDocument[], analysis: WorkflowMatterAnalysis): void;
@@ -233,11 +244,65 @@ function routeParts(url: URL, basePath: string): string[] {
   return url.pathname.slice(base.length).split("/").filter(Boolean).map(decodeURIComponent);
 }
 
+function requireSourceForPolicy(
+  policy: WorkflowRuntimePolicy,
+  documents: readonly WorkflowMatterDocument[],
+): WorkflowMatterDocument | null {
+  if (policy.requiresSourceDocument !== false) return requireCleanSourceDocument(documents);
+  const source = documents.find((document) => document.role === "subject_notice");
+  if (!source) return null;
+  if (!source.usable || source.securityStatus !== "clean") {
+    // Reuse the canonical error semantics when an optional source is present.
+    return requireCleanSourceDocument(documents);
+  }
+  return source;
+}
+
+async function resolveDraftAnalysis(input: {
+  deps: WorkflowRuntimeServerDependencies;
+  policy: WorkflowRuntimePolicy;
+  actor: WorkflowRuntimeActor;
+  matter: WorkflowMatterSnapshot;
+  caseInput: WorkflowRuntimeStoredInput;
+  now: () => string;
+}): Promise<WorkflowMatterAnalysis> {
+  const previous = await input.deps.store.loadAnalysis(input.actor.id, input.matter.matter.id);
+  if (previous && previous.model !== "workflow-input") return previous;
+
+  if (!input.policy.createAnalysisFromInput) {
+    if (previous) return previous;
+    throw new HttpError(409, "Analyze the source document before drafting");
+  }
+
+  const expectedDocumentId = `workflow-input:${input.caseInput.version}`;
+  if (previous?.documentId === expectedDocumentId) return previous;
+
+  const result = await input.policy.createAnalysisFromInput({
+    matter: input.matter,
+    caseInput: input.caseInput,
+  });
+  const analysis: WorkflowMatterAnalysis = {
+    version: nextAnalysisVersion(previous),
+    documentId: expectedDocumentId,
+    model: "workflow-input",
+    createdAt: input.now(),
+    result,
+  };
+  input.policy.validateAnalysis?.(analysis);
+  await input.deps.store.saveAnalysis(input.actor.id, input.matter.matter.id, analysis);
+  return analysis;
+}
+
 /**
  * Framework-independent shared runtime host. A deployment only needs to mount
  * this function at /api/workflow-runtime and provide adapters for auth,
  * persistence, secure documents, AI/intelligence, packet construction, and
  * checkout. Workflow-specific rules remain in the registered policy.
+ *
+ * Document-first remains the default safety posture. A workflow may opt into
+ * request-first execution only by setting requiresSourceDocument=false and
+ * supplying createAnalysisFromInput, which produces deterministic structured
+ * state from already validated user input.
  */
 export function createWorkflowRuntimeRequestHandler(
   deps: WorkflowRuntimeServerDependencies,
@@ -368,13 +433,12 @@ export function createWorkflowRuntimeRequestHandler(
           return json({ draft: await deps.store.loadDraft(actor.id, matterId) });
         }
         if (request.method === "POST" && parts[3] === "generate") {
-          const analysis = await deps.store.loadAnalysis(actor.id, matterId);
-          if (!analysis) throw new HttpError(409, "Analyze the source document before drafting");
           const caseInput = await deps.store.loadInput(actor.id, matterId);
           if (!caseInput) throw new HttpError(409, "Save workflow facts before drafting");
           matter = await requireMatter(deps, actor, matterId);
-          requireCleanSourceDocument(matter.documents);
+          requireSourceForPolicy(policy, matter.documents);
           requireIncludedDocumentsReady(matter.documents);
+          const analysis = await resolveDraftAnalysis({ deps, policy, actor, matter, caseInput, now });
           policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
           const generated = await deps.intelligence.generateDraft({ actor, matter, analysis, caseInput });
           return json({
@@ -399,7 +463,7 @@ export function createWorkflowRuntimeRequestHandler(
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "A saved draft is required before packet construction");
         matter = await requireMatter(deps, actor, matterId);
-        requireCleanSourceDocument(matter.documents);
+        requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
         const packet = await deps.packet.preview({
@@ -435,6 +499,7 @@ export function createWorkflowRuntimeRequestHandler(
           const draft = await deps.store.loadDraft(actor.id, matterId);
           if (!draft) throw new HttpError(409, "A saved draft is required before approval");
           matter = await requireMatter(deps, actor, matterId);
+          requireSourceForPolicy(policy, matter.documents);
           const included = requireIncludedDocumentsReady(matter.documents);
           policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
           const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: selectedMailClass });
@@ -467,6 +532,7 @@ export function createWorkflowRuntimeRequestHandler(
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
         if (!analysis) throw new HttpError(409, "Analysis is missing");
+        requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
