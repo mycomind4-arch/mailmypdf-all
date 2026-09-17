@@ -80,7 +80,7 @@ const verifiedDocuments = new WeakMap<VerifiedAiDocument, {
 
 async function defaultSha256(bytes: Uint8Array): Promise<string> {
   const source = Uint8Array.from(bytes);
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", source.buffer);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", source);
   return Array.from(new Uint8Array(digest), (part) => part.toString(16).padStart(2, "0")).join("");
 }
 
@@ -118,6 +118,16 @@ function assertDisclosable(
   }
 }
 
+function assertRequestedIdentity(
+  document: DocumentDisclosureMetadata,
+  ownerId: string,
+  documentId: string,
+): void {
+  if (document.ownerId !== ownerId || document.id !== documentId) {
+    throw new DocumentDisclosureError("Document owner or identity does not match the requested document");
+  }
+}
+
 /**
  * Loads bytes only after ownership + attachment checks, then independently
  * re-hashes and validates the file before marking it eligible for AI use.
@@ -145,6 +155,7 @@ export async function loadVerifiedDocumentForAi(input: {
     documentId: input.documentId,
   });
   if (!before) throw new DocumentDisclosureError("Document not found");
+  assertRequestedIdentity(before, input.ownerId, input.documentId);
   assertDisclosable(before, maxDocumentBytes, now());
 
   const bytes = await input.store.readBytes({
@@ -164,6 +175,7 @@ export async function loadVerifiedDocumentForAi(input: {
     documentId: input.documentId,
   });
   if (!after) throw new DocumentDisclosureError("Document disappeared during verification");
+  assertRequestedIdentity(after, input.ownerId, input.documentId);
   assertDisclosable(after, maxDocumentBytes, now());
   if (after.sha256.toLowerCase() !== before.sha256.toLowerCase() || after.sizeBytes !== before.sizeBytes) {
     throw new DocumentDisclosureError("Document changed during verification");
@@ -201,6 +213,7 @@ async function assertStillCurrent(input: {
     documentId: input.document.documentId,
   });
   if (!current) throw new DocumentDisclosureError("Document not found");
+  assertRequestedIdentity(current, input.ownerId, input.document.documentId);
   assertDisclosable(
     current,
     input.options?.maxDocumentBytes ?? 24 * 1024 * 1024,
@@ -209,13 +222,23 @@ async function assertStillCurrent(input: {
   if (current.sha256.toLowerCase() !== provenance.sha256 || current.sizeBytes !== input.document.sizeBytes) {
     throw new DocumentDisclosureError("Document changed after verification");
   }
+
+  const hash = input.options?.sha256 ?? defaultSha256;
+  if (
+    input.document.bytes.byteLength !== input.document.sizeBytes ||
+    (await hash(input.document.bytes)).toLowerCase() !== provenance.sha256 ||
+    !isPdf(input.document.bytes)
+  ) {
+    throw new DocumentDisclosureError("Verified document bytes changed before disclosure");
+  }
+
   return { sha256: provenance.sha256 };
 }
 
 /**
- * Audits disclosure before provider execution, rechecks the document after the
- * audit write, and frames document content as untrusted data rather than model
- * instructions. An audit failure prevents disclosure.
+ * Audits disclosure before provider execution, rechecks document metadata and
+ * bytes after the audit write, and frames content as untrusted data rather than
+ * model instructions. An audit failure prevents disclosure.
  */
 export async function executeWithVerifiedDocument<Result>(input: {
   ownerId: string;
