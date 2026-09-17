@@ -65,10 +65,19 @@ class MemoryStore implements WorkflowRuntimeStore {
     return (await this.loadMatter(ownerId, matterId)) ? this.inputs.get(matterId) ?? null : null;
   }
 
-  async saveDraft(ownerId: string, matterId: string, bodyText: string) {
+  async saveDraft(
+    ownerId: string,
+    matterId: string,
+    input: Parameters<WorkflowRuntimeStore["saveDraft"]>[2],
+  ) {
     if (!(await this.loadMatter(ownerId, matterId))) throw new Error("Matter not found");
     const previous = this.drafts.get(matterId);
-    const stored = { version: (previous?.version ?? 0) + 1, bodyText, createdAt: "2026-09-17T00:00:00.000Z" };
+    const stored = {
+      version: (previous?.version ?? 0) + 1,
+      bodyText: input.bodyText,
+      basis: input.basis,
+      createdAt: "2026-09-17T00:00:00.000Z",
+    };
     this.drafts.set(matterId, stored);
     return stored;
   }
@@ -370,7 +379,18 @@ test("shared runtime refuses approval when packet changed after preview", async 
       promptInjectionObserved: false, workflowDetails: { appealStage: "reconsideration" },
     },
   });
-  await deps.store.saveDraft("user-1", matterId, "Saved draft");
+  let seededResponse = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason: "Seeded immutable packet test." }),
+  }));
+  assert.equal(seededResponse.status, 200);
+  seededResponse = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: "Saved draft" }),
+  }));
+  assert.equal(seededResponse.status, 200);
 
   const previewResponse = await handle(request(`/matters/${matterId}/packet`, {
     method: "POST",
