@@ -20,21 +20,21 @@ export const SSDI_REQUIRED_FORMS = [
     label: "SSA-561-U2 — Request for Reconsideration",
     filename: "ssa-561-u2.pdf",
     bundledMailReadyFilename: "ssa-561-u2.normalized.pdf",
-    href: "/workflow-assets/appeal-ssdi-denial/ssa-561-u2.pdf",
+    href: "/workflow-assets/appeal-ssdi-denial/ssa-561-u2.normalized.pdf",
   },
   {
     kind: "ssa_3441",
     label: "SSA-3441 — Disability Report — Appeal",
     filename: "ssa-3441.pdf",
     bundledMailReadyFilename: "ssa-3441.normalized.pdf",
-    href: "/workflow-assets/appeal-ssdi-denial/ssa-3441.pdf",
+    href: "/workflow-assets/appeal-ssdi-denial/ssa-3441.normalized.pdf",
   },
   {
     kind: "ssa_827",
     label: "SSA-827 — Authorization to Disclose Information",
     filename: "ssa-827.pdf",
     bundledMailReadyFilename: "ssa-827.normalized.pdf",
-    href: "/workflow-assets/appeal-ssdi-denial/ssa-827.pdf",
+    href: "/workflow-assets/appeal-ssdi-denial/ssa-827.normalized.pdf",
   },
 ] as const;
 
