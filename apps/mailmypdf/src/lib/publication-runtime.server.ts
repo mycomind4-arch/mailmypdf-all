@@ -31,6 +31,25 @@ function numberEnv(name: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function assertDeliveryConfigured(manifest: PublicationManifest) {
+  const resendReady =
+    manifest.integrations.resend === true &&
+    Boolean(envValue("RESEND_API_KEY")) &&
+    Boolean(envValue("RESEND_SEGMENT_ID")) &&
+    Boolean(envValue("RESEND_FROM") ?? envValue("RESEND_FROM_ADDRESS"));
+
+  const listmonkReady =
+    manifest.integrations.listmonk === true &&
+    Boolean(envValue("LISTMONK_URL")) &&
+    Boolean(envValue("LISTMONK_USERNAME")) &&
+    Boolean(envValue("LISTMONK_API_TOKEN")) &&
+    numberEnv("LISTMONK_LIST_ID") !== undefined;
+
+  if (!resendReady && !listmonkReady) {
+    throw new Error("Publication delivery is not configured. Configure an enabled Resend or listmonk provider before approval.");
+  }
+}
+
 function productionOptions(manifest: PublicationManifest) {
   const horizonEndpoint = envValue("HORIZON_ENDPOINT");
   const crawlEndpoint = envValue("CRAWL4AI_ENDPOINT");
@@ -209,6 +228,7 @@ export async function publishStoredPublication(
   note?: string,
 ) {
   const { manifest } = getPublicationEntry(publicationId);
+  assertDeliveryConfigured(manifest);
   const db = supabaseAdmin as any;
 
   const { data: claimed, error: claimError } = await db
