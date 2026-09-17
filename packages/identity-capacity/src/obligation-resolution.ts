@@ -95,7 +95,7 @@ export const OBLIGATION_RESOLUTION_RULES: readonly SourceAuthorityRule[] = [
     purpose: "obligation-resolution",
     sourceTypes: ["invoice"],
     entityTypes: ["principal-amount", "currency", "due-date", "description"],
-    score: 0.75,
+    score: 0.78,
     reason: "An invoice can strongly evidence the amount, currency, due date, or description claimed by the issuer, while remaining subject to contract terms and dispute.",
   },
   {
