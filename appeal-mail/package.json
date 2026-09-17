@@ -1,0 +1,30 @@
+{
+  "name": "@mailmypdf/appeal-mail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mailmypdf/design-system": "workspace:*",
+    "@mailmypdf/seo": "workspace:*",
+    "@mailmypdf/workflow-ui": "workspace:*",
+    "@mailmypdf/workflows": "workspace:*",
+    "@tanstack/react-router": "^1.170.16",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@mailmypdf/documents": "workspace:*",
+    "@mailmypdf/packet-builder": "workspace:*",
+    "@mailmypdf/pricing": "workspace:*",
+    "@types/node": "^22.16.5",
+    "@types/react": "^19.2.0",
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.8.3"
+  }
+}
