@@ -123,3 +123,23 @@ export {
   partyRoleClaimsFromCapacity,
   partyRoleResolutionToFinding,
 } from "./party-role-resolution.js";
+
+export type {
+  JurisdictionBasis,
+  JurisdictionClaimEffect,
+  JurisdictionCardinality,
+  JurisdictionResolutionDisposition,
+  JurisdictionCandidate,
+  JurisdictionResolutionPolicy,
+  JurisdictionPolicyAuthorityValue,
+  EvaluatedJurisdictionCandidate,
+  ResolvedJurisdiction,
+  JurisdictionResolutionResult,
+} from "./jurisdiction-resolution.js";
+export {
+  JURISDICTION_SOURCE_RULES,
+  validateJurisdictionPolicy,
+  jurisdictionPolicyFromAuthorityRule,
+  resolveJurisdiction,
+  jurisdictionResolutionToFinding,
+} from "./jurisdiction-resolution.js";
