@@ -1542,19 +1542,6 @@ importers:
         specifier: workspace:*
         version: link:../core
 
-  packages/intelligence:
-    dependencies:
-      '@mailmypdf/core':
-        specifier: workspace:*
-        version: link:../core
-      '@mailmypdf/documents':
-        specifier: workspace:*
-        version: link:../documents
-    devDependencies:
-      tsx:
-        specifier: ^4.23.12
-        version: 4.23.12
-
   packages/identity-capacity:
     dependencies:
       '@mailmypdf/core':
@@ -1563,6 +1550,19 @@ importers:
       '@mailmypdf/intelligence':
         specifier: workspace:*
         version: link:../intelligence
+    devDependencies:
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+
+  packages/intelligence:
+    dependencies:
+      '@mailmypdf/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mailmypdf/documents':
+        specifier: workspace:*
+        version: link:../documents
     devDependencies:
       tsx:
         specifier: ^4.23.12
