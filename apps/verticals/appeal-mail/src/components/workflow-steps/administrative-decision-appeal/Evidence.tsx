@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, StatusPill, DataTable, TextArea, Field, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
 
 /**
  * Each "issue" here is a disputed fact or contradiction raised against the
