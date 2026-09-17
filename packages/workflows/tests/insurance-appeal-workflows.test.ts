@@ -13,11 +13,12 @@ import {
   medicalNecessityDenialWorkflow,
   outOfNetworkDenialWorkflow,
   priorAuthorizationDenialWorkflow,
+  timelyFilingDenialWorkflow,
 } from "../src/index.js";
 
 describe("Insurance appeal workflow overlays", () => {
   test("all migrated canonical workflow identities inherit the reusable insurance appeal capabilities", () => {
-    assert.equal(insuranceAppealWorkflowSpecs.length, 9);
+    assert.equal(insuranceAppealWorkflowSpecs.length, 10);
     for (const spec of insuranceAppealWorkflowSpecs) {
       assert.ok(spec.workflowId.startsWith("appeal-"));
       assert.equal(spec.baseDomainPackId, insuranceAppealManifest.id);
@@ -35,6 +36,12 @@ describe("Insurance appeal workflow overlays", () => {
     assert.ok(carInsuranceClaimWorkflow.authorityRules.some((rule) => rule.includes("Never invent coverage terms")));
     assert.ok(carInsuranceClaimWorkflow.authorityRules.some((rule) => rule.includes("Keep coverage, liability, valuation")));
     assert.ok(carInsuranceClaimWorkflow.authoritySources.every((source) => source.freshnessRule === "verify-before-use"));
+  });
+
+  test("timely filing denial keeps receipt and deadline facts source-bound", () => {
+    assert.deepEqual(timelyFilingDenialWorkflow.specializedChecks, ["timely-filing-source-resolution"]);
+    assert.ok(timelyFilingDenialWorkflow.authorityRules.some((rule) => rule.includes("Never invent a filing deadline")));
+    assert.ok(timelyFilingDenialWorkflow.authorityRules.some((rule) => rule.includes("not automatically an appeal deadline")));
   });
 
   test("medical denial preserves the mature no-invention and medical-necessity distinctions", () => {
