@@ -25,6 +25,7 @@ describe("Insurance appeal workflow overlays", () => {
       assert.ok(spec.canonicalCapabilities.includes("mailing"));
       assert.ok(spec.canonicalCapabilities.includes("proofAudit"));
       assert.equal(getInsuranceAppealWorkflowSpec(spec.workflowId), spec);
+      assert.equal("pricingWorkflowId" in spec, false);
     }
   });
 
@@ -60,8 +61,7 @@ describe("Insurance appeal workflow overlays", () => {
     ));
   });
 
-  test("general claim denial retains source freshness requirements and legacy pricing identity during migration", () => {
-    assert.equal(insuranceClaimDenialWorkflow.pricingWorkflowId, "denied-claim");
+  test("general claim denial retains source freshness requirements", () => {
     assert.equal(insuranceClaimDenialWorkflow.authoritySources.length, 3);
     assert.ok(insuranceClaimDenialWorkflow.authoritySources.every((source) => source.freshnessRule === "verify-before-use"));
   });
