@@ -72,7 +72,6 @@ export interface MailMyPdfFulfillmentClient {
   getMailing(id: PlatformId): Promise<MailingStatus>;
 }
 
-
 export interface PostalAddress {
   name: string;
   line1: string;
@@ -155,3 +154,4 @@ export async function verifyAddressForMailing(
 
 export * from "./address-verification.js";
 export * from "./lob-provider.js";
+export * from "./recipient-resolution.js";
