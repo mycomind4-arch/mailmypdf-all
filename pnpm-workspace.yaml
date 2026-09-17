@@ -5,4 +5,3 @@ packages:
   - "services/*"
   - "appeal-mail"
   - "notice-respond"
-  - "immigration-mail"
