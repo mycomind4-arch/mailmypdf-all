@@ -50,9 +50,9 @@ function analysis(overrides: Partial<WorkflowMatterAnalysis["result"]> = {}): Wo
   };
 }
 
-test("runtime policy registry covers the generic denied claim and all eight insurance overlays", () => {
-  assert.equal(INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS.length, 9);
-  assert.equal(new Set(INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS).size, 9);
+test("runtime policy registry covers the generic denied claim and all nine insurance overlays", () => {
+  assert.equal(INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS.length, 10);
+  assert.equal(new Set(INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS).size, 10);
   for (const workflowId of INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS) {
     assert.ok(getInsuranceAppealRuntimePolicy(workflowId), workflowId);
   }
