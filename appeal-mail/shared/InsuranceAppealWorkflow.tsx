@@ -18,6 +18,7 @@ import {
   INSURANCE_APPEAL_STEPS,
   completedInsuranceAppealSteps,
   createHttpWorkflowMatterClient,
+  insuranceAppealEvidenceReviewFingerprint,
   insuranceAppealStepLabel,
   type InsuranceAppealEvidenceKind,
   type InsuranceAppealStepId,
@@ -37,7 +38,7 @@ export interface InsuranceAppealWorkflowUiConfig {
   defaultRequestedOutcome?: string;
 }
 
-interface AppealFacts {
+interface AppealFacts extends Record<string, unknown> {
   claimantName: string;
   claimantAddress: string;
   phone: string;
@@ -46,6 +47,7 @@ interface AppealFacts {
   reasonsForDisagreement: string;
   requestedOutcome: string;
   additionalFacts: string;
+  evidenceReviewComplete: boolean;
 }
 
 const client = createHttpWorkflowMatterClient({ basePath: "/api/workflow-runtime" });
@@ -69,6 +71,7 @@ function emptyFacts(defaultRequestedOutcome: string): AppealFacts {
     reasonsForDisagreement: "",
     requestedOutcome: defaultRequestedOutcome,
     additionalFacts: "",
+    evidenceReviewComplete: false,
   };
 }
 
@@ -166,17 +169,18 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
         hasCleanDecision: hasCleanSource,
         hasAnalysis: analysisReady,
         hasFacts: factsSaved,
-        hasEvidenceReview: factsSaved,
+        hasEvidenceReview: factsSaved && facts.evidenceReviewComplete,
         hasDraft: draftSaved,
         hasApproval: Boolean(approvalId),
       }),
-    [hasCleanSource, analysisReady, factsSaved, draftSaved, approvalId],
+    [hasCleanSource, analysisReady, factsSaved, facts.evidenceReviewComplete, draftSaved, approvalId],
   );
 
   const currentStep = steps[stepIndex] ?? steps[0]!;
 
   function invalidateAfterSourceChange(): void {
     setAnalysis(null);
+    setFacts((current) => ({ ...current, evidenceReviewComplete: false }));
     setFactsSaved(false);
     setDraft("");
     setDraftSaved(false);
@@ -185,12 +189,14 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
   }
 
   function invalidateAfterAnalysisChange(): void {
+    setFacts((current) => ({ ...current, evidenceReviewComplete: false }));
     setDraftSaved(false);
     setPacket(null);
     setApprovalId("");
   }
 
   function invalidateAfterEvidenceChange(): void {
+    setFacts((current) => ({ ...current, evidenceReviewComplete: false }));
     setDraftSaved(false);
     setPacket(null);
     setApprovalId("");
@@ -230,10 +236,16 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
       }
       setDocuments(snapshot.documents);
       setAnalysis(storedAnalysis);
+      let restoredEvidenceReviewComplete = false;
       if (storedInput?.input) {
+        restoredEvidenceReviewComplete =
+          storedInput.input.evidenceReviewComplete === true &&
+          storedInput.input.evidenceReviewFingerprint ===
+            insuranceAppealEvidenceReviewFingerprint(snapshot.documents);
         setFacts({
           ...emptyFacts(defaultRequestedOutcome),
           ...(storedInput.input as Partial<AppealFacts>),
+          evidenceReviewComplete: restoredEvidenceReviewComplete,
         });
         setFactsSaved(true);
       }
@@ -251,7 +263,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
         ),
         hasAnalysis: Boolean(storedAnalysis?.result.summary.trim()),
         hasFacts: Boolean(storedInput),
-        hasEvidenceReview: Boolean(storedInput),
+        hasEvidenceReview: restoredEvidenceReviewComplete,
         hasDraft: Boolean(storedDraft?.bodyText),
         hasApproval: Boolean(storedApproval?.approvalId),
       });
@@ -350,7 +362,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
   }
 
   function updateFact<Key extends keyof AppealFacts>(key: Key, value: AppealFacts[Key]): void {
-    setFacts((current) => ({ ...current, [key]: value }));
+    setFacts((current) => ({ ...current, [key]: value, evidenceReviewComplete: false }));
     setFactsSaved(false);
     invalidateAfterDraftChange();
   }
@@ -364,6 +376,23 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
       setFactsSaved(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save appeal facts.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function completeEvidenceReview(): Promise<void> {
+    if (!matterId || !factsSaved) return;
+    setBusy("review-evidence");
+    setError("");
+    try {
+      const nextFacts: AppealFacts = { ...facts, evidenceReviewComplete: true };
+      await client.saveInput(matterId, nextFacts);
+      setFacts(nextFacts);
+      setFactsSaved(true);
+      invalidateAfterDraftChange();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save the evidence review.");
     } finally {
       setBusy("");
     }
@@ -510,7 +539,8 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
   function stepReady(step: InsuranceAppealStepId): boolean {
     if (step === "decision") return hasCleanSource;
     if (step === "analysis") return analysisReady;
-    if (step === "facts" || step === "evidence") return factsSaved;
+    if (step === "facts") return factsSaved;
+    if (step === "evidence") return factsSaved && facts.evidenceReviewComplete;
     if (step === "draft") return draftSaved;
     if (step === "review") return Boolean(approvalId);
     return false;
@@ -536,6 +566,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
           { id: "source", label: `${primaryDocumentLabel} cleared security scanning`, done: hasCleanSource },
           { id: "analysis", label: "Denial analyzed", done: analysisReady },
           { id: "facts", label: "Appeal facts confirmed", done: factsSaved },
+          { id: "evidence", label: "Current supporting evidence reviewed", done: factsSaved && facts.evidenceReviewComplete },
           { id: "draft", label: "Appeal draft reviewed and saved", done: draftSaved },
           { id: "approval", label: "Exact packet approved", done: Boolean(approvalId) },
         ]}
@@ -682,6 +713,20 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
           <SectionCard
             title="4. Supporting evidence"
             description="Choose a category before upload. Only explicitly included clean documents enter the final packet."
+            footer={
+              <button
+                className="wf-btn wf-btn--primary"
+                type="button"
+                onClick={() => void completeEvidenceReview()}
+                disabled={!factsSaved || !facts.evidenceReviewComplete || Boolean(busy)}
+              >
+                {busy === "review-evidence"
+                  ? "Saving review…"
+                  : facts.evidenceReviewComplete
+                    ? "Evidence review complete"
+                    : "Complete evidence review"}
+              </button>
+            }
           >
             <Field label="Evidence type">
               <select
