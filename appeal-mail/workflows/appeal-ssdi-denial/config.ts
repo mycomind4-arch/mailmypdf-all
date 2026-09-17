@@ -1,5 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
-import heroImage from "./assets/ssdi-reconsideration-hero.svg"
+import heroImage from "./assets/ssdi-appeal-hero.jpg"
 
 export const workflowConfig = {
   id: "appeal-ssdi-denial",
@@ -15,7 +15,7 @@ export const workflowConfig = {
   heroTitle: "Appeal SSDI Denial",
   heroDescription: "Build, review, and mail your Social Security Disability Insurance appeal with guided steps, document analysis, and official forms.",
   heroImage,
-  heroImageAlt: "Request for Reconsideration, Form SSA-561",
+  heroImageAlt: "Social Security Administration Request for Reconsideration, Form SSA-561",
   indexable: false,
   contentStatus: "scaffold",
   workspaceHighlights: [
