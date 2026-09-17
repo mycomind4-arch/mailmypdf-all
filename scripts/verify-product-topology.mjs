@@ -9,7 +9,6 @@ const expectedVerticals = [
   "dispute-mail",
   "immigration-mail",
   "insurance-claims",
-  "legal-defense",
   "notice-respond",
   "permit-reply",
   "private-office",
