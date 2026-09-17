@@ -1,4 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+import heroImage from "./assets/medicare-appeal-hero.jpg"
 
 export const workflowConfig = {
   id: "appeal-medicare-claim-denial",
@@ -13,6 +14,8 @@ export const workflowConfig = {
   eyebrow: "Appeal Mail workflow",
   heroTitle: "Appeal Medicare Claim Denial",
   heroDescription: "Use a guided appeal medicare claim denial workflow built around the actual documents, facts, dates, evidence, review, and correspondence involved in this situation.",
+  heroImage,
+  heroImageAlt: "Medicare coverage appeal request for redetermination form",
   indexable: false,
   contentStatus: "scaffold",
 } as const satisfies WorkflowLandingConfig
