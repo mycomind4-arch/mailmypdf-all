@@ -114,7 +114,7 @@ function validateStepCondition(
 ): string[] {
   const errors: string[] = [];
 
-  if (condition.kind === "all" || condition.kind === "any") {
+  if ("conditions" in condition) {
     if (condition.conditions.length === 0) {
       errors.push(`${label} condition group cannot be empty`);
     }
@@ -124,12 +124,17 @@ function validateStepCondition(
     return errors;
   }
 
-  if (condition.kind === "capability_status") {
+  if ("capability" in condition) {
     if (!declared.has(condition.capability)) {
       errors.push(`${label} condition references undeclared capability ${condition.capability}`);
     } else if (!priorCapabilities.has(condition.capability)) {
       errors.push(`${label} condition must reference a capability from an earlier step: ${condition.capability}`);
     }
+    return errors;
+  }
+
+  if (!("path" in condition)) {
+    errors.push(`${label} condition is invalid`);
     return errors;
   }
 
