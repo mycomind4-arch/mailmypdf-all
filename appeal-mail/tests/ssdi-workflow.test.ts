@@ -27,10 +27,12 @@ test("required form gate fails closed until every required form is usable and in
     evidence_kind: form.kind,
     included: true,
     usable: true,
+    security_status: "clean",
   }));
   assert.equal(hasRequiredSsdiForms(documents, "medical"), true);
   assert.equal(hasRequiredSsdiForms(documents.slice(0, 2), "medical"), false);
   assert.equal(hasRequiredSsdiForms([{ ...documents[0]!, usable: false }, ...documents.slice(1)], "medical"), false);
+  assert.equal(hasRequiredSsdiForms([{ ...documents[0]!, security_status: "quarantined" }, ...documents.slice(1)], "medical"), false);
 });
 
 test("workflow completion never marks review complete without approval", () => {
