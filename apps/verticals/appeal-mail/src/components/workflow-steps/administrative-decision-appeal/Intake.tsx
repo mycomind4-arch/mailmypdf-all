@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SectionCard, Field, TextField, TextArea, FileList, RecommendedStepsRow } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "../types";
+import type { StepComponentProps } from "@mailmypdf/workflow-ui";
 import type { AdministrativeDecisionAppealIntake } from "@/domain/step-workflows/administrative-decision-appeal";
 
 export function IntakeStep({ matter, onUpdateData, onComplete, goToStep }: StepComponentProps) {
