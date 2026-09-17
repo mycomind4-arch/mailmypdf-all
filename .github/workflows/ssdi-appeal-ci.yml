@@ -61,10 +61,14 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Build source-test workspace dependencies
+      - name: Build Appeal Mail workspace dependencies
         run: |
+          pnpm --filter @mailmypdf/design-system build
+          pnpm --filter @mailmypdf/seo build
+          pnpm --filter @mailmypdf/ai build
           pnpm --filter @mailmypdf/forms build
           pnpm --filter @mailmypdf/workflows build
+          pnpm --filter @mailmypdf/workflow-ui build
       - name: Unit tests
         run: pnpm --filter @mailmypdf/appeal-mail test
       - name: Typecheck Appeal Mail
