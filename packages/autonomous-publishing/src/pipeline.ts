@@ -73,7 +73,15 @@ export function createPublishingPipeline(
         const discovered = await adapters.discovery.discover(manifest);
         run.stage = "deduplicate";
         const currentUnique = deduplicateCandidates(discovered);
-        const unique = await filterHistoricalDuplicates(currentUnique, manifest);
+        let embeddingReady = currentUnique;
+        if (adapters.embeddings) {
+          try {
+            embeddingReady = [...await adapters.embeddings.embed(currentUnique, manifest)];
+          } catch {
+            embeddingReady = currentUnique;
+          }
+        }
+        const unique = await filterHistoricalDuplicates(embeddingReady, manifest);
 
         run.stage = "score";
         const scored = await adapters.scoring.score(unique, manifest);
