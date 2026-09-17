@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/pricing-engine.test.ts tests/regression-suite.test.ts",
+    "test": "node --test tests/pricing-engine.test.ts tests/regression-suite.test.ts tests/canonical-workflow-pricing.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
