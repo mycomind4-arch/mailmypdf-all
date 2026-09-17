@@ -33,5 +33,8 @@
     "react": "^19.2.0",
     "typescript": "^5.8.3",
     "pdfjs-dist": "^4.0.0"
+  },
+  "dependencies": {
+    "@mailmypdf/step-workflow": "workspace:*"
   }
 }
