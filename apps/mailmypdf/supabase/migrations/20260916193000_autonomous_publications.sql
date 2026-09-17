@@ -48,7 +48,7 @@ create index if not exists publication_story_memory_published_at_idx
 -- HNSW index for the planned 384-dimensional local FastEmbed model.
 create index if not exists publication_story_memory_embedding_hnsw_idx
   on public.publication_story_memory
-  using hnsw (embedding extensions.vector_cosine_ops)
+  using hnsw (embedding vector_cosine_ops)
   where embedding is not null;
 
 alter table public.publication_runs enable row level security;
