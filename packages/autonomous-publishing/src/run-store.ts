@@ -1,8 +1,14 @@
 import type { PublicationRun, RenderedEdition } from "./types.js";
 
+export interface PublicationDeliveryReceipt {
+  providerId?: string;
+  publicationUrl?: string;
+}
+
 export interface StoredPublicationRun {
   run: PublicationRun;
   rendered?: RenderedEdition;
+  publication?: PublicationDeliveryReceipt;
 }
 
 export interface PublicationRunStore {
