@@ -63,6 +63,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build Appeal Mail workspace dependencies
         run: |
+          pnpm --filter @mailmypdf/core build
+          pnpm --filter @mailmypdf/documents build
+          pnpm --filter @mailmypdf/mailing-client build
+          pnpm --filter @mailmypdf/packet-builder build
+          pnpm --filter @mailmypdf/payment-fulfillment build
+          pnpm --filter @mailmypdf/proof build
           pnpm --filter @mailmypdf/design-system build
           pnpm --filter @mailmypdf/seo build
           pnpm --filter @mailmypdf/ai build
