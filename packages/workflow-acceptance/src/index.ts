@@ -6,3 +6,5 @@ export * from "./mock-stripe.js";
 export * from "./mock-mailing-client.js";
 export * from "./pdf-utils.js";
 export * from "./report.js";
+export * from "./gold-standard-gate.js";
+export * from "./appeal-audit.js";
