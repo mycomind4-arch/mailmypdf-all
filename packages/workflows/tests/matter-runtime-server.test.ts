@@ -9,11 +9,12 @@ import {
   type WorkflowMatterSnapshot,
   type WorkflowRuntimePolicy,
   type WorkflowRuntimeServerDependencies,
+  type WorkflowRuntimeStore,
   type WorkflowRuntimeStoredDraft,
   type WorkflowRuntimeStoredInput,
 } from "../src/index.js";
 
-class MemoryStore implements WorkflowRuntimeServerDependencies["store"] {
+class MemoryStore implements WorkflowRuntimeStore {
   readonly matters = new Map<string, { ownerId: string; snapshot: WorkflowMatterSnapshot }>();
   readonly analyses = new Map<string, WorkflowMatterAnalysis>();
   readonly inputs = new Map<string, WorkflowRuntimeStoredInput>();
