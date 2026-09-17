@@ -47,3 +47,7 @@ export * from "./domain-packs/appeal/insurance-packs.js";
 export * from "./matter-runtime-client.js";
 export * from "./matter-runtime.js";
 export * from "./matter-runtime-server.js";
+export * from "./matter-document-policy.js";
+export * from "./matter-input-store.js";
+export * from "./approval/packet-approval.js";
+export * from "./runtime-safety.js";
