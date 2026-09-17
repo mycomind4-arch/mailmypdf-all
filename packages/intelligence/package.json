@@ -14,6 +14,10 @@
     "./appeal": {
       "types": "./src/appeal/index.ts",
       "import": "./dist/appeal/index.js"
+    },
+    "./benefits": {
+      "types": "./src/benefits/index.ts",
+      "import": "./dist/benefits/index.js"
     }
   },
   "files": [
