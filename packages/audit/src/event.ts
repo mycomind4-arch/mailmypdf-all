@@ -75,6 +75,7 @@ export type AuditArtifactRef = {
 
 export type AuditEvent = {
   id: string;
+  ownerId: string;
   matterId: string;
   workflowId: string;
   verticalId?: string;
@@ -92,6 +93,7 @@ export type CreateAuditEventInput = Omit<AuditEvent, "id" | "timestamp"> & {
 };
 
 export function createAuditEvent(input: CreateAuditEventInput): AuditEvent {
+  if (!input.ownerId.trim()) throw new Error("Audit events require an ownerId.");
   if (!input.matterId.trim()) throw new Error("Audit events require a matterId.");
   if (!input.workflowId.trim()) throw new Error("Audit events require a workflowId.");
   if (!input.detail.trim()) throw new Error("Audit events require detail.");
