@@ -1,5 +1,5 @@
 import { SectionCard, StatusPill } from "@mailmypdf/workflow-ui";
-import type { StepComponentProps } from "@mailmypdf/workflow-ui";
+import type { StepComponentProps } from "../types";
 import {
   carInsuranceAppealStepWorkflow,
   type CarInsuranceAppealIntake,
