@@ -83,6 +83,7 @@ jobs:
             tests/notice-response-workflow.test.ts \
             tests/notice-workflow-factory.test.ts \
             tests/ssdi-denial-new-architecture.test.ts \
+            tests/ssdi-denial-packet.test.ts \
             2>&1 | tee notice-runtime-tests.log
       - name: Upload executable notice runtime diagnostics
         if: failure() && steps.notice-runtime-tests.outcome == 'failure'
