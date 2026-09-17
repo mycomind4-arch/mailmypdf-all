@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: normalize-trusted-workflow-assets
+  cancel-in-progress: true
+
 jobs:
   normalize:
     runs-on: ubuntu-24.04
@@ -71,4 +75,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "build: normalize trusted SSA forms and workspace lock"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
