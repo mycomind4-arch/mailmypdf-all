@@ -12,7 +12,7 @@ export const INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS = Object.freeze([
 export type InsuranceAppealRuntimeWorkflowId =
   (typeof INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS)[number];
 
-export interface InsuranceAppealRuntimeInput {
+export interface InsuranceAppealRuntimeInput extends Record<string, unknown> {
   claimantName: string;
   claimantAddress: string;
   phone: string;
@@ -94,7 +94,7 @@ function isInsuranceAppealRuntimeWorkflowId(
 export function createInsuranceAppealRuntimePolicy(
   workflowId: InsuranceAppealRuntimeWorkflowId,
 ): WorkflowRuntimePolicy {
-  return Object.freeze({
+  const policy: WorkflowRuntimePolicy = {
     validateMatter(input) {
       if (input.workflowId !== workflowId || input.verticalId !== "appeal-mail") {
         throw new WorkflowRuntimeError(
@@ -104,7 +104,7 @@ export function createInsuranceAppealRuntimePolicy(
       }
     },
     validateAnalysis: validateInsuranceAnalysis,
-    validateInput(input) {
+    validateInput(input, _analysis) {
       return validateInsuranceAppealRuntimeInput(input);
     },
     validateDocumentsBeforeDraft(documents, analysis) {
@@ -113,7 +113,9 @@ export function createInsuranceAppealRuntimePolicy(
     validateDocumentsBeforePacket(documents, analysis) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
-  });
+  };
+
+  return Object.freeze(policy);
 }
 
 const INSURANCE_APPEAL_RUNTIME_POLICIES = new Map<
