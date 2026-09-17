@@ -52,6 +52,7 @@ export const aiIndustryDaily: PublicationManifest = {
   integrations: {
     horizon: true,
     crawl4ai: true,
+    embeddings: true,
     rsshub: true,
     listmonk: false,
     resend: true,
