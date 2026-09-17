@@ -1,5 +1,5 @@
 import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
-import heroImage from "./assets/unemployment-appeal-hero.jpg"
+import heroImage from "./assets/workflow-hero.png"
 
 export const workflowConfig = {
   id: "appeal-unemployment-denial",
