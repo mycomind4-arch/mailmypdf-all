@@ -68,7 +68,7 @@ export interface RegistrySearchQuery {
   readonly purpose: string;
   readonly jurisdiction: AuthorityJurisdiction;
   readonly names?: readonly string[] | undefined;
-  readonly identifiers?: Readonly<Record<string, string>> | undefined;
+  readonly identifiers?: Readonly<Record<string, string | undefined>> | undefined;
   readonly asOf?: string | undefined;
   readonly limit?: number | undefined;
   readonly metadata?: Readonly<Record<string, string>> | undefined;
@@ -134,7 +134,6 @@ export function toAuthoritySource(
     sourceType:
       source.kind === "business-registry" ? "official-registry-record"
       : source.kind === "property-records" ? "recorded-title"
-      : source.kind === "court-index" ? "court-order"
       : "official-registry-record",
     provenanceLevel: "external_source",
     jurisdiction: [
@@ -143,6 +142,5 @@ export function toAuthoritySource(
       source.jurisdiction.county,
       source.jurisdiction.city,
     ].filter(Boolean).join("/"),
-    effectiveAt: record?.retrievedAt,
   };
 }
