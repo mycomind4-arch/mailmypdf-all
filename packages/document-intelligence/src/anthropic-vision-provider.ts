@@ -1,6 +1,7 @@
 import type {
   DocumentVisionProvider,
   DocumentVisionProviderResult,
+  DocumentVisionRequest,
   VerifiedVisualDocument,
 } from "./vision.js";
 
@@ -79,7 +80,12 @@ export function createAnthropicVisionProvider(options:AnthropicVisionProviderOpt
   if(!options.apiKey.trim() || !options.model.trim()) throw new Error("Anthropic vision configuration is incomplete");
   const fetchImpl=options.fetchImpl ?? fetch;
   return {
-    async analyze<T>({document,request,signal}):Promise<DocumentVisionProviderResult<T>>{
+    async analyze<T>(input:{
+      document:VerifiedVisualDocument;
+      request:DocumentVisionRequest;
+      signal?:AbortSignal;
+    }):Promise<DocumentVisionProviderResult<T>>{
+      const {document,request,signal}=input;
       const response=await fetchImpl(options.apiUrl ?? API,{
         method:"POST",redirect:"error",signal,
         headers:{
