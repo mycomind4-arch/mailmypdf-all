@@ -41,7 +41,11 @@ describe("Insurance appeal workflow overlays", () => {
   test("timely filing denial keeps receipt and deadline facts source-bound", () => {
     assert.deepEqual(timelyFilingDenialWorkflow.specializedChecks, ["timely-filing-source-resolution"]);
     assert.ok(timelyFilingDenialWorkflow.authorityRules.some((rule) => rule.includes("Never invent a filing deadline")));
-    assert.ok(timelyFilingDenialWorkflow.authorityRules.some((rule) => rule.includes("not automatically a filing deadline")));
+    assert.ok(timelyFilingDenialWorkflow.authorityRules.some((rule) =>
+      rule.includes("not automatically") &&
+      rule.includes("deadline") &&
+      rule.includes("controlling"),
+    ));
   });
 
   test("medical denial preserves the mature no-invention and medical-necessity distinctions", () => {
