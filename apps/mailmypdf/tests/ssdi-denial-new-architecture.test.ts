@@ -24,10 +24,13 @@ test("SSDI reconsideration requires all three official SSA forms to be clean and
     included: true,
     usable: true,
   }));
-  assert.equal(hasRequiredSsdiForms(documents), true);
-  assert.equal(hasRequiredSsdiForms(documents.slice(0, 2)), false);
-  assert.equal(hasRequiredSsdiForms(documents.map((item, index) => index === 1 ? { ...item, usable: false } : item)), false);
-  assert.equal(hasRequiredSsdiForms(documents.map((item, index) => index === 2 ? { ...item, included: false } : item)), false);
+  assert.equal(hasRequiredSsdiForms(documents, "medical"), true);
+  assert.equal(hasRequiredSsdiForms(documents.slice(0, 2), "medical"), false);
+  assert.equal(hasRequiredSsdiForms(documents.map((item, index) => index === 1 ? { ...item, usable: false } : item), "medical"), false);
+  assert.equal(hasRequiredSsdiForms(documents.map((item, index) => index === 2 ? { ...item, included: false } : item), "medical"), false);
+  assert.equal(hasRequiredSsdiForms(documents.slice(0, 1), "nonmedical"), true);
+  assert.equal(hasRequiredSsdiForms([], "nonmedical"), false);
+  assert.equal(hasRequiredSsdiForms(documents, "unknown"), false);
 });
 
 test("SSDI workflow fails closed for an unconfirmed or non-reconsideration appeal stage", () => {
@@ -76,6 +79,7 @@ test("SSDI analysis records appeal stage explicitly without inventing one", () =
     promptInjectionObserved: false,
     workflowDetails: {
       appealStage: "reconsideration",
+      decisionBasis: "medical",
       taxYear: null,
       amountDue: null,
       proposedTax: null,
@@ -88,6 +92,7 @@ test("SSDI analysis records appeal stage explicitly without inventing one", () =
     },
   });
   assert.equal(analysis.workflowDetails.appealStage, "reconsideration");
+  assert.equal(analysis.workflowDetails.decisionBasis, "medical");
 });
 
 test("new Appeal Mail SSDI workspace resolves to the authenticated execution route", () => {
