@@ -197,9 +197,31 @@ export const carInsuranceClaimWorkflow = defineInsuranceAppealWorkflow({
   ],
 });
 
+
+export const timelyFilingDenialWorkflow = defineInsuranceAppealWorkflow({
+  workflowId: "appeal-timely-filing-denial",
+  title: "Appeal a Timely Filing Denial",
+  lifecycle: "authority",
+  specializedChecks: ["timely-filing-source-resolution"],
+  authorityRules: [
+    "Use the actual denial notice, claim submission records supplied by the user, plan or policy documents supplied by the user, and current official insurer or regulator sources as the controlling record.",
+    "Never invent a filing deadline, receipt date, submission date, claim number, delivery event, exception, coverage term, procedural rule, or outcome.",
+    "Keep the insurer's stated filing rule separate from evidence of when and how the claim was actually submitted, received, rejected, corrected, or resubmitted.",
+    "A date appearing on a claim, invoice, portal screenshot, fax confirmation, or mailing record proves only what that source actually supports; do not silently convert it into a verified receipt date.",
+    "Do not assume one timely-filing period applies across plans, policies, programs, providers, jurisdictions, or claim types.",
+    "Any exception, waiver, reconsideration right, or escalation path must be grounded in the controlling notice, plan or policy materials, or a verified authoritative source.",
+    "Unsupported timing or procedural conclusions remain unresolved and block confident ready-to-send status.",
+    "Never promise that the denial will be reversed or that a filing exception will be accepted.",
+  ],
+  authoritySources: [
+    { title: "NAIC — Consumer Insurance Information", url: "https://content.naic.org/consumer", freshnessRule: "verify-before-use" },
+  ],
+});
+
 export const insuranceAppealWorkflowSpecs = [
   insuranceClaimDenialWorkflow,
   carInsuranceClaimWorkflow,
+  timelyFilingDenialWorkflow,
   medicalInsuranceDenialWorkflow,
   priorAuthorizationDenialWorkflow,
   insuranceCoverageDenialWorkflow,
