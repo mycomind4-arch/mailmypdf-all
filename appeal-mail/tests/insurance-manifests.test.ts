@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import carInsuranceClaimManifest from "../workflows/appeal-car-insurance-claim/manifest.js";
+import timelyFilingDenialManifest from "../workflows/appeal-timely-filing-denial/manifest.js";
 import insuranceClaimDenialManifest from "../workflows/appeal-insurance-claim-denial/manifest.js";
 import medicalInsuranceDenialManifest from "../workflows/appeal-medical-insurance-denial/manifest.js";
 import priorAuthorizationDenialManifest from "../workflows/appeal-prior-authorization-denial/manifest.js";
@@ -13,6 +14,7 @@ import lifeInsuranceDenialManifest from "../workflows/appeal-life-insurance-deni
 
 const manifests = [
   carInsuranceClaimManifest,
+  timelyFilingDenialManifest,
   insuranceClaimDenialManifest,
   medicalInsuranceDenialManifest,
   priorAuthorizationDenialManifest,
@@ -24,7 +26,7 @@ const manifests = [
 ] as const;
 
 test("insurance appeal manifest family is uniquely wired to the shared appeal contract", () => {
-  assert.equal(manifests.length, 9);
+  assert.equal(manifests.length, 10);
   assert.equal(new Set(manifests.map((manifest) => manifest.manifest.id)).size, manifests.length);
   assert.equal(new Set(manifests.map((manifest) => manifest.manifest.route)).size, manifests.length);
 
