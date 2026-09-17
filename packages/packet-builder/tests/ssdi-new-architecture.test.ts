@@ -161,7 +161,7 @@ test("shared runtime blocks unscanned SSDI source and included evidence", () => 
 test("medical SSDI packet uses the real SSA-561, SSA-3441, and SSA-827 PDFs", async () => {
   // Normalize sequentially so a malformed official form is identified by
   // name in CI instead of being hidden by Promise.all's first rejection.
-  const ssa561 = await normalizeBundledForm("SSA-561", "ssa-561-u2.pdf");
+  const ssa561 = await loadForm("ssa-561-u2.normalized.pdf");
   const ssa3441 = await normalizeBundledForm("SSA-3441", "ssa-3441.pdf");
   const ssa827 = await normalizeBundledForm("SSA-827", "ssa-827.pdf");
 
