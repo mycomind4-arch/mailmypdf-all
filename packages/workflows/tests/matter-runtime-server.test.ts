@@ -303,6 +303,15 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   }));
   assert.equal(response.status, 200);
 
+  // The evidence set changed after the first draft save, so review/save the
+  // same draft again to bind it to the final current document state.
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: generated }),
+  }));
+  assert.equal(response.status, 200);
+
   response = await handle(request(`/matters/${matterId}/packet`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -412,3 +421,83 @@ test("shared runtime refuses approval when packet changed after preview", async 
   assert.equal(approvalResponse.status, 409);
   assert.match((await body(approvalResponse)).error, /changed after preview/i);
 });
+
+test("shared runtime blocks packet construction when saved draft basis is stale or missing", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(created)).matter.id as string;
+  const row = deps.store.matters.get(matterId)!;
+  row.snapshot.documents = [
+    {
+      id: "source-link", documentId: "source", role: "subject_notice", evidenceKind: null,
+      pageCount: 1, included: false, position: 0, filename: "source.pdf", mimeType: "application/pdf",
+      sizeBytes: 10, securityStatus: "clean", usable: true,
+    },
+    {
+      id: "form-link", documentId: "form", role: "evidence", evidenceKind: "required-form",
+      pageCount: 1, included: true, position: 1, filename: "form.pdf", mimeType: "application/pdf",
+      sizeBytes: 10, securityStatus: "clean", usable: true,
+    },
+  ];
+  await deps.store.saveAnalysis("user-1", matterId, {
+    version: 1, documentId: "source", model: "mock", createdAt: "2026-09-17T00:00:00.000Z",
+    result: {
+      decision: "Denied", issuer: "Agency", referenceNumber: null, decisionDate: null, deadline: null,
+      confidence: "high", summary: "Denied", reasons: [], missingInformation: [], suggestedEvidence: [],
+      promptInjectionObserved: false, workflowDetails: { appealStage: "reconsideration" },
+    },
+  });
+
+  let response = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason: "Original reviewed facts." }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: "Reviewed saved draft." }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason: "Changed facts after draft review." }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  assert.equal(response.status, 409);
+  let payload = await body(response);
+  assert.equal(payload.code, "DRAFT_BASIS_STALE");
+
+  const currentDraft = deps.store.drafts.get(matterId)!;
+  deps.store.drafts.set(matterId, {
+    version: currentDraft.version + 1,
+    bodyText: currentDraft.bodyText,
+    createdAt: currentDraft.createdAt,
+  });
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  assert.equal(response.status, 409);
+  payload = await body(response);
+  assert.equal(payload.code, "DRAFT_BASIS_MISSING");
+});
+
