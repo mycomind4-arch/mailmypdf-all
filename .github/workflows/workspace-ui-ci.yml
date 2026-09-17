@@ -73,7 +73,7 @@ jobs:
         run: node --test apps/mailmypdf/tests/secure-workflow-fulfillment.test.mjs
       - name: Build secure workflow package dependencies
         run: pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build
-      - name: Verify executable notice workflow runtimes
+      - name: Verify executable workflow runtimes
         id: notice-runtime-tests
         shell: bash
         run: |
@@ -82,12 +82,13 @@ jobs:
             tests/workflow-runtime.test.ts \
             tests/notice-response-workflow.test.ts \
             tests/notice-workflow-factory.test.ts \
+            tests/ssdi-denial-new-architecture.test.ts \
             2>&1 | tee notice-runtime-tests.log
       - name: Upload executable notice runtime diagnostics
         if: failure() && steps.notice-runtime-tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: executable-notice-runtime-diagnostics
+          name: executable-workflow-runtime-diagnostics
           path: notice-runtime-tests.log
           if-no-files-found: error
           retention-days: 7
