@@ -1,0 +1,43 @@
+name: Normalize remaining bundled SSDI forms
+
+on:
+  push:
+    paths:
+      - ".github/workflows/normalize-ssdi-remaining-forms.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ghostscript
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghostscript
+      - name: Rewrite SSA-3441 and SSA-827 as static mail-ready PDFs
+        run: |
+          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.7 \
+            -dDetectDuplicateImages=true -dCompressFonts=true \
+            -sOutputFile=appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-3441.normalized.pdf \
+            appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-3441.pdf
+          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.7 \
+            -dDetectDuplicateImages=true -dCompressFonts=true \
+            -sOutputFile=appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-827.normalized.pdf \
+            appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-827.pdf
+          test -s appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-3441.normalized.pdf
+          test -s appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-827.normalized.pdf
+      - name: Commit normalized forms
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-3441.normalized.pdf \
+                  appeal-mail/workflows/appeal-ssdi-denial/forms/generated/ssa-827.normalized.pdf
+          if git diff --cached --quiet; then
+            echo "Normalized forms already committed."
+          else
+            git commit -m "fix: add mail-ready SSDI official forms"
+            git push origin HEAD:main
+          fi
