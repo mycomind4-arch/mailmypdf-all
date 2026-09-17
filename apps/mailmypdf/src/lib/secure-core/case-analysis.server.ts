@@ -149,6 +149,10 @@ export async function generateDraftResponse(
         ? "The SSDI appeal level is not confirmed. Review the notice before drafting."
         : "This SSDI workflow is for reconsideration. Use the workflow that matches the appeal level shown on the notice.");
     }
+    const basis = analysis.result.workflowDetails.decisionBasis;
+    if (basis !== "medical" && basis !== "nonmedical") {
+      throw new CaseError("The SSDI decision basis is not confirmed. Review the notice before drafting.");
+    }
   }
 
   const documents = await listCaseDocuments(caseId, context);
