@@ -28,9 +28,13 @@ export function createPublishingPipeline(
   const semanticThreshold = options.semanticDuplicateThreshold ?? 0.92;
   const runStore = options.runStore;
 
-  async function persist(run: PublicationRun, rendered?: RenderedEdition): Promise<void> {
+  async function persist(
+    run: PublicationRun,
+    rendered?: RenderedEdition,
+    publication?: { publicationUrl?: string; providerId?: string },
+  ): Promise<void> {
     if (!runStore) return;
-    await runStore.save({ run: structuredClone(run), rendered });
+    await runStore.save({ run: structuredClone(run), rendered, publication });
   }
 
   async function filterHistoricalDuplicates(
@@ -130,7 +134,7 @@ export function createPublishingPipeline(
 
         run.status = "published";
         run.completedAt = publishedAt;
-        await persist(run, rendered);
+        await persist(run, rendered, publication);
         return { run, rendered, publication };
       } catch (error) {
         run.status = "failed";
