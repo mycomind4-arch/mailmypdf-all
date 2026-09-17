@@ -103,13 +103,14 @@ export class InMemoryWorkflowRuntimeStore implements WorkflowRuntimeStore {
   async saveDraft(
     ownerId: string,
     matterId: string,
-    bodyText: string,
+    input: Parameters<WorkflowRuntimeStore["saveDraft"]>[2],
   ): Promise<WorkflowRuntimeStoredDraft> {
     if (!(await this.loadMatter(ownerId, matterId))) throw new Error("Matter not found");
     const previous = this.drafts.get(matterId);
     const stored: WorkflowRuntimeStoredDraft = {
       version: (previous?.version ?? 0) + 1,
-      bodyText,
+      bodyText: input.bodyText,
+      basis: input.basis,
       createdAt: "2026-09-17T00:00:00.000Z",
     };
     this.drafts.set(matterId, stored);
