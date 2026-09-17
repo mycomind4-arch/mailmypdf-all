@@ -1,21 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ApprovalChecklist,
+  CheckboxField,
   DocumentUpload,
-  DraftReview,
-  EvidenceSummary,
   Field,
   FulfillmentPanel,
-  PacketSummary,
   ReadinessChecklist,
   SectionCard,
   StatusCard,
   StepShell,
-  StructuredAnalysisPanel,
   TextArea,
   TextField,
-} from "../../../../packages/workflow-ui/src/index";
-import "../../../../packages/workflow-ui/src/workflow-ui.css";
+} from "@mailmypdf/workflow-ui";
+import "@mailmypdf/workflow-ui/workflow-ui.css";
 import {
   analyzeWorkflowCase,
   approveWorkflowPacket,
@@ -38,7 +35,7 @@ import {
   type PacketPreview,
   type WorkflowAnalysis,
   type WorkflowCaseDocument,
-} from "../../../../apps/mailmypdf/src/lib/workflow-case-client";
+} from "./runtime-client";
 import {
   SSDI_EVIDENCE_KINDS,
   SSDI_REQUIRED_FORMS,
@@ -55,7 +52,7 @@ import {
   type SsdiStepId,
 } from "./workflow";
 
-type ClaimantFacts = {
+export type ClaimantFacts = {
   claimantName: string;
   claimantAddress: string;
   phone: string;
@@ -100,29 +97,18 @@ const EMPTY_ADDRESS: MailingAddress = {
   postal: "",
 };
 
-function currency(cents: number | undefined): string {
-  if (!Number.isFinite(cents)) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((cents ?? 0) / 100);
-}
-
 function currentAppealStage(analysis: WorkflowAnalysis | null): string {
-  const details = analysis?.result.workflowDetails;
-  if (!details || typeof details !== "object") return "unknown";
-  const value = (details as Record<string, unknown>).appealStage;
+  const value = analysis?.result.workflowDetails?.appealStage;
   return typeof value === "string" ? value : "unknown";
 }
 
 function currentDecisionBasis(analysis: WorkflowAnalysis | null): SsdiDecisionBasis {
-  const details = analysis?.result.workflowDetails;
-  if (!details || typeof details !== "object") return "unknown";
-  const value = (details as Record<string, unknown>).decisionBasis;
+  const value = analysis?.result.workflowDetails?.decisionBasis;
   return value === "medical" || value === "nonmedical" ? value : "unknown";
 }
 
 function responseAddressFromAnalysis(analysis: WorkflowAnalysis | null): MailingAddress | null {
-  const details = analysis?.result.workflowDetails;
-  if (!details || typeof details !== "object") return null;
-  const raw = (details as Record<string, unknown>).responseAddress;
+  const raw = analysis?.result.workflowDetails?.responseAddress;
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
   const line1 = typeof value.line1 === "string" ? value.line1 : "";
@@ -140,19 +126,25 @@ function responseAddressFromAnalysis(analysis: WorkflowAnalysis | null): Mailing
   };
 }
 
-function completeAddress(address: MailingAddress): boolean {
-  return Boolean(address.name.trim() && address.line1.trim() && address.city.trim() && /^[A-Za-z]{2}$/.test(address.state.trim()) && /^\d{5}(-\d{4})?$/.test(address.postal.trim()));
+function addressReady(value: MailingAddress): boolean {
+  return Boolean(
+    value.name.trim() &&
+      value.line1.trim() &&
+      value.city.trim() &&
+      /^[A-Za-z]{2}$/.test(value.state.trim()) &&
+      /^\d{5}(?:-\d{4})?$/.test(value.postal.trim()),
+  );
 }
 
-function evidenceLabel(kind: string | null): string {
-  const option = SSDI_EVIDENCE_KINDS.find(([value]) => value === kind);
-  if (option) return option[1];
-  const form = SSDI_REQUIRED_FORMS.find((item) => item.kind === kind);
-  return form?.label ?? kind ?? "Supporting document";
+function formLabel(kind: string | null): string {
+  return SSDI_REQUIRED_FORMS.find((form) => form.kind === kind)?.label ??
+    SSDI_EVIDENCE_KINDS.find(([value]) => value === kind)?.[1] ??
+    kind ??
+    "Supporting document";
 }
 
 export default function SsdiDenialWorkflow() {
-  const [caseId, setCaseId] = useState("");
+  const [matterId, setMatterId] = useState("");
   const [documents, setDocuments] = useState<WorkflowCaseDocument[]>([]);
   const [analysis, setAnalysis] = useState<WorkflowAnalysis | null>(null);
   const [facts, setFacts] = useState<ClaimantFacts>(EMPTY_FACTS);
@@ -161,66 +153,58 @@ export default function SsdiDenialWorkflow() {
   const [draftSaved, setDraftSaved] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [evidenceKind, setEvidenceKind] = useState<SsdiEvidenceKind>("medical_records");
-  const [mailClass, setMailClass] = useState<"standard" | "certified" | "registered">("certified");
-  const [recipient, setRecipient] = useState<MailingAddress>(EMPTY_ADDRESS);
-  const [sender, setSender] = useState<MailingAddress>(EMPTY_ADDRESS);
   const [packet, setPacket] = useState<PacketPreview | null>(null);
   const [approvalId, setApprovalId] = useState("");
+  const [recipient, setRecipient] = useState<MailingAddress>(EMPTY_ADDRESS);
+  const [sender, setSender] = useState<MailingAddress>(EMPTY_ADDRESS);
+  const [mailClass, setMailClass] = useState<"standard" | "certified" | "registered">("certified");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
-  const subjectNotice = documents.find((document) => document.role === "subject_notice") ?? null;
+  const sourceNotice = documents.find((document) => document.role === "subject_notice") ?? null;
   const evidence = documents.filter((document) => document.role === "evidence");
   const appealStage = currentAppealStage(analysis);
   const decisionBasis = currentDecisionBasis(analysis);
-  const cleanDecision = Boolean(subjectNotice?.usable);
-  const reconsiderationAnalysis = Boolean(
+  const sourceReady = Boolean(sourceNotice?.usable && sourceNotice.security_status === "clean");
+  const analysisReady = Boolean(
     analysis &&
-    isSsdiReconsiderationStage(appealStage) &&
-    isSupportedSsdiDecisionBasis(decisionBasis),
+      isSsdiReconsiderationStage(appealStage) &&
+      isSupportedSsdiDecisionBasis(decisionBasis),
   );
   const requiredForms = requiredSsdiFormsForBasis(decisionBasis);
-  const requiredFormsComplete = hasRequiredSsdiForms(documents, decisionBasis);
+  const formsReady = hasRequiredSsdiForms(documents, decisionBasis);
 
   const completedStepIds = useMemo(
     () =>
       ssdiCompletedSteps({
-        hasCleanDecision: cleanDecision,
-        hasReconsiderationAnalysis: reconsiderationAnalysis,
+        hasCleanDecision: sourceReady,
+        hasReconsiderationAnalysis: analysisReady,
         hasClaimantFacts: factsSaved,
         hasDraft: draftSaved,
-        hasRequiredForms: requiredFormsComplete,
+        hasRequiredForms: formsReady,
         hasApproval: Boolean(approvalId),
       }),
-    [cleanDecision, reconsiderationAnalysis, factsSaved, draftSaved, requiredFormsComplete, approvalId],
+    [sourceReady, analysisReady, factsSaved, draftSaved, formsReady, approvalId],
   );
 
   const currentStep = SSDI_STEPS[stepIndex]!;
-  const readinessItems = [
-    { id: "decision", label: "SSDI denial notice scanned clean", done: cleanDecision },
-    { id: "analysis", label: "Reconsideration level confirmed", done: reconsiderationAnalysis },
-    { id: "facts", label: "Claimant facts saved", done: factsSaved },
-    { id: "draft", label: "Response draft saved", done: draftSaved },
-    { id: "forms", label: decisionBasis === "medical" ? "SSA-561, SSA-3441 and SSA-827 included" : decisionBasis === "nonmedical" ? "SSA-561 included" : "Required SSA forms identified", done: requiredFormsComplete },
-    { id: "approval", label: "Exact packet approved", done: Boolean(approvalId) },
-  ];
 
-  async function refreshCase(targetCaseId = caseId) {
-    if (!targetCaseId) return;
-    const snapshot = await loadWorkflowCase(targetCaseId);
+  async function refresh(id = matterId) {
+    if (!id) return;
+    const snapshot = await loadWorkflowCase(id);
     setDocuments(snapshot.documents);
   }
 
-  async function restore(targetCaseId: string) {
+  async function restore(id: string) {
     setBusy("restore");
     setError("");
     try {
       const [snapshot, storedAnalysis, storedInput, storedDraft, storedApproval] = await Promise.all([
-        loadWorkflowCase(targetCaseId),
-        loadWorkflowAnalysis(targetCaseId),
-        loadWorkflowInput(targetCaseId),
-        loadWorkflowDraft(targetCaseId),
-        loadWorkflowApproval(targetCaseId),
+        loadWorkflowCase(id),
+        loadWorkflowAnalysis(id),
+        loadWorkflowInput(id),
+        loadWorkflowDraft(id),
+        loadWorkflowApproval(id),
       ]);
       setDocuments(snapshot.documents);
       setAnalysis(storedAnalysis);
@@ -233,13 +217,14 @@ export default function SsdiDenialWorkflow() {
         setDraftSaved(true);
       }
       if (storedApproval?.approvalId) setApprovalId(storedApproval.approvalId);
-
       const inferred = ssdiCompletedSteps({
-        hasCleanDecision: snapshot.documents.some((document) => document.role === "subject_notice" && document.usable),
+        hasCleanDecision: snapshot.documents.some(
+          (document) => document.role === "subject_notice" && document.usable && document.security_status === "clean",
+        ),
         hasReconsiderationAnalysis: Boolean(
           storedAnalysis &&
-          isSsdiReconsiderationStage(currentAppealStage(storedAnalysis)) &&
-          isSupportedSsdiDecisionBasis(currentDecisionBasis(storedAnalysis)),
+            isSsdiReconsiderationStage(currentAppealStage(storedAnalysis)) &&
+            isSupportedSsdiDecisionBasis(currentDecisionBasis(storedAnalysis)),
         ),
         hasClaimantFacts: Boolean(storedInput),
         hasDraft: Boolean(storedDraft?.bodyText),
@@ -249,79 +234,79 @@ export default function SsdiDenialWorkflow() {
       setStepIndex(Math.min(inferred.length, SSDI_STEPS.length - 1));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to restore this SSDI matter.");
-      sessionStorage.removeItem("mailmypdf:ssdi-denial:case");
-      setCaseId("");
+      sessionStorage.removeItem("mailmypdf:appeal-ssdi-denial:matter");
+      setMatterId("");
     } finally {
       setBusy("");
     }
   }
 
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("case");
-    const stored = fromUrl || sessionStorage.getItem("mailmypdf:ssdi-denial:case");
-    if (stored) {
-      setCaseId(stored);
-      sessionStorage.setItem("mailmypdf:ssdi-denial:case", stored);
-      void restore(stored);
-    }
+    const fromUrl = new URLSearchParams(window.location.search).get("matter");
+    const stored = fromUrl || sessionStorage.getItem("mailmypdf:appeal-ssdi-denial:matter");
+    if (!stored) return;
+    setMatterId(stored);
+    sessionStorage.setItem("mailmypdf:appeal-ssdi-denial:matter", stored);
+    void restore(stored);
   }, []);
 
   useEffect(() => {
-    if (!caseId || !documents.some((document) => !document.usable && document.security_status !== "rejected")) return;
-    const timer = window.setInterval(() => void refreshCase(caseId).catch(() => undefined), 3000);
+    if (!matterId || !documents.some((document) => !document.usable && document.security_status !== "rejected")) return;
+    const timer = window.setInterval(() => void refresh(matterId).catch(() => undefined), 3000);
     return () => window.clearInterval(timer);
-  }, [caseId, documents]);
+  }, [matterId, documents]);
 
-  async function ensureCase(): Promise<string> {
-    if (caseId) return caseId;
+  async function ensureMatter(): Promise<string> {
+    if (matterId) return matterId;
     const created = await createWorkflowCase(SSDI_WORKFLOW_ID, SSDI_VERTICAL_ID);
-    setCaseId(created.id);
-    sessionStorage.setItem("mailmypdf:ssdi-denial:case", created.id);
+    setMatterId(created.id);
+    sessionStorage.setItem("mailmypdf:appeal-ssdi-denial:matter", created.id);
     return created.id;
   }
 
-  async function uploadDecision(files: File[]) {
-    const id = await ensureCase();
-    setBusy("decision-upload");
+  async function uploadSource(files: File[]) {
+    const file = files[0];
+    if (!file) return;
+    const id = await ensureMatter();
+    setBusy("upload-source");
     setError("");
     try {
-      if (subjectNotice) {
-        await detachWorkflowDocument(id, subjectNotice.document_id);
-      }
-      const file = files[0];
-      if (!file) return;
-      const stored = await uploadSecureWorkflowDocument({
+      if (sourceNotice) await detachWorkflowDocument(id, sourceNotice.document_id);
+      const uploaded = await uploadSecureWorkflowDocument({
         file,
         workflowId: SSDI_WORKFLOW_ID,
         purpose: "ssdi_denial_notice",
       });
-      const next = await attachWorkflowDocument({
-        caseId: id,
-        documentId: stored.id,
-        role: "subject_notice",
-        position: 0,
-      });
-      setDocuments(next);
+      setDocuments(
+        await attachWorkflowDocument({
+          caseId: id,
+          documentId: uploaded.id,
+          role: "subject_notice",
+          position: 0,
+        }),
+      );
       setAnalysis(null);
       setFactsSaved(false);
       setDraft("");
       setDraftSaved(false);
       setPacket(null);
       setApprovalId("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to upload the denial notice.");
     } finally {
       setBusy("");
     }
   }
 
-  async function analyzeDecision() {
-    if (!caseId) return;
-    setBusy("analysis");
+  async function analyzeSource() {
+    if (!matterId) return;
+    setBusy("analyze");
     setError("");
     try {
-      const next = await analyzeWorkflowCase(caseId);
+      const next = await analyzeWorkflowCase(matterId);
       setAnalysis(next);
-      const address = responseAddressFromAnalysis(next);
-      if (address) setRecipient(address);
+      const detectedAddress = responseAddressFromAnalysis(next);
+      if (detectedAddress) setRecipient(detectedAddress);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to analyze the SSDI decision.");
     } finally {
@@ -330,11 +315,11 @@ export default function SsdiDenialWorkflow() {
   }
 
   async function saveFacts() {
-    if (!caseId) return;
-    setBusy("facts");
+    if (!matterId) return;
+    setBusy("save-facts");
     setError("");
     try {
-      await saveWorkflowInput(caseId, facts);
+      await saveWorkflowInput(matterId, facts);
       setFactsSaved(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save claimant facts.");
@@ -344,45 +329,48 @@ export default function SsdiDenialWorkflow() {
   }
 
   async function uploadEvidence(files: File[], kind: string) {
-    const id = await ensureCase();
-    setBusy("evidence-upload");
+    const id = await ensureMatter();
+    setBusy("upload-evidence");
     setError("");
     try {
       let position = documents.length + 1;
       for (const file of files) {
-        const stored = await uploadSecureWorkflowDocument({
+        const uploaded = await uploadSecureWorkflowDocument({
           file,
           workflowId: SSDI_WORKFLOW_ID,
           purpose: kind,
         });
-        const next = await attachWorkflowDocument({
-          caseId: id,
-          documentId: stored.id,
-          role: "evidence",
-          evidenceKind: kind,
-          position: position++,
-        });
-        setDocuments(next);
+        setDocuments(
+          await attachWorkflowDocument({
+            caseId: id,
+            documentId: uploaded.id,
+            role: "evidence",
+            evidenceKind: kind,
+            position: position++,
+          }),
+        );
       }
       setPacket(null);
       setApprovalId("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to upload supporting documents.");
     } finally {
       setBusy("");
     }
   }
 
   async function removeDocument(documentId: string) {
-    if (!caseId) return;
-    setDocuments(await detachWorkflowDocument(caseId, documentId));
+    if (!matterId) return;
+    setDocuments(await detachWorkflowDocument(matterId, documentId));
     setPacket(null);
     setApprovalId("");
   }
 
   async function toggleIncluded(document: WorkflowCaseDocument) {
-    if (!caseId || document.role !== "evidence") return;
+    if (!matterId || document.role !== "evidence") return;
     setDocuments(
       await updateWorkflowDocument({
-        caseId,
+        caseId: matterId,
         documentId: document.document_id,
         included: !document.included,
       }),
@@ -392,43 +380,42 @@ export default function SsdiDenialWorkflow() {
   }
 
   async function generateDraft() {
-    if (!caseId) return;
-    setBusy("draft-generate");
+    if (!matterId) return;
+    setBusy("generate-draft");
     setError("");
     try {
-      const generated = await generateWorkflowDraft(caseId);
+      const generated = await generateWorkflowDraft(matterId);
       setDraft(generated.bodyText);
       setDraftSaved(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to generate the SSDI response draft.");
+      setError(cause instanceof Error ? cause.message : "Unable to generate the reconsideration draft.");
     } finally {
       setBusy("");
     }
   }
 
   async function saveDraft() {
-    if (!caseId || !draft.trim()) return;
-    setBusy("draft-save");
+    if (!matterId || !draft.trim()) return;
+    setBusy("save-draft");
     setError("");
     try {
-      await saveWorkflowDraft(caseId, draft);
+      await saveWorkflowDraft(matterId, draft);
       setDraftSaved(true);
       setPacket(null);
       setApprovalId("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save the SSDI response draft.");
+      setError(cause instanceof Error ? cause.message : "Unable to save the draft.");
     } finally {
       setBusy("");
     }
   }
 
-  async function previewPacket() {
-    if (!caseId) return;
+  async function buildPreview() {
+    if (!matterId) return;
     setBusy("preview");
     setError("");
     try {
-      const next = await previewWorkflowPacket(caseId, mailClass);
-      setPacket(next);
+      setPacket(await previewWorkflowPacket(matterId, mailClass));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to build the packet preview.");
     } finally {
@@ -436,32 +423,32 @@ export default function SsdiDenialWorkflow() {
     }
   }
 
-  async function approvePacket() {
-    if (!caseId || !packet) return;
+  async function approve() {
+    if (!matterId || !packet) return;
     setBusy("approve");
     setError("");
     try {
       const result = await approveWorkflowPacket({
-        caseId,
+        caseId: matterId,
         preview: packet,
         recipient,
         mailClass,
       });
       setApprovalId(result.approvalId);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to approve the packet.");
+      setError(cause instanceof Error ? cause.message : "Unable to approve the exact packet.");
     } finally {
       setBusy("");
     }
   }
 
   async function checkout() {
-    if (!caseId || !approvalId) return;
+    if (!matterId || !approvalId) return;
     setBusy("checkout");
     setError("");
     try {
-      const result = await checkoutWorkflowCase({ caseId, approvalId, sender });
-      sessionStorage.setItem("mailmypdf:ssdi-denial:order", result.orderId);
+      const result = await checkoutWorkflowCase({ caseId: matterId, approvalId, sender });
+      sessionStorage.setItem("mailmypdf:appeal-ssdi-denial:order", result.orderId);
       window.location.assign(result.checkoutUrl);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to open secure checkout.");
@@ -469,62 +456,55 @@ export default function SsdiDenialWorkflow() {
     }
   }
 
-  function canContinue(step: SsdiStepId): boolean {
-    if (step === "decision") return cleanDecision;
-    if (step === "analysis") return reconsiderationAnalysis;
-    if (step === "claimant") return factsSaved;
-    if (step === "evidence") return factsSaved;
+  function stepReady(step: SsdiStepId): boolean {
+    if (step === "decision") return sourceReady;
+    if (step === "analysis") return analysisReady;
+    if (step === "claimant" || step === "evidence") return factsSaved;
     if (step === "draft") return draftSaved;
-    if (step === "forms") return requiredFormsComplete;
+    if (step === "forms") return formsReady;
     if (step === "review") return Boolean(approvalId);
     return false;
   }
 
-  function nextStep() {
-    if (!canContinue(currentStep.id)) return;
-    setStepIndex((value) => Math.min(value + 1, SSDI_STEPS.length - 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function previousStep() {
-    setStepIndex((value) => Math.max(0, value - 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function goToStep(id: string) {
-    const target = SSDI_STEPS.findIndex((step) => step.id === id);
-    if (target < 0) return;
-    const completed = new Set(completedStepIds);
-    if (target <= stepIndex || completed.has(id as SsdiStepId)) setStepIndex(target);
-  }
+  const readiness = [
+    { id: "source", label: "Denial notice cleared security scanning", done: sourceReady },
+    { id: "analysis", label: "Reconsideration level and denial basis confirmed", done: analysisReady },
+    { id: "facts", label: "Claimant facts confirmed", done: factsSaved },
+    { id: "draft", label: "Draft reviewed and saved", done: draftSaved },
+    { id: "forms", label: "Required official SSA forms included", done: formsReady },
+    { id: "approval", label: "Exact packet approved", done: Boolean(approvalId) },
+  ];
 
   const rail = (
-    <div className="wf-rail-stack">
+    <>
       <StatusCard
         current={stepIndex + 1}
         total={SSDI_STEPS.length}
         stepLabel={currentStep.label}
         state={approvalId ? "ready" : "in_progress"}
-        summary={caseId ? "Your secure SSDI matter is saved to this signed-in account." : "The matter opens when you upload the denial notice."}
+        summary={matterId ? "Secure matter active." : "Upload the denial notice to open the matter."}
       />
-      <ReadinessChecklist title="Packet readiness" items={readinessItems} />
-    </div>
+      <ReadinessChecklist title="Packet readiness" items={readiness} />
+    </>
   );
 
   return (
     <StepShell
       breadcrumb={[
-        { label: "Appeal Mail", href: "/dashboard/workflows/appeal-mail" },
-        { label: "Appeal SSDI Denial", href: "/dashboard/workflows/appeal-mail/appeal-ssdi-denial" },
+        { label: "Appeal Mail", href: "/appeal-mail" },
+        { label: "Appeal SSDI Denial", href: "/appeal-mail/workflows/appeal-ssdi-denial" },
         { label: currentStep.label },
       ]}
       title="Appeal SSDI Denial"
-      subtitle="Build a source-grounded reconsideration packet from the actual SSA denial, claimant facts, supporting evidence, and official SSA forms."
-      lastSavedLabel={caseId ? "Secure matter active" : undefined}
+      subtitle="A source-grounded SSDI reconsideration workflow using the real denial notice, claimant facts, evidence, official SSA forms, exact packet review, mailing, and proof."
+      lastSavedLabel={matterId ? "Matter saved" : undefined}
       steps={[...SSDI_STEPS]}
       currentStepId={currentStep.id}
       completedStepIds={completedStepIds}
-      onStepClick={goToStep}
+      onStepClick={(id) => {
+        const target = SSDI_STEPS.findIndex((step) => step.id === id);
+        if (target >= 0 && (target <= stepIndex || completedStepIds.includes(id as SsdiStepId))) setStepIndex(target);
+      }}
       rail={rail}
     >
       {error && <div className="wf-callout wf-callout--danger">{error}</div>}
@@ -532,200 +512,158 @@ export default function SsdiDenialWorkflow() {
       {currentStep.id === "decision" && (
         <>
           <DocumentUpload
-            title="Upload the SSDI denial notice"
-            description="Start with the actual SSA denial or decision notice. The file is quarantined and malware-scanned before analysis."
-            label="Drop the SSA denial notice here"
-            hint="PDF, PNG, JPG, or TIFF. The denial notice is used as a source and is not automatically mailed as an enclosure."
+            title="1. Upload the SSDI denial notice"
+            description="The actual SSA denial is the source record. It is quarantined and scanned before analysis."
             multiple={false}
-            items={subjectNotice ? [{
-              id: subjectNotice.document_id,
-              name: subjectNotice.filename,
-              sizeBytes: subjectNotice.size_bytes ?? undefined,
-              status: subjectNotice.usable ? "Clean and ready" : subjectNotice.security_status,
+            items={sourceNotice ? [{
+              id: sourceNotice.document_id,
+              name: sourceNotice.filename,
+              sizeBytes: sourceNotice.size_bytes ?? undefined,
+              status: sourceNotice.usable ? "Clean and ready" : sourceNotice.security_status,
               category: "Source notice",
             }] : []}
-            onUpload={uploadDecision}
-            onRemove={subjectNotice ? () => removeDocument(subjectNotice.document_id) : undefined}
+            onUpload={uploadSource}
+            onRemove={sourceNotice ? () => removeDocument(sourceNotice.document_id) : undefined}
           />
-          {subjectNotice && !subjectNotice.usable && (
-            <div className="wf-callout wf-callout--warning">
-              The notice is still in the security pipeline. Analysis stays blocked until its status is clean.
-              <button type="button" className="wf-btn wf-btn--outline" onClick={() => void refreshCase()} disabled={busy !== ""}>
+          {sourceNotice && !sourceReady && (
+            <SectionCard title="Security scan pending" description="Analysis remains blocked until the source document is clean.">
+              <button className="wf-btn wf-btn--outline" type="button" onClick={() => void refresh()} disabled={Boolean(busy)}>
                 Refresh scan status
               </button>
-            </div>
+            </SectionCard>
           )}
         </>
       )}
 
       {currentStep.id === "analysis" && (
-        <>
-          <SectionCard
-            title="Analyze the decision"
-            description="The model reads the clean source notice once, extracts only supported facts, and records uncertainty instead of filling gaps."
-            footer={
-              <button type="button" className="wf-btn wf-btn--primary" onClick={() => void analyzeDecision()} disabled={!cleanDecision || busy !== ""}>
-                {busy === "analysis" ? "Analyzing…" : analysis ? "Analyze again" : "Analyze SSDI denial"}
-              </button>
-            }
-          >
-            {!cleanDecision && <div className="wf-callout wf-callout--warning">The source notice must clear security scanning first.</div>}
-          </SectionCard>
-          {analysis && (
-            <>
-              <StructuredAnalysisPanel
-                title="SSDI denial analysis"
-                providerLabel={analysis.model}
-                confidence={analysis.result.confidence}
-                summary={analysis.result.summary}
-                facts={[
-                  { id: "decision", label: "Decision", value: analysis.result.decision ?? "Not confirmed" },
-                  { id: "issuer", label: "Issuer", value: analysis.result.issuer ?? "Not confirmed" },
-                  { id: "reference", label: "Reference number", value: analysis.result.referenceNumber ?? "Not confirmed" },
-                  { id: "date", label: "Decision date", value: analysis.result.decisionDate ?? "Not confirmed" },
-                  { id: "deadline", label: "Deadline printed on notice", value: analysis.result.deadline ?? "Not confirmed" },
-                  { id: "stage", label: "Appeal level shown", value: appealStage },
-                  { id: "basis", label: "Decision basis", value: decisionBasis },
-                ]}
-                issues={analysis.result.reasons.map((reason, index) => ({
-                  id: `reason-${index}`,
-                  title: reason,
-                  severity: "warning",
-                }))}
-                evidenceNeeded={analysis.result.suggestedEvidence}
-                uncertainties={analysis.result.missingInformation}
-              />
-              {!isSsdiReconsiderationStage(appealStage) && (
+        <SectionCard
+          title="2. Analyze the denial"
+          description="Confirm the appeal level and whether the denial is medical or non-medical. The workflow fails closed if the notice does not support those facts."
+          footer={
+            <button className="wf-btn wf-btn--primary" type="button" onClick={() => void analyzeSource()} disabled={!sourceReady || Boolean(busy)}>
+              {busy === "analyze" ? "Analyzing…" : analysis ? "Analyze again" : "Analyze denial"}
+            </button>
+          }
+        >
+          {analysis ? (
+            <div className="wf-review-list">
+              {[
+                ["Decision", analysis.result.decision ?? "Not confirmed"],
+                ["Issuer", analysis.result.issuer ?? "Not confirmed"],
+                ["Decision date", analysis.result.decisionDate ?? "Not confirmed"],
+                ["Deadline", analysis.result.deadline ?? "Not confirmed"],
+                ["Appeal level", appealStage],
+                ["Decision basis", decisionBasis],
+              ].map(([label, value]) => (
+                <div className="wf-review-row" key={label}>
+                  <div className="wf-review-copy"><strong>{label}</strong><div className="wf-review-detail">{value}</div></div>
+                </div>
+              ))}
+              <div className="wf-callout wf-callout--info">{analysis.result.summary}</div>
+              {!analysisReady && (
                 <div className="wf-callout wf-callout--danger">
-                  {appealStage === "unknown"
-                    ? "This workflow cannot continue until the notice confirms that reconsideration is the correct appeal level."
-                    : `This notice appears to call for ${appealStage.replaceAll("_", " ")}. This SSDI workflow is limited to reconsideration and will not generate or mail the wrong appeal packet.`}
+                  This workflow only continues when the source notice confirms reconsideration and identifies a medical or non-medical decision basis.
                 </div>
               )}
-              {isSsdiReconsiderationStage(appealStage) && !isSupportedSsdiDecisionBasis(decisionBasis) && (
-                <div className="wf-callout wf-callout--danger">
-                  The notice does not clearly establish whether this is a medical or non-medical reconsideration. The workflow will not choose the form set by guesswork.
-                </div>
-              )}
-            </>
+            </div>
+          ) : (
+            <p>Run analysis after the uploaded notice clears security scanning.</p>
           )}
-        </>
+        </SectionCard>
       )}
 
       {currentStep.id === "claimant" && (
         <SectionCard
-          title="Claimant facts"
-          description="These are user-supplied facts, stored separately from the AI-extracted notice facts. Unknown or unchanged items may be left blank."
-          footer={
-            <button type="button" className="wf-btn wf-btn--primary" onClick={() => void saveFacts()} disabled={busy !== ""}>
-              {busy === "facts" ? "Saving…" : "Save claimant facts"}
-            </button>
-          }
+          title="3. Confirm claimant facts"
+          description="User-supplied facts are stored separately from AI-extracted notice facts."
+          footer={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveFacts()} disabled={Boolean(busy)}>Save claimant facts</button>}
         >
           <div className="wf-form-grid">
             <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => setFacts({ ...facts, claimantName: event.target.value })} /></Field>
             <Field label="Phone" required><TextField value={facts.phone} onChange={(event) => setFacts({ ...facts, phone: event.target.value })} /></Field>
-            <Field label="Mailing address" required><TextArea value={facts.claimantAddress} onChange={(event) => setFacts({ ...facts, claimantAddress: event.target.value })} /></Field>
+            <Field label="Mailing address" required><TextArea rows={3} value={facts.claimantAddress} onChange={(event) => setFacts({ ...facts, claimantAddress: event.target.value })} /></Field>
             <Field label="Representative name" hint="Leave blank if none."><TextField value={facts.representativeName} onChange={(event) => setFacts({ ...facts, representativeName: event.target.value })} /></Field>
           </div>
-          <Field label="Why do you disagree with the denial?" required>
-            <TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => setFacts({ ...facts, reasonsForDisagreement: event.target.value })} />
-          </Field>
+          <Field label="Why do you disagree with the denial?" required><TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => setFacts({ ...facts, reasonsForDisagreement: event.target.value })} /></Field>
           <div className="wf-form-grid">
             <Field label="Changes in existing conditions"><TextArea value={facts.conditionChanges} onChange={(event) => setFacts({ ...facts, conditionChanges: event.target.value })} /></Field>
             <Field label="New conditions"><TextArea value={facts.newConditions} onChange={(event) => setFacts({ ...facts, newConditions: event.target.value })} /></Field>
             <Field label="Treatment changes"><TextArea value={facts.treatmentChanges} onChange={(event) => setFacts({ ...facts, treatmentChanges: event.target.value })} /></Field>
             <Field label="Medication changes"><TextArea value={facts.medicationChanges} onChange={(event) => setFacts({ ...facts, medicationChanges: event.target.value })} /></Field>
             <Field label="Work changes"><TextArea value={facts.workChanges} onChange={(event) => setFacts({ ...facts, workChanges: event.target.value })} /></Field>
-            <Field label="Changes in daily functioning"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => setFacts({ ...facts, dailyFunctionChanges: event.target.value })} /></Field>
+            <Field label="Daily-function changes"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => setFacts({ ...facts, dailyFunctionChanges: event.target.value })} /></Field>
           </div>
-          <Field label="Additional facts"><TextArea rows={5} value={facts.additionalFacts} onChange={(event) => setFacts({ ...facts, additionalFacts: event.target.value })} /></Field>
+          <Field label="Additional facts"><TextArea rows={4} value={facts.additionalFacts} onChange={(event) => setFacts({ ...facts, additionalFacts: event.target.value })} /></Field>
         </SectionCard>
       )}
 
       {currentStep.id === "evidence" && (
         <>
-          <SectionCard title="Supporting evidence type" description="Choose what kind of evidence you are adding before uploading it.">
-            <select className="wf-input" value={evidenceKind} onChange={(event) => setEvidenceKind(event.target.value as SsdiEvidenceKind)}>
-              {SSDI_EVIDENCE_KINDS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+          <SectionCard title="4. Supporting evidence" description="Choose the evidence category before upload. Only explicitly included clean documents enter the final packet.">
+            <Field label="Evidence type">
+              <select className="wf-input" value={evidenceKind} onChange={(event) => setEvidenceKind(event.target.value as SsdiEvidenceKind)}>
+                {SSDI_EVIDENCE_KINDS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </Field>
           </SectionCard>
           <DocumentUpload
-            title="Upload supporting evidence"
-            description="Only documents you explicitly include here enter the packet. Each file must clear security scanning before drafting or mailing."
+            title="Upload evidence"
             items={evidence.filter((document) => !SSDI_REQUIRED_FORMS.some((form) => form.kind === document.evidence_kind)).map((document) => ({
               id: document.document_id,
               name: document.filename,
               sizeBytes: document.size_bytes ?? undefined,
               status: document.usable ? (document.included ? "Included" : "Excluded") : document.security_status,
-              category: evidenceLabel(document.evidence_kind),
+              category: formLabel(document.evidence_kind),
             }))}
             onUpload={(files) => uploadEvidence(files, evidenceKind)}
-            onRemove={(id) => removeDocument(id)}
-          />
-          <EvidenceSummary
-            items={evidence.filter((document) => !SSDI_REQUIRED_FORMS.some((form) => form.kind === document.evidence_kind)).map((document) => ({
-              id: document.document_id,
-              title: document.filename,
-              description: evidenceLabel(document.evidence_kind),
-              status: document.usable ? (document.included ? "provided" : "review") : "review",
-            }))}
+            onRemove={removeDocument}
           />
           {evidence.filter((document) => !SSDI_REQUIRED_FORMS.some((form) => form.kind === document.evidence_kind)).map((document) => (
-            <label key={document.document_id} className="wf-checkbox-field">
-              <input type="checkbox" checked={document.included} onChange={() => void toggleIncluded(document)} />
-              <span>Include {document.filename} in the outgoing packet</span>
-            </label>
+            <CheckboxField
+              key={document.document_id}
+              checked={document.included}
+              onChange={() => void toggleIncluded(document)}
+              label={`Include ${document.filename} in the outgoing packet`}
+            />
           ))}
         </>
       )}
 
       {currentStep.id === "draft" && (
-        <>
-          <SectionCard
-            title="Generate the reconsideration response"
-            description="Drafting uses the stored denial analysis, the claimant facts you saved, and only the evidence kinds currently enclosed."
-            footer={
-              <div className="wf-draft-actions">
-                <button type="button" className="wf-btn wf-btn--outline" onClick={() => void generateDraft()} disabled={!factsSaved || busy !== ""}>
-                  {busy === "draft-generate" ? "Generating…" : draft ? "Regenerate" : "Generate draft"}
-                </button>
-                <button type="button" className="wf-btn wf-btn--primary" onClick={() => void saveDraft()} disabled={!draft.trim() || busy !== ""}>
-                  {busy === "draft-save" ? "Saving…" : "Save this draft"}
-                </button>
-              </div>
-            }
-          >
-            <TextArea rows={18} value={draft} onChange={(event) => { setDraft(event.target.value); setDraftSaved(false); }} placeholder="Generate the draft or enter your own response." />
-          </SectionCard>
-          {draft && <DraftReview draft={draft} ready={draftSaved} title="Current saved response" description={draftSaved ? "This exact text is the current response used for packet preview." : "Save the edited text before building the packet."} />}
-        </>
+        <SectionCard
+          title="5. Draft the reconsideration response"
+          description="The generated draft is constrained to the analyzed denial, confirmed claimant facts, and evidence context. You can edit it before saving."
+          footer={
+            <div className="wf-draft-actions">
+              <button className="wf-btn wf-btn--outline" type="button" onClick={() => void generateDraft()} disabled={!factsSaved || Boolean(busy)}>Generate draft</button>
+              <button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveDraft()} disabled={!draft.trim() || Boolean(busy)}>Save reviewed draft</button>
+            </div>
+          }
+        >
+          <TextArea rows={20} value={draft} onChange={(event) => { setDraft(event.target.value); setDraftSaved(false); }} placeholder="Generate the draft or enter your own reconsideration response." />
+        </SectionCard>
       )}
 
       {currentStep.id === "forms" && (
         <>
           <SectionCard
-            title="Official SSA reconsideration forms"
-            description="Download the official PDFs, complete and sign them as required, then upload the completed versions. MailMyPDF does not fabricate signatures or replace official SSA forms with look-alikes."
+            title="6. Complete the official SSA forms"
+            description={decisionBasis === "medical" ? "Medical reconsideration requires SSA-561, SSA-3441, and SSA-827 in this workflow." : decisionBasis === "nonmedical" ? "Non-medical reconsideration requires SSA-561; the medical forms are not forced into the packet." : "The form set stays blocked until the denial basis is confirmed."}
           >
-            <div className="wf-action-list">
-              {requiredForms.map((form) => (
-                <a key={form.kind} className="wf-btn wf-btn--outline" href={form.href} target="_blank" rel="noreferrer">
-                  Download {form.label}
-                </a>
-              ))}
-            </div>
+            {requiredForms.map((form) => (
+              <a key={form.kind} className="wf-btn wf-btn--outline" href={form.href} target="_blank" rel="noreferrer">Download {form.label}</a>
+            ))}
           </SectionCard>
           {requiredForms.map((form) => {
-            const attached = evidence.filter((document) => document.evidence_kind === form.kind);
+            const existing = evidence.filter((document) => document.evidence_kind === form.kind);
             return (
               <DocumentUpload
                 key={form.kind}
                 title={form.label}
                 description="Upload the completed official PDF that should be included in the final packet."
-                multiple={false}
                 accept=".pdf,application/pdf"
-                items={attached.map((document) => ({
+                multiple={false}
+                items={existing.map((document) => ({
                   id: document.document_id,
                   name: document.filename,
                   sizeBytes: document.size_bytes ?? undefined,
@@ -733,78 +671,47 @@ export default function SsdiDenialWorkflow() {
                   category: form.kind.toUpperCase().replace("_", "-"),
                 }))}
                 onUpload={async (files) => {
-                  for (const document of attached) await removeDocument(document.document_id);
+                  for (const document of existing) await removeDocument(document.document_id);
                   await uploadEvidence(files.slice(0, 1), form.kind);
                 }}
-                onRemove={(id) => removeDocument(id)}
+                onRemove={removeDocument}
               />
             );
           })}
-          {decisionBasis === "medical" && (
-            <div className="wf-callout wf-callout--info">
-              Medical reconsideration: this workflow requires SSA-561, SSA-3441 and SSA-827.
-            </div>
-          )}
-          {decisionBasis === "nonmedical" && (
-            <div className="wf-callout wf-callout--info">
-              Non-medical reconsideration: this workflow requires SSA-561. It does not force the medical appeal forms into the packet.
-            </div>
-          )}
-          {!requiredFormsComplete && (
-            <div className="wf-callout wf-callout--warning">
-              Packet review stays locked until the required completed SSA form set is attached, included, and clean.
-            </div>
-          )}
         </>
       )}
 
       {currentStep.id === "review" && (
         <>
-          <SectionCard title="Mailing recipient" description="Use the exact SSA destination shown on the denial or current filing instructions. A detected address is only a starting point for your review.">
+          <SectionCard title="7. Build the exact packet" description="Confirm the SSA mailing destination and build the exact PDF that will be approved and mailed.">
             <AddressFields value={recipient} onChange={setRecipient} />
-            <Field label="Mailing method" required>
+            <Field label="Mailing method">
               <select className="wf-input" value={mailClass} onChange={(event) => { setMailClass(event.target.value as typeof mailClass); setPacket(null); setApprovalId(""); }}>
                 <option value="standard">Standard mail</option>
                 <option value="certified">Certified mail</option>
                 <option value="registered">Registered mail</option>
               </select>
             </Field>
-            <button type="button" className="wf-btn wf-btn--primary" onClick={() => void previewPacket()} disabled={!draftSaved || !requiredFormsComplete || !completeAddress(recipient) || busy !== ""}>
-              {busy === "preview" ? "Building preview…" : "Build exact packet preview"}
+            <button className="wf-btn wf-btn--primary" type="button" onClick={() => void buildPreview()} disabled={!draftSaved || !formsReady || !addressReady(recipient) || Boolean(busy)}>
+              {busy === "preview" ? "Building…" : "Build exact packet preview"}
             </button>
           </SectionCard>
           {packet && (
-            <>
-              <PacketSummary
-                totalPages={packet.responsePages + packet.supportingPages}
-                items={[
-                  { id: "response", title: "Reconsideration response", meta: `${packet.responsePages} page(s)`, status: "Included", tone: "success" },
-                  ...packet.manifest.map((item, index) => ({
-                    id: item.documentId ?? item.document_id ?? String(index),
-                    title: item.filename,
-                    meta: `${item.pageCount ?? item.page_count ?? "?"} page(s)`,
-                    description: evidenceLabel(item.evidenceKind ?? item.evidence_kind ?? null),
-                    status: "Included",
-                    tone: "success" as const,
-                  })),
-                ]}
-                description={`Server-built packet · ${currency(packet.quote.totalCents)} · SHA-256 ${packet.packetSha256}`}
-              />
-              <ApprovalChecklist
-                reviewItems={[
-                  { id: "packet", label: "Exact packet hash", detail: packet.packetSha256, status: "Built", tone: "success" },
-                  { id: "recipient", label: "SSA recipient", detail: `${recipient.name}, ${recipient.line1}, ${recipient.city}, ${recipient.state} ${recipient.postal}`, status: "Review", tone: "warning" },
-                  { id: "price", label: "Server-authoritative price", detail: currency(packet.quote.totalCents), status: "Quoted", tone: "info" },
-                ]}
-                confirmations={[
-                  { id: "content", label: "I reviewed the response and the completed SSA forms in this packet." },
-                  { id: "signatures", label: "I am responsible for confirming that required signatures and dates are present on the official SSA forms." },
-                  { id: "recipient", label: "I confirmed the mailing recipient and method against the notice or current SSA instructions." },
-                ]}
-                approveLabel={busy === "approve" ? "Approving…" : "Approve this exact packet"}
-                onApprove={approvePacket}
-              />
-            </>
+            <ApprovalChecklist
+              reviewItems={[
+                { id: "hash", label: "Exact packet SHA-256", detail: packet.packetSha256, status: "Built", tone: "success" },
+                { id: "pages", label: "Packet pages", detail: String(packet.responsePages + packet.supportingPages), status: "Measured", tone: "info" },
+                { id: "price", label: "Server-authoritative total", detail: `$${(packet.quote.totalCents / 100).toFixed(2)}`, status: "Quoted", tone: "info" },
+                { id: "recipient", label: "SSA recipient", detail: `${recipient.name}, ${recipient.line1}, ${recipient.city}, ${recipient.state} ${recipient.postal}`, status: "Review", tone: "warning" },
+              ]}
+              confirmations={[
+                { id: "content", label: "I reviewed the draft and every included document." },
+                { id: "forms", label: "I confirmed required signatures and dates on the official SSA forms." },
+                { id: "recipient", label: "I confirmed the mailing destination against the denial notice or current SSA instructions." },
+              ]}
+              approveLabel={busy === "approve" ? "Approving…" : "Approve this exact packet"}
+              onApprove={approve}
+            />
           )}
         </>
       )}
@@ -812,31 +719,25 @@ export default function SsdiDenialWorkflow() {
       {currentStep.id === "mail" && (
         <FulfillmentPanel
           phase={approvalId ? "payment" : "review"}
-          title="Payment, mailing and proof"
-          description="Checkout is created only from the immutable approval. Stripe payment and mailing fulfillment are idempotent so a repeated callback cannot create a duplicate mailing."
+          title="8. Pay, mail, track, and retain proof"
+          description="Payment and mailing are tied to the immutable approval so retries cannot silently mail a different packet."
           details={[
             { label: "Approval", value: approvalId || "Not approved" },
-            { label: "Packet", value: packet?.packetSha256 ?? "Rebuilt from approved state at checkout" },
             { label: "Mail class", value: mailClass },
+            { label: "Packet hash", value: packet?.packetSha256 ?? "Stored with approval" },
           ]}
-          actions={
-            <button type="button" className="wf-btn wf-btn--primary" onClick={() => void checkout()} disabled={!approvalId || !completeAddress(sender) || busy !== ""}>
-              {busy === "checkout" ? "Opening checkout…" : "Continue to secure payment"}
-            </button>
-          }
+          actions={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void checkout()} disabled={!approvalId || !addressReady(sender) || Boolean(busy)}>Continue to secure payment</button>}
         >
-          <SectionCard title="Return address" description="Used by the mailing provider as the sender/return address for this approved packet.">
+          <SectionCard title="Return address" description="Used as the sender/return address for the approved mailing.">
             <AddressFields value={sender} onChange={setSender} />
           </SectionCard>
         </FulfillmentPanel>
       )}
 
       <div className="wf-draft-actions">
-        <button type="button" className="wf-btn wf-btn--outline" onClick={previousStep} disabled={stepIndex === 0}>Back</button>
+        <button className="wf-btn wf-btn--outline" type="button" disabled={stepIndex === 0} onClick={() => setStepIndex((value) => Math.max(0, value - 1))}>Back</button>
         {currentStep.id !== "mail" && (
-          <button type="button" className="wf-btn wf-btn--primary" onClick={nextStep} disabled={!canContinue(currentStep.id)}>
-            Continue
-          </button>
+          <button className="wf-btn wf-btn--primary" type="button" disabled={!stepReady(currentStep.id)} onClick={() => setStepIndex((value) => Math.min(SSDI_STEPS.length - 1, value + 1))}>Continue</button>
         )}
       </div>
     </StepShell>
