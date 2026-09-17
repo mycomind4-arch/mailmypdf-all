@@ -6,7 +6,9 @@ import {
   isCalendarDate,
   RECORDS_REQUEST_LIFECYCLE,
   recordRecordsRequestSent,
+  recordRecordsRequestSentFromFulfillment,
   recordRecordsResponse,
+  recordsRequestDeliveryMethodForMailClass,
   validateRecordsRequestDraft,
 } from "../src/domain-packs/records-request/index.js";
 
@@ -61,6 +63,51 @@ test("actual send tracking accepts real dates and rejects impossible dates", () 
     method: "email",
   });
   assert.equal(invalid.ok, false);
+});
+
+test("canonical mailing classes map exactly into records-request delivery methods", () => {
+  assert.equal(recordsRequestDeliveryMethodForMailClass("standard"), "first_class_mail");
+  assert.equal(recordsRequestDeliveryMethodForMailClass("certified"), "certified_mail");
+  assert.equal(recordsRequestDeliveryMethodForMailClass("registered"), "registered_mail");
+});
+
+test("submission and processing do not start records-request response tracking", () => {
+  for (const status of ["submitted", "provider_processing"] as const) {
+    const result = recordRecordsRequestSentFromFulfillment({
+      mailingClass: "certified",
+      event: {
+        providerOrderId: "letter_123",
+        status,
+        occurredAt: "2026-09-17T20:00:00.000Z",
+        trackingNumber: "TRACK-123",
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.error ?? "", /provider-confirmed actual send timestamp/i);
+  }
+});
+
+test("provider-confirmed actual send creates records_request_sent", () => {
+  const result = recordRecordsRequestSentFromFulfillment({
+    mailingClass: "registered",
+    event: {
+      providerOrderId: "letter_123",
+      providerEventId: "evt_mailed_123",
+      status: "mailed",
+      occurredAt: "2026-09-18T01:00:00.000Z",
+      actualSentAt: "2026-09-17T23:45:00.000Z",
+      trackingNumber: "TRACK-123",
+      proofArtifactId: "receipt-123",
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.event?.type, "records_request_sent");
+  assert.equal(result.event?.occurredOn, "2026-09-17");
+  assert.equal(result.event?.data.method, "registered_mail");
+  assert.equal(result.event?.data.providerId, "letter_123");
+  assert.equal(result.event?.data.trackingNumber, "TRACK-123");
+  assert.equal(result.event?.data.receiptArtifactId, "receipt-123");
 });
 
 test("response tracking records both response and confirmed non-response", () => {
