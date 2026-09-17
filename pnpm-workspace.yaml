@@ -4,3 +4,4 @@ packages:
   - "apps/verticals/*"
   - "services/*"
   - "appeal-mail"
+  - "notice-respond"
