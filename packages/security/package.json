@@ -24,10 +24,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
     "lint": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "tsx": "^4.23.12"
   }
 }
