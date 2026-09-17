@@ -80,6 +80,13 @@ export function getBenefitsWorkflowLaunchPath(id: string): string | null {
   return entry.canonical?.startPath ?? null;
 }
 
+/** Fail closed when a landing page claims a workflow is launchable but the registry does not. */
+export function requireBenefitsWorkflowLaunchPath(id: string): string {
+  const path = getBenefitsWorkflowLaunchPath(id);
+  if (!path) throw new Error(`Benefits workflow ${id} does not have an executable canonical start route`);
+  return path;
+}
+
 export function isBenefitsWorkflowExecutable(id: string): boolean {
   return registry.get(id)?.maturity === "executable";
 }
