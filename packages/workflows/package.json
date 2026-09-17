@@ -42,5 +42,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
     "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mailmypdf/fulfillment": "workspace:*"
   }
 }
