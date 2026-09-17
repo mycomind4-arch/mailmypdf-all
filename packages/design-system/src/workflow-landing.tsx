@@ -1,4 +1,21 @@
-import { ArrowRight, CheckCircle2, FileText, Search, ShieldCheck } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  BrainCircuit,
+  BriefcaseBusiness,
+  CheckCircle2,
+  CircleHelp,
+  CreditCard,
+  FileCheck2,
+  FileText,
+  FolderOpen,
+  LayoutGrid,
+  Mail,
+  ShieldCheck,
+  Truck,
+  Upload,
+  UserRound,
+} from "lucide-react"
 
 export interface WorkflowLandingConfig {
   id: string
@@ -23,6 +40,9 @@ export interface WorkflowLandingConfig {
   whatYouNeed?: ReadonlyArray<string>
   outputs?: ReadonlyArray<string>
   faqs?: ReadonlyArray<readonly [string, string]>
+  workspaceHighlights?: ReadonlyArray<readonly [string, string]>
+  workflowSteps?: ReadonlyArray<readonly [string, string]>
+  readyItems?: ReadonlyArray<readonly [string, string]>
 }
 
 const defaultWhatYouDo = [
@@ -43,7 +63,143 @@ const defaultOutputs = [
   "A review step before any consequential action or mailing",
 ]
 
+const defaultAppealHighlights = [
+  ["Official forms", "Prepare the forms and correspondence required for the appeal."],
+  ["Document analysis", "Extract key details and organize the source record and supporting evidence."],
+  ["Complete filing support", "Review, assemble, mail, track, and retain proof for the finished packet."],
+] as const
+
+const defaultAppealSteps = [
+  ["Upload documents", "Add the decision or notice and any supporting evidence."],
+  ["We analyze", "Extract key information and identify what the workflow needs."],
+  ["Review your packet", "See the completed forms and correspondence before anything is sent."],
+  ["Pay and mail", "Complete payment and submit the approved packet for mailing."],
+  ["Track and retain proof", "Keep tracking, fulfillment status, and mailing proof with the matter."],
+] as const
+
+const appealLandingStyles = `
+.mmp-appeal-landing{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr);color:var(--mmp-ink);background:#f8fafc;font-family:var(--mmp-font-body)}
+.mmp-appeal-landing__sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;border-right:1px solid #e2e8f0;background:#fff}
+.mmp-appeal-landing__brand{height:70px;padding:0 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;color:#0f172a;text-decoration:none;font-weight:750;font-size:18px}
+.mmp-appeal-landing__brand-mark{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;color:#fff;background:#2563eb}
+.mmp-appeal-landing__nav{display:grid;gap:4px;padding:12px}
+.mmp-appeal-landing__nav a{min-height:44px;padding:0 12px;display:flex;align-items:center;gap:11px;border-radius:8px;color:#475569;text-decoration:none;font-size:14px;font-weight:600}
+.mmp-appeal-landing__nav a:hover{background:#f1f5f9;color:#0f172a}.mmp-appeal-landing__nav a.is-active{color:#1d4ed8;background:#eaf2ff}
+.mmp-appeal-landing__nav svg{width:18px;height:18px}.mmp-appeal-landing__sidebar-foot{margin-top:auto;padding:18px 24px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px}
+.mmp-appeal-landing__main{min-width:0}.mmp-appeal-landing__topbar{height:70px;padding:0 36px;display:flex;align-items:center;justify-content:flex-end;border-bottom:1px solid #e2e8f0;background:rgba(255,255,255,.94);position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
+.mmp-appeal-landing__account{display:flex;align-items:center;gap:9px;color:#334155;font-size:14px;font-weight:600}.mmp-appeal-landing__avatar{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;color:#334155;background:#e2e8f0;font-size:12px;font-weight:800}
+.mmp-appeal-landing__content{width:min(calc(100% - 64px),1180px);margin:0 auto;padding:30px 0 64px}.mmp-appeal-landing__back{display:inline-flex;align-items:center;gap:7px;margin-bottom:30px;color:#2563eb;text-decoration:none;font-size:14px;font-weight:650}
+.mmp-appeal-landing__hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.9fr);gap:44px;align-items:start}.mmp-appeal-landing__title{margin:0;color:#0f172a;font:700 clamp(2.2rem,4vw,3.45rem)/1.02 var(--mmp-font-body);letter-spacing:-.035em}
+.mmp-appeal-landing__description{max-width:720px;margin:14px 0 0;color:#475569;font-size:17px;line-height:1.6}.mmp-appeal-landing__highlights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:28px}.mmp-appeal-landing__highlight{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px}.mmp-appeal-landing__highlight-icon{width:26px;height:26px;display:grid;place-items:center;color:#2563eb}.mmp-appeal-landing__highlight-icon svg{width:22px;height:22px}.mmp-appeal-landing__highlight strong{display:block;color:#0f172a;font-size:13px}.mmp-appeal-landing__highlight span{display:block;margin-top:4px;color:#64748b;font-size:11px;line-height:1.45}
+.mmp-appeal-landing__start{margin-top:30px;min-height:48px;padding:0 22px;display:inline-flex;align-items:center;gap:12px;border-radius:7px;color:#fff;background:#2563eb;text-decoration:none;font-size:15px;font-weight:700;box-shadow:0 8px 20px -12px rgba(37,99,235,.65)}.mmp-appeal-landing__start:hover{background:#1d4ed8}.mmp-appeal-landing__visual{aspect-ratio:1.34/1;overflow:hidden;border:1px solid #d8e0e9;border-radius:10px;background:#e7edf4;box-shadow:0 8px 24px -18px rgba(15,23,42,.28)}.mmp-appeal-landing__visual img{width:100%;height:100%;display:block;object-fit:cover}.mmp-appeal-landing__visual-fallback{width:100%;height:100%;display:grid;place-items:center;color:#334155;background:linear-gradient(145deg,#e6edf5,#f8fafc)}
+.mmp-appeal-landing__steps{margin-top:40px;padding:24px 20px 26px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid #dbe7f5;border-radius:10px;background:#eef6ff}.mmp-appeal-landing__step{position:relative;padding:0 12px;text-align:center}.mmp-appeal-landing__step:not(:last-child):after{content:"";position:absolute;top:17px;left:calc(50% + 28px);right:calc(-50% + 28px);height:1px;background:#bfd0e4}.mmp-appeal-landing__step-number{position:relative;z-index:1;width:34px;height:34px;margin:0 auto 12px;display:grid;place-items:center;border:1px solid #cbd5e1;border-radius:50%;color:#475569;background:#fff;font-size:13px;font-weight:750}.mmp-appeal-landing__step:first-child .mmp-appeal-landing__step-number{border-color:#2563eb;color:#fff;background:#2563eb}.mmp-appeal-landing__step strong{display:block;color:#0f172a;font-size:12px}.mmp-appeal-landing__step p{margin:7px auto 0;color:#64748b;font-size:10.5px;line-height:1.45;max-width:170px}
+.mmp-appeal-landing__lower{margin-top:28px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.85fr);gap:26px}.mmp-appeal-landing__panel{padding:24px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 2px 8px -7px rgba(15,23,42,.28)}.mmp-appeal-landing__panel h2{margin:0;color:#0f172a;font-size:22px;letter-spacing:-.02em}.mmp-appeal-landing__panel-lede{margin:8px 0 18px;color:#64748b;font-size:13px}.mmp-appeal-landing__ready-list{display:grid}.mmp-appeal-landing__ready-item{padding:15px 0;display:grid;grid-template-columns:42px minmax(0,1fr);gap:14px;border-top:1px solid #eef2f7}.mmp-appeal-landing__ready-item:first-child{border-top:0}.mmp-appeal-landing__ready-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:7px;color:#334155;background:#f1f5f9}.mmp-appeal-landing__ready-icon svg{width:19px;height:19px}.mmp-appeal-landing__ready-item strong{display:block;color:#0f172a;font-size:13px}.mmp-appeal-landing__ready-item span{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.45}.mmp-appeal-landing__faq{border-top:1px solid #e2e8f0}.mmp-appeal-landing__faq details{border-bottom:1px solid #e2e8f0}.mmp-appeal-landing__faq summary{padding:14px 2px;display:flex;justify-content:space-between;gap:10px;cursor:pointer;list-style:none;color:#0f172a;font-size:13px;font-weight:650}.mmp-appeal-landing__faq summary::-webkit-details-marker{display:none}.mmp-appeal-landing__faq p{margin:0;padding:0 2px 15px;color:#64748b;font-size:12px;line-height:1.6}
+.mmp-appeal-landing__helper{margin-top:28px;padding:18px 20px;display:flex;align-items:center;gap:14px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff}.mmp-appeal-landing__helper svg{flex:0 0 auto;color:#2563eb}.mmp-appeal-landing__helper-copy{min-width:0;flex:1}.mmp-appeal-landing__helper strong{display:block;color:#0f172a;font-size:13px}.mmp-appeal-landing__helper span{display:block;margin-top:4px;color:#64748b;font-size:11.5px}.mmp-appeal-landing__helper a{min-height:38px;padding:0 14px;display:inline-flex;align-items:center;border:1px solid #bfdbfe;border-radius:7px;color:#2563eb;background:#fff;text-decoration:none;font-size:12px;font-weight:700}
+@media(max-width:1050px){.mmp-appeal-landing{grid-template-columns:1fr}.mmp-appeal-landing__sidebar{position:static;height:auto}.mmp-appeal-landing__brand{height:60px}.mmp-appeal-landing__nav{display:flex;overflow:auto}.mmp-appeal-landing__nav a{flex:0 0 auto}.mmp-appeal-landing__sidebar-foot{display:none}.mmp-appeal-landing__topbar{top:0}.mmp-appeal-landing__hero{grid-template-columns:1fr}.mmp-appeal-landing__visual{max-width:620px}.mmp-appeal-landing__lower{grid-template-columns:1fr}}
+@media(max-width:720px){.mmp-appeal-landing__content{width:min(calc(100% - 32px),1180px);padding-top:20px}.mmp-appeal-landing__topbar{height:58px;padding:0 16px}.mmp-appeal-landing__title{font-size:2.35rem}.mmp-appeal-landing__description{font-size:15px}.mmp-appeal-landing__highlights{grid-template-columns:1fr}.mmp-appeal-landing__steps{grid-template-columns:1fr;gap:14px}.mmp-appeal-landing__step{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;text-align:left}.mmp-appeal-landing__step:not(:last-child):after{display:none}.mmp-appeal-landing__step-number{margin:0}.mmp-appeal-landing__step p{max-width:none;margin-top:4px}.mmp-appeal-landing__helper{align-items:flex-start;flex-wrap:wrap}.mmp-appeal-landing__helper a{margin-left:40px}}
+`
+
+function AppealMailWorkflowLandingPage({ config }: { config: WorkflowLandingConfig }) {
+  const highlights = config.workspaceHighlights ?? defaultAppealHighlights
+  const steps = config.workflowSteps ?? defaultAppealSteps
+  const readyItems = config.readyItems ?? (config.whatYouNeed ?? defaultWhatYouNeed).map((item) => [item, ""] as const)
+  const highlightIcons = [FileCheck2, BrainCircuit, Mail] as const
+  const readyIcons = [FileText, FolderOpen, FileCheck2, UserRound] as const
+
+  return <div className="mmp-appeal-landing" data-mmp-theme="appeal-mail">
+    <style>{appealLandingStyles}</style>
+    <aside className="mmp-appeal-landing__sidebar">
+      <a className="mmp-appeal-landing__brand" href={config.sectionPath}>
+        <span className="mmp-appeal-landing__brand-mark"><Mail size={17}/></span>
+        <span>Appeal Mail</span>
+      </a>
+      <nav className="mmp-appeal-landing__nav" aria-label="Appeal Mail workspace">
+        <a className="is-active" href={config.sectionPath + "/workflows"}><LayoutGrid/> Workflows</a>
+        <a href="/matters"><BriefcaseBusiness/> My Matters</a>
+        <a href="/documents"><FolderOpen/> Documents</a>
+        <a href="/billing"><CreditCard/> Billing</a>
+        <a href="/account"><UserRound/> Account</a>
+      </nav>
+      <div className="mmp-appeal-landing__sidebar-foot">MailMyPDF · Appeal Mail</div>
+    </aside>
+
+    <div className="mmp-appeal-landing__main">
+      <header className="mmp-appeal-landing__topbar">
+        <div className="mmp-appeal-landing__account"><span className="mmp-appeal-landing__avatar">A</span><span>Account</span></div>
+      </header>
+
+      <main className="mmp-appeal-landing__content">
+        <a className="mmp-appeal-landing__back" href={config.sectionPath + "/workflows"}><ArrowLeft size={16}/> All workflows</a>
+
+        <section className="mmp-appeal-landing__hero">
+          <div>
+            <h1 className="mmp-appeal-landing__title">{config.heroTitle}</h1>
+            <p className="mmp-appeal-landing__description">{config.heroDescription}</p>
+            <div className="mmp-appeal-landing__highlights">
+              {highlights.map(([title, description], index) => {
+                const Icon = highlightIcons[index % highlightIcons.length]
+                return <div className="mmp-appeal-landing__highlight" key={title}>
+                  <span className="mmp-appeal-landing__highlight-icon"><Icon/></span>
+                  <span><strong>{title}</strong><span>{description}</span></span>
+                </div>
+              })}
+            </div>
+            <a className="mmp-appeal-landing__start" href={config.startPath}>Start new appeal <ArrowRight size={17}/></a>
+          </div>
+
+          <div className="mmp-appeal-landing__visual">
+            {config.heroImage ? <img src={config.heroImage} alt={config.heroImageAlt ?? config.title}/> : <div className="mmp-appeal-landing__visual-fallback"><FileText size={72}/></div>}
+          </div>
+        </section>
+
+        <section className="mmp-appeal-landing__steps" aria-label="How the workflow works">
+          {steps.map(([title, description], index) => <div className="mmp-appeal-landing__step" key={title}>
+            <div className="mmp-appeal-landing__step-number">{index + 1}</div>
+            <div><strong>{title}</strong><p>{description}</p></div>
+          </div>)}
+        </section>
+
+        <section className="mmp-appeal-landing__lower">
+          <article className="mmp-appeal-landing__panel">
+            <h2>What you’ll need</h2>
+            <p className="mmp-appeal-landing__panel-lede">Have these items ready to get started. You can add more supporting material later.</p>
+            <div className="mmp-appeal-landing__ready-list">
+              {readyItems.map(([title, description], index) => {
+                const Icon = readyIcons[index % readyIcons.length]
+                return <div className="mmp-appeal-landing__ready-item" key={title}>
+                  <span className="mmp-appeal-landing__ready-icon"><Icon/></span>
+                  <span><strong>{title}</strong>{description ? <span>{description}</span> : null}</span>
+                </div>
+              })}
+            </div>
+          </article>
+
+          <article className="mmp-appeal-landing__panel">
+            <h2>Common questions</h2>
+            <p className="mmp-appeal-landing__panel-lede">Review the workflow details before you begin.</p>
+            {config.faqs?.length ? <div className="mmp-appeal-landing__faq">
+              {config.faqs.map(([question, answer]) => <details key={question}><summary>{question}<span aria-hidden="true">⌄</span></summary><p>{answer}</p></details>)}
+            </div> : <div className="mmp-appeal-landing__ready-list">
+              <div className="mmp-appeal-landing__ready-item"><span className="mmp-appeal-landing__ready-icon"><CircleHelp/></span><span><strong>Questions about this workflow?</strong><span>You can review the source documents and each step before anything is submitted or mailed.</span></span></div>
+            </div>}
+          </article>
+        </section>
+
+        <section className="mmp-appeal-landing__helper">
+          <CircleHelp size={20}/>
+          <div className="mmp-appeal-landing__helper-copy"><strong>Not sure if this is the right workflow?</strong><span>If your appeal involves a different decision or process, browse the other Appeal Mail workflows.</span></div>
+          <a href={config.sectionPath + "/workflows"}>View all workflows</a>
+        </section>
+      </main>
+    </div>
+  </div>
+}
+
 export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig }) {
+  if (config.sectionId === "appeal-mail") {
+    return <AppealMailWorkflowLandingPage config={config}/>
+  }
+
   const whatYouDo = config.whatYouDo ?? defaultWhatYouDo
   const whatYouNeed = config.whatYouNeed ?? defaultWhatYouNeed
   const outputs = config.outputs ?? defaultOutputs
@@ -128,7 +284,7 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
               {whatYouDo.map(item => <p key={item}><CheckCircle2 size={15}/> {item}</p>)}
             </article>
             <article className="mmp-card mmp-seo-topic-card">
-              <Search size={20}/>
+              <Upload size={20}/>
               <h2>What to have ready</h2>
               {whatYouNeed.map(item => <p key={item}><CheckCircle2 size={15}/> {item}</p>)}
             </article>
