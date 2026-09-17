@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createProductionPublishingAdapters } from "./production-runtime.js";
+import { createRequiredDeliveryPublisher } from "./publishers.js";
 import type { PublicationManifest } from "./manifest.js";
 import type { RenderedEdition } from "./types.js";
 
@@ -46,22 +46,10 @@ const rendered: RenderedEdition = {
   },
 };
 
-test("production runtime fails closed when approval has no delivery provider", async () => {
-  const adapters = createProductionPublishingAdapters(manifest, {
-    env: { ANTHROPIC_API_KEY: "test" },
-    requireDelivery: true,
-    overrides: {
-      discovery: { async discover() { return []; } },
-      scoring: { async score() { return []; } },
-      research: { async enrich() { throw new Error("unused"); } },
-      planning: { async plan() { throw new Error("unused"); } },
-      verification: { async verify() { throw new Error("unused"); } },
-      rendering: { async render() { return rendered; } },
-    },
-  });
-
+test("required delivery publisher fails closed", async () => {
+  const publisher = createRequiredDeliveryPublisher();
   await assert.rejects(
-    () => adapters.publisher.publish(rendered, manifest),
+    () => publisher.publish(rendered, manifest),
     /DELIVERY_NOT_CONFIGURED/,
   );
 });
