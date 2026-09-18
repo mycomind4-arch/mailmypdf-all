@@ -13,7 +13,7 @@ import {
   type RecordsRequestDraft,
 } from "@mailmypdf/workflows/domain-packs/records-request";
 
-export interface AgencyRecordsContextAnalysisOutput extends WorkflowMatterAnalysis["result"] {
+export type AgencyRecordsContextAnalysisOutput = WorkflowMatterAnalysis["result"] & {
   workflowDetails: {
     agency: string | null;
     custodian: string | null;
