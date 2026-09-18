@@ -1,0 +1,25 @@
+{
+  "id": "conflict-remains-visible",
+  "workflowId": "secured-transaction-eligibility",
+  "title": "Contradictory material evidence remains explicit until reviewed",
+  "description": "Every required element is verified except debtor rights in collateral, which a title search directly contradicts. The contradiction must remain visible rather than being silently dropped or overridden.",
+  "intake": {
+    "identifiable-debtor": { "status": "verified", "sourceRefs": ["doc-debtor-1"] },
+    "identifiable-secured-party": { "status": "verified", "sourceRefs": ["doc-secured-party-1"] },
+    "actual-obligation": { "status": "verified", "sourceRefs": ["doc-obligation-1"] },
+    "actual-value": { "status": "verified", "sourceRefs": ["doc-value-1"] },
+    "debtor-rights-in-collateral": {
+      "status": "contradicted",
+      "sourceRefs": ["doc-title-search-1"],
+      "note": "A title search shows a third party, not the proposed debtor, holds record ownership of the collateral."
+    },
+    "authenticated-security-agreement-or-valid-alternative": {
+      "status": "verified",
+      "sourceRefs": ["doc-security-agreement-1"]
+    },
+    "specific-collateral": { "status": "verified", "sourceRefs": ["doc-collateral-desc-1"] },
+    "authorization": { "status": "verified", "sourceRefs": ["doc-authorization-1"] },
+    "correct-jurisdiction": { "status": "verified", "sourceRefs": ["doc-jurisdiction-1"] }
+  },
+  "uploads": []
+}
