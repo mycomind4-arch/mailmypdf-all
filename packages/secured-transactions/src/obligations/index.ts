@@ -1,2 +1,11 @@
-/** obligations engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  assessValueEvidence,
+  assessObligationAndValue,
+} from "./obligation-value.js";
+
+export type {
+  ValueEvidenceKind,
+  ValueEvidenceClaim,
+  ValueEvidenceAssessment,
+  ObligationValueAssessment,
+} from "./obligation-value.js";

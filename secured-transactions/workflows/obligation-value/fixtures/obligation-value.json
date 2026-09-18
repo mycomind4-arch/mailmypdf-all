@@ -1,0 +1,39 @@
+{
+  "obligationId": "example-obligation",
+  "obligationClaims": [
+    {
+      "id": "agreement-creditor",
+      "field": "creditor-entity-id",
+      "value": "party-creditor",
+      "effect": "supports",
+      "sourceType": "executed-contract"
+    },
+    {
+      "id": "agreement-obligor",
+      "field": "obligor-entity-id",
+      "value": "party-obligor",
+      "effect": "supports",
+      "sourceType": "executed-contract"
+    },
+    {
+      "id": "agreement-type",
+      "field": "obligation-type",
+      "value": "example-contract-obligation",
+      "effect": "supports",
+      "sourceType": "executed-contract"
+    }
+  ],
+  "valueClaims": [
+    {
+      "id": "example-value",
+      "kind": "money-advanced",
+      "effect": "supports",
+      "sourceRefs": [
+        "example-bank-record"
+      ],
+      "amount": 5000,
+      "currency": "USD"
+    }
+  ],
+  "note": "Synthetic fixture only; it demonstrates evidence plumbing and does not establish enforceability or a legal conclusion about value."
+}
