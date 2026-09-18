@@ -2,50 +2,45 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import {
-  loadScenario,
-  InMemoryWorkflowRuntimeStore,
-} from "@mailmypdf/workflow-acceptance";
-import { evaluateSecuredTransactionEligibility } from "../../../workflows/secured-transaction-eligibility/rules/eligibility";
-import { workflowRuntimePolicy } from "../../../workflows/secured-transaction-eligibility/runtime-policy";
+import { loadScenario } from "@mailmypdf/workflow-acceptance";
+import { EligibilityMatterAdapter } from "../../../workflows/secured-transaction-eligibility/start/matter-adapter";
+import { InMemoryStepMatterRepository } from "../../../workflows/secured-transaction-eligibility/fixtures/in-memory-step-matter-repository";
 
 const scenariosDir = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Exercises the full path this manifest's acceptance scenarios describe:
+ * Exercises the full chain this manifest's acceptance scenarios describe:
  *
- *   intake -> workflow adapter (runtime validation) -> shared eligibility
- *   engine -> findings/readiness -> terminal result
+ *   authenticated user -> create owned matter -> persist intake ->
+ *   reload intake -> runtime validation -> shared eligibility engine ->
+ *   persist findings/readiness -> reload matter -> same result preserved
+ *   -> terminal result
  *
- * not the shared engine called directly in isolation.
+ * through the real EligibilityMatterAdapter / StepMatterRepository
+ * contract, not the shared engine called directly.
  */
 async function runScenarioThroughRuntime(scenarioId: string) {
   const { scenario } = loadScenario(scenariosDir, scenarioId);
+  const adapter = new EligibilityMatterAdapter(new InMemoryStepMatterRepository());
+  const ownerId = "acceptance-owner";
 
-  const store = new InMemoryWorkflowRuntimeStore();
-  const matter = await store.createMatter({
-    ownerId: "acceptance-owner",
-    workflowId: scenario.workflowId,
-    verticalId: "secured-transactions",
-    createdAt: "2026-09-18T00:00:00.000Z",
+  const created = await adapter.create(ownerId);
+  const saved = await adapter.saveIntake({
+    ownerId,
+    matterId: created.id,
+    expectedVersion: created.version,
+    rawInput: scenario.intake,
   });
 
-  workflowRuntimePolicy.validateMatter({
-    workflowId: scenario.workflowId,
-    verticalId: "secured-transactions",
-  });
-
-  const validatedInput = workflowRuntimePolicy.validateInput(
-    scenario.intake,
-    null,
-    { matter, documents: [] },
+  const reloaded = await adapter.load(ownerId, created.id);
+  assert.ok(reloaded, "matter did not reload");
+  assert.deepEqual(
+    reloaded.eligibility,
+    saved.eligibility,
+    "reloaded findings did not match the findings persisted at save time",
   );
 
-  await store.saveInput("acceptance-owner", matter.id, validatedInput);
-  const stored = await store.loadInput("acceptance-owner", matter.id);
-  assert.ok(stored, "runtime store did not persist the validated input");
-
-  return evaluateSecuredTransactionEligibility(stored.input);
+  return reloaded.eligibility!.engineResult;
 }
 
 describe("secured-transaction-eligibility acceptance", () => {
@@ -62,5 +57,31 @@ describe("secured-transaction-eligibility acceptance", () => {
     assert.ok(result.contradicted.includes("debtor-rights-in-collateral"));
     assert.equal(result.requiresHumanReview, true);
     assert.equal(result.canProceedToConsequentialAction, false);
+  });
+
+  test("unauthenticated access is rejected", async () => {
+    const adapter = new EligibilityMatterAdapter(new InMemoryStepMatterRepository());
+    await assert.rejects(() => adapter.create(""));
+  });
+
+  test("cross-user access cannot read another owner's matter", async () => {
+    const adapter = new EligibilityMatterAdapter(new InMemoryStepMatterRepository());
+    const created = await adapter.create("acceptance-owner");
+    const asOtherUser = await adapter.load("intruder", created.id);
+    assert.equal(asOtherUser, null);
+  });
+
+  test("cross-user access cannot mutate another owner's matter", async () => {
+    const { scenario } = loadScenario(scenariosDir, "missing-basis-blocks");
+    const adapter = new EligibilityMatterAdapter(new InMemoryStepMatterRepository());
+    const created = await adapter.create("acceptance-owner");
+    await assert.rejects(() =>
+      adapter.saveIntake({
+        ownerId: "intruder",
+        matterId: created.id,
+        expectedVersion: created.version,
+        rawInput: scenario.intake,
+      }),
+    );
   });
 });
