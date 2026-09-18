@@ -1,87 +1,75 @@
-import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import {
-  explainUccSearchLimitations,
+  createUccSearchResult,
   normalizeUccFilingRecord,
-  uccNoHitIsConclusive,
-  type UccFilingRecord,
-  type UccSearchResult,
-} from "../src/index.js";
+  summarizeUccSearchCoverage,
+} from "../src/ucc-search/index.js";
 
-const filing: UccFilingRecord = {
-  sourceId: "ucc-ca",
-  sourceRecordId: "2026-001",
-  sourceUrl: "https://example.gov/ucc/2026-001",
-  retrievedAt: "2026-09-17T00:00:00.000Z",
-  recordType: "ucc-filing",
-  rawNames: ["SMITH HOLDINGS, L.L.C.", "NORTH COAST BANK"],
-  identifiers: { filingNumber: "2026-001" },
-  metadata: {},
-  filingNumber: "2026-001",
-  status: "active",
-  debtorNames: ["SMITH HOLDINGS, L.L.C."],
-  securedPartyNames: ["NORTH COAST BANK"],
+const provenance = {
+  provider: "synthetic-provider",
+  jurisdiction: "TEST-1",
+  queriedAt: "2026-09-17T20:00:00Z",
+  query: "EXAMPLE DEBTOR",
+  sourceUri: "test://search",
 };
 
-describe("UCC search adapters", () => {
-  test("preserves raw filing names while exposing normalized comparison forms", () => {
-    const normalized = normalizeUccFilingRecord(filing);
-    assert.equal(normalized.record.debtorNames[0], "SMITH HOLDINGS, L.L.C.");
-    assert.equal(normalized.debtorNames[0]?.organizationDesignator, "LLC");
+describe("UCC search adapter normalization", () => {
+  test("normalizes provider records without inferring priority", () => {
+    const record = normalizeUccFilingRecord({
+      provenance,
+      raw: {
+        filingNumber: "  12345  ",
+        debtorNames: [" EXAMPLE DEBTOR ", "example debtor"],
+        securedPartyNames: ["EXAMPLE SECURED PARTY"],
+        jurisdiction: "TEST-1",
+        status: " Active ",
+        collateralText: "Provider-returned collateral text",
+      },
+    });
+
+    assert.equal(record.id, "12345");
+    assert.deepEqual(record.normalized.debtorNames, ["EXAMPLE DEBTOR"]);
+    assert.equal(record.normalized.status, "Active");
+    assert.equal("priority" in record.normalized, false);
   });
 
-  test("does not treat a provider-limited no-hit search as conclusive", () => {
-    const result: UccSearchResult = {
-      query: {
-        queryId: "q1",
-        purpose: "pre-filing-search",
-        jurisdiction: { country: "US", state: "CA" },
-      },
-      source: {
-        id: "ucc-ca",
-        name: "UCC source",
-        kind: "ucc-filing-office",
-        jurisdiction: { country: "US", state: "CA" },
-        officialUrl: "https://example.gov/ucc",
-        accessMethod: "api",
-        capabilities: ["filing-search"],
-        enabled: true,
-      },
-      records: [],
-      completeness: "provider-limited",
-      searchedAt: "2026-09-17T00:00:00.000Z",
-      warnings: [],
-      searchedNames: ["Smith Holdings LLC"],
-      providerLimitations: ["Historical filings before 2016 are excluded."],
-    };
-    assert.equal(uccNoHitIsConclusive(result), false);
-    assert.ok(explainUccSearchLimitations(result).some((value) => value.includes("not represented as complete")));
+  test("a complete no-hit search remains explicitly non-conclusive", () => {
+    const result = createUccSearchResult({
+      rawRecords: [],
+      provenance,
+      complete: true,
+    });
+    const coverage = summarizeUccSearchCoverage(result);
+
+    assert.equal(result.status, "complete");
+    assert.equal(coverage.resultCount, 0);
+    assert.equal(coverage.noHitConclusive, false);
+    assert.ok(result.warnings.includes("no-hit-does-not-prove-no-competing-interest"));
   });
 
-  test("marks a complete no-hit search conclusive only when the provider reports no limitations", () => {
-    const result: UccSearchResult = {
-      query: {
-        queryId: "q2",
-        purpose: "pre-filing-search",
-        jurisdiction: { country: "US", state: "CA" },
-      },
-      source: {
-        id: "ucc-ca",
-        name: "UCC source",
-        kind: "ucc-filing-office",
-        jurisdiction: { country: "US", state: "CA" },
-        officialUrl: "https://example.gov/ucc",
-        accessMethod: "api",
-        capabilities: ["filing-search"],
-        enabled: true,
-      },
-      records: [],
-      completeness: "complete",
-      searchedAt: "2026-09-17T00:00:00.000Z",
-      warnings: [],
-      searchedNames: ["Smith Holdings LLC"],
-      providerLimitations: [],
-    };
-    assert.equal(uccNoHitIsConclusive(result), true);
+  test("partial provider coverage stays partial", () => {
+    const result = createUccSearchResult({
+      rawRecords: [{
+        filingNumber: "12345",
+        debtorNames: ["EXAMPLE DEBTOR"],
+      }],
+      provenance,
+      complete: false,
+      warnings: ["provider-date-range-limited"],
+    });
+
+    assert.equal(result.status, "partial");
+    assert.ok(result.warnings.includes("search-coverage-incomplete"));
+    assert.ok(result.warnings.includes("provider-date-range-limited"));
+  });
+
+  test("rejects provider records without a stable record identifier", () => {
+    assert.throws(() =>
+      normalizeUccFilingRecord({
+        provenance,
+        raw: { debtorNames: ["EXAMPLE DEBTOR"] },
+      }),
+    );
   });
 });

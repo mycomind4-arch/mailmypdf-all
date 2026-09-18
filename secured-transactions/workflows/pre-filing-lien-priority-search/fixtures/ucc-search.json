@@ -1,0 +1,22 @@
+{
+  "provenance": {
+    "provider": "synthetic-provider",
+    "jurisdiction": "TEST-1",
+    "queriedAt": "2026-09-17T20:00:00Z",
+    "query": "EXAMPLE DEBTOR"
+  },
+  "rawRecords": [
+    {
+      "filingNumber": "TEST-0001",
+      "debtorNames": [
+        "EXAMPLE DEBTOR"
+      ],
+      "securedPartyNames": [
+        "EXAMPLE SECURED PARTY"
+      ],
+      "status": "Active",
+      "sourceUri": "test://filing/TEST-0001"
+    }
+  ],
+  "note": "Synthetic adapter fixture. Search records are evidence inputs only and do not determine priority."
+}
