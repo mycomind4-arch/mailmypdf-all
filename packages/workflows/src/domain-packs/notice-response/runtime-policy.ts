@@ -184,6 +184,15 @@ export function createNoticeResponseRuntimePolicy(
         );
       }
 
+      const responseExplanation = text(
+        input.responseExplanation,
+        "Response explanation",
+        {
+          required: profile.explanationRequiredModes.includes(responseMode),
+          maxLength: 12_000,
+        },
+      );
+
       const normalized: NoticeResponseRuntimeInput = {
         taxpayerName: text(input.taxpayerName, "Taxpayer name", {
           required: true,
@@ -199,11 +208,7 @@ export function createNoticeResponseRuntimePolicy(
         }),
         taxPeriod: text(input.taxPeriod, "Tax period", { maxLength: 100 }),
         responseMode,
-        responseExplanation: text(
-          input.responseExplanation,
-          "Response explanation",
-          { maxLength: 12_000 },
-        ),
+        responseExplanation,
         requestedAction: text(input.requestedAction, "Requested action", {
           required: true,
           maxLength: 4_000,
