@@ -70,6 +70,12 @@ export const REFERENCE_PIPELINE_PROFILES: Readonly<Record<PipelineId, ReferenceP
     enabledSpecialistStages: ["deadline", "contradiction", "discrepancy", "research", "approval"],
     representativeWorkflows: ["claim-proof", "benefits-documentation"],
   },
+  P11_SECURED_TRANSACTION: {
+    id: "P11_SECURED_TRANSACTION",
+    name: "Secured Transaction Reference",
+    enabledSpecialistStages: ["deadline", "timeline", "contradiction", "discrepancy", "draft", "draftProvenance"],
+    representativeWorkflows: ["name-capacity-resolution", "security-agreement-generation", "ucc1-preparation-authorization", "first-priority-determination"],
+  },
 };
 
 export function referenceStages(id: PipelineId): readonly PipelineStage[] {

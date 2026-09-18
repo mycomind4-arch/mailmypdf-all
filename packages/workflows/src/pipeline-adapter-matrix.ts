@@ -16,6 +16,7 @@ export const PIPELINE_ADAPTER_MATRIX: Readonly<Record<PipelineId, readonly Adapt
   P08_RECORDS: ["records", "government", "court-procedure"],
   P09_REGULATORY: ["government", "housing", "dmv-licensing", "permits-regulatory", "business"],
   P10_CLAIM_PROOF: ["insurance", "healthcare", "benefits", "records", "government", "business"],
+  P11_SECURED_TRANSACTION: ["secured-transactions", "business", "government", "records", "credit-debt"],
 };
 
 export function isAdapterCompatible(pipeline: PipelineId, adapter: AdapterId): boolean {

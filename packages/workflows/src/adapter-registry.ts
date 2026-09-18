@@ -14,7 +14,8 @@ export type AdapterId =
   | "permits-regulatory"
   | "court-procedure"
   | "records"
-  | "business";
+  | "business"
+  | "secured-transactions";
 
 export type AdapterDefinition = {
   id: AdapterId;
@@ -40,6 +41,13 @@ export const ADAPTERS: Readonly<Record<AdapterId, AdapterDefinition>> = {
   "court-procedure": { id: "court-procedure", name: "Court Procedure", description: "Court document classification, case metadata, procedural deadlines, filing instructions, and exhibit requirements.", capabilities: ["court-document-classification", "case-metadata", "procedural-deadline", "filing-instructions"], composesWith: ["government", "records"] },
   records: { id: "records", name: "Records / Public Information", description: "Records scope, authority, custodians, request requirements, exemptions, and response tracking.", capabilities: ["request-scoping", "authority-mapping", "custodian-routing", "records-deadline"], composesWith: ["government", "court-procedure"] },
   business: { id: "business", name: "Small Business", description: "Business correspondence, trigger context, approval policy, customer/vendor communication, and audit requirements.", capabilities: ["business-context", "approval-policy", "trigger-evaluation", "relationship-history"], composesWith: ["consumer-billing", "permits-regulatory", "government"] },
+  "secured-transactions": {
+    id: "secured-transactions",
+    name: "Secured Transactions",
+    description: "Party/capacity, obligation, collateral, attachment, perfection, authorized filing, priority, and lifecycle intelligence for legitimate secured transactions.",
+    capabilities: ["party-capacity-resolution", "obligation-validation", "collateral-classification", "attachment-analysis", "perfection-analysis", "authorized-filing", "priority-analysis", "lifecycle-maintenance"],
+    composesWith: ["business", "government", "records", "credit-debt"],
+  },
 };
 
 export function getAdapter(id: AdapterId): AdapterDefinition {

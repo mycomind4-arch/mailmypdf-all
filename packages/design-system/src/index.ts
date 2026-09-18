@@ -53,6 +53,7 @@ export type EcosystemTheme =
   | 'private-office'
   | 'records-request'
   | 'small-business'
+  | 'secured-transactions'
   | 'tenant-reply';
 
 export type VerticalTone = 'core' | 'appeal' | 'civic' | 'correspondence' | 'dispute' | 'private' | 'business' | 'proof';
@@ -80,6 +81,7 @@ export const ecosystemThemes: Record<EcosystemTheme, Omit<VerticalThemeConfig, '
   'private-office': { accent: '#705d48', accentSoft: '#efe9e1', displayName: 'Private Office', tone: 'private' },
   'records-request': { accent: '#426477', accentSoft: '#e7eff3', displayName: 'Records Requests', tone: 'civic' },
   'small-business': { accent: '#446b5b', accentSoft: '#e8f1ed', displayName: 'Small Business', tone: 'business' },
+  'secured-transactions': { accent: '#4e5f70', accentSoft: '#e9eef2', displayName: 'Secured Transactions', tone: 'proof' },
   'tenant-reply': { accent: '#76544b', accentSoft: '#f1e8e5', displayName: 'Tenant Reply', tone: 'civic' },
 };
 

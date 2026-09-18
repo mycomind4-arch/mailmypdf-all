@@ -14,7 +14,8 @@ export type PipelineId =
   | "P07_BUSINESS_AUTOMATION"
   | "P08_RECORDS"
   | "P09_REGULATORY"
-  | "P10_CLAIM_PROOF";
+  | "P10_CLAIM_PROOF"
+  | "P11_SECURED_TRANSACTION";
 
 export type PipelineFamily = {
   id: PipelineId;
@@ -129,6 +130,14 @@ export const PIPELINES: Readonly<Record<PipelineId, PipelineFamily>> = {
     requiredStages: ["security", "classification", "extraction", "provenance", "timeline", "evidence", "risk", "strategy", "draft", "draftProvenance", "validation", "blockingGate", "review", "mailing", "tracking", "proofAudit"],
     optionalStages: ["deadline", "contradiction", "discrepancy", "research", "approval"],
     bestFor: ["claim proof", "evidence packages", "benefits documentation", "supporting submissions"],
+  },
+  P11_SECURED_TRANSACTION: {
+    id: "P11_SECURED_TRANSACTION",
+    name: "Secured Transaction / Perfection / Priority",
+    description: "Evidence- and authority-first pipeline for legitimate secured transactions, including party/capacity resolution, obligation and collateral analysis, attachment, perfection, filing, priority, verification, and lifecycle maintenance.",
+    requiredStages: ["security", "classification", "extraction", "provenance", "findings", "requirements", "evidence", "research", "risk", "strategy", "validation", "blockingGate", "review", "approval", "proofAudit"],
+    optionalStages: ["deadline", "timeline", "contradiction", "discrepancy", "draft", "draftProvenance", "mailing", "tracking"],
+    bestFor: ["secured transactions", "security agreements", "UCC financing statements", "perfection", "priority analysis", "continuations and amendments"],
   },
 };
 

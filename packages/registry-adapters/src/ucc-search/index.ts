@@ -1,15 +1,2 @@
-export type {
-  UccSearchQuery,
-  UccFilingStatus,
-  UccFilingRecord,
-  UccSearchResult,
-} from "./types.js";
-export type { UccSearchAdapter } from "./adapter.js";
-export { UccSearchAdapterRegistry } from "./registry.js";
-export type { NormalizedUccFilingRecord } from "./normalizer.js";
-export {
-  normalizeUccFilingRecord,
-  uccNoHitIsConclusive,
-  explainUccSearchLimitations,
-} from "./normalizer.js";
-export { buildUccDebtorSearchPlan } from "./search-strategy.js";
+/** ucc-search adapter namespace. Concrete providers must normalize source provenance and expose coverage limitations. */
+export {};

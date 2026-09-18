@@ -1,7 +1,7 @@
 {
-  "name": "@mailmypdf/registry-adapters",
+  "name": "@mailmypdf/jurisdiction-rules",
   "version": "0.1.0",
-  "description": "Provider-neutral business-registry and UCC-search adapter contracts with normalized provenance for MailMyPDF",
+  "description": "Versioned jurisdiction-specific rule packs with explicit authority, effective dates, and coverage status for MailMyPDF",
   "private": false,
   "type": "module",
   "main": "./src/index.ts",

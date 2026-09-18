@@ -1,13 +1,2 @@
-export type {
-  BusinessEntityStatus,
-  BusinessRegistryQuery,
-  BusinessRegistryRecord,
-  BusinessRegistrySearchResult,
-} from "./types.js";
-export type { BusinessRegistryAdapter } from "./adapter.js";
-export { BusinessRegistryAdapterRegistry } from "./registry.js";
-export {
-  businessRecordToAuthoritativeNameCandidate,
-  businessRecordToEntityClassificationSignal,
-  businessRecordSearchNames,
-} from "./normalizer.js";
+/** business-registries adapter namespace. Concrete providers must normalize source provenance and expose coverage limitations. */
+export {};
