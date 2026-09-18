@@ -18,6 +18,7 @@
     "@mailmypdf/seo": "workspace:*",
     "@mailmypdf/workflows": "workspace:*",
     "@mailmypdf/workflow-ui": "workspace:*",
+    "@mailmypdf/step-workflow": "workspace:*",
     "@tanstack/react-router": "^1.170.16",
     "react": "^19.2.0",
     "@mailmypdf/jurisdiction-rules": "workspace:*",
