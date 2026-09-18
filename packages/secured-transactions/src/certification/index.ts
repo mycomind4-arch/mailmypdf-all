@@ -10,3 +10,10 @@ export {
 export type {
   AttachmentReadinessAssessment,
 } from "./attachment-readiness.js";
+export {
+  assessAttachmentUnderRule,
+} from "./attachment-analysis.js";
+export type {
+  AttachmentConditionEvidence,
+  AttachmentAuthorityAssessment,
+} from "./attachment-analysis.js";
