@@ -7,7 +7,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts workflows/name-capacity-resolution/tests/*.test.ts workflows/secured-transaction-eligibility/tests/*.test.ts workflows/obligation-value/tests/*.test.ts workflows/collateral-ownership-classification/tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts workflows/name-capacity-resolution/tests/*.test.ts workflows/secured-transaction-eligibility/tests/*.test.ts workflows/obligation-value/tests/*.test.ts workflows/collateral-ownership-classification/tests/*.test.ts workflows/governing-law-filing-jurisdiction/tests/*.test.ts"
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",

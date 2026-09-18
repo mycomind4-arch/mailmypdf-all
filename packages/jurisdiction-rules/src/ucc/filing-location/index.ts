@@ -1,2 +1,5 @@
-/** UCC filing-location rule namespace. Jurisdiction data must carry authority and effective-date metadata before execution. */
-export {};
+export {
+  resolveUccFilingLocationRule,
+  createEmptyUccFilingLocationRegistry,
+} from "./rule-contract.js";
+export type { UccFilingLocationRuleData } from "./rule-contract.js";
