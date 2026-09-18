@@ -13,6 +13,11 @@ export const recordsRequestStartRoutes = Object.freeze([
     load: () => import("./workflows/agency-records-request/start/index"),
   },
   {
+    workflowId: "open-records-request",
+    path: "/records-request/workflows/open-records-request/start/",
+    load: () => import("./workflows/open-records-request/start/index"),
+  },
+  {
     workflowId: "public-records-request",
     path: "/records-request/workflows/public-records-request/start/",
     load: () => import("./workflows/public-records-request/start/index"),
