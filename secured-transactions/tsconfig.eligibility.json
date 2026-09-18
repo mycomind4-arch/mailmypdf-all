@@ -5,5 +5,10 @@
     "shared/**/*.tsx",
     "workflows/secured-transaction-eligibility/**/*.ts",
     "workflows/secured-transaction-eligibility/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "workflows/secured-transaction-eligibility/index.tsx",
+    "workflows/secured-transaction-eligibility/start/index.tsx"
   ]
 }
