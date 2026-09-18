@@ -11,6 +11,7 @@ import {
   type WorkflowRuntimeServerDependencies,
   type WorkflowRuntimeStore,
   type WorkflowRuntimeStoredDraft,
+  type WorkflowRuntimeStoredEvent,
   type WorkflowRuntimeStoredInput,
 } from "../src/index.js";
 
@@ -20,6 +21,7 @@ class MemoryStore implements WorkflowRuntimeStore {
   readonly inputs = new Map<string, WorkflowRuntimeStoredInput>();
   readonly drafts = new Map<string, WorkflowRuntimeStoredDraft>();
   readonly approvals = new Map<string, ExactPacketApproval>();
+  readonly events = new Map<string, WorkflowRuntimeStoredEvent[]>();
 
   async createMatter(input: { ownerId: string; workflowId: string; verticalId: string; createdAt: string }): Promise<WorkflowMatterRecord> {
     const matter: WorkflowMatterRecord = {
@@ -92,6 +94,15 @@ class MemoryStore implements WorkflowRuntimeStore {
   async loadApproval(ownerId: string, matterId: string) {
     return (await this.loadMatter(ownerId, matterId)) ? this.approvals.get(matterId) ?? null : null;
   }
+
+  async appendEvent(ownerId: string, matterId: string, event: WorkflowRuntimeStoredEvent) {
+    if (!(await this.loadMatter(ownerId, matterId))) throw new Error("Matter not found");
+    this.events.set(matterId, [...(this.events.get(matterId) ?? []), event]);
+  }
+
+  async loadEvents(ownerId: string, matterId: string) {
+    return (await this.loadMatter(ownerId, matterId)) ? this.events.get(matterId) ?? [] : [];
+  }
 }
 
 const policy: WorkflowRuntimePolicy = {
@@ -109,6 +120,17 @@ const policy: WorkflowRuntimePolicy = {
     if (!documents.some((document) => document.evidenceKind === "required-form" && document.included && document.usable)) {
       throw new Error("required form missing");
     }
+  },
+  validateUserEvent({ event }) {
+    if (event.type !== "user_note") throw new Error("event type is not user-recordable");
+    if (typeof event.occurredOn !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(event.occurredOn)) {
+      throw new Error("event date is invalid");
+    }
+    return {
+      type: "user_note",
+      occurredOn: event.occurredOn,
+      data: { note: typeof event.note === "string" ? event.note : "" },
+    };
   },
 };
 
@@ -501,3 +523,47 @@ test("shared runtime blocks packet construction when saved draft basis is stale 
   assert.equal(payload.code, "DRAFT_BASIS_MISSING");
 });
 
+
+
+test("shared runtime persists only policy-approved user events", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(created)).matter.id as string;
+
+  let response = await handle(request(`/matters/${matterId}/events`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      type: "provider_sent",
+      occurredOn: "2026-09-17",
+    }),
+  }));
+  assert.equal(response.status, 500);
+  assert.match((await body(response)).error, /not user-recordable/i);
+
+  response = await handle(request(`/matters/${matterId}/events`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      type: "user_note",
+      occurredOn: "2026-09-17",
+      note: "Observed and confirmed by the matter owner.",
+    }),
+  }));
+  assert.equal(response.status, 201);
+  const createdEvent = (await body(response)).event;
+  assert.equal(createdEvent.type, "user_note");
+  assert.equal(createdEvent.source, "user");
+
+  response = await handle(request(`/matters/${matterId}/events`));
+  assert.equal(response.status, 200);
+  const events = (await body(response)).events;
+  assert.equal(events.length, 1);
+  assert.equal(events[0].data.note, "Observed and confirmed by the matter owner.");
+});
