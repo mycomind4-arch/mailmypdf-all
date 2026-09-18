@@ -19,6 +19,7 @@ import {
 } from "@mailmypdf/workflows";
 import agencyRecordsRequestManifest from "../../../workflows/agency-records-request/manifest";
 import publicRecordsRequestManifest from "../../../workflows/public-records-request/manifest";
+import openRecordsRequestManifest from "../../../workflows/open-records-request/manifest";
 import {
   recordsRequestRuntimePolicyFor,
   recordsRequestStartRouteFor,
@@ -48,6 +49,11 @@ const variants = [
     id: "public-records-request",
     manifest: publicRecordsRequestManifest,
     label: "Public Records Request",
+  },
+  {
+    id: "open-records-request",
+    manifest: openRecordsRequestManifest,
+    label: "Open Records Request",
   },
 ] as const;
 
