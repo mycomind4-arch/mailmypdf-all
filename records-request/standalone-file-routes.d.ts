@@ -28,6 +28,7 @@ declare module "@tanstack/react-router" {
     "/records-request/workflows/foia-police-records-request/": StandaloneRouteInfo<"/records-request/workflows/foia-police-records-request/">;
     "/records-request/workflows/foia-request/": StandaloneRouteInfo<"/records-request/workflows/foia-request/">;
     "/records-request/workflows/government-documents-request/": StandaloneRouteInfo<"/records-request/workflows/government-documents-request/">;
+    "/records-request/workflows/government-documents-request/start/": StandaloneRouteInfo<"/records-request/workflows/government-documents-request/start/">;
     "/records-request/workflows/marriage-records-request/": StandaloneRouteInfo<"/records-request/workflows/marriage-records-request/">;
     "/records-request/workflows/medical-records-request/": StandaloneRouteInfo<"/records-request/workflows/medical-records-request/">;
     "/records-request/workflows/military-records-request/": StandaloneRouteInfo<"/records-request/workflows/military-records-request/">;
