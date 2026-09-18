@@ -101,3 +101,46 @@ jobs:
         run: pnpm --filter @mailmypdf/secured-transactions typecheck
       - name: Test secured transactions
         run: pnpm turbo test --filter=@mailmypdf/secured-transactions
+
+  # Scoped to the one implemented workflow (secured-transaction-eligibility)
+  # rather than the whole secured-transactions-section package, which still
+  # includes 16 other intentionally-placeholder workflows. Independent job
+  # so a failure in registry-adapters (or anything else) cannot mask this
+  # workflow's real CI result. Add another scoped job here as each further
+  # workflow in this section is genuinely implemented; only add the
+  # package-wide typecheck/test once all 17 are real.
+  secured-transaction-eligibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build dependencies whose package exports require a dist/ build
+        run: |
+          pnpm --filter @mailmypdf/core build
+          pnpm --filter @mailmypdf/documents build
+          pnpm --filter @mailmypdf/mailing-client build
+          pnpm --filter @mailmypdf/packet-builder build
+          pnpm --filter @mailmypdf/payment-fulfillment build
+          pnpm --filter @mailmypdf/proof build
+          pnpm --filter @mailmypdf/design-system build
+          pnpm --filter @mailmypdf/seo build
+          pnpm --filter @mailmypdf/workflows build
+          pnpm --filter @mailmypdf/workflow-ui build
+          pnpm --filter @mailmypdf/workflow-acceptance build
+          pnpm --filter @mailmypdf/intelligence build
+          pnpm --filter @mailmypdf/jurisdiction-rules build
+          pnpm --filter @mailmypdf/identity-capacity build
+          pnpm --filter @mailmypdf/secured-transactions build
+      - name: Typecheck secured-transaction-eligibility
+        run: pnpm --filter @mailmypdf/secured-transactions-section typecheck:eligibility
+      - name: Test secured-transaction-eligibility
+        run: pnpm --filter @mailmypdf/secured-transactions-section test:eligibility
