@@ -21,3 +21,5 @@ Adapters acquire and normalize evidence. They do **not** decide legal identity, 
 A registry hit is evidence supplied to the appropriate reasoning engine. A no-hit result is not proof of absence unless the source explicitly represents the search as complete and reports no provider limitations.
 
 Concrete provider adapters belong under the relevant provider directories only after the official source, access method, terms/robots posture, rate limits, and response semantics have been verified.
+
+Search strategy variants are type-checked and recorded as explicit derivations in the execution audit.
