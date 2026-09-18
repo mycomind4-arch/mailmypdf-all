@@ -147,6 +147,8 @@ export function createRecordsRequestRuntimePolicy(
         withholdingInstruction: text(input.withholdingInstruction, "Withholding instruction", 3000),
         authorityVerified: optionalBoolean(input.authorityVerified, "Authority verified") ?? false,
         scopeConfirmed: optionalBoolean(input.scopeConfirmed, "Scope confirmed") ?? false,
+        contextReviewed: optionalBoolean(input.contextReviewed, "Context reviewed") ?? false,
+        authorityReviewed: optionalBoolean(input.authorityReviewed, "Authority reviewed") ?? false,
         additionalInstructions: text(input.additionalInstructions, "Additional instructions", 6000),
       };
 
@@ -163,8 +165,26 @@ export function createRecordsRequestRuntimePolicy(
       assertIncludedDocumentsClean(documents);
     },
 
+    validateBeforeDraft({ caseInput }) {
+      if (caseInput.input.contextReviewed !== true) {
+        throw new Error("Complete the context review before drafting.");
+      }
+      if (caseInput.input.authorityReviewed !== true) {
+        throw new Error("Complete the authority review before drafting.");
+      }
+    },
+
     validateDocumentsBeforePacket(documents) {
       assertIncludedDocumentsClean(documents);
+    },
+
+    validateBeforePacket({ caseInput }) {
+      if (caseInput.input.contextReviewed !== true) {
+        throw new Error("Complete the context review before packet assembly.");
+      }
+      if (caseInput.input.authorityReviewed !== true) {
+        throw new Error("Complete the authority review before packet assembly.");
+      }
     },
 
     validateUserEvent({ event, existingEvents }: {
