@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test workflows/name-capacity-resolution/tests/*.test.ts"
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.23.12"
   }
 }

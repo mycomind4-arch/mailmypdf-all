@@ -1,0 +1,39 @@
+{
+  "cases": [
+    {
+      "id": "case-formatting",
+      "left": "JOHN ROBERT SMITH",
+      "right": "John Robert Smith",
+      "expectedDisposition": "same-normalized-form",
+      "meaning": "Same normalized name form only; not a legal identity determination."
+    },
+    {
+      "id": "middle-initial",
+      "left": "John R Smith",
+      "right": "John Robert Smith",
+      "expectedDisposition": "possible-name-variant",
+      "meaning": "Requires additional evidence before any identity conclusion."
+    },
+    {
+      "id": "organization-designator",
+      "left": "Smith Holdings, L.L.C.",
+      "right": "SMITH HOLDINGS LLC",
+      "expectedDisposition": "same-normalized-form",
+      "meaning": "Same normalized organization name form for comparison/search."
+    },
+    {
+      "id": "different-kind",
+      "left": "John Smith",
+      "right": "Smith Holdings LLC",
+      "expectedDisposition": "different-name",
+      "meaning": "Different normalized name forms."
+    },
+    {
+      "id": "capacity-hint",
+      "left": "John Smith, Trustee",
+      "right": "John Smith",
+      "expectedDisposition": "same-normalized-form",
+      "meaning": "Capacity is captured separately and must not be collapsed into identity."
+    }
+  ]
+}
