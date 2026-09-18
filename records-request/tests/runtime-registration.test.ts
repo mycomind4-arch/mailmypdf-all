@@ -13,9 +13,10 @@ import {
 const ids = [
   "agency-records-request",
   "public-records-request",
+  "open-records-request",
 ] as const;
 
-test("records request vertical registers both executable start routes", () => {
+test("records request vertical registers every executable start route", () => {
   assert.equal(recordsRequestStartRoutes.length, ids.length);
   assert.equal(
     new Set(recordsRequestStartRoutes.map((route) => route.workflowId)).size,
