@@ -32,6 +32,7 @@ declare module "@tanstack/react-router" {
     "/records-request/workflows/medical-records-request/": StandaloneRouteInfo<"/records-request/workflows/medical-records-request/">;
     "/records-request/workflows/military-records-request/": StandaloneRouteInfo<"/records-request/workflows/military-records-request/">;
     "/records-request/workflows/open-records-request/": StandaloneRouteInfo<"/records-request/workflows/open-records-request/">;
+    "/records-request/workflows/open-records-request/start/": StandaloneRouteInfo<"/records-request/workflows/open-records-request/start/">;
     "/records-request/workflows/permit-records-request/": StandaloneRouteInfo<"/records-request/workflows/permit-records-request/">;
     "/records-request/workflows/police-records-request/": StandaloneRouteInfo<"/records-request/workflows/police-records-request/">;
     "/records-request/workflows/police-report-copy-request/": StandaloneRouteInfo<"/records-request/workflows/police-report-copy-request/">;
