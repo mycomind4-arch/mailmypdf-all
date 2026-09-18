@@ -48,6 +48,9 @@
       "path": "./packages/audit"
     },
     {
+      "path": "./packages/jurisdiction-rules"
+    },
+    {
       "path": "./packages/packet-builder"
     },
     {
