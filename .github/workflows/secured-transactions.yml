@@ -140,6 +140,7 @@ jobs:
           pnpm --filter @mailmypdf/jurisdiction-rules build
           pnpm --filter @mailmypdf/identity-capacity build
           pnpm --filter @mailmypdf/secured-transactions build
+          pnpm --filter @mailmypdf/step-workflow build
       - name: Typecheck secured-transaction-eligibility
         run: pnpm --filter @mailmypdf/secured-transactions-section typecheck:eligibility
       - name: Test secured-transaction-eligibility
