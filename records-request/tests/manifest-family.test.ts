@@ -7,15 +7,17 @@ import {
 import agencyRecordsRequestManifest from "../workflows/agency-records-request/manifest.js";
 import publicRecordsRequestManifest from "../workflows/public-records-request/manifest.js";
 import openRecordsRequestManifest from "../workflows/open-records-request/manifest.js";
+import governmentDocumentsRequestManifest from "../workflows/government-documents-request/manifest.js";
 
 const manifests = [
   agencyRecordsRequestManifest,
   publicRecordsRequestManifest,
   openRecordsRequestManifest,
+  governmentDocumentsRequestManifest,
 ] as const;
 
 test("records request manifest family shares one request-first contract", () => {
-  assert.equal(manifests.length, 3);
+  assert.equal(manifests.length, 4);
   assert.equal(new Set(manifests.map((value) => value.manifest.id)).size, 2);
 
   for (const workflow of manifests) {
