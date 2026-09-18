@@ -22,6 +22,7 @@ declare module "@tanstack/react-router" {
     "/notice-respond/workflows/cp2000-response/": StandaloneRouteInfo<"/notice-respond/workflows/cp2000-response/">;
     "/notice-respond/workflows/cp3219a-response/": StandaloneRouteInfo<"/notice-respond/workflows/cp3219a-response/">;
     "/notice-respond/workflows/cp504-response/": StandaloneRouteInfo<"/notice-respond/workflows/cp504-response/">;
+    "/notice-respond/workflows/cp504-response/start/": StandaloneRouteInfo<"/notice-respond/workflows/cp504-response/start/">;
     "/notice-respond/workflows/cp90-collection-notice-response/": StandaloneRouteInfo<"/notice-respond/workflows/cp90-collection-notice-response/">;
     "/notice-respond/workflows/deadline-extension-request/": StandaloneRouteInfo<"/notice-respond/workflows/deadline-extension-request/">;
     "/notice-respond/workflows/document-request-response/": StandaloneRouteInfo<"/notice-respond/workflows/document-request-response/">;
