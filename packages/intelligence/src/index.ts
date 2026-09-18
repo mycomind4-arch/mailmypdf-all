@@ -152,6 +152,23 @@ export {
 } from "./contradiction.js";
 
 
+// ── Discrepancy ──────────────────────────────────────────────────────────────
+export type {
+  Discrepancy,
+  DiscrepancySeverity,
+  DiscrepancyReviewState,
+  DiscrepancyReport,
+  CreateDiscrepancyInput,
+} from "./discrepancy.js";
+export {
+  createDiscrepancy,
+  reviewDiscrepancy,
+  unresolvedDiscrepancies,
+  buildDiscrepancyReport,
+  discrepanciesByType,
+} from "./discrepancy.js";
+
+
 // ── Finding ───────────────────────────────────────────────────────────────────
 export type { Finding, FindingSeverity, FindingStatus } from "./finding.js";
 export {
