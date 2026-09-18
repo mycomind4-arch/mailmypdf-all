@@ -7,6 +7,7 @@ on:
       - 'packages/core/**'
       - 'packages/security/**'
       - 'packages/ai/**'
+      - 'packages/agent-runtime/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
@@ -30,6 +31,7 @@ on:
       - 'packages/core/**'
       - 'packages/security/**'
       - 'packages/ai/**'
+      - 'packages/agent-runtime/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
@@ -86,6 +88,7 @@ jobs:
           pnpm --filter @mailmypdf/documents test
           pnpm --filter @mailmypdf/document-intelligence test
           pnpm --filter @mailmypdf/ai test
+          pnpm --filter @mailmypdf/agent-runtime test
           pnpm --filter @mailmypdf/autonomous-publishing test
           pnpm --filter @mailmypdf/intelligence test
           pnpm --filter @mailmypdf/step-workflow test
@@ -103,6 +106,7 @@ jobs:
           pnpm --filter @mailmypdf/documents typecheck
           pnpm --filter @mailmypdf/document-intelligence typecheck
           pnpm --filter @mailmypdf/ai typecheck
+          pnpm --filter @mailmypdf/agent-runtime typecheck
           pnpm --filter @mailmypdf/autonomous-publishing typecheck
           pnpm --filter @mailmypdf/step-workflow typecheck
           pnpm --filter @mailmypdf/packet-builder typecheck
