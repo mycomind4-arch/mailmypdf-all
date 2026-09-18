@@ -14,6 +14,7 @@ Groups UCC rule families used by secured-transaction engines.
 | `perfection/` | Perfection-method jurisdiction rules. |
 | `priority/` | Priority rules requiring jurisdiction-specific data. |
 | `exceptions/` | Supported exceptions and special cases. |
+| `lifecycle/` | Versioned amendment, continuation, assignment, termination, and maintenance rule contracts. |
 
 ## Boundary
 

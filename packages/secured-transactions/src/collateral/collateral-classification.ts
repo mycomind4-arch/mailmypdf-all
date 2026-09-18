@@ -127,8 +127,8 @@ export function resolveCollateralClassification(input: {
         classification,
         support,
         contradict,
-        supportScore: confidence(support[0]?.confidence),
-        contradictScore: confidence(contradict[0]?.confidence),
+        supportScore: support[0] ? confidence(support[0].confidence) : 0,
+        contradictScore: contradict[0] ? confidence(contradict[0].confidence) : 0,
       };
     })
     .filter((group) => group.supportScore >= threshold);
