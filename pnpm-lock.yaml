@@ -1716,6 +1716,52 @@ importers:
 
   packages/workflows: {}
 
+  records-request:
+    dependencies:
+      '@mailmypdf/design-system':
+        specifier: workspace:*
+        version: link:../packages/design-system
+      '@mailmypdf/seo':
+        specifier: workspace:*
+        version: link:../packages/seo
+      '@mailmypdf/workflow-ui':
+        specifier: workspace:*
+        version: link:../packages/workflow-ui
+      '@mailmypdf/workflows':
+        specifier: workspace:*
+        version: link:../packages/workflows
+      '@tanstack/react-router':
+        specifier: ^1.170.16
+        version: 1.170.32(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.2.0
+        version: 19.3.0
+    devDependencies:
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../packages/packet-builder
+      '@mailmypdf/payment-fulfillment':
+        specifier: workspace:*
+        version: link:../packages/payment-fulfillment
+      '@mailmypdf/proof':
+        specifier: workspace:*
+        version: link:../packages/proof
+      '@types/node':
+        specifier: ^22.16.5
+        version: 22.20.3
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.3)(lightningcss@1.33.0)(terser@5.16.9)
+
   services/malware-scanner: {}
 
 packages:
