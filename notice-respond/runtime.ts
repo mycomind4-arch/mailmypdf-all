@@ -13,6 +13,11 @@ export const noticeRespondStartRoutes = Object.freeze([
     load: () => import("./workflows/cp14-response/start/index"),
   },
   {
+    workflowId: "cp504-response",
+    path: "/notice-respond/workflows/cp504-response/start/",
+    load: () => import("./workflows/cp504-response/start/index"),
+  },
+  {
     workflowId: "cp2000-response",
     path: "/notice-respond/workflows/cp2000-response/start/",
     load: () => import("./workflows/cp2000-response/start/index"),
