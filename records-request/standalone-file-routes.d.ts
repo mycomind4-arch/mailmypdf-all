@@ -40,6 +40,7 @@ declare module "@tanstack/react-router" {
     "/records-request/workflows/police-report-request/": StandaloneRouteInfo<"/records-request/workflows/police-report-request/">;
     "/records-request/workflows/property-records-request/": StandaloneRouteInfo<"/records-request/workflows/property-records-request/">;
     "/records-request/workflows/public-information-request/": StandaloneRouteInfo<"/records-request/workflows/public-information-request/">;
+    "/records-request/workflows/public-information-request/start/": StandaloneRouteInfo<"/records-request/workflows/public-information-request/start/">;
     "/records-request/workflows/public-records-request/": StandaloneRouteInfo<"/records-request/workflows/public-records-request/">;
     "/records-request/workflows/public-records-request/start/": StandaloneRouteInfo<"/records-request/workflows/public-records-request/start/">;
     "/records-request/workflows/records-denial-appeal-request/": StandaloneRouteInfo<"/records-request/workflows/records-denial-appeal-request/">;
