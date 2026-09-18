@@ -12,3 +12,4 @@ export {
   uccNoHitIsConclusive,
   explainUccSearchLimitations,
 } from "./normalizer.js";
+export { buildUccDebtorSearchPlan } from "./search-strategy.js";
