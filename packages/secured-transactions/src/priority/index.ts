@@ -15,3 +15,19 @@ export type {
   PriorityRemediationCandidate,
   PriorityRemediationReadiness,
 } from "./remediation-readiness.js";
+export {
+  assessPriorityExceptions,
+} from "./exception-analysis.js";
+
+export type {
+  PriorityExceptionEvidence,
+  PriorityExceptionAssessment,
+} from "./exception-analysis.js";
+
+export {
+  determinePriorityFromRule,
+} from "./priority-determination.js";
+
+export type {
+  PriorityDetermination,
+} from "./priority-determination.js";
