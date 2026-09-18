@@ -4,22 +4,22 @@
   "title": "Contradictory material evidence remains explicit until reviewed",
   "description": "Every required element is verified except debtor rights in collateral, which a title search directly contradicts. The contradiction must remain visible rather than being silently dropped or overridden.",
   "intake": {
-    "identifiable-debtor": { "status": "verified", "sourceRefs": ["doc-debtor-1"] },
-    "identifiable-secured-party": { "status": "verified", "sourceRefs": ["doc-secured-party-1"] },
-    "actual-obligation": { "status": "verified", "sourceRefs": ["doc-obligation-1"] },
-    "actual-value": { "status": "verified", "sourceRefs": ["doc-value-1"] },
+    "identifiable-debtor": { "status": "verified", "sources": [{ "kind": "document", "id": "doc-debtor-1", "label": "Debtor identity document" }] },
+    "identifiable-secured-party": { "status": "verified", "sources": [{ "kind": "document", "id": "doc-secured-party-1", "label": "Secured party identity document" }] },
+    "actual-obligation": { "status": "verified", "sources": [{ "kind": "document", "id": "doc-obligation-1", "label": "Signed promissory note" }] },
+    "actual-value": { "status": "verified", "sources": [{ "kind": "document", "id": "doc-value-1", "label": "Funds transfer confirmation" }] },
     "debtor-rights-in-collateral": {
       "status": "contradicted",
-      "sourceRefs": ["doc-title-search-1"],
+      "sources": [{ "kind": "registry", "id": "doc-title-search-1", "label": "Title search" }],
       "note": "A title search shows a third party, not the proposed debtor, holds record ownership of the collateral."
     },
     "authenticated-security-agreement-or-valid-alternative": {
       "status": "verified",
-      "sourceRefs": ["doc-security-agreement-1"]
+      "sources": [{ "kind": "document", "id": "doc-security-agreement-1", "label": "Executed security agreement" }]
     },
-    "specific-collateral": { "status": "verified", "sourceRefs": ["doc-collateral-desc-1"] },
-    "authorization": { "status": "verified", "sourceRefs": ["doc-authorization-1"] },
-    "correct-jurisdiction": { "status": "verified", "sourceRefs": ["doc-jurisdiction-1"] }
+    "specific-collateral": { "status": "verified", "sources": [{ "kind": "document", "id": "doc-collateral-desc-1", "label": "Collateral description schedule" }] },
+    "authorization": { "status": "verified", "sources": [{ "kind": "authority", "id": "doc-authorization-1", "label": "Authorization / resolution to encumber" }] },
+    "correct-jurisdiction": { "status": "verified", "sources": [{ "kind": "registry", "id": "doc-jurisdiction-1", "label": "Public organic record confirming location" }] }
   },
   "uploads": []
 }
