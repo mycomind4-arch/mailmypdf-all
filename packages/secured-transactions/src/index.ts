@@ -3,6 +3,8 @@ export type * from "./types.js";
 export * from "./eligibility/index.js";
 export * from "./obligations/index.js";
 export * from "./collateral/index.js";
+export * from "./findings/index.js";
+export * from "./certification/index.js";
 
 export * as Eligibility from "./eligibility/index.js";
 export * as Obligations from "./obligations/index.js";

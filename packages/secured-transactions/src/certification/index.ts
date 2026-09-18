@@ -1,2 +1,6 @@
-/** certification engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  certifySecuredTransactionMatter,
+} from "./matter-certification.js";
+export type {
+  SecuredTransactionMatterCertification,
+} from "./matter-certification.js";

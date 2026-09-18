@@ -1,2 +1,7 @@
-/** findings engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  createSecuredTransactionFinding,
+  isEvidenceReadySecuredTransactionFinding,
+} from "./finding-builder.js";
+export type {
+  SecuredTransactionFindingInput,
+} from "./finding-builder.js";
