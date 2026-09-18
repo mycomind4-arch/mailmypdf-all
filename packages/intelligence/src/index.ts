@@ -251,6 +251,20 @@ export {
   explainAssessment,
 } from "./risk.js";
 
+// ── Traceability ─────────────────────────────────────────────────────────────
+export type {
+  TraceNodeType,
+  TraceNodeRef,
+  RelationshipTrace,
+  FindingDerivationTrace,
+} from "./traceability.js";
+export {
+  traceRelationships,
+  traceFindingDerivation,
+  traceSources,
+} from "./traceability.js";
+
+
 // ── Re-exports from dependencies ──────────────────────────────────────────────
 export type { PlatformId, Confidence } from "@mailmypdf/core";
 export { createId, confidence } from "@mailmypdf/core";
