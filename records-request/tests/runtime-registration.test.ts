@@ -15,6 +15,7 @@ const ids = [
   "public-records-request",
   "open-records-request",
   "government-documents-request",
+  "public-information-request",
 ] as const;
 
 test("records request vertical registers every executable start route", () => {
