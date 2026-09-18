@@ -19,6 +19,7 @@ import {
   createHttpWorkflowMatterClient,
   getNoticeResponseWorkflowProfile,
   type NoticeResponseStepId,
+  type NoticeResponseWorkflowProfile,
   type WorkflowMailingAddress,
   type WorkflowMatterAnalysis,
   type WorkflowMatterDocument,
@@ -102,15 +103,22 @@ function storageKey(workflowId: string): string {
   return `mailmypdf:${workflowId}:matter`;
 }
 
+function requireNoticeResponseWorkflowProfile(
+  workflowId: string,
+): NoticeResponseWorkflowProfile {
+  const profile = getNoticeResponseWorkflowProfile(workflowId);
+  if (!profile) {
+    throw new Error(`Unknown Notice Respond workflow: ${workflowId}`);
+  }
+  return profile;
+}
+
 export default function NoticeResponseWorkflow({
   config,
 }: {
   config: NoticeResponseWorkflowUiConfig;
 }) {
-  const profile = getNoticeResponseWorkflowProfile(config.workflowId);
-  if (!profile) {
-    throw new Error(`Unknown Notice Respond workflow: ${config.workflowId}`);
-  }
+  const profile = requireNoticeResponseWorkflowProfile(config.workflowId);
 
   const emptyFacts = useMemo<NoticeFacts>(
     () => ({
