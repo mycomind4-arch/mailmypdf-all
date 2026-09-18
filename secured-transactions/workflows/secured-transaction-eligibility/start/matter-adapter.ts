@@ -8,12 +8,12 @@ import {
 import {
   evaluateSecuredTransactionEligibility,
   type SecuredTransactionEligibilityResult,
-} from "./rules/eligibility";
+} from "../rules/eligibility";
 import {
   toEngineInput,
   validateSecuredTransactionEligibilityInput,
   type EligibilityIntakeInput,
-} from "./runtime-policy";
+} from "../runtime-policy";
 
 export const SECURED_TRANSACTION_ELIGIBILITY_WORKFLOW_ID = "secured-transaction-eligibility";
 export const ELIGIBILITY_INTAKE_STEP_ID = "eligibility-intake";
