@@ -172,7 +172,11 @@ export function createNoticeResponseRuntimePolicy(
 
     validateAnalysis: validateNoticeAnalysis,
 
-    validateInput(\n      input: Record<string, unknown>,\n      _analysis: WorkflowMatterAnalysis | null,\n      matter: WorkflowMatterSnapshot,\n    ) {
+    validateInput(
+      input: Record<string, unknown>,
+      _analysis: WorkflowMatterAnalysis | null,
+      matter: WorkflowMatterSnapshot,
+    ) {
       const responseMode = text(input.responseMode, "Response mode", {
         required: true,
         maxLength: 100,
@@ -231,19 +235,33 @@ export function createNoticeResponseRuntimePolicy(
       };
     },
 
-    validateDocumentsBeforeDraft(\n      documents: readonly WorkflowMatterDocument[],\n      analysis: WorkflowMatterAnalysis,\n    ) {
+    validateDocumentsBeforeDraft(
+      documents: readonly WorkflowMatterDocument[],
+      analysis: WorkflowMatterAnalysis,
+    ) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
 
-    validateBeforeDraft({ matter, caseInput }: {\n      matter: WorkflowMatterSnapshot;\n      caseInput: WorkflowRuntimeStoredInput;\n      analysis: WorkflowMatterAnalysis;\n    }) {
+    validateBeforeDraft({ matter, caseInput }: {
+      matter: WorkflowMatterSnapshot;
+      caseInput: WorkflowRuntimeStoredInput;
+      analysis: WorkflowMatterAnalysis;
+    }) {
       assertEvidenceReviewCurrent(matter, caseInput);
     },
 
-    validateDocumentsBeforePacket(\n      documents: readonly WorkflowMatterDocument[],\n      analysis: WorkflowMatterAnalysis,\n    ) {
+    validateDocumentsBeforePacket(
+      documents: readonly WorkflowMatterDocument[],
+      analysis: WorkflowMatterAnalysis,
+    ) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
 
-    validateBeforePacket({ matter, caseInput }: {\n      matter: WorkflowMatterSnapshot;\n      caseInput: WorkflowRuntimeStoredInput;\n      analysis: WorkflowMatterAnalysis;\n    }) {
+    validateBeforePacket({ matter, caseInput }: {
+      matter: WorkflowMatterSnapshot;
+      caseInput: WorkflowRuntimeStoredInput;
+      analysis: WorkflowMatterAnalysis;
+    }) {
       assertEvidenceReviewCurrent(matter, caseInput);
     },
   });
