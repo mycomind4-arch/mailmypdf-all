@@ -85,6 +85,7 @@ jobs:
           pnpm --filter @mailmypdf/workflows build
           pnpm --filter @mailmypdf/workflow-ui build
           pnpm --filter @mailmypdf/workflow-acceptance build
+          pnpm --filter @mailmypdf/intelligence build
           pnpm --filter @mailmypdf/jurisdiction-rules build
           pnpm --filter @mailmypdf/identity-capacity build
           pnpm --filter @mailmypdf/secured-transactions build
