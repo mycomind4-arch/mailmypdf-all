@@ -31,6 +31,15 @@ export interface WorkflowRuntimeStoredInput {
   createdAt: string;
 }
 
+export interface WorkflowRuntimeStoredEvent {
+  id: string;
+  type: string;
+  occurredOn: string;
+  data: Readonly<Record<string, unknown>>;
+  createdAt: string;
+  source: "user" | "provider" | "system";
+}
+
 export interface WorkflowRuntimeStoredDraft {
   version: number;
   bodyText: string;
@@ -81,6 +90,21 @@ export interface WorkflowRuntimeStore {
 
   saveApproval(ownerId: string, matterId: string, approval: ExactPacketApproval): Promise<void>;
   loadApproval(ownerId: string, matterId: string): Promise<ExactPacketApproval | null>;
+
+  /**
+   * Optional durable event stream for workflows with post-fulfillment state.
+   * Provider/system events must be appended by trusted server integrations,
+   * never through the authenticated user-event endpoint below.
+   */
+  appendEvent?(
+    ownerId: string,
+    matterId: string,
+    event: WorkflowRuntimeStoredEvent,
+  ): Promise<void>;
+  loadEvents?(
+    ownerId: string,
+    matterId: string,
+  ): Promise<readonly WorkflowRuntimeStoredEvent[]>;
 }
 
 export interface WorkflowRuntimeUploadedDocument {
@@ -181,6 +205,19 @@ export interface WorkflowRuntimePolicy {
     caseInput: WorkflowRuntimeStoredInput;
     analysis: WorkflowMatterAnalysis;
   }): void;
+  /**
+   * Validate an event submitted by the authenticated matter owner. Policies
+   * must reject provider/system-only events such as actual-send confirmation.
+   */
+  validateUserEvent?(input: {
+    event: Record<string, unknown>;
+    matter: WorkflowMatterSnapshot;
+    existingEvents: readonly WorkflowRuntimeStoredEvent[];
+  }): {
+    type: string;
+    occurredOn: string;
+    data: Readonly<Record<string, unknown>>;
+  };
 }
 
 export interface WorkflowRuntimeServerDependencies {
@@ -453,6 +490,39 @@ export function createWorkflowRuntimeRequestHandler(
             const saved = await deps.store.replaceDocuments(actor.id, matterId, documents);
             return json({ documents: saved });
           }
+        }
+      }
+
+      if (parts[2] === "events" && parts.length === 3) {
+        if (!deps.store.loadEvents || !deps.store.appendEvent) {
+          throw new HttpError(501, "Workflow event persistence is not configured");
+        }
+
+        if (request.method === "GET") {
+          return json({ events: await deps.store.loadEvents(actor.id, matterId) });
+        }
+
+        if (request.method === "POST") {
+          if (!policy.validateUserEvent) {
+            throw new HttpError(405, "This workflow does not accept user-recorded events");
+          }
+          const body = await readJson(request);
+          const existingEvents = await deps.store.loadEvents(actor.id, matterId);
+          const validated = policy.validateUserEvent({
+            event: body,
+            matter,
+            existingEvents,
+          });
+          const event: WorkflowRuntimeStoredEvent = {
+            id: id(),
+            type: validated.type,
+            occurredOn: validated.occurredOn,
+            data: validated.data,
+            createdAt: now(),
+            source: "user",
+          };
+          await deps.store.appendEvent(actor.id, matterId, event);
+          return json({ event }, 201);
         }
       }
 
