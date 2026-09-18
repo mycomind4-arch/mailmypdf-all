@@ -10,6 +10,8 @@ Provider-neutral adapters for authoritative business/entity registries, UCC fili
 - jurisdiction/capability-aware adapter registry
 - business-registry adapter contracts and identity-capacity normalizers
 - UCC filing-search contracts, name normalization, and explicit search-completeness semantics
+- search-strategy planning/execution with labeled variants, required-source coverage, and conclusive-no-hit gates
+- certification coverage adapter for identity/capacity readiness checks
 - workspace tests and Shared Intelligence & Registries CI
 
 ## Boundary
