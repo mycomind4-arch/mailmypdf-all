@@ -14,6 +14,7 @@ export const RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS = [
   "agency-records-request",
   "public-records-request",
   "open-records-request",
+  "government-documents-request",
 ] as const;
 
 export type RecordsRequestRuntimeWorkflowId =
