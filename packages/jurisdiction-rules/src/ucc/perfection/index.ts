@@ -1,2 +1,7 @@
-/** UCC perfection rule namespace. Jurisdiction data must carry authority and effective-date metadata before execution. */
-export {};
+export {
+  resolveUccPerfectionRule,
+} from "./rule-contract.js";
+export type {
+  UccPerfectionMethod,
+  UccPerfectionRuleData,
+} from "./rule-contract.js";

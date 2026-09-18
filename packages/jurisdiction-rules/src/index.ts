@@ -9,3 +9,7 @@ export type {
   JurisdictionRuleRegistry,
 } from "./registry.js";
 export * as UccRules from "./ucc/index.js";
+export type {
+  UccPerfectionMethod,
+  UccPerfectionRuleData,
+} from "./ucc/perfection/index.js";

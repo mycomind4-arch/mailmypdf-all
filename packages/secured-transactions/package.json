@@ -26,7 +26,8 @@
   },
   "dependencies": {
     "@mailmypdf/identity-capacity": "workspace:*",
-    "@mailmypdf/intelligence": "workspace:*"
+    "@mailmypdf/intelligence": "workspace:*",
+    "@mailmypdf/jurisdiction-rules": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.23.12"

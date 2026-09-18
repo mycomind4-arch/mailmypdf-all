@@ -1,2 +1,6 @@
-/** perfection engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  selectPerfectionMethod,
+} from "./method-selector.js";
+export type {
+  PerfectionMethodSelection,
+} from "./method-selector.js";

@@ -5,6 +5,7 @@ export * from "./obligations/index.js";
 export * from "./collateral/index.js";
 export * from "./findings/index.js";
 export * from "./certification/index.js";
+export * from "./perfection/index.js";
 
 export * as Eligibility from "./eligibility/index.js";
 export * as Obligations from "./obligations/index.js";
