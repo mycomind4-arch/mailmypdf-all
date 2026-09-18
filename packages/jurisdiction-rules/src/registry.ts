@@ -5,7 +5,9 @@ import type {
 
 export type JurisdictionRuleFamily =
   | "ucc-debtor-name"
+  | "ucc-governing-law"
   | "ucc-filing-location"
+  | "ucc-attachment"
   | "ucc-perfection"
   | "ucc-priority"
   | "ucc-exception"
