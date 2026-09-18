@@ -1,2 +1,9 @@
-/** governing-law engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  assessGoverningLawAndFilingLocation,
+} from "./governing-law.js";
+
+export type {
+  RuleFactEvidenceStatus,
+  RuleFactEvidence,
+  GoverningLawFilingLocationAssessment,
+} from "./governing-law.js";
