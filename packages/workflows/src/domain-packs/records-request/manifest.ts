@@ -13,7 +13,7 @@ export const RECORDS_REQUEST_REQUIRED_CAPABILITIES = [
 ] as const;
 
 export interface RecordsRequestManifestOptions {
-  workflowId: `${string}-records-request` | "public-records-request" | "foia-request" | "open-records-request";
+  workflowId: `${string}-records-request` | "public-records-request" | "foia-request" | "open-records-request" | "government-documents-request" | "public-information-request";
   title: string;
   contextDocumentLabel?: string;
   supportingContextLabel?: string;
