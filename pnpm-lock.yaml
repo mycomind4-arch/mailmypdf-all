@@ -1626,6 +1626,9 @@ importers:
       '@mailmypdf/intelligence':
         specifier: workspace:*
         version: link:../intelligence
+      '@mailmypdf/jurisdiction-rules':
+        specifier: workspace:*
+        version: link:../jurisdiction-rules
     devDependencies:
       tsx:
         specifier: ^4.23.12
