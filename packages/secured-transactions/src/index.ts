@@ -8,6 +8,7 @@ export * from "./certification/index.js";
 export * from "./perfection/index.js";
 export * from "./filing/index.js";
 export * from "./priority/index.js";
+export * from "./lifecycle/index.js";
 
 export * as Eligibility from "./eligibility/index.js";
 export * as Obligations from "./obligations/index.js";

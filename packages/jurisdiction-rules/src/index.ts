@@ -19,3 +19,7 @@ export type {
 export type {
   UccPriorityRuleData,
 } from "./ucc/priority/index.js";
+export type {
+  UccLifecycleAction,
+  UccLifecycleRuleData,
+} from "./ucc/lifecycle/index.js";

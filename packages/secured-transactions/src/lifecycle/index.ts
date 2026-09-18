@@ -1,2 +1,11 @@
-/** lifecycle engine namespace. Implementation is intentionally added only after its rule contract and authority coverage are defined. */
-export {};
+export {
+  assessLifecycleActionReadiness,
+  buildMonitoringSchedule,
+} from "./lifecycle-readiness.js";
+export type {
+  LifecycleAuthorizationEvidence,
+  LifecycleActionRequest,
+  LifecycleActionReadiness,
+  MonitoringEvent,
+  MonitoringSchedule,
+} from "./lifecycle-readiness.js";

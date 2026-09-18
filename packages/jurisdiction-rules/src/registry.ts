@@ -8,7 +8,8 @@ export type JurisdictionRuleFamily =
   | "ucc-filing-location"
   | "ucc-perfection"
   | "ucc-priority"
-  | "ucc-exception";
+  | "ucc-exception"
+  | "ucc-lifecycle";
 
 export interface JurisdictionRulePack<T = unknown> {
   id: string;
@@ -98,42 +99,3 @@ export function createJurisdictionRuleRegistry(
         (pack) =>
           pack.status === "active" &&
           pack.family === input.family &&
-          pack.jurisdiction === input.jurisdiction &&
-          inForce(pack, input.asOf),
-      );
-
-      if (candidates.length === 0) {
-        return {
-          status: "unsupported",
-          jurisdiction: input.jurisdiction,
-          authorityRefs: [],
-          reasonCodes: ["no-active-supported-rule-pack"],
-          requiresHumanReview: false,
-        };
-      }
-
-      if (candidates.length > 1) {
-        return {
-          status: "unresolved",
-          jurisdiction: input.jurisdiction,
-          authorityRefs: [...new Map(
-            candidates.flatMap((pack) => pack.authorityRefs).map((authority) => [authority.id, authority]),
-          ).values()],
-          reasonCodes: ["multiple-active-rule-packs"],
-          requiresHumanReview: true,
-        };
-      }
-
-      const selected = candidates[0]!;
-      return {
-        status: "resolved",
-        jurisdiction: input.jurisdiction,
-        value: selected.value as T,
-        ruleId: selected.id,
-        authorityRefs: selected.authorityRefs,
-        reasonCodes: [],
-        requiresHumanReview: false,
-      };
-    },
-  });
-}
