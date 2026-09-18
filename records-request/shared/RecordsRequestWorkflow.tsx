@@ -1048,9 +1048,7 @@ export default function RecordsRequestWorkflow({
           </Field>
           <CheckboxField
             checked={facts.authorityVerified}
-            onChange={(event) =>
-              updateFact("authorityVerified", event.target.checked)
-            }
+            onChange={(checked) => updateFact("authorityVerified", checked)}
             label="I verified any authority, citation, withholding, or timing language entered above."
           />
           <div className="wf-callout wf-callout--info">
@@ -1192,7 +1190,7 @@ export default function RecordsRequestWorkflow({
 
       {currentStep.id === "send" && (
         <FulfillmentPanel
-          phase={trustedSend ? "complete" : approvalId ? "payment" : "review"}
+          phase={trustedSend ? "tracking" : approvalId ? "payment" : "review"}
           title="6. Pay, send, and confirm the actual send"
           description="Checkout is bound to the immutable approval. Response tracking does not begin until a trusted provider/system event confirms the actual send."
           details={[
@@ -1270,7 +1268,7 @@ export default function RecordsRequestWorkflow({
             <>
               <CheckboxField
                 checked={responded}
-                onChange={(event) => setResponded(event.target.checked)}
+                onChange={(checked) => setResponded(checked)}
                 label="The agency sent a response."
               />
               {responded ? (
