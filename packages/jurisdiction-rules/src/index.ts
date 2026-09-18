@@ -23,3 +23,22 @@ export type {
   UccLifecycleAction,
   UccLifecycleRuleData,
 } from "./ucc/lifecycle/index.js";
+export type {
+  UccGoverningLawRuleData,
+} from "./ucc/governing-law/index.js";
+export type {
+  UccFilingLocationRuleData,
+} from "./ucc/filing-location/index.js";
+export type {
+  UccAttachmentRuleData,
+} from "./ucc/attachment/index.js";
+export type {
+  UccExceptionTarget,
+  UccExceptionDefinition,
+  UccExceptionRuleData,
+} from "./ucc/exceptions/index.js";
+export type {
+  UccPriorityComparisonValueType,
+  UccPriorityComparisonDirection,
+  UccPriorityComparisonStep,
+} from "./ucc/priority/index.js";
