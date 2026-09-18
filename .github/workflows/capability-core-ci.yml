@@ -76,6 +76,7 @@ jobs:
           pnpm --filter @mailmypdf/security build
           pnpm --filter @mailmypdf/documents build
           pnpm --filter @mailmypdf/forms build
+          pnpm --filter @mailmypdf/intelligence build
           pnpm --filter @mailmypdf/workflows build
       - name: Official forms capability verification
         run: |
