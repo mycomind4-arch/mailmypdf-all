@@ -4,7 +4,11 @@ import {
   SECURED_TRANSACTION_ELIGIBILITY_GATES,
   evaluateSecuredTransactionEligibility,
 } from "../rules/eligibility";
-import { workflowRuntimePolicy, validateSecuredTransactionEligibilityInput } from "../runtime-policy";
+import {
+  workflowRuntimePolicy,
+  validateSecuredTransactionEligibilityInput,
+  toEngineInput,
+} from "../runtime-policy";
 import workflowManifest from "../manifest";
 import workflowRuntimeClient from "../start/runtime-client";
 import { allRequiredElementsVerified } from "../fixtures/all-required-elements-verified";
@@ -14,13 +18,13 @@ import { multipleUnresolvedElements } from "../fixtures/multiple-unresolved-elem
 
 /**
  * These tests exercise the workflow adapter/runtime path -- raw intake
- * object -> workflowRuntimePolicy.validateInput -> the shared
- * evaluateSecuredTransactionEligibility engine -- not just the shared
- * engine called in isolation.
+ * object -> workflowRuntimePolicy.validateInput -> toEngineInput -> the
+ * shared evaluateSecuredTransactionEligibility engine -- not just the
+ * shared engine called in isolation.
  */
 function runThroughWorkflow(rawInput: Record<string, unknown>) {
   const validated = validateSecuredTransactionEligibilityInput(rawInput);
-  return evaluateSecuredTransactionEligibility(validated);
+  return evaluateSecuredTransactionEligibility(toEngineInput(validated));
 }
 
 describe("Secured-Transaction Eligibility workflow", () => {
@@ -36,7 +40,7 @@ describe("Secured-Transaction Eligibility workflow", () => {
     assert.equal(result.canProceedToConsequentialAction, false);
   });
 
-  test("is wired (real rules/UI/tests), still never allows a consequential action", () => {
+  test("is wired (real rules/UI/persistence/tests), still never allows a consequential action", () => {
     assert.equal(workflowManifest.manifest.maturity, "wired");
     assert.equal(workflowManifest.manifest.allowsConsequentialAction, false);
     assert.equal(workflowRuntimeClient.executable, true);
@@ -85,9 +89,30 @@ describe("Secured-Transaction Eligibility workflow", () => {
   test("runtime validation rejects unrecognized fields rather than silently accepting them", () => {
     assert.throws(() =>
       validateSecuredTransactionEligibilityInput({
-        "not-a-real-gate": { status: "verified", sourceRefs: ["doc-1"] },
+        "not-a-real-gate": { status: "verified", sources: [{ kind: "document", id: "doc-1", label: "Doc" }] },
       }),
     );
+  });
+
+  test("runtime validation rejects an unsupported evidence source kind", () => {
+    assert.throws(() =>
+      validateSecuredTransactionEligibilityInput({
+        "identifiable-debtor": {
+          status: "verified",
+          sources: [{ kind: "hearsay", id: "x", label: "x" }],
+        },
+      }),
+    );
+  });
+
+  test("a user-confirmed fact stays user-confirmed and is never relabeled as document/registry evidence", () => {
+    const validated = validateSecuredTransactionEligibilityInput({
+      "identifiable-debtor": {
+        status: "verified",
+        sources: [{ kind: "user-confirmed", id: "user-stmt-1", label: "User confirmation" }],
+      },
+    });
+    assert.equal(validated["identifiable-debtor"]?.sources[0]?.kind, "user-confirmed");
   });
 
   test("no result claims attachment, perfection, or priority", () => {
