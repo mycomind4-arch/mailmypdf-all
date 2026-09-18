@@ -24,6 +24,7 @@
     "@mailmypdf/registry-adapters": "workspace:*"
   },
   "devDependencies": {
+    "@mailmypdf/workflow-acceptance": "workspace:*",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "typescript": "^5.8.3",
