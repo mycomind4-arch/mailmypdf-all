@@ -97,6 +97,9 @@
     },
     {
       "path": "./packages/autonomous-publishing"
+    },
+    {
+      "path": "./packages/secured-transactions"
     }
   ]
 }
