@@ -72,12 +72,15 @@ jobs:
       - name: pnpm install --frozen-lockfile (integrity check)
         run: pnpm install --frozen-lockfile
 
-      - name: Build dependencies whose types require a dist/ build
+      - name: Build dependencies whose package exports require a dist/ build
         run: |
           pnpm --filter @mailmypdf/design-system build
           pnpm --filter @mailmypdf/seo build
           pnpm --filter @mailmypdf/workflow-ui build
           pnpm --filter @mailmypdf/workflow-acceptance build
+          pnpm --filter @mailmypdf/jurisdiction-rules build
+          pnpm --filter @mailmypdf/identity-capacity build
+          pnpm --filter @mailmypdf/secured-transactions build
 
       - name: Typecheck and test @mailmypdf/secured-transactions-section (secured-transaction-eligibility scope only)
         run: |
