@@ -21,6 +21,7 @@ import agencyRecordsRequestManifest from "../../../workflows/agency-records-requ
 import publicRecordsRequestManifest from "../../../workflows/public-records-request/manifest";
 import openRecordsRequestManifest from "../../../workflows/open-records-request/manifest";
 import governmentDocumentsRequestManifest from "../../../workflows/government-documents-request/manifest";
+import publicInformationRequestManifest from "../../../workflows/public-information-request/manifest";
 import {
   recordsRequestRuntimePolicyFor,
   recordsRequestStartRouteFor,
@@ -60,6 +61,11 @@ const variants = [
     id: "government-documents-request",
     manifest: governmentDocumentsRequestManifest,
     label: "Government Documents Request",
+  },
+  {
+    id: "public-information-request",
+    manifest: publicInformationRequestManifest,
+    label: "Public Information Request",
   },
 ] as const;
 
