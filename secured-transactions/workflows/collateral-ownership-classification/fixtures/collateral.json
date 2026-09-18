@@ -1,0 +1,24 @@
+{
+  "assetId": "example-asset",
+  "ownershipClaims": [
+    {
+      "id": "example-title",
+      "holderEntityId": "example-owner",
+      "interestType": "recorded-owner",
+      "effect": "supports",
+      "sourceType": "recorded-title"
+    }
+  ],
+  "classificationClaims": [
+    {
+      "id": "example-classification",
+      "classification": "equipment",
+      "effect": "supports",
+      "sourceRefs": [
+        "example-asset-schedule"
+      ],
+      "confidence": 0.9
+    }
+  ],
+  "note": "Synthetic fixture only. Candidate collateral classification is separate from jurisdiction-specific legal consequences."
+}

@@ -1,11 +1,10 @@
 export {
   resolveCollateralClassification,
   assessCollateralOwnershipAndClassification,
-} from "./collateral-classification.js";
-
+} from "@mailmypdf/secured-transactions";
 export type {
   CollateralClass,
   CollateralClassificationClaim,
   CollateralClassificationResult,
   CollateralOwnershipClassificationAssessment,
-} from "./collateral-classification.js";
+} from "@mailmypdf/secured-transactions";
