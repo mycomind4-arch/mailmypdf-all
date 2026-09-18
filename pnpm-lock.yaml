@@ -1800,6 +1800,9 @@ importers:
       '@mailmypdf/seo':
         specifier: workspace:*
         version: link:../packages/seo
+      '@mailmypdf/step-workflow':
+        specifier: workspace:*
+        version: link:../packages/step-workflow
       '@mailmypdf/workflow-ui':
         specifier: workspace:*
         version: link:../packages/workflow-ui
