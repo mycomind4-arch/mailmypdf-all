@@ -9,6 +9,7 @@ export interface UccFilingLocationRuleData {
   locationBasis: string;
   filingOfficeId: string;
   filingOfficeLabel: string;
+  requiredFacts?: readonly string[];
   notes?: readonly string[];
 }
 
