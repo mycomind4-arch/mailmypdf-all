@@ -143,3 +143,17 @@ export {
   resolveJurisdiction,
   jurisdictionResolutionToFinding,
 } from "./jurisdiction-resolution.js";
+
+export type {
+  NameCapacityCertificationStatus,
+  CertificationSearchRequirement,
+  CertificationSearchCoverage,
+  NameCapacityCertificationPolicy,
+  CertificationCheck,
+  NameCapacityCertification,
+} from "./name-capacity-certification.js";
+export {
+  validateNameCapacityCertificationPolicy,
+  certifyNameAndCapacity,
+  nameCapacityCertificationToFinding,
+} from "./name-capacity-certification.js";
