@@ -1718,6 +1718,9 @@ importers:
 
   records-request:
     dependencies:
+      '@mailmypdf/ai':
+        specifier: workspace:*
+        version: link:../packages/ai
       '@mailmypdf/design-system':
         specifier: workspace:*
         version: link:../packages/design-system
