@@ -16,3 +16,12 @@ export type {
   SecurityAgreementEvidenceInput,
   SecurityAgreementEvidenceAssessment,
 } from "./security-agreement-record.js";
+export {
+  buildSecurityAgreementDraft,
+} from "./security-agreement-draft.js";
+
+export type {
+  SecurityAgreementDraftInput,
+  SecurityAgreementDraftModel,
+  SecurityAgreementDraftResult,
+} from "./security-agreement-draft.js";
