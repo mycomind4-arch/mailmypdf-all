@@ -39,3 +39,4 @@ export {
 } from "./search-strategy.js";
 export * from "./business-registries/index.js";
 export * from "./ucc-search/index.js";
+export { searchExecutionToCertificationCoverage } from "./certification-coverage.js";
