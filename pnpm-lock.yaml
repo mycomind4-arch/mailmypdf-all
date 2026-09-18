@@ -1606,6 +1606,21 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+
+  packages/secured-transactions:
+    dependencies:
+      '@mailmypdf/identity-capacity':
+        specifier: workspace:*
+        version: link:../identity-capacity
+      '@mailmypdf/intelligence':
+        specifier: workspace:*
+        version: link:../intelligence
+    devDependencies:
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+
+
   packages/registry-adapters:
     dependencies:
       '@mailmypdf/identity-capacity':
