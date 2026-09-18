@@ -1,8 +1,12 @@
 import type {
   WorkflowMatterAnalysis,
   WorkflowMatterDocument,
+} from "../../matter-runtime-client.js";
+import type {
   WorkflowRuntimePolicy,
-} from "../../index.js";
+  WorkflowRuntimeStoredEvent,
+} from "../../matter-runtime-server.js";
+import { recordRecordsResponse } from "./tracking.js";
 
 export const RECORDS_REQUEST_VERTICAL_ID = "records-request";
 
@@ -161,6 +165,45 @@ export function createRecordsRequestRuntimePolicy(
 
     validateDocumentsBeforePacket(documents) {
       assertIncludedDocumentsClean(documents);
+    },
+
+    validateUserEvent({ event, existingEvents }: {
+      event: Record<string, unknown>;
+      existingEvents: readonly WorkflowRuntimeStoredEvent[];
+    }) {
+      const sent = existingEvents.find(
+        (candidate) =>
+          candidate.type === "records_request_sent" &&
+          candidate.source !== "user",
+      );
+      if (!sent) {
+        throw new Error(
+          "A trusted provider/system actual-send event is required before a records response can be recorded.",
+        );
+      }
+
+      const responded = event.responded;
+      if (typeof responded !== "boolean") {
+        throw new Error("Response event must state whether the agency responded.");
+      }
+
+      const result = recordRecordsResponse({
+        responded,
+        responseDate:
+          typeof event.responseDate === "string" ? event.responseDate : undefined,
+        responseArtifactIds:
+          Array.isArray(event.responseArtifactIds) &&
+          event.responseArtifactIds.every((value) => typeof value === "string")
+            ? event.responseArtifactIds
+            : undefined,
+        note: typeof event.note === "string" ? event.note : undefined,
+        observationDate:
+          typeof event.observationDate === "string" ? event.observationDate : undefined,
+      });
+      if (!result.ok || !result.event) {
+        throw new Error(result.error ?? "Records response event is invalid.");
+      }
+      return result.event;
     },
   };
 }
