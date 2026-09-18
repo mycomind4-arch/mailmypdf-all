@@ -26,9 +26,11 @@ const base = (overrides: Partial<WorkflowManifest> = {}): WorkflowManifest => ({
   ...overrides,
 });
 
-test("registry exposes exactly ten pipeline archetypes", () => {
-  assert.equal(pipelineIds.length, 10);
-  assert.deepEqual(new Set(pipelineIds).size, 10);
+test("registry exposes exactly eleven pipeline archetypes", () => {
+  assert.equal(pipelineIds.length, 11);
+  assert.deepEqual(new Set(pipelineIds).size, 11);
+  assert.equal(PIPELINES.P11_SECURED_TRANSACTION.id, "P11_SECURED_TRANSACTION");
+  assert.equal(ADAPTERS["secured-transactions"].id, "secured-transactions");
 });
 
 test("adapter registry is non-empty and stable", () => {

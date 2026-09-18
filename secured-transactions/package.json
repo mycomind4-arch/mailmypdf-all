@@ -7,7 +7,7 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "tsx --test workflows/name-capacity-resolution/tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts workflows/name-capacity-resolution/tests/*.test.ts"
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
@@ -16,7 +16,9 @@
     "@mailmypdf/seo": "workspace:*",
     "@mailmypdf/workflows": "workspace:*",
     "@tanstack/react-router": "^1.170.16",
-    "react": "^19.2.0"
+    "react": "^19.2.0",
+    "@mailmypdf/jurisdiction-rules": "workspace:*",
+    "@mailmypdf/registry-adapters": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.16.5",
