@@ -8,6 +8,7 @@ on:
       - 'packages/security/**'
       - 'packages/ai/**'
       - 'packages/agent-runtime/**'
+      - 'packages/audit/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
@@ -15,6 +16,7 @@ on:
       - 'packages/forms/**'
       - 'packages/fulfillment/**'
       - 'packages/intelligence/**'
+      - 'packages/jurisdiction-rules/**'
       - 'packages/mailing-client/**'
       - 'packages/packet-builder/**'
       - 'packages/payment-fulfillment/**'
@@ -32,6 +34,7 @@ on:
       - 'packages/security/**'
       - 'packages/ai/**'
       - 'packages/agent-runtime/**'
+      - 'packages/audit/**'
       - 'packages/autonomous-publishing/**'
       - 'packages/documents/**'
       - 'packages/document-intelligence/**'
@@ -39,6 +42,7 @@ on:
       - 'packages/forms/**'
       - 'packages/fulfillment/**'
       - 'packages/intelligence/**'
+      - 'packages/jurisdiction-rules/**'
       - 'packages/mailing-client/**'
       - 'packages/packet-builder/**'
       - 'packages/payment-fulfillment/**'
@@ -90,8 +94,10 @@ jobs:
           pnpm --filter @mailmypdf/document-intelligence test
           pnpm --filter @mailmypdf/ai test
           pnpm --filter @mailmypdf/agent-runtime test
+          pnpm --filter @mailmypdf/audit test
           pnpm --filter @mailmypdf/autonomous-publishing test
           pnpm --filter @mailmypdf/intelligence test
+          pnpm --filter @mailmypdf/jurisdiction-rules test
           pnpm --filter @mailmypdf/step-workflow test
           pnpm --filter @mailmypdf/packet-builder test
           pnpm --filter @mailmypdf/mailing-client test
@@ -108,7 +114,9 @@ jobs:
           pnpm --filter @mailmypdf/document-intelligence typecheck
           pnpm --filter @mailmypdf/ai typecheck
           pnpm --filter @mailmypdf/agent-runtime typecheck
+          pnpm --filter @mailmypdf/audit typecheck
           pnpm --filter @mailmypdf/autonomous-publishing typecheck
+          pnpm --filter @mailmypdf/jurisdiction-rules typecheck
           pnpm --filter @mailmypdf/step-workflow typecheck
           pnpm --filter @mailmypdf/packet-builder typecheck
           pnpm --filter @mailmypdf/mailing-client typecheck
