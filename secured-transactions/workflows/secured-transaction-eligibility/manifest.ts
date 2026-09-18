@@ -1,7 +1,7 @@
 import { defineWorkflow } from "@mailmypdf/workflows";
 import {
   SECURED_TRANSACTION_ADAPTER_ID,
-  SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES,
+  SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES,
   SECURED_TRANSACTION_PIPELINE_ID,
   SECURED_TRANSACTION_VERTICAL_ID,
 } from "../../shared/domain/manifest-base";
@@ -13,7 +13,7 @@ export const workflowManifest = defineWorkflow({
   route: "/secured-transactions/workflows/secured-transaction-eligibility/start",
   pipeline: SECURED_TRANSACTION_PIPELINE_ID,
   adapters: [SECURED_TRANSACTION_ADAPTER_ID],
-  requiredCapabilities: [...SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES],
+  requiredCapabilities: [...SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES],
   optionalCapabilities: [],
   notApplicableCapabilities: [],
   maturity: "wired",
