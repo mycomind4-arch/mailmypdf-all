@@ -36,10 +36,10 @@ describe("Secured-Transaction Eligibility workflow", () => {
     assert.equal(result.canProceedToConsequentialAction, false);
   });
 
-  test("remains a non-executable placeholder at the workflow boundary", () => {
-    assert.equal(workflowManifest.manifest.maturity, "placeholder");
+  test("is wired (real rules/UI/tests), still never allows a consequential action", () => {
+    assert.equal(workflowManifest.manifest.maturity, "wired");
     assert.equal(workflowManifest.manifest.allowsConsequentialAction, false);
-    assert.equal(workflowRuntimeClient.executable, false);
+    assert.equal(workflowRuntimeClient.executable, true);
   });
 
   test("verified 9/9 through the runtime path produces the engine's continue/readiness result", () => {
