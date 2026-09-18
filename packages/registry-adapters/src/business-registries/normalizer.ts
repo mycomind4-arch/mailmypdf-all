@@ -1,59 +1,94 @@
 import type {
-  AuthoritativeNameCandidate,
-  EntityClassificationSignal,
-} from "@mailmypdf/identity-capacity";
-import { normalizeName } from "@mailmypdf/identity-capacity";
-import { toAuthoritySource } from "../types.js";
-import type { BusinessRegistryRecord } from "./types.js";
-import type { RegistrySourceDescriptor } from "../types.js";
+  RegistryProvenance,
+  RegistryRecord,
+  RegistrySearchResult,
+} from "../types.js";
 
-function classifyEntityType(entityType: string | undefined): EntityClassificationSignal["proposedType"] {
-  const value = (entityType ?? "").toLowerCase();
-  if (/\b(llc|limited liability|corporation|corp\.?|incorporated|inc\.?|limited partnership|\blp\b|\bllp\b|professional corporation|pllc)\b/.test(value)) {
-    return "registered-organization";
+export interface RawBusinessRegistryRecord {
+  recordId?: string;
+  registrationNumber?: string;
+  legalName?: string;
+  jurisdiction?: string;
+  entityType?: string;
+  status?: string;
+  formedAt?: string;
+  sourceUri?: string;
+  alternateNames?: readonly string[];
+}
+
+export interface NormalizedBusinessRegistryRecord {
+  registrationNumber?: string;
+  legalName: string;
+  jurisdiction: string;
+  entityType?: string;
+  status?: string;
+  formedAt?: string;
+  sourceUri?: string;
+  alternateNames: readonly string[];
+}
+
+function clean(value: string | undefined): string | undefined {
+  const trimmed = value?.replace(/\s+/g, " ").trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function uniqueNames(values: readonly string[] | undefined): string[] {
+  const map = new Map<string, string>();
+  for (const value of values ?? []) {
+    const trimmed = clean(value);
+    if (!trimmed) continue;
+    const key = trimmed.toLocaleLowerCase("en-US");
+    if (!map.has(key)) map.set(key, trimmed);
   }
-  if (/sole propriet/.test(value)) return "sole-proprietorship";
-  if (/trust/.test(value)) return "trust";
-  if (/estate/.test(value)) return "estate";
-  if (/government|county|city|state agency|district/.test(value)) return "government-entity";
-  return "unknown";
+  return [...map.values()];
 }
 
-export function businessRecordToAuthoritativeNameCandidate(input: {
-  record: BusinessRegistryRecord;
-  source: RegistrySourceDescriptor;
-  entityId?: string;
-}): AuthoritativeNameCandidate {
-  normalizeName(input.record.legalName);
+export function normalizeBusinessRegistryRecord(input: {
+  raw: RawBusinessRegistryRecord;
+  provenance: RegistryProvenance;
+}): RegistryRecord<NormalizedBusinessRegistryRecord> {
+  const legalName = clean(input.raw.legalName);
+  if (!legalName) throw new Error("A business-registry record requires a legal name.");
+
+  const recordId =
+    clean(input.raw.recordId) ??
+    clean(input.raw.registrationNumber) ??
+    `${input.provenance.jurisdiction}:${legalName.toLocaleLowerCase("en-US")}`;
+
   return {
-    id: `${input.source.id}:${input.record.sourceRecordId}:name`,
-    rawName: input.record.legalName,
-    confidence: 0.98,
-    entityId: input.entityId,
-    source: toAuthoritySource(input.source, input.record),
+    id: recordId,
+    kind: "business-registry",
+    rawReference: clean(input.raw.sourceUri) ?? recordId,
+    normalized: {
+      registrationNumber: clean(input.raw.registrationNumber),
+      legalName,
+      jurisdiction: clean(input.raw.jurisdiction) ?? input.provenance.jurisdiction,
+      entityType: clean(input.raw.entityType),
+      status: clean(input.raw.status),
+      formedAt: clean(input.raw.formedAt),
+      sourceUri: clean(input.raw.sourceUri) ?? input.provenance.sourceUri,
+      alternateNames: uniqueNames(input.raw.alternateNames),
+    },
+    provenance: input.provenance,
   };
 }
 
-export function businessRecordToEntityClassificationSignal(input: {
-  record: BusinessRegistryRecord;
-  source: RegistrySourceDescriptor;
-  entityId?: string;
-}): EntityClassificationSignal {
-  return {
-    id: `${input.source.id}:${input.record.sourceRecordId}:entity-type`,
-    proposedType: classifyEntityType(input.record.entityType),
-    confidence: input.record.entityType ? 0.95 : 0.5,
-    entityId: input.entityId,
-    source: toAuthoritySource(input.source, input.record),
-    reason: input.record.entityType
-      ? `Registry entity type: ${input.record.entityType}`
-      : "Registry record did not expose an entity type.",
-  };
-}
+export function createBusinessRegistrySearchResult(input: {
+  rawRecords: readonly RawBusinessRegistryRecord[];
+  provenance: RegistryProvenance;
+  complete: boolean;
+  warnings?: readonly string[];
+}): RegistrySearchResult<NormalizedBusinessRegistryRecord> {
+  const records = input.rawRecords.map((raw) =>
+    normalizeBusinessRegistryRecord({ raw, provenance: input.provenance }),
+  );
+  const warnings = [...(input.warnings ?? [])];
+  if (records.length === 0) warnings.push("no-hit-does-not-prove-entity-does-not-exist");
+  if (!input.complete) warnings.push("search-coverage-incomplete");
 
-export function businessRecordSearchNames(record: BusinessRegistryRecord): string[] {
-  return [...new Set([
-    record.legalName,
-    ...(record.alternateNames ?? []),
-  ].flatMap((name) => normalizeName(name).searchVariants))];
+  return {
+    status: input.complete ? "complete" : "partial",
+    records,
+    warnings: [...new Set(warnings)],
+  };
 }
