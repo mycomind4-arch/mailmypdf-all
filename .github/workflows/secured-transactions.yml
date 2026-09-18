@@ -26,45 +26,78 @@ on:
       - ".github/workflows/secured-transactions.yml"
 
 jobs:
-  shared-engines:
+  jurisdiction-rules:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9.10.0
           run_install: false
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
-
       - name: Typecheck jurisdiction rules
         run: pnpm --filter @mailmypdf/jurisdiction-rules typecheck
-
       - name: Test jurisdiction rules
         run: pnpm turbo test --filter=@mailmypdf/jurisdiction-rules
 
+  identity-capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Typecheck identity and capacity
         run: pnpm --filter @mailmypdf/identity-capacity typecheck
-
       - name: Test identity and capacity
         run: pnpm turbo test --filter=@mailmypdf/identity-capacity
 
+  registry-adapters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Typecheck registry adapters
         run: pnpm --filter @mailmypdf/registry-adapters typecheck
-
       - name: Test registry adapters
         run: pnpm turbo test --filter=@mailmypdf/registry-adapters
 
+  secured-transactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Typecheck secured transactions
         run: pnpm --filter @mailmypdf/secured-transactions typecheck
-
       - name: Test secured transactions
         run: pnpm turbo test --filter=@mailmypdf/secured-transactions
