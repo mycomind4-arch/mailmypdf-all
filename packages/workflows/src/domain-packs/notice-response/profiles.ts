@@ -19,6 +19,7 @@ export interface NoticeResponseWorkflowProfile {
   responseModeLabel: string;
   responseModes: readonly NoticeResponseMode[];
   evidenceKinds: readonly NoticeEvidenceKind[];
+  explanationRequiredModes: readonly string[];
   explanationLabel: string;
   explanationHint: string;
   requestedActionDefault: string;
@@ -52,6 +53,7 @@ export const cp14NoticeResponseProfile: NoticeResponseWorkflowProfile = Object.f
     { value: "other", label: "I need to send another documented response" },
   ],
   evidenceKinds: COMMON_TAX_EVIDENCE,
+  explanationRequiredModes: ["disagree", "already_paid", "other"],
   explanationLabel: "Explain what the IRS should know",
   explanationHint:
     "State only facts supported by the notice, your confirmed information, or records you actually provide.",
@@ -78,6 +80,7 @@ export const cp2000NoticeResponseProfile: NoticeResponseWorkflowProfile = Object
     { value: "partial-agreement", label: "Partially agree" },
   ],
   evidenceKinds: COMMON_TAX_EVIDENCE,
+  explanationRequiredModes: ["disagree", "partial-agreement"],
   explanationLabel: "Explain your response to the proposed changes",
   explanationHint:
     "For disagreement or partial agreement, identify the proposed items you dispute and state only facts supported by your records.",
