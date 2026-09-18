@@ -22,5 +22,20 @@ export {
   sourceSupportsCapability,
 } from "./source-policy.js";
 export { RegistryAdapterRegistry } from "./adapter-registry.js";
+export type {
+  SearchVariantKind,
+  SearchNameSeed,
+  SearchStrategyPolicy,
+  SearchPlanStep,
+  SearchPlan,
+  SearchAttempt,
+  SearchExecution,
+} from "./search-strategy.js";
+export {
+  SAFE_DEFAULT_SEARCH_POLICY,
+  buildNameSearchPlan,
+  executeSearchPlan,
+  searchExecutionNoHitIsConclusive,
+} from "./search-strategy.js";
 export * from "./business-registries/index.js";
 export * from "./ucc-search/index.js";
