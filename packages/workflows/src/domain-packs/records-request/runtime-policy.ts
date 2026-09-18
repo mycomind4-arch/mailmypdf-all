@@ -13,6 +13,7 @@ export const RECORDS_REQUEST_VERTICAL_ID = "records-request";
 export const RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS = [
   "agency-records-request",
   "public-records-request",
+  "open-records-request",
 ] as const;
 
 export type RecordsRequestRuntimeWorkflowId =
