@@ -68,6 +68,15 @@ export type WorkflowPacketPreview = {
   };
 };
 
+export type WorkflowMatterEvent = {
+  id: string;
+  type: string;
+  occurredOn: string;
+  data: Readonly<Record<string, unknown>>;
+  createdAt: string;
+  source: "user" | "provider" | "system";
+};
+
 export type WorkflowMailingAddress = {
   name: string;
   line1: string;
@@ -135,6 +144,12 @@ export interface WorkflowMatterClient {
     packetSha256: string;
     quote: WorkflowPacketPreview["quote"];
   } | null>;
+
+  loadEvents(matterId: string): Promise<WorkflowMatterEvent[]>;
+  recordUserEvent(
+    matterId: string,
+    event: Record<string, unknown>,
+  ): Promise<WorkflowMatterEvent>;
 
   checkout(input: {
     matterId: string;
@@ -289,6 +304,19 @@ export function createHttpWorkflowMatterClient(input: {
         quote: WorkflowPacketPreview["quote"];
       } | null }>(`/matters/${encodeURIComponent(matterId)}/approval`);
       return payload.approval;
+    },
+    async loadEvents(matterId) {
+      const payload = await request<{ events: WorkflowMatterEvent[] }>(
+        `/matters/${encodeURIComponent(matterId)}/events`,
+      );
+      return payload.events;
+    },
+    async recordUserEvent(matterId, event) {
+      const payload = await request<{ event: WorkflowMatterEvent }>(
+        `/matters/${encodeURIComponent(matterId)}/events`,
+        { method: "POST", body: JSON.stringify(event) },
+      );
+      return payload.event;
     },
     async checkout(value) {
       return request(`/matters/${encodeURIComponent(value.matterId)}/checkout`, {
