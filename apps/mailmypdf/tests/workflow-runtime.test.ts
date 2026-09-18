@@ -40,19 +40,21 @@ test("rejects malformed, incomplete and impossible-date analysis", () => {
 
 test("resolves SSDI only under its persisted vertical, never falls back for unknown workflows", () => {
   assert.equal(resolveCaseWorkflow("ssdi-denial", "appeal-mail").id, "ssdi-denial");
-  assert.equal(resolveCaseWorkflow("cp14-response", "notice-response").noticeFamily, "irs");
-  assert.deepEqual(resolveCaseWorkflow("cp2000-response", "notice-response").responseModes, ["agree", "disagree", "partial-agreement"]);
-  assert.deepEqual(resolveCaseWorkflow("cp504-response", "notice-response").responseModes, ["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]);
+  assert.equal(resolveCaseWorkflow("cp14-response", "notice-respond").noticeFamily, "irs");
+  assert.deepEqual(resolveCaseWorkflow("cp2000-response", "notice-respond").responseModes, ["agree", "disagree", "partial-agreement"]);
+  assert.deepEqual(resolveCaseWorkflow("cp504-response", "notice-respond").responseModes, ["pay", "already-paid", "dispute", "request-arrangement", "request-oic", "request-cnc"]);
   assert.deepEqual(resolveCaseWorkflow("cp523-response", "notice-response").responseModes, ["pay-past-due", "already-corrected", "dispute-default", "request-reinstatement", "cannot-pay-past-due"]);
   assert.throws(() => resolveCaseWorkflow("ssdi-denial", "dispute-mail"));
   assert.throws(() => resolveCaseWorkflow("unknown", "appeal-mail"));
   assert.throws(() => resolveCaseWorkflow("toString", "appeal-mail"));
+  assert.throws(() => resolveCaseWorkflow("cp14-response", "notice-response"));
+  assert.throws(() => resolveCaseWorkflow("cp523-response", "notice-respond"));
 });
 
 test("keeps IRS notice drafting rules distinct", () => {
-  const cp14 = resolveCaseWorkflow("cp14-response", "notice-response");
-  const cp2000 = resolveCaseWorkflow("cp2000-response", "notice-response");
-  const cp504 = resolveCaseWorkflow("cp504-response", "notice-response");
+  const cp14 = resolveCaseWorkflow("cp14-response", "notice-respond");
+  const cp2000 = resolveCaseWorkflow("cp2000-response", "notice-respond");
+  const cp504 = resolveCaseWorkflow("cp504-response", "notice-respond");
   const cp523 = resolveCaseWorkflow("cp523-response", "notice-response");
   assert.match(cp14.analysisInstructions, /balance-due/);
   assert.match(cp14.draftInstructions, /installment/);

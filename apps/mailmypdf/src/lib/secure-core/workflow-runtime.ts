@@ -85,7 +85,7 @@ const ssdi: CaseWorkflowDefinition = Object.freeze({
 
 const cp14: CaseWorkflowDefinition = Object.freeze({
   id: "cp14-response",
-  verticalId: "notice-response",
+  verticalId: "notice-respond",
   noticeFamily: "irs",
     responseModes: NOTICE_WORKFLOW_CONFIGS["cp14-response"].modes.map(([value]) => value),
   analysisInstructions:
@@ -128,7 +128,7 @@ const cp523: CaseWorkflowDefinition = Object.freeze({
 
 const cp504: CaseWorkflowDefinition = Object.freeze({
   id: "cp504-response",
-  verticalId: "notice-response",
+  verticalId: "notice-respond",
   noticeFamily: "irs",
   responseModes: NOTICE_WORKFLOW_CONFIGS["cp504-response"].modes.map(([value]) => value),
   analysisInstructions:
@@ -150,7 +150,7 @@ const cp504: CaseWorkflowDefinition = Object.freeze({
 
 const cp2000: CaseWorkflowDefinition = Object.freeze({
   id: "cp2000-response",
-  verticalId: "notice-response",
+  verticalId: "notice-respond",
   noticeFamily: "irs",
   responseModes: NOTICE_WORKFLOW_CONFIGS["cp2000-response"].modes.map(([value]) => value),
   analysisInstructions:

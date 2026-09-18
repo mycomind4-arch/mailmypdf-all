@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
-import { CaseError, loadCase, setCaseStatus } from "@/lib/secure-core/case.server";
-import { errorResponse, json, readJson, UUID_PATTERN } from "@/lib/secure-core/http.server";
-
-const MAX_DRAFT_CHARS = 100_000;
+import { UUID_PATTERN, errorResponse, json, readJson } from "@/lib/secure-core/http.server";
+import { loadLatestCaseDraft, saveCaseDraft } from "@/lib/secure-core/case-draft.server";
+import { CaseError } from "@/lib/secure-core/case.server";
 
 export const Route = createFileRoute("/api/v2/cases/$id/draft")({
   server: {
@@ -12,21 +11,11 @@ export const Route = createFileRoute("/api/v2/cases/$id/draft")({
         try {
           if (!UUID_PATTERN.test(params.id)) return json(400, { error: "Invalid case ID" });
           const context = await requireAuthenticatedUser(request);
-          await loadCase(params.id, context);
+          const draft = await loadLatestCaseDraft(params.id, context);
 
-          const { data, error } = await context.supabase
-            .from("case_drafts")
-            .select("version, body_text, created_at")
-            .eq("case_id", params.id)
-            .eq("owner_id", context.user.id)
-            .order("version", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (error) throw new CaseError(error.message);
           return json(200, {
-            draft: data
-              ? { version: data.version, bodyText: data.body_text, createdAt: data.created_at }
+            draft: draft
+              ? { version: draft.version, bodyText: draft.bodyText, createdAt: draft.createdAt }
               : null,
           });
         } catch (error) {
@@ -40,32 +29,12 @@ export const Route = createFileRoute("/api/v2/cases/$id/draft")({
         try {
           if (!UUID_PATTERN.test(params.id)) return json(400, { error: "Invalid case ID" });
           const context = await requireAuthenticatedUser(request);
-          await loadCase(params.id, context);
 
           const body = await readJson(request);
-          const text = typeof body.body_text === "string" ? body.body_text.trim() : "";
-          if (!text) throw new CaseError("A draft response is required");
-          if (text.length > MAX_DRAFT_CHARS) throw new CaseError("The draft response is too long");
+          const text = typeof body.body_text === "string" ? body.body_text : "";
+          if (!text.trim()) throw new CaseError("A draft response is required");
 
-          const { data: latest } = await context.supabase
-            .from("case_drafts")
-            .select("version")
-            .eq("case_id", params.id)
-            .eq("owner_id", context.user.id)
-            .order("version", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          const version = (latest?.version ?? 0) + 1;
-          const { error } = await context.supabase.from("case_drafts").insert({
-            case_id: params.id,
-            owner_id: context.user.id,
-            version,
-            body_text: text,
-          });
-          if (error) throw new CaseError("Unable to save the draft response");
-
-          await setCaseStatus(params.id, "drafted", context);
+          const { version } = await saveCaseDraft(params.id, { bodyText: text }, context);
           return json(201, { version });
         } catch (error) {
           return errorResponse("case-draft", error);

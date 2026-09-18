@@ -136,3 +136,45 @@ export async function intakeSecureDocument(
   if (!registered) throw new Error("Unable to register quarantined document");
   return registered;
 }
+
+export class SecureDocumentNotFoundError extends Error {}
+
+export interface DescribedSecureDocument {
+  filename: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  /** Measured later, at packet-assembly time; not known at intake/describe time. */
+  pageCount: number | null;
+  securityStatus: string;
+  usable: boolean;
+}
+
+/**
+ * Reads one already-quarantined document's current status, independent of
+ * whether it has been attached to any case. Used before attaching a document
+ * to a workflow matter so the caller can record its role without trusting
+ * client-supplied metadata.
+ */
+export async function describeSecureDocument(
+  documentId: string,
+  context: AuthenticatedUserContext,
+): Promise<DescribedSecureDocument> {
+  const { data, error } = await context.supabase
+    .from("secure_documents")
+    .select("safe_filename, mime_type, size_bytes, security_status, deleted_at, deletion_requested_at")
+    .eq("id", documentId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new SecureDocumentNotFoundError("Document not found");
+
+  const usable = data.security_status === "clean" && !data.deleted_at && !data.deletion_requested_at;
+  return {
+    filename: data.safe_filename,
+    mimeType: data.mime_type ?? null,
+    sizeBytes: data.size_bytes ?? null,
+    pageCount: null,
+    securityStatus: data.security_status ?? "unknown",
+    usable,
+  };
+}
