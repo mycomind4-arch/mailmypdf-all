@@ -8,7 +8,7 @@ export const oneRequiredElementContradicted: Record<string, unknown> = {
   ...allRequiredElementsVerified,
   "debtor-rights-in-collateral": {
     status: "contradicted",
-    sourceRefs: ["doc-title-search-1"],
+    sources: [{ kind: "registry", id: "doc-title-search-1", label: "Title search" }],
     note: "A title search shows a third party, not the proposed debtor, holds record ownership of the collateral.",
   },
 };
