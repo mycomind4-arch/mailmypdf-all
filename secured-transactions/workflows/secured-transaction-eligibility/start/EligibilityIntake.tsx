@@ -12,9 +12,12 @@ import {
   evaluateSecuredTransactionEligibility,
   type EligibilityEvidenceStatus,
   type SecuredTransactionEligibilityGateId,
-  type SecuredTransactionEligibilityInput,
 } from "../rules/eligibility";
-import { validateSecuredTransactionEligibilityInput } from "../runtime-policy";
+import {
+  toEngineInput,
+  validateSecuredTransactionEligibilityInput,
+  type EligibilityEvidenceSourceKind,
+} from "../runtime-policy";
 
 const GATE_LABELS: Record<SecuredTransactionEligibilityGateId, string> = {
   "identifiable-debtor": "Identifiable debtor",
@@ -29,14 +32,24 @@ const GATE_LABELS: Record<SecuredTransactionEligibilityGateId, string> = {
   "correct-jurisdiction": "Correct governing jurisdiction identified",
 };
 
+const SOURCE_KIND_OPTIONS: readonly { value: EligibilityEvidenceSourceKind; label: string }[] = [
+  { value: "user-confirmed", label: "User-confirmed fact (not independent evidence)" },
+  { value: "document", label: "Document" },
+  { value: "registry", label: "Registry / public record" },
+  { value: "filing", label: "Filing" },
+  { value: "authority", label: "Authority (statute, resolution, order)" },
+];
+
 type GateFormEntry = {
   status: EligibilityEvidenceStatus | "missing";
-  sourceRefsText: string;
+  sourceKind: EligibilityEvidenceSourceKind;
+  sourceId: string;
+  sourceLabel: string;
   note: string;
 };
 
 function emptyEntry(): GateFormEntry {
-  return { status: "missing", sourceRefsText: "", note: "" };
+  return { status: "missing", sourceKind: "user-confirmed", sourceId: "", sourceLabel: "", note: "" };
 }
 
 function initialForm(): Record<SecuredTransactionEligibilityGateId, GateFormEntry> {
@@ -47,19 +60,25 @@ function initialForm(): Record<SecuredTransactionEligibilityGateId, GateFormEntr
   return form;
 }
 
-function toEngineInput(
+function toRawInput(
   form: Record<SecuredTransactionEligibilityGateId, GateFormEntry>,
 ): Record<string, unknown> {
   const raw: Record<string, unknown> = {};
   for (const gateId of SECURED_TRANSACTION_ELIGIBILITY_GATES) {
     const entry = form[gateId];
     if (entry.status === "missing") continue;
+    const hasSource = entry.sourceId.trim().length > 0;
     raw[gateId] = {
       status: entry.status,
-      sourceRefs: entry.sourceRefsText
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
+      sources: hasSource
+        ? [
+            {
+              kind: entry.sourceKind,
+              id: entry.sourceId.trim(),
+              label: entry.sourceLabel.trim() || entry.sourceId.trim(),
+            },
+          ]
+        : [],
       ...(entry.note.trim() ? { note: entry.note.trim() } : {}),
     };
   }
@@ -86,9 +105,10 @@ export type EligibilityOutcome =
 /**
  * Maps the shared engine's real status values to the workflow's three
  * user-facing outcome categories. "ELIGIBLE TO CONTINUE" means only that
- * there is sufficient evidence to proceed to the next secured-transaction
- * workflow -- it does not mean attachment, perfection, enforceability, or
- * priority has been established.
+ * the recorded evidence currently satisfies the prerequisite eligibility
+ * gates required to proceed to further secured-transaction analysis. It
+ * does not mean a security interest exists, attachment occurred, the
+ * agreement is enforceable, or that perfection or (first) priority exists.
  */
 function toOutcome(engineStatus: "ready-for-analysis" | "human-review-required" | "blocked"): EligibilityOutcome {
   if (engineStatus === "ready-for-analysis") return "ELIGIBLE TO CONTINUE";
@@ -114,13 +134,11 @@ export function SecuredTransactionEligibilityIntake() {
   }
 
   const result = useMemo(() => {
-    const rawInput = toEngineInput(form);
+    const rawInput = toRawInput(form);
     try {
       const validated = validateSecuredTransactionEligibilityInput(rawInput);
       setValidationError(null);
-      return evaluateSecuredTransactionEligibility(
-        validated as SecuredTransactionEligibilityInput,
-      );
+      return evaluateSecuredTransactionEligibility(toEngineInput(validated));
     } catch (error) {
       setValidationError(error instanceof Error ? error.message : "Invalid eligibility input.");
       return evaluateSecuredTransactionEligibility({});
@@ -141,7 +159,7 @@ export function SecuredTransactionEligibilityIntake() {
     title: GATE_LABELS[gate.id],
     description: gate.reasons.join(" ") || undefined,
     category: "Eligibility gate",
-    sourceLabel: gate.sourceRefs.length > 0 ? gate.sourceRefs.join(", ") : undefined,
+    sourceLabel: form[gate.id].sourceId.trim() ? form[gate.id].sourceLabel || form[gate.id].sourceId : undefined,
     detail: <StatusPill tone={gateStatusTone(form[gate.id].status)} label={gate.status} />,
   }));
 
@@ -164,7 +182,7 @@ export function SecuredTransactionEligibilityIntake() {
             <StatusPill tone={outcomeTone(outcome)} label={outcome} />
             <p className="wf-finding-description">
               {outcome === "ELIGIBLE TO CONTINUE" &&
-                "Sufficient evidence is present to proceed to the next secured-transaction workflow. This does not establish attachment, a valid security interest, enforceability, perfection, or priority."}
+                "The recorded evidence currently satisfies the prerequisite eligibility gates required to proceed to further secured-transaction analysis. This does not mean a security interest exists, attachment occurred, the agreement is enforceable, or that perfection or priority (including first priority) has been established."}
               {outcome === "HUMAN REVIEW REQUIRED" &&
                 "Contradicted or unresolved evidence requires human review before this matter can proceed."}
               {outcome === "BLOCKED" &&
@@ -209,13 +227,43 @@ export function SecuredTransactionEligibilityIntake() {
               </label>
 
               <label className="wf-form-label">
-                Source references (comma-separated)
+                Source type
+                <select
+                  className="wf-form-control"
+                  value={entry.sourceKind}
+                  onChange={(event) =>
+                    updateGate(gateId, {
+                      sourceKind: event.target.value as EligibilityEvidenceSourceKind,
+                    })
+                  }
+                >
+                  {SOURCE_KIND_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="wf-form-label">
+                Source id / reference
                 <input
                   className="wf-form-control"
                   type="text"
-                  value={entry.sourceRefsText}
-                  onChange={(event) => updateGate(gateId, { sourceRefsText: event.target.value })}
-                  placeholder="e.g. document-12, matter-fact-3"
+                  value={entry.sourceId}
+                  onChange={(event) => updateGate(gateId, { sourceId: event.target.value })}
+                  placeholder="e.g. document-12 or a stated fact reference"
+                />
+              </label>
+
+              <label className="wf-form-label">
+                Source label
+                <input
+                  className="wf-form-control"
+                  type="text"
+                  value={entry.sourceLabel}
+                  onChange={(event) => updateGate(gateId, { sourceLabel: event.target.value })}
+                  placeholder="Human-readable description of the source"
                 />
               </label>
 
