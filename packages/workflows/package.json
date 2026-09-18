@@ -26,6 +26,10 @@
       "types": "./src/approval/packet-approval.ts",
       "import": "./dist/approval/packet-approval.js"
     },
+    "./approval/artifact-attestation": {
+      "types": "./src/approval/artifact-attestation.ts",
+      "import": "./dist/approval/artifact-attestation.js"
+    },
     "./runtime-safety": {
       "types": "./src/runtime-safety.ts",
       "import": "./dist/runtime-safety.js"
