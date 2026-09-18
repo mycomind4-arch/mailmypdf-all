@@ -9,7 +9,7 @@ export type NoticeEvidenceKind = Readonly<{
 }>;
 
 export interface NoticeResponseWorkflowProfile {
-  workflowId: "cp14-response" | "cp2000-response";
+  workflowId: "cp14-response" | "cp2000-response" | "cp504-response";
   title: string;
   noticeLabel: string;
   primaryDocumentId: string;
@@ -92,9 +92,46 @@ export const cp2000NoticeResponseProfile: NoticeResponseWorkflowProfile = Object
     "Prepare factual CP2000 correspondence using only verified notice facts, user-confirmed facts, the selected agree/disagree/partial-agreement mode, and records actually included. For disagreement or partial agreement, identify only proposed items the user actually disputes. Never invent tax-return figures, payer records, payments, legal authorities, deadlines, addresses, or outcomes.",
 });
 
+
+export const cp504NoticeResponseProfile: NoticeResponseWorkflowProfile = Object.freeze({
+  workflowId: "cp504-response",
+  title: "Respond to an IRS CP504 Notice",
+  noticeLabel: "CP504",
+  primaryDocumentId: "cp504-notice",
+  primaryDocumentLabel: "IRS CP504 notice",
+  extractionSchema: "irs.cp504.v1",
+  sourcePurpose: "irs_cp504_notice",
+  responseModeLabel: "How do you want to address the CP504?",
+  responseModes: [
+    { value: "disagree", label: "I disagree with the balance or account status" },
+    { value: "already_paid", label: "I already paid or took corrective action" },
+    { value: "payment_arrangement", label: "I need to address payment arrangements" },
+    { value: "hardship", label: "I need to explain a financial-hardship situation" },
+    { value: "other", label: "I need to send other documented correspondence" },
+  ],
+  evidenceKinds: COMMON_TAX_EVIDENCE,
+  explanationRequiredModes: [
+    "disagree",
+    "already_paid",
+    "payment_arrangement",
+    "hardship",
+    "other",
+  ],
+  explanationLabel: "Explain the facts relevant to your response",
+  explanationHint:
+    "State only facts supported by the CP504, your confirmed information, or records you actually provide. Do not treat this correspondence as a CAP or CDP request unless you separately follow the controlling appeal instructions and required form.",
+  requestedActionDefault:
+    "Please review my account, the facts stated in this response, and the enclosed records, and contact me regarding the appropriate next steps.",
+  analysisInstructions:
+    "Confirm that the controlling document is an IRS CP504 Notice of Intent to Levy under IRC section 6331(d). Extract only notice-supported facts, including the tax period, notice date, any printed action or payment date, amount due, identifiers, payment or contact instructions, collection warnings, and any mailing destination actually printed on the notice. Preserve the distinction between the Collection Appeals Program (CAP) and a later Collection Due Process (CDP) notice. Do not calculate a 30-day deadline, infer that CP504 itself supplies CDP hearing rights, invent a response address, or represent a generic response letter as Form 9423 or Form 12153.",
+  draftInstructions:
+    "Prepare factual CP504 correspondence using only verified notice facts, user-confirmed facts, the selected response mode, and records actually included. Distinguish disagreement or account correction, already-paid facts, payment-arrangement discussion, hardship facts, and other documented correspondence. Do not state that the letter itself files a CAP appeal, requests a CDP hearing, suspends collection, stops a levy, or guarantees any outcome. If the notice describes CAP rights or another formal appeal path, identify that as a separate notice-controlled process the user must follow.",
+});
+
 export const NOTICE_RESPONSE_WORKFLOW_PROFILES = Object.freeze([
   cp14NoticeResponseProfile,
   cp2000NoticeResponseProfile,
+  cp504NoticeResponseProfile,
 ] as const);
 
 export type NoticeResponseWorkflowId =
