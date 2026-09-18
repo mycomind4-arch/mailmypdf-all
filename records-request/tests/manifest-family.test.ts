@@ -20,7 +20,7 @@ const manifests = [
 
 test("records request manifest family shares one request-first contract", () => {
   assert.equal(manifests.length, 5);
-  assert.equal(new Set(manifests.map((value) => value.manifest.id)).size, 2);
+  assert.equal(new Set(manifests.map((value) => value.manifest.id)).size, manifests.length);
 
   for (const workflow of manifests) {
     const manifest = workflow.manifest;
