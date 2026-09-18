@@ -89,6 +89,7 @@ jobs:
           pnpm --filter @mailmypdf/jurisdiction-rules build
           pnpm --filter @mailmypdf/identity-capacity build
           pnpm --filter @mailmypdf/secured-transactions build
+          pnpm --filter @mailmypdf/step-workflow build
 
       - name: Typecheck and test @mailmypdf/secured-transactions-section (secured-transaction-eligibility scope only)
         run: |
