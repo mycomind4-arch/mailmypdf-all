@@ -1,5 +1,6 @@
 import { getInsuranceAppealRuntimePolicy } from "./domain-packs/appeal/insurance-runtime-policy.js";
 import { getRecordsRequestRuntimePolicy } from "./domain-packs/records-request/runtime-policy.js";
+import { getNoticeResponseRuntimePolicy } from "./domain-packs/notice-response/runtime-policy.js";
 import { createWorkflowRuntimePolicyResolver } from "./runtime-policy-registry.js";
 
 /**
@@ -10,4 +11,5 @@ import { createWorkflowRuntimePolicyResolver } from "./runtime-policy-registry.j
 export const platformWorkflowRuntimePolicyFor = createWorkflowRuntimePolicyResolver(
   getInsuranceAppealRuntimePolicy,
   getRecordsRequestRuntimePolicy,
+  getNoticeResponseRuntimePolicy,
 );
