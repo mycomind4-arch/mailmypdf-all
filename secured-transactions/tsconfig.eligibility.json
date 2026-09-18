@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "shared/**/*.ts",
+    "shared/**/*.tsx",
+    "workflows/secured-transaction-eligibility/**/*.ts",
+    "workflows/secured-transaction-eligibility/**/*.tsx"
+  ]
+}
