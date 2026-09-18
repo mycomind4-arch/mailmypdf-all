@@ -18,3 +18,11 @@ export {
 export type {
   PerfectionEvidenceVerification,
 } from "./verification.js";
+export {
+  assessPerfectionUnderRule,
+} from "./analysis.js";
+
+export type {
+  PerfectionConditionEvidence,
+  PerfectionAuthorityAssessment,
+} from "./analysis.js";
