@@ -1,2 +1,6 @@
-/** UCC debtor-name rule namespace. Jurisdiction data must carry authority and effective-date metadata before execution. */
-export {};
+export {
+  resolveUccDebtorNameRule,
+} from "./rule-contract.js";
+export type {
+  UccDebtorNameRuleData,
+} from "./rule-contract.js";

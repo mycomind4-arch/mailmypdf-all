@@ -1,9 +1,9 @@
 export {
   prepareUcc1Data,
-} from "./ucc1-preparation.js";
+} from "@mailmypdf/secured-transactions";
 export type {
   FilingAuthorizationEvidence,
-  Ucc1PreparationInput,
   PreparedUcc1Data,
+  Ucc1PreparationInput,
   Ucc1PreparationResult,
-} from "./ucc1-preparation.js";
+} from "@mailmypdf/secured-transactions";

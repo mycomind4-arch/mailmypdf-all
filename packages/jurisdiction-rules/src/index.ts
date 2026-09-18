@@ -13,3 +13,6 @@ export type {
   UccPerfectionMethod,
   UccPerfectionRuleData,
 } from "./ucc/perfection/index.js";
+export type {
+  UccDebtorNameRuleData,
+} from "./ucc/debtor-name/index.js";
