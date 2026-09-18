@@ -16,7 +16,7 @@ export const workflowManifest = defineWorkflow({
   requiredCapabilities: [...SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES],
   optionalCapabilities: [],
   notApplicableCapabilities: [],
-  maturity: "placeholder",
+  maturity: "wired",
   primaryInput: "case",
   requiresHumanReview: true,
   allowsConsequentialAction: false,
