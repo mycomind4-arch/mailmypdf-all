@@ -1,18 +1,21 @@
 # Registry Adapters Package
 
-## Purpose
+Provider-neutral adapters for authoritative business/entity registries, UCC filing offices, and future public-record sources.
 
-Provider-neutral adapters for authoritative business/entity registries and UCC search sources. Raw external data should be normalized with provenance before workflow use.
+## Implemented foundation
 
-## Planned files
-
-| Future file or directory | Function |
-| --- | --- |
-| `package.json` | Workspace metadata and adapter dependencies. |
-| `tsconfig.json` | TypeScript configuration. |
-| `src/` | Provider interfaces, normalizers, and concrete adapters. |
-| `tests/` | Contract, fixture, and integration tests. |
+- shared source/query/result/artifact contracts
+- normalized adapter error taxonomy
+- HTTPS + compliance gates for external sources
+- jurisdiction/capability-aware adapter registry
+- business-registry adapter contracts and identity-capacity normalizers
+- UCC filing-search contracts, name normalization, and explicit search-completeness semantics
+- workspace tests and Shared Intelligence & Registries CI
 
 ## Boundary
 
-This directory should contain only files owned by this layer. Reusable security, document intake, document intelligence, AI execution, provenance, workflow runtime, packet generation, pricing, payment, fulfillment, and general UI behavior belong in shared packages rather than being duplicated here.
+Adapters acquire and normalize evidence. They do **not** decide legal identity, ownership, authority, attachment, perfection, or priority.
+
+A registry hit is evidence supplied to the appropriate reasoning engine. A no-hit result is not proof of absence unless the source explicitly represents the search as complete and reports no provider limitations.
+
+Concrete provider adapters belong under the relevant provider directories only after the official source, access method, terms/robots posture, rate limits, and response semantics have been verified.
