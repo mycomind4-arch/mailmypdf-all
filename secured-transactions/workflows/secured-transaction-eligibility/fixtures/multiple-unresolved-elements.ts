@@ -8,12 +8,12 @@ export const multipleUnresolvedElements: Record<string, unknown> = {
   ...allRequiredElementsVerified,
   "actual-obligation": {
     status: "unverified",
-    sourceRefs: ["doc-obligation-draft-1"],
+    sources: [{ kind: "document", id: "doc-obligation-draft-1", label: "Draft term sheet" }],
     note: "Only a draft term sheet has been supplied; no executed obligation document yet.",
   },
   "correct-jurisdiction": {
     status: "unverified",
-    sourceRefs: ["doc-address-1"],
+    sources: [{ kind: "user-confirmed", id: "user-address-1", label: "User-stated debtor address" }],
     note: "The debtor's registered location has not been confirmed against a public organic record.",
   },
 };
