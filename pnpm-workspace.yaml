@@ -6,3 +6,4 @@ packages:
   - "appeal-mail"
   - "notice-respond"
   - "records-request"
+  - "secured-transactions"
