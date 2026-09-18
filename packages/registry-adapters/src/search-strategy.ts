@@ -79,7 +79,7 @@ export const SAFE_DEFAULT_SEARCH_POLICY: SearchStrategyPolicy = Object.freeze({
     "alias",
     "trade-name",
     "user-supplied",
-  ],
+  ] as const,
   maxVariants: 12,
   requireAuthoritativeExact: true,
   requireCompleteResults: false,
@@ -117,7 +117,7 @@ export function buildNameSearchPlan(input: {
   const warnings: string[] = [];
   const seen = new Set<string>();
 
-  function add(value: string | undefined, kind: SearchVariantKind, priority: number, rationale: string): void {
+  function add(value: string | null | undefined, kind: SearchVariantKind, priority: number, rationale: string): void {
     if (!value?.trim()) return;
     if (!policy.allowedVariantKinds.includes(kind)) return;
     const key = variantKey(value);
