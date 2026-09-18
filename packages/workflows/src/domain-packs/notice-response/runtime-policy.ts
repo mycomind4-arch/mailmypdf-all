@@ -158,7 +158,7 @@ export function createNoticeResponseRuntimePolicy(
   const allowedModes = new Set(profile.responseModes.map((mode) => mode.value));
 
   return Object.freeze({
-    validateMatter(input) {
+    validateMatter(input: { workflowId: string; verticalId: string }) {
       if (
         input.workflowId !== workflowId ||
         input.verticalId !== "notice-respond"
@@ -172,7 +172,7 @@ export function createNoticeResponseRuntimePolicy(
 
     validateAnalysis: validateNoticeAnalysis,
 
-    validateInput(input, _analysis, matter) {
+    validateInput(\n      input: Record<string, unknown>,\n      _analysis: WorkflowMatterAnalysis | null,\n      matter: WorkflowMatterSnapshot,\n    ) {
       const responseMode = text(input.responseMode, "Response mode", {
         required: true,
         maxLength: 100,
@@ -231,19 +231,19 @@ export function createNoticeResponseRuntimePolicy(
       };
     },
 
-    validateDocumentsBeforeDraft(documents, analysis) {
+    validateDocumentsBeforeDraft(\n      documents: readonly WorkflowMatterDocument[],\n      analysis: WorkflowMatterAnalysis,\n    ) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
 
-    validateBeforeDraft({ matter, caseInput }) {
+    validateBeforeDraft({ matter, caseInput }: {\n      matter: WorkflowMatterSnapshot;\n      caseInput: WorkflowRuntimeStoredInput;\n      analysis: WorkflowMatterAnalysis;\n    }) {
       assertEvidenceReviewCurrent(matter, caseInput);
     },
 
-    validateDocumentsBeforePacket(documents, analysis) {
+    validateDocumentsBeforePacket(\n      documents: readonly WorkflowMatterDocument[],\n      analysis: WorkflowMatterAnalysis,\n    ) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
 
-    validateBeforePacket({ matter, caseInput }) {
+    validateBeforePacket({ matter, caseInput }: {\n      matter: WorkflowMatterSnapshot;\n      caseInput: WorkflowRuntimeStoredInput;\n      analysis: WorkflowMatterAnalysis;\n    }) {
       assertEvidenceReviewCurrent(matter, caseInput);
     },
   });
