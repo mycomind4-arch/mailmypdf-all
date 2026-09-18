@@ -95,6 +95,57 @@ export function hashRecord(content: Record<string, unknown>): string {
   return sha256String(canonicalJSON(content));
 }
 
+
+/**
+ * Hash raw document/file bytes with SHA-256.
+ *
+ * Migrated from the legacy Proof-of-Service layer, but implemented with
+ * Web Crypto so the shared proof package remains portable across Node,
+ * Workers, and browser-capable tooling.
+ */
+export async function hashDocumentBytes(data: Uint8Array): Promise<string> {
+  const bytes = Uint8Array.from(data);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((part) => part.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export interface HashLinkedRecord {
+  recordSha256: string;
+  priorRecordHash: string | null;
+  content: Record<string, unknown>;
+}
+
+/**
+ * Verify an ordered chain of canonical record hashes.
+ *
+ * Each record must both hash to its declared recordSha256 and link to the
+ * previous record's hash. This is distinct from custody-event verification:
+ * it can protect any ordered proof/audit record sequence.
+ */
+export function verifyRecordChain(
+  records: readonly HashLinkedRecord[],
+): { valid: boolean; brokenAt: number | null } {
+  let priorHash: string | null = null;
+
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index]!;
+    if (record.priorRecordHash !== priorHash) {
+      return { valid: false, brokenAt: index };
+    }
+
+    const expectedHash = hashRecord(record.content);
+    if (record.recordSha256.toLowerCase() !== expectedHash.toLowerCase()) {
+      return { valid: false, brokenAt: index };
+    }
+
+    priorHash = record.recordSha256;
+  }
+
+  return { valid: true, brokenAt: null };
+}
+
 export function hashCustodyEvent(input: {
   priorEventHash: string | null;
   timestamp: string;
