@@ -26,3 +26,9 @@ The package CI builds workspace dependencies before executing the runtime test s
 Shared dependency build errors are repaired before runtime verification.
 
 Purpose-specific legal/domain policies are registered in the shared `@mailmypdf/intelligence/authority` registry so engines can remain generic and deterministic.
+
+## Certification
+
+The package includes name and capacity evidence-readiness certification. Certification is purpose-specific and policy-driven: it checks authoritative-name confidence, entity classification, supported capacities, jurisdiction requirements, and optional registry/search coverage.
+
+A successful certification means the shared evidence gates are satisfied for the stated workflow purpose. It is not a judicial, governmental, or filing-office determination of legal identity, authority, ownership, attachment, perfection, or priority.
