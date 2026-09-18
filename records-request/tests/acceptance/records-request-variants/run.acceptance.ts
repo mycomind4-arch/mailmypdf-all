@@ -20,6 +20,7 @@ import {
 import agencyRecordsRequestManifest from "../../../workflows/agency-records-request/manifest";
 import publicRecordsRequestManifest from "../../../workflows/public-records-request/manifest";
 import openRecordsRequestManifest from "../../../workflows/open-records-request/manifest";
+import governmentDocumentsRequestManifest from "../../../workflows/government-documents-request/manifest";
 import {
   recordsRequestRuntimePolicyFor,
   recordsRequestStartRouteFor,
@@ -54,6 +55,11 @@ const variants = [
     id: "open-records-request",
     manifest: openRecordsRequestManifest,
     label: "Open Records Request",
+  },
+  {
+    id: "government-documents-request",
+    manifest: governmentDocumentsRequestManifest,
+    label: "Government Documents Request",
   },
 ] as const;
 
