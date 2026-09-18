@@ -21,6 +21,10 @@
     "./retention": {
       "types": "./src/retention/retention.ts",
       "import": "./dist/retention/retention.js"
+    },
+    "./privacy": {
+      "types": "./src/privacy/privacy-release-review.ts",
+      "import": "./dist/privacy/privacy-release-review.js"
     }
   },
   "files": [
