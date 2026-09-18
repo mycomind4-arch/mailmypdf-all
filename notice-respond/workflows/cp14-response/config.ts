@@ -14,7 +14,7 @@ export const workflowConfig = {
   heroTitle: "Respond to an IRS CP14 Notice",
   heroDescription: "Start with the actual CP14 notice, confirm the balance and tax-period details, choose the appropriate response path, prepare supporting correspondence, review the exact packet, and retain mailing proof.",
   indexable: false,
-  contentStatus: "executable",
+  contentStatus: "reviewed",
   workspaceHighlights: [
     ["Notice-first analysis", "Extract the CP14 notice number, tax period, balance, dates, and response instructions from the source notice."],
     ["Response-path guidance", "Record whether you agree with the balance, dispute it, already paid, or need a different documented response."],
