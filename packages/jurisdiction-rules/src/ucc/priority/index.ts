@@ -1,2 +1,6 @@
-/** UCC priority rule namespace. Jurisdiction data must carry authority and effective-date metadata before execution. */
-export {};
+export {
+  resolveUccPriorityRule,
+} from "./rule-contract.js";
+export type {
+  UccPriorityRuleData,
+} from "./rule-contract.js";

@@ -16,3 +16,6 @@ export type {
 export type {
   UccDebtorNameRuleData,
 } from "./ucc/debtor-name/index.js";
+export type {
+  UccPriorityRuleData,
+} from "./ucc/priority/index.js";

@@ -1,9 +1,9 @@
 export {
   buildCompetingInterestMatrix,
   assessPriorityAnalysisReadiness,
-} from "./priority-readiness.js";
+} from "@mailmypdf/secured-transactions";
 export type {
   CompetingInterestEvidenceRecord,
   CompetingInterestMatrix,
   PriorityAnalysisReadiness,
-} from "./priority-readiness.js";
+} from "@mailmypdf/secured-transactions";
