@@ -61,7 +61,7 @@ describe("secured-transaction capability composition", () => {
     assert.deepEqual(a, b);
   });
 
-  test("secured-transaction-eligibility declares only matterState, findings, validation, humanReview", () => {
+  test("the truthful eligibility composition (matterState, findings, validation, humanReview) is available for use once the pipeline-registry blocker is resolved", () => {
     assert.deepEqual(
       [...SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES].sort(),
       ["blockingGate", "findings", "humanReview", "matterState", "requirements", "validation"].sort(),
@@ -70,5 +70,13 @@ describe("secured-transaction capability composition", () => {
     assert.ok(!SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES.includes("provenance"));
     assert.ok(!SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES.includes("approval"));
     assert.ok(!SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES.includes("proofAudit"));
+  });
+
+  test("the eligibility manifest itself currently declares the full base set, not the truthful narrow one, because defineWorkflow enforces the pipeline's full requiredStages", async () => {
+    const { default: workflowManifest } = await import("../../workflows/secured-transaction-eligibility/manifest");
+    assert.deepEqual(
+      [...workflowManifest.manifest.requiredCapabilities].sort(),
+      [...SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES].sort(),
+    );
   });
 });
