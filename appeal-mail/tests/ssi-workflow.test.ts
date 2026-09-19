@@ -11,14 +11,14 @@ import {
 } from "../workflows/appeal-ssi-denial/start/workflow";
 
 test("SSI denial is an executable P03 appeal manifest using the shared platform capabilities", () => {
-  assert.equal(ssiDenialManifest.id, "appeal-ssi-denial");
-  assert.equal(ssiDenialManifest.vertical, "appeal-mail");
-  assert.equal(ssiDenialManifest.pipeline, "P03_APPEAL");
-  assert.equal(ssiDenialManifest.maturity, "executable");
-  assert.equal(ssiDenialManifest.requiresHumanReview, true);
-  assert.equal(ssiDenialManifest.allowsConsequentialAction, true);
+  assert.equal(ssiDenialManifest.manifest.id, "appeal-ssi-denial");
+  assert.equal(ssiDenialManifest.manifest.vertical, "appeal-mail");
+  assert.equal(ssiDenialManifest.manifest.pipeline, "P03_APPEAL");
+  assert.equal(ssiDenialManifest.manifest.maturity, "executable");
+  assert.equal(ssiDenialManifest.manifest.requiresHumanReview, true);
+  assert.equal(ssiDenialManifest.manifest.allowsConsequentialAction, true);
   for (const capability of ["secureUpload", "documentScanning", "aiExecution", "evidence", "approval", "packetAssembly", "payment", "mailing", "proofAudit"] as const) {
-    assert.equal(ssiDenialManifest.requiredCapabilities.includes(capability), true, capability);
+    assert.equal(ssiDenialManifest.manifest.requiredCapabilities.includes(capability), true, capability);
   }
 });
 
