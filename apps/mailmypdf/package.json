@@ -89,7 +89,8 @@
     "@mailmypdf/core": "workspace:*",
     "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/ai": "workspace:*",
-    "@mailmypdf/notifications": "workspace:*"
+    "@mailmypdf/notifications": "workspace:*",
+    "@mailmypdf/secured-transactions-section": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
