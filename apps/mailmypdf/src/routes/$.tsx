@@ -36,6 +36,7 @@ const PRODUCT_FAMILIES: Record<string, { product: string; title: string; descrip
   insurance: { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
   "insurance-claims": { product: "Insurance Claims", title: "Insurance claim workflow", description: "Prepare claim correspondence, evidence, disputes, and appeals around insurance decisions." },
   "private-office": { product: "Private Office", title: "Private Office workflow", description: "Prepare high-stakes private correspondence and controlled document records." },
+  "secured-transactions": { product: "Secured Transactions", title: "Secured transaction workflow", description: "Organize a legitimate secured transaction across parties, collateral, attachment, perfection, priority, and lifecycle review." },
   "legal-defense": { product: "Legal Defense", title: "Legal defense preparation workflow", description: "Reconstruct events, organize evidence, and prepare a controlled case packet for attorney review." },
   mail: { product: "MailMyPDF", title: "Mailing workflow", description: "Prepare, review, and mail important documents while keeping the mailing record together." },
   future: { product: "MailMyPDF", title: "MailMyPDF workflow", description: "This reserved MailMyPDF URL is part of the canonical future workflow graph." },

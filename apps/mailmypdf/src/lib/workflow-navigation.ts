@@ -2466,6 +2466,116 @@ export const WORKFLOW_NAV_SECTIONS = [
     ]
   },
   {
+    "id": "secured-transactions",
+    "label": "Secured Transactions",
+    "publicHref": "/secured-transactions/workflows",
+    "workspaceHref": "/dashboard/workflows/secured-transactions",
+    "workflows": [
+      {
+        "slug": "name-capacity-resolution",
+        "label": "Name & Capacity Resolution",
+        "publicHref": "/secured-transactions/workflows/name-capacity-resolution",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/name-capacity-resolution"
+      },
+      {
+        "slug": "secured-transaction-eligibility",
+        "label": "Secured-Transaction Eligibility",
+        "publicHref": "/secured-transactions/workflows/secured-transaction-eligibility",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/secured-transaction-eligibility"
+      },
+      {
+        "slug": "obligation-value",
+        "label": "Obligation & Value",
+        "publicHref": "/secured-transactions/workflows/obligation-value",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/obligation-value"
+      },
+      {
+        "slug": "collateral-ownership-classification",
+        "label": "Collateral Ownership & Classification",
+        "publicHref": "/secured-transactions/workflows/collateral-ownership-classification",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/collateral-ownership-classification"
+      },
+      {
+        "slug": "governing-law-filing-jurisdiction",
+        "label": "Governing Law & Filing Jurisdiction",
+        "publicHref": "/secured-transactions/workflows/governing-law-filing-jurisdiction",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/governing-law-filing-jurisdiction"
+      },
+      {
+        "slug": "pre-filing-lien-priority-search",
+        "label": "Pre-Filing Lien & Priority Search",
+        "publicHref": "/secured-transactions/workflows/pre-filing-lien-priority-search",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/pre-filing-lien-priority-search"
+      },
+      {
+        "slug": "priority-strategy",
+        "label": "Priority Strategy",
+        "publicHref": "/secured-transactions/workflows/priority-strategy",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/priority-strategy"
+      },
+      {
+        "slug": "security-agreement-generation",
+        "label": "Security Agreement Generation",
+        "publicHref": "/secured-transactions/workflows/security-agreement-generation",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/security-agreement-generation"
+      },
+      {
+        "slug": "attachment-certification",
+        "label": "Attachment Certification",
+        "publicHref": "/secured-transactions/workflows/attachment-certification",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/attachment-certification"
+      },
+      {
+        "slug": "perfection-method-selection",
+        "label": "Perfection Method Selection",
+        "publicHref": "/secured-transactions/workflows/perfection-method-selection",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/perfection-method-selection"
+      },
+      {
+        "slug": "ucc1-preparation-authorization",
+        "label": "UCC-1 Preparation & Authorization",
+        "publicHref": "/secured-transactions/workflows/ucc1-preparation-authorization",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/ucc1-preparation-authorization"
+      },
+      {
+        "slug": "perfection-execution",
+        "label": "Perfection Execution",
+        "publicHref": "/secured-transactions/workflows/perfection-execution",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/perfection-execution"
+      },
+      {
+        "slug": "post-perfection-verification",
+        "label": "Post-Perfection Verification",
+        "publicHref": "/secured-transactions/workflows/post-perfection-verification",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/post-perfection-verification"
+      },
+      {
+        "slug": "first-priority-determination",
+        "label": "First-Priority Determination",
+        "publicHref": "/secured-transactions/workflows/first-priority-determination",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/first-priority-determination"
+      },
+      {
+        "slug": "priority-remediation",
+        "label": "Priority Remediation",
+        "publicHref": "/secured-transactions/workflows/priority-remediation",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/priority-remediation"
+      },
+      {
+        "slug": "priority-preservation-monitoring",
+        "label": "Priority Preservation & Monitoring",
+        "publicHref": "/secured-transactions/workflows/priority-preservation-monitoring",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/priority-preservation-monitoring"
+      },
+      {
+        "slug": "amendment-continuation-assignment-termination",
+        "label": "Amendment / Continuation / Assignment / Termination",
+        "publicHref": "/secured-transactions/workflows/amendment-continuation-assignment-termination",
+        "workspaceHref": "/dashboard/workflows/secured-transactions/amendment-continuation-assignment-termination"
+      }
+    ]
+  },
+  {
     "id": "tenant-reply",
     "label": "Tenant Reply",
     "publicHref": "/tenant-reply/workflows",

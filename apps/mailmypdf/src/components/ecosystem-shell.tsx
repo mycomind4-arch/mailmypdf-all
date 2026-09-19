@@ -54,6 +54,7 @@ export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
   { name: "Dispute Mail", slug: "dispute-mail", href: "/dispute-mail", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
   { name: "Tenant Reply", slug: "tenant-reply", href: "/tenant-reply", description: "Tenant notices, repair correspondence, deposits, and housing responses", category: "Housing", status: "live" },
   { name: "Records Requests", slug: "records-request", href: "/records-request", description: "FOIA, public-records, and agency-record request workflows", category: "Records / Information", status: "live" },
+  { name: "Secured Transactions", slug: "secured-transactions", href: "/secured-transactions", description: "Attachment, perfection, filing, priority, and secured-transaction lifecycle workflows", category: "Commercial / Secured Transactions", status: "beta" },
   { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, inspection, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "live" },
   { name: "Small Business", slug: "small-business", href: "/small-business", description: "Business correspondence, reminders, demands, renewals, and compliance", category: "Business", status: "planned" },
   { name: "Private Office", slug: "private-office", href: "/private-office", description: "Controlled high-stakes correspondence and document records", category: "Private Office", status: "live" },

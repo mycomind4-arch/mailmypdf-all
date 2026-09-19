@@ -131,7 +131,7 @@ type InventoryWorkflow = {
  * count. Extraction, normalization, individual review, authority publication, and
  * executable certification are separate steps.
  */
-export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
+const MODELED_INVENTORY_SEO_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
   (inventory.workflows ?? []) as InventoryWorkflow[]
 ).map((workflow) => ({
   id: workflow.id,
@@ -150,6 +150,54 @@ export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
     ? { href: "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start", verified: true }
     : undefined,
 }));
+
+const SECURED_TRANSACTION_WORKFLOW_SLUGS = [
+  "name-capacity-resolution",
+  "secured-transaction-eligibility",
+  "obligation-value",
+  "collateral-ownership-classification",
+  "governing-law-filing-jurisdiction",
+  "pre-filing-lien-priority-search",
+  "priority-strategy",
+  "security-agreement-generation",
+  "attachment-certification",
+  "perfection-method-selection",
+  "ucc1-preparation-authorization",
+  "perfection-execution",
+  "post-perfection-verification",
+  "first-priority-determination",
+  "priority-remediation",
+  "priority-preservation-monitoring",
+  "amendment-continuation-assignment-termination",
+] as const;
+
+const SECURED_TRANSACTION_SEO_CATALOG: readonly WorkflowSeoCatalogEntry[] =
+  SECURED_TRANSACTION_WORKFLOW_SLUGS.map((slug) => ({
+    id: `secured-transactions/${slug}`,
+    vertical: "secured-transactions",
+    route: `/secured-transactions/workflows/${slug}`,
+    state: slug === "secured-transaction-eligibility" ? "EXECUTABLE" : "DRAFT",
+    reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
+    provenance: [
+      {
+        kind: "build-spec",
+        sourcePath: "secured-transactions/shared/config/workflow-registry.ts",
+        note: "Registered from the new-architecture Secured Transactions catalog as topology only. Authority content remains individually review-gated.",
+      },
+    ],
+    execution:
+      slug === "secured-transaction-eligibility"
+        ? {
+            href: "/dashboard/workflows/secured-transactions/secured-transaction-eligibility/start",
+            verified: true,
+          }
+        : undefined,
+  }));
+
+export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = [
+  ...MODELED_INVENTORY_SEO_CATALOG,
+  ...SECURED_TRANSACTION_SEO_CATALOG,
+];
 
 export function defineWorkflowSeoEntry<T extends WorkflowSeoCatalogEntry>(entry: T): T {
   return entry;
