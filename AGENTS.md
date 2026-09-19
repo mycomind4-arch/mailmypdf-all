@@ -28,6 +28,10 @@ not proof that a feature is missing, integrated, or production-ready.
   swarm until its architecture is reconciled with this constraint or the user changes it.
 - Preserve user changes and archival tags. No resets, force pushes, bulk deletion,
   or whole-file conflict choices without reviewing the actual differences.
+- Canonical product sections live at the repository top level (for example
+  `appeal-mail/`, `notice-respond/`, and `secured-transactions/`). Treat
+  `apps/verticals/**` as legacy donor/compatibility code only; do not place new
+  architecture functionality there.
 - GitHub synchronization is separate from verification. Push only within the
   current task's authorization and after reviewing the diff and relevant checks.
 
