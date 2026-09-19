@@ -1640,10 +1640,10 @@ export const WORKFLOW_NAV_SECTIONS = [
         "workspaceHref": "/dashboard/workflows/notice-respond/irs-audit-letter-response"
       },
       {
-        "slug": "irs-balance-due-notice-response",
+        "slug": "cp14-response",
         "label": "IRS Balance Due Notice Response",
-        "publicHref": "/notice-respond/workflows/irs-balance-due-notice-response",
-        "workspaceHref": "/dashboard/workflows/notice-respond/irs-balance-due-notice-response"
+        "publicHref": "/notice-respond/workflows/cp14-response",
+        "workspaceHref": "/dashboard/workflows/notice-respond/cp14-response"
       },
       {
         "slug": "irs-identity-information-notice-response",

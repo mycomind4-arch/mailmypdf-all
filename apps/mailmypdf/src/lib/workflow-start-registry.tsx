@@ -24,6 +24,7 @@ import AppealPriorAuthorizationDenialStart from "@mailmypdf/appeal-mail/workflow
 import AppealSsdiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssdi-denial/start"
 import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-timely-filing-denial/start"
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
+import Cp14ResponseStart from "@mailmypdf/notice-respond/workflows/cp14-response/start"
 import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
 import Cp504ResponseStart from "@mailmypdf/notice-respond/workflows/cp504-response/start"
 import AgencyRecordsRequestStart from "@mailmypdf/records-request/workflows/agency-records-request/start"
@@ -46,6 +47,7 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-ssdi-denial": AppealSsdiDenialStart,
   "appeal-mail:appeal-timely-filing-denial": AppealTimelyFilingDenialStart,
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
+  "notice-respond:cp14-response": Cp14ResponseStart,
   "notice-respond:cp2000-response": Cp2000ResponseStart,
   "notice-respond:cp504-response": Cp504ResponseStart,
   "records-request:agency-records-request": AgencyRecordsRequestStart,
