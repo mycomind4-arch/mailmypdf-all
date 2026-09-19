@@ -156,3 +156,4 @@ jobs:
             src/services/compound-capability-executor.test.ts
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
+
