@@ -211,5 +211,7 @@ jobs:
             src/platform/authority-provider.test.ts \
             src/services/compound-workflow-service.test.ts \
             src/services/compound-capability-executor.test.ts
+      - name: Build shared pricing package required by legacy donors
+        run: pnpm --filter @mailmypdf/pricing build
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
