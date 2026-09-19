@@ -135,8 +135,16 @@ export const PIPELINES: Readonly<Record<PipelineId, PipelineFamily>> = {
     id: "P11_SECURED_TRANSACTION",
     name: "Secured Transaction / Perfection / Priority",
     description: "Evidence- and authority-first pipeline for legitimate secured transactions, including party/capacity resolution, obligation and collateral analysis, attachment, perfection, filing, priority, verification, and lifecycle maintenance.",
-    requiredStages: ["security", "classification", "extraction", "provenance", "findings", "requirements", "evidence", "research", "risk", "strategy", "validation", "blockingGate", "review", "approval", "proofAudit"],
-    optionalStages: ["deadline", "timeline", "contradiction", "discrepancy", "draft", "draftProvenance", "mailing", "tracking"],
+    // P11 is a workflow family, not one monolithic execution shape. Only
+    // stages that every secured-transaction workflow must exercise belong in
+    // requiredStages. Specialist stages are selected by each workflow.
+    requiredStages: ["findings", "requirements", "validation", "blockingGate", "review"],
+    optionalStages: [
+      "security", "classification", "extraction", "provenance", "evidence",
+      "research", "risk", "strategy", "approval", "proofAudit",
+      "deadline", "timeline", "contradiction", "discrepancy", "draft",
+      "draftProvenance", "mailing", "tracking",
+    ],
     bestFor: ["secured transactions", "security agreements", "UCC financing statements", "perfection", "priority analysis", "continuations and amendments"],
   },
 };
