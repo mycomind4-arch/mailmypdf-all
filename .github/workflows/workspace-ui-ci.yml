@@ -6,7 +6,7 @@ on:
     paths:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
-      - 'apps/mailmypdf/**'
+      - 'mailmypdf/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
@@ -14,7 +14,7 @@ on:
     paths:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
-      - 'apps/mailmypdf/**'
+      - 'mailmypdf/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
@@ -66,11 +66,11 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Test Authority Gate and catalog topology invariants
-        run: pnpm --filter ./apps/mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts
       - name: Reject thin or unverified indexable workflow pages
-        run: pnpm --filter ./apps/mailmypdf seo:authority:validate
+        run: pnpm --filter ./mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
-        run: node --test apps/mailmypdf/tests/secure-workflow-fulfillment.test.mjs
+        run: node --test mailmypdf/tests/secure-workflow-fulfillment.test.mjs
       - name: Build secure workflow package dependencies
         run: pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build
       - name: Verify executable notice workflow runtimes
@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pnpm --filter ./apps/mailmypdf exec tsx --test \
+          pnpm --filter ./mailmypdf exec tsx --test \
             tests/workflow-runtime.test.ts \
             tests/notice-response-workflow.test.ts \
             tests/notice-workflow-factory.test.ts \
@@ -109,7 +109,7 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Build core app
-        run: pnpm --filter ./apps/mailmypdf build
+        run: pnpm --filter ./mailmypdf build
 
   build-consumers:
     name: Build ${{ matrix.app }}

@@ -1,6 +1,6 @@
 # Scheduled invocation of the secure-core jobs.
 #
-# The app runs on Cloudflare Workers and its own cron (see apps/mailmypdf/
+# The app runs on Cloudflare Workers and its own cron (see mailmypdf/
 # deploy.sh) fires one job: proof-processor. It does not touch the secure-core
 # jobs, so the schedule for those lives here. Without it, uploaded documents
 # stay quarantined forever — promotion to `clean` only happens inside the scan

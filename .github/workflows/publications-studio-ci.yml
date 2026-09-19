@@ -7,24 +7,24 @@ on:
       - "packages/autonomous-publishing/**"
       - "pnpm-lock.yaml"
       - "Projects/Publications/**"
-      - "apps/mailmypdf/src/lib/publication-*.ts"
-      - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
-      - "apps/mailmypdf/src/routes/api/internal/publication-scheduler.ts"
-      - "apps/mailmypdf/src/server.ts"
-      - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
-      - "apps/mailmypdf/src/lib/workflow-navigation.ts"
-      - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
-      - "apps/mailmypdf/.env.example"
+      - "mailmypdf/src/lib/publication-*.ts"
+      - "mailmypdf/src/routes/_authenticated/admin/publications*"
+      - "mailmypdf/src/routes/api/internal/publication-scheduler.ts"
+      - "mailmypdf/src/server.ts"
+      - "mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "mailmypdf/src/lib/workflow-navigation.ts"
+      - "mailmypdf/supabase/migrations/*autonomous_publications.sql"
+      - "mailmypdf/.env.example"
       - ".github/workflows/publications-studio-ci.yml"
   pull_request:
     paths:
       - "packages/autonomous-publishing/**"
       - "Projects/Publications/**"
-      - "apps/mailmypdf/src/lib/publication-*.ts"
-      - "apps/mailmypdf/src/routes/_authenticated/admin/publications*"
-      - "apps/mailmypdf/src/components/authenticated-sidebar.tsx"
-      - "apps/mailmypdf/src/lib/workflow-navigation.ts"
-      - "apps/mailmypdf/supabase/migrations/*autonomous_publications.sql"
+      - "mailmypdf/src/lib/publication-*.ts"
+      - "mailmypdf/src/routes/_authenticated/admin/publications*"
+      - "mailmypdf/src/components/authenticated-sidebar.tsx"
+      - "mailmypdf/src/lib/workflow-navigation.ts"
+      - "mailmypdf/supabase/migrations/*autonomous_publications.sql"
       - ".github/workflows/publications-studio-ci.yml"
 
 jobs:
@@ -44,4 +44,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mailmypdf/autonomous-publishing typecheck
       - run: pnpm --filter @mailmypdf/autonomous-publishing test
-      - run: pnpm --dir apps/mailmypdf build
+      - run: pnpm --dir mailmypdf build
