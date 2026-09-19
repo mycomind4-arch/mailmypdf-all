@@ -21,6 +21,7 @@ const PRODUCT_FAMILIES: Record<string, { product: string; title: string; descrip
   dispute: { product: "Dispute Mail", title: "Dispute workflow", description: "Build an evidence-backed dispute, review it, and preserve what you sent." },
   "dispute-mail": { product: "Dispute Mail", title: "Dispute workflow", description: "Build an evidence-backed dispute, review it, and preserve what you sent." },
   business: { product: "Small Business", title: "Business correspondence workflow", description: "Prepare business correspondence with approval and recordkeeping controls." },
+  "secured-transactions": { product: "Secured Transactions", title: "Secured transaction workflow", description: "Build an evidence-grounded secured-transaction record for identity, obligation, collateral, attachment, perfection, priority, and lifecycle review." },
   "small-business": { product: "Small Business", title: "Business correspondence workflow", description: "Prepare business correspondence with approval and recordkeeping controls." },
   records: { product: "Records Requests", title: "Records request workflow", description: "Prepare a focused records or information request with recipient, scope, and proof handling." },
   "records-request": { product: "Records Requests", title: "Records request workflow", description: "Prepare a focused records or information request with recipient, scope, and proof handling." },
