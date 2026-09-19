@@ -63,3 +63,89 @@ test("every pipeline declares a name and description", () => {
     assert.ok(pipeline.description.length > 0);
   }
 });
+
+test("strict pipelines still reject an undeclared required capability", () => {
+  const result = composeWorkflow(base({
+    requiredCapabilities: base().requiredCapabilities.filter((capability) => capability !== "evidence"),
+  }));
+  assert.equal(result.executable, false);
+  assert.ok(result.diagnostics.some(
+    (diagnostic) =>
+      diagnostic.code === "PIPELINE_CAPABILITY_UNDECLARED" &&
+      diagnostic.message.includes("evidence"),
+  ));
+});
+
+test("strict pipelines distinguish not-applicable from undeclared required capabilities", () => {
+  const result = composeWorkflow(base({
+    requiredCapabilities: base().requiredCapabilities.filter((capability) => capability !== "evidence"),
+    notApplicableCapabilities: ["evidence"],
+  }));
+  assert.equal(result.executable, false);
+  assert.ok(result.diagnostics.some(
+    (diagnostic) =>
+      diagnostic.code === "REQUIRED_STAGE_NOT_APPLICABLE" &&
+      diagnostic.message.includes("evidence"),
+  ));
+  assert.equal(
+    result.diagnostics.some(
+      (diagnostic) =>
+        diagnostic.code === "PIPELINE_CAPABILITY_UNDECLARED" &&
+        diagnostic.message.includes("evidence"),
+    ),
+    false,
+  );
+});
+
+test("P11 accepts a truthful capability subset for a composable secured-transaction subworkflow", () => {
+  const result = composeWorkflow(base({
+    id: "secured-transaction-eligibility",
+    vertical: "secured-transactions",
+    pipeline: "P11_SECURED_TRANSACTION",
+    adapters: ["secured-transactions"],
+    requiredCapabilities: ["matterState", "findings", "validation", "humanReview"],
+    optionalCapabilities: [],
+    notApplicableCapabilities: [],
+    allowsConsequentialAction: false,
+  }));
+
+  assert.equal(result.executable, true);
+  assert.deepEqual(result.diagnostics, []);
+});
+
+test("P11 still fails closed when a universal stage is undeclared", () => {
+  const result = composeWorkflow(base({
+    id: "secured-transaction-eligibility",
+    vertical: "secured-transactions",
+    pipeline: "P11_SECURED_TRANSACTION",
+    adapters: ["secured-transactions"],
+    requiredCapabilities: ["matterState", "findings", "humanReview"],
+    optionalCapabilities: [],
+    notApplicableCapabilities: [],
+    allowsConsequentialAction: false,
+  }));
+
+  assert.equal(result.executable, false);
+  assert.ok(result.diagnostics.some(
+    (diagnostic) =>
+      diagnostic.code === "PIPELINE_CAPABILITY_UNDECLARED" &&
+      diagnostic.message.includes("validation"),
+  ));
+});
+
+test("P11 permits non-universal stages to be explicitly not applicable", () => {
+  const result = composeWorkflow(base({
+    id: "secured-transaction-eligibility",
+    vertical: "secured-transactions",
+    pipeline: "P11_SECURED_TRANSACTION",
+    adapters: ["secured-transactions"],
+    requiredCapabilities: ["matterState", "findings", "validation", "humanReview"],
+    optionalCapabilities: [],
+    notApplicableCapabilities: ["approval", "mailing", "tracking"],
+    allowsConsequentialAction: false,
+  }));
+
+  assert.equal(result.executable, true);
+  assert.deepEqual(result.diagnostics, []);
+});
+
