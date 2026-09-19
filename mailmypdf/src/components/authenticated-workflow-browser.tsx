@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowRight, ShieldCheck } from "lucide-react"
-import { WorkflowBrowser } from "../../../../packages/workflow-ui/src/WorkflowBrowser"
+import { WorkflowBrowser } from "../../../packages/workflow-ui/src/WorkflowBrowser"
 import { isCurrentUserAdmin } from "@/lib/admin.functions"
 import {
   WORKFLOW_NAV_COUNT,
