@@ -7,6 +7,21 @@ on:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
       - 'apps/mailmypdf/**'
+      - 'appeal-mail/**'
+      - 'benefits-appeal/**'
+      - 'claim-proof/**'
+      - 'code-enforcement/**'
+      - 'dispute-mail/**'
+      - 'immigration-mail/**'
+      - 'insurance-claims/**'
+      - 'legal-defense/**'
+      - 'notice-respond/**'
+      - 'permit-reply/**'
+      - 'private-office/**'
+      - 'records-request/**'
+      - 'secured-transactions/**'
+      - 'small-business/**'
+      - 'tenant-reply/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
@@ -15,6 +30,21 @@ on:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
       - 'apps/mailmypdf/**'
+      - 'appeal-mail/**'
+      - 'benefits-appeal/**'
+      - 'claim-proof/**'
+      - 'code-enforcement/**'
+      - 'dispute-mail/**'
+      - 'immigration-mail/**'
+      - 'insurance-claims/**'
+      - 'legal-defense/**'
+      - 'notice-respond/**'
+      - 'permit-reply/**'
+      - 'private-office/**'
+      - 'records-request/**'
+      - 'secured-transactions/**'
+      - 'small-business/**'
+      - 'tenant-reply/**'
       - 'apps/verticals/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
@@ -111,8 +141,35 @@ jobs:
       - name: Build core app
         run: pnpm --filter ./apps/mailmypdf build
 
-  build-consumers:
-    name: Build ${{ matrix.app }}
+  build-active-sections:
+    name: Build active section ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - '@mailmypdf/appeal-mail'
+          - '@mailmypdf/immigration-mail'
+          - '@mailmypdf/notice-respond'
+          - '@mailmypdf/records-request'
+          - '@mailmypdf/secured-transactions-section'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Build canonical top-level section
+        run: pnpm --filter "${{ matrix.package }}" build
+
+  legacy-donor-compatibility:
+    name: Legacy donor compatibility — ${{ matrix.app }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
