@@ -6,6 +6,7 @@ import { WorkflowDetailSummary } from "../../../../packages/workflow-ui/src/Work
 import { isCurrentUserAdmin } from "@/lib/admin.functions"
 import { workflowNavigationItem } from "@/lib/workflow-navigation"
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry"
+import { workflowExecutionRecord } from "@mailmypdf/workflows"
 
 export function AuthenticatedWorkflowDetail({
   sectionId,
@@ -37,7 +38,10 @@ export function AuthenticatedWorkflowDetail({
 
   const { section, workflow } = entry
   const authority = workflowAuthorityForPath(workflow.publicHref)
-  const executionHref = authority?.executionHref ?? undefined
+  // Execution readiness comes from the new-architecture execution registry,
+  // never from SEO/authority state -- authority is display-only metadata below.
+  const execution = workflowExecutionRecord(section.id, workflow.slug)
+  const executionHref = execution?.executionHref ?? undefined
 
   return (
     <div className="space-y-6">

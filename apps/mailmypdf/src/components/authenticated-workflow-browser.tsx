@@ -10,6 +10,7 @@ import {
   workflowNavigationSection,
 } from "@/lib/workflow-navigation"
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry"
+import { workflowExecutionRecord } from "@mailmypdf/workflows"
 
 export function AuthenticatedWorkflowBrowser({ sectionId }: { sectionId?: string }) {
   const section = workflowNavigationSection(sectionId)
@@ -26,7 +27,9 @@ export function AuthenticatedWorkflowBrowser({ sectionId }: { sectionId?: string
   const items = sourceSections.flatMap((group) =>
     group.workflows.map((workflow) => {
       const authority = workflowAuthorityForPath(workflow.publicHref)
-      const ready = Boolean(authority?.executionHref)
+      // Readiness comes from the new-architecture execution registry, never
+      // from SEO/authority state -- authority remains admin-only display metadata.
+      const ready = workflowExecutionRecord(group.id, workflow.slug)?.executionStatus === "executable"
       const adminMeta = isAdmin
         ? [
             authority?.publicationState ?? "DRAFT",

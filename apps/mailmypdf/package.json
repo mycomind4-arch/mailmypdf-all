@@ -19,6 +19,12 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@mailmypdf/documents": "workspace:*",
+    "@mailmypdf/workflows": "workspace:*",
+    "@mailmypdf/workflow-ui": "workspace:*",
+    "@mailmypdf/appeal-mail": "workspace:*",
+    "@mailmypdf/notice-respond": "workspace:*",
+    "@mailmypdf/records-request": "workspace:*",
+    "@mailmypdf/immigration-mail": "workspace:*",
     "@mailmypdf/legal-defense": "workspace:*",
     "@mailmypdf/packet-builder": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
