@@ -4,13 +4,13 @@ import type {
   StoryMemory,
   StoryMemoryMatch,
   StoredPublicationRun,
-} from "../../../../packages/autonomous-publishing/src/index";
+} from "../../../packages/autonomous-publishing/src/index";
 import {
   createProductionPublishingAdapters,
   createPublishingPipeline,
   publishApprovedEdition,
-} from "../../../../packages/autonomous-publishing/src/index";
-import { publicationCatalog } from "../../../../Projects/Publications/catalog";
+} from "../../../packages/autonomous-publishing/src/index";
+import { publicationCatalog } from "../../../Projects/Publications/catalog";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 function getPublicationEntry(publicationId: string) {
