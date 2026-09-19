@@ -24,6 +24,7 @@
     "@mailmypdf/appeal-mail": "workspace:*",
     "@mailmypdf/notice-respond": "workspace:*",
     "@mailmypdf/records-request": "workspace:*",
+    "@mailmypdf/secured-transactions-section": "workspace:*",
     "@mailmypdf/immigration-mail": "workspace:*",
     "@mailmypdf/legal-defense": "workspace:*",
     "@mailmypdf/packet-builder": "workspace:*",
