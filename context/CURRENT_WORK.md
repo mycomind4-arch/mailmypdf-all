@@ -1,76 +1,104 @@
 # Current Work — MailMyPDF migration
 
-Updated: 2026-09-16
+Updated: 2026-09-19
 
 ## Active user-directed architecture
 
-For the current migration, **Appeal Mail's active target is the top-level `appeal-mail/` tree**.
+MailMyPDF has one host application and canonical top-level product sections.
 
-- Active target: `appeal-mail/`
-- Active reference workflow: `appeal-mail/workflows/appeal-ssdi-denial/`
-- Shared cross-workflow capabilities remain in `packages/*`.
-- Legacy donor for Appeal Mail: `apps/verticals/appeal-mail/`
+- Host: `apps/mailmypdf/`
+- Canonical section roots: top-level `<section>/` directories
+- Shared cross-workflow capabilities: `packages/*`
+- Legacy donor / compatibility code: `apps/verticals/*`
 
-Older context files that still describe `apps/verticals/appeal-mail/` as canonical are stale for this migration and must not override this file or the user's current direction.
+**Never create new architecture functionality under `apps/verticals/**` unless the user explicitly changes this direction.** Existing legacy code may still be read and may still be consumed temporarily where migration is incomplete.
 
-Do not extrapolate this Appeal Mail decision to another vertical without first verifying that vertical's current top-level migration tree and the user's latest direction.
+The old statement that all verticals canonically live under `apps/verticals/<vertical>` is stale.
+
+## Canonical section inventory
+
+The current canonical top-level sections are:
+
+- `appeal-mail/`
+- `benefits-appeal/`
+- `claim-proof/`
+- `code-enforcement/`
+- `dispute-mail/`
+- `immigration-mail/`
+- `insurance-claims/`
+- `legal-defense/`
+- `notice-respond/`
+- `permit-reply/`
+- `private-office/`
+- `records-request/`
+- `secured-transactions/`
+- `small-business/`
+- `tenant-reply/`
+
+Currently activated top-level workspace packages:
+
+- `appeal-mail/`
+- `immigration-mail/`
+- `notice-respond/`
+- `records-request/`
+- `secured-transactions/`
+
+Other top-level section roots remain canonical migration targets even when they are still scaffolds and even when the host temporarily consumes an `apps/verticals/**` compatibility package.
+
+## Core architecture rule
+
+A workflow should contain only the domain-specific logic, forms, prompts, rules, configuration, assets, authority, adapters, and tests that make it unique.
+
+Reusable infrastructure belongs in shared packages. Prefer extending an existing shared capability over copying it into a section.
 
 ## Current goal
 
-Continuously mine the repository for useful code, tests, assets, workflow rules, design patterns, SEO/content, and execution behavior that should survive in the new architecture.
+Make the new architecture the single source of truth and finish the migration without losing useful implementation behavior.
 
-Work one donor subtree at a time:
+For each legacy donor dependency:
 
-1. Recursively inventory the subtree.
-2. Compare it against the new top-level vertical and shared `packages/*`.
-3. Classify every unique item as:
-   - migrate to the new vertical,
+1. inventory the donor behavior and active consumers;
+2. compare it with the canonical top-level section and shared packages;
+3. classify each unique item as:
+   - migrate to the canonical section,
    - generalize into a shared package,
    - preserve as a test/fixture/reference,
-   - or discard as obsolete/stale/duplicated.
-4. Migrate the useful material.
-5. Verify the destination and any affected contracts.
-6. Record the disposition in `context/MIGRATION_PRUNE_LEDGER.md`.
-7. Delete the exhausted legacy donor subtree so it cannot be rescanned by mistake.
+   - or retire as obsolete/stale/duplicated;
+4. migrate the useful material;
+5. verify the destination and affected contracts;
+6. record the disposition in `context/MIGRATION_PRUNE_LEDGER.md`;
+7. remove the donor dependency only when active consumers have moved.
 
-Never delete a donor subtree merely because similar files exist elsewhere. Account for unique implementation behavior, tests, assets, schemas, prompts, pricing rules, authority/safety rules, auth/ownership logic, payment/fulfillment behavior, and acceptance fixtures first.
+Never delete a donor subtree merely because similar files exist elsewhere. Account for runtime behavior, tests, assets, schemas, prompts, authority/safety rules, auth/ownership logic, payment/fulfillment behavior, and acceptance fixtures first.
 
-## Appeal Mail target shape
+## Workflow execution rule
 
-```text
-appeal-mail/
-├── index.tsx
-├── config.ts
-├── assets/
-└── workflows/
-    └── <workflow>/
-        ├── index.tsx
-        ├── config.ts
-        ├── schema.ts
-        ├── seo.ts
-        ├── assets/
-        ├── start/
-        └── workflow-specific resources as needed
-```
+Authenticated execution must use the shared execution registry and top-level workflow implementations. It must not silently fall back to `apps/verticals/**`.
 
-Public workflow pages use reusable design-system scaffolding. Authenticated workflow execution should reuse shared workflow/runtime components rather than recreate a full shell per workflow.
+A workflow is not production-ready merely because it has a directory, manifest, route, or UI. Distinguish placeholder, wired, certified, and production-hosted states truthfully.
 
-## SSDI reference workflow
+## Current reference areas
 
-Current workflow:
+### Appeal Mail
 
-`appeal-mail/workflows/appeal-ssdi-denial/`
+- canonical section: `appeal-mail/`
+- reference workflow: `appeal-mail/workflows/appeal-ssdi-denial/`
+- legacy donor: `apps/verticals/appeal-mail/`
 
-Official SSA PDFs currently present:
+### Secured Transactions
 
-- `forms/generated/ssa-561-u2.pdf`
-- `forms/generated/ssa-3441.pdf`
-- `forms/generated/ssa-827.pdf`
+- canonical section: `secured-transactions/`
+- shared domain package: `packages/secured-transactions/`
+- shared identity/capacity support: `packages/identity-capacity/`
+- shared registry adapters: `packages/registry-adapters/`
+- pipeline: `P11_SECURED_TRANSACTION`
+- do not create `apps/verticals/secured-transactions`
 
-Treat these as source forms to preserve while the SSDI workflow is converted into the reusable execution architecture.
+## Migration completion condition
 
-## Current prune pass
+The migration is not complete until:
 
-Started with `apps/verticals/appeal-mail/docs/` because it is non-runtime and can be exhausted safely. Durable design/workflow/SEO/safety rules are being distilled into the new Appeal Mail tree; stale production claims, old deployment claims, and superseded provider assumptions are not carried forward.
-
-After docs, continue through the old Appeal Mail implementation in bounded clusters, prioritizing reusable workflow scaffolding and execution behavior before workflow-specific duplication.
+- topology docs and CI point to the top-level sections;
+- the host routes/navigation/execution registry use the canonical sections;
+- active `apps/verticals/**` runtime dependencies are retired or explicitly isolated as compatibility adapters;
+- a clean install/build can exercise representative new-architecture workflows end to end.
