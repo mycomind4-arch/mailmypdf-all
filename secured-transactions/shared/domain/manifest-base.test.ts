@@ -72,9 +72,13 @@ describe("secured-transaction capability composition", () => {
     assert.ok(!SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES.includes("proofAudit"));
   });
 
-  test("the eligibility manifest itself currently declares the full base set, not the truthful narrow one, because defineWorkflow enforces the pipeline's full requiredStages", async () => {
+  test("the eligibility manifest declares its truthful narrow capability set", async () => {
     const { default: workflowManifest } = await import("../../workflows/secured-transaction-eligibility/manifest");
     assert.deepEqual(
+      [...workflowManifest.manifest.requiredCapabilities].sort(),
+      [...SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES].sort(),
+    );
+    assert.notDeepEqual(
       [...workflowManifest.manifest.requiredCapabilities].sort(),
       [...SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES].sort(),
     );

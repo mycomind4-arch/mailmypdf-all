@@ -40,7 +40,7 @@ describe("Secured Transactions section registry", () => {
     assert.equal(isAdapterCompatible("P11_SECURED_TRANSACTION", "secured-transactions"), true);
   });
 
-  test("every workflow manifest composes as a non-consequential placeholder", async () => {
+  test("workflow manifests compose with truthful maturity", async () => {
     for (const item of securedTransactionWorkflowCatalog) {
       const module = await import(`../workflows/${item.slug}/manifest`);
       const defined = module.workflowManifest;
@@ -48,7 +48,10 @@ describe("Secured Transactions section registry", () => {
       assert.equal(defined.manifest.vertical, "secured-transactions");
       assert.equal(defined.manifest.pipeline, "P11_SECURED_TRANSACTION");
       assert.deepEqual(defined.manifest.adapters, ["secured-transactions"]);
-      assert.equal(defined.manifest.maturity, "placeholder");
+      assert.equal(
+        defined.manifest.maturity,
+        item.slug === "secured-transaction-eligibility" ? "wired" : "placeholder",
+      );
       assert.equal(defined.manifest.requiresHumanReview, true);
       assert.equal(defined.manifest.allowsConsequentialAction, false);
     }
