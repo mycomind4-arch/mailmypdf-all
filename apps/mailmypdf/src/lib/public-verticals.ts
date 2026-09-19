@@ -11,6 +11,7 @@ export type PublicVerticalId =
   | "permit-reply"
   | "private-office"
   | "records-request"
+  | "secured-transactions"
   | "small-business"
   | "tenant-reply";
 
@@ -348,6 +349,34 @@ export const PUBLIC_VERTICALS: readonly PublicVerticalConfig[] = [
       { title: "Find the likely custodian", description: "Match the request to the office that creates, receives, or maintains the records." },
       { title: "Narrow and verify", description: "Use names, dates, locations, case numbers, subjects, and record types that improve searchability." },
       { title: "Track the request", description: "Keep the request, acknowledgments, productions, denials, fees, follow-ups, and available proof together." },
+    ],
+  },
+  {
+    id: "secured-transactions",
+    path: "/secured-transactions",
+    product: "Secured Transactions",
+    verticalKeys: ["secured-transactions"],
+    eyebrow: "Secured transactions · attachment · perfection · priority",
+    heroTitle: "Work through a secured transaction one legal element at a time.",
+    description:
+      "Organize the parties and capacities, obligation and value, collateral, governing law, searches, attachment, perfection, priority, and lifecycle record without treating a filing by itself as creating rights.",
+    directoryDescription:
+      "Browse secured-transaction workflows for eligibility, name and capacity, obligation and collateral analysis, governing law, lien searches, security agreements, attachment, perfection, priority, and lifecycle maintenance.",
+    helperTitle: "Start with the underlying transaction and collateral",
+    helperDescription:
+      "Identify the actual obligation, parties, authority, collateral, ownership, governing jurisdiction, and evidence before preparing a filing or priority conclusion.",
+    categories: [
+      { label: "Identity & eligibility", terms: ["eligibility", "name", "capacity", "obligation", "value", "ownership", "classification"] },
+      { label: "Attachment & agreements", terms: ["security agreement", "attachment", "authorization"] },
+      { label: "Perfection & filing", terms: ["perfection", "ucc-1", "ucc1", "filing", "jurisdiction"] },
+      { label: "Priority", terms: ["priority", "lien", "search", "remediation"] },
+      { label: "Lifecycle", terms: ["continuation", "amendment", "assignment", "termination", "monitoring", "preservation"] },
+    ],
+    steps: [
+      { title: "Qualify the transaction", description: "Confirm the real obligation, value, parties, authority, and collateral basis before moving forward." },
+      { title: "Resolve parties and collateral", description: "Determine who acts in what capacity, who owns the collateral, and which jurisdiction and records control." },
+      { title: "Attach, perfect, and verify", description: "Use the applicable agreement and perfection mechanism, then verify the filing, control, possession, or other required step." },
+      { title: "Assess and preserve priority", description: "Keep competing claims, exceptions, continuation dates, amendments, and lifecycle events visible over time." },
     ],
   },
   {
