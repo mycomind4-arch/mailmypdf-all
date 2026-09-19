@@ -20,11 +20,11 @@ test("sidebar uses server-verified admin access and exposes Studio section", () 
   assert.doesNotMatch(sidebar, /user_metadata\?\.role|user_metadata\?\.is_admin/)
 })
 
-test("workflow navigation registry contains the complete 14 by 30 catalog", () => {
+test("workflow navigation registry contains the canonical 15-section catalog", () => {
   const registry = read("src/lib/workflow-navigation.ts")
   const sectionCount = (registry.match(/"workflows": \[/g) || []).length
   const workflowCount = (registry.match(/"slug":/g) || []).length
-  assert.equal(sectionCount, 14)
-  assert.equal(workflowCount, 420)
+  assert.equal(sectionCount, 15)
+  assert.equal(workflowCount, 437)
   assert.match(registry, /WORKFLOW_NAV_COUNT/)
 })
