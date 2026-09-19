@@ -57,6 +57,45 @@ test("factory rejects consequential workflows without human review", () => {
   assert.ok(result.diagnostics.some((d) => d.code === "MISSING_HUMAN_REVIEW"));
 });
 
+test("P11 allows a workflow-specific capability subset while enforcing shared invariants", () => {
+  const p11 = composeWorkflow(base({
+    pipeline: "P11_SECURED_TRANSACTION",
+    adapters: ["secured-transactions"],
+    requiredCapabilities: [
+      "matterState",
+      "findings",
+      "requirements",
+      "validation",
+      "blockingGate",
+      "humanReview",
+    ],
+    primaryInput: "case",
+    allowsConsequentialAction: false,
+  }));
+  assert.equal(p11.executable, true);
+  assert.equal(p11.diagnostics.length, 0);
+
+  const missingFinding = composeWorkflow(base({
+    pipeline: "P11_SECURED_TRANSACTION",
+    adapters: ["secured-transactions"],
+    requiredCapabilities: [
+      "matterState",
+      "requirements",
+      "validation",
+      "blockingGate",
+      "humanReview",
+    ],
+    primaryInput: "case",
+    allowsConsequentialAction: false,
+  }));
+  assert.equal(missingFinding.executable, false);
+  assert.ok(
+    missingFinding.diagnostics.some(
+      (d) => d.code === "PIPELINE_CAPABILITY_UNDECLARED" && d.message.includes("findings"),
+    ),
+  );
+});
+
 test("every pipeline declares a name and description", () => {
   for (const pipeline of Object.values(PIPELINES)) {
     assert.ok(pipeline.name.length > 0);
