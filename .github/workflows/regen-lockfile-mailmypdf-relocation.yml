@@ -1,0 +1,66 @@
+name: Regenerate Lockfile (mailmypdf relocation)
+
+# MAINTENANCE / RECOVERY TOOL — manual dispatch only.
+#
+# One-shot: regenerates pnpm-lock.yaml after apps/mailmypdf was renamed to
+# mailmypdf/ (a pure path rename), since pnpm's lockfile tracks workspace
+# importers by path. Commits pnpm-lock.yaml directly to main if it changes.
+# Do not add push/pull_request triggers; do not dispatch routinely.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: pnpm install --lockfile-only
+        run: pnpm install --lockfile-only
+
+      - name: pnpm install --frozen-lockfile (integrity check)
+        run: pnpm install --frozen-lockfile
+
+      - name: Inspect what changed
+        run: |
+          git status --short
+          git diff -- pnpm-lock.yaml | head -200
+
+      - name: Fail if anything beyond the lockfile changed
+        run: |
+          CHANGED=$(git status --porcelain | awk '{print $2}')
+          for f in $CHANGED; do
+            if [ "$f" != "pnpm-lock.yaml" ]; then
+              echo "Unexpected change outside pnpm-lock.yaml: $f"
+              exit 1
+            fi
+          done
+
+      - name: Commit and push lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(workspace): regenerate lockfile for mailmypdf relocation"
+          git push origin HEAD:main
