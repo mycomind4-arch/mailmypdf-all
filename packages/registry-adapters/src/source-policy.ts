@@ -48,3 +48,37 @@ export function sourceSupportsCapability(
 ): boolean {
   return source.capabilities.includes(capability);
 }
+
+export interface RegistryArtifact {
+  sourceId: string;
+  sourceUrl: string;
+  retrievedAt: string;
+  contentType: string;
+  content: string;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Normalizes a captured registry artifact (a page/response actually
+ * retrieved from a source) so two captures of the same underlying content
+ * compare and hash identically regardless of line-ending or timestamp
+ * formatting quirks, and so metadata keys are in a stable order.
+ */
+export function normalizeRegistryArtifact(input: RegistryArtifact): RegistryArtifact {
+  const retrievedAt = new Date(input.retrievedAt).toISOString();
+  const content = input.content.replace(/\r\n/g, "\n");
+  const metadata = input.metadata
+    ? Object.fromEntries(
+        Object.entries(input.metadata).sort(([left], [right]) => left.localeCompare(right)),
+      )
+    : undefined;
+
+  return {
+    sourceId: input.sourceId,
+    sourceUrl: input.sourceUrl,
+    retrievedAt,
+    contentType: input.contentType,
+    content,
+    ...(metadata ? { metadata } : {}),
+  };
+}

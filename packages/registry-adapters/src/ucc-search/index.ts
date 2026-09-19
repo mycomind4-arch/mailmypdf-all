@@ -18,3 +18,12 @@ export {
 export type {
   UccSearchCoverageSummary,
 } from "./coverage.js";
+
+export { UccSearchAdapterRegistry } from "./registry.js";
+export { buildUccDebtorSearchPlan } from "./search-strategy.js";
+export type {
+  UccFilingStatus,
+  UccFilingRecord,
+  UccSearchQuery,
+  UccSearchResult,
+} from "./types.js";

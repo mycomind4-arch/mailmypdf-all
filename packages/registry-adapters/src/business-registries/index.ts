@@ -18,3 +18,11 @@ export {
 export type {
   BusinessRegistryCoverageSummary,
 } from "./coverage.js";
+
+export { BusinessRegistryAdapterRegistry } from "./registry.js";
+export type {
+  BusinessEntityStatus,
+  BusinessRegistryQuery,
+  BusinessRegistryRecord,
+  BusinessRegistrySearchResult,
+} from "./types.js";

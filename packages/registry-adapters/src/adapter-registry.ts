@@ -1,6 +1,7 @@
 import type {
   RegistryAdapter,
   RegistryCapability,
+  RegistryJurisdiction,
   RegistrySearchQuery,
   RegistrySourceDescriptor,
 } from "./types.js";
@@ -9,14 +10,11 @@ function normalize(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
-function jurisdictionMatches(
-  source: RegistrySourceDescriptor["jurisdiction"],
-  query: RegistrySearchQuery["jurisdiction"],
-): boolean {
+function jurisdictionMatches(source: RegistryJurisdiction, query: RegistryJurisdiction): boolean {
   if (normalize(source.country) !== normalize(query.country)) return false;
-  if (source.state && normalize(source.state) !== normalize(query.state)) return false;
-  if (source.county && normalize(source.county) !== normalize(query.county)) return false;
-  if (source.city && normalize(source.city) !== normalize(query.city)) return false;
+  if (query.state && normalize(source.state) !== normalize(query.state)) return false;
+  if (query.county && normalize(source.county) !== normalize(query.county)) return false;
+  if (query.city && normalize(source.city) !== normalize(query.city)) return false;
   return true;
 }
 
@@ -37,7 +35,7 @@ export class RegistryAdapterRegistry {
   }
 
   list(filters?: {
-    jurisdiction?: RegistrySearchQuery["jurisdiction"];
+    jurisdiction?: RegistryJurisdiction;
     capability?: RegistryCapability;
     kind?: RegistrySourceDescriptor["kind"];
     enabledOnly?: boolean;

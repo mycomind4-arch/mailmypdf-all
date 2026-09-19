@@ -24,7 +24,9 @@
     "test": "tsx --test tests/*.test.ts",
     "lint": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@mailmypdf/identity-capacity": "workspace:*"
+  },
   "devDependencies": {
     "tsx": "^4.23.12"
   }

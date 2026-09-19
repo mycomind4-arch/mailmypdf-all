@@ -2,7 +2,6 @@ import type {
   RegistryRecord,
   RegistrySearchQuery,
   RegistrySearchResult,
-  SearchCompleteness,
 } from "../types.js";
 
 export interface UccSearchQuery extends RegistrySearchQuery {
@@ -35,7 +34,6 @@ export interface UccFilingRecord extends RegistryRecord {
 }
 
 export interface UccSearchResult extends RegistrySearchResult<UccFilingRecord> {
-  readonly completeness: SearchCompleteness;
   readonly searchedNames: readonly string[];
   readonly providerLimitations: readonly string[];
 }

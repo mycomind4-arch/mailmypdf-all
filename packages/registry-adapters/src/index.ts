@@ -1,4 +1,10 @@
 export type * from "./types.js";
+export * from "./errors.js";
+export { RegistryAdapterRegistry } from "./adapter-registry.js";
+export { assertRegistrySourceUsable, sourceSupportsCapability, normalizeRegistryArtifact } from "./source-policy.js";
+export type { RegistryArtifact } from "./source-policy.js";
+export * from "./search-strategy.js";
+export { searchExecutionToCertificationCoverage } from "./certification-coverage.js";
 export * from "./business-registries/index.js";
 export * from "./ucc-search/index.js";
 export * as BusinessRegistries from "./business-registries/index.js";

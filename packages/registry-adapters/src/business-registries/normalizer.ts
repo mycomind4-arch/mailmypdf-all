@@ -1,7 +1,7 @@
 import type {
+  NormalizedRegistryRecordBatch,
   RegistryProvenance,
   RegistryRecord,
-  RegistrySearchResult,
 } from "../types.js";
 
 export interface RawBusinessRegistryRecord {
@@ -78,7 +78,7 @@ export function createBusinessRegistrySearchResult(input: {
   provenance: RegistryProvenance;
   complete: boolean;
   warnings?: readonly string[];
-}): RegistrySearchResult<NormalizedBusinessRegistryRecord> {
+}): NormalizedRegistryRecordBatch<NormalizedBusinessRegistryRecord> {
   const records = input.rawRecords.map((raw) =>
     normalizeBusinessRegistryRecord({ raw, provenance: input.provenance }),
   );

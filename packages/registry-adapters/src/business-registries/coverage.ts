@@ -1,4 +1,4 @@
-import type { RegistrySearchResult } from "../types.js";
+import type { NormalizedRegistryRecordBatch } from "../types.js";
 import type { NormalizedBusinessRegistryRecord } from "./normalizer.js";
 
 export interface BusinessRegistryCoverageSummary {
@@ -10,7 +10,7 @@ export interface BusinessRegistryCoverageSummary {
 }
 
 export function summarizeBusinessRegistryCoverage(
-  result: RegistrySearchResult<NormalizedBusinessRegistryRecord>,
+  result: NormalizedRegistryRecordBatch<NormalizedBusinessRegistryRecord>,
 ): BusinessRegistryCoverageSummary {
   return {
     complete: result.status === "complete",

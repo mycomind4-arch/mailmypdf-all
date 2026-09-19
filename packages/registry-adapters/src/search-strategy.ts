@@ -4,6 +4,7 @@ import { RegistryAdapterRegistry } from "./adapter-registry.js";
 import { assertRegistrySourceUsable } from "./source-policy.js";
 import type {
   RegistryCapability,
+  RegistryJurisdiction,
   RegistrySearchQuery,
   RegistrySearchResult,
   RegistrySourceDescriptor,
@@ -46,7 +47,7 @@ export interface SearchPlanStep {
 
 export interface SearchPlan {
   readonly purpose: string;
-  readonly jurisdiction: RegistrySearchQuery["jurisdiction"];
+  readonly jurisdiction: RegistryJurisdiction;
   readonly capability: RegistryCapability;
   readonly sourceKind?: RegistrySourceDescriptor["kind"] | undefined;
   readonly steps: readonly SearchPlanStep[];
@@ -101,7 +102,7 @@ function variantKey(value: string): string {
 
 export function buildNameSearchPlan(input: {
   purpose: string;
-  jurisdiction: RegistrySearchQuery["jurisdiction"];
+  jurisdiction: RegistryJurisdiction;
   seeds: readonly SearchNameSeed[];
   capability: RegistryCapability;
   sourceKind?: RegistrySourceDescriptor["kind"];

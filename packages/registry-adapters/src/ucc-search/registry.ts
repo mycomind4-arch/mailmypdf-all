@@ -17,11 +17,11 @@ export class UccSearchAdapterRegistry {
   resolve(query: UccSearchQuery): UccSearchAdapter[] {
     return this.registry.resolve(query, {
       capability: query.filingNumber ? "identifier-search" : "filing-search",
-      kind: "ucc-filing-office",
+      kind: "ucc-search",
     }) as UccSearchAdapter[];
   }
 
   list(): UccSearchAdapter[] {
-    return this.registry.list({ kind: "ucc-filing-office" }) as UccSearchAdapter[];
+    return this.registry.list({ kind: "ucc-search" }) as UccSearchAdapter[];
   }
 }

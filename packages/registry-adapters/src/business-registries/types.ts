@@ -14,7 +14,6 @@ export type BusinessEntityStatus =
   | "unknown";
 
 export interface BusinessRegistryQuery extends RegistrySearchQuery {
-  readonly names?: readonly string[] | undefined;
   readonly identifiers?: Readonly<{
     entityNumber?: string;
     filingNumber?: string;

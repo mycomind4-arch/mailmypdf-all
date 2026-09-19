@@ -3,10 +3,10 @@ import {
   type SearchPlan,
   type SearchStrategyPolicy,
 } from "../search-strategy.js";
-import type { RegistrySearchQuery } from "../types.js";
+import type { RegistryJurisdiction } from "../types.js";
 
 export function buildUccDebtorSearchPlan(input: {
-  jurisdiction: RegistrySearchQuery["jurisdiction"];
+  jurisdiction: RegistryJurisdiction;
   authoritativeDebtorName: string;
   aliases?: readonly string[];
   sourceIds?: readonly string[];
@@ -17,7 +17,7 @@ export function buildUccDebtorSearchPlan(input: {
     purpose: "ucc-debtor-name-search",
     jurisdiction: input.jurisdiction,
     capability: "filing-search",
-    sourceKind: "ucc-filing-office",
+    sourceKind: "ucc-search",
     seeds: [
       { name: input.authoritativeDebtorName, role: "authoritative" },
       ...(input.aliases ?? []).map((name) => ({ name, role: "alias" as const })),

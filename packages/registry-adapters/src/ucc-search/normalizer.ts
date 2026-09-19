@@ -1,7 +1,7 @@
 import type {
+  NormalizedRegistryRecordBatch,
   RegistryProvenance,
   RegistryRecord,
-  RegistrySearchResult,
 } from "../types.js";
 
 export interface RawUccFilingRecord {
@@ -77,7 +77,7 @@ export function createUccSearchResult(input: {
   provenance: RegistryProvenance;
   complete: boolean;
   warnings?: readonly string[];
-}): RegistrySearchResult<NormalizedUccFilingRecord> {
+}): NormalizedRegistryRecordBatch<NormalizedUccFilingRecord> {
   const records = input.rawRecords.map((raw) =>
     normalizeUccFilingRecord({ raw, provenance: input.provenance }),
   );

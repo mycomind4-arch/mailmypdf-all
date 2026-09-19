@@ -1,4 +1,4 @@
-import type { RegistrySearchResult } from "../types.js";
+import type { NormalizedRegistryRecordBatch } from "../types.js";
 import type { NormalizedUccFilingRecord } from "./normalizer.js";
 
 export interface UccSearchCoverageSummary {
@@ -10,7 +10,7 @@ export interface UccSearchCoverageSummary {
 }
 
 export function summarizeUccSearchCoverage(
-  result: RegistrySearchResult<NormalizedUccFilingRecord>,
+  result: NormalizedRegistryRecordBatch<NormalizedUccFilingRecord>,
 ): UccSearchCoverageSummary {
   return {
     complete: result.status === "complete",
