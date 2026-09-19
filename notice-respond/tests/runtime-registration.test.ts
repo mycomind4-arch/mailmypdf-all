@@ -10,7 +10,7 @@ import {
   noticeRespondStartRoutes,
 } from "../runtime";
 
-const ids = ["cp14-response", "cp2000-response"] as const;
+const ids = ["cp14-response", "cp2000-response", "cp504-response"] as const;
 
 describe("Notice Respond runtime registration", () => {
   it("registers every executable notice workflow exactly once", () => {
