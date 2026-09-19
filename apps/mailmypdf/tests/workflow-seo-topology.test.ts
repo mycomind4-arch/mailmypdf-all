@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateWorkflowSeoTopology } from "../src/lib/workflow-seo-topology";
-import type { WorkflowSeoCatalogEntry } from "../src/lib/workflow-seo-catalog";
+import { SEO_WORKFLOW_CATALOG, type WorkflowSeoCatalogEntry } from "../src/lib/workflow-seo-catalog";
 
 function draft(id: string, route: string): WorkflowSeoCatalogEntry {
   return {
@@ -70,3 +70,21 @@ test("catalog records require source provenance", () => {
   const issues = validateWorkflowSeoTopology([entry]);
   assert.ok(issues.some((issue) => issue.code === "PROVENANCE_REQUIRED"));
 });
+
+test("Secured Transactions contributes 17 review-gated topology records with only eligibility executable", () => {
+  const secured = SEO_WORKFLOW_CATALOG.filter((entry) => entry.vertical === "secured-transactions");
+  assert.equal(secured.length, 17);
+  assert.equal(new Set(secured.map((entry) => entry.id)).size, 17);
+  assert.equal(new Set(secured.map((entry) => entry.route)).size, 17);
+
+  const executable = secured.filter((entry) => entry.state === "EXECUTABLE");
+  assert.equal(executable.length, 1);
+  assert.equal(executable[0]?.id, "secured-transactions/secured-transaction-eligibility");
+  assert.equal(executable[0]?.execution?.verified, true);
+
+  for (const entry of secured) {
+    assert.equal(entry.reviewStatus, "NEEDS_INDIVIDUAL_REVIEW");
+    assert.ok(entry.provenance?.length);
+  }
+});
+
