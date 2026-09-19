@@ -31,7 +31,7 @@ function indexablePagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageD
   return publicWorkflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
 }
 
-const HERO_IMAGES: Record<PublicVerticalId, string> = {
+const HERO_IMAGES: Partial<Record<PublicVerticalId, string>> = {
   "notice-respond": "/heroes/notice-respond.jpg",
   "appeal-mail": "/heroes/appeal-mail.jpg",
   "immigration-mail": "/heroes/immigration-mail.jpg",
@@ -60,7 +60,8 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
   const description = kind === "directory" ? config.directoryDescription : config.description;
   const canonicalPath = kind === "directory" ? `${config.path}/workflows` : config.path;
   const canonical = absoluteUrl(canonicalPath);
-  const heroImage = absoluteUrl(HERO_IMAGES[config.id]);
+  const heroImagePath = HERO_IMAGES[config.id];
+  const heroImage = heroImagePath ? absoluteUrl(heroImagePath) : null;
   const itemList = kind === "directory"
     ? {
         "@context": "https://schema.org",
@@ -84,11 +85,11 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
       { property: "og:description", content: description },
       { property: "og:type", content: "website" },
       { property: "og:url", content: canonical },
-      { property: "og:image", content: heroImage },
+      ...(heroImage ? [{ property: "og:image", content: heroImage }] : []),
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: description },
-      { name: "twitter:image", content: heroImage },
+      ...(heroImage ? [{ name: "twitter:image", content: heroImage }] : []),
     ],
     links: [{ rel: "canonical", href: canonical }],
     scripts: itemList ? [{ type: "application/ld+json", children: JSON.stringify(itemList) }] : [],
@@ -101,13 +102,14 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
   const pages = directoryPagesFor(config);
   const featured = pages.slice(0, 6);
   const hasRegisteredWorkflows = pages.length > 0;
+  const heroImage = HERO_IMAGES[config.id];
 
   return (
     <div className="min-h-screen bg-paper text-foreground">
       <SiteHeader />
       <main>
         <section className="relative min-h-[34rem] overflow-hidden border-b border-rule/60 bg-ink">
-          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: `url(${HERO_IMAGES[config.id]})` }} />
+          {heroImage ? <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: `url(${heroImage})` }} /> : null}
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,20,35,0.92)_0%,rgba(5,20,35,0.7)_42%,rgba(5,20,35,0.2)_100%),linear-gradient(0deg,rgba(5,20,35,0.72)_0%,transparent_48%)]" aria-hidden />
           <div className="relative mx-auto flex min-h-[34rem] max-w-6xl items-end px-4 pb-14 pt-20 sm:px-6 sm:pb-16 lg:pb-20">
             <div className="max-w-2xl text-white">
