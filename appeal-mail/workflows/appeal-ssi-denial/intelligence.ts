@@ -11,7 +11,7 @@ import { validateLetterDraft } from "@mailmypdf/workflows";
 export type SsiAppealStage = "reconsideration" | "hearing" | "appeals_council" | "unknown";
 export type SsiDecisionBasis = "medical" | "nonmedical" | "unknown";
 
-export interface SsiNoticeAnalysisOutput extends WorkflowMatterAnalysis["result"] {
+export type SsiNoticeAnalysisOutput = WorkflowMatterAnalysis["result"] & {
   workflowDetails: {
     appealStage: SsiAppealStage;
     decisionBasis: SsiDecisionBasis;
