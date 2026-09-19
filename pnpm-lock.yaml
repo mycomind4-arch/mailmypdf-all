@@ -123,6 +123,9 @@ importers:
       '@mailmypdf/records-request':
         specifier: workspace:*
         version: link:../../records-request
+      '@mailmypdf/secured-transactions-section':
+        specifier: workspace:*
+        version: link:../../secured-transactions
       '@mailmypdf/workflow-ui':
         specifier: workspace:*
         version: link:../../packages/workflow-ui

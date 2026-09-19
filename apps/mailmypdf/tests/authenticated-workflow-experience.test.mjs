@@ -27,12 +27,13 @@ test("authenticated workflow browser contains no marketing hero or image system"
 
 test("workflow registry separates public SEO and authenticated workspace hrefs", () => {
   const source = read("src/lib/workflow-navigation.ts")
-  assert.equal((source.match(/"slug":/g) || []).length, 420)
-  assert.equal((source.match(/"workflows": \[/g) || []).length, 14)
-  assert.equal((source.match(/"publicHref":/g) || []).length, 434)
-  assert.equal((source.match(/"workspaceHref":/g) || []).length, 434)
+  assert.equal((source.match(/"slug":/g) || []).length, 437)
+  assert.equal((source.match(/"workflows": \[/g) || []).length, 15)
+  assert.equal((source.match(/"publicHref":/g) || []).length, 452)
+  assert.equal((source.match(/"workspaceHref":/g) || []).length, 452)
   assert.match(source, /\/dashboard\/workflows\/notice-respond\/cp2000-response/)
   assert.match(source, /\/notice-respond\/workflows\/cp2000-response/)
+  assert.match(source, /\/dashboard\/workflows\/secured-transactions\/secured-transaction-eligibility/)
 })
 
 test("Studio sidebar routes signed-in workflow navigation to workspace URLs", () => {

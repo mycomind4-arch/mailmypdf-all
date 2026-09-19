@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+<title id="title">Secured Transactions</title>
+<desc id="desc">Abstract document, evidence, and priority record illustration.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#162536"/>
+    <stop offset="1" stop-color="#536c80"/>
+  </linearGradient>
+  <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f7f5ef" stop-opacity=".98"/>
+    <stop offset="1" stop-color="#dfe8ee" stop-opacity=".9"/>
+  </linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#bg)"/>
+<circle cx="1320" cy="150" r="290" fill="#ffffff" opacity=".035"/>
+<circle cx="250" cy="820" r="360" fill="#ffffff" opacity=".025"/>
+<g opacity=".18" stroke="#dfe8ee" stroke-width="2">
+  <path d="M120 190H1480M120 710H1480"/>
+  <path d="M275 110V790M1325 110V790"/>
+</g>
+<g transform="translate(390 145)">
+  <rect x="0" y="0" width="650" height="560" rx="24" fill="url(#paper)" opacity=".96"/>
+  <rect x="55" y="60" width="235" height="18" rx="9" fill="#1d3447" opacity=".88"/>
+  <rect x="55" y="104" width="390" height="10" rx="5" fill="#536c80" opacity=".46"/>
+  <rect x="55" y="132" width="320" height="10" rx="5" fill="#536c80" opacity=".32"/>
+  <g fill="none" stroke="#28465e" stroke-width="5" stroke-linecap="round">
+    <path d="M80 225h420"/>
+    <path d="M80 286h300"/>
+    <path d="M80 347h370"/>
+    <path d="M80 408h250"/>
+  </g>
+  <g fill="#d1ad72">
+    <circle cx="55" cy="225" r="9"/>
+    <circle cx="55" cy="286" r="9"/>
+    <circle cx="55" cy="347" r="9"/>
+    <circle cx="55" cy="408" r="9"/>
+  </g>
+  <g transform="translate(435 350)">
+    <circle cx="90" cy="90" r="88" fill="#20394d"/>
+    <circle cx="90" cy="90" r="68" fill="none" stroke="#d1ad72" stroke-width="4"/>
+    <path d="M54 91l24 25 51-58" fill="none" stroke="#f7f5ef" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</g>
+<g transform="translate(990 245)">
+  <rect x="0" y="0" width="235" height="150" rx="18" fill="#0d1d2b" opacity=".88" stroke="#dfe8ee" stroke-opacity=".38"/>
+  <text x="28" y="48" font-family="Georgia,serif" font-size="25" fill="#f7f5ef">Evidence</text>
+  <text x="28" y="88" font-family="Arial,sans-serif" font-size="14" fill="#dfe8ee" opacity=".75">PARTIES · VALUE</text>
+  <text x="28" y="116" font-family="Arial,sans-serif" font-size="14" fill="#dfe8ee" opacity=".75">COLLATERAL · AUTHORITY</text>
+</g>
+<g transform="translate(270 530)">
+  <rect x="0" y="0" width="230" height="132" rx="18" fill="#0d1d2b" opacity=".88" stroke="#dfe8ee" stroke-opacity=".38"/>
+  <text x="26" y="46" font-family="Georgia,serif" font-size="24" fill="#f7f5ef">Priority</text>
+  <text x="26" y="84" font-family="Arial,sans-serif" font-size="13" fill="#dfe8ee" opacity=".75">ATTACH · PERFECT</text>
+  <text x="26" y="108" font-family="Arial,sans-serif" font-size="13" fill="#dfe8ee" opacity=".75">VERIFY · MAINTAIN</text>
+</g>
+</svg>
