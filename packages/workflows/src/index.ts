@@ -68,3 +68,5 @@ export * from "./domain-packs/notice-response/index.js";
 export * from "./compound-workflow.js";
 
 export * from "./draft-versioning.js";
+
+export * from "./browser-workflow-runtime-client.js";
