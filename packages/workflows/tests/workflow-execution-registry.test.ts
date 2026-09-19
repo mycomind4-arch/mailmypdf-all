@@ -47,7 +47,7 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
     const executable = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "executable");
     const notConnected = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "not-connected");
     assert.equal(executable.length + notConnected.length, WORKFLOW_EXECUTION_REGISTRY.length);
-    assert.equal(executable.length, 20);
+    assert.equal(executable.length, 21);
     assert.ok(notConnected.length > executable.length);
   });
 
@@ -60,6 +60,7 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
   test("known currently-wired workflows are correctly marked executable", () => {
     for (const [sectionId, workflowId] of [
       ["appeal-mail", "appeal-ssdi-denial"],
+      ["appeal-mail", "appeal-ssi-denial"],
       ["notice-respond", "cp2000-response"],
       ["notice-respond", "cp504-response"],
       ["records-request", "agency-records-request"],

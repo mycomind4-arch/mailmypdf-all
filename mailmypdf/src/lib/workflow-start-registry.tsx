@@ -22,6 +22,7 @@ import AppealMedicalNecessityDenialStart from "@mailmypdf/appeal-mail/workflows/
 import AppealOutOfNetworkDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-out-of-network-denial/start"
 import AppealPriorAuthorizationDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-prior-authorization-denial/start"
 import AppealSsdiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssdi-denial/start"
+import AppealSsiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssi-denial/start"
 import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-timely-filing-denial/start"
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
 import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
@@ -44,6 +45,7 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-out-of-network-denial": AppealOutOfNetworkDenialStart,
   "appeal-mail:appeal-prior-authorization-denial": AppealPriorAuthorizationDenialStart,
   "appeal-mail:appeal-ssdi-denial": AppealSsdiDenialStart,
+  "appeal-mail:appeal-ssi-denial": AppealSsiDenialStart,
   "appeal-mail:appeal-timely-filing-denial": AppealTimelyFilingDenialStart,
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
   "notice-respond:cp2000-response": Cp2000ResponseStart,
