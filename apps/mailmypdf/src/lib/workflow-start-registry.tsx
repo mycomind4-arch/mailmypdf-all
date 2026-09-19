@@ -31,6 +31,7 @@ import GovernmentDocumentsRequestStart from "@mailmypdf/records-request/workflow
 import OpenRecordsRequestStart from "@mailmypdf/records-request/workflows/open-records-request/start"
 import PublicInformationRequestStart from "@mailmypdf/records-request/workflows/public-information-request/start"
 import PublicRecordsRequestStart from "@mailmypdf/records-request/workflows/public-records-request/start"
+import SecuredTransactionEligibilityStart from "@mailmypdf/secured-transactions-section/workflows/secured-transaction-eligibility/start"
 
 const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-car-insurance-claim": AppealCarInsuranceClaimStart,
@@ -53,6 +54,7 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "records-request:open-records-request": OpenRecordsRequestStart,
   "records-request:public-information-request": PublicInformationRequestStart,
   "records-request:public-records-request": PublicRecordsRequestStart,
+  "secured-transactions:secured-transaction-eligibility": SecuredTransactionEligibilityStart,
 }
 
 export function workflowStartComponent(sectionId: string, workflowId: string): ComponentType | undefined {
