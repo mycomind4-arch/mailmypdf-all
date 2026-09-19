@@ -1,5 +1,5 @@
-import { publicationCatalog } from "../../../../Projects/Publications/catalog";
-import { publicationScheduleKey } from "../../../../packages/autonomous-publishing/src/index";
+import { publicationCatalog } from "../../../Projects/Publications/catalog";
+import { publicationScheduleKey } from "../../../packages/autonomous-publishing/src/index";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runPublicationPreview } from "@/lib/publication-runtime.server";
 
