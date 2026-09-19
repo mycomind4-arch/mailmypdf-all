@@ -77,10 +77,15 @@ test("blueprint-generated official response compiles through defineWorkflow", ()
 
   assert.equal(defined.plan.version, 2);
   assert.ok(defined.plan.steps.length >= 7);
-  assert.equal(
-    certifyWorkflowCapabilities(defined.manifest).productionReady,
-    true,
-  );
+  // A default-composed manifest transitively requires baseline platform
+  // capabilities (identity, matterState, resilience, observability, ...)
+  // that are "implemented", not yet certified "production" (see
+  // capability-registry.ts's maturity model) — compiling through
+  // defineWorkflow proves structural composition, not production readiness.
+  const capabilities = certifyWorkflowCapabilities(defined.manifest);
+  assert.deepEqual(capabilities.dependencyErrors, []);
+  assert.equal(capabilities.productionReady, false);
+  assert.ok(capabilities.nonProductionRequired.length > 0);
 });
 
 test("free records workflow omits payment but preserves mailing proof controls", () => {

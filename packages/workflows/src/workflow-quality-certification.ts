@@ -76,10 +76,19 @@ export function certifyWorkflowQuality(
     });
   }
 
+  // Capability certification is a production-readiness concern, not a
+  // static-shape concern: a manifest can be perfectly well-formed while
+  // requiring capabilities that are not yet certified production (see
+  // capability-registry.ts's maturity model). Filing these under
+  // "definition" would make definitionReady false for every manifest that
+  // requires any not-yet-production capability, which conflates "is this
+  // manifest valid" with "is this manifest production-ready" — two
+  // different facts. Filed under "production" instead, and folded into
+  // productionReady explicitly below.
   const capabilities = certifyWorkflowCapabilities(manifest);
   for (const issue of capabilities.issues) {
     issues.push({
-      stage: "definition",
+      stage: "production",
       code: issue.code,
       message: issue.message,
     });
@@ -172,6 +181,7 @@ export function certifyWorkflowQuality(
   const productionReady =
     manifest.maturity === "production-verified" &&
     definitionReady &&
+    capabilities.productionReady &&
     runtimeReady &&
     acceptanceReady;
 

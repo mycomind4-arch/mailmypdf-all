@@ -149,6 +149,7 @@ export function certifyWorkflowCapabilities(
 export type PlatformCapabilityHealth = {
   total: number;
   production: number;
+  implemented: number;
   partial: number;
   foundation: number;
   nonProduction: readonly CapabilityId[];
@@ -156,17 +157,19 @@ export type PlatformCapabilityHealth = {
 
 export function platformCapabilityHealth(): PlatformCapabilityHealth {
   const ids = Object.keys(CAPABILITIES) as CapabilityId[];
-  const byStatus = (status: "production" | "partial" | "foundation") =>
+  const byStatus = (status: "production" | "implemented" | "partial" | "foundation") =>
     ids.filter((id) => CAPABILITIES[id].status === status);
 
+  const implemented = byStatus("implemented");
   const partial = byStatus("partial");
   const foundation = byStatus("foundation");
 
   return {
     total: ids.length,
     production: byStatus("production").length,
+    implemented: implemented.length,
     partial: partial.length,
     foundation: foundation.length,
-    nonProduction: [...partial, ...foundation],
+    nonProduction: [...implemented, ...partial, ...foundation],
   };
 }
