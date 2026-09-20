@@ -110,8 +110,10 @@ export function securedTransactionCapabilities(
  * secured-transaction-eligibility's truthful, minimal capability set.
  *
  * matterState: real, persisted via @mailmypdf/step-workflow.
- * findings: real, the engine's per-gate findings are persisted.
- * validation: real, runtime input validation + the engine's fail-closed gates.
+ * findings + requirements: real, the engine's per-gate findings and required
+ * basis checks are persisted and surfaced.
+ * validation + blockingGate: real, runtime validation and fail-closed gates
+ * prevent progression when a required basis is missing.
  * humanReview: real, human-review-required state is persisted and surfaced.
  *
  * Deliberately NOT claimed: identity (no live authenticated session resolves

@@ -34,6 +34,15 @@ test("P01 stays lean and does not silently inherit every Gold stage", () => {
   assert.equal(stages.includes("requirements"), false);
 });
 
+test("P11 keeps only family-wide invariants required by default", () => {
+  const stages = configuredPipelineStages("P11_SECURED_TRANSACTION");
+  assert.deepEqual(stages, ["requirements", "findings", "validation", "blockingGate", "review"]);
+  assert.equal(stages.includes("classification"), false);
+  assert.equal(stages.includes("research"), false);
+  assert.equal(stages.includes("approval"), false);
+  assert.equal(stages.includes("proofAudit"), false);
+});
+
 
 test("consequential stages run only after blockingGate and exactly once", async () => {
   const calls: PipelineStage[] = [];
