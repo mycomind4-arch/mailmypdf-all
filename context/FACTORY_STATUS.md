@@ -42,6 +42,8 @@ and reviewed reusable registry templates generated from real customer needs.
   Still open: `administrative-decision-appeal`, `denied-claim`, `ssdi-appeal` use a structurally different, hand-rolled evidence/grounds model (no `createEvidence()`, `grounds` always `[]`, no `runReadinessReview` usage) — none of the three fixes above were safe to apply without first understanding that divergent path, so none were touched. `administrative-decision-appeal`'s own `approve.ts` additionally never sets `approvedDraftHash`/`approvedRecipientHash` that its own `checkout.ts` requires before allowing payment — reads as a separate, more severe "checkout may never succeed" defect, not investigated further. Note: appeal-mail's `pnpm vitest run` has a large pre-existing baseline of ~50 failing test files (mostly stale "gold" pricing-lock assertions) unrelated to this session's changes — flagged, not fixed, out of scope. Full-suite diff confirmed zero test files changed pass/fail status across every change in this entry. |
 | P1 | Records workflow regression failures | Closed, commit `85b8a5d`. Baseline 29 failing tests / 25 files. Root cause was 3 compounding bugs in shared matching engines used by 30-50 of the vertical's workflow files (unfiltered generic auto-derived keywords; a reference-pattern exclusion wrongly gated on the record already having *any* category; police-records-analysis.ts's filename match having no reference-pattern guard at all, a too-low 1-keyword match threshold, and a REFERENCE regex missing the bare word "referenced"). This was a real accuracy bug (told requesters a production was complete when categories were actually missing), not cosmetic. Now 8/282 failing, each individually confirmed unrelated to gap detection (manifest schema field, 2 stale content-string assertions, 2 pre-existing validation-array assertion-format issues, 1 narrower category-taxonomy content overlap — see commit message for detail on all 8). |
 | P1 | Immigration provider declaration | Closed, commit `4618994`. `pnpm vitest run` for immigration-mail: 2614/2614 passing. Regression check surfaced one unrelated pre-existing stale test (`mailmypdf-gold-contract.test.ts` asserted `"/v1/documents"` and explicitly must-not-contain `"/api/v1/documents"`) — confirmed against the real server routes (`apps/mailmypdf/src/routes/api/v1/documents/index.ts`) that `/api/v1/documents` is the actual live endpoint and fixed the test to match. |
+| P1 | Crawler endpoints served from stale static assets | Closed this session (see ledger entry 2026-09-21). Investigated as a suspected SSR module-init/TDZ defect in `mailmypdf/src/routes/sitemap[.]xml.ts`; it is **not** one. `mailmypdf/public/sitemap.xml` and `public/robots.txt` were checked-in static files, and the Cloudflare Workers entry short-circuits `if (env.ASSETS && isPublicAssetURL(url.pathname)) return env.ASSETS.fetch(cfRequest)` before the router runs, so both SSR routes were unreachable dead code in production. Proof independent of runtime: the served body carried 10 URLs no registry can produce and omitted 8 `staticRoutes` literals the handler always emits. Removed both static files; extracted `src/lib/sitemap.ts` + `src/lib/robots.ts` so the route sets are directly assertable. Also fixed a second, more severe live defect found in the same file: the static `Disallow: /send` prefix-blocked 27 of the 35 `SEO_PAGES` landing routes the sitemap advertises (now anchored `/send$`). `[fix-ssr-chunk-cycle]` was a red herring — it patches an unrelated chunk and the sitemap route was never in the cycle. |
+| P2 | Committed `main` does not build from a clean checkout | Open. Found while trying to build this worktree from `0f966b93`. Three independent blockers, all pre-existing: (1) `mailmypdf/vite.config.ts` aliases tslib to `../../node_modules/...` and `src/lib/publication-admin.functions.ts` imports `../../../../Projects/Publications/catalog` — both stale by one level since `f6ece981` relocated `apps/mailmypdf/` to `mailmypdf/`; the user's uncommitted working tree already contains both one-line fixes, so this is invisible there. (2) `packages/*/dist` is gitignored and `mailmypdf`'s `prebuild` builds only 5 of the ~12 packages the app imports, so `@mailmypdf/workflow-ui`, `workflows`, `pricing`, `packet-builder`, `forms` and others must be built by hand first. (3) `packages/fulfillment` and `packages/audit` inherit `noEmit: true` from the root tsconfig, so their `build` script exits 0 and emits nothing — their `dist` in the user's checkout is stale output from before that setting. Fixes (1) are included in this session's commit because the build could not be verified without them; (2) and (3) are untouched. |
 | P2 | Complete selected archive recovery | FairProcess review, registry/CI reconciliation; retain later functionality. |
 | P2 | Swarm obeys one-copy/main constraint | Partially addressed, commit `ddce5a5`. Real finding: the swarm had never actually been run in this repo (confirmed: zero worktrees, zero `agent/*` branches, nothing under `.agent-runs` on disk), but had no cleanup path at all — every run/session would have leaked its worktree and branch forever, unbounded. Added cleanupWorktree/cleanupRun/closeChatSession (auto for merged/cancelled runs, manual endpoints for needs_human/failed runs and chat sessions), verified against disposable temp repos (3/3), never the real checkout. **Still unresolved, still open, still the user's call:** the design fundamentally still creates a disposable git worktree + branch per batch run and per chat session, and merges into a persistent `agent/integration` branch — this is exactly the pattern `AGENTS.md`'s "no branches, no worktrees, one checkout" rule targets. This change makes that pattern safe-to-exist-and-clean-up, not policy-compliant. Do not launch the swarm's batch/dispatch mode until the user explicitly decides whether per-run branches are an acceptable exception or the architecture needs to change to operate serialized in the single checkout. |
 | P2 | Agent completion reflects integrated acceptance | Open. Tester falls back to a vertical suite when no workflow acceptance exists; that is not workflow acceptance coverage. |
@@ -50,3 +52,55 @@ and reviewed reusable registry templates generated from real customer needs.
 
 Add exact commands, exit status, tested revision or working-tree state, and
 limitations below as checks complete. Never infer passing results from old reports.
+
+
+### 2026-09-21 — sitemap.xml / robots.txt asset shadowing
+
+Runtime fidelity first: the earlier report was taken under `wrangler dev
+--compatibility-date 2026-09-04`, forced because the installed workerd
+(1.20260828.1, via wrangler 4.127.1) predates the Worker's required
+`compatibility_date: 2026-09-18`. Re-ran on wrangler 4.135.0 / workerd
+1.20260918.1 (installed outside the repo, project lockfile untouched), which
+starts on the real date with **no downgrade flag**.
+
+- `pnpm run build` (mailmypdf, worktree `hungry-bhaskara-062926`) — exit 0,
+  `[fix-ssr-chunk-cycle] broke 1 cycle(s)`, after the two relocation path fixes
+  and hand-building the unbuilt workspace packages.
+- `wrangler dev --config .output/server/wrangler.json --local` on
+  compatibility_date 2026-09-18, `MAILMYPDF_BASE_URL` supplied via `.dev.vars`:
+  - `GET /sitemap.xml` → 200, `application/xml; charset=utf-8`, **72 `<loc>`**
+    (was 47 from the static file). All 14 `PUBLIC_VERTICALS` landing routes and
+    all 14 `/workflows` routes present; all 8 previously-absent `staticRoutes`
+    (`/write`, `/bulk`, `/templates`, `/ecosystem`, `/fair-process`,
+    `/future-self`, `/proof-of-service`, `/pro`) present.
+  - `GET /robots.txt` → 200, `text/plain; charset=utf-8`, served by the route,
+    no longer prefix-blocking the `/send-*` landing pages.
+- `npx tsx --test tests/*.test.ts` — 150 tests, 148 pass, 2 fail. Baseline at
+  `HEAD~1` of the same tree: 143 tests, 141 pass, 2 fail. Same two failures
+  (`ai-gateway-disclosure.test.ts` → `provider failure containment`, a
+  `ReferenceError: context is not defined` in the test itself). +7 new tests,
+  all passing, zero regressions.
+- `node --test tests/*.test.mjs` — 605 tests, 584 pass, 21 fail; byte-identical
+  failure set to the pre-change baseline run on the same tree. Zero regressions.
+- `npx tsc --noEmit` — 0 errors in the changed files. The repo-wide baseline
+  (large, concentrated in `../appeal-mail/`) is unchanged and untouched.
+
+Limitations and open items, not fixed here:
+
+- **The missing `<title>` is real, not a downgrade artifact.** On the faithful
+  runtime `/notice-respond/workflows`, `/legal-defense`,
+  `/notice-respond/workflows/cp14-response`, `/notice-respond/workflows/cp504-response`
+  and `/legal-defense/workflows/wrongful-stolen-vehicle-arrest` all return 200
+  with **no `<title>` element at all**. Separate defect, still open.
+- The dynamic sitemap drops 10 URLs the stale file advertised
+  (`/send-a-letter-online`, `/send-pdf-by-mail`, `/proof-of-mailing`,
+  `/respond-to-a-government-notice`, …). `seo-pages.ts` documents these as
+  synonym routes that "should redirect to one of these canonical intents", so
+  the omission is by design — but only `/mail-paperwork-online` actually 308s;
+  the rest return 200 with no `rel=canonical`. Canonicalization of those
+  synonym routes is an open editorial decision, not addressed here.
+- `workflowAuthorityPages()` returns 100 pages with **0 indexable** at this
+  revision (all DRAFT bar one EXECUTABLE that does not clear the gate), so the
+  workflow-authority contribution to the sitemap is currently empty by content
+  policy, not by defect. The uncommitted working tree has 1 indexable.
+- Nothing was deployed and no production sitemap was verified.

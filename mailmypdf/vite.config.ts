@@ -30,7 +30,7 @@ export default defineConfig({
         // helpers via TypeScript's importHelpers, and the CJS wrapper causes
         // "Cannot destructure property '__extends' of 'undefined" in Workers).
         // In monorepo: resolve from root node_modules (pnpm hoists to workspace root).
-        tslib: path.resolve(import.meta.dirname, "../../node_modules/tslib/tslib.es6.mjs"),
+        tslib: path.resolve(import.meta.dirname, "../node_modules/tslib/tslib.es6.mjs"),
       },
     },
   },
