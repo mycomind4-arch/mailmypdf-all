@@ -1,5 +1,7 @@
 # Implementation Plan: Private Office Build Studio
 
+> Separate user-approved core work: [Mail Desk spec and implementation order](mail-desk/spec.md), [Mail Desk tasks](mail-desk/todo.md). Studio tasks below are unchanged.
+
 ## Overview
 
 Turn the current `/studio` mockup into an owner-only workflow authoring layer above the existing Private Office runtime. MVP 1 will support editable workflow graphs, structured proposals, validation, local draft persistence, version history, and simulation stubs while preserving the existing fixed workflows.

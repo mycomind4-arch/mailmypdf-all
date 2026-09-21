@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { PdfDocumentReview } from "@mailmypdf/workflow-ui";
+import { useMailReview } from "@/components/use-mail-review";
+import { useMailOrder } from "@/components/use-mail-order";
+import { validMailAddress, validMailEmail, createLatestRequest } from "@/lib/mail-review";
 import { useServerFn } from "@tanstack/react-start";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { SiteHeader, SiteFooter } from "@/components/site-chrome";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
-import { createOrder, createCheckoutForOrder, previewPdfPricing } from "@/lib/orders.functions";
-import { getStripe, getStripeEnvironment } from "@/lib/stripe";
+import { createCheckoutForOrder, previewPdfPricing } from "@/lib/orders.functions";
+import { getStripe } from "@/lib/stripe";
 import { trackCheckoutStart } from "@/lib/analytics-events";
 import { calculateTotalPrice, MAIL_CLASS_LABELS, type MailClass } from "@/lib/pricing";
 
@@ -47,7 +51,6 @@ function formatUSD(cents: number): string {
 }
 
 function SendPage() {
-  const createOrderFn = useServerFn(createOrder);
   const createCheckoutFn = useServerFn(createCheckoutForOrder);
   const previewFn = useServerFn(previewPdfPricing);
   const [step, setStep] = useState(0);
@@ -61,89 +64,110 @@ function SendPage() {
   const [email, setEmail] = useState("");
   const [sender, setSender] = useState<Address>(emptyAddress);
   const [recipient, setRecipient] = useState<Address>(emptyAddress);
-  const [agreedReviewed, setAgreedReviewed] = useState(false);
-  const [agreedContent, setAgreedContent] = useState(false);
-  const agreed = agreedReviewed && agreedContent;
+  const [fileVersion, setFileVersion] = useState(0);
   const [color, setColor] = useState(false);
   const [mailClass, setMailClass] = useState<MailClass>("standard");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [checkout, setCheckout] = useState<{ orderId: string; token: string } | null>(null);
 
-  const priceCents = file ? calculateTotalPrice({ pageCount: file.pages, color, mailClass }) : 0;
+  const reviewInputs = JSON.stringify([fileVersion, email, sender, recipient, color, mailClass]);
+  const [quote, setQuote] = useState<{ basis: string; cents: number } | null>(null);
+  const priceCents =
+    quote?.basis === reviewInputs
+      ? quote.cents
+      : file
+        ? calculateTotalPrice({ pageCount: file.pages, color, mailClass })
+        : 0;
+  const prepareOrder = useMailOrder(reviewInputs, priceCents, (cents) =>
+    setQuote({ basis: reviewInputs, cents }),
+  );
+  const { agreedReviewed, setAgreedReviewed, agreedContent, setAgreedContent } = useMailReview(
+    JSON.stringify([fileVersion, email, sender, recipient, color, mailClass, priceCents]),
+  );
+  const agreed = agreedReviewed && agreedContent;
+  const checkoutLock = useRef(false);
 
   const canGoTo = (i: number): boolean => {
     if (i === 0) return true;
     if (i === 1) return !!file;
-    if (i === 2) return !!file && !!email && validAddress(sender) && validAddress(recipient);
+    if (i === 2)
+      return !!file && validMailEmail(email) && validAddress(sender) && validAddress(recipient);
     if (i === 3) return canGoTo(2) && agreed;
     return false;
   };
 
   const startCheckout = async () => {
+    if (!canGoTo(3) || checkoutLock.current) return;
     if (!file || !rawFileRef.current) {
       setError("Please re-upload your PDF.");
       setStep(0);
       return;
     }
+    checkoutLock.current = true;
     setSubmitting(true);
     setError(null);
     try {
       const dataBase64 = await fileToBase64(rawFileRef.current);
-      const created = await createOrderFn({
-        data: {
-          email,
-          sender: { ...sender, line2: sender.line2 || null },
-          recipient: { ...recipient, line2: recipient.line2 || null },
-          file: {
-            name: file.name,
-            sizeBytes: file.sizeBytes,
-            dataBase64,
-          },
-          color,
-          mailClass,
+      const created = await prepareOrder({
+        email,
+        sender: { ...sender, line2: sender.line2 || null },
+        recipient: { ...recipient, line2: recipient.line2 || null },
+        file: {
+          name: file.name,
+          sizeBytes: file.sizeBytes,
+          dataBase64,
         },
+        color,
+        mailClass,
       });
+      if (!created) {
+        setError(
+          "Your current checkout price is now shown below. Review it and approve again before continuing.",
+        );
+        return;
+      }
       setCheckout({ orderId: created.orderId, token: created.token });
       setStep(3);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
+      checkoutLock.current = false;
       setSubmitting(false);
     }
   };
 
   const fetchClientSecret = useCallback(async (): Promise<string> => {
     if (!checkout) throw new Error("Order not ready.");
-    const returnUrl = `${window.location.origin}/orders/${checkout.orderId}?token=${checkout.token}&paid=1`;
     const result = await createCheckoutFn({
       data: {
         orderId: checkout.orderId,
         token: checkout.token,
-        environment: getStripeEnvironment(),
-        returnUrl,
+        approvedPriceCents: priceCents,
       },
     });
     if ("error" in result) throw new Error(result.error);
     void trackCheckoutStart(checkout.orderId, priceCents, { source: "upload" });
     if (!result.clientSecret) throw new Error("Checkout session did not return a client secret.");
     return result.clientSecret;
-  }, [checkout, createCheckoutFn]);
+  }, [checkout, createCheckoutFn, priceCents]);
 
   return (
     <div className="min-h-screen">
       <PaymentTestModeBanner />
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <Stepper current={step} onStep={(i) => canGoTo(i) && setStep(i)} />
+        <Stepper current={step} onStep={(i) => !submitting && i < 3 && canGoTo(i) && setStep(i)} />
 
-        <div className="mt-10">
+        <fieldset disabled={submitting} className="mt-10 min-w-0">
           {step === 0 && (
             <UploadStep
               file={file}
               onFile={(f, raw) => {
                 setError(null);
                 setFile(f);
+                setFileVersion((version) => version + 1);
+                setCheckout(null);
                 rawFileRef.current = raw;
               }}
               previewFn={previewFn}
@@ -162,8 +186,10 @@ function SendPage() {
               setRecipient={setRecipient}
               onBack={() => setStep(0)}
               onNext={() => {
-                if (!email || !validAddress(sender) || !validAddress(recipient)) {
-                  setError("Please complete all required fields.");
+                if (!validMailEmail(email) || !validAddress(sender) || !validAddress(recipient)) {
+                  setError(
+                    "Please enter a valid email and complete both addresses, including a two-letter state and valid ZIP format.",
+                  );
                   return;
                 }
                 setError(null);
@@ -173,25 +199,29 @@ function SendPage() {
             />
           )}
           {step === 2 && file && (
-            <ReviewStep
-              file={file}
-              sender={sender}
-              recipient={recipient}
-              email={email}
-              priceCents={priceCents}
-              color={color}
-              setColor={setColor}
-              mailClass={mailClass}
-              setMailClass={setMailClass}
-              agreedReviewed={agreedReviewed}
-              setAgreedReviewed={setAgreedReviewed}
-              agreedContent={agreedContent}
-              setAgreedContent={setAgreedContent}
-              onBack={() => setStep(1)}
-              onNext={startCheckout}
-              submitting={submitting}
-              error={error}
-            />
+            <>
+              <h1 className="font-serif text-4xl">Review your mailing</h1>
+              <PdfDocumentReview file={rawFileRef.current!} />
+              <ReviewStep
+                file={file}
+                sender={sender}
+                recipient={recipient}
+                email={email}
+                priceCents={priceCents}
+                color={color}
+                setColor={setColor}
+                mailClass={mailClass}
+                setMailClass={setMailClass}
+                agreedReviewed={agreedReviewed}
+                setAgreedReviewed={setAgreedReviewed}
+                agreedContent={agreedContent}
+                setAgreedContent={setAgreedContent}
+                onBack={() => setStep(1)}
+                onNext={startCheckout}
+                submitting={submitting}
+                error={error}
+              />
+            </>
           )}
           {step === 3 && file && checkout && (
             <PayStep
@@ -203,7 +233,7 @@ function SendPage() {
               }}
             />
           )}
-        </div>
+        </fieldset>
       </main>
       <SiteFooter />
     </div>
@@ -211,7 +241,7 @@ function SendPage() {
 }
 
 function validAddress(a: Address): boolean {
-  return !!a.name && !!a.line1 && !!a.city && !!a.state && /^\d{5}(-\d{4})?$/.test(a.postalCode);
+  return validMailAddress(a);
 }
 
 function Stepper({ current, onStep }: { current: number; onStep: (i: number) => void }) {
@@ -270,9 +300,15 @@ function UploadStep({
 }) {
   const [dragging, setDragging] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const requests = useRef(createLatestRequest());
+  useEffect(() => () => requests.current.cancel(), []);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    const request = requests.current.begin();
+    onFile(null, null);
+    onError(null);
+    setParsing(false);
     const f = files[0];
     if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
       onError("This file isn't a PDF. Please upload a .pdf file.");
@@ -286,6 +322,7 @@ function UploadStep({
     try {
       const dataBase64 = await fileToBase64(f);
       const result = await previewFn({ data: { sizeBytes: f.size, dataBase64 } });
+      if (!requests.current.isCurrent(request)) return;
       if ("error" in result) {
         onError(result.error);
         return;
@@ -295,9 +332,10 @@ function UploadStep({
         f,
       );
     } catch (e) {
+      if (!requests.current.isCurrent(request)) return;
       onError(e instanceof Error ? e.message : "Could not read this PDF.");
     } finally {
-      setParsing(false);
+      if (requests.current.isCurrent(request)) setParsing(false);
     }
   };
 
@@ -330,7 +368,10 @@ function UploadStep({
           type="file"
           accept="application/pdf,.pdf"
           className="sr-only"
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={(e) => {
+            void handleFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
       </label>
 
@@ -360,7 +401,11 @@ function UploadStep({
           </div>
           <button
             type="button"
-            onClick={() => onFile(null, null)}
+            onClick={() => {
+              requests.current.cancel();
+              onFile(null, null);
+              setParsing(false);
+            }}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             Remove
@@ -371,7 +416,7 @@ function UploadStep({
       <div className="mt-8 flex justify-end">
         <button
           type="button"
-          disabled={!file}
+          disabled={!file || parsing}
           onClick={onNext}
           className="inline-flex items-center gap-2 rounded-full bg-cobalt px-6 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -595,9 +640,10 @@ function ReviewStep({
 }) {
   return (
     <section>
-      <h1 className="font-serif text-4xl">Please review carefully</h1>
+      <h2 className="font-serif text-3xl">Addresses, options & total</h2>
       <p className="mt-2 text-muted-foreground">
-        We print and mail the document exactly as submitted. No edits after payment.
+        We print and mail the document exactly as submitted. Address fields are checked for format,
+        not confirmed postal deliverability.
       </p>
 
       <div className="mt-8 envelope-card envelope-card-notch p-8">
@@ -646,7 +692,7 @@ function ReviewStep({
             </label>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Delivery speed</label>
+            <label className="block text-sm font-medium mb-2">Mailing service</label>
             <div className="space-y-2">
               {(["standard", "certified", "registered"] as MailClass[]).map((mc) => (
                 <label key={mc} className="flex items-center gap-3 cursor-pointer">

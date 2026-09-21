@@ -14,6 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getMailService } from "@/services";
 import type { OrderStatus } from "@/lib/order-state-machine";
+import { approvedMailPriceMatches } from "@/lib/approved-mail-price";
 
 // ── Shared Schemas ─────────────────────────────────────────────────────────────
 
@@ -31,15 +32,21 @@ const mailClassSchema = z.enum(["standard", "certified", "registered"]).default(
 // ── PDF Upload: Preview Pricing ──────────────────────────────────────────────
 
 const previewInput = z.object({
-  sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024),
   dataBase64: z.string().min(1),
 });
 
 export const previewPdfPricing = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => previewInput.parse(data))
-  .handler(async ({ data }): Promise<{ pageCount: number; priceCents: number } | { error: string }> => {
-    return getMailService().previewPdfPricing(data.sizeBytes, data.dataBase64);
-  });
+  .handler(
+    async ({ data }): Promise<{ pageCount: number; priceCents: number } | { error: string }> => {
+      return getMailService().previewPdfPricing(data.sizeBytes, data.dataBase64);
+    },
+  );
 
 // ── Letter Editor: Preview Pricing ───────────────────────────────────────────
 
@@ -51,16 +58,39 @@ const previewLetterInput = z.object({
 
 export const previewLetterPricing = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => previewLetterInput.parse(data))
-  .handler(async ({ data }): Promise<{ pageCount: number; priceCents: number } | { error: string }> => {
-    return getMailService().previewLetterPricing(data.letterText, data.color, data.mailClass);
-  });
+  .handler(
+    async ({ data }): Promise<{ pageCount: number; priceCents: number } | { error: string }> => {
+      return getMailService().previewLetterPricing(data.letterText, data.color, data.mailClass);
+    },
+  );
 
 // ── Checkout: Create Stripe Session ─────────────────────────────────────────
 
 const checkoutInput = z.object({
   orderId: z.string().uuid(),
   token: z.string().min(8).max(128),
+  approvedPriceCents: z.number().int().nonnegative().optional(),
 });
+
+export const getMailCheckoutQuote = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => checkoutInput.parse(data))
+  .handler(async ({ data }) => {
+    const { order } = await getMailService().getOrder(data.orderId, data.token);
+    const { createStripeClient } = await import("@/lib/stripe.server");
+    if (order.stripe_session_id) {
+      const session = await createStripeClient().checkout.sessions.retrieve(
+        order.stripe_session_id,
+      );
+      if (session.status !== "open" || session.amount_total == null)
+        throw new Error(
+          "This checkout is no longer open. Check the order status before paying again.",
+        );
+      return { totalCents: session.amount_total };
+    }
+    const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
+    const { totalCents } = await mailCheckoutQuote(order);
+    return { totalCents };
+  });
 
 type CheckoutResult = { clientSecret: string } | { error: string };
 
@@ -68,13 +98,16 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => checkoutInput.parse(data))
   .handler(async ({ data }): Promise<CheckoutResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { createStripeClient, getMailMyPdfBaseUrl, getStripeErrorMessage } = await import("@/lib/stripe.server");
+    const { createStripeClient, getMailMyPdfBaseUrl, getStripeErrorMessage } =
+      await import("@/lib/stripe.server");
     const { calculateTotalPrice, priceDescription } = await import("@/lib/pricing");
 
     // Fetch the order
     const { data: order, error } = await supabaseAdmin
       .from("orders")
-      .select("id, lookup_token, status, email, page_count, price_cents, file_name, stripe_session_id, color, mail_class")
+      .select(
+        "id, lookup_token, status, email, page_count, price_cents, file_name, stripe_session_id, color, mail_class",
+      )
       .eq("id", data.orderId)
       .eq("lookup_token", data.token)
       .maybeSingle();
@@ -82,69 +115,45 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
     if (!order) return { error: "Order not found." };
 
     const { canTransition } = await import("@/lib/order-state-machine");
-    if (!canTransition(order.status as OrderStatus, "checkout_created")) return { error: "This order has already been paid or is no longer available." };
+    if (!canTransition(order.status as OrderStatus, "checkout_created"))
+      return { error: "This order has already been paid or is no longer available." };
 
     try {
       const stripe = createStripeClient();
 
       if (order.stripe_session_id) {
         const existingSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+        if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
+          return { error: "The checkout total changed. Go back and review the price again." };
+        if (existingSession.status !== "open")
+          return {
+            error: "This checkout is no longer open. Check your order status before paying again.",
+          };
         if (existingSession.client_secret) {
           return { clientSecret: existingSession.client_secret };
         }
       }
 
-      const mailClass = (order.mail_class || "standard") as "standard" | "certified" | "registered";
-
-      const { getSubscriptionStatus, applyProPricing } = await import("@/lib/subscriptions");
-      const subStatus = await getSubscriptionStatus(stripe, supabaseAdmin, order.email);
-
-      const normalTotalCents = calculateTotalPrice({
-        pageCount: order.page_count,
-        color: order.color ?? false,
-        mailClass,
-      });
-
-      const basePriceCents = calculateTotalPrice({
-        pageCount: order.page_count,
-        color: false,
-        mailClass: "standard",
-      });
-
-      let totalCents = normalTotalCents;
-      let description = priceDescription({
-        pageCount: order.page_count,
-        color: order.color ?? false,
-        mailClass,
-      });
-
-      if (subStatus.isActive) {
-        const proResult = applyProPricing({
-          pageCount: order.page_count,
-          color: order.color ?? false,
-          mailClass,
-          subStatus,
-          basePriceCents,
-        });
-        totalCents = proResult.totalCents;
-        if (proResult.breakdown) {
-          description = `${description} · ${proResult.breakdown}`;
-        }
-      }
+      const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
+      const { totalCents, description } = await mailCheckoutQuote(order);
+      if (!approvedMailPriceMatches(data.approvedPriceCents, totalCents))
+        return { error: "The checkout total changed. Go back and review the price again." };
 
       const returnUrl = new URL(`/orders/${order.id}`, `${getMailMyPdfBaseUrl()}/`);
       returnUrl.searchParams.set("token", order.lookup_token);
       returnUrl.searchParams.set("paid", "1");
 
       const sessionParams = {
-        line_items: [{
-          price_data: {
-            currency: "usd",
-            product_data: { name: description },
-            unit_amount: totalCents,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: { name: description },
+              unit_amount: totalCents,
+            },
+            quantity: 1,
           },
-          quantity: 1,
-        }],
+        ],
         mode: "payment" as const,
         ui_mode: "embedded_page" as const,
         return_url: returnUrl.toString(),
@@ -175,7 +184,9 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
             expirationError,
           });
         }
-        return { error: "This draft expired before checkout could begin. Please upload the PDF again." };
+        return {
+          error: "This draft expired before checkout could begin. Please upload the PDF again.",
+        };
       }
 
       return { clientSecret: session.client_secret ?? "" };
@@ -192,7 +203,11 @@ const createOrderInput = z.object({
   recipient: addressSchema,
   file: z.object({
     name: z.string().min(1).max(200),
-    sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
+    sizeBytes: z
+      .number()
+      .int()
+      .positive()
+      .max(10 * 1024 * 1024),
     dataBase64: z.string().min(1),
   }),
   color: z.boolean().default(false),
@@ -274,7 +289,9 @@ export const lookupOrder = createServerFn({ method: "POST" })
 
 // ── Backward compatibility re-exports ─────────────────────────────────────────
 
-export function priceIdForPageCount(pages: number): "letter_short" | "letter_medium" | "letter_long" {
+export function priceIdForPageCount(
+  pages: number,
+): "letter_short" | "letter_medium" | "letter_long" {
   if (pages <= 2) return "letter_short";
   if (pages <= 5) return "letter_medium";
   return "letter_long";

@@ -16,7 +16,7 @@ export interface PagePreviewGridProps {
    * @mailmypdf/packet-builder's assemblePacket) and re-rendering with the
    * new merged bytes.
    */
-  onDeletePage: (pageIndex: number) => void;
+  onDeletePage?: (pageIndex: number) => void;
   /** Shown as a trailing tile in the grid; omit to hide "add documents". */
   onAddDocuments?: () => void;
   /**
@@ -65,11 +65,18 @@ export function PagePreviewGrid({
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-        const data = pdfBytes instanceof Uint8Array ? pdfBytes.slice() : new Uint8Array(pdfBytes);
-        const pdf = await pdfjs.getDocument({ data }).promise;
+        const data =
+          pdfBytes instanceof Uint8Array
+            ? pdfBytes.slice()
+            : new Uint8Array(pdfBytes);
+        const pdf = await pdfjs.getDocument({ data, isEvalSupported: false })
+          .promise;
         if (cancelled || generationRef.current !== generation) return;
 
-        const initial: ThumbnailState[] = Array.from({ length: pdf.numPages }, () => ({ status: "loading" }));
+        const initial: ThumbnailState[] = Array.from(
+          { length: pdf.numPages },
+          () => ({ status: "loading" }),
+        );
         setThumbnails(initial);
 
         for (let i = 1; i <= pdf.numPages; i += 1) {
@@ -106,7 +113,11 @@ export function PagePreviewGrid({
         }
       } catch (error) {
         if (cancelled || generationRef.current !== generation) return;
-        setLoadError(error instanceof Error ? error.message : "Unable to load this PDF for preview.");
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load this PDF for preview.",
+        );
       }
     })();
 
@@ -123,30 +134,52 @@ export function PagePreviewGrid({
     <div className="wf-page-preview-grid">
       {thumbnails.map((thumb, index) => (
         <div key={index} className="wf-page-preview-tile">
-          <div className="wf-page-preview-thumb" style={{ width: thumbnailWidth }}>
+          <div
+            className="wf-page-preview-thumb"
+            style={{ width: thumbnailWidth }}
+          >
             {thumb.status === "ready" && thumb.dataUrl && (
-              <img src={thumb.dataUrl} alt={pageLabels?.[index] ?? `Page ${index + 1}`} />
+              <img
+                src={thumb.dataUrl}
+                alt={pageLabels?.[index] ?? `Page ${index + 1}`}
+              />
             )}
-            {thumb.status === "loading" && <div className="wf-page-preview-loading" aria-hidden="true" />}
-            {thumb.status === "error" && <div className="wf-page-preview-broken">Preview unavailable</div>}
-            <button
-              type="button"
-              className="wf-page-preview-remove"
-              aria-label={`Remove page ${index + 1}`}
-              onClick={() => onDeletePage(index)}
-            >
-              ×
-            </button>
+            {thumb.status === "loading" && (
+              <div className="wf-page-preview-loading" aria-hidden="true" />
+            )}
+            {thumb.status === "error" && (
+              <div className="wf-page-preview-broken">Preview unavailable</div>
+            )}
+            {onDeletePage && (
+              <button
+                type="button"
+                className="wf-page-preview-remove"
+                aria-label={`Remove page ${index + 1}`}
+                onClick={() => onDeletePage(index)}
+              >
+                ×
+              </button>
+            )}
           </div>
           <div className="wf-page-preview-caption">
-            <span className="wf-page-preview-page-number">Page {index + 1}</span>
-            {pageLabels?.[index] && <span className="wf-page-preview-label">{pageLabels[index]}</span>}
+            <span className="wf-page-preview-page-number">
+              Page {index + 1}
+            </span>
+            {pageLabels?.[index] && (
+              <span className="wf-page-preview-label">{pageLabels[index]}</span>
+            )}
           </div>
         </div>
       ))}
       {onAddDocuments && (
-        <button type="button" className="wf-page-preview-add" onClick={onAddDocuments}>
-          <span className="wf-page-preview-add-icon" aria-hidden="true">+</span>
+        <button
+          type="button"
+          className="wf-page-preview-add"
+          onClick={onAddDocuments}
+        >
+          <span className="wf-page-preview-add-icon" aria-hidden="true">
+            +
+          </span>
           <span>Add documents</span>
         </button>
       )}

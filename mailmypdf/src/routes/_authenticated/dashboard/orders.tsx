@@ -3,6 +3,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useState } from "react";
 import { getUserOrders } from "@/lib/user.functions";
+import { authenticatedHeaders } from "@/lib/authenticated-client";
+import { mailingStatus } from "@mailmypdf/workflow-ui";
 
 export const Route = createFileRoute("/_authenticated/dashboard/orders")({
   head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
@@ -32,7 +34,8 @@ function OrdersPage() {
 
   const { data } = useSuspenseQuery({
     queryKey: ["user-orders", status, page],
-    queryFn: () => getOrders({ data: { status, page, limit: 10 } }),
+    queryFn: async () =>
+      getOrders({ data: { status, page, limit: 10 }, headers: await authenticatedHeaders() }),
   });
 
   const statusColors: Record<string, string> = {
@@ -61,13 +64,13 @@ function OrdersPage() {
                 : "border-rule text-muted-foreground hover:border-cobalt hover:text-foreground"
             }`}
           >
-            {s === "all" ? "All" : s.replace(/_/g, " ")}
+            {s === "all" ? "All" : mailingStatus(s).label}
           </button>
         ))}
       </div>
 
       {/* Orders table */}
-      <div className="envelope-card overflow-hidden">
+      <div className="envelope-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-paper-deep text-[10px] uppercase tracking-widest text-muted-foreground">
             <tr>
@@ -108,7 +111,7 @@ function OrdersPage() {
                   <span
                     className={`text-xs font-mono ${statusColors[o.status] ?? "text-muted-foreground"}`}
                   >
-                    {o.status.replace(/_/g, " ")}
+                    {mailingStatus(o.status).label}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">

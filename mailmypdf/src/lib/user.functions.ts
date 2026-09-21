@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { literalEmailPattern } from "@/lib/email-pattern";
 
 // ── Get User Profile ──────────────────────────────────────────────────────────
 
@@ -82,8 +83,10 @@ export const getUserStats = createServerFn({ method: "GET" })
     // Fetch all non-draft orders for this email
     const { data: orders, error } = await supabaseAdmin
       .from("orders")
-      .select("id, status, price_cents, created_at, mail_class, recipient_city, recipient_state, file_name, letter_text")
-      .ilike("email", email)
+      .select(
+        "id, status, price_cents, created_at, mail_class, recipient_city, recipient_state, file_name, letter_text",
+      )
+      .ilike("email", literalEmailPattern(email))
       .neq("status", "draft")
       .order("created_at", { ascending: false })
       .limit(200);
@@ -103,9 +106,7 @@ export const getUserStats = createServerFn({ method: "GET" })
     // This month's stats
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthOrders = (orders ?? []).filter(
-      (o) => new Date(o.created_at) >= monthStart
-    );
+    const thisMonthOrders = (orders ?? []).filter((o) => new Date(o.created_at) >= monthStart);
     const thisMonthCents = thisMonthOrders.reduce((sum, o) => sum + (o.price_cents || 0), 0);
 
     return {
@@ -138,8 +139,10 @@ export const getUserOrders = createServerFn({ method: "POST" })
 
     let query = supabaseAdmin
       .from("orders")
-      .select("id, status, price_cents, created_at, mail_class, recipient_name, recipient_city, recipient_state, file_name, letter_text, color, scheduled_delivery_date, lookup_token, lob_letter_id, mailed_at, page_count, vertical_slug")
-      .ilike("email", email)
+      .select(
+        "id, status, price_cents, created_at, mail_class, recipient_name, recipient_city, recipient_state, file_name, letter_text, color, scheduled_delivery_date, lookup_token, lob_letter_id, mailed_at, page_count, vertical_slug",
+      )
+      .ilike("email", literalEmailPattern(email))
       .neq("status", "draft")
       .order("created_at", { ascending: false })
       .range((data.page - 1) * data.limit, data.page * data.limit - 1);
@@ -155,7 +158,7 @@ export const getUserOrders = createServerFn({ method: "POST" })
     let countQuery = supabaseAdmin
       .from("orders")
       .select("id", { count: "exact", head: true })
-      .ilike("email", email)
+      .ilike("email", literalEmailPattern(email))
       .neq("status", "draft");
 
     if (data.status && data.status !== "all") {
@@ -193,7 +196,7 @@ export const getUserOrderDetail = createServerFn({ method: "POST" })
       .from("orders")
       .select("*")
       .eq("id", data.orderId)
-      .ilike("email", email)
+      .ilike("email", literalEmailPattern(email))
       .maybeSingle();
 
     if (error) throw new Error(error.message);

@@ -808,6 +808,13 @@
   gap: 0.85rem;
 }
 
+.wf-document-review { margin-block: 1.5rem; padding: 1rem; border: 1px solid var(--wf-color-rule); border-radius: var(--wf-radius-sm); }
+.wf-document-review h2 { font-size: 1.25rem; font-weight: 600; }
+.wf-document-review p { margin-block: 0.75rem; font-size: 0.875rem; }
+.wf-document-review a { text-decoration: underline; overflow-wrap: anywhere; }
+.wf-document-review .wf-page-preview-tile,
+.wf-document-review .wf-page-preview-thumb { max-width: 100%; }
+
 .wf-page-preview-tile {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,7 @@
 # Build Studio Tasks
 
+Mail Desk work is tracked separately in [mail-desk/todo.md](mail-desk/todo.md).
+
 - [ ] Studio domain types and sample workflow
 - [ ] Graph operation patch engine
 - [ ] Validation engine
