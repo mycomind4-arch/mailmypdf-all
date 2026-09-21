@@ -11,6 +11,15 @@
       "port": 3000
     },
     {
+      "name": "mailmypdf-worker",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd mailmypdf && cp -f .dev.vars .output/server/.dev.vars 2>/dev/null; npx wrangler dev --config .output/server/wrangler.json --local --port 8787 --compatibility-date 2026-09-04 --var MAILMYPDF_BASE_URL:http://localhost:8787"
+      ],
+      "port": 8787
+    },
+    {
       "name": "mailmypdf-host",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
