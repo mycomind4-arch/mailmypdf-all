@@ -62,7 +62,7 @@ export function AuthenticatedWorkflowDetail({
         <section className="rounded-md border border-rule/70 bg-card">
           <div className="flex items-center gap-2 border-b border-rule/70 px-5 py-4">
             <Wrench className="h-4 w-4 text-cobalt" />
-            <h2 className="text-sm font-semibold">Studio / Admin</h2>
+            <h2 className="text-sm font-semibold">Studio</h2>
           </div>
           <div className="grid gap-px bg-rule/60 sm:grid-cols-2 lg:grid-cols-3">
             <AdminMetric label="Publication" value={authority?.publicationState ?? "DRAFT"} />
@@ -73,7 +73,7 @@ export function AuthenticatedWorkflowDetail({
             <AdminMetric label="Workflow ID" value={workflow.slug} mono />
           </div>
           <div className="flex flex-wrap gap-2 border-t border-rule/70 p-4">
-            <a href="/admin" className="inline-flex items-center gap-2 rounded-md border border-rule bg-background px-3 py-2 text-xs font-medium hover:border-cobalt/40">
+          <a href="/studio" className="inline-flex items-center gap-2 rounded-md border border-rule bg-background px-3 py-2 text-xs font-medium hover:border-cobalt/40">
               <ShieldCheck className="h-3.5 w-3.5" /> Open Studio
             </a>
             <a href={workflow.publicHref} className="inline-flex items-center gap-2 rounded-md border border-rule bg-background px-3 py-2 text-xs font-medium hover:border-cobalt/40">

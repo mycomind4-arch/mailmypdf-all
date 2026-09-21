@@ -2,8 +2,7 @@ import { PaymentReturn } from '@/components/payment-return';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import '../../../../../packages/design-system/src/tokens.css'
-import '../../../../../packages/design-system/src/patterns.css'
+import '@mailmypdf/design-system/vertical-landing.css'
 import { AuthProvider, useAuth } from '@/lib/auth'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({

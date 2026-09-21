@@ -108,14 +108,11 @@ async function loadSupabase(): Promise<SupabaseClient | null> {
 
 function mapUser(supabaseUser: SupabaseAuthUser): MailMyPDFUser {
   const meta = supabaseUser.user_metadata || {};
-  let role: UserRole = "customer";
-  if (meta.role === "super_admin" || meta.role === "admin") role = meta.role;
-  else if (meta.is_admin === true) role = "admin";
   return {
     id: supabaseUser.id,
     email: supabaseUser.email || "",
     fullName: meta.full_name,
-    role,
+    role: "customer",
   };
 }
 

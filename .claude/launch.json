@@ -11,6 +11,28 @@
       "port": 3000
     },
     {
+      "name": "mailmypdf-host",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "tanstack_start_ts",
+        "run",
+        "dev"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "mailmypdf-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "tanstack_start_ts",
+        "run",
+        "preview"
+      ],
+      "port": 4173
+    },
+    {
       "name": "private-office-studio",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

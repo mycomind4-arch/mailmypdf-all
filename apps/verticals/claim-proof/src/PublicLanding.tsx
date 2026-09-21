@@ -1,10 +1,9 @@
 import { createElement } from 'react'
-import { SiteHeader } from './components/site-header'
-import { SiteFooter } from './components/site-footer'
-import { createTrustStrip, createVerticalHero } from '../../../../packages/design-system/src/index'
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from '@mailmypdf/design-system/public'
 
 const VerticalHero = createVerticalHero(createElement)
 const SharedTrustStrip = createTrustStrip(createElement)
+const PublicLandingFrame = createPublicLandingFrame(createElement)
 
 const claimTypes = [
   ['Insurance claim denial', 'Organize the denial, policy references, photos, estimates, correspondence, and other supporting records.'],
@@ -25,9 +24,7 @@ const steps = [
 
 export function PublicLanding({ onStart }: { onStart: () => void }) {
   return (
-    <div className="mmp-app">
-      <SiteHeader />
-      <main>
+    <PublicLandingFrame theme="claim-proof" name="Claim Proof">
         <VerticalHero
           theme="claim-proof"
           tone="light"
@@ -97,8 +94,6 @@ export function PublicLanding({ onStart }: { onStart: () => void }) {
             <button type="button" onClick={onStart} className="mmp-button-secondary" style={{ marginTop: 28 }}>Open the guided workspace →</button>
           </div>
         </section>
-      </main>
-      <SiteFooter />
-    </div>
+    </PublicLandingFrame>
   )
 }

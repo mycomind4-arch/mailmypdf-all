@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
-import { createWorkflowDirectory } from "../../../../../../packages/design-system/src/index";
+import { createWorkflowDirectory } from "@mailmypdf/design-system";
 
 const SITE_ORIGIN = "https://dispute-mail.pages.dev";
 const WorkflowDirectory = createWorkflowDirectory(createElement);

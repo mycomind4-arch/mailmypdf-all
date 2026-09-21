@@ -1,0 +1,8 @@
+/*
+ * Canonical visual entry point for every vertical landing surface.
+ * Change the shared landing-page look here (or in the imported layers) and
+ * all vertical apps receive the same update through the package boundary.
+ */
+@import './tokens.css';
+@import './patterns.css';
+@import './workspace.css';

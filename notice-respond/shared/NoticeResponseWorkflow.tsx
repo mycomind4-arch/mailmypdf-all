@@ -18,6 +18,9 @@ import {
   completedNoticeResponseSteps,
   createHttpWorkflowMatterClient,
   getNoticeResponseWorkflowProfile,
+  getWorkflowAccessToken,
+  type Cp2000StrategyPlan,
+  type DraftValidationResult,
   type NoticeResponseStepId,
   type NoticeResponseWorkflowProfile,
   type WorkflowMailingAddress,
@@ -54,7 +57,10 @@ const EMPTY_ADDRESS: WorkflowMailingAddress = {
   postal: "",
 };
 
-const client = createHttpWorkflowMatterClient({ basePath: "/api/workflow-runtime" });
+const client = createHttpWorkflowMatterClient({
+  basePath: "/api/workflow-runtime",
+  getAccessToken: getWorkflowAccessToken,
+});
 
 function addressReady(value: WorkflowMailingAddress): boolean {
   return Boolean(
@@ -142,6 +148,10 @@ export default function NoticeResponseWorkflow({
   const [facts, setFacts] = useState<NoticeFacts>(emptyFacts);
   const [factsSaved, setFactsSaved] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftValidation, setDraftValidation] =
+    useState<DraftValidationResult | null>(null);
+  const [draftStrategy, setDraftStrategy] =
+    useState<Cp2000StrategyPlan | null>(null);
   const [draftSaved, setDraftSaved] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [evidenceKind, setEvidenceKind] = useState(
@@ -193,6 +203,8 @@ export default function NoticeResponseWorkflow({
   function invalidateAfterFactsChange(): void {
     setFactsSaved(false);
     setDraftSaved(false);
+    setDraftValidation(null);
+    setDraftStrategy(null);
     setPacket(null);
     setApprovalId("");
   }
@@ -327,6 +339,8 @@ export default function NoticeResponseWorkflow({
       setFactsSaved(false);
       setDraft("");
       setDraftSaved(false);
+      setDraftValidation(null);
+      setDraftStrategy(null);
       setPacket(null);
       setApprovalId("");
     } catch (cause) {
@@ -368,6 +382,8 @@ export default function NoticeResponseWorkflow({
       await client.saveInput(id, facts);
       setFactsSaved(true);
       setDraftSaved(false);
+      setDraftValidation(null);
+      setDraftStrategy(null);
       setPacket(null);
       setApprovalId("");
     } catch (cause) {
@@ -404,6 +420,8 @@ export default function NoticeResponseWorkflow({
       setDocuments(nextDocuments);
       await resetEvidenceReview();
       setDraftSaved(false);
+      setDraftValidation(null);
+      setDraftStrategy(null);
       setPacket(null);
       setApprovalId("");
     } catch (cause) {
@@ -422,6 +440,8 @@ export default function NoticeResponseWorkflow({
     setDocuments(await client.detachDocument(matterId, documentId));
     await resetEvidenceReview();
     setDraftSaved(false);
+    setDraftValidation(null);
+    setDraftStrategy(null);
     setPacket(null);
     setApprovalId("");
   }
@@ -437,6 +457,8 @@ export default function NoticeResponseWorkflow({
     );
     await resetEvidenceReview();
     setDraftSaved(false);
+    setDraftValidation(null);
+    setDraftStrategy(null);
     setPacket(null);
     setApprovalId("");
   }
@@ -451,6 +473,8 @@ export default function NoticeResponseWorkflow({
       setFacts(next);
       setFactsSaved(true);
       setDraftSaved(false);
+      setDraftValidation(null);
+      setDraftStrategy(null);
       setPacket(null);
       setApprovalId("");
     } catch (cause) {
@@ -471,6 +495,8 @@ export default function NoticeResponseWorkflow({
     try {
       const generated = await client.generateDraft(matterId);
       setDraft(generated.bodyText);
+      setDraftValidation(generated.validation ?? null);
+      setDraftStrategy(generated.strategy ?? null);
       setDraftSaved(false);
       setPacket(null);
       setApprovalId("");
@@ -715,6 +741,9 @@ export default function NoticeResponseWorkflow({
               <div className="wf-callout wf-callout--info">
                 {analysis.result.summary}
               </div>
+              {profile.workflowId === "cp2000-response" && (
+                <Cp2000AnalysisDetails analysis={analysis} />
+              )}
             </div>
           ) : (
             <p>Run analysis after the notice clears security scanning.</p>
@@ -942,9 +971,16 @@ export default function NoticeResponseWorkflow({
             onChange={(event) => {
               setDraft(event.target.value);
               setDraftSaved(false);
+              setDraftValidation(null);
             }}
             placeholder="Generate the response draft or enter your own correspondence."
           />
+          {profile.workflowId === "cp2000-response" && (
+            <Cp2000DraftReview
+              validation={draftValidation}
+              strategy={draftStrategy}
+            />
+          )}
         </SectionCard>
       )}
 
@@ -1096,6 +1132,138 @@ export default function NoticeResponseWorkflow({
         )}
       </div>
     </StepShell>
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function Cp2000AnalysisDetails({
+  analysis,
+}: {
+  analysis: WorkflowMatterAnalysis;
+}) {
+  const details = asRecord(analysis.result.workflowDetails);
+  const cp2000 = asRecord(details?.cp2000Analysis);
+  if (!cp2000) return null;
+
+  const findings = Array.isArray(cp2000.findings)
+    ? cp2000.findings.map(asRecord).filter((finding): finding is Record<string, unknown> => Boolean(finding))
+    : [];
+  const checklist = asRecord(cp2000.evidenceChecklist);
+  const evidenceItems = Array.isArray(checklist?.items)
+    ? checklist.items.map(asRecord).filter((item): item is Record<string, unknown> => Boolean(item))
+    : [];
+
+  return (
+    <div className="mt-6 space-y-4" aria-live="polite">
+      <div className="wf-callout wf-callout--info">
+        <strong>CP2000 findings</strong>
+        <p>
+          These flags identify items to verify. They do not decide whether you
+          or the IRS is correct.
+        </p>
+      </div>
+      {findings.length > 0 && (
+        <div className="wf-review-list">
+          {findings.map((finding, index) => {
+            const statement = typeof finding.statement === "string"
+              ? finding.statement
+              : "Notice fact requires review.";
+            const action = typeof finding.recommendedAction === "string"
+              ? finding.recommendedAction
+              : null;
+            const severity = typeof finding.severity === "string"
+              ? finding.severity
+              : "info";
+            return (
+              <div className="wf-review-row" key={typeof finding.id === "string" ? finding.id : index}>
+                <div className="wf-review-copy">
+                  <strong>{severity}: {statement}</strong>
+                  {action && <div className="wf-review-detail">Next: {action}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {evidenceItems.length > 0 && (
+        <div className="wf-review-list">
+          <strong>Suggested evidence checklist</strong>
+          {evidenceItems.map((item, index) => {
+            const label = typeof item.label === "string" ? item.label : "Supporting record";
+            const state = item.state === "provided" ? "Available" : "Not provided";
+            const requirement = typeof item.requirement === "string" ? item.requirement : "recommended";
+            return (
+              <div className="wf-review-row" key={typeof item.id === "string" ? item.id : index}>
+                <div className="wf-review-copy">
+                  <strong>{label}</strong>
+                  <div className="wf-review-detail">{requirement} · {state}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Cp2000DraftReview({
+  validation,
+  strategy,
+}: {
+  validation: DraftValidationResult | null;
+  strategy: Cp2000StrategyPlan | null;
+}) {
+  if (!validation && !strategy) return null;
+  const failedFindings = validation?.findings.filter((finding) => !finding.passed) ?? [];
+  const positionLabel: Record<Cp2000StrategyPlan["position"], string> = {
+    agree_all: "Agree with all proposed changes",
+    disagree_some: "Partially agree or dispute selected items",
+    disagree_all: "Dispute the proposed changes",
+    insufficient_info: "More information is required",
+  };
+
+  return (
+    <div className="mt-6 space-y-4" aria-live="polite">
+      {strategy && (
+        <div className="wf-callout wf-callout--info">
+          <strong>Draft response plan: {positionLabel[strategy.position]}</strong>
+          {strategy.requestedActions.length > 0 && (
+            <ul>
+              {strategy.requestedActions.map((action) => <li key={action}>{action}</li>)}
+            </ul>
+          )}
+          {strategy.riskFlags.length > 0 && (
+            <ul>
+              {strategy.riskFlags.map((risk) => <li key={risk}>Review: {risk}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+      {validation && (
+        <div className={validation.passed ? "wf-callout wf-callout--info" : "wf-callout wf-callout--warning"}>
+          <strong>
+            Independent draft check: {validation.passed ? "ready for your review" : "revision or careful review needed"}
+          </strong>
+          <p>
+            This check does not decide the tax outcome. Confirm the text and
+            the exact outgoing packet before approval.
+          </p>
+          {failedFindings.length > 0 && (
+            <ul>
+              {failedFindings.map((finding) => (
+                <li key={finding.check}>{finding.severity}: {finding.detail}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

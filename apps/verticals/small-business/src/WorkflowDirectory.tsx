@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { SMALL_BUSINESS_WORKFLOWS } from './domain/workflows'
-import { createWorkflowDirectory } from '../../../../packages/design-system/src/index'
+import { createWorkflowDirectory } from '@mailmypdf/design-system'
 
 const WorkflowDirectory=createWorkflowDirectory(createElement)
 const navLink={color:'var(--mmp-ink)',textDecoration:'none',fontSize:13,fontWeight:600} as const

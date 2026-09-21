@@ -22,8 +22,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function mapUser(user: User): MailMyPDFUser {
   const meta = user.user_metadata || {};
-  const role: UserRole = meta.role === "super_admin" ? "super_admin" : meta.role === "admin" || meta.is_admin === true ? "admin" : "customer";
-  return { id: user.id, email: user.email || "", fullName: meta.full_name, role };
+  return { id: user.id, email: user.email || "", fullName: meta.full_name, role: "customer" };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

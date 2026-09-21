@@ -1,4 +1,5 @@
 import inventory from "../../WORKFLOW_INVENTORY.json";
+import { AUTHORED_SEO_ENTRIES } from "./workflow-seo-entries";
 
 export type WorkflowPublicationState = "DRAFT" | "SEO_READY" | "EXECUTABLE";
 export type WorkflowAuthorityReviewStatus = "NEEDS_INDIVIDUAL_REVIEW" | "AUTHORITY_REVIEWED";
@@ -131,25 +132,51 @@ type InventoryWorkflow = {
  * count. Extraction, normalization, individual review, authority publication, and
  * executable certification are separate steps.
  */
+const AUTHORED_BY_ID = new Map(AUTHORED_SEO_ENTRIES.map((entry) => [entry.id, entry]));
+
+const INVENTORY_PROVENANCE: WorkflowSeoProvenance = {
+  kind: "modeled-inventory",
+  sourcePath: "apps/mailmypdf/WORKFLOW_INVENTORY.json",
+  note: "Imported as topology only; prior maturity/content flags do not constitute authority review.",
+};
+
 export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
   (inventory.workflows ?? []) as InventoryWorkflow[]
-).map((workflow) => ({
-  id: workflow.id,
-  vertical: workflow.vertical,
-  route: workflow.route,
-  state: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest" ? "EXECUTABLE" : "DRAFT",
-  reviewStatus: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest" ? "AUTHORITY_REVIEWED" : "NEEDS_INDIVIDUAL_REVIEW",
-  provenance: [
-    {
-      kind: "modeled-inventory",
-      sourcePath: "apps/mailmypdf/WORKFLOW_INVENTORY.json",
-      note: "Imported as topology only; prior maturity/content flags do not constitute authority review.",
-    },
-  ],
-  execution: workflow.id === "legal-defense/wrongful-stolen-vehicle-arrest"
-    ? { href: "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start", verified: true }
-    : undefined,
-}));
+).map((workflow) => {
+  const authored = AUTHORED_BY_ID.get(workflow.id);
+  if (!authored) {
+    return {
+      id: workflow.id,
+      vertical: workflow.vertical,
+      route: workflow.route,
+      state: "DRAFT",
+      reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
+      provenance: [INVENTORY_PROVENANCE],
+    };
+  }
+
+  // An authored record leaves DRAFT, but the Authority Gate still scores it and
+  // blocks indexing if the content does not hold up. EXECUTABLE additionally
+  // requires an explicitly verified execution entry point, so a record without
+  // one is published as SEO_READY rather than silently advertising a CTA.
+  return {
+    id: workflow.id,
+    vertical: workflow.vertical,
+    route: workflow.route,
+    state: authored.execution?.verified ? "EXECUTABLE" : "SEO_READY",
+    reviewStatus: "AUTHORITY_REVIEWED",
+    provenance: [
+      INVENTORY_PROVENANCE,
+      {
+        kind: "manual-review",
+        sourcePath: `apps/mailmypdf/src/lib/workflow-seo-entries/${workflow.id.replace(/\//g, "-")}.ts`,
+        note: "Authority content authored and individually reviewed against the Authority Gate contract.",
+      },
+    ],
+    content: authored.content,
+    execution: authored.execution,
+  };
+});
 
 export function defineWorkflowSeoEntry<T extends WorkflowSeoCatalogEntry>(entry: T): T {
   return entry;

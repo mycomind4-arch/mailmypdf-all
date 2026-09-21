@@ -12,13 +12,27 @@
     },
     "./tokens.css": "./src/tokens.css",
     "./patterns.css": "./src/patterns.css",
-    "./workspace.css": "./src/workspace.css"
+    "./workspace.css": "./src/workspace.css",
+    "./vertical-landing.css": "./src/vertical-landing.css",
+    "./public": {
+      "types": "./dist/public-surface.d.ts",
+      "import": "./dist/public-surface.js"
+    },
+    "./auth": {
+      "types": "./dist/auth-surface.d.ts",
+      "import": "./dist/auth-surface.js"
+    },
+    "./admin": {
+      "types": "./dist/admin-surface.d.ts",
+      "import": "./dist/admin-surface.js"
+    }
   },
   "files": [
     "dist",
     "src/tokens.css",
     "src/patterns.css",
-    "src/workspace.css"
+    "src/workspace.css",
+    "src/vertical-landing.css"
   ],
   "scripts": {
     "build": "tsc",

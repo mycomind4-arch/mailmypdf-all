@@ -2,11 +2,10 @@ import { PRICES } from "@mailmypdf/pricing";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ShieldAlert, Mail, ShieldCheck, Sparkles, Clock, PackageCheck, Lock, Send, Eye, Stamp, CreditCard, FileText, ChevronDown } from "lucide-react";
 import { createElement, useState } from "react";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from "@mailmypdf/design-system/public";
 
 const SITE_ORIGIN = "https://dispute-mail.pages.dev";
+const PublicLandingFrame = createPublicLandingFrame(createElement);
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
 
@@ -68,8 +67,7 @@ const faqItems = [
 
 function HomePage() {
   return (
-    <main>
-      <SiteHeader />
+    <PublicLandingFrame theme="dispute-mail" name="Dispute Mail">
       <VerticalHero
         theme="dispute-mail"
         tone="dark"
@@ -111,8 +109,7 @@ function HomePage() {
       <section id="faq" className="bg-white py-16 md:py-24"><div className="container max-w-3xl"><div className="text-center"><div className="eyebrow">Questions</div><h2 className="mt-3 text-3xl font-bold text-teal-700 md:text-4xl" style={{fontFamily:"var(--font-serif)"}}>Frequently asked</h2></div><div className="mt-10 space-y-3">{faqItems.map(([q,a]) => <FAQItem key={q} q={q} a={a}/>)}</div></div></section>
 
       <section style={{background:"linear-gradient(135deg,#2a2d3f 0%,#1a1d2e 100%)"}} className="py-16 md:py-20"><div className="container text-center"><h2 className="text-3xl font-bold text-white md:text-4xl" style={{fontFamily:"var(--font-serif)"}}>Ready to document the dispute?</h2><p className="mx-auto mt-4 max-w-lg text-white/60">Start the workflow, review the exact correspondence, and choose mailing when you're ready.</p><Link to="/workflows/credit-report" className="btn-rose mt-8 text-base">Start a Dispute <ArrowRight size={18}/></Link></div></section>
-      <SiteFooter />
-    </main>
+    </PublicLandingFrame>
   );
 }
 

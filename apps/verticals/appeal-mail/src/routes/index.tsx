@@ -19,13 +19,12 @@ import {
   Upload,
 } from "lucide-react";
 import { createElement } from "react";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { workflows } from "@/domain/workflows";
 import { APPEAL_CATALOG, CATEGORY_ORDER } from "@/domain/appeal-catalog";
-import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from "@mailmypdf/design-system/public";
 
 const SITE_ORIGIN = "https://appeal-mail.pages.dev";
+const PublicLandingFrame = createPublicLandingFrame(createElement);
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
 const standardMailPrice = `$${(PRICES.standard / 100).toFixed(2)}`;
@@ -235,8 +234,7 @@ function HomePage() {
   const workflowCount = APPEAL_CATALOG.length;
 
   return (
-    <main>
-      <SiteHeader />
+    <PublicLandingFrame theme="appeal-mail" name="Appeal Mail">
 
       <VerticalHero
         theme="appeal-mail"
@@ -504,7 +502,6 @@ function HomePage() {
         </div>
       </section>
 
-      <SiteFooter />
-    </main>
+    </PublicLandingFrame>
   );
 }

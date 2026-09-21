@@ -1,4 +1,5 @@
 import type { ElementFactory } from './public-page.js'
+import { getWorkflowImageSrc } from './workflow-images.js'
 
 export interface PublicWorkflowDirectoryItem {
   id: string
@@ -119,9 +120,10 @@ export function createWorkflowDirectory(h: ElementFactory) {
 
     const action = (href: string, className: string, label: string) => renderActionLink?.(href, className, [label, ' →']) ?? h('a', { href, className }, label, ' →')
     const card = (item: PublicWorkflowDirectoryItem) => {
+      const imageSrc = item.imageSrc ?? getWorkflowImageSrc(item.id)
       const children = [
-        h('div', { className: `mmp-directory-card__media${item.imageSrc ? ' mmp-directory-card__media--image' : ''}`, key: 'media' },
-          item.imageSrc ? h('img', { src: item.imageSrc, alt: item.imageAlt ?? item.title, loading: 'lazy' }) : null,
+        h('div', { className: `mmp-directory-card__media${imageSrc ? ' mmp-directory-card__media--image' : ''}`, key: 'media' },
+          imageSrc ? h('img', { src: imageSrc, alt: item.imageAlt ?? item.title, loading: 'lazy' }) : null,
           h('span', { className: 'mmp-directory-card__category' }, item.category),
         ),
         h('div', { className: 'mmp-directory-card__body', key: 'body' },

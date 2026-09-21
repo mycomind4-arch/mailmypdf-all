@@ -13,8 +13,48 @@ export const workflowConfig = {
   eyebrow: "Notice Respond workflow",
   heroTitle: "Respond to an IRS CP14 Notice",
   heroDescription: "Start with the actual CP14 notice, confirm the balance and tax-period details, choose the appropriate response path, prepare supporting correspondence, review the exact packet, and retain mailing proof.",
-  indexable: false,
+  indexable: true,
   contentStatus: "reviewed",
+  whatYouDo: [
+    "Start from the actual CP14 notice you received, not a generic tax-notice template.",
+    "Confirm the notice series, tax period, printed due date, and balance the IRS reports.",
+    "Choose the response path that matches your situation: agree, disagree, already paid, or another documented response.",
+    "Prepare factual, source-grounded correspondence and review the exact packet before it is ever mailed.",
+  ],
+  whatYouNeed: [
+    "The complete CP14 notice, including the page that shows the response address and any payment or contact instructions",
+    "Payment confirmations, canceled checks, or IRS payment records if you already paid some or all of the balance",
+    "Any tax return, transcript, or prior correspondence relevant to the balance",
+    "The mailing address you want to use as the return address on the outgoing response",
+  ],
+  outputs: [
+    "A factual CP14 response drafted only from the notice and your confirmed facts",
+    "A reviewed, exact PDF packet with any supporting records you chose to include",
+    "A confirmed mailing destination and mail class before anything is sent",
+    "Mailing tracking and proof retained with the matter after it ships",
+  ],
+  faqs: [
+    [
+      "What is an IRS CP14 notice?",
+      "A CP14 is the first notice the IRS sends when its records show you have an unpaid balance on your tax account. It states the tax period, the amount due, and a response or payment date.",
+    ],
+    [
+      "Do I have to pay the full amount right away?",
+      "Not necessarily. This workflow lets you record whether you agree with the balance, disagree with it, have already paid some or all of it, or need to send another documented response such as a payment-plan or hardship request — it does not assume you owe the full amount.",
+    ],
+    [
+      "What if I already paid this balance?",
+      "Select \"I already paid some or all of this amount\" as your response path and include payment confirmations, canceled checks, or IRS payment records as supporting documents so the response can reference them.",
+    ],
+    [
+      "Will this calculate my deadline or the exact amount for me?",
+      "No. The workflow extracts the due date and balance exactly as printed on your notice and never calculates a substitute deadline or amount — you review and confirm every extracted detail before anything is drafted.",
+    ],
+    [
+      "Can I review the letter and packet before it's mailed?",
+      "Yes. Drafting, review, approval, payment, and mailing are separate steps, and the exact packet you approve is the exact packet that gets mailed.",
+    ],
+  ],
   workspaceHighlights: [
     ["Notice-first analysis", "Extract the CP14 notice number, tax period, balance, dates, and response instructions from the source notice."],
     ["Response-path guidance", "Record whether you agree with the balance, dispute it, already paid, or need a different documented response."],

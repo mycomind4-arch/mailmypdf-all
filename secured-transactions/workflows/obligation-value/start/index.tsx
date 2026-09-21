@@ -1,12 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import workflowConfig from "../config";
-import { SecuredTransactionWorkflowStartScaffold } from "../../../shared/components/SecuredTransactionWorkflowStartScaffold";
+import { ObligationValueIntake } from "./ObligationValueIntake";
 
 export const Route = createFileRoute("/secured-transactions/workflows/obligation-value/start/")({
-  component: () => (
-    <SecuredTransactionWorkflowStartScaffold
-      title={workflowConfig.title}
-      description={workflowConfig.heroDescription}
-    />
-  ),
+  component: ObligationValueIntake,
 });
+
+export default ObligationValueIntake;

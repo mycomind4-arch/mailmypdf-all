@@ -1,7 +1,10 @@
 import { createElement } from "react"
 import { ArrowRight, CheckCircle2, FileText, Mail, Search, ShieldCheck } from "lucide-react"
 import type { EcosystemTheme } from "./index.js"
-import { createTrustStrip, createVerticalHero } from "./public-page.js"
+import { createGlobalFooter, createGlobalHeader, createTrustStrip, createVerticalHero } from "./public-page.js"
+import { getWorkflowImageSrc } from "./workflow-images.js"
+
+const AUTH_ENTRY_HREF = "/auth?redirect=%2Fdashboard"
 
 export type SectionTone = "light" | "dark"
 export interface SectionLandingConfig {
@@ -29,52 +32,13 @@ export interface SectionLandingConfig {
 
 const VerticalHero = createVerticalHero(createElement)
 const TrustStrip = createTrustStrip(createElement)
-
-function GlobalHeader({ config }: { config: SectionLandingConfig }) {
-  return <header className="mmp-site-header">
-    <div className="mmp-site-header__inner">
-      <a className="mmp-brand-lockup" href="/" aria-label="MailMyPDF home">
-        <span className="mmp-brand-mark" aria-hidden="true">M</span>
-        <span className="mmp-brand-copy">
-          <span className="mmp-brand-name">MailMyPDF</span>
-          <span className="mmp-brand-product">{config.name}</span>
-        </span>
-      </a>
-      <nav className="mmp-site-nav" aria-label="Primary navigation">
-        <a href="/workflows">All workflows</a>
-        <a href={config.path + "/workflows"}>{config.name} workflows</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#faq">FAQ</a>
-      </nav>
-      <div className="mmp-site-actions">
-        <a className="mmp-button-secondary" href="/auth">Sign in</a>
-        <a className="mmp-button-primary" href={config.path + "/workflows"}>Start a workflow</a>
-      </div>
-    </div>
-  </header>
-}
-
-function GlobalFooter({ config }: { config: SectionLandingConfig }) {
-  return <footer className="mmp-seo-footer">
-    <div className="mmp-section__inner mmp-seo-footer__inner">
-      <div>
-        <strong className="mmp-brand-name">MailMyPDF</strong>
-        <p>{config.name} workflows for document preparation, review, mailing, and proof.</p>
-      </div>
-      <nav aria-label="Footer navigation">
-        <a href="/workflows">Workflows</a>
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="/contact">Contact</a>
-      </nav>
-    </div>
-  </footer>
-}
+const GlobalHeader = createGlobalHeader(createElement)
+const GlobalFooter = createGlobalFooter(createElement)
 
 export function SectionLandingPage({ config }: { config: SectionLandingConfig }) {
   const directory = config.path + "/workflows"
   return <div className="mmp-app" data-mmp-theme={config.id}>
-    <GlobalHeader config={config} />
+    <GlobalHeader productName={config.name} sectionPath={config.path} workflowsPath={directory} authHref={AUTH_ENTRY_HREF} />
     <main>
       <nav className="mmp-breadcrumbs" aria-label="Breadcrumb">
         <div className="mmp-section__inner">
@@ -111,9 +75,11 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
             <p>{config.introText}</p>
           </div>
           <div className="mmp-workflow-grid">
-            {config.featured.map((workflow) => <article className="mmp-workflow-card" key={workflow.slug}>
-              {workflow.imageSrc ? <a className="mmp-workflow-card__media" href={directory + "/" + workflow.slug} aria-label={workflow.title}>
-                <img src={workflow.imageSrc} alt={workflow.imageAlt ?? ""}/>
+            {config.featured.map((workflow) => {
+              const imageSrc = workflow.imageSrc ?? getWorkflowImageSrc(workflow.slug)
+              return <article className="mmp-workflow-card" key={workflow.slug}>
+              {imageSrc ? <a className="mmp-workflow-card__media" href={directory + "/" + workflow.slug} aria-label={workflow.title}>
+                <img src={imageSrc} alt={workflow.imageAlt ?? ""}/>
               </a> : null}
               <div className="mmp-workflow-card__body">
                 <div className="mmp-eyebrow">{config.name}</div>
@@ -121,7 +87,8 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
                 <p>{workflow.description}</p>
                 <a className="mmp-workflow-card__action" href={directory + "/" + workflow.slug}>Explore {workflow.title} →</a>
               </div>
-            </article>)}
+            </article>
+            })}
           </div>
           <div className="mmp-seo-centered-action"><a className="mmp-button-primary" href={directory}>Browse all 30 {config.name} workflows <ArrowRight size={16}/></a></div>
         </div>
@@ -199,6 +166,6 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
         </div>
       </section>
     </main>
-    <GlobalFooter config={config} />
+    <GlobalFooter productName={config.name} tagline={`${config.name} workflows for document preparation, review, mailing, and proof.`} />
   </div>
 }

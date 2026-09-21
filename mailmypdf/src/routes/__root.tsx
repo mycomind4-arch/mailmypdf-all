@@ -13,10 +13,25 @@ import "../../../packages/design-system/src/tokens.css";
 import "../../../packages/design-system/src/patterns.css";
 import "../../../packages/workflow-ui/src/workflow-ui.css";
 import appCss from "../styles.css?url";
+import { registerWorkflowAccessTokenProvider } from "@mailmypdf/workflows";
+import { ensureSupabase, supabase } from "../integrations/supabase/client";
 import { AnalyticsConsent } from "../components/analytics-consent";
 import { startPageTracking } from "../lib/analytics";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { absoluteUrl } from "../lib/site-url";
+
+// Registered at module scope (not inside a component effect) so every new
+// root-level workflow package's browser client — which cannot import this
+// host app's Supabase client directly — can resolve an access token before
+// any of its own effects run, including on a same-tick matter restore after
+// a refresh. See @mailmypdf/workflows' browser-access-token.ts.
+if (typeof window !== "undefined") {
+  registerWorkflowAccessTokenProvider(async () => {
+    await ensureSupabase();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  });
+}
 
 // Analytics domain — when set, Plausible loads. Privacy-friendly, no cookies.
 const ANALYTICS_DOMAIN = process.env.PUBLIC_PLAUSIBLE_DOMAIN || process.env.PLAUSIBLE_DOMAIN;

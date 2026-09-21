@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ensureSupabase, supabase } from "@/integrations/supabase/client";
+import { AUTH_ENTRY_HREF } from "@/lib/auth-navigation";
 import {
   approveCasePacket,
   attachCaseDocument,
@@ -421,7 +422,7 @@ export function SsdiDenialWorkflow() {
             an anonymous browser session.
           </p>
           <Link
-            to="/auth"
+            to={AUTH_ENTRY_HREF}
             search={{ redirect: "/benefits/ssdi-denial" }}
             className="mt-7 inline-flex rounded-full bg-cobalt px-6 py-3 text-sm font-medium text-white"
           >

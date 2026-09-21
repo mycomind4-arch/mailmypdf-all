@@ -13,8 +13,8 @@ import {
   Upload,
 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
+import { HomepageHeroImage } from "@/components/homepage-hero-image";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
-import { mailClassSurchargeUsd, colorPerPageUsd } from "@/lib/pricing";
 import { absoluteUrl } from "@/lib/site-url";
 import {
   SectionHeader,
@@ -40,25 +40,30 @@ function homepageProductTitle(slug: string, fallback: string): string {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MailMyPDF — Turn documents into documented action" },
+      { title: "Mail a PDF or Letter Online | MailMyPDF" },
       {
         name: "description",
         content:
-          "Mail a PDF online, respond to important notices, or complete a specialized document workflow. Prepare, review, approve, send, track, and keep proof of important correspondence with MailMyPDF.",
+          "Mail a PDF or write a letter online without a printer. Review your document, choose mailing options, and see the full price before checkout with MailMyPDF.",
       },
-      { property: "og:title", content: "MailMyPDF — Turn documents into documented action" },
+      { property: "og:title", content: "Mail a PDF or Letter Online | MailMyPDF" },
       {
         property: "og:description",
         content:
-          "Mail a finished PDF or use a specialized workflow to prepare, review, send, track, and keep proof of important correspondence.",
+          "Upload a PDF or write a letter. Review every page, choose your mailing options, and see the full price before checkout.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: absoluteUrl("/") },
-      { property: "og:image", content: absoluteUrl("/hero-document.jpg") },
-      { property: "og:image:width", content: "1024" },
-      { property: "og:image:height", content: "576" },
+      { property: "og:site_name", content: "MailMyPDF" },
+      { property: "og:image", content: absoluteUrl("/homepage/hero-social-v2.jpg") },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "900" },
+      { property: "og:image:alt", content: "MailMyPDF letter and envelope on the coast at sunset" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: absoluteUrl("/hero-document.jpg") },
+      { name: "twitter:title", content: "Mail a PDF or Letter Online | MailMyPDF" },
+      { name: "twitter:description", content: "Prepare, review, and mail important correspondence without a printer." },
+      { name: "twitter:image", content: absoluteUrl("/homepage/hero-social-v2.jpg") },
+      { name: "twitter:image:alt", content: "MailMyPDF letter and envelope on the coast at sunset" },
     ],
     links: [{ rel: "canonical", href: absoluteUrl("/") }],
     scripts: [
@@ -71,27 +76,9 @@ export const Route = createFileRoute("/")({
           description:
             "Online print-and-mail service for important documents with specialized workflows for notices, appeals, immigration correspondence, disputes, records requests, business correspondence, and other document problems.",
           areaServed: "US",
-          offers: [
-            { "@type": "Offer", name: "Mail a document", price: "4.99", priceCurrency: "USD" },
-            {
-              "@type": "Offer",
-              name: "Certified Mail add-on",
-              price: mailClassSurchargeUsd("certified"),
-              priceCurrency: "USD",
-            },
-            {
-              "@type": "Offer",
-              name: "Registered Mail add-on",
-              price: mailClassSurchargeUsd("registered"),
-              priceCurrency: "USD",
-            },
-            {
-              "@type": "Offer",
-              name: "Color printing add-on",
-              price: colorPerPageUsd(),
-              priceCurrency: "USD",
-            },
-          ],
+          url: absoluteUrl("/"),
+          image: absoluteUrl("/homepage/hero-social-v2.jpg"),
+          serviceType: "Online document printing and mailing",
         }),
       },
       {
@@ -100,10 +87,10 @@ export const Route = createFileRoute("/")({
           "@context": "https://schema.org",
           "@type": "ItemList",
           name: "MailMyPDF specialized workflow products",
-          itemListElement: workflowVerticals().map((vertical, index) => ({
+          itemListElement: HOMEPAGE_PATHS.map((vertical, index) => ({
             "@type": "ListItem",
             position: index + 1,
-            name: homepageProductTitle(vertical.slug, vertical.title),
+            name: vertical.title,
             url: absoluteUrl(vertical.href),
           })),
         }),
@@ -115,51 +102,198 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-4 [&_a:focus-visible]:outline-cobalt motion-reduce:[&_a]:transform-none motion-reduce:[&_a]:transition-none motion-reduce:[&_img]:transform-none motion-reduce:[&_img]:transition-none">
       <SiteHeader />
       <main>
-        <Hero />
-        <TrustStrip
-          items={[
-            {
-              icon: <Upload className="h-4 w-4" />,
-              label: "Private by design",
-              description: "Your documents are protected",
-            },
-            {
-              icon: <Eye className="h-4 w-4" />,
-              label: "Guided preparation",
-              description: "Step-by-step, so you can get it right",
-            },
-            {
-              icon: <RouteIcon className="h-4 w-4" />,
-              label: "Tracked mailing",
-              description: "Sent with USPS tracking",
-            },
-            {
-              icon: <ShieldCheck className="h-4 w-4" />,
-              label: "Proof retained",
-              description: "Delivery confirmation saved to your account",
-            },
-          ]}
-        />
-        <WaysToUseMailMyPDF />
-        <CoreMailingSection />
-        <WorkflowDiscovery />
-        <ProblemClusterSection />
-        <HowItWorks />
-        <SecuritySection />
-        <Pricing />
-        <ProofSection />
-        <CTASection
-          title="The next step is clearer when everything is in one place."
-          subtitle="Mail a finished PDF, or find the specialized workflow built for the situation behind it."
-          primaryCTA={{ label: "Mail a PDF", to: "/mail-a-pdf" }}
-          secondaryCTA={{ label: "Find a Workflow", to: "/ecosystem" }}
-        />
+        <HomepageHero />
+        <ChooseYourPath />
+        <HomepageHowItWorks />
+        <HomepagePromise />
+        <HomepageFinalCta />
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function HomepageHero() {
+  return (
+    <section className="relative isolate overflow-hidden bg-[#0b2343] text-white">
+      <div
+        className="absolute inset-0 -z-10 bg-cover bg-center"
+        aria-hidden
+        style={{ backgroundImage: "url(/homepage/coast-sunrise-optimized.webp)" }}
+      />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(5,24,48,.94)_0%,rgba(5,24,48,.74)_44%,rgba(5,24,48,.16)_100%)]" aria-hidden />
+      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:py-16">
+        <div className="max-w-xl">
+          <div className="font-mono text-[11px] uppercase tracking-[0.32em] text-blue-100">Real letters. Real progress.</div>
+          <h1 className="mt-4 max-w-2xl text-4xl leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-6xl xl:text-7xl">
+            Turn Your Documents Into Action.
+          </h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-blue-50 sm:text-lg">
+            Mail a PDF or write a letter online—without a printer. Prepare important correspondence,
+            review every page, and choose how to send it.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/workflows" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-cobalt px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90">
+              Start a Matter <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link to="/ecosystem" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/60 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              Explore Workflows
+            </Link>
+          </div>
+          <div className="mt-9 grid grid-cols-2 gap-4 text-xs text-white/90 sm:grid-cols-4">
+            {[
+              [ShieldCheck, "Secure & Private"],
+              [FileText, "Review Every Page"],
+              [Mail, "Mailing Options"],
+              [Check, "Price Before Payment"],
+            ].map(([Icon, label]) => (
+              <div key={label as string} className="flex items-center gap-2">
+                <Icon className="h-6 w-6 shrink-0 text-white" />
+                <span>{label as string}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="relative min-w-0">
+          <HomepageHeroImage />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const HOMEPAGE_PATHS = [
+  { title: "Notice Respond", text: "Respond to government notices with confidence.", href: "/notice-respond", image: "/homepage/denial-package.png" },
+  { title: "Appeal Mail", text: "Appeal denials and unfavorable decisions.", href: "/appeal-mail", image: "/homepage/justice-gavel.png" },
+  { title: "Immigration Mail", text: "Handle USCIS letters, RFEs, denials, and more.", href: "/immigration-mail", image: "/homepage/immigration-mail.png" },
+  { title: "Dispute Mail", text: "Dispute errors and protect your rights.", href: "/dispute-mail", image: "/homepage/hero-mail-packet.png" },
+  { title: "Records Requests", text: "Request public records and official documents.", href: "/records-request", image: "/homepage/records-folders.png" },
+  { title: "Code Enforcement", text: "Respond to violations and protect your property.", href: "/code-enforcement", image: "/homepage/business-mail.png" },
+  { title: "Private Office", text: "Advanced workflows for complex matters.", href: "/private-office", image: "/homepage/private-office.png" },
+  { title: "Small Business", text: "Handle essential business correspondence.", href: "/small-business", image: "/homepage/small-business.png" },
+  { title: "Legal Case Builder", text: "Create a custom workflow for your specific situation.", href: "/legal-defense", image: "/homepage/legal-case-builder.png" },
+  { title: "Mail a PDF", text: "Have a document ready? We’ll help you print and mail it.", href: "/mail-a-pdf", image: "/homepage/mailbox-icon.png" },
+] as const;
+
+function ChooseYourPath() {
+  return (
+    <section className="border-b border-rule/60 bg-paper">
+      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+        <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <div>
+            <div className="eyebrow">Solutions for real life</div>
+            <h2 className="mt-4 text-4xl leading-none sm:text-5xl">Choose Your Path</h2>
+          </div>
+          <div className="flex items-end justify-between gap-6">
+            <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+              From government notices to personal disputes, MailMyPDF gives you the tools to respond,
+              request, and appeal. Explore each workflow’s scope before you begin.
+            </p>
+            <Link to="/ecosystem" className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-cobalt sm:inline-flex">
+              View All Workflows <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          {HOMEPAGE_PATHS.map((path) => (
+            <Link key={path.title} to={path.href} className="group flex flex-col overflow-hidden rounded-lg border border-rule bg-card shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cobalt/40 hover:shadow-md">
+              <div className="aspect-[1.45/1] overflow-hidden bg-paper-deep">
+                <img src={path.image.replace('.png', '-card.webp')} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" decoding="async" />
+              </div>
+              <div className="flex flex-1 items-start justify-between gap-2 p-3 sm:p-4">
+                <div>
+                  <h3 className="font-serif text-base leading-tight group-hover:text-cobalt sm:text-xl">{path.title}</h3>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{path.text}</p>
+                </div>
+                <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cobalt transition group-hover:translate-x-1 sm:mt-1 sm:h-4 sm:w-4" />
+              </div>
+            </Link>
+          ))}
+        </div>
+        <Link to="/ecosystem" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-cobalt sm:hidden">
+          View All Workflows <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function HomepageHowItWorks() {
+  const steps = [
+    [FileText, "Answer a Few Questions", "Tell us about your situation."],
+    [Stamp, "Prepare Your Documents", "Upload a PDF or use the available preparation tools."],
+    [Eye, "Review & Approve", "Make any changes, then approve."],
+    [Mail, "Choose Your Mailing", "Confirm the price and pay. Tracking depends on the service selected."],
+  ] as const;
+  return (
+    <section className="border-b border-rule/60 bg-card">
+      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <div className="eyebrow">Simple. Secure. Done.</div>
+            <h2 className="mt-4 text-4xl leading-none sm:text-5xl">How It Works</h2>
+          </div>
+          <Link to="/how-it-works" className="hidden items-center gap-2 text-sm font-semibold text-cobalt sm:inline-flex">See the Details <ArrowRight className="h-4 w-4" /></Link>
+        </div>
+        <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+          {steps.map(([Icon, title, text], index) => (
+            <div key={title} className="relative text-center lg:px-5">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-cobalt ring-8 ring-blue-50/60">
+                <Icon className="h-8 w-8" />
+              </div>
+              <h3 className="mt-7 font-sans text-sm font-semibold">{index + 1}. {title}</h3>
+              <p className="mx-auto mt-2 max-w-[16rem] text-sm leading-6 text-muted-foreground">{text}</p>
+              {index < steps.length - 1 && <ArrowRight className="absolute -right-3 top-6 hidden h-5 w-5 text-ink-soft lg:block" aria-hidden />}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomepagePromise() {
+  return (
+    <section className="relative overflow-hidden bg-[#0b2343] text-white">
+      <div className="absolute inset-0 bg-cover bg-center opacity-80" aria-hidden style={{ backgroundImage: "url(/homepage/testimonial-banner-optimized.webp)" }} />
+      <div className="absolute inset-0 bg-[#0b2343]/65" aria-hidden />
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-5 py-14 sm:px-8 md:flex-row md:items-center md:justify-between md:py-16">
+        <div className="max-w-2xl">
+          <h2 className="font-serif text-2xl leading-tight text-white sm:text-3xl">Important correspondence deserves a clear next step.</h2>
+          <p className="mt-4 text-sm leading-6 text-blue-50">From the first draft to the mailing record, see what you’re preparing and review it before checkout.</p>
+        </div>
+        <div className="grid shrink-0 gap-3 text-sm text-white/90 sm:grid-cols-2 md:grid-cols-1">
+          {["Review your document", "Check the addresses", "See your price", "Keep the order record"].map((item) => (
+            <div key={item} className="flex items-center gap-2"><Check className="h-4 w-4" />{item}</div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomepageFinalCta() {
+  return (
+    <section className="border-b border-rule/60 bg-paper">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-12 sm:px-8 md:flex-row md:items-center md:justify-between md:py-16">
+        <div>
+          <div className="eyebrow">A more fair process</div>
+          <h2 className="mt-4 text-4xl leading-none sm:text-5xl">Documents Should Work for You.</h2>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+            Start with a finished PDF or explore a guided workflow. Prepare your correspondence, review the details, and choose your next step with confidence.
+          </p>
+        </div>
+        <div className="shrink-0 md:w-64">
+          <Link to="/workflows" className="flex min-h-12 items-center justify-center gap-2 rounded-md bg-cobalt px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90">
+            Start Your Matter <ArrowRight className="h-4 w-4" />
+          </Link>
+          <p className="mt-3 text-center text-xs text-muted-foreground">Review first. Choose how to send.</p>
+        </div>
+      </div>
+    </section>
   );
 }
 

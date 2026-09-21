@@ -16,14 +16,15 @@
     "build:shared": "pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },
   "dependencies": {
+    "@mailmypdf/design-system": "workspace:*",
     "@mailmypdf/documents": "workspace:*",
     "@mailmypdf/fulfillment": "workspace:*",
     "@mailmypdf/mailing-client": "workspace:*",
     "@mailmypdf/packet-builder": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
-    "@mailmypdf/workflow-acceptance": "workspace:*",
     "@mailmypdf/step-workflow": "workspace:*",
+    "@mailmypdf/workflow-acceptance": "workspace:*",
     "@mailmypdf/workflow-ui": "workspace:*",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.2.1",

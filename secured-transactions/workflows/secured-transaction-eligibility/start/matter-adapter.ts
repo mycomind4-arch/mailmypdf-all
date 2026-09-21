@@ -19,11 +19,9 @@ export const SECURED_TRANSACTION_ELIGIBILITY_WORKFLOW_ID = "secured-transaction-
 export const ELIGIBILITY_INTAKE_STEP_ID = "eligibility-intake";
 
 /**
- * A single, non-branching step. Eligibility gating is not itself a
- * multi-page sequence -- all nine gates are recorded and evaluated
- * together -- so this workflow uses exactly one step of the generic
- * step-matter engine already used by notice-respond, private-office, and
- * immigration-mail, rather than inventing eligibility-specific persistence.
+ * One persisted evidence-evaluation step. The guided UI now groups intake
+ * into six screens, but all nine gates are still evaluated together. This
+ * adapter is not connected to that UI or its local draft files yet.
  */
 export const eligibilityStepWorkflowDefinition: StepWorkflowDefinition = {
   id: SECURED_TRANSACTION_ELIGIBILITY_WORKFLOW_ID,

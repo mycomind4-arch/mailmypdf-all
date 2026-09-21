@@ -172,6 +172,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   let reviewerComments: string[] = [];
   let testerPass = false;
   let reviewerApproved = false;
+  let seoPass = false;
 
   const maxRetries = Math.min(MAX_RETRIES, Math.max(0, (request.budget?.maxAttempts ?? MAX_RETRIES + 1) - 1));
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
@@ -199,6 +200,8 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     await writeRunState(repoRoot, state);
     await emit("builder", "role.finished", `exit code ${builderResult.exitCode}`);
 
+    await commitBuilderChanges(state.worktreeDir, state.workflowId, emit);
+
     setRoleStatus(state, "tester", "running");
     await writeRunState(repoRoot, state);
     await emit("tester", "role.started");
@@ -207,6 +210,7 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       repoRoot,
       verticalId: state.verticalId,
       workflowId: state.workflowId,
+      baseBranch,
       onOutput: onOutput("tester"),
     });
     testerPass = testerResult.pass;
@@ -219,6 +223,39 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
       reviewerComments = [];
       if (attempt === maxRetries) break;
       await emit("orchestrator", "retry", "Tester failed — sending Builder another attempt.");
+      continue;
+    }
+
+    // The SEO gate runs inside the attempt loop, before the Reviewer, so a
+    // thin or unreachable-source page comes back to the Builder as actionable
+    // feedback. Running it after the merge (as it used to) meant a page that
+    // ships noindex and absent from sitemap.xml was still recorded as a
+    // successful run.
+    setRoleStatus(state, "seo", "running");
+    await writeRunState(repoRoot, state);
+    await emit("seo", "role.started");
+    const seoFindings = await runSeoCheck({
+      worktreeDir: state.worktreeDir,
+      repoRoot,
+      verticalId: state.verticalId,
+      workflowId: state.workflowId,
+      publicPath: request.publicPath ?? `/workflows/${state.workflowId}`,
+      onOutput: onOutput("seo"),
+    });
+    const seoBlockers = seoFindings.filter((finding) => !finding.pass && finding.severity !== "warning");
+    seoPass = seoBlockers.length === 0;
+    setRoleStatus(state, "seo", seoPass ? "pass" : "fail", JSON.stringify(seoFindings));
+    await writeRunState(repoRoot, state);
+    await emit("seo", "role.finished", JSON.stringify(seoFindings));
+
+    if (!seoPass) {
+      builderFailure = [
+        "The SEO gate rejected this page. Fix each item below; a page that fails this gate is served noindex and never reaches sitemap.xml.",
+        ...seoBlockers.map((finding) => `- [${finding.check}] ${finding.detail}`),
+      ].join("\n");
+      reviewerComments = [];
+      if (attempt === maxRetries) break;
+      await emit("orchestrator", "retry", "SEO gate failed — sending Builder another attempt.");
       continue;
     }
 
@@ -260,9 +297,14 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     return;
   }
 
-  if (!testerPass || !reviewerApproved) {
+  if (!testerPass || !seoPass || !reviewerApproved) {
+    const reason = !testerPass
+      ? "Tester never passed."
+      : !seoPass
+        ? "SEO gate never passed — the page would ship noindex and absent from sitemap.xml."
+        : "Reviewer never approved.";
     state.status = "needs_human";
-    await emit("orchestrator", "run.needs_human", !testerPass ? "Tester never passed." : "Reviewer never approved.");
+    await emit("orchestrator", "run.needs_human", reason);
     await writeRunState(repoRoot, state);
     return;
   }
@@ -318,23 +360,6 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
     }
   }
 
-  {
-    setRoleStatus(state, "seo", "running");
-    await writeRunState(repoRoot, state);
-    const seoFindings = await runSeoCheck({
-      worktreeDir: state.worktreeDir,
-      repoRoot,
-      verticalId: state.verticalId,
-      workflowId: state.workflowId,
-      publicPath: request.publicPath ?? `/workflows/${state.workflowId}`,
-      onOutput: onOutput("seo"),
-    });
-    const seoPass = seoFindings.every((finding) => finding.pass);
-    setRoleStatus(state, "seo", seoPass ? "pass" : "fail", JSON.stringify(seoFindings));
-    await emit("seo", "role.finished", JSON.stringify(seoFindings));
-    await writeRunState(repoRoot, state); // advisory only — never blocks the merge below
-  }
-
   await emit("orchestrator", "merge.started", `Merging ${state.branch} into ${INTEGRATION_BRANCH}.`);
   const ensureIntegrationBranch = await git(repoRoot, ["rev-parse", "--verify", INTEGRATION_BRANCH]);
   if (ensureIntegrationBranch.exitCode !== 0) {
@@ -359,6 +384,43 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   // The run's own branch is now fully captured in INTEGRATION_BRANCH's
   // history — its worktree and branch have served their purpose.
   await cleanupWorktree(repoRoot, state);
+}
+
+/**
+ * The Builder role deliberately has no Bash access — see providers.ts's
+ * comment on why: a disposable worktree doesn't stop a shell command from
+ * reaching the rest of the developer machine, so `acceptEdits` (file edits
+ * only) is used instead of `bypassPermissions`. That means the Builder can
+ * write and edit files but can never run `git commit` itself. Confirmed by a
+ * real run: genuinely correct, hand-verified edits sat uncommitted in the
+ * worktree, and the Reviewer correctly reported an empty diff since nothing
+ * had been committed for it to review. The orchestrator already runs
+ * trusted `git` commands directly for worktree setup and merge, so it is the
+ * right place to capture whatever the Builder actually wrote, before
+ * Tester/Reviewer look at it — this preserves the Builder's sandboxing while
+ * fixing the run so real edits are not silently lost.
+ */
+async function commitBuilderChanges(
+  worktreeDir: string,
+  workflowId: string,
+  emit: (role: RunEvent["role"], type: string, detail?: string) => Promise<void> | void,
+): Promise<void> {
+  const add = await git(worktreeDir, ["add", "-A"]);
+  if (add.exitCode !== 0) {
+    await emit("orchestrator", "commit.failed", add.stderr || "git add failed.");
+    return;
+  }
+  const staged = await git(worktreeDir, ["diff", "--cached", "--stat"]);
+  if (!staged.stdout.trim()) {
+    await emit("orchestrator", "commit.skipped", "No file changes after the Builder's turn.");
+    return;
+  }
+  const commit = await git(worktreeDir, ["commit", "-m", `agent: ${workflowId} builder changes`]);
+  if (commit.exitCode !== 0) {
+    await emit("orchestrator", "commit.failed", commit.stderr || "git commit failed.");
+    return;
+  }
+  await emit("orchestrator", "commit.done", staged.stdout.trim());
 }
 
 async function runWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
@@ -407,7 +469,38 @@ async function overlayWorkingTree(repoRoot: string, worktreeDir: string, onOutpu
   const distCopy = await copyPackageDistOutputs(repoRoot, worktreeDir, onOutput);
   if (!distCopy.pass) return distCopy;
 
+  // `git diff HEAD` only ever covers files git already knows about — a
+  // brand-new file (a new route mount, a new module) that was never `git
+  // add`-ed is invisible to it, so it silently never reached the worktree.
+  // Confirmed by a real run: a Builder had to reconstruct a reference file
+  // from scratch because a genuinely new file from the current session
+  // wasn't there. `git ls-files --others --exclude-standard` is exactly the
+  // same "Untracked files" list `git status` shows — it can never surface
+  // something .gitignore excludes, so this preserves the exact secret
+  // boundary the tracked-diff-only design above exists for.
+  const untrackedCopy = await copyUntrackedFiles(repoRoot, worktreeDir, onOutput);
+  if (!untrackedCopy.pass) return untrackedCopy;
+
   return { pass: true, detail: "Tracked changes overlaid." };
+}
+
+async function copyUntrackedFiles(repoRoot: string, worktreeDir: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {
+  const list = await git(repoRoot, ["ls-files", "--others", "--exclude-standard"]);
+  if (list.exitCode !== 0) return { pass: false, detail: list.stderr || "Could not list untracked files." };
+  const files = list.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  for (const relPath of files) {
+    const src = path.join(repoRoot, relPath);
+    const dest = path.join(worktreeDir, relPath);
+    try {
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await fs.copyFile(src, dest);
+    } catch (error) {
+      const detail = `Could not copy untracked file ${relPath} into the worktree: ${error instanceof Error ? error.message : String(error)}`;
+      onOutput(`${detail}\n`);
+      return { pass: false, detail };
+    }
+  }
+  return { pass: true, detail: `${files.length} untracked file(s) copied.` };
 }
 
 async function copyPackageDistOutputs(repoRoot: string, worktreeDir: string, onOutput: (chunk: string) => void): Promise<{ pass: boolean; detail: string }> {

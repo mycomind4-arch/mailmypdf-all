@@ -1,7 +1,5 @@
 import './globals.css'
-import '../../../../packages/design-system/src/tokens.css'
-import '../../../../packages/design-system/src/patterns.css'
-import '../../../../packages/design-system/src/workspace.css'
+import '@mailmypdf/design-system/vertical-landing.css'
 import EcosystemNav from './components/EcosystemNav'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://records.mailmypdf.ai'

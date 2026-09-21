@@ -1,3 +1,4 @@
+import { createElement } from "react"
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,6 +17,14 @@ import {
   Upload,
   UserRound,
 } from "lucide-react"
+import { createGlobalFooter, createGlobalHeader, createTrustStrip, createVerticalHero } from "./public-page.js"
+import { getWorkflowImageSrc } from './workflow-images.js'
+
+const AUTH_ENTRY_HREF = "/auth?redirect=%2Fdashboard"
+const VerticalHero = createVerticalHero(createElement)
+const TrustStrip = createTrustStrip(createElement)
+const GlobalHeader = createGlobalHeader(createElement)
+const GlobalFooter = createGlobalFooter(createElement)
 
 export interface WorkflowLandingConfig {
   id: string
@@ -43,6 +52,8 @@ export interface WorkflowLandingConfig {
   workspaceHighlights?: ReadonlyArray<readonly [string, string]>
   workflowSteps?: ReadonlyArray<readonly [string, string]>
   readyItems?: ReadonlyArray<readonly [string, string]>
+  /** Adjacent workflows to cross-link when this one isn't quite the right fit. */
+  relatedWorkflows?: ReadonlyArray<{ title: string; path: string; description: string }>
 }
 
 const defaultWhatYouDo = [
@@ -62,6 +73,15 @@ const defaultOutputs = [
   "A connected record of supporting facts and documents",
   "A review step before any consequential action or mailing",
 ]
+
+const defaultTrustHighlights = [
+  ["Source-grounded drafting", "Drafts are prepared only from the source document and the facts you confirm, never invented."],
+  ["Reviewed at every step", "Extracted details and generated text stay visible and editable before anything moves forward."],
+  ["Mailing and proof included", "Approve the exact packet, then mail it and keep the tracking and proof record together."],
+] as const
+
+const trustIcons = [FileCheck2, BrainCircuit, ShieldCheck] as const
+const readyIcons = [FileText, FolderOpen, FileCheck2, UserRound] as const
 
 const defaultAppealHighlights = [
   ["Official forms", "Prepare the forms and correspondence required for the appeal."],
@@ -100,6 +120,7 @@ const appealLandingStyles = `
 `
 
 function AppealMailWorkflowLandingPage({ config }: { config: WorkflowLandingConfig }) {
+  const heroImage = config.heroImage ?? getWorkflowImageSrc(config.id)
   const highlights = config.workspaceHighlights ?? defaultAppealHighlights
   const steps = config.workflowSteps ?? defaultAppealSteps
   const readyItems = config.readyItems ?? (config.whatYouNeed ?? defaultWhatYouNeed).map((item) => [item, ""] as const)
@@ -148,7 +169,7 @@ function AppealMailWorkflowLandingPage({ config }: { config: WorkflowLandingConf
           </div>
 
           <div className="mmp-appeal-landing__visual">
-            {config.heroImage ? <img src={config.heroImage} alt={config.heroImageAlt ?? config.title}/> : <div className="mmp-appeal-landing__visual-fallback"><FileText size={72}/></div>}
+            {heroImage ? <img src={heroImage} alt={config.heroImageAlt ?? config.title}/> : <div className="mmp-appeal-landing__visual-fallback"><FileText size={72}/></div>}
           </div>
         </section>
 
@@ -195,6 +216,14 @@ function AppealMailWorkflowLandingPage({ config }: { config: WorkflowLandingConf
   </div>
 }
 
+/**
+ * The one public, unauthenticated workflow landing page every workflow uses
+ * (this is deliberately the SEO surface — the matching authenticated
+ * workspace/dashboard views live under _authenticated/dashboard/workflows and
+ * are out of scope here). Sections beyond the hero and 3-up summary render
+ * only when the config actually supplies their data, so an unfinished config
+ * degrades gracefully instead of showing an empty section.
+ */
 export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig }) {
   if (config.sectionId === "appeal-mail") {
     return <AppealMailWorkflowLandingPage config={config}/>
@@ -203,28 +232,15 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
   const whatYouDo = config.whatYouDo ?? defaultWhatYouDo
   const whatYouNeed = config.whatYouNeed ?? defaultWhatYouNeed
   const outputs = config.outputs ?? defaultOutputs
+  const heroImage = config.heroImage ?? getWorkflowImageSrc(config.id)
+  const directory = config.sectionPath + "/workflows"
+  const trustHighlights = config.workspaceHighlights ?? defaultTrustHighlights
+  const workflowSteps = config.workflowSteps ?? []
+  const readyItems = config.readyItems ?? []
+  const relatedWorkflows = config.relatedWorkflows ?? []
 
   return <div className="mmp-app" data-mmp-theme={config.sectionId}>
-    <header className="mmp-site-header">
-      <div className="mmp-site-header__inner">
-        <a className="mmp-brand-lockup" href="/" aria-label="MailMyPDF home">
-          <span className="mmp-brand-mark" aria-hidden="true">M</span>
-          <span className="mmp-brand-copy">
-            <span className="mmp-brand-name">MailMyPDF</span>
-            <span className="mmp-brand-product">{config.sectionName}</span>
-          </span>
-        </a>
-        <nav className="mmp-site-nav" aria-label="Primary navigation">
-          <a href={config.sectionPath}>Overview</a>
-          <a href={config.sectionPath + "/workflows"}>{config.sectionName} workflows</a>
-          <a href="/workflows">All workflows</a>
-        </nav>
-        <div className="mmp-site-actions">
-          <a className="mmp-button-secondary" href="/auth">Sign in</a>
-          <a className="mmp-button-primary" href={config.startPath}>Start workflow</a>
-        </div>
-      </div>
-    </header>
+    <GlobalHeader productName={config.sectionName} sectionPath={config.sectionPath} workflowsPath={directory} authHref={AUTH_ENTRY_HREF} />
 
     <main>
       <nav className="mmp-breadcrumbs" aria-label="Breadcrumb">
@@ -235,29 +251,25 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         </div>
       </nav>
 
-      {config.heroImage ? <section
-        className={`mmp-vertical-hero mmp-vertical-hero--${config.heroTone ?? "dark"}`}
-        data-mmp-hero-theme={config.sectionId}
-      >
-        <div
-          className="mmp-vertical-hero__media mmp-vertical-hero__media--background"
-          role="img"
-          aria-label={config.heroImageAlt ?? config.title}
-          style={{ backgroundImage: `url("${config.heroImage}")`, backgroundSize: "cover", backgroundPosition: "center" }}
+      {heroImage ? (
+        <VerticalHero
+          theme={config.sectionId as any}
+          tone={config.heroTone ?? "dark"}
+          eyebrow={config.eyebrow}
+          title={config.heroTitle}
+          description={config.heroDescription}
+          imageSrc={heroImage}
+          imageAlt={config.heroImageAlt ?? config.title}
+          actions={<>
+            <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
+            <a className="mmp-button-secondary" href={directory}>Browse related workflows</a>
+          </>}
+          meta={<>
+            {workflowSteps.length ? <span>{workflowSteps.length}-step guided workflow</span> : null}
+            <span>Review before mailing</span>
+          </>}
         />
-        <div className="mmp-vertical-hero__scrim" aria-hidden="true" />
-        <div className="mmp-vertical-hero__inner">
-          <div className="mmp-vertical-hero__copy">
-            <div className="mmp-vertical-hero__eyebrow">{config.eyebrow}</div>
-            <h1 className="mmp-vertical-hero__title">{config.heroTitle}</h1>
-            <p className="mmp-vertical-hero__lede">{config.heroDescription}</p>
-            <div className="mmp-vertical-hero__actions">
-              <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
-              <a className="mmp-button-secondary" href={config.sectionPath + "/workflows"}>Browse related workflows</a>
-            </div>
-          </div>
-        </div>
-      </section> : <section className="mmp-section">
+      ) : <section className="mmp-section">
         <div className="mmp-section__inner">
           <div className="mmp-section-heading">
             <div>
@@ -268,12 +280,17 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
               <p>{config.heroDescription}</p>
               <div className="mmp-site-actions">
                 <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
-                <a className="mmp-button-secondary" href={config.sectionPath + "/workflows"}>Browse related workflows</a>
+                <a className="mmp-button-secondary" href={directory}>Browse related workflows</a>
               </div>
             </div>
           </div>
         </div>
       </section>}
+
+      <TrustStrip items={trustHighlights.map(([title, description], index) => {
+        const Icon = trustIcons[index % trustIcons.length]!
+        return { icon: <Icon size={16}/>, title, description }
+      })} />
 
       <section className="mmp-section mmp-section--tight">
         <div className="mmp-section__inner">
@@ -297,11 +314,66 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         </div>
       </section>
 
+      {workflowSteps.length ? <section id="how-it-works" className="mmp-section">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">How it works</div><h2>Step by step, from the source document to mailed proof.</h2></div>
+            <p>{config.title} follows the same reviewed sequence every time: a source document, confirmed facts, a drafted response, an exact reviewed packet, and a mailed, tracked record.</p>
+          </div>
+          <div className="mmp-process-grid">
+            {workflowSteps.map(([title, description], index) => (
+              <div className="mmp-process-step" key={title}>
+                <span className="mmp-process-step__number">{index + 1}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section> : null}
+
+      {readyItems.length ? <section className="mmp-section mmp-section--tight">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">Before you start</div><h2>What you'll need for {config.title}.</h2></div>
+            <p>Have these ready to get started. You can add more supporting material once the matter is open.</p>
+          </div>
+          <div className="mmp-ready-grid">
+            {readyItems.map(([title, description], index) => {
+              const Icon = readyIcons[index % readyIcons.length]!
+              return <div className="mmp-card mmp-ready-item" key={title}>
+                <span className="mmp-ready-item__icon" aria-hidden="true"><Icon/></span>
+                <div><h3>{title}</h3>{description ? <p>{description}</p> : null}</div>
+              </div>
+            })}
+          </div>
+        </div>
+      </section> : null}
+
       {config.faqs?.length ? <section id="faq" className="mmp-section">
         <div className="mmp-section__inner mmp-seo-faq-wrap">
           <div><div className="mmp-eyebrow">Common questions</div><h2 className="mmp-seo-faq-title">About this workflow</h2></div>
           <div className="mmp-seo-faq-list">
             {config.faqs.map(([q,a]) => <details className="mmp-seo-faq" key={q}><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}
+          </div>
+        </div>
+      </section> : null}
+
+      {relatedWorkflows.length ? <section className="mmp-section mmp-section--tight mmp-seo-related">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">Not quite the right fit?</div><h2>Related {config.sectionName} workflows.</h2></div>
+            <p>If your situation is close but not exactly this one, one of these may match it better.</p>
+          </div>
+          <div className="mmp-seo-related-grid">
+            {relatedWorkflows.map((item) => (
+              <a className="mmp-card mmp-seo-related-card" href={item.path} key={item.path}>
+                <span className="mmp-eyebrow">{config.sectionName}</span>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+                <strong>Explore {item.title} →</strong>
+              </a>
+            ))}
           </div>
         </div>
       </section> : null}
@@ -318,5 +390,6 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         </div>
       </section>
     </main>
+    <GlobalFooter productName={config.sectionName} tagline={`${config.sectionName} workflows for document preparation, review, mailing, and proof.`} />
   </div>
 }

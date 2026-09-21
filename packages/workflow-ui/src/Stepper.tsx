@@ -43,6 +43,7 @@ export function Stepper({ steps, currentStepId, completedStepIds, onStepClick, c
               disabled={!isClickable}
               onClick={() => isClickable && onStepClick?.(step.id)}
               aria-current={isCurrent ? "step" : undefined}
+              aria-label={`Step ${index + 1}: ${step.label}`}
             >
               {isComplete ? (
                 <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">

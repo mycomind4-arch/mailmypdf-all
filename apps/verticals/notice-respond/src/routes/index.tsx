@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Eye, FileText, Mail, Search, ShieldCheck } from "lucide-react";
 import { createElement } from "react";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { NOTICE_WORKFLOWS } from "@/components/notice-workflow-directory-fixed";
-import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from "@mailmypdf/design-system/public";
 
 const SITE_ORIGIN = "https://notice-respond.pages.dev";
+const PublicLandingFrame = createPublicLandingFrame(createElement);
 const VerticalHero = createVerticalHero(createElement);
 const TrustStrip = createTrustStrip(createElement);
 
@@ -33,8 +32,7 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const featured = NOTICE_WORKFLOWS.slice(0, 6);
   const categories = [...new Set(NOTICE_WORKFLOWS.map((workflow) => workflow.category))];
-  return <main>
-    <SiteHeader />
+  return <PublicLandingFrame theme="notice-respond" name="Notice Respond">
     <VerticalHero
       theme="notice-respond"
       tone="dark"
@@ -91,6 +89,5 @@ function HomePage() {
     </section>
 
     <section className="mmp-section"><div className="mmp-section__inner"><div className="mmp-final-cta"><div className="mmp-final-cta__inner"><div><h2>Open the notice. Understand it. Build the response.</h2><p>Start with the document in front of you and move into the protected workflow only when you're ready to work on the actual response.</p></div><Link to="/workflows/analyze" className="mmp-button-primary">Analyze My Notice →</Link></div></div></div></section>
-    <SiteFooter />
-  </main>;
+  </PublicLandingFrame>;
 }

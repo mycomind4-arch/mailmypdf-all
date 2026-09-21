@@ -49,8 +49,22 @@ export async function runBuilder(
 
 type AcceptanceRegistryEntry = { vertical: string; verticalDir: string };
 
+/** Paths whose contents are authored authority copy and nothing else. A change
+ * confined to these cannot alter any vertical's runtime behaviour. */
+const AUTHORITY_CONTENT_PATH = "mailmypdf/src/lib/workflow-seo-entries/";
+
+/**
+ * Returns every path changed on this run's branch, or null if the diff can't
+ * be read (in which case callers must assume the change is unscoped).
+ */
+async function changedPaths(worktreeDir: string, baseBranch: string): Promise<string[] | null> {
+  const diff = await spawnAndCapture("git", ["diff", "--name-only", `${baseBranch}...HEAD`], worktreeDir, () => {});
+  if (diff.exitCode !== 0) return null;
+  return diff.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
 export async function runTester(
-  ctx: RoleRunContext,
+  ctx: RoleRunContext & { baseBranch?: string },
 ): Promise<{ pass: boolean; detail: string }> {
   const registryPath = path.join(ctx.worktreeDir, "packages", "workflow-acceptance", "registry", "workflows.json");
   let registry: Record<string, AcceptanceRegistryEntry> = {};
@@ -73,10 +87,44 @@ export async function runTester(
     return { pass: false, detail: `Acceptance test infrastructure error (exit ${result.exitCode}).\n${result.stderr}` };
   }
 
+  // A run that only authored authority copy has not touched any vertical's
+  // code, so the vertical's suite can neither confirm nor refute it — and
+  // several verticals carry large pre-existing failure baselines (appeal-mail
+  // has ~50 failing files per context/FACTORY_STATUS.md), which would fail the
+  // run before the SEO gate ever sees it. The real check for this kind of
+  // change is the Authority Gate, which now blocks and which imports the
+  // authored module, so a malformed or non-compiling record fails there.
+  //
+  // The condition is deliberately strict: EVERY changed path must be authored
+  // content. Anything else, including an unreadable diff, runs the full suite.
+  if (ctx.baseBranch) {
+    const changed = await changedPaths(ctx.worktreeDir, ctx.baseBranch);
+    if (changed && changed.length > 0 && changed.every((file) => file.startsWith(AUTHORITY_CONTENT_PATH))) {
+      return {
+        pass: true,
+        detail:
+          `Authored authority content only (${changed.length} file(s) under ${AUTHORITY_CONTENT_PATH}); ` +
+          "no vertical code changed, so the vertical suite was not run. Correctness for this change is enforced by the blocking SEO/Authority Gate.",
+      };
+    }
+  }
+
   // No acceptance coverage for this workflow — fall back to the vertical's own suite.
+  // Filtering by bare verticalId (a pnpm package-name filter) is a trap for any
+  // vertical that has migrated to the new root-level architecture: the legacy
+  // apps/verticals/<id> package is very often named exactly "<id>" (unscoped),
+  // while the new root-level package is "@mailmypdf/<id>" — pnpm matches by
+  // exact name, so a bare filter silently resolves to the OLD package and
+  // tests the wrong code (with its own unrelated pre-existing failures) while
+  // reporting a false verdict on the new architecture. Resolve by path instead,
+  // which is unambiguous regardless of either package's declared name.
+  const newArchDir = path.join(ctx.worktreeDir, ctx.verticalId);
+  const testFilter = await fileExists(path.join(newArchDir, "package.json"))
+    ? `./${ctx.verticalId}`
+    : `./apps/verticals/${ctx.verticalId}`;
   const result = await spawnAndCapture(
     "pnpm",
-    ["--filter", ctx.verticalId, "run", "test"],
+    ["--filter", testFilter, "run", "test"],
     ctx.worktreeDir,
     ctx.onOutput,
   );
@@ -121,12 +169,18 @@ function findJsonObjects(text: string): Record<string, unknown>[] {
 
 /**
  * Extracts the Reviewer's verdict from a provider's raw CLI output.
- * Handles two shapes: codex's `--json` JSONL, where the model's actual reply
- * is nested as an escaped JSON *string* inside an
- * `{"type":"item.completed","item":{"type":"agent_message","text":"..."}}`
- * event (so a plain brace-scan over the outer stdout finds the wrapper, not
- * the verdict, unless we also parse the text field) — and a plainer format
- * (e.g. Claude's) where the verdict may just be the final object in stdout.
+ * Handles three shapes, all escaped JSON *strings* nested inside an outer
+ * event rather than a bare top-level object — so a plain brace-scan over the
+ * outer stdout only ever finds the wrapper, not the verdict, unless each of
+ * these string fields is also parsed on its own:
+ * - codex's `--json` JSONL: `{"type":"item.completed","item":{"type":"agent_message","text":"..."}}`.
+ * - Claude's streaming `assistant`/`message` events: `{"message":{"content":[{"type":"text","text":"..."}]}}` (handled elsewhere) — but Claude's own final
+ *   `{"type":"result",...,"result":"..."}` summary event carries the same
+ *   reply as a `result` string field, which a short single-turn reply
+ *   (`stop_reason: "end_turn"`) can arrive as *instead of* a streamed
+ *   `assistant` event — confirmed via a real run where a well-formed
+ *   `{"approved":false,...}` verdict was missed because only `.item.text`/
+ *   `.message.text` were checked, never `.result`.
  */
 function extractLastVerdict(stdout: string): Record<string, unknown> | null {
   const candidateTexts: string[] = [];
@@ -135,7 +189,7 @@ function extractLastVerdict(stdout: string): Record<string, unknown> | null {
     if (!trimmed.startsWith("{")) continue;
     try {
       const event = JSON.parse(trimmed);
-      const text = event?.item?.text ?? event?.message?.text;
+      const text = event?.item?.text ?? event?.message?.text ?? (typeof event?.result === "string" ? event.result : undefined);
       if (typeof text === "string") candidateTexts.push(text);
     } catch {
       // Not a JSONL event line — ignore.
@@ -240,9 +294,163 @@ export async function runSpecialistReview(
 
 // -- SEO --------------------------------------------------------------------
 
-export type SeoFinding = { check: string; pass: boolean; detail: string };
+export type SeoFinding = { check: string; pass: boolean; detail: string; severity?: "error" | "warning" };
 
-export async function runSeoCheck(ctx: RoleRunContext & { publicPath: string }): Promise<SeoFinding[]> {
+/** Minimum element counts for the shared WorkflowLandingPage's content sections.
+ * A present-but-empty array renders an empty section, which is why these are
+ * counts rather than existence checks. */
+const CONFIG_LIST_FIELDS = [
+  ["what-you-do", "whatYouDo", 3],
+  ["what-you-need", "whatYouNeed", 3],
+  ["outputs", "outputs", 2],
+  ["faqs", "faqs", 4],
+  ["workflow-steps", "workflowSteps", 4],
+  ["ready-items", "readyItems", 3],
+] as const;
+
+/**
+ * Counts top-level elements of an array literal assigned to `field`, tracking
+ * string, comment, bracket and brace state so nested objects/arrays and
+ * commas inside strings don't inflate the count. Returns null when the field
+ * isn't present at all.
+ *
+ * A regex can only answer "does `field: [` appear", which `faqs: []` satisfies
+ * — the exact shape of thin config this check exists to catch.
+ */
+export function countArrayElements(source: string, field: string): number | null {
+  const match = new RegExp(`\\b${field}\\s*:\\s*\\[`).exec(source);
+  if (!match) return null;
+  let index = match.index + match[0].length;
+  let depth = 0;
+  let elements = 0;
+  // Counted per segment rather than per comma so a trailing comma —
+  // near-universal in this codebase's formatting — doesn't add a phantom element.
+  let segmentHasContent = false;
+  let inString: string | null = null;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === "*" && next === "/") { inBlockComment = false; index += 1; }
+      continue;
+    }
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === inString) inString = null;
+      continue;
+    }
+    if (char === "/" && next === "/") { inLineComment = true; index += 1; continue; }
+    if (char === "/" && next === "*") { inBlockComment = true; index += 1; continue; }
+    if (char === '"' || char === "'" || char === "`") { inString = char; segmentHasContent = true; continue; }
+
+    if (char === "[" || char === "{" || char === "(") { depth += 1; segmentHasContent = true; continue; }
+    if (char === ")" || char === "}") { depth -= 1; continue; }
+    if (char === "]") {
+      if (depth === 0) return segmentHasContent ? elements + 1 : elements;
+      depth -= 1;
+      continue;
+    }
+    if (char === "," && depth === 0) {
+      if (segmentHasContent) elements += 1;
+      segmentHasContent = false;
+      continue;
+    }
+    if (!/\s/.test(char)) segmentHasContent = true;
+  }
+  return null;
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks a workflow landing page against the new root-level architecture
+ * (see context/CURRENT_WORK.md and packages/design-system's WorkflowLandingPage):
+ * a real config.ts, actually mounted at mailmypdf/src/routes/ (a config with
+ * nothing mounting it is exactly the gap CP14 exposed — see
+ * context/FACTORY_STATUS.md's 2026-09-20 entry), indexable, every shared-
+ * template content section populated, and listed in the sitemap.
+ *
+ * Every migrated vertical's root-level package directory shares its vertical
+ * id (notice-respond, appeal-mail, records-request, immigration-mail), so
+ * this needs no separate registry of root directories.
+ */
+async function runNewArchitectureSeoCheck(
+  ctx: RoleRunContext & { publicPath: string },
+  configSource: string,
+): Promise<SeoFinding[]> {
+  const findings: SeoFinding[] = [{ check: "config-file", pass: true, detail: `Found ${ctx.verticalId}/workflows/${ctx.workflowId}/config.ts.` }];
+
+  const mountPath = path.join(ctx.worktreeDir, "mailmypdf", "src", "routes", ctx.verticalId, "workflows", ctx.workflowId, "index.tsx");
+  const mounted = await fileExists(mountPath);
+  findings.push({
+    check: "route-mounted",
+    pass: mounted,
+    detail: mounted
+      ? `Mounted at mailmypdf/src/routes/${ctx.verticalId}/workflows/${ctx.workflowId}/.`
+      : `No mount file at mailmypdf/src/routes/${ctx.verticalId}/workflows/${ctx.workflowId}/index.tsx — TanStack Router's file-based generator only scans mailmypdf/src/routes/, so the page will not actually serve until this exists.`,
+  });
+
+  const hasStartMount = await fileExists(path.join(ctx.worktreeDir, "mailmypdf", "src", "routes", ctx.verticalId, "workflows", ctx.workflowId, "start", "index.tsx"));
+  findings.push({
+    check: "start-route-mounted",
+    pass: hasStartMount,
+    detail: hasStartMount ? "The /start execution route is mounted." : `No mount file for the /start route — visitors can't actually begin the workflow.`,
+  });
+
+  const indexable = /indexable\s*:\s*true/.test(configSource);
+  findings.push({ check: "indexable", pass: indexable, detail: indexable ? "indexable: true." : "indexable is false (or missing) — search engines will be told not to index this page." });
+
+  for (const [check, field, minimum] of CONFIG_LIST_FIELDS) {
+    const count = countArrayElements(configSource, field);
+    if (count === null) {
+      findings.push({
+        check,
+        pass: false,
+        detail: `${field} is missing from config.ts — the shared WorkflowLandingPage template renders nothing for that section without it.`,
+      });
+      continue;
+    }
+    findings.push({
+      check,
+      pass: count >= minimum,
+      detail: count >= minimum
+        ? `${field} has ${count} entries.`
+        : `${field} has ${count} ${count === 1 ? "entry" : "entries"}, below the ${minimum} this section needs to render as anything other than a thin stub.`,
+    });
+  }
+
+  const sitemapSource = await fs.readFile(path.join(ctx.worktreeDir, "mailmypdf", "src", "routes", "sitemap[.]xml.ts"), "utf8").catch(() => "");
+  const inSitemap = sitemapSource.includes(`${ctx.verticalId}/workflows/${ctx.workflowId}/config`);
+  findings.push({
+    check: "sitemap-entry",
+    pass: inSitemap,
+    detail: inSitemap
+      ? "Referenced from mailmypdf/src/routes/sitemap[.]xml.ts."
+      : `${ctx.workflowId}'s config is not imported/listed in mailmypdf/src/routes/sitemap[.]xml.ts yet, so it won't appear in sitemap.xml even if indexable.`,
+  });
+
+  return findings;
+}
+
+/** Legacy apps/verticals/<vertical> architecture — kept for verticals not yet migrated. */
+async function runLegacyArchitectureSeoCheck(ctx: RoleRunContext & { publicPath: string }): Promise<SeoFinding[]> {
   const findings: SeoFinding[] = [];
   const verticalDir = path.join(ctx.worktreeDir, "apps", "verticals", ctx.verticalId);
   const routeFile = path.join(verticalDir, "src", "routes", "workflows", `${ctx.workflowId}.tsx`);
@@ -276,6 +484,154 @@ export async function runSeoCheck(ctx: RoleRunContext & { publicPath: string }):
   });
 
   return findings;
+}
+
+type AuthorityGatePayload = {
+  ok?: boolean;
+  error?: string;
+  result?: {
+    id: string;
+    state: string;
+    score: number;
+    minimumScore: number;
+    substantiveWordCount: number;
+    eligibleForIndexing: boolean;
+    issues?: { code: string; message: string; severity: "error" | "warning" }[];
+  };
+  sources?: { title: string; publisher: string; url: string; kind: string }[];
+};
+
+/**
+ * Runs the host app's real Authority Gate for this workflow's public page.
+ *
+ * The 100 indexable workflow pages are served from the authority catalog, not
+ * from the new-architecture config.ts tree, so a config-only SEO check reports
+ * nothing at all about them. The gate is the project's own published standard
+ * (>=1200 substantive words, >=85/100 across ten dimensions, cross-page
+ * duplicate and near-duplicate detection), so the agent defers to it rather
+ * than inventing a second, weaker definition of "good enough".
+ */
+async function runAuthorityGateCheck(
+  ctx: RoleRunContext & { publicPath: string },
+): Promise<SeoFinding[] | null> {
+  const appDir = path.join(ctx.worktreeDir, "mailmypdf");
+  if (!(await fileExists(path.join(appDir, "scripts", "validate-workflow-authority.ts")))) return null;
+
+  const run = await spawnAndCapture(
+    "npx",
+    ["tsx", "scripts/validate-workflow-authority.ts", "--json", "--route", ctx.publicPath],
+    appDir,
+    ctx.onOutput,
+  );
+
+  let payload: AuthorityGatePayload | null = null;
+  for (const line of run.stdout.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    try {
+      payload = JSON.parse(trimmed) as AuthorityGatePayload;
+    } catch {
+      // Not the verdict line — keep scanning.
+    }
+  }
+
+  // No catalog record for this route: this workflow's public page is served by
+  // another system, so the caller should fall through rather than fail it here.
+  if (!payload || (!payload.result && payload.error)) return null;
+
+  const result = payload.result!;
+  const findings: SeoFinding[] = [
+    {
+      check: "authority-gate",
+      pass: result.eligibleForIndexing,
+      detail: result.eligibleForIndexing
+        ? `Authority Gate passed: ${result.score}/${result.minimumScore} minimum, ${result.substantiveWordCount} substantive words, state ${result.state}.`
+        : `Authority Gate failed: ${result.score}/100 against a ${result.minimumScore} minimum, ${result.substantiveWordCount} substantive words, state ${result.state}. The page stays noindex and out of sitemap.xml until this passes.`,
+    },
+  ];
+
+  for (const gateIssue of result.issues ?? []) {
+    findings.push({
+      check: `authority:${gateIssue.code.toLowerCase().replace(/_/g, "-")}`,
+      pass: gateIssue.severity !== "error",
+      detail: gateIssue.message,
+      severity: gateIssue.severity,
+    });
+  }
+
+  findings.push(...(await verifySourceUrls(payload.sources ?? [])));
+  return findings;
+}
+
+/**
+ * Fetches every cited authority source and reports the ones that don't resolve.
+ *
+ * The gate validates that a source URL is well-formed HTTPS, which a confidently
+ * invented URL also is. Generated authority content is exactly where fabricated
+ * citations appear, and on this product's subject matter (benefits, immigration,
+ * tax notices, criminal defense) a dead or wrong citation is a credibility
+ * problem, not a broken link. Checked at agent time because the gate itself must
+ * stay a pure, offline function.
+ */
+async function verifySourceUrls(
+  sources: { title: string; publisher: string; url: string; kind: string }[],
+): Promise<SeoFinding[]> {
+  if (!sources.length) return [];
+  return Promise.all(sources.map(async (source) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      let response = await fetch(source.url, {
+        method: "GET",
+        redirect: "follow",
+        signal: controller.signal,
+        // Several .gov hosts reject requests without a browser user agent, which
+        // would otherwise read as a dead citation.
+        headers: { "user-agent": "Mozilla/5.0 (compatible; MailMyPDF-SEO-Agent)" },
+      });
+      if (response.status === 405) {
+        response = await fetch(source.url, { method: "GET", redirect: "follow", signal: controller.signal });
+      }
+      const reachable = response.status >= 200 && response.status < 400;
+      // A 403 is usually bot filtering rather than a missing page, so it is
+      // surfaced for a human to confirm instead of failing the run outright.
+      const ambiguous = response.status === 403 || response.status === 429;
+      return {
+        check: `source-url:${source.publisher}`,
+        pass: reachable || ambiguous,
+        severity: ambiguous ? ("warning" as const) : ("error" as const),
+        detail: reachable
+          ? `${source.url} resolved (${response.status}).`
+          : ambiguous
+            ? `${source.url} returned ${response.status}, which is usually bot filtering rather than a dead page — confirm it manually.`
+            : `${source.url} returned ${response.status}. A cited authority source that does not resolve must be corrected or removed, not shipped.`,
+      };
+    } catch (error) {
+      return {
+        check: `source-url:${source.publisher}`,
+        pass: false,
+        severity: "error" as const,
+        detail: `${source.url} could not be fetched: ${error instanceof Error ? error.message : String(error)}.`,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }));
+}
+
+export async function runSeoCheck(ctx: RoleRunContext & { publicPath: string }): Promise<SeoFinding[]> {
+  // The authority catalog owns the indexable public pages, so it is checked
+  // first and its verdict stands on its own when the route is catalogued.
+  const authorityFindings = await runAuthorityGateCheck(ctx);
+
+  const newArchConfigPath = path.join(ctx.worktreeDir, ctx.verticalId, "workflows", ctx.workflowId, "config.ts");
+  const configSource = await fs.readFile(newArchConfigPath, "utf8").catch(() => null);
+  if (configSource !== null) {
+    const configFindings = await runNewArchitectureSeoCheck(ctx, configSource);
+    return [...(authorityFindings ?? []), ...configFindings];
+  }
+  if (authorityFindings) return authorityFindings;
+  return runLegacyArchitectureSeoCheck(ctx);
 }
 
 // -- shared helper ------------------------------------------------------------

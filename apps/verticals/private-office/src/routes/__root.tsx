@@ -7,9 +7,7 @@ import {
   Link,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
-import "../../../../../packages/design-system/src/tokens.css";
-import "../../../../../packages/design-system/src/patterns.css";
-import "../../../../../packages/design-system/src/workspace.css";
+import "@mailmypdf/design-system/vertical-landing.css"
 import "../../../../../packages/workflow-ui/src/workflow-ui.css";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";

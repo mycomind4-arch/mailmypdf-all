@@ -8,11 +8,11 @@ import {
 } from "../src/workflow-execution-registry.js";
 
 describe("WORKFLOW_EXECUTION_REGISTRY", () => {
-  test("covers exactly 14 sections and 420 navigation workflows", () => {
+  test("covers exactly 15 sections and 437 navigation workflows", () => {
     const sections = new Set(WORKFLOW_EXECUTION_REGISTRY.map((r) => r.sectionId));
-    assert.equal(sections.size, 14);
-    assert.equal(WORKFLOW_EXECUTION_REGISTRY_COUNT, 420);
-    assert.equal(WORKFLOW_EXECUTION_REGISTRY.length, 420);
+    assert.equal(sections.size, 15);
+    assert.equal(WORKFLOW_EXECUTION_REGISTRY_COUNT, 437);
+    assert.equal(WORKFLOW_EXECUTION_REGISTRY.length, 437);
   });
 
   test("every record resolves uniquely by (sectionId, workflowId)", () => {
@@ -43,11 +43,11 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
     }
   });
 
-  test("scaffolds remain non-executable: most of the 420 are not-connected today", () => {
+  test("scaffolds remain non-executable: most of the 437 are not-connected today", () => {
     const executable = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "executable");
     const notConnected = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "not-connected");
     assert.equal(executable.length + notConnected.length, WORKFLOW_EXECUTION_REGISTRY.length);
-    assert.equal(executable.length, 21);
+    assert.equal(executable.length, 24);
     assert.ok(notConnected.length > executable.length);
   });
 
@@ -65,6 +65,9 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
       ["notice-respond", "cp504-response"],
       ["records-request", "agency-records-request"],
       ["immigration-mail", "immigration-filing-cover-letter"],
+      ["secured-transactions", "secured-transaction-eligibility"],
+      ["secured-transactions", "name-capacity-resolution"],
+      ["secured-transactions", "obligation-value"],
     ] as const) {
       assert.equal(isWorkflowExecutable(sectionId, workflowId), true, `${sectionId}/${workflowId}`);
     }
@@ -72,5 +75,6 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
 
   test("a known scaffold-only workflow is not executable", () => {
     assert.equal(isWorkflowExecutable("appeal-mail", "appeal-edd-disqualification"), false);
+    assert.equal(isWorkflowExecutable("secured-transactions", "ucc1-preparation-authorization"), false);
   });
 });

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createElement } from 'react'
-import { createWorkflowDirectory } from '../../../../../packages/design-system/src/index'
+import { createWorkflowDirectory } from '@mailmypdf/design-system'
 import { PublicFooter, PublicHeader } from '../components/public-chrome'
 
 const WORKFLOWS=[

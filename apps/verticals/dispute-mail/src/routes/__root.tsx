@@ -2,9 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Home, ArrowRight, ShieldAlert } from "lucide-react";
-import "../../../../../packages/design-system/src/tokens.css";
-import "../../../../../packages/design-system/src/patterns.css";
-import "../../../../../packages/design-system/src/workspace.css";
+import "@mailmypdf/design-system/vertical-landing.css"
 import appCss from "../styles.css?url";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";

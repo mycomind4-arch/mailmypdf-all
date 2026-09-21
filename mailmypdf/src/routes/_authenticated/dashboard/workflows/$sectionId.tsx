@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { AuthenticatedWorkflowBrowser } from "@/components/authenticated-workflow-browser"
 
 export const Route = createFileRoute("/_authenticated/dashboard/workflows/$sectionId")({
@@ -13,5 +13,8 @@ export const Route = createFileRoute("/_authenticated/dashboard/workflows/$secti
 
 function SectionWorkflowBrowser() {
   const { sectionId } = Route.useParams()
-  return <AuthenticatedWorkflowBrowser sectionId={sectionId} />
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const hasNestedWorkflow = pathname.split("/").filter(Boolean).length > 3
+
+  return hasNestedWorkflow ? <Outlet /> : <AuthenticatedWorkflowBrowser sectionId={sectionId} />
 }

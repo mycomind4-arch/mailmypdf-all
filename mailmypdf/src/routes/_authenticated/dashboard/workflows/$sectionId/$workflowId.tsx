@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { AuthenticatedWorkflowDetail } from "@/components/authenticated-workflow-detail"
 
 export const Route = createFileRoute("/_authenticated/dashboard/workflows/$sectionId/$workflowId")({
@@ -13,5 +13,10 @@ export const Route = createFileRoute("/_authenticated/dashboard/workflows/$secti
 
 function WorkflowWorkspace() {
   const { sectionId, workflowId } = Route.useParams()
-  return <AuthenticatedWorkflowDetail sectionId={sectionId} workflowId={workflowId} />
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isStartRoute = pathname.endsWith("/start")
+
+  return isStartRoute
+    ? <Outlet />
+    : <AuthenticatedWorkflowDetail sectionId={sectionId} workflowId={workflowId} />
 }

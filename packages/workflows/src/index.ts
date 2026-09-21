@@ -70,3 +70,5 @@ export * from "./compound-workflow.js";
 export * from "./draft-versioning.js";
 
 export * from "./browser-workflow-runtime-client.js";
+
+export * from "./browser-access-token.js";

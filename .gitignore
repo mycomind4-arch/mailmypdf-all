@@ -1,4 +1,7 @@
 node_modules
+
+# Local credential document; never commit secrets.
+credentials.rtfd/
 dist
 dist-test
 .output
@@ -18,3 +21,6 @@ coverage
 # .claude/launch.json is deliberately NOT ignored: it's shared dev-server config.
 .claude/worktrees/
 .claude/settings.local.json
+
+# Supabase CLI local link state
+supabase/.temp/

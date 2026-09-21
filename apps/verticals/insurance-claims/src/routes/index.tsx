@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { createElement } from 'react'
 import { FileText, ShieldCheck, Search, Mail, ArrowRight } from 'lucide-react'
 import { INSURANCE_WORKFLOWS } from '@/domain/insurance-workflows'
-import { createTrustStrip, createVerticalHero } from '../../../../../packages/design-system/src/index'
+import { createTrustStrip, createVerticalHero } from '@mailmypdf/design-system/public'
 import { PublicFooter, PublicHeader } from '../components/public-chrome'
 
 const VerticalHero=createVerticalHero(createElement)

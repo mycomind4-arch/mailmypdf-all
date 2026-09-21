@@ -141,11 +141,9 @@ function AccountPage() {
               <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Role</h2>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <span className="badge badge-info">{user!.role}</span>
+              <span className="badge badge-info">Account holder</span>
               <span className="text-sm text-muted-foreground">
-                {user!.role === "admin" || user!.role === "super_admin"
-                  ? "You have administrative access."
-                  : "Standard customer account."}
+                Administrative access is verified separately by MailMyPDF.
               </span>
             </div>
           </div>

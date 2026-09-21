@@ -211,7 +211,7 @@ meant to be completed in one pass.
 - `/_authenticated` now owns the shared sidebar so it stays mounted across the complete authenticated route tree.
 - The sidebar mirrors Studio's interaction model: 64px collapsed rail, 300px hover/focus expansion, dark `#202b39` surface.
 - Workflows is a searchable tree generated from the canonical colocated workflow folders: 14 sections, 420 workflows.
-- Admin visibility is driven by the existing server-verified `isCurrentUserAdmin` check against `user_roles`; profile metadata is not trusted.
+- Admin visibility in the core shell is driven by the server-verified `isCurrentUserAdmin` check against `user_roles`; profile metadata is not trusted. Legacy vertical client contexts were audited on 2026-09-21 and no longer elevate their local UI role from profile metadata.
 - Admins receive a `Studio / Admin` group for Studio Home, Analytics, AI Control Plane, Audit Log, and Entitlements.
 - Dashboard no longer mounts a second sidebar.
 - Legacy AdminHeader chrome was removed from the core admin pages so Studio/Admin uses the same authenticated shell as the rest of MailMyPDF.

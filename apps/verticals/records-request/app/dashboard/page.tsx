@@ -11,7 +11,7 @@ import {
   createWorkspacePageHeader,
   createWorkspaceShell,
   createWorkspaceTopbar,
-} from '../../../../packages/design-system/src/index'
+} from '@mailmypdf/design-system/auth'
 
 const WorkspaceShell = createWorkspaceShell(createElement)
 const WorkspaceTopbar = createWorkspaceTopbar(createElement)

@@ -22,7 +22,7 @@ export const listPublicationsForAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { publicationCatalog } = await import("../../../../Projects/Publications/catalog");
+    const { publicationCatalog } = await import("../../../Projects/Publications/catalog");
     const { listPublicationRuns } = await import("@/lib/publication-runtime.server");
     const runData = await listPublicationRuns();
 

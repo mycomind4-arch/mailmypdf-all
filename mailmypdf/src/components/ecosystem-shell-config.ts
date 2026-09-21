@@ -8,6 +8,7 @@ import { supabase, ensureSupabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { EcosystemShellConfig } from "./ecosystem-shell";
+import { AUTH_ENTRY_HREF } from "@/lib/auth-navigation";
 
 export function useShellConfig(): EcosystemShellConfig {
   const [user, setUser] = useState<{ email: string; fullName?: string; role?: string } | null>(null);
@@ -62,7 +63,7 @@ export function useShellConfig(): EcosystemShellConfig {
     workflowsUrl: "/ecosystem",
     howItWorksUrl: "/how-it-works",
     pricingUrl: "/pro",
-    authUrl: "/auth",
+    authUrl: AUTH_ENTRY_HREF,
     startUrl: "/start",
     dashboardUrl: "/dashboard",
     productsUrl: "/products",

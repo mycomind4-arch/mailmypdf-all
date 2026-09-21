@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { SiteHeader } from './components/site-header'
 import { SiteFooter } from './components/site-footer'
-import { createWorkflowDirectory } from '../../../../packages/design-system/src/index'
+import { createWorkflowDirectory } from '@mailmypdf/design-system'
 
 const WorkflowDirectory=createWorkflowDirectory(createElement)
 const situations=[

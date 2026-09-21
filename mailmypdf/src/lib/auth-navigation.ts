@@ -1,4 +1,7 @@
 /** Keep post-login navigation on this application and out of auth loops. */
+/** Public entry point used by all shared unauthenticated navigation. */
+export const AUTH_ENTRY_HREF = "/auth?redirect=%2Fdashboard";
+
 export function safeAuthDestination(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\s]/.test(value)) return "/dashboard";
   try {

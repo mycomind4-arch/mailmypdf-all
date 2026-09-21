@@ -7,6 +7,55 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }, "Expected a real calendar date").nullable();
 const text = z.string().trim().min(1).max(16000);
+const cp2000FindingSchema = z.object({
+  id: z.string().min(1),
+  type: z.string().min(1),
+  severity: z.enum(["critical", "high", "medium", "low", "info"]),
+  statement: text,
+  supportingFacts: z.array(text).max(100),
+  provenance: z.array(z.never()).max(100),
+  sourceReferences: z.array(text).max(100),
+  confidence: z.enum(["high", "medium", "low"]),
+  recommendedAction: text,
+  unresolved: z.boolean(),
+  analysisRule: text,
+});
+const cp2000DiscrepancySchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(["amount_mismatch", "wrong_tax_year", "documentation_gap"]),
+  description: text,
+  irsAmount: text.nullable(),
+  userAmount: text.nullable(),
+  difference: text.nullable(),
+  possibleExplanations: z.array(text).max(100),
+  evidenceNeeded: z.array(text).max(100),
+  confidence: z.enum(["high", "medium", "low"]),
+  status: z.enum(["unresolved", "user_correct", "irs_correct", "unclear"]),
+  findingId: z.string().min(1),
+});
+const cp2000AnalysisSchema = z.object({
+  discrepancies: z.array(cp2000DiscrepancySchema).max(100),
+  findings: z.array(cp2000FindingSchema).max(100),
+  unresolvedCount: z.number().int().nonnegative(),
+  totalIssues: z.number().int().nonnegative(),
+  evidenceChecklist: z.object({
+    items: z.array(z.object({
+      id: z.string().min(1),
+      type: z.string().min(1),
+      label: text,
+      purpose: text,
+      requirement: z.enum(["required", "recommended", "optional"]),
+      state: z.enum(["missing", "provided"]),
+      supportsFindingIds: z.array(z.string().min(1)).max(100),
+      supportsDiscrepancyIds: z.array(z.string().min(1)).max(100),
+    })).max(100),
+    requiredCount: z.number().int().nonnegative(),
+    providedCount: z.number().int().nonnegative(),
+    missingCount: z.number().int().nonnegative(),
+    complete: z.boolean(),
+    ready: z.boolean(),
+  }).optional(),
+}).nullable().default(null);
 const workflowDetailsSchema = z.object({
   taxYear: z.string().regex(/^\d{4}$/).nullable().default(null),
   amountDue: text.nullable().default(null),
@@ -15,6 +64,10 @@ const workflowDetailsSchema = z.object({
   proposedInterest: text.nullable().default(null),
   proposedIncomeChanges: z.array(text).max(100).default([]),
   payerReferences: z.array(text).max(100).default([]),
+  reportedIncome: text.nullable().default(null),
+  irsReportedIncome: text.nullable().default(null),
+  incomeSource: text.nullable().default(null),
+  cp2000Analysis: cp2000AnalysisSchema,
   responseAddress: z.object({
     line1: text,
     line2: text.nullable().default(null),
@@ -31,6 +84,10 @@ const workflowDetailsSchema = z.object({
   proposedInterest: null,
   proposedIncomeChanges: [],
   payerReferences: [],
+  reportedIncome: null,
+  irsReportedIncome: null,
+  incomeSource: null,
+  cp2000Analysis: null,
   responseAddress: null,
   paymentInstructions: null,
 });
@@ -179,9 +236,25 @@ const WORKFLOW_DEFINITIONS: readonly CaseWorkflowDefinition[] = [
   ...Object.values(NOTICE_WORKFLOW_DEFINITIONS),
 ];
 
+// "notice-response" is this module's original vertical id for the embedded
+// /notice/$ case UI. The canonical new-architecture vertical id for the same
+// IRS notice workflows (packages/workflows domain pack, notice-respond/) is
+// "notice-respond" — a one-letter rename that happened elsewhere and was
+// never mirrored here. Both ids identify the same workflow family, so treat
+// them as interchangeable rather than picking one and breaking the other.
+const NOTICE_VERTICAL_ALIASES = new Set(["notice-response", "notice-respond"]);
+
+function verticalIdsMatch(definitionVerticalId: string, requestedVerticalId: string): boolean {
+  if (definitionVerticalId === requestedVerticalId) return true;
+  return (
+    NOTICE_VERTICAL_ALIASES.has(definitionVerticalId) &&
+    NOTICE_VERTICAL_ALIASES.has(requestedVerticalId)
+  );
+}
+
 export function resolveCaseWorkflow(workflowId: string, verticalId: string): CaseWorkflowDefinition {
   const workflow = WORKFLOW_DEFINITIONS.find(
-    (candidate) => candidate.id === workflowId && candidate.verticalId === verticalId,
+    (candidate) => candidate.id === workflowId && verticalIdsMatch(candidate.verticalId, verticalId),
   );
   if (workflow) return workflow;
   throw new CaseError("This workflow does not yet have an enabled case runtime.");

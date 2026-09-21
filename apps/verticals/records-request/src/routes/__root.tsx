@@ -1,6 +1,5 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
-import "../../../../../packages/design-system/src/tokens.css"
-import "../../../../../packages/design-system/src/patterns.css"
+import "@mailmypdf/design-system/vertical-landing.css"
 import { AuthProvider } from '../lib/auth'
 import '../styles.css'
 

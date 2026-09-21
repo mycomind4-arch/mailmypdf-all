@@ -2,8 +2,7 @@ import { createRootRouteWithContext, HeadContent, Outlet, Scripts, Link, useLoca
 import type { QueryClient } from '@tanstack/react-query'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '@/lib/auth'
-import '../../../../../packages/design-system/src/tokens.css'
-import '../../../../../packages/design-system/src/patterns.css'
+import '@mailmypdf/design-system/vertical-landing.css'
 import '../styles.css'
 
 export const Route=createRootRouteWithContext<{queryClient:QueryClient}>()({head:()=>({meta:[{title:'Insurance Claims | MailMyPDF'},{name:'description',content:'Structured insurance claim, denial, dispute and appeal workflows.'},{name:'robots',content:'index,follow'}]}),shellComponent:({children})=><html><head><HeadContent/></head><body>{children}<Scripts/></body></html>,component:Root})

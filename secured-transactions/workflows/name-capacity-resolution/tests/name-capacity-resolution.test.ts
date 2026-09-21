@@ -4,6 +4,7 @@ import { compareWorkflowNameForms, normalizeWorkflowName } from "../rules/name-c
 import workflowManifest from "../manifest";
 import workflowConfig from "../config";
 import workflowRuntimeClient from "../start/runtime-client";
+import { resolveNameCapacity } from "../rules/resolution";
 
 describe("Name & Capacity Resolution workflow invariants", () => {
   test("capitalization does not create a separate normalized person", () => {
@@ -29,11 +30,45 @@ describe("Name & Capacity Resolution workflow invariants", () => {
     assert.ok(normalized.capacityHints.includes("trustee"));
   });
 
-  test("the scaffold cannot perform consequential actions", () => {
-    assert.equal(workflowManifest.manifest.maturity, "placeholder");
+  test("the intake cannot perform consequential actions", () => {
+    assert.equal(workflowManifest.manifest.maturity, "wired");
     assert.equal(workflowManifest.manifest.allowsConsequentialAction, false);
     assert.equal(workflowManifest.manifest.requiresHumanReview, true);
     assert.equal(workflowConfig.indexable, false);
-    assert.equal(workflowRuntimeClient.executable, false);
+    assert.equal(workflowRuntimeClient.executable, true);
+  });
+
+  test("a supported organization record produces a reviewable resolution", () => {
+    const result = resolveNameCapacity({
+      primaryName: "Example Holdings LLC",
+      alternateNames: ["EXAMPLE HOLDINGS, L.L.C."],
+      entityType: "registered-organization",
+      capacity: "officer",
+      principalName: "Example Holdings LLC",
+      sourceLabel: "State business registry",
+      sourceType: "official-registry-record",
+      sourceId: "registry-1",
+    });
+
+    assert.equal(result.name.authoritativeName, "Example Holdings LLC");
+    assert.equal(result.entity.authoritativeType, "registered-organization");
+    assert.equal(result.capacity.primaryCapacity?.capacity, "officer");
+    assert.equal(result.status, "ready-for-review");
+  });
+
+  test("missing records block the result instead of inferring identity", () => {
+    const result = resolveNameCapacity({
+      primaryName: "Example Holdings LLC",
+      alternateNames: [],
+      entityType: "registered-organization",
+      capacity: "officer",
+      sourceLabel: "",
+      sourceType: "official-registry-record",
+      sourceId: "",
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.name.authoritativeName, undefined);
+    assert.match(result.reasons.join(" "), /record or source/i);
   });
 });

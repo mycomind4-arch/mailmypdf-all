@@ -1,7 +1,6 @@
 import React, { createElement } from 'react'
-import { createRoot } from 'react-dom/client'
 import { Archive, CalendarDays, FileText, Inbox, LayoutDashboard, Mail, Plus, ShieldCheck, Users, Workflow, X } from 'lucide-react'
-import '../../../../packages/design-system/src/workspace.css'
+import '@mailmypdf/design-system/workspace.css'
 import './styles.css'
 import './checkout-return'
 import type { MailClass } from './domain/models'
@@ -16,7 +15,7 @@ import {
   createWorkspaceShell,
   createWorkspaceTopbar,
   type WorkspaceLinkItem,
-} from '../../../../packages/design-system/src/index'
+} from '@mailmypdf/design-system'
 
 const AUTH_KEY = 'mailmypdf_business_auth'
 const MAILMYPDF = 'https://mailmypdf.pages.dev'
@@ -57,7 +56,7 @@ function readSession(): { accessToken: string; email: string } {
   }
 }
 
-function App() {
+export function App() {
   const [active, setActive] = React.useState<WorkspaceView>('Overview')
   const [scheduled, setScheduled] = React.useState<Scheduled[]>([])
   const [showComposer, setShowComposer] = React.useState(false)
@@ -422,5 +421,3 @@ function Composer({
     </div>
   )
 }
-
-createRoot(document.getElementById('root')!).render(<App />)

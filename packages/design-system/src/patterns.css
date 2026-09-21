@@ -287,6 +287,12 @@
 .mmp-seo-faq summary span { font: 400 1.5rem/1 var(--mmp-font-display); color: var(--mmp-accent); transition: transform .18s ease; }
 .mmp-seo-faq[open] summary span { transform: rotate(45deg); }
 .mmp-seo-faq p { max-width: 52rem; margin: .8rem 0 0; color: var(--mmp-ink-muted); line-height: 1.7; }
+.mmp-ready-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.mmp-ready-item { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); gap: 1rem; padding: 1.35rem; }
+.mmp-ready-item__icon { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: var(--mmp-radius-md); color: var(--mmp-accent); background: var(--mmp-accent-soft); }
+.mmp-ready-item__icon svg { width: 1.15rem; height: 1.15rem; }
+.mmp-ready-item h3 { margin: 0; font: 400 1.3rem/1.1 var(--mmp-font-display); }
+.mmp-ready-item p { margin: .4rem 0 0; color: var(--mmp-ink-muted); font-size: .88rem; line-height: 1.6; }
 .mmp-seo-related { border-block: 1px solid var(--mmp-border); background: var(--mmp-surface); }
 .mmp-seo-related-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; }
 .mmp-seo-related-card { display: block; padding: 1.5rem; color: var(--mmp-ink); text-decoration: none; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
@@ -306,6 +312,7 @@
   .mmp-seo-topic-grid,
   .mmp-seo-outcome-grid,
   .mmp-seo-related-grid,
+  .mmp-ready-grid,
   .mmp-seo-faq-wrap { grid-template-columns: 1fr; }
   .mmp-seo-footer__inner { align-items: flex-start; flex-direction: column; }
 }

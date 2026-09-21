@@ -57,7 +57,7 @@ export function AuthenticatedWorkflowBrowser({ sectionId }: { sectionId?: string
           to="/dashboard"
           className="inline-flex h-10 items-center justify-center rounded-md border border-rule bg-card px-4 text-sm font-medium hover:border-cobalt/40"
         >
-          My Matters
+          My Cases
         </Link>
       </div>
 

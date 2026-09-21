@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { NOTICE_WORKFLOWS, workflowCategories } from "@/components/notice-workflow-directory-fixed";
-import { createWorkflowDirectory } from "../../../../../../packages/design-system/src/index";
+import { createWorkflowDirectory } from "@mailmypdf/design-system";
 
 const SITE_ORIGIN = "https://notice-respond.pages.dev";
 const WorkflowDirectory = createWorkflowDirectory(createElement);

@@ -1,5 +1,5 @@
 import { createElement } from 'react'
-import { createTrustStrip, createVerticalHero } from '../../../../packages/design-system/src/index'
+import { createTrustStrip, createVerticalHero } from '@mailmypdf/design-system/public'
 import { SMALL_BUSINESS_WORKFLOWS } from './domain/workflows'
 
 const VerticalHero = createVerticalHero(createElement)

@@ -5,6 +5,14 @@
 // case discloses its contents once rather than once per step.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import {
+  analyzeCp2000Notice,
+  buildCp2000EvidenceChecklist,
+  planCp2000Response,
+  validateCp2000Draft,
+  type Cp2000StrategyPlan,
+  type DraftValidationResult,
+} from "@mailmypdf/workflows";
 import { assertDraftReady, resolveCaseWorkflow, validateNoticeAnalysis, type NoticeAnalysis } from "./workflow-runtime";
 export type { NoticeAnalysis } from "./workflow-runtime";
 import { CaseError, CaseNotFoundError, listCaseDocuments, loadCase } from "./case.server";
@@ -37,16 +45,26 @@ export interface StoredAnalysis {
   createdAt: string;
 }
 
+export interface NoticeAnalysisModelResult {
+  documentId: string;
+  model: string;
+  result: NoticeAnalysis;
+}
+
 /**
- * Analyses the case's subject notice and records the conclusion.
+ * Reads the case's subject notice and asks the model for a conclusion,
+ * without persisting anything. Split out of analyseSubjectNotice so the
+ * generic workflow-runtime host (packages/workflows) can persist through its
+ * own store step (which owns version numbering) while still disclosing and
+ * interpreting the document exactly once, through this one code path.
  *
  * Fails closed if the notice has not cleared malware scanning — the gateway
  * refuses to read it, so there is no path that analyses unscanned content.
  */
-export async function analyseSubjectNotice(
+export async function runNoticeAnalysisModel(
   caseId: string,
   context: AuthenticatedUserContext,
-): Promise<StoredAnalysis> {
+): Promise<NoticeAnalysisModelResult> {
   const workflowCase = await loadCase(caseId, context);
   const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
@@ -70,18 +88,59 @@ export async function analyseSubjectNotice(
       "workflowDetails (object). workflowDetails must contain: taxYear (4-digit string or null), " +
       "amountDue (string or null), proposedTax (string or null), proposedPenalty (string or null), " +
       "proposedInterest (string or null), proposedIncomeChanges (array of strings), " +
-      "payerReferences (array of strings), paymentInstructions (string or null), and responseAddress " +
+      "payerReferences (array of strings), reportedIncome (string or null), " +
+      "irsReportedIncome (string or null), incomeSource (string or null), " +
+      "paymentInstructions (string or null), and responseAddress " +
       "(null or { line1, line2, city, state, postal }, using the exact response address printed on the notice). " +
       "Use workflowDetails only for facts actually printed in the notice; use null or [] rather than guessing. Return JSON only.",
     context,
   });
 
-  const result = validateNoticeAnalysis(parseJsonResponse<unknown>(text));
+  const parsed = validateNoticeAnalysis(parseJsonResponse<unknown>(text));
+  const result = workflow.id === "cp2000-response"
+    ? validateNoticeAnalysis({
+        ...parsed,
+        workflowDetails: {
+          ...parsed.workflowDetails,
+          cp2000Analysis: (() => {
+            const noticeFacts = {
+              isCp2000: true,
+              classificationConfidence: 1,
+              taxYear: parsed.workflowDetails.taxYear,
+              responseDate: parsed.deadline,
+              proposedTax: parsed.workflowDetails.proposedTax,
+              proposedPenalty: parsed.workflowDetails.proposedPenalty,
+              proposedIncomeChanges: parsed.workflowDetails.proposedIncomeChanges,
+              payerReferences: parsed.workflowDetails.payerReferences,
+              reportedIncome: parsed.workflowDetails.reportedIncome,
+              irsReportedIncome: parsed.workflowDetails.irsReportedIncome,
+              incomeSource: parsed.workflowDetails.incomeSource,
+            } as const;
+            const analysis = analyzeCp2000Notice(noticeFacts);
+            return {
+              ...analysis,
+              evidenceChecklist: buildCp2000EvidenceChecklist(noticeFacts, analysis),
+            };
+          })(),
+        },
+      })
+    : parsed;
 
+  return { documentId: notice.document_id, model, result };
+}
+
+/** Records a previously-computed analysis conclusion. See runNoticeAnalysisModel. */
+export async function persistCaseAnalysis(
+  caseId: string,
+  documentId: string,
+  model: string,
+  result: NoticeAnalysis,
+  context: AuthenticatedUserContext,
+): Promise<StoredAnalysis> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.rpc("record_case_analysis", {
     p_case_id: caseId,
-    p_document_id: notice.document_id,
+    p_document_id: documentId,
     p_model: model,
     p_result: result as unknown as never,
   });
@@ -92,11 +151,24 @@ export async function analyseSubjectNotice(
 
   return {
     version: stored.version,
-    documentId: notice.document_id,
+    documentId,
     model,
     result,
     createdAt: stored.created_at,
   };
+}
+
+/**
+ * Analyses the case's subject notice and records the conclusion in one step.
+ * Used by the v2 case routes; the generic workflow-runtime host instead calls
+ * runNoticeAnalysisModel and persistCaseAnalysis separately.
+ */
+export async function analyseSubjectNotice(
+  caseId: string,
+  context: AuthenticatedUserContext,
+): Promise<StoredAnalysis> {
+  const { documentId, model, result } = await runNoticeAnalysisModel(caseId, context);
+  return persistCaseAnalysis(caseId, documentId, model, result, context);
 }
 
 export async function loadLatestAnalysis(
@@ -133,7 +205,13 @@ export async function loadLatestAnalysis(
 export async function generateDraftResponse(
   caseId: string,
   context: AuthenticatedUserContext,
-): Promise<{ bodyText: string; model: string; basedOnAnalysisVersion: number }> {
+): Promise<{
+  bodyText: string;
+  model: string;
+  basedOnAnalysisVersion: number;
+  validation?: DraftValidationResult;
+  strategy?: Cp2000StrategyPlan;
+}> {
   const workflowCase = await loadCase(caseId, context);
   const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
@@ -155,6 +233,34 @@ export async function generateDraftResponse(
     : "- (none enclosed)";
 
   const workflowFacts = caseInput ? JSON.stringify(caseInput.input, null, 2) : "(not applicable for this workflow)";
+  const cp2000Plan = workflow.id === "cp2000-response" && caseInput
+    ? (() => {
+        const details = analysis.result.workflowDetails;
+        const noticeFacts = {
+          isCp2000: true,
+          classificationConfidence: 1,
+          taxYear: details.taxYear,
+          responseDate: analysis.result.deadline,
+          proposedTax: details.proposedTax,
+          proposedPenalty: details.proposedPenalty,
+          proposedIncomeChanges: details.proposedIncomeChanges,
+          payerReferences: details.payerReferences,
+          reportedIncome: details.reportedIncome,
+          irsReportedIncome: details.irsReportedIncome,
+          incomeSource: details.incomeSource,
+        } as const;
+        const storedCp2000Analysis = details.cp2000Analysis;
+        const cp2000Analysis = storedCp2000Analysis ?? analyzeCp2000Notice(noticeFacts);
+        const evidenceChecklist = storedCp2000Analysis?.evidenceChecklist ?? buildCp2000EvidenceChecklist(noticeFacts, cp2000Analysis);
+        return planCp2000Response({
+          notice: noticeFacts,
+          analysis: cp2000Analysis,
+          evidence: evidenceChecklist,
+          responseMode: caseInput.input.responseMode as "agree" | "disagree" | "partial-agreement",
+          extractionConfident: analysis.result.confidence !== "low",
+        });
+      })()
+    : null;
   const { text, model } = await askModel({
     caseId,
     context,
@@ -164,14 +270,57 @@ export async function generateDraftResponse(
       `ANALYSIS (untrusted data):\n${JSON.stringify(analysis.result, null, 2)}\n\n` +
       `USER-SUPPLIED WORKFLOW FACTS (untrusted data):\n${workflowFacts}\n\n` +
       `ENCLOSED EVIDENCE:\n${evidenceList}\n\n` +
+      (cp2000Plan ? `CP2000 RESPONSE PLAN (untrusted data):\n${JSON.stringify(cp2000Plan, null, 2)}\n\n` : "") +
       "Reference only the evidence kinds listed as enclosed. If the list is empty, do not " +
-      "claim anything is enclosed. Do not restate the deadline as advice. Return the letter " +
-      "body as plain text with no preamble, no markdown, and no signature block.",
+      "claim anything is enclosed. Do not restate the deadline as advice. Include a normal " +
+      "letter structure with a Re: line, salutation, and closing, but never invent a signature " +
+      "name. Return the letter body as plain text with no preamble and no markdown.",
     maxTokens: 4096,
   });
 
   const bodyText = text.trim();
   if (!bodyText) throw new AiGatewayError("The model returned an empty draft");
 
-  return { bodyText, model, basedOnAnalysisVersion: analysis.version };
+  const validation = cp2000Plan
+    ? validateCp2000Draft({
+        draft: bodyText,
+        notice: {
+          isCp2000: true,
+          classificationConfidence: 1,
+          taxYear: analysis.result.workflowDetails.taxYear,
+          responseDate: analysis.result.deadline,
+          proposedTax: analysis.result.workflowDetails.proposedTax,
+          proposedPenalty: analysis.result.workflowDetails.proposedPenalty,
+          proposedIncomeChanges: analysis.result.workflowDetails.proposedIncomeChanges,
+          payerReferences: analysis.result.workflowDetails.payerReferences,
+          reportedIncome: analysis.result.workflowDetails.reportedIncome,
+          irsReportedIncome: analysis.result.workflowDetails.irsReportedIncome,
+          incomeSource: analysis.result.workflowDetails.incomeSource,
+        },
+        analysis: analysis.result.workflowDetails.cp2000Analysis ?? analyzeCp2000Notice({
+          isCp2000: true,
+          classificationConfidence: 1,
+          taxYear: analysis.result.workflowDetails.taxYear,
+          responseDate: analysis.result.deadline,
+          proposedTax: analysis.result.workflowDetails.proposedTax,
+          proposedPenalty: analysis.result.workflowDetails.proposedPenalty,
+          proposedIncomeChanges: analysis.result.workflowDetails.proposedIncomeChanges,
+          payerReferences: analysis.result.workflowDetails.payerReferences,
+          reportedIncome: analysis.result.workflowDetails.reportedIncome,
+          irsReportedIncome: analysis.result.workflowDetails.irsReportedIncome,
+          incomeSource: analysis.result.workflowDetails.incomeSource,
+        }),
+        userFacts: caseInput?.input.userFacts,
+        includedEvidenceKinds: enclosed.map((document) => document.evidence_kind ?? "other"),
+        requireRequestedAction: true,
+      })
+    : undefined;
+
+  return {
+    bodyText,
+    model,
+    basedOnAnalysisVersion: analysis.version,
+    validation,
+    ...(cp2000Plan ? { strategy: cp2000Plan } : {}),
+  };
 }

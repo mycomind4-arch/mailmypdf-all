@@ -60,5 +60,20 @@ export function createWorkflowSchema(config: WorkflowLandingConfig) {
     })
   }
 
+  if (config.workflowSteps?.length) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      name: config.heroTitle,
+      description: config.seoDescription,
+      step: config.workflowSteps.map(([name, text], index) => ({
+        "@type": "HowToStep",
+        position: index + 1,
+        name,
+        text,
+      })),
+    })
+  }
+
   return schemas
 }

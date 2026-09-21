@@ -1,7 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import '../../../../packages/design-system/src/tokens.css'
-import '../../../../packages/design-system/src/patterns.css'
+import '@mailmypdf/design-system/vertical-landing.css'
 import { PublicLanding } from './PublicLanding'
 import { BusinessWorkflowDirectory } from './WorkflowDirectory'
 

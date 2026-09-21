@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ecosystemThemes, getVerticalTheme, mailMyPdfTokens, publicPagePrimitives } from './index.js'
+import { ecosystemThemes, executableWorkflowImageIds, getVerticalTheme, getWorkflowImageSrc, mailMyPdfTokens, publicPagePrimitives } from './index.js'
 
 const themeIds = [
   'mailmypdf',
@@ -46,4 +46,10 @@ test('vertical themes change identity without changing the shared token scale', 
 test('canonical public primitives include the shared vertical hero and trust strip', () => {
   assert.ok(publicPagePrimitives.includes('VerticalHero'))
   assert.ok(publicPagePrimitives.includes('TrustStrip'))
+})
+
+test('workflow visuals are limited to executable workflows and share a stable asset path', () => {
+  assert.equal(executableWorkflowImageIds.length, 21)
+  assert.equal(getWorkflowImageSrc('cp2000-response'), '/workflow-images/cp2000-response.png')
+  assert.equal(getWorkflowImageSrc('not-connected-placeholder'), undefined)
 })

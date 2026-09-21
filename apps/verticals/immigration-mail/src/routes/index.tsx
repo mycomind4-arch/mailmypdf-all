@@ -1,11 +1,10 @@
 import { PRICES } from "@mailmypdf/pricing";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createElement } from "react";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { CANONICAL_WORKFLOW_CARDS, GENERAL_WORKFLOW_CARDS } from "@/lib/homepage-data";
-import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from "@mailmypdf/design-system/public";
 
+const PublicLandingFrame = createPublicLandingFrame(createElement);
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
 
@@ -39,8 +38,7 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="min-h-screen page-fade">
-      <SiteHeader />
+    <PublicLandingFrame theme="immigration-mail" name="Immigration Mail">
       <VerticalHero
         theme="immigration-mail"
         tone="dark"
@@ -77,8 +75,7 @@ function LandingPage() {
       <Privacy />
       <FAQ />
       <FinalCTA />
-      <SiteFooter />
-    </div>
+    </PublicLandingFrame>
   );
 }
 

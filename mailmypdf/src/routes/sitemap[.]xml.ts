@@ -3,6 +3,12 @@ import { SEO_PAGES } from "@/lib/seo-pages";
 import { PUBLIC_VERTICALS } from "@/lib/public-verticals";
 import { workflowAuthorityPages } from "@/lib/workflow-authority-registry";
 import { requireSiteOrigin } from "@/lib/site-url";
+// The new root-level workflow packages (notice-respond/, appeal-mail/, ...)
+// are not yet enumerated anywhere the sitemap can discover automatically —
+// each new-architecture workflow page needs an explicit entry here, gated on
+// its own config's `indexable` flag, until that registry exists.
+import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";
+import cp504ResponseConfig from "../../../notice-respond/workflows/cp504-response/config";
 
 type SitemapRoute = {
   loc: string;
@@ -65,11 +71,16 @@ export const Route = createFileRoute("/sitemap.xml")({
           changefreq: "monthly",
         }));
 
+        const newArchitectureWorkflowRoutes: SitemapRoute[] = [cp14ResponseConfig, cp504ResponseConfig]
+          .filter((page) => page.indexable)
+          .map((page) => ({ loc: page.path, priority: "0.9", changefreq: "monthly" as const }));
+
         const allRoutes = dedupeRoutes([
           ...staticRoutes,
           ...verticalRoutes,
           ...workflowRoutes,
           ...seoRoutes,
+          ...newArchitectureWorkflowRoutes,
         ]);
 
         const urls = allRoutes.map((route) => toUrlXml(baseUrl, route)).join("\n");

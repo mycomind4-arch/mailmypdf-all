@@ -16,30 +16,32 @@ const FINANCIAL_AID = IMG("f07881066");
 const EMPLOYMENT = IMG("324270c8f");
 const LEGAL = IMG("f55dbb8cd");
 
+const LOCAL = (slug: string) => `/workflow-images/${slug}.png`;
+
 export const HOMEPAGE_HERO_IMAGE = IMG("a99daa8e1");
 
 export const WORKFLOW_HERO_IMAGES: Record<string, string> = {
   // Insurance (general)
-  "insurance-claim-denial": INSURANCE,
+  "insurance-claim-denial": LOCAL("appeal-insurance-claim-denial"),
   "insurance-denial-letter": INSURANCE,
-  "insurance-coverage-denial": INSURANCE,
+  "insurance-coverage-denial": LOCAL("appeal-insurance-coverage-denial"),
   "claim-denial-letter": INSURANCE,
-  "car-insurance-appeal": INSURANCE,
-  "life-insurance-denial": INSURANCE,
-  "denied-claim": INSURANCE,
+  "car-insurance-appeal": LOCAL("appeal-car-insurance-claim"),
+  "life-insurance-denial": LOCAL("appeal-life-insurance-denial"),
+  "denied-claim": LOCAL("appeal-denied-claim"),
   "denied-claim-ai": INSURANCE,
 
   // Medical / Health insurance
-  "medical-insurance-denial": MEDICAL,
-  "medical-necessity-appeal": MEDICAL,
-  "prior-authorization-denial": MEDICAL,
-  "out-of-network-denial": MEDICAL,
-  "dental-insurance-appeal": MEDICAL,
+  "medical-insurance-denial": LOCAL("appeal-medical-insurance-denial"),
+  "medical-necessity-appeal": LOCAL("appeal-medical-necessity-denial"),
+  "prior-authorization-denial": LOCAL("appeal-prior-authorization-denial"),
+  "out-of-network-denial": LOCAL("appeal-out-of-network-denial"),
+  "dental-insurance-appeal": LOCAL("appeal-dental-insurance-denial"),
 
   // Social Security / Disability
-  "ssdi-denial": SOCIAL_SECURITY,
-  "ssdi-appeal": SOCIAL_SECURITY,
-  "ssi-denial": SOCIAL_SECURITY,
+  "ssdi-denial": LOCAL("appeal-ssdi-denial"),
+  "ssdi-appeal": LOCAL("appeal-ssdi-denial"),
+  "ssi-denial": LOCAL("appeal-ssi-denial"),
   "social-security-denial": SOCIAL_SECURITY,
   "reconsideration": SOCIAL_SECURITY,
 

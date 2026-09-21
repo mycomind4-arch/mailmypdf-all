@@ -331,7 +331,19 @@ export async function materializeApprovedPacket(
 }
 
 export async function approvePacket(
-  input: { caseId: string; recipient: Recipient; mailClass: MailClass; reviewed: ReviewedPacket },
+  input: {
+    caseId: string;
+    recipient: Recipient;
+    mailClass: MailClass;
+    reviewed: ReviewedPacket;
+    /**
+     * Persists the approval under this id instead of an auto-generated one.
+     * The generic workflow-runtime host mints the approval id before calling
+     * this function (it is already in the response the client saw), so the
+     * stored row must match it or later lookups/checkout by that id would 404.
+     */
+    approvalId?: string;
+  },
   context: AuthenticatedUserContext,
 ): Promise<{ approvalId: string; preview: PacketPreview }> {
   const preview = await previewPacket(input.caseId, input.mailClass, context);
@@ -350,6 +362,7 @@ export async function approvePacket(
     p_recipient: input.recipient as unknown as never,
     p_mail_class: input.mailClass,
     p_quote: preview.quote as unknown as never,
+    p_approval_id: input.approvalId ?? null,
   });
 
   if (error) throw new PacketError(error.message);

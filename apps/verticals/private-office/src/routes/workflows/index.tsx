@@ -4,7 +4,7 @@ import { PrivateOfficeChrome } from "@/components/private-office-chrome";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
 import { compoundWorkflowList } from "@/domain/compound-workflows";
-import { createWorkflowDirectory } from "../../../../../../packages/design-system/src/index";
+import { createWorkflowDirectory } from "@mailmypdf/design-system";
 
 const WorkflowDirectory = createWorkflowDirectory(createElement);
 

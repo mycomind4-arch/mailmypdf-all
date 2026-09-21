@@ -6,16 +6,15 @@
  * reads this field; the workflow catalog's actual live/discoverable gate is
  * `manifest.maturity` (see packages/workflows/src/workflow-registry.ts's
  * executable() filter), which this workflow does not set to "executable".
- * There is no deployed application (no apps/verticals/secured-transactions)
- * mounting this workflow's route, and no real authenticated session
- * supplies an ownerId to the persistence adapter yet -- both are required
- * before this workflow could honestly be called production-executable.
+ * The top-level mailmypdf TanStack host mounts this intake behind auth.
+ * Account-backed saving and document review are not wired. Draft download/
+ * reopen is local-file persistence only, not a server matter or evidence review.
  */
 export const workflowRuntimeClient = {
   workflowId: "secured-transaction-eligibility",
   verticalId: "secured-transactions",
   executable: true,
-  reason: "The intake UI, structured evidence model, runtime input validation, the shared evaluateSecuredTransactionEligibility engine, and a real ownership-scoped persistence adapter (via the same @mailmypdf/step-workflow runtime already used by notice-respond, private-office, and immigration-mail) are all implemented and covered by workflow, persistence/ownership, and acceptance tests. It produces a review-only ELIGIBLE TO CONTINUE / HUMAN REVIEW REQUIRED / BLOCKED result and takes no consequential action. It is not yet mounted in a deployed application/route, and no real authenticated session is wired to the persistence adapter.",
+  reason: "The authenticated top-level host provides a six-section guided intake, open-question review, and validated local draft download/reopen. User reports never verify a gate. The shared eligibility engine and separate owner-scoped matter adapter remain available; the UI is not connected to account persistence, document verification, or automatic workflow-2 handoff. No filing, payment, mailing, or legal eligibility conclusion is produced.",
 } as const;
 
 export default workflowRuntimeClient;

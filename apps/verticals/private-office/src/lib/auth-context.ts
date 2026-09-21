@@ -30,11 +30,5 @@ export const AuthContext = createContext<AuthContextValue | undefined>(undefined
 
 export function mapUser(user: User): PrivateOfficeUser {
   const meta = user.user_metadata || {};
-  const role: UserRole =
-    meta.role === "super_admin"
-      ? "super_admin"
-      : meta.role === "admin" || meta.is_admin === true
-        ? "admin"
-        : "customer";
-  return { id: user.id, email: user.email || "", fullName: meta.full_name, role };
+  return { id: user.id, email: user.email || "", fullName: meta.full_name, role: "customer" };
 }

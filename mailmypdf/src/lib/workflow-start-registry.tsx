@@ -32,6 +32,9 @@ import GovernmentDocumentsRequestStart from "@mailmypdf/records-request/workflow
 import OpenRecordsRequestStart from "@mailmypdf/records-request/workflows/open-records-request/start"
 import PublicInformationRequestStart from "@mailmypdf/records-request/workflows/public-information-request/start"
 import PublicRecordsRequestStart from "@mailmypdf/records-request/workflows/public-records-request/start"
+import { SecuredTransactionEligibilityIntake as SecuredTransactionEligibilityStart } from "@mailmypdf/secured-transactions-section/workflows/secured-transaction-eligibility/start/EligibilityIntake"
+import NameCapacityResolutionStart from "@mailmypdf/secured-transactions-section/workflows/name-capacity-resolution/start"
+import ObligationValueStart from "@mailmypdf/secured-transactions-section/workflows/obligation-value/start"
 
 const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-car-insurance-claim": AppealCarInsuranceClaimStart,
@@ -55,6 +58,9 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "records-request:open-records-request": OpenRecordsRequestStart,
   "records-request:public-information-request": PublicInformationRequestStart,
   "records-request:public-records-request": PublicRecordsRequestStart,
+  "secured-transactions:secured-transaction-eligibility": SecuredTransactionEligibilityStart,
+  "secured-transactions:name-capacity-resolution": NameCapacityResolutionStart,
+  "secured-transactions:obligation-value": ObligationValueStart,
 }
 
 export function workflowStartComponent(sectionId: string, workflowId: string): ComponentType | undefined {

@@ -1,3 +1,6 @@
+import type { DraftValidationResult } from "./draft-validator.js";
+import type { Cp2000StrategyPlan } from "./domain-packs/notice-response/cp2000-strategy.js";
+
 export type WorkflowDocumentRole = "subject_notice" | "evidence";
 
 export type WorkflowMatterDocument = {
@@ -123,6 +126,8 @@ export interface WorkflowMatterClient {
     bodyText: string;
     model: string;
     basedOnAnalysisVersion: number;
+    validation?: DraftValidationResult;
+    strategy?: Cp2000StrategyPlan;
   }>;
   saveDraft(matterId: string, bodyText: string): Promise<number>;
   loadDraft(matterId: string): Promise<{ version: number; bodyText: string; createdAt: string } | null>;
@@ -260,7 +265,13 @@ export function createHttpWorkflowMatterClient(input: {
       return payload.input;
     },
     async generateDraft(matterId) {
-      const payload = await request<{ bodyText: string; model: string; basedOnAnalysisVersion: number }>(
+      const payload = await request<{
+        bodyText: string;
+        model: string;
+        basedOnAnalysisVersion: number;
+        validation?: DraftValidationResult;
+        strategy?: Cp2000StrategyPlan;
+      }>(
         `/matters/${encodeURIComponent(matterId)}/draft/generate`,
         { method: "POST" },
       );

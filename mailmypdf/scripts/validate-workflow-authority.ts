@@ -6,6 +6,27 @@ import { validateWorkflowSeoTopology } from "../src/lib/workflow-seo-topology";
 
 type InventoryWorkflow = { id: string; route: string };
 
+/**
+ * `--json` emits the report machine-readably and `--id <workflowId>` narrows
+ * the printed results to one workflow. Both exist for Studio's SEO agent,
+ * which needs a verdict for the single workflow a run is building.
+ *
+ * Validation always runs over the whole catalog regardless of `--id`: the
+ * duplicate-metadata and content-similarity checks are cross-record by
+ * definition, so scoring one entry in isolation would silently skip exactly
+ * the checks that catch mass-generated near-duplicate pages.
+ */
+const args = process.argv.slice(2);
+const asJson = args.includes("--json");
+function flagValue(name: string): string | undefined {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+const onlyId = flagValue("--id");
+// Studio's SEO agent knows a run's public path, not its catalog id, so a
+// route lookup avoids making every caller reverse-engineer the id scheme.
+const onlyRoute = flagValue("--route");
+
 const modeled = (inventory.workflows ?? []) as InventoryWorkflow[];
 const modeledIds = new Set(modeled.map((workflow) => workflow.id));
 const knownWorkflowIds = new Set([
@@ -38,6 +59,49 @@ for (const candidate of SEO_WORKFLOW_CANDIDATES) {
 const unresolvedCandidates = SEO_WORKFLOW_CANDIDATES.filter(
   (candidate) => candidate.normalizationStatus !== "MODELED_REFERENCE_CONFIRMED",
 ).length;
+
+if (onlyId || onlyRoute) {
+  const normalizedRoute = onlyRoute ? `/${onlyRoute.trim().replace(/^\/+|\/+$/g, "")}` : undefined;
+  const entry = SEO_WORKFLOW_CATALOG.find((candidate) =>
+    onlyId ? candidate.id === onlyId : `/${candidate.route.replace(/^\/+|\/+$/g, "")}` === normalizedRoute,
+  );
+  const target = entry ? report.results.find((result) => result.id === entry.id) : undefined;
+  if (!target || !entry) {
+    const payload = { ok: false, error: `Workflow '${onlyId ?? onlyRoute}' is not present in the SEO catalog.` };
+    console.log(asJson ? JSON.stringify(payload) : payload.error);
+    process.exit(1);
+  }
+  const ok = target.state !== "DRAFT" && target.eligibleForIndexing;
+  if (asJson) {
+    // Source URLs travel with the verdict so the caller can check that cited
+    // authority actually resolves — the gate only validates URL shape, which
+    // is exactly the gap that lets generated content cite pages that 404.
+    const sources = (entry.content?.sources ?? []).map((source) => ({
+      title: source.title,
+      publisher: source.publisher,
+      url: source.url,
+      kind: source.kind,
+    }));
+    console.log(JSON.stringify({ ok, result: target, sources, topologyIssues, candidateIssues }));
+  } else {
+    console.log(`[${ok ? "PASS" : target.state === "DRAFT" ? "DRAFT" : "BLOCK"}] ${target.id} — ${target.score}/100 — ${target.substantiveWordCount} substantive words`);
+    for (const gateIssue of target.issues) {
+      console.log(`  ${gateIssue.severity === "error" ? "ERROR" : "WARN"} ${gateIssue.code}: ${gateIssue.message}`);
+    }
+  }
+  process.exit(ok ? 0 : 1);
+}
+
+if (asJson) {
+  console.log(JSON.stringify({
+    ok: report.counts.blocked === 0 && topologyIssues.length === 0 && candidateIssues.length === 0,
+    counts: report.counts,
+    results: report.results,
+    topologyIssues,
+    candidateIssues,
+  }));
+  process.exit(report.counts.blocked === 0 && topologyIssues.length === 0 && candidateIssues.length === 0 ? 0 : 1);
+}
 
 console.log("MailMyPDF Workflow Authority Gate");
 console.log("=================================");

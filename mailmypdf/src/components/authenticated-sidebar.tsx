@@ -44,12 +44,13 @@ type SidebarItem = {
 
 const primaryItems: SidebarItem[] = [
   { label: "Home", href: "/dashboard", icon: Home, exact: true },
-  { label: "My Matters", href: "/dashboard", icon: FolderOpen },
+  { label: "My Cases", href: "/dashboard", icon: FolderOpen },
   { label: "Mail a PDF", href: "/mail-a-pdf", icon: Mail },
 ]
 
 const adminItems: SidebarItem[] = [
-  { label: "Studio Home", href: "/admin", icon: Sparkles, exact: true },
+  { label: "Admin Home", href: "/admin", icon: Home, exact: true },
+  { label: "Studio", href: "/studio", icon: Sparkles, exact: true },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "AI Control Plane", href: "/admin/ai", icon: Bot },
   { label: "Publications", href: "/admin/publications", icon: Newspaper },
@@ -309,9 +310,9 @@ function SidebarContents({
       </div>
 
       <div className={collapsed ? "px-2 pt-3" : "px-3 pt-3"}>
-        <a href="/dashboard/workflows" onClick={onNavigate} title={collapsed ? "New Matter" : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
+        <a href="/dashboard/workflows" onClick={onNavigate} title={collapsed ? "Start a case" : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
           <Sparkles className="h-4 w-4 text-[#d1ad72]" />
-          {!collapsed && <span>New Matter</span>}
+          {!collapsed && <span>Start a case</span>}
         </a>
       </div>
 
@@ -324,7 +325,7 @@ function SidebarContents({
         {isAdmin && (
           <>
             <div className="my-4 border-t border-white/10" />
-            {!collapsed && <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#d1ad72]">Studio / Admin</div>}
+            {!collapsed && <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#d1ad72]">Admin tools</div>}
             <div className="space-y-1">
               {adminItems.map((item) => <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />)}
             </div>
@@ -390,7 +391,7 @@ export function AuthenticatedSidebar({
             <Menu className="h-4 w-4" />
           </button>
           <Link to="/" className="font-serif text-lg">MailMyPDF</Link>
-          <a href="/dashboard/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">New Matter</a>
+          <a href="/dashboard/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">Start a case</a>
         </div>
       )}
 

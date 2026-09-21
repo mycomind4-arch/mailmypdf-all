@@ -61,8 +61,7 @@ async function loadSupabase(): Promise<SupabaseClient | null> {
 
 function mapUser(user: SupabaseAuthUser): MailMyPDFUser {
   const meta = user.user_metadata || {};
-  const role: UserRole = meta.role === "super_admin" || meta.role === "admin" || meta.is_admin === true ? (meta.role === "super_admin" ? "super_admin" : "admin") : "customer";
-  return { id: user.id, email: user.email || "", fullName: meta.full_name, role };
+  return { id: user.id, email: user.email || "", fullName: meta.full_name, role: "customer" };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

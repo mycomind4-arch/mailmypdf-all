@@ -1,10 +1,9 @@
 import { createElement } from 'react'
-import { SiteHeader } from './components/site-header'
-import { SiteFooter } from './components/site-footer'
-import { createTrustStrip, createVerticalHero } from '../../../../packages/design-system/src/index'
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from '@mailmypdf/design-system/public'
 
 const VerticalHero = createVerticalHero(createElement)
 const SharedTrustStrip = createTrustStrip(createElement)
+const PublicLandingFrame = createPublicLandingFrame(createElement)
 
 const situations = [
   ['Permit denial', 'Organize the denial, application details, stated reasons, plan set, supporting records, and requested reconsideration or next action.'],
@@ -16,9 +15,7 @@ const situations = [
 ]
 
 export function PublicLanding({ onStart }: { onStart: () => void }) {
-  return <div className="mmp-app">
-    <SiteHeader />
-    <main>
+  return <PublicLandingFrame theme="permit-reply" name="Permit Reply">
       <VerticalHero
         theme="permit-reply"
         tone="light"
@@ -79,7 +76,5 @@ export function PublicLanding({ onStart }: { onStart: () => void }) {
       ].map(([q,a]) => <details key={q} className="mmp-card" style={{ padding: 20, marginTop: 10 }}><summary style={{ cursor: 'pointer', fontWeight: 600 }}>{q}</summary><p style={{ color: 'var(--mmp-ink-muted)', lineHeight: 1.7 }}>{a}</p></details>)}</div></section>
 
       <section id="start" style={{ padding: 'var(--mmp-section-space) 0', background: 'var(--mmp-brand)', color: '#fff' }}><div className="mmp-container" style={{ textAlign: 'center' }}><div className="mmp-eyebrow" style={{ color: '#dfd3ba' }}>Permit Reply · MailMyPDF</div><h2 className="mmp-display" style={{ color: '#fff', fontSize: 'clamp(2.9rem,6vw,5.1rem)', maxWidth: 850, margin: '16px auto 0' }}>Keep the project record as organized as the plans.</h2><p style={{ color: 'rgba(255,255,255,.72)', maxWidth: 650, margin: '20px auto 0', lineHeight: 1.75 }}>Open the guided workspace with the notice or decision you received and continue from the source record.</p><button type="button" onClick={onStart} className="mmp-button-secondary" style={{ marginTop: 28 }}>Open Permit Reply →</button></div></section>
-    </main>
-    <SiteFooter />
-  </div>
+  </PublicLandingFrame>
 }

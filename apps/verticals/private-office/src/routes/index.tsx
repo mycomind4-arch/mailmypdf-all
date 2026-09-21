@@ -18,16 +18,15 @@ import {
   Home,
 } from "lucide-react";
 import { createElement } from "react";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { workflows } from "@/domain/workflows";
 import { workflowProfiles } from "@/domain/workflow-profiles";
-import { createTrustStrip, createVerticalHero } from "../../../../../packages/design-system/src/index";
+import { createPublicLandingFrame, createTrustStrip, createVerticalHero } from "@mailmypdf/design-system/public";
 
 export const Route = createFileRoute("/")({ component: HomePage });
 
 const VerticalHero = createVerticalHero(createElement);
 const SharedTrustStrip = createTrustStrip(createElement);
+const PublicLandingFrame = createPublicLandingFrame(createElement);
 
 const processSteps = [
   { num: "01", icon: FolderOpen, title: "Organize", desc: "Gather documents, state the facts, and define the objective for your matter." },
@@ -60,8 +59,7 @@ const faqs = [
 
 function HomePage() {
   return (
-    <main className="bg-ivory min-h-screen">
-      <SiteHeader />
+    <PublicLandingFrame theme="private-office" name="Private Office">
 
       <VerticalHero
         theme="private-office"
@@ -201,7 +199,6 @@ function HomePage() {
         </div>
       </section>
 
-      <SiteFooter />
-    </main>
+    </PublicLandingFrame>
   );
 }

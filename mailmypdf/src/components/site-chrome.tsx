@@ -130,13 +130,11 @@ export function Logo() {
   return (
     <span
       aria-hidden
-      className="relative inline-flex h-7 w-9 items-center justify-center overflow-hidden rounded"
+      className="relative inline-flex h-8 w-10 items-center justify-center overflow-hidden rounded-md bg-[#1681ff] shadow-sm"
     >
-      <span className="absolute inset-0 rounded border border-ink/80" />
-      <span className="absolute inset-x-1 top-1 h-[6px] border-b border-ink/70" />
-      <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-[1px] bg-cobalt" />
-      <span className="absolute bottom-1.5 left-1 right-1 h-px bg-ink/15" />
-      <span className="absolute bottom-1 left-1 h-1 w-1 rounded-[1px] bg-brass/60" />
+      <span className="absolute inset-x-1.5 bottom-1.5 h-4 rounded-sm bg-white/95" />
+      <span className="absolute inset-x-1.5 top-1.5 h-5 bg-white/90" style={{ clipPath: "polygon(0 0, 100% 0, 50% 62%)" }} />
+      <span className="absolute left-2.5 top-1 h-2.5 rounded-[1px] bg-[#e53232] px-0.5 font-sans text-[5px] font-bold leading-3 text-white">PDF</span>
     </span>
   );
 }

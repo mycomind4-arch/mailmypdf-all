@@ -19,6 +19,8 @@ import {
   WorkflowRuntimeError,
   type ExactPacketApproval,
 } from "./matter-runtime.js";
+import type { DraftValidationResult } from "./draft-validator.js";
+import type { Cp2000StrategyPlan } from "./domain-packs/notice-response/cp2000-strategy.js";
 
 export interface WorkflowRuntimeActor {
   id: string;
@@ -147,7 +149,12 @@ export interface WorkflowRuntimeIntelligenceGateway {
     matter: WorkflowMatterSnapshot;
     analysis: WorkflowMatterAnalysis;
     caseInput: WorkflowRuntimeStoredInput;
-  }): Promise<{ bodyText: string; model: string }>;
+  }): Promise<{
+    bodyText: string;
+    model: string;
+    validation?: DraftValidationResult;
+    strategy?: Cp2000StrategyPlan;
+  }>;
 }
 
 export interface WorkflowRuntimePacketGateway {
@@ -572,6 +579,8 @@ export function createWorkflowRuntimeRequestHandler(
             bodyText: generated.bodyText,
             model: generated.model,
             basedOnAnalysisVersion: analysis.version,
+            ...(generated.validation ? { validation: generated.validation } : {}),
+            ...(generated.strategy ? { strategy: generated.strategy } : {}),
           });
         }
         if (request.method === "POST" && parts.length === 3) {

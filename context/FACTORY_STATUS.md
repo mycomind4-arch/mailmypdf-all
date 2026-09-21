@@ -45,8 +45,212 @@ and reviewed reusable registry templates generated from real customer needs.
 | P2 | Complete selected archive recovery | FairProcess review, registry/CI reconciliation; retain later functionality. |
 | P2 | Swarm obeys one-copy/main constraint | Partially addressed, commit `ddce5a5`. Real finding: the swarm had never actually been run in this repo (confirmed: zero worktrees, zero `agent/*` branches, nothing under `.agent-runs` on disk), but had no cleanup path at all — every run/session would have leaked its worktree and branch forever, unbounded. Added cleanupWorktree/cleanupRun/closeChatSession (auto for merged/cancelled runs, manual endpoints for needs_human/failed runs and chat sessions), verified against disposable temp repos (3/3), never the real checkout. **Still unresolved, still open, still the user's call:** the design fundamentally still creates a disposable git worktree + branch per batch run and per chat session, and merges into a persistent `agent/integration` branch — this is exactly the pattern `AGENTS.md`'s "no branches, no worktrees, one checkout" rule targets. This change makes that pattern safe-to-exist-and-clean-up, not policy-compliant. Do not launch the swarm's batch/dispatch mode until the user explicitly decides whether per-run branches are an acceptable exception or the architecture needs to change to operate serialized in the single checkout. |
 | P2 | Agent completion reflects integrated acceptance | Open. Tester falls back to a vertical suite when no workflow acceptance exists; that is not workflow acceptance coverage. |
+| P1 | New root-level architecture routes were never mounted; CP14 golden path built and wired | Closed for CP14, uncommitted. Root cause (confirmed via `wrangler dev` against a real build, not just `vite dev`, which is broken for this app independent of this work): TanStack Start's file-based router only scans `mailmypdf/src/routes/`, so every root-level package's routes (`notice-respond/`, `appeal-mail/`, `records-request/`, `immigration-mail/`, `secured-transactions/`) were dead code — confirmed via a stale `routeTree.gen.ts` (zero `cp14`/`notice-respond` references) and a live build serving the root `$.tsx` catch-all instead of the real page. Added thin mount files (`mailmypdf/src/routes/notice-respond/{index,workflows/cp14-response/index,workflows/cp14-response/start/index}.tsx`) that import CP14's real config/component from `notice-respond/`; added `@mailmypdf/design-system` + `@mailmypdf/seo` to `mailmypdf/package.json` (previously undeclared, required to resolve those imports). Separately, the new architecture's generic runtime contract (`packages/workflows`' `createWorkflowRuntimeRequestHandler`/`createPlatformWorkflowRuntimeRequestHandler`) was fully built and tested but never mounted anywhere, and no production `WorkflowRuntimeStore`/gateway adapters existed — built `mailmypdf/src/lib/secure-core/workflow-runtime-host.server.ts`, mounted at new route `mailmypdf/src/routes/api/workflow-runtime/$.ts`, entirely by wrapping the existing v2 case-route Supabase/AI/packet/Stripe primitives (`case.server`, `case-analysis.server`, `case-approval.server`, `workflow-checkout.server`, `document-intake.server`) rather than building a second runtime. Browser client had no `getAccessToken`, so every new-architecture workflow (not just CP14) would 401 on every request; added a small provider/consumer registry (`packages/workflows/src/browser-access-token.ts`) so the host registers a real Supabase-session token getter once (`mailmypdf/src/routes/__root.tsx`, module scope) and `notice-respond/shared/NoticeResponseWorkflow.tsx` consumes it. Fixed a vertical-id drift bug in `workflow-runtime.ts` (`resolveCaseWorkflow` only recognized the legacy `"notice-response"` id, not the canonical `"notice-respond"` the new architecture and `@mailmypdf/pricing` already use) via an alias, without renaming the legacy id (preserves the still-live `/notice/$` embedded UI). Fixed the notice-response evidence-kind vocabulary mismatch between the new architecture's `COMMON_TAX_EVIDENCE` (`account_transcript`/`prior_correspondence`/`bank_record`) and the DB check constraint (had `irs_transcript`/`correspondence`/`bank_statement`) via an additive migration. Split `case-analysis.server.ts`'s `analyseSubjectNotice` into `runNoticeAnalysisModel` (compute) + `persistCaseAnalysis` (persist) so the generic runtime's separate intelligence/store steps don't double-insert; added `case-draft.server.ts` and an `approve_case_packet` RPC parameter (`p_approval_id`, defaulted, backward compatible) so the generic runtime's client-visible draft-basis and approval ids match what's actually persisted. Made CP14's landing page indexable with real FAQ/what-you-need/what-you-do content (was `indexable: false` with only generic fallback copy) and added it to `sitemap.xml.ts`. Verified: `tsc --noEmit` in `mailmypdf` shows zero new errors (pre-existing ~15 stale-routeTree-string errors across other verticals' `start/` routes untouched by this work remain, plus 3 unrelated pre-existing errors); `pnpm --filter @mailmypdf/workflows test` 155/155; `mailmypdf`'s own suite: every test file touching modified code (`ai-disclosure-boundary`, `case-boundary`, `secure-workflow-fulfillment`, `notice-response-workflow`, `case-packet`, `notice-workflow-factory`, `workflow-runtime`) passes (83/84, the one failure is a confirmed pre-existing hardcoded-absolute-path bug in `secure-workflow-fulfillment.test.mjs` unrelated to this work); full `pnpm run build` succeeds; real browser verification via `wrangler dev` against the built Worker (not `vite dev`/`vite preview`, both broken for this app's Cloudflare Nitro target in this environment) confirmed the CP14 landing page renders with correct SEO (title/description/robots=index/canonical) and the CP14 start page renders the actual 7-step workflow UI end-to-end; `/api/workflow-runtime/matters` is now a real mounted route (previously fell through to the SPA shell, HTTP 200 regardless of body) and correctly 401s without a bearer token. **Not verified**: a live database round-trip (create matter → upload → analyze → draft → approve → checkout) — this local `wrangler dev` environment does not populate `process.env.*` from Workers bindings even with `nodejs_compat_populate_process_env` set, and this is confirmed pre-existing (the untouched `/api/v2/cases` route fails identically), not something this change caused or can fix from application code. The new migration (`mailmypdf/supabase/migrations/20260920100000_workflow_runtime_bridge.sql`) has not been applied to the connected dev Supabase project — `supabase link` for that project ref fails with an account-privilege error for the CLI's current login; applying it needs someone with real access to that Supabase project. Until it's applied, `saveDraft`/evidence attachment under the new evidence-kind labels/approval-id-matching will fail against the live database even though the code and route are correct. |
+
+| P1 | Shared workflow-landing SEO template rebuilt; Studio/swarm updated for new architecture; first autonomous rollout (CP504) completed | Closed, uncommitted. Researched competitor structure for this niche (IRS notice / insurance-appeal response services: IRS.gov, law-firm content pages, Claimable/ClaimFighter) and found the existing `WorkflowLandingPage` (`packages/design-system/src/workflow-landing.tsx`) was far thinner than both competitors and this repo's own `SectionLandingPage` — which already had a full header/hero/trust-strip/process-steps/FAQ/related/footer structure via shared primitives in `public-page.ts`. Extracted `createGlobalHeader`/`createGlobalFooter` into `public-page.ts` (section and workflow pages now use identical primitives) and rebuilt `WorkflowLandingPage`'s default branch to actually render `workflowSteps` (as a "How it works" section, and as new HowTo schema in `packages/seo/src/workflow-head.ts`) and `readyItems` (as a "What you'll need" panel) — both were already being populated in configs (CP14's) but silently dropped by the old template. Added an optional `relatedWorkflows` field for internal linking. Left `AppealMailWorkflowLandingPage` (the appeal-mail vertical's bespoke sidebar layout) untouched — a deliberate separate design per its own `DESIGN_STANDARD.md`; migrating it onto the shared template is a separate decision, not done here. Verified on CP14 via real build + `wrangler dev`: all new sections render server-side with correct content and schema. |
+|   |   | Then, per explicit user direction, investigated wiring this rollout into Studio's existing agent-swarm (`packages/dev-agent-swarm`), which already had a Builder/Tester/Reviewer/specialist role model and an `"seo"` role — but every part of it (catalog scanner, `runSeoCheck`, Tester's vertical-test fallback) was blind to the new root-level architecture. Fixed: `scan-workflow-catalog.ts` now detects new-architecture workflows (config.ts existence) and tracks whether each is actually *mounted* under `mailmypdf/src/routes/` (config-without-mount is exactly the gap CP14 exposed); `runSeoCheck` rewritten to validate the new architecture's config fields, mount files, and sitemap listing instead of the old `apps/verticals/*` layout; fixed stale `publicPath`s for the two sibling workflows confirmed to exist as real folders (`cp504-response`, `cp2000-response`). Found and fixed three real, previously-latent bugs in the swarm itself, each confirmed via an actual run, not by inspection alone: (1) the Tester's fallback filtered `pnpm --filter <verticalId>`, a *package-name* filter — for notice-respond this silently resolved to the **legacy** `apps/verticals/notice-respond` package (14 pre-existing failures) instead of the new `@mailmypdf/notice-respond`, since pnpm matches by exact name and the legacy one happens to be unscoped; fixed to filter by path (`./<verticalId>` vs `./apps/verticals/<verticalId>`, whichever has a package.json), verified against both. (2) The worktree overlay (`overlayWorkingTree`) only applies `git diff HEAD` — tracked-file changes — so any *new, untracked* file from the current session (e.g. this session's own CP14 mount files) was invisible to every run; a real run's Builder had to reconstruct a reference file from scratch because it silently wasn't there. Fixed by additionally copying `git ls-files --others --exclude-standard` (exactly `git status`'s own untracked-but-not-ignored list, so this can never leak a `.gitignore`d secret — preserves the exact boundary the tracked-diff-only design existed for after a prior incident leaked `.env.local`). (3) The Builder role has no Bash access by design (`providers.ts`: a disposable worktree doesn't stop a shell command from reaching the real machine, so `acceptEdits` not `bypassPermissions` is used) — meaning it can edit files but can never `git commit` its own work. A real run's Builder wrote genuinely correct, complete CP504 content (config.ts + two route mounts + sitemap entry) but it sat uncommitted, and the Reviewer correctly reported an empty diff. Fixed by having the orchestrator itself — already trusted for worktree/merge git commands — auto-commit whatever the Builder wrote before Tester/Reviewer run (`commitBuilderChanges` in `orchestrator.ts`), preserving the Builder's sandboxing. Also fixed the Reviewer's verdict parser (`extractLastVerdict`): it only checked `.item.text`/`.message.text` for a JSON verdict string, missing Claude's own `{"type":"result",...,"result":"<json-string>"}` final-summary shape entirely — confirmed via a real run where a well-formed `{"approved":false,...}` verdict was present in `result` but never found, forcing an unnecessary `needs_human`. |
+|   |   | User granted an explicit, bounded exception to this repo's single-checkout/worktree constraint for this specific automated-rollout task (see AGENTS.md/this file's prior "Swarm obeys one-copy/main constraint" entry — this does not change that policy for anything else). Ran the pilot twice, both times for real (not simulated): run 1 failed immediately — the nested `claude` CLI subprocess is not authenticated even though the outer session is (`apiKeySource: none`, confirmed this is a sandbox/session-scoping limitation, not fixable from application code); user ran `claude setup-token` and, after fixing a copy-paste artifact (a stray space splitting the token, introduced by terminal line-wrapping — stripped programmatically without the token ever being read or displayed), run 2 succeeded through Builder/Tester with a real, high-quality result, and would have merged cleanly with the (2)/(3) fixes above in place at launch time — instead its genuinely correct work (verified by hand: CP504 correctly framed as an IRS Notice of Intent to Levy per `cp504NoticeResponseProfile`, explicit that mailing a letter does not stop a levy or substitute for CAP/CDP/Form 9423/Form 12153) was rescued from the worktree and applied directly rather than re-run, then verified via the same `tsc --noEmit` / `pnpm run build` / `wrangler dev` browser check used for CP14. CP504's public landing and start pages both now render correctly end-to-end, backed by the domain pack's already-registered `cp504NoticeResponseProfile` runtime policy (no backend work needed, matching CP14's pattern). Every worktree/branch from both pilot attempts was cleaned up (`cleanupRun`); nothing was left orphaned. Codex was checked as a fallback provider during this session and is genuinely authenticated but hit a usage-limit wall on its first attempt (`try again at 12:26 PM`) — not used as the primary path given that. |
 
 ## Verification ledger
 
 Add exact commands, exit status, tested revision or working-tree state, and
 limitations below as checks complete. Never infer passing results from old reports.
+
+- 2026-09-21, Studio SEO agent hardening + authority-content authoring surface,
+  working tree on `main` (`0f966b93` plus uncommitted changes), checkout
+  `/Users/macdizzle/dev/mailmypdf-all-main`. Single checkout, no worktrees or
+  `agent/*` branches created (`git worktree list` shows one entry).
+  - Measured baseline first, rather than accepting "pages look thin" as the
+    problem statement. Of the 100 public workflow pages served from the
+    authority catalog via `mailmypdf/src/routes/$.tsx`: **0 were indexable**
+    (every record scored 0/100 against the gate's 85 minimum), **0 carried the
+    rich `WorkflowSeoAuthorityContent` contract**, median body length was **134
+    words** (min 101, max 171), and **50 of 100 rendered FAQ questions with no
+    answers** — `legacyFaqPairs()` pairs `gold.faq[i]`/`[i+1]` as question/answer
+    and rejects the pair when the answer also ends in `?`, which is every
+    questions-only gold entry. Root cause: `SEO_WORKFLOW_CATALOG` was a pure
+    `.map()` over WORKFLOW_INVENTORY.json emitting DRAFT/NEEDS_INDIVIDUAL_REVIEW
+    records with no `content`, and **no mechanism existed to author any**. The
+    rendering side was already complete — `WorkflowAuthorityRichPage` renders
+    every field of the contract — so the gap was purely authoring, not display.
+  - Added the authoring surface: `mailmypdf/src/lib/workflow-seo-entries/`
+    (one module per workflow, merged over the DRAFT topology by id in
+    `workflow-seo-catalog.ts`). One file per workflow is deliberate so parallel
+    Studio runs authoring different workflows cannot collide in a shared
+    registry file. Authoring does not bypass review: the gate still scores the
+    record and `state` only reaches EXECUTABLE when `execution.verified` is set.
+  - Authored the first record, `legal-defense/wrongful-stolen-vehicle-arrest`,
+    grounded in `apps/verticals/legal-defense/{README.md,src/model.ts}` rather
+    than invented: **100/100, 2956 substantive words** (gate floor 1200).
+    This also cleared the **pre-existing build-blocking failure** — that record
+    was already EXECUTABLE/AUTHORITY_REVIEWED with no content, so
+    `pnpm seo:authority:validate` (and therefore `verify:launch`) failed before
+    this session. Baseline `indexable 0 / blocked 1` → now `indexable 1 / blocked 0`.
+  - Optimized the Studio SEO agent (`packages/dev-agent-swarm/src/roles.ts`):
+    (1) it was blind to the authority catalog entirely — it only checked the
+    new-architecture `config.ts` tree, where just 2 pages are mounted, while the
+    100 real indexable pages live in the catalog. It now runs the host app's own
+    Authority Gate for the run's `publicPath` and defers to that verdict.
+    (2) Its content checks were presence-only regexes: `` `${field}\s*:\s*\[` ``
+    matches `faqs: []`, so an empty section reported as "populated". Replaced
+    with `countArrayElements()`, a string/comment/nesting/trailing-comma aware
+    counter, plus per-section minimums. (3) Added live source-URL verification:
+    the gate validates that a source URL is well-formed HTTPS, which a
+    fabricated URL also is. This is not theoretical — while authoring the one
+    record above, **5 of 9 plausible-looking .gov URLs I drafted returned 404**
+    (`oag.ca.gov/law-enforcement/clets`, `oag.ca.gov/cjis/clets`,
+    `oag.ca.gov/bodycameras`, `oag.ca.gov/pra`,
+    `dmv.ca.gov/.../register-a-vehicle-bought-from-a-private-party/`). Only
+    verified-live URLs were shipped. 403/429 are reported as warnings, not
+    failures, since they are usually bot filtering.
+  - Made the gate blocking (`packages/dev-agent-swarm/src/orchestrator.ts`): it
+    ran *after* the merge and was explicitly advisory ("never blocks the merge"),
+    so a page that ships noindex and absent from sitemap.xml still recorded as a
+    successful run. It now runs inside the attempt loop before the Reviewer, and
+    its blockers feed back to the Builder as retry instructions.
+  - Added `--json`, `--id` and `--route` to
+    `mailmypdf/scripts/validate-workflow-authority.ts` so the agent can consume a
+    per-workflow verdict. Catalog-wide validation still runs regardless of the
+    filter, because duplicate-metadata and content-similarity are cross-record
+    checks — scoring one entry in isolation would skip exactly the checks that
+    catch mass-generated near-duplicate pages.
+  - Commands and results:
+    - `npx tsx scripts/validate-workflow-authority.ts` — exit 0 (was exit 1);
+      `Gate-qualified/indexable: 1`, `Build-blocking authority records: 0`.
+    - `npx tsc --noEmit -p packages/dev-agent-swarm/tsconfig.json` — exit 0.
+    - `cd mailmypdf && npx tsc --noEmit` — 26 errors, all pre-existing and none
+      in changed files (matches the baseline already recorded in this file).
+    - `npx tsx --test packages/dev-agent-swarm/src/roles.test.ts` — 7/7 pass (new).
+    - `npx tsx --test packages/dev-agent-swarm/src/orchestrator.test.ts` — 3/3 pass.
+    - `cd mailmypdf && npx tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts` — 11/11 pass.
+    - `cd mailmypdf && node --test tests/gold-content.test.mjs tests/legal-defense-vertical.test.mjs` — 26/27;
+      the 1 failure is pre-existing and unrelated (`legal-defense-vertical.test.mjs`
+      reads a hardcoded `verticals/legal-defense/src/model.ts`, missing the
+      `apps/` segment — same class as the recorded `secure-workflow-fulfillment`
+      path bug).
+    - `cd mailmypdf && pnpm run build` — exit 0; authored copy confirmed present
+      in the SSR bundle.
+    - SEO agent exercised end-to-end against the real catalog: authored route
+      returns 0 blockers with all 4 cited sources verified live (200); a DRAFT
+      route correctly returns the gate failure as a blocker.
+  - **Blocked, not done:** the user selected the real Studio swarm for this
+    rollout, and **neither provider CLI can currently run**. `claude -p` returns
+    `apiKeySource: "none"` / `"Not logged in · Please run /login"`
+    (`error: authentication_failed`) — the same nested-CLI auth gap recorded for
+    the CP504 pilot's first attempt, which `claude setup-token` fixed. `codex exec`
+    returns `"You've hit your usage limit ... try again at 7:19 AM"`. No swarm run
+    was launched, so the remaining verticals' flagship pages are **not** authored.
+  - **Not verified:** the rendered page in a faithful runtime. The local workerd
+    binary supports compatibility date 2026-09-04 while the Worker requires
+    2026-09-18; forcing the older date degraded SSR (pages previously recorded as
+    verified, e.g. `/notice-respond/workflows/cp14-response`, rendered with no
+    `<title>` at all). No rendering claim is made from that environment.
+  - **Two real defects found and deliberately not fixed here** (out of scope,
+    filed as separate tasks): (1) under that same unfaithful runtime, the built
+    `/sitemap.xml` returned only 47 entries — exactly `staticRoutes` + `SEO_PAGES`
+    — with zero vertical routes, zero workflow routes and zero new-architecture
+    routes, although all three registries are correctly populated in source
+    (verified in-process: 14 verticals, 100 authority pages, 1 indexable). This
+    points at SSR module-init ordering (note `fix-ssr-chunk-cycle.mjs` and the
+    build's `broke 1 cycle(s)`), but must be re-checked on a faithful runtime
+    before it is treated as real. (2) `mailmypdf/src/routes/legal-defense/workflows/$workflowId.tsx`
+    is a bespoke hand-written page that bypasses `workflowAuthorityForPath()`
+    entirely, so authored authority content does **not** reach the legal-defense
+    page even though the record is valid and feeds the sitemap. ~99 of the 100
+    catalog routes are served by the `$.tsx` catch-all and are unaffected.
+  - **Next dependency before any swarm batch:** `runTester` falls back to the
+    vertical's own suite when a workflow has no acceptance entry. This file
+    already records appeal-mail carrying ~50 pre-existing failing test files, so
+    an SEO-content run there would fail the Tester and never reach the SEO gate,
+    burning the run. Decide between a baseline-aware Tester (classify failures
+    against the base commit, fail only on newly-broken tests) or scoping the
+    Tester to what the diff actually touches, before launching the batch.
+
+- 2026-09-20, Secured Transactions workflow 1 rebuild, working tree on `main`
+  (`eab11fd8` plus uncommitted changes), user-selected checkout
+  `/Users/macdizzle/dev/mailmypdf-all-main`:
+  - Replaced `secured-transactions/workflows/secured-transaction-eligibility/start/EligibilityIntake.tsx`
+    with six plain-language sections covering situation, distinct parties, obligation/value,
+    property/rights/locations, agreements/authority, and review. Workflow-owned questions,
+    draft validation, summaries, and report-only gate mapping are in
+    `rules/guided-intake.ts` under that workflow.
+  - Shared additions in `packages/workflow-ui/src`: `RadioField.tsx`,
+    `DraftFileActions.tsx`, and `ConfirmationPrompt.tsx`; existing layout, stepper,
+    field controls, and shared eligibility engine reused. No legacy donor deleted,
+    new branch created, remote write, migration, payment, or filing performed.
+  - `pnpm --filter @mailmypdf/workflow-ui build` — exit 0.
+  - `pnpm --dir secured-transactions typecheck:eligibility` — exit 0.
+  - `pnpm --dir secured-transactions test:eligibility` — exit 0, 42/42 pass.
+  - `pnpm --dir secured-transactions test` — exit 0, 70/70 pass; overlaps the
+    eligibility suite. Updated a stale registry assertion to allow only the three
+    already-wired intakes (eligibility, names/capacity, obligation/value); the
+    remaining 14 remain placeholders. No maturity or execution promotion.
+  - Safety tests cover unknown/negative/planned/disputed answers, source labels not
+    becoming verified evidence, locations not becoming governing-law conclusions,
+    malformed/tampered draft rejection, and maximum-length multibyte round-trips.
+    Nine guided-intake tests added. All guided intake answers remain unverified;
+    even an affirmative intake cannot authorize analysis or consequential actions.
+  - Browser: authenticated host route rendered; all six sections, back/edit actions,
+    distinct parties, missing answers, retained source notes, disputed rights, and
+    review's zero-verified boundary checked with synthetic data. Native confirm
+    stalled the preview browser, so navigation/draft replacement now use the shared
+    in-page prompt. Verified cancel preserves answers and confirmed leave reaches
+    the dashboard. The warning remains active after download initiation. Verified
+    the final download control shows its status without navigating away from the
+    intake (new-context fallback); the embedded browser did not provide a download
+    event or a verifiable saved file, so file delivery/reopen is not certified.
+    Narrow layout checked at the browser's effective 358px width (no document
+    horizontal overflow), plus desktop; temporary viewport override reset.
+  - `pnpm --dir mailmypdf build` — exit 0. After the download fallback adjustment,
+    rebuilt `@mailmypdf/workflow-ui`, reran `typecheck:eligibility`, and ran
+    `pnpm --dir mailmypdf exec vite build` followed by
+    `node mailmypdf/scripts/fix-ssr-chunk-cycle.mjs mailmypdf/.output/server` — all
+    exit 0. Existing deprecation, Studio browser-externalization, and large-chunk
+    warnings remain. Scoped `git diff --check` — exit 0.
+  - Not connected: account-backed guided-draft persistence, evidence-file upload or
+    independent document review, automatic workflow-2 handoff. Existing matter
+    adapter tests are not proof of browser-to-database persistence. File chooser
+    import and page-close warning are not yet browser-verified; parser round-trips
+    are unit-tested. Whole-repository typecheck/test readiness is not claimed.
+  - Local preview authentication: this generated Worker config resolves `.dev.vars`
+    beside `.output/server/wrangler.json`, not simply from the launch directory.
+    An ignored `.output/server/.dev.vars -> ../../.dev.vars` symlink restored the
+    existing local configuration (`GET /api/auth/config`: 200, `configured: true`).
+    Builds may remove it. This does not verify the separate CP14 server-runtime
+    database/environment issue recorded below or apply its migration.
+  - Next dependency: wire the guided draft to the authenticated, owner/version-scoped
+    matter/source-document runtime without exposing trusted verified-evidence input
+    to the browser; then rebuild workflow 2 against the same party facts.
+
+- 2026-09-20, CP14 golden-path/runtime-mount work, working tree (uncommitted):
+  - `cd mailmypdf && npx tsc --noEmit` — no new errors; pre-existing ~15 stale-`routeTree.gen.ts` path-string errors (other verticals' `start/` routes, not touched here) and 3 unrelated pre-existing errors remain.
+  - `pnpm --filter @mailmypdf/workflows test` — 155/155 pass.
+  - `cd mailmypdf && node --test tests/ai-disclosure-boundary.test.mjs tests/case-boundary.test.mjs tests/secure-workflow-fulfillment.test.mjs && npx tsx --test tests/notice-response-workflow.test.ts tests/case-packet.test.ts tests/notice-workflow-factory.test.ts tests/workflow-runtime.test.ts` — 83/84 pass; the 1 failure (`shared mailing client targets the deployed TanStack API namespace`) is a pre-existing hardcoded absolute path (`/Users/macdizzle/dev/packages/mailing-client/...`, missing `mailmypdf-all-main`) in the test file itself, reproducible on a clean checkout of this branch before this session's changes.
+  - `cd mailmypdf && pnpm run build` — succeeds; `.output/server` produced.
+  - Browser verification: built `.output` served locally via `npx wrangler dev` (real Cloudflare Workers runtime simulation — `vite dev` and `vite preview` are both broken for this app's `nitro: cloudflare_module` target in this environment, unrelated to this change). Confirmed via the actual rendered page: `/notice-respond/workflows/cp14-response` (title, meta description, `robots: index,follow`, canonical link all correct) and `/notice-respond/workflows/cp14-response/start` (full 7-step workflow UI: Notice, Analysis, Response facts, Supporting documents, Response draft, Review, Pay & mail). Signed in as a disposable admin-API-created test user (deleted after). Confirmed `/api/workflow-runtime/matters` is a real route (401 without a bearer token; previously fell through to the SPA shell with HTTP 200 regardless of body).
+  - Not verified: a live Supabase round-trip through `/api/workflow-runtime` (create matter → upload → analyze → draft → approve → checkout). `process.env.*` is empty inside this local `wrangler dev` simulation even with `nodejs_compat_populate_process_env` set; confirmed pre-existing by reproducing the identical failure on the untouched `/api/v2/cases` route. Also not verified: the new migration applied against the live dev Supabase project — no CLI access to that project ref (`supabase link` returns an account-privilege error).
+
+- 2026-09-20, Mail Desk core (user-approved spec; existing main checkout):
+  - Rebuilt the dashboard around sending and actual order history; shared truthful
+    status labels, read-only PDF previews, approval invalidation, stale-upload
+    protection, exact generated-letter bytes, and server checked review pricing.
+  - Added private POST record/PDF downloads with ID/token authorization and an
+    export allowlist. Escaped email-match wildcards without changing auth roles.
+  - Shared UI build and full application build passed; 21 focused Mail Desk/PDF
+    tests and 42 checkout/state/fulfillment regression tests passed.
+  - Full app test command: 581 passed / 24 failed (catalog, moved/hardcoded paths,
+    old source assertions, generated schema drift); full typecheck: 26 errors
+    outside changed Mail Desk files. Neither is reported as a full pass.
+  - Browser: actual dashboard/order empty states, generated letter PDF, changed
+    recipient clearing approval, desktop and narrow layouts verified. No payment
+    or mailing submitted. Production checkout is not configured in this preview.
+  - Launch: http://localhost:8092/dashboard. Exact scope, limitations, commands,
+    and next acceptance checks: tasks/mail-desk/verification.md. Receipt/proof
+    integration and real order-download/payment round trips remain unverified;
+    the downloadable JSON summary is not a payment receipt or certified proof.
+\n+- 2026-09-21, navigation/auth boundary audit:
+  - Confirmed core MailMyPDF admin authorization uses server-side `user_roles`; `/admin` is now the MailMyPDF admin shell and `/studio` is the separate Studio surface.
+  - Removed customer-editable Supabase `user_metadata` role elevation from the legacy Appeal Mail, Dispute Mail, Immigration Mail, Notice Respond, and Private Office auth contexts. Server guards remain the authorization boundary.
+  - Core navigation now uses “My Cases” and “Start a case”.
+  - Private Office and MailMyPDF builds passed. MailMyPDF typecheck still has pre-existing route-generation and unrelated type errors; no new errors were found in the admin or Studio routes.
+  - Remaining: replace legacy vertical admin pages with the core admin route or a shared server-verified role endpoint before deleting `apps/verticals`.

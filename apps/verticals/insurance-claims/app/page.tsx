@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import Link from 'next/link'
 import { INSURANCE_WORKFLOWS, type InsuranceWorkflowFamily } from '@/domain/insurance-workflows'
-import { createTrustStrip, createVerticalHero } from '../../../../packages/design-system/src/index'
+import { createTrustStrip, createVerticalHero } from '@mailmypdf/design-system'
 
 const VerticalHero = createVerticalHero(createElement)
 const SharedTrustStrip = createTrustStrip(createElement)

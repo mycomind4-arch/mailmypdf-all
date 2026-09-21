@@ -1,292 +1,149 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBlocker } from "@tanstack/react-router";
+import { ConfirmationPrompt, DraftFileActions, Field, RadioField, SectionCard, StatusPill, StepShell, TextArea, TextField } from "@mailmypdf/workflow-ui";
 import {
-  FindingsPanel,
-  ReadinessChecklist,
-  StatusPill,
-  StepShell,
-  type StatusPillTone,
-  type WorkflowFinding,
-} from "@mailmypdf/workflow-ui";
-import {
-  SECURED_TRANSACTION_ELIGIBILITY_GATES,
-  evaluateSecuredTransactionEligibility,
-  type EligibilityEvidenceStatus,
-  type SecuredTransactionEligibilityGateId,
-} from "../rules/eligibility";
-import {
-  toEngineInput,
-  validateSecuredTransactionEligibilityInput,
-  type EligibilityEvidenceSourceKind,
-} from "../runtime-policy";
-
-const GATE_LABELS: Record<SecuredTransactionEligibilityGateId, string> = {
-  "identifiable-debtor": "Identifiable debtor",
-  "identifiable-secured-party": "Identifiable secured party",
-  "actual-obligation": "Actual obligation",
-  "actual-value": "Actual value given",
-  "debtor-rights-in-collateral": "Debtor rights in collateral",
-  "authenticated-security-agreement-or-valid-alternative":
-    "Authenticated security agreement or valid alternative",
-  "specific-collateral": "Specific, identified collateral",
-  authorization: "Authorization to encumber the collateral",
-  "correct-jurisdiction": "Correct governing jurisdiction identified",
-};
-
-const SOURCE_KIND_OPTIONS: readonly { value: EligibilityEvidenceSourceKind; label: string }[] = [
-  { value: "user-confirmed", label: "User-confirmed fact (not independent evidence)" },
-  { value: "document", label: "Document" },
-  { value: "registry", label: "Registry / public record" },
-  { value: "filing", label: "Filing" },
-  { value: "authority", label: "Authority (statute, resolution, order)" },
-];
-
-type GateFormEntry = {
-  status: EligibilityEvidenceStatus | "missing";
-  sourceKind: EligibilityEvidenceSourceKind;
-  sourceId: string;
-  sourceLabel: string;
-  note: string;
-};
-
-function emptyEntry(): GateFormEntry {
-  return { status: "missing", sourceKind: "user-confirmed", sourceId: "", sourceLabel: "", note: "" };
-}
-
-function initialForm(): Record<SecuredTransactionEligibilityGateId, GateFormEntry> {
-  const form = {} as Record<SecuredTransactionEligibilityGateId, GateFormEntry>;
-  for (const gateId of SECURED_TRANSACTION_ELIGIBILITY_GATES) {
-    form[gateId] = emptyEntry();
-  }
-  return form;
-}
-
-function toRawInput(
-  form: Record<SecuredTransactionEligibilityGateId, GateFormEntry>,
-): Record<string, unknown> {
-  const raw: Record<string, unknown> = {};
-  for (const gateId of SECURED_TRANSACTION_ELIGIBILITY_GATES) {
-    const entry = form[gateId];
-    if (entry.status === "missing") continue;
-    const hasSource = entry.sourceId.trim().length > 0;
-    raw[gateId] = {
-      status: entry.status,
-      sources: hasSource
-        ? [
-            {
-              kind: entry.sourceKind,
-              id: entry.sourceId.trim(),
-              label: entry.sourceLabel.trim() || entry.sourceId.trim(),
-            },
-          ]
-        : [],
-      ...(entry.note.trim() ? { note: entry.note.trim() } : {}),
-    };
-  }
-  return raw;
-}
-
-function gateStatusTone(status: EligibilityEvidenceStatus | "missing"): StatusPillTone {
-  if (status === "verified") return "success";
-  if (status === "contradicted") return "danger";
-  if (status === "unverified") return "warning";
-  return "neutral";
-}
-
-function gateStatusLabel(status: EligibilityEvidenceStatus | "missing"): string {
-  if (status === "missing") return "No evidence supplied";
-  return status;
-}
-
-export type EligibilityOutcome =
-  | "ELIGIBLE TO CONTINUE"
-  | "HUMAN REVIEW REQUIRED"
-  | "BLOCKED";
-
-/**
- * Maps the shared engine's real status values to the workflow's three
- * user-facing outcome categories. "ELIGIBLE TO CONTINUE" means only that
- * the recorded evidence currently satisfies the prerequisite eligibility
- * gates required to proceed to further secured-transaction analysis. It
- * does not mean a security interest exists, attachment occurred, the
- * agreement is enforceable, or that perfection or (first) priority exists.
- */
-function toOutcome(engineStatus: "ready-for-analysis" | "human-review-required" | "blocked"): EligibilityOutcome {
-  if (engineStatus === "ready-for-analysis") return "ELIGIBLE TO CONTINUE";
-  if (engineStatus === "human-review-required") return "HUMAN REVIEW REQUIRED";
-  return "BLOCKED";
-}
-
-function outcomeTone(outcome: EligibilityOutcome): StatusPillTone {
-  if (outcome === "ELIGIBLE TO CONTINUE") return "success";
-  if (outcome === "HUMAN REVIEW REQUIRED") return "warning";
-  return "danger";
-}
+  answerLabel, assessEligibilityDraft, createEligibilityDraft, eligibilitySummaryText,
+  ELIGIBILITY_FIELDS, ELIGIBILITY_REVIEW_LABELS, ELIGIBILITY_STEPS, parseEligibilityDraft,
+  type EligibilityAnswerId, type EligibilityDraft, type IntakeField,
+} from "../rules/guided-intake";
+import { SECURED_TRANSACTION_ELIGIBILITY_GATES, type SecuredTransactionEligibilityGateId } from "../rules/eligibility";
 
 export function SecuredTransactionEligibilityIntake() {
-  const [form, setForm] = useState(initialForm);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [draft, setDraft] = useState(createEligibilityDraft);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [dirty, setDirty] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusNext = useRef(false);
+  const step = ELIGIBILITY_STEPS[stepIndex];
+  const review = useMemo(() => assessEligibilityDraft(draft), [draft]);
+  const isReview = step.id === "review";
+  const hasAnswers = Object.values(draft.answers).some(Boolean) || Object.values(draft.sources).some(Boolean);
+  const completedStepIds = ELIGIBILITY_STEPS.filter((entry) => entry.fields.length && entry.fields.every((id) => draft.answers[id]?.trim())).map((entry) => entry.id);
 
-  function updateGate(gateId: SecuredTransactionEligibilityGateId, patch: Partial<GateFormEntry>) {
-    setForm((previous) => ({
-      ...previous,
-      [gateId]: { ...previous[gateId], ...patch },
-    }));
+  useEffect(() => {
+    if (focusNext.current) { heading.current?.focus(); focusNext.current = false; }
+  }, [stepIndex]);
+
+  const navigation = useBlocker({
+    shouldBlockFn: () => dirty,
+    withResolver: true,
+    enableBeforeUnload: dirty,
+  });
+
+  function goTo(index: number) {
+    focusNext.current = true;
+    setStepIndex(Math.max(0, Math.min(index, ELIGIBILITY_STEPS.length - 1)));
+  }
+  function answer(id: EligibilityAnswerId, value: string) {
+    setDraft((previous) => ({ ...previous, answers: { ...previous.answers, [id]: value } }));
+    setDirty(true);
+  }
+  function source(id: SecuredTransactionEligibilityGateId, value: string) {
+    setDraft((previous) => ({ ...previous, sources: { ...previous.sources, [id]: value } }));
+    setDirty(true);
+  }
+  function restore(restored: EligibilityDraft) {
+    setDraft(restored);
+    setDirty(false);
+    goTo(0);
   }
 
-  const result = useMemo(() => {
-    const rawInput = toRawInput(form);
-    try {
-      const validated = validateSecuredTransactionEligibilityInput(rawInput);
-      setValidationError(null);
-      return evaluateSecuredTransactionEligibility(toEngineInput(validated));
-    } catch (error) {
-      setValidationError(error instanceof Error ? error.message : "Invalid eligibility input.");
-      return evaluateSecuredTransactionEligibility({});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
-
-  const outcome = toOutcome(result.status);
-
-  const readinessItems = SECURED_TRANSACTION_ELIGIBILITY_GATES.map((gateId) => ({
-    id: gateId,
-    label: GATE_LABELS[gateId],
-    done: result.verified.includes(gateId),
-  }));
-
-  const findings: WorkflowFinding[] = result.gates.map((gate) => ({
-    id: gate.id,
-    title: GATE_LABELS[gate.id],
-    description: gate.reasons.join(" ") || undefined,
-    category: "Eligibility gate",
-    sourceLabel: form[gate.id].sourceId.trim() ? form[gate.id].sourceLabel || form[gate.id].sourceId : undefined,
-    detail: <StatusPill tone={gateStatusTone(form[gate.id].status)} label={gate.status} />,
-  }));
-
   return (
-    <StepShell
-      breadcrumb={[
-        { label: "Secured Transactions", href: "/secured-transactions" },
-        { label: "Secured-Transaction Eligibility" },
-      ]}
-      title="Secured-Transaction Eligibility"
-      subtitle="Record the evidence supporting each required element. Missing or contradicted evidence stays visible rather than being assumed."
-      steps={[{ id: "intake", label: "Evidence intake" }]}
-      currentStepId="intake"
-      completedStepIds={[]}
-      rail={
-        <>
-          <ReadinessChecklist title="Required elements" items={readinessItems} />
-          <div className="wf-card">
-            <div className="wf-card-eyebrow">Result</div>
-            <StatusPill tone={outcomeTone(outcome)} label={outcome} />
-            <p className="wf-finding-description">
-              {outcome === "ELIGIBLE TO CONTINUE" &&
-                "The recorded evidence currently satisfies the prerequisite eligibility gates required to proceed to further secured-transaction analysis. This does not mean a security interest exists, attachment occurred, the agreement is enforceable, or that perfection or priority (including first priority) has been established."}
-              {outcome === "HUMAN REVIEW REQUIRED" &&
-                "Contradicted or unresolved evidence requires human review before this matter can proceed."}
-              {outcome === "BLOCKED" &&
-                "One or more required elements are missing evidence. This matter cannot proceed until they are supplied."}
-            </p>
+    <div className="wf-guided-intake">
+      <ConfirmationPrompt open={navigation.status === "blocked"} title="Keep your draft before leaving" description="Your answers are only on this page unless you kept a downloaded draft. They are not saved to your account. Stay here to keep working, or leave this page." cancelLabel="Stay and keep editing" confirmLabel="Leave this page" onCancel={() => navigation.reset?.()} onConfirm={() => navigation.proceed?.()} />
+      <StepShell
+        breadcrumb={[{ label: "Secured Transactions", href: "/dashboard/workflows/secured-transactions" }, { label: "Workflow 1 · Eligibility intake" }]}
+        title="Let’s understand your transaction"
+        subtitle="Workflow 1 of Secured Transactions · Turn your situation into a clear set of facts, records to gather, and questions for review."
+        lastSavedLabel={dirty ? "Answers stay on this page · keep a downloaded draft" : "Draft stays on this page unless downloaded"}
+        steps={ELIGIBILITY_STEPS.map(({ id, label }) => ({ id, label }))}
+        currentStepId={step.id}
+        completedStepIds={completedStepIds}
+        onStepClick={(id) => goTo(ELIGIBILITY_STEPS.findIndex((entry) => entry.id === id))}
+        rail={
+          <>
+            <SectionCard title="What this step does">
+              <p className="wf-intake-note">Organizes your account of the transaction. You can answer in everyday language, choose “I don’t know,” or leave a detail blank.</p>
+              <p className="wf-intake-note">Checks on the progress bar mean questions answered—not facts verified.</p>
+            </SectionCard>
+            <SectionCard title="Keep nearby, if available">
+              <ul className="wf-summary-list-items">
+                <li>Loan or other obligation agreement</li>
+                <li>Payment, delivery, or credit records</li>
+                <li>Property description and ownership records</li>
+                <li>Security agreement and signing permissions</li>
+              </ul>
+              <p className="wf-intake-note">You can list records here. File upload and document review are not connected in this intake.</p>
+            </SectionCard>
+            <SectionCard title="Review-only boundary">
+              <StatusPill tone="neutral" label="No filing or payment" />
+              <p className="wf-intake-note">This does not establish attachment, enforceability, perfection, priority, or filing permission. Information you enter remains unverified.</p>
+            </SectionCard>
+          </>
+        }
+      >
+        <div className="wf-card">
+          <div className="wf-intake-progress">Section {stepIndex + 1} of {ELIGIBILITY_STEPS.length} · {step.label}</div>
+          <h2 ref={heading} tabIndex={-1} className="wf-intake-heading">{step.title}</h2>
+          <p className="wf-intake-description">{step.description}</p>
+          {!isReview && (
+            <div className="wf-intake-fields">
+              {step.fields.map((id) => {
+                const field: IntakeField = ELIGIBILITY_FIELDS[id];
+                if (field.options) return <RadioField key={id} label={field.label} hint={field.hint} options={field.options} value={draft.answers[id] ?? ""} onChange={(value) => answer(id, value)} />;
+                const Control = field.multiline ? TextArea : TextField;
+                return <Field key={id} label={field.label} hint={field.hint}><Control value={draft.answers[id] ?? ""} maxLength={2500} placeholder={field.placeholder} onChange={(event) => answer(id, event.target.value)} /></Field>;
+              })}
+              {step.id === "records" && (
+                <details className="wf-intake-records">
+                  <summary>List records to gather or review (optional)</summary>
+                  <p className="wf-intake-note">Enter a document name, date, or page reference. These are your notes—not uploaded files or independently verified evidence. Do not include passwords or sensitive account numbers.</p>
+                  <div className="wf-intake-source-fields">
+                    {SECURED_TRANSACTION_ELIGIBILITY_GATES.map((id) => <Field key={id} label={`Record for: ${ELIGIBILITY_REVIEW_LABELS[id]}`}><TextField value={draft.sources[id] ?? ""} maxLength={2500} placeholder="Document name, date, and page, if known" onChange={(event) => source(id, event.target.value)} /></Field>)}
+                  </div>
+                </details>
+              )}
+              {step.id === "situation" && <div className="wf-intake-callout">You do not have to prove your case to fill this out. Unknowns and disagreements will become a checklist of what needs attention.</div>}
+            </div>
+          )}
+          {isReview && (
+            <>
+              <div className="wf-intake-callout">
+                <strong>{!hasAnswers ? "No details entered yet." : review.items.some((item) => item.status === "disputed") ? "Your account includes a disagreement that needs review." : "Your intake is organized. Supporting evidence still needs review."}</strong>
+                <p className="wf-intake-note">{review.items.filter((item) => item.status === "reported").length} of 9 topics have reported details; 0 are independently verified. Missing answers do not stop you from saving this draft.</p>
+              </div>
+              {ELIGIBILITY_STEPS.filter((entry) => entry.fields.length).map((entry, index) => (
+                <section className="wf-intake-review-section" key={entry.id}>
+                  <div className="wf-intake-review-heading"><h3>{entry.title}</h3><button type="button" className="wf-btn wf-btn--outline" onClick={() => goTo(index)}>Edit {entry.label.toLowerCase()}</button></div>
+                  <dl className="wf-intake-summary">{entry.fields.map((id) => <div key={id}><dt>{ELIGIBILITY_FIELDS[id].label}</dt><dd>{answerLabel(id, draft.answers[id])}</dd></div>)}</dl>
+                </section>
+              ))}
+            </>
+          )}
+          <div className="wf-intake-navigation">
+            <button type="button" className="wf-btn wf-btn--outline" disabled={stepIndex === 0} onClick={() => goTo(stepIndex - 1)}>Back</button>
+            {!isReview && <button type="button" className="wf-btn wf-btn--primary" onClick={() => goTo(stepIndex + 1)}>{stepIndex === ELIGIBILITY_STEPS.length - 2 ? "Review my intake" : `Continue to ${ELIGIBILITY_STEPS[stepIndex + 1].label.toLowerCase()}`}</button>}
           </div>
-        </>
-      }
-    >
-      {validationError && (
-        <div className="wf-card" role="alert">
-          <StatusPill tone="danger" label="Invalid input" />
-          <p className="wf-finding-description">{validationError}</p>
+          {!isReview && <p className="wf-intake-note">All details can be edited later. You can continue with unanswered questions.</p>}
         </div>
-      )}
-
-      <div className="wf-card">
-        <div className="wf-card-eyebrow">Evidence for each required element</div>
-        {SECURED_TRANSACTION_ELIGIBILITY_GATES.map((gateId) => {
-          const entry = form[gateId];
-          return (
-            <fieldset key={gateId} className="wf-finding">
-              <legend className="wf-finding-title">{GATE_LABELS[gateId]}</legend>
-              <StatusPill tone={gateStatusTone(entry.status)} label={gateStatusLabel(entry.status)} />
-
-              <label className="wf-form-label">
-                Status
-                <select
-                  className="wf-form-control"
-                  value={entry.status}
-                  onChange={(event) =>
-                    updateGate(gateId, {
-                      status: event.target.value as GateFormEntry["status"],
-                    })
-                  }
-                >
-                  <option value="missing">No evidence yet</option>
-                  <option value="unverified">Unverified</option>
-                  <option value="verified">Verified</option>
-                  <option value="contradicted">Contradicted</option>
-                </select>
-              </label>
-
-              <label className="wf-form-label">
-                Source type
-                <select
-                  className="wf-form-control"
-                  value={entry.sourceKind}
-                  onChange={(event) =>
-                    updateGate(gateId, {
-                      sourceKind: event.target.value as EligibilityEvidenceSourceKind,
-                    })
-                  }
-                >
-                  {SOURCE_KIND_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="wf-form-label">
-                Source id / reference
-                <input
-                  className="wf-form-control"
-                  type="text"
-                  value={entry.sourceId}
-                  onChange={(event) => updateGate(gateId, { sourceId: event.target.value })}
-                  placeholder="e.g. document-12 or a stated fact reference"
-                />
-              </label>
-
-              <label className="wf-form-label">
-                Source label
-                <input
-                  className="wf-form-control"
-                  type="text"
-                  value={entry.sourceLabel}
-                  onChange={(event) => updateGate(gateId, { sourceLabel: event.target.value })}
-                  placeholder="Human-readable description of the source"
-                />
-              </label>
-
-              <label className="wf-form-label">
-                Note (optional)
-                <input
-                  className="wf-form-control"
-                  type="text"
-                  value={entry.note}
-                  onChange={(event) => updateGate(gateId, { note: event.target.value })}
-                />
-              </label>
-            </fieldset>
-          );
-        })}
-      </div>
-
-      <FindingsPanel
-        title="Gate findings"
-        description="Each required element's current evidence status, as evaluated by the shared eligibility engine."
-        findings={findings}
-      />
-    </StepShell>
+        {isReview && (
+          <SectionCard title="What needs attention next" description="Reported details are not verified evidence. Each topic stays open until its sources and applicable rules are reviewed.">
+            {review.items.map((item) => (
+              <section className="wf-intake-review-item" key={item.id}>
+                <h3>{item.label}</h3>
+                <StatusPill tone={item.status === "disputed" ? "danger" : item.status === "missing" ? "warning" : "neutral"} label={item.status === "disputed" ? "Disagreement reported" : item.status === "missing" ? "More information needed" : "Reported · not verified"} />
+                <p className="wf-intake-note">{item.next}</p>
+                <p className="wf-intake-note">Record reference: {item.source || "None listed yet"}</p>
+              </section>
+            ))}
+            <div className="wf-intake-callout">Next in the sequence: workflow 2, names and signing authority. That screen has not yet been rebuilt, and this draft is not automatically passed into it.</div>
+          </SectionCard>
+        )}
+        <SectionCard title="Keep your progress">
+          <DraftFileActions draft={draft} filename="secured-transactions-workflow-1-draft" parse={parseEligibilityDraft} onRestore={restore} hasUnsavedChanges={dirty} summaryText={isReview ? eligibilitySummaryText(draft) : undefined} />
+        </SectionCard>
+      </StepShell>
+    </div>
   );
 }
 

@@ -189,7 +189,28 @@ function dependencies(): WorkflowRuntimeServerDependencies & { store: MemoryStor
         };
       },
       async generateDraft() {
-        return { bodyText: "Re: Appeal\n\nDear Sir or Madam:\n\nThis is the generated test response.\n\nSincerely,\nTest User", model: "mock-claude" };
+        return {
+          bodyText: "Re: Appeal\n\nDear Sir or Madam:\n\nThis is the generated test response.\n\nSincerely,\nTest User",
+          model: "mock-claude",
+          validation: {
+            findings: [],
+            passed: true,
+            errors: 0,
+            warnings: 0,
+            blocks: 0,
+          },
+          strategy: {
+            position: "disagree_some",
+            issues: [],
+            evidenceToInclude: [],
+            explanations: [],
+            requestedActions: ["Keep copies of all documents submitted."],
+            supportingSourceIds: ["irs.cp2000-series"],
+            riskFlags: [],
+            unresolvedIssues: [],
+            confidence: "medium",
+          },
+        };
       },
     },
     packet: {
@@ -300,8 +321,17 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   assert.equal(response.status, 200);
 
   response = await handle(request(`/matters/${matterId}/draft/generate`, { method: "POST" }));
-  const generated = (await body(response)).bodyText as string;
+  const generatedPayload = await body(response);
+  const generated = generatedPayload.bodyText as string;
   assert.match(generated, /Dear Sir or Madam/);
+  assert.deepEqual(generatedPayload.validation, {
+    findings: [],
+    passed: true,
+    errors: 0,
+    warnings: 0,
+    blocks: 0,
+  });
+  assert.equal(generatedPayload.strategy?.position, "disagree_some");
 
   response = await handle(request(`/matters/${matterId}/draft`, {
     method: "POST",

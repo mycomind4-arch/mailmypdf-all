@@ -133,7 +133,13 @@ export * from './public-page.js'
 export * from './workspace.js'
 export * from './workflow-hub.js'
 export * from './workflow-directory.js'
+export * from './workflow-images.js'
 
 export * from './section-landing.js'
+
+// Admin is a distinct surface contract. Public/authenticated surfaces retain
+// their existing root exports for backwards compatibility and also expose
+// explicit subpath entry points from the package manifest.
+export * from './admin-surface.js'
 
 export * from './workflow-landing.js'

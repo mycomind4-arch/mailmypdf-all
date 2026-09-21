@@ -104,6 +104,95 @@ export function createVerticalHero(h: ElementFactory) {
   }
 }
 
+export interface GlobalHeaderProps {
+  /** Display name shown under the MailMyPDF wordmark, e.g. "Notice Respond". */
+  productName: string
+  /** Section root, e.g. "/notice-respond". */
+  sectionPath: string
+  /** Primary nav/CTA destination, e.g. "/notice-respond/workflows". */
+  workflowsPath: string
+  authHref?: string
+}
+
+export interface GlobalFooterProps {
+  productName: string
+  /** One line describing what the section's workflows do, shown next to the wordmark. */
+  tagline: string
+}
+
+const DEFAULT_AUTH_HREF = '/auth?redirect=%2Fdashboard'
+
+/**
+ * The one global header every public MailMyPDF page (section landing and
+ * workflow landing alike) renders, so a visitor never sees two different
+ * navigation shells depending on which page depth they land on.
+ */
+export function createGlobalHeader(h: ElementFactory) {
+  return function GlobalHeader({ productName, sectionPath, workflowsPath, authHref = DEFAULT_AUTH_HREF }: GlobalHeaderProps) {
+    return h(
+      'header',
+      { className: 'mmp-site-header' },
+      h(
+        'div',
+        { className: 'mmp-site-header__inner' },
+        h(
+          'a',
+          { className: 'mmp-brand-lockup', href: '/', 'aria-label': 'MailMyPDF home' },
+          h('span', { className: 'mmp-brand-mark', 'aria-hidden': 'true' }, 'M'),
+          h(
+            'span',
+            { className: 'mmp-brand-copy' },
+            h('span', { className: 'mmp-brand-name' }, 'MailMyPDF'),
+            h('span', { className: 'mmp-brand-product' }, productName),
+          ),
+        ),
+        h(
+          'nav',
+          { className: 'mmp-site-nav', 'aria-label': 'Primary navigation' },
+          h('a', { href: '/workflows' }, 'All workflows'),
+          h('a', { href: workflowsPath }, `${productName} workflows`),
+          h('a', { href: '#how-it-works' }, 'How it works'),
+          h('a', { href: '#faq' }, 'FAQ'),
+        ),
+        h(
+          'div',
+          { className: 'mmp-site-actions' },
+          h('a', { className: 'mmp-button-secondary', href: authHref }, 'Sign in'),
+          h('a', { className: 'mmp-button-primary', href: workflowsPath }, 'Start a workflow'),
+        ),
+      ),
+    )
+  }
+}
+
+/** The one global footer every public MailMyPDF page renders. */
+export function createGlobalFooter(h: ElementFactory) {
+  return function GlobalFooter({ productName, tagline }: GlobalFooterProps) {
+    return h(
+      'footer',
+      { className: 'mmp-seo-footer' },
+      h(
+        'div',
+        { className: 'mmp-section__inner mmp-seo-footer__inner' },
+        h(
+          'div',
+          null,
+          h('strong', { className: 'mmp-brand-name' }, 'MailMyPDF'),
+          h('p', null, tagline),
+        ),
+        h(
+          'nav',
+          { 'aria-label': 'Footer navigation' },
+          h('a', { href: '/workflows' }, 'Workflows'),
+          h('a', { href: '/privacy' }, 'Privacy'),
+          h('a', { href: '/terms' }, 'Terms'),
+          h('a', { href: '/contact' }, 'Contact'),
+        ),
+      ),
+    )
+  }
+}
+
 export function createTrustStrip(h: ElementFactory) {
   return function TrustStrip({ items, className = '' }: TrustStripProps) {
     return h(
