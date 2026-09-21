@@ -2,6 +2,7 @@ import type { WorkflowSeoAuthorityContent } from "../workflow-seo-catalog";
 
 import appealSsdiDenial from "./appeal-ssdi-denial";
 import legalDefenseWrongfulStolenVehicleArrest from "./legal-defense-wrongful-stolen-vehicle-arrest";
+import noticeIrsNotice from "./notice-irs-notice";
 
 /**
  * One authored authority record. `id` must match a canonical workflow id in
@@ -33,4 +34,5 @@ export type AuthoredWorkflowSeoEntry = {
 export const AUTHORED_SEO_ENTRIES: readonly AuthoredWorkflowSeoEntry[] = [
   legalDefenseWrongfulStolenVehicleArrest,
   appealSsdiDenial,
+  noticeIrsNotice,
 ];
