@@ -307,3 +307,19 @@ Limitations and open items, not fixed here:
   workflow-authority contribution to the sitemap is currently empty by content
   policy, not by defect. The uncommitted working tree has 1 indexable.
 - Nothing was deployed and no production sitemap was verified.
+
+### 2026-09-21 — consolidate branches onto main
+
+- Committed the accumulated working tree (`2f4da24f`), merged
+  `claude/hungry-bhaskara-062926` (`578d726a`; sitemap conflict resolved by
+  moving CP14/CP504 entries into `lib/sitemap.ts`), and applied the only unique
+  swarm output, `notice/irs-notice` SEO entry from `agent/irs-notice-bf19d1`.
+  The other ten `agent/*` branches were identical snapshots of the working tree.
+- `npx tsx --test tests/crawler-endpoints.test.ts` 7/7; authority gate exit 0,
+  3 indexable, 0 blocking (`notice/irs-notice` 100/100); `packages/workflows`
+  165/165; `pnpm run build` exit 0; `tsc --noEmit` 26 errors, none in merged files
+  (pre-existing stale route strings in root-level `start/` routes).
+- Local run: `mailmypdf-worker` launch config (built Worker, wrangler 4.127.1 with
+  `--compatibility-date 2026-09-04` downgrade). `/`, `/sitemap.xml` (77 locs),
+  `/robots.txt`, CP14, `/notice/irs-notice` 200; `/studio` redirects to sign-in.
+  Not pushed; merged `agent/*` branches and worktrees not yet removed.
