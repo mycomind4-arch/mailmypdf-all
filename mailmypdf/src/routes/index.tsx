@@ -140,7 +140,7 @@ function HomepageHero() {
             businesses, and more — with confidence, speed, and proof.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/workflows" className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-brand px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
+            <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-brand px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
               Start a Matter <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
@@ -362,7 +362,7 @@ function HomepageFinalCta() {
           </p>
         </div>
         <div className="shrink-0 md:w-[228px]">
-          <Link to="/workflows" className="flex h-[38px] items-center justify-center gap-3 rounded-md bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
+          <Link to="/ecosystem" className="flex h-[38px] items-center justify-center gap-3 rounded-md bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
             Start Your Matter <ArrowRight className="h-4 w-4" />
           </Link>
           <p className="mt-2.5 text-center text-[12px] text-ink-soft">Review first. Choose how to send.</p>

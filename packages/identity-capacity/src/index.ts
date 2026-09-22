@@ -145,6 +145,16 @@ export {
 } from "./jurisdiction-resolution.js";
 
 export type {
+  JurisdictionLevel,
+  GeographicJurisdiction,
+} from "./geographic-jurisdiction.js";
+export {
+  identifyGeographicJurisdiction,
+  canMakeJurisdictionalConclusions,
+  validateJurisdictionForCodeEnforcement,
+} from "./geographic-jurisdiction.js";
+
+export type {
   NameCapacityCertificationStatus,
   CertificationSearchRequirement,
   CertificationSearchCoverage,
