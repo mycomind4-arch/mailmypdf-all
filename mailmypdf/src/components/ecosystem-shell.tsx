@@ -4,7 +4,7 @@
  * This is the SINGLE shared navigation architecture for all MailMyPDF verticals.
  * Each vertical imports this component and passes its config.
  *
- * Public header:    [BRAND] Products ▾ | Workflows | How It Works | Security & Trust | About | Mail a PDF | Sign In | Start a Workflow
+ * Public header:    [BRAND] Products ▾ | Workflows | How It Works | Security | About | Search | Sign In | Start a Matter | Mail a PDF
  * Auth shell:       [LEFT SIDEBAR] + Dashboard | Workflows | Mail a PDF | Recent ▾ | New Matter | Avatar ▾
  *
  * DO NOT create competing navigation components.
@@ -13,7 +13,7 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight } from "lucide-react";
+import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight, Search } from "lucide-react";
 import { AuthenticatedSidebar } from "./authenticated-sidebar";
 
 
@@ -134,23 +134,29 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
           showMobileControls={false}
         />
       ) : null}
-      <header className="sticky top-0 z-50 border-b border-rule/60 bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-rule/60 bg-card/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* Brand */}
         <Link to="/" className={`flex items-center gap-2.5 group ${isAuth ? "lg:hidden" : ""}`}>
           <ShellLogo theme={config.theme} />
-          <span className="flex flex-col leading-none">
-            <span className="font-serif text-lg transition-colors group-hover:text-cobalt">
-              {config.brand}
+          {config.brand === "MailMyPDF" ? (
+            <span className="font-sans text-[22px] font-bold leading-none tracking-[-0.03em] text-navy">
+              mailmy<span className="text-brand">pdf</span>
             </span>
-            <span className="mt-1 hidden text-[9px] uppercase tracking-[0.2em] text-muted-foreground xl:block">
-              {config.brandTagline}
+          ) : (
+            <span className="flex flex-col leading-none">
+              <span className="font-serif text-lg transition-colors group-hover:text-cobalt">
+                {config.brand}
+              </span>
+              <span className="mt-1 hidden text-[9px] uppercase tracking-[0.2em] text-muted-foreground xl:block">
+                {config.brandTagline}
+              </span>
             </span>
-          </span>
+          )}
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden items-center gap-0.5 md:flex" aria-label="Main navigation">
+        <nav className="hidden items-center gap-0.5 whitespace-nowrap md:flex [&>*]:shrink-0" aria-label="Main navigation">
           {isAuth ? (
             <>
               <NavLink to={config.dashboardUrl} className="rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
@@ -176,31 +182,37 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
           ) : (
             <>
               <ProductsDropdown config={config} />
-              <NavLink to={config.workflowsUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+              <NavLink to={config.workflowsUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 Workflows
               </NavLink>
-              <NavLink to={config.howItWorksUrl} className="rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+              <NavLink to={config.howItWorksUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 How It Works
               </NavLink>
-              <a href="/security" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
-                Security & Trust
+              <a href="/security" className="hidden rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
+                Security
               </a>
-              <NavLink to="/about" className="hidden rounded-lg px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground xl:inline-flex">
+              <NavLink to="/about" className="hidden rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex">
                 About
               </NavLink>
               <NavLink
-                to={config.mailPdfUrl}
-                className="ml-2 hidden items-center gap-1.5 rounded-full border border-rule bg-card px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:border-cobalt/40 hover:text-cobalt lg:inline-flex"
+                to={config.workflowsUrl}
+                aria-label="Search workflows"
+                className="ml-1 hidden h-9 w-9 items-center justify-center rounded-md text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground lg:inline-flex"
               >
-                <Mail size={14} />
-                Mail a PDF
+                <Search size={17} />
               </NavLink>
-              <NavLink to={config.authUrl} className="px-3 py-2 text-sm text-ink-soft transition-colors hover:text-foreground">
+              <NavLink to={config.authUrl} className="ml-2 inline-flex h-10 items-center rounded-md border border-rule bg-card px-4 text-sm font-medium text-foreground transition-colors hover:border-brand/50 hover:text-brand">
                 Sign In
               </NavLink>
-              <NavLink to={config.workflowsUrl} className="ml-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <NavLink to={config.workflowsUrl} className="ml-2.5 inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover">
                 {config.ctaLabel ?? "Start a Workflow"}
-                <ArrowRight size={14} />
+              </NavLink>
+              <NavLink
+                to={config.mailPdfUrl}
+                className="ml-2 hidden items-center gap-1.5 px-1 py-2 text-sm font-semibold text-brand transition-colors hover:text-brand-hover lg:inline-flex"
+              >
+                <Mail size={15} />
+                Mail a PDF
               </NavLink>
             </>
           )}
@@ -543,7 +555,7 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
           How It Works
         </NavLink>
         <a href="/security" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
-          Security & Trust
+          Security
         </a>
         <NavLink to="/about" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           About
@@ -592,7 +604,7 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         <NavLink
           to={config.workflowsUrl}
           onClick={onClose}
-          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+          className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white"
         >
           {config.ctaLabel ?? (isAuth ? "New Workflow" : "Start a Workflow")}
           <ArrowRight size={14} />

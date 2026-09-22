@@ -1,21 +1,25 @@
-import React from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { existsSync } from "node:fs";
-import { HomepageHeroImage } from "../src/components/homepage-hero-image";
+import { existsSync, readFileSync } from "node:fs";
 
-test("hero serves art-directed mobile and desktop images without lazy-loading the main image", () => {
-  const html = renderToStaticMarkup(<HomepageHeroImage />);
-  assert.match(html, /<picture/);
-  assert.match(html, /media="\(max-width: 639px\)"/);
-  assert.match(html, /hero-mobile-v2-400.webp 400w/);
-  assert.match(html, /hero-desktop-v2-1448.webp 1448w/);
-  assert.match(html, /fetchPriority="high"/i);
-  assert.match(html, /loading="eager"/);
-  assert.match(html, /width="1448" height="1086"/);
-  assert.match(html, /alt="MailMyPDF envelope/);
-  for (const path of new Set(html.match(/\/homepage\/hero-[\w-]+\.webp/g))) {
+const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+
+test("every homepage image asset the route references exists", () => {
+  const paths = new Set(source.match(/\/homepage\/[\w-]+\.(?:webp|png|jpg)/g));
+  assert.ok(paths.size > 0, "expected homepage image references");
+  for (const path of paths) {
     assert.ok(existsSync(new URL(`../public${path}`, import.meta.url)), `Missing asset ${path}`);
+  }
+});
+
+test("hero letter/envelope composition is decorative and hidden from assistive tech", () => {
+  const visual = source.slice(source.indexOf("function HeroLetterVisual"));
+  assert.match(visual, /<div aria-hidden/);
+});
+
+test("hero trust strip and promise band avoid unverifiable popularity and testimonial claims", () => {
+  const hero = source.slice(source.indexOf("function HomepageHero"), source.indexOf("function HomepageFinalCta"));
+  for (const claim of [/Trusted by Thousands/i, /Join thousands/i, /Real Customer/i, /Court-Ready/i]) {
+    assert.doesNotMatch(hero, claim);
   }
 });

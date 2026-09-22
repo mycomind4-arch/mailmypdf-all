@@ -3,17 +3,21 @@ import { Route as RouteIcon } from "lucide-react";
 import {
   ArrowRight,
   Check,
+  CircleCheck,
   Eye,
+  FileSearch,
   FileText,
   Mail,
+  Mailbox,
   MapPin,
   Send,
   ShieldCheck,
+  Sparkles,
+  SquareCheck,
   Stamp,
   Upload,
 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { HomepageHeroImage } from "@/components/homepage-hero-image";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
 import { absoluteUrl } from "@/lib/site-url";
 import {
@@ -118,102 +122,167 @@ function LandingPage() {
 
 function HomepageHero() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#0b2343] text-white">
+    <section className="relative isolate overflow-hidden bg-navy text-white">
       <div
-        className="absolute inset-0 -z-10 bg-cover bg-center"
+        className="absolute inset-0 -z-10 bg-cover bg-[center_right]"
         aria-hidden
         style={{ backgroundImage: "url(/homepage/coast-sunrise-optimized.webp)" }}
       />
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(5,24,48,.94)_0%,rgba(5,24,48,.74)_44%,rgba(5,24,48,.16)_100%)]" aria-hidden />
-      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:py-16">
-        <div className="max-w-xl">
-          <div className="font-mono text-[11px] uppercase tracking-[0.32em] text-blue-100">Real letters. Real progress.</div>
-          <h1 className="mt-4 max-w-2xl text-4xl leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-6xl xl:text-7xl">
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(8,26,52,.92)_0%,rgba(8,26,52,.72)_40%,rgba(8,26,52,.18)_75%,rgba(8,26,52,.05)_100%)]" aria-hidden />
+      <div className="relative mx-auto max-w-7xl px-5 pb-10 pt-10 sm:px-8 sm:pt-12 lg:min-h-[400px] lg:px-[52px] lg:pb-9">
+        <div className="relative z-10 max-w-[560px]">
+          <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/85">Real letters. Real progress.</div>
+          <h1 className="mt-3 text-[2.6rem] leading-[0.98] tracking-[-0.02em] text-white sm:text-[3.25rem] lg:text-[3.4rem]">
             Turn Your Documents Into Action.
           </h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-blue-50 sm:text-lg">
-            Mail a PDF or write a letter online—without a printer. Prepare important correspondence,
-            review every page, and choose how to send it.
+          <p className="mt-4 max-w-[380px] text-[15px] leading-[1.45] text-white/90">
+            MailMyPDF helps you create, complete, and mail the right letters for government agencies,
+            businesses, and more — with confidence, speed, and proof.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/workflows" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-cobalt px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90">
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/workflows" className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-brand px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
               Start a Matter <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/ecosystem" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/60 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+            <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
               Explore Workflows
             </Link>
           </div>
-          <div className="mt-9 grid grid-cols-2 gap-4 text-xs text-white/90 sm:grid-cols-4">
-            {[
-              [ShieldCheck, "Secure & Private"],
-              [FileText, "Review Every Page"],
-              [Mail, "Mailing Options"],
-              [Check, "Price Before Payment"],
-            ].map(([Icon, label]) => (
-              <div key={label as string} className="flex items-center gap-2">
-                <Icon className="h-6 w-6 shrink-0 text-white" />
-                <span>{label as string}</span>
+          <div className="mt-8 grid max-w-[480px] grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
+            {HERO_TRUST_ITEMS.map(({ icon: Icon, lines }) => (
+              <div key={lines.join(" ")} className="flex items-center gap-2.5">
+                <Icon className="h-7 w-7 shrink-0 text-white" strokeWidth={1.5} />
+                <span className="text-[11px] leading-[1.25] text-white">
+                  {lines[0]}
+                  <br />
+                  {lines[1]}
+                </span>
               </div>
             ))}
           </div>
         </div>
-        <div className="relative min-w-0">
-          <HomepageHeroImage />
-        </div>
+        <HeroLetterVisual />
       </div>
     </section>
   );
 }
 
+// Trust claims stay limited to what the product actually guarantees on every order.
+const HERO_TRUST_ITEMS = [
+  { icon: ShieldCheck, lines: ["Secure", "& Private"] },
+  { icon: FileText, lines: ["Review", "Every Page"] },
+  { icon: Mail, lines: ["Certified Mail", "Available"] },
+  { icon: CircleCheck, lines: ["Price Before", "Payment"] },
+] as const;
+
+/** Decorative letter + envelope composition; hidden from assistive tech. */
+function HeroLetterVisual() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 top-0 hidden w-[52%] select-none lg:block">
+      {/* Envelope */}
+      <div className="absolute right-[2%] top-[45%] h-[260px] w-[250px] -rotate-[3deg] rounded-[3px] bg-[#f4f2ee] shadow-[0_18px_40px_-12px_rgba(0,0,0,.55)] xl:right-[4%] xl:w-[300px]">
+        <svg className="absolute left-[24px] top-[20px] h-[36px] w-[90px] text-slate-400" viewBox="0 0 90 36" fill="none" stroke="currentColor" strokeWidth="1">
+          {[4, 11, 18, 25, 32].map((y) => (
+            <path key={y} d={`M0 ${y} q 7.5 -4 15 0 t 15 0 t 15 0 t 15 0 t 15 0 t 15 0`} />
+          ))}
+        </svg>
+        <div className="absolute right-[18px] top-[18px] h-[44px] w-[38px] border-2 border-dotted border-slate-300 bg-white p-[3px]">
+          <svg viewBox="0 0 30 34" className="h-full w-full">
+            {Array.from({ length: 7 }, (_, i) => (
+              <rect key={i} x="0" y={i * 4.9} width="30" height="2.45" fill="#b22234" />
+            ))}
+            <rect x="0" y="0" width="13" height="17" fill="#3c3b6e" />
+            {Array.from({ length: 12 }, (_, i) => (
+              <circle key={i} cx={2 + (i % 4) * 3} cy={2.5 + Math.floor(i / 4) * 5} r="0.7" fill="#fff" />
+            ))}
+          </svg>
+        </div>
+        <div className="absolute right-[18px] top-[70px] font-sans text-[8px] font-bold tracking-wide text-navy">U.S. MAIL</div>
+        <div className="absolute left-[30px] top-[102px] font-sans text-[8.5px] leading-[1.35] text-slate-700">
+          U.S. Department of the Treasury
+          <br />
+          Internal Revenue Service
+          <br />
+          P.O. Box 7704
+          <br />
+          San Francisco, CA 94120
+        </div>
+        <div className="absolute bottom-[26px] right-[14px] rotate-[-8deg] text-right font-script text-[19px] leading-[1.05] text-slate-700">
+          Real People.
+          <br />
+          Real Solutions.
+          <br />
+          A More Fair Process.
+        </div>
+      </div>
+      {/* Letter */}
+      <div className="absolute left-[9%] top-[43%] h-[300px] w-[222px] -rotate-[8deg] rounded-[3px] bg-[#fbfbf9] px-6 pt-9 shadow-[0_22px_45px_-12px_rgba(0,0,0,.6)] xl:left-[14%]">
+        <div className="font-serif text-[21px] leading-[1.05] text-slate-900">
+          Your Letter
+          <br />
+          Ready to Mail
+        </div>
+        <ul className="mt-5 space-y-[13px]">
+          {["AI-Powered Drafting", "Your Documents Included", "Formatted & Ready", "Certified Mail Option"].map((item) => (
+            <li key={item} className="flex items-center gap-2.5 font-sans text-[9.5px] text-slate-700">
+              <SquareCheck className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={1.6} />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 const HOMEPAGE_PATHS = [
-  { title: "Notice Respond", text: "Respond to government notices with confidence.", href: "/notice-respond", image: "/homepage/denial-package.png" },
-  { title: "Appeal Mail", text: "Appeal denials and unfavorable decisions.", href: "/appeal-mail", image: "/homepage/justice-gavel.png" },
-  { title: "Immigration Mail", text: "Handle USCIS letters, RFEs, denials, and more.", href: "/immigration-mail", image: "/homepage/immigration-mail.png" },
-  { title: "Dispute Mail", text: "Dispute errors and protect your rights.", href: "/dispute-mail", image: "/homepage/hero-mail-packet.png" },
-  { title: "Records Requests", text: "Request public records and official documents.", href: "/records-request", image: "/homepage/records-folders.png" },
-  { title: "Code Enforcement", text: "Respond to violations and protect your property.", href: "/code-enforcement", image: "/homepage/business-mail.png" },
-  { title: "Private Office", text: "Advanced workflows for complex matters.", href: "/private-office", image: "/homepage/private-office.png" },
-  { title: "Small Business", text: "Handle essential business correspondence.", href: "/small-business", image: "/homepage/small-business.png" },
-  { title: "Legal Case Builder", text: "Create a custom workflow for your specific situation.", href: "/legal-defense", image: "/homepage/legal-case-builder.png" },
-  { title: "Mail a PDF", text: "Have a document ready? We’ll help you print and mail it.", href: "/mail-a-pdf", image: "/homepage/mailbox-icon.png" },
+  { title: "Notice Respond", text: "Respond to government notices with confidence.", href: "/notice-respond", image: "/homepage/denial-package-card.webp" },
+  { title: "Appeal Mail", text: "Appeal denials and unfavorable decisions.", href: "/appeal-mail", image: "/homepage/justice-gavel-card.webp" },
+  { title: "Immigration Mail", text: "Handle USCIS letters, RFEs, denials, and more.", href: "/immigration-mail", image: "/homepage/immigration-mail-card.webp" },
+  { title: "Dispute Mail", text: "Dispute errors and protect your rights.", href: "/dispute-mail", image: "/homepage/hero-mail-packet-card.webp" },
+  { title: "Records Requests", text: "Request public records and official documents.", href: "/records-request", image: "/homepage/records-folders-card.webp" },
+  { title: "Code Enforcement", text: "Respond to violations and protect your property.", href: "/code-enforcement", image: "/homepage/public-records-mail-card.webp" },
+  { title: "Private Office", text: "Advanced workflows for complex matters.", href: "/private-office", image: "/homepage/private-office-card.webp" },
+  { title: "Small Business", text: "Handle essential business correspondence.", href: "/small-business", image: "/homepage/small-business-card.webp" },
+  { title: "Legal Case Builder", text: "Create a custom workflow for your specific situation.", href: "/legal-defense", image: "/homepage/legal-case-builder-card.webp" },
+  { title: "Mail a PDF", text: "Have a document ready? We’ll help you print and mail it.", href: "/mail-a-pdf", image: "/homepage/mailbox-icon-card.webp" },
 ] as const;
 
 function ChooseYourPath() {
   return (
-    <section className="border-b border-rule/60 bg-paper">
-      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
-        <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+    <section className="bg-paper">
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-8 sm:px-6 lg:pt-8">
+        <div className="grid gap-4 px-1 sm:px-2 lg:grid-cols-[380px_1fr] lg:items-start lg:px-7">
           <div>
-            <div className="eyebrow">Solutions for real life</div>
-            <h2 className="mt-4 text-4xl leading-none sm:text-5xl">Choose Your Path</h2>
+            <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-ink-soft">Solutions for real life</div>
+            <h2 className="mt-1 text-[2.6rem] leading-none tracking-[-0.02em] text-navy">Choose Your Path</h2>
           </div>
-          <div className="flex items-end justify-between gap-6">
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+          <div className="flex items-start justify-between gap-6 lg:pt-3">
+            <p className="max-w-[380px] text-[13px] leading-[1.45] text-ink-soft">
               From government notices to personal disputes, MailMyPDF gives you the tools to respond,
-              request, and appeal. Explore each workflow’s scope before you begin.
+              request, appeal, and get results.
             </p>
-            <Link to="/ecosystem" className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-cobalt sm:inline-flex">
+            <Link to="/ecosystem" className="hidden shrink-0 items-center gap-1.5 text-[13px] font-medium text-brand hover:text-brand-hover sm:inline-flex">
               View All Workflows <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
           {HOMEPAGE_PATHS.map((path) => (
-            <Link key={path.title} to={path.href} className="group flex flex-col overflow-hidden rounded-lg border border-rule bg-card shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cobalt/40 hover:shadow-md">
-              <div className="aspect-[1.45/1] overflow-hidden bg-paper-deep">
-                <img src={path.image.replace('.png', '-card.webp')} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" decoding="async" />
+            <Link key={path.title} to={path.href} className="group flex flex-col overflow-hidden rounded-md border border-rule/70 bg-card shadow-[0_2px_8px_-4px_rgba(11,37,69,.18)] transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="aspect-[2/1] overflow-hidden bg-paper-deep">
+                <img src={path.image} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" decoding="async" />
               </div>
-              <div className="flex flex-1 items-start justify-between gap-2 p-3 sm:p-4">
+              <div className="relative flex-1 px-3 pb-3.5 pr-8 pt-2.5">
                 <div>
-                  <h3 className="font-serif text-base leading-tight group-hover:text-cobalt sm:text-xl">{path.title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{path.text}</p>
+                  <h3 className="font-sans text-[14.5px] font-medium leading-tight tracking-normal text-navy group-hover:text-brand lg:whitespace-nowrap">{path.title}</h3>
+                  <p className="mt-1.5 text-[11px] leading-[1.3] text-ink-soft">{path.text}</p>
                 </div>
-                <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cobalt transition group-hover:translate-x-1 sm:mt-1 sm:h-4 sm:w-4" />
+                <ArrowRight className="absolute bottom-4 right-3 h-4 w-4 text-brand transition group-hover:translate-x-1" />
               </div>
             </Link>
           ))}
         </div>
-        <Link to="/ecosystem" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-cobalt sm:hidden">
+        <Link to="/ecosystem" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-brand sm:hidden">
           View All Workflows <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -224,29 +293,31 @@ function ChooseYourPath() {
 function HomepageHowItWorks() {
   const steps = [
     [FileText, "Answer a Few Questions", "Tell us about your situation."],
-    [Stamp, "Prepare Your Documents", "Upload a PDF or use the available preparation tools."],
-    [Eye, "Review & Approve", "Make any changes, then approve."],
-    [Mail, "Choose Your Mailing", "Confirm the price and pay. Tracking depends on the service selected."],
+    [Sparkles, "We Build Your Documents", "Our AI prepares a draft for you."],
+    [FileSearch, "Review & Approve", "Make any changes, then approve."],
+    [Mailbox, "We Mail It for You", "We print, address, and send via USPS, with tracking options."],
   ] as const;
   return (
-    <section className="border-b border-rule/60 bg-card">
-      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+    <section className="bg-card">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-[52px]">
         <div className="flex items-end justify-between gap-6">
           <div>
-            <div className="eyebrow">Simple. Secure. Done.</div>
-            <h2 className="mt-4 text-4xl leading-none sm:text-5xl">How It Works</h2>
+            <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-ink-soft">Simple. Secure. Done.</div>
+            <h2 className="mt-1 text-[2.6rem] leading-none tracking-[-0.02em] text-navy">How It Works</h2>
           </div>
-          <Link to="/how-it-works" className="hidden items-center gap-2 text-sm font-semibold text-cobalt sm:inline-flex">See the Details <ArrowRight className="h-4 w-4" /></Link>
+          <Link to="/how-it-works" className="hidden items-center gap-1.5 self-start text-[13px] font-medium text-brand hover:text-brand-hover sm:inline-flex">
+            See the Details <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-        <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+        <div className="mt-4 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {steps.map(([Icon, title, text], index) => (
-            <div key={title} className="relative text-center lg:px-5">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-cobalt ring-8 ring-blue-50/60">
-                <Icon className="h-8 w-8" />
+            <div key={title} className="relative text-center">
+              <div className="mx-auto flex h-[66px] w-[66px] items-center justify-center rounded-full bg-[#e8f0fd] text-brand">
+                <Icon className="h-8 w-8 fill-[#bcd3fb]" strokeWidth={1.6} />
               </div>
-              <h3 className="mt-7 font-sans text-sm font-semibold">{index + 1}. {title}</h3>
-              <p className="mx-auto mt-2 max-w-[16rem] text-sm leading-6 text-muted-foreground">{text}</p>
-              {index < steps.length - 1 && <ArrowRight className="absolute -right-3 top-6 hidden h-5 w-5 text-ink-soft lg:block" aria-hidden />}
+              <h3 className="mt-3 font-sans text-[15px] font-medium tracking-normal text-navy">{index + 1}. {title}</h3>
+              <p className="mx-auto mt-1.5 max-w-[12.5rem] text-[13px] leading-[1.4] text-ink-soft">{text}</p>
+              {index < steps.length - 1 && <ArrowRight className="absolute -right-6 top-6 hidden h-5 w-5 text-ink-soft lg:block" strokeWidth={1.4} aria-hidden />}
             </div>
           ))}
         </div>
@@ -257,19 +328,22 @@ function HomepageHowItWorks() {
 
 function HomepagePromise() {
   return (
-    <section className="relative overflow-hidden bg-[#0b2343] text-white">
-      <div className="absolute inset-0 bg-cover bg-center opacity-80" aria-hidden style={{ backgroundImage: "url(/homepage/testimonial-banner-optimized.webp)" }} />
-      <div className="absolute inset-0 bg-[#0b2343]/65" aria-hidden />
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-5 py-14 sm:px-8 md:flex-row md:items-center md:justify-between md:py-16">
-        <div className="max-w-2xl">
-          <h2 className="font-serif text-2xl leading-tight text-white sm:text-3xl">Important correspondence deserves a clear next step.</h2>
-          <p className="mt-4 text-sm leading-6 text-blue-50">From the first draft to the mailing record, see what you’re preparing and review it before checkout.</p>
-        </div>
-        <div className="grid shrink-0 gap-3 text-sm text-white/90 sm:grid-cols-2 md:grid-cols-1">
-          {["Review your document", "Check the addresses", "See your price", "Keep the order record"].map((item) => (
-            <div key={item} className="flex items-center gap-2"><Check className="h-4 w-4" />{item}</div>
+    <section className="relative overflow-hidden bg-navy text-white">
+      <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: "url(/homepage/promise-band.webp)" }} />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,26,52,.62),rgba(8,26,52,.42))]" aria-hidden />
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-6 px-5 py-9 sm:px-8 md:flex-row md:items-center md:justify-between">
+        <figure className="max-w-[400px] md:ml-[88px]">
+          <blockquote className="font-serif text-[21px] italic leading-[1.2] text-white">
+            “Take a stressful government notice and turn it into a clear, professional response —
+            reviewed by you before it’s mailed.”
+          </blockquote>
+          <figcaption className="mt-3 text-[10px] font-medium uppercase tracking-[0.24em] text-white/85">— The MailMyPDF process</figcaption>
+        </figure>
+        <ul className="grid shrink-0 gap-2.5 text-[13px] text-white md:mr-10">
+          {["Saves time", "Easy to use", "Professional results", "Peace of mind"].map((item) => (
+            <li key={item} className="flex items-center gap-3"><CircleCheck className="h-[18px] w-[18px]" strokeWidth={1.5} />{item}</li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );
@@ -277,20 +351,21 @@ function HomepagePromise() {
 
 function HomepageFinalCta() {
   return (
-    <section className="border-b border-rule/60 bg-paper">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-12 sm:px-8 md:flex-row md:items-center md:justify-between md:py-16">
+    <section className="bg-paper">
+      <div className="mx-auto flex max-w-[880px] flex-col gap-6 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="eyebrow">A more fair process</div>
-          <h2 className="mt-4 text-4xl leading-none sm:text-5xl">Documents Should Work for You.</h2>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-            Start with a finished PDF or explore a guided workflow. Prepare your correspondence, review the details, and choose your next step with confidence.
+          <div className="text-[10px] font-medium uppercase tracking-[0.24em] text-ink-soft">A more fair process</div>
+          <h2 className="mt-1 text-[2.1rem] leading-none tracking-[-0.02em] text-navy">Documents Should Work for You.</h2>
+          <p className="mt-3 max-w-[470px] text-[13px] leading-[1.45] text-ink-soft">
+            MailMyPDF combines AI drafting, secure document handling, and careful review to help you get your
+            letters in the right hands — and move forward with confidence.
           </p>
         </div>
-        <div className="shrink-0 md:w-64">
-          <Link to="/workflows" className="flex min-h-12 items-center justify-center gap-2 rounded-md bg-cobalt px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90">
+        <div className="shrink-0 md:w-[228px]">
+          <Link to="/workflows" className="flex h-[38px] items-center justify-center gap-3 rounded-md bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
             Start Your Matter <ArrowRight className="h-4 w-4" />
           </Link>
-          <p className="mt-3 text-center text-xs text-muted-foreground">Review first. Choose how to send.</p>
+          <p className="mt-2.5 text-center text-[12px] text-ink-soft">Review first. Choose how to send.</p>
         </div>
       </div>
     </section>

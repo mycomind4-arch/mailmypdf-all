@@ -69,7 +69,7 @@ export function useShellConfig(): EcosystemShellConfig {
     productsUrl: "/products",
     currentProductSlug: "mailmypdf",
     caseTerm: "Cases",
-    ctaLabel: "Start a Workflow",
+    ctaLabel: "Start a Matter",
     theme: "default",
     auth: { user, loading, signOut },
   };

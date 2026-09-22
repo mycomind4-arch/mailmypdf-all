@@ -4,21 +4,28 @@
  * SiteHeader comes from the shared ecosystem shell.
  * SiteFooter remains here (it has mailmypdf-specific content).
  */
-import { EcosystemShell, ECOSYSTEM_PRODUCTS } from "./ecosystem-shell";
+import { EcosystemShell } from "./ecosystem-shell";
 import { useShellConfig } from "./ecosystem-shell-config";
 import { Link } from "@tanstack/react-router";
 import { FileCheck2, LockKeyhole, ShieldCheck } from "lucide-react";
 
-const POPULAR_PAGES: { to: string; label: string }[] = [
-  { to: "/mail-a-pdf", label: "Mail a PDF" },
-  { to: "/send-letter-online", label: "Send a letter online" },
-  { to: "/write", label: "Write a letter online" },
-  { to: "/templates", label: "Letter templates" },
-  { to: "/future-self", label: "Letter to future self" },
-  { to: "/send-a-letter-without-a-printer", label: "Send a letter without a printer" },
-  { to: "/print-and-mail-pdf-online", label: "Print and mail PDF online" },
-  { to: "/send-documents-by-mail-online", label: "Send documents by mail online" },
-  { to: "/orders", label: "Find your order" },
+const FOOTER_COLUMNS: { to: string; label: string }[][] = [
+  [
+    { to: "/products", label: "Products" },
+    { to: "/ecosystem", label: "Workflows" },
+    { to: "/how-it-works", label: "How It Works" },
+  ],
+  [
+    { to: "/security", label: "Security" },
+    { to: "/about", label: "About" },
+    { to: "/contact", label: "Contact" },
+  ],
+  [
+    { to: "/terms", label: "Terms" },
+    { to: "/privacy", label: "Privacy" },
+    { to: "/retention", label: "Data Retention" },
+    { to: "/how-it-works", label: "FAQ" },
+  ],
 ];
 
 export function SiteHeader() {
@@ -28,67 +35,31 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-rule/60">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <SecurityTrustBand />
-        <div className="grid gap-8 sm:gap-10 md:grid-cols-[1.5fr_1fr_1.25fr_1fr]">
-          <div className="md:col-span-1">
-            <div className="flex items-center gap-2.5">
-              <Logo />
-              <span className="font-serif text-lg">MailMyPDF</span>
-            </div>
-            <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-              Prepare, send, track, and prove important correspondence with clear controls around
-              document access, review, retention, and mailing.
-            </p>
-          </div>
-
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Popular</div>
-            <ul className="mt-3 space-y-2 text-sm">
-              {POPULAR_PAGES.map((page) => (
-                <li key={page.to}>
-                  <Link to={page.to} className="text-ink-soft transition-colors hover:text-foreground">
-                    {page.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Products</div>
-            <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2 md:grid-cols-1">
-              <li><Link to="/products" className="font-medium text-ink-soft transition-colors hover:text-foreground">All Products</Link></li>
-              <li><Link to="/ecosystem" className="font-medium text-ink-soft transition-colors hover:text-foreground">All Workflows</Link></li>
-              {ECOSYSTEM_PRODUCTS.filter((product) => product.slug !== "mailmypdf").map((product) => (
-                <li key={product.slug}>
-                  <a href={product.href} className="text-ink-soft transition-colors hover:text-foreground">{product.name}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Trust & Mailing</div>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li><Link to="/mail-a-pdf" className="text-ink-soft transition-colors hover:text-foreground">Mail a PDF</Link></li>
-              <li><Link to="/certified-mail-guide" className="text-ink-soft transition-colors hover:text-foreground">Certified Mail</Link></li>
-              <li><a href="/security" className="text-ink-soft transition-colors hover:text-foreground">Security & Trust</a></li>
-              <li><Link to="/pro" className="text-ink-soft transition-colors hover:text-foreground">Pricing</Link></li>
-              <li><Link to="/how-it-works" className="text-ink-soft transition-colors hover:text-foreground">How It Works</Link></li>
-              <li><Link to="/contact" className="text-ink-soft transition-colors hover:text-foreground">Contact & Support</Link></li>
-              <li><Link to="/privacy" className="text-ink-soft transition-colors hover:text-foreground">Privacy</Link></li>
-              <li><Link to="/retention" className="text-ink-soft transition-colors hover:text-foreground">Data Retention</Link></li>
-              <li><Link to="/terms" className="text-ink-soft transition-colors hover:text-foreground">Terms</Link></li>
-            </ul>
-          </div>
+    <footer className="border-t border-rule/60 bg-card">
+      <div className="mx-auto grid max-w-5xl gap-8 px-5 py-7 sm:px-8 md:grid-cols-[1.6fr_repeat(3,0.8fr)_1.4fr] md:items-start">
+        <div>
+          <Link to="/" className="flex items-center gap-2.5">
+            <Logo />
+            <span className="font-sans text-[22px] font-bold leading-none tracking-[-0.03em] text-navy">
+              mailmy<span className="text-brand">pdf</span>
+            </span>
+          </Link>
+          <p className="mt-2.5 pl-[50px] text-[12px] text-ink-soft">Real Letters. Real Progress.</p>
         </div>
-
-        <div className="mt-10 flex flex-col justify-between gap-4 border-t border-rule/40 pt-6 sm:flex-row">
-          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} MailMyPDF. All rights reserved.</p>
-          <p className="font-serif text-sm italic text-ink-soft">Documents move people forward.</p>
-        </div>
+        {FOOTER_COLUMNS.map((column, index) => (
+          <ul key={index} className="space-y-1.5 text-[11px]">
+            {column.map((link) => (
+              <li key={link.label}>
+                <a href={link.to} className="text-ink-soft transition-colors hover:text-foreground">
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ))}
+        <p className="self-end text-[11px] text-ink-soft md:text-right">
+          © {new Date().getFullYear()} MailMyPDF. All rights reserved.
+        </p>
       </div>
     </footer>
   );

@@ -50,10 +50,14 @@
   --color-rule: var(--rule);
   --color-cobalt: var(--cobalt);
   --color-cobalt-soft: var(--cobalt-soft);
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-navy: #0b2545;
   --color-brass: var(--brass);
   --color-brass-soft: var(--brass-soft);
 
-  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, serif;
+  --font-script: "Caveat", "Segoe Script", cursive;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
