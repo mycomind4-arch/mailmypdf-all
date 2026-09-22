@@ -38,44 +38,42 @@
 
 ---
 
-## Pending (1 of 3 P0 items)
+## ✅ Completed (3 of 3 P0 items)
 
-### ⏳ P0 #3: Evidence Graph (Traceability Layer)
+### ✅ P0 #3: Evidence Graph (Traceability Layer)
+**Commit**: `a91de23e`
 **Source**: `/Users/macdizzle/dev/mailmypdf-all/code-enforcement/src/domain/evidence-graph.ts` (190 lines)
 **Destination**: `packages/evidence-graph/` (new shared package)
 
-**What**: Traceability graph from complaint → notice → allegation → code section → property → evidence → timeline → finding → strategy → draft. Every finding is traceable to source evidence.
+**What**: Generic traceability/provenance graph: complaint → notice → allegation → code section → property → evidence → timeline → finding → strategy → draft. Every finding traceable to source evidence.
 
 **Scope**:
-- Node types: complaint, notice, inspection_request, allegation, code_section, property, evidence_item, timeline_event, finding, strategy, draft
-- `EvidenceNode` — carries fact-category metadata (VERIFIED_FACT | USER_ASSERTION | RECOMMENDATION), source, confidence
-- `EvidenceEdge` — semantic relationships (triggers, contains, alleges, cites, etc.)
-- `buildEvidenceGraph()` — construct graph from inputs
-- `traceEvidence()` — lookup: follow incoming/outgoing edges
-- Generalize from code-enforcement specifics (complaint → notice is domain-agnostic)
+- Node types (12): complaint, notice, inspection_request, allegation, code_section, property, evidence_item, timeline_event, finding, strategy, draft, source
+- Fact categories (5): VERIFIED_FACT, USER_ASSERTION, EXTRACTED_DATA, ANALYZED_FINDING, RECOMMENDATION
+- `EvidenceNode` — carries fact-category, source, confidence (0.0–1.0), metadata, timestamp
+- `EvidenceEdge` — semantic relationships (triggers, contains, alleges, cites, produces, suggests, informs, supports, contradicts, etc.) with optional evidence quotes
+- **Core API**:
+  - `createGraph(domain)` — initialize
+  - `addNode(type, label, description, options)` — add node
+  - `addEdge(from, to, relationship, options)` — connect nodes
+  - `traceEvidence(nodeId)` — find sources and targets
+  - `traceToSource(nodeId)` — trace back to root nodes (recursive)
+  - `traceToLeaves(nodeId)` — trace forward to leaf nodes (recursive)
+  - `findPaths(from, to)` — find all paths between nodes
+  - `getStatistics(graph)` — node/edge counts, confidence metrics, unresolved nodes (confidence < 0.7)
+  - `validateGraph(graph)` — integrity checks (edge endpoints, duplicate IDs)
+  - `generateSummary(graph)` — human-readable summary
+  - `exportGraph(graph)` — JSON export
 
-**Planned verification**: Unit tests for graph construction, traversal, and evidence traceability.
+**Generalization**: Extracted from code-enforcement specifics; applies to any workflow with evidence lineage.
 
-**Reusable across**: Appeals, Records, Immigration (any vertical that traces findings to source evidence).
+**Verification**: 15 comprehensive tests pass (node creation, edge linking, bidirectional traceability, path finding, statistics, validation, full code-enforcement complaint→draft workflow lineage).
+
+**Reusable across**: All verticals (Appeals, Records, Immigration, etc.) that need to trace findings back to source evidence.
 
 ---
 
-## Open Questions to Resolve Before P0 #3
-
-1. **Node cardinality**: Should we track both incoming sources and outgoing targets, or just one direction?
-2. **Metadata flexibility**: What fact-categories should be standardized vs. domain-specific?
-3. **Query API**: Should `traceEvidence()` be extended with filters (confidence threshold, fact-category, date range)?
-4. **UI integration**: Will workflows have interactive evidence traceability (drill-down in drafts), or is this backend-only for audit/certification?
-
----
-
-## Next Steps
-
-### Immediate (before continuing)
-1. Decide P0 #3 scope: which question(s) above must be answered now vs. later
-2. Implement and test `packages/evidence-graph/` (190 lines + tests)
-
-### Short-term (after P0 complete)
+## Next Steps (Post-P0)
 1. Port P1 modules (correction-issue-engine, notice-extraction, reconciliation, draft-engine, gold-certification)
 2. Wire strategies into code-enforcement workflow draft/approval routes
 3. Wire evidence-graph into workflow acceptance/certification gates
