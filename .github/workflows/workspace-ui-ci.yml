@@ -72,7 +72,7 @@ jobs:
       - name: Verify secure workflow payment-to-mailing invariants
         run: node --test mailmypdf/tests/secure-workflow-fulfillment.test.mjs
       - name: Build secure workflow package dependencies
-        run: pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build
+        run: pnpm --filter "@mailmypdf/workflows..." --filter "@mailmypdf/documents..." --workspace-concurrency=2 run build
       - name: Verify executable notice workflow runtimes
         id: notice-runtime-tests
         shell: bash
