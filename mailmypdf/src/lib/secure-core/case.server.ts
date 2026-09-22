@@ -28,8 +28,47 @@ export const EVIDENCE_KINDS = [
   "corrected_tax_document",
   "irs_transcript",
   "payment_record",
+  // Shared-runtime notice-respond vocabulary.
+  "account_transcript",
+  "prior_correspondence",
+  "bank_record",
+  "reasonable_cause_record",
+  "filing_proof",
+  "written_irs_advice",
+  // Official SSA forms required in SSDI/SSI reconsideration packets.
+  "ssa_561",
+  "ssa_3441",
+  "ssa_827",
+  // SSI eligibility records.
+  "income_resources",
+  "living_arrangement",
+  "identity_eligibility",
+  // Insurance-family appeals.
+  "policy_or_plan",
+  "claim_submission",
+  "supporting_record",
+  "receipt_or_invoice",
+  "expert_statement",
+  // Immigration filing packets.
+  "filing_form",
+  "supporting_evidence",
+  "identity_document",
+  "prior_notice",
+  "receipt_notice",
+  "payment_evidence",
+  // Records-request context documents.
+  "notice",
+  "case_correspondence",
+  "incident_reference",
+  "permit_record",
+  "property_record",
+  "screenshot",
+  "prior_request",
+  "prior_response",
   "other",
 ] as const;
+// Keep in step with case_documents_evidence_kind_check in the latest
+// migration; tests/evidence-kind-coverage.test.ts enforces both.
 
 export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
 
