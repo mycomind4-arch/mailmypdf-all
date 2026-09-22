@@ -9,7 +9,7 @@ export const workflowConfig = {
   startPath: "/notice-respond/workflows/irs-underreporter-notice-response/start",
   title: "IRS Underreporter Notice Response",
   seoTitle: "IRS Underreporter Notice Response | Notice Respond | MailMyPDF",
-  seoDescription: "Respond to IRS underreporter notice (Form CP2100) with supporting evidence, corrected reporting, or protest, exact review, and proof.",
+  seoDescription: "Respond to IRS underreporter notice (CP2000) with supporting evidence, corrected reporting, or protest, exact review, and proof.",
   eyebrow: "Notice Respond workflow",
   heroTitle: "Respond to an IRS Underreporter Notice",
   heroDescription: "Start with the IRS underreporter notice (mismatch with Form 1099), gather supporting documentation, prepare your response or protest, review the exact packet, and retain proof.",
@@ -22,7 +22,7 @@ export const workflowConfig = {
     "Prepare a response explaining any discrepancy and review the exact packet before mailing.",
   ],
   whatYouNeed: [
-    "The complete IRS underreporter notice (typically CP2100 or similar).",
+    "The complete IRS underreporter notice (typically CP2000).",
     "Your tax return showing how the item was actually reported.",
     "Form 1099 or other document showing the IRS's information.",
     "Supporting documentation explaining any discrepancy.",

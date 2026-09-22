@@ -53,7 +53,7 @@ export const workflowConfig = {
   ],
   workspaceHighlights: [
     ["Summons-first analysis", "Extract case number, court details, claims, and response deadline from the summons."],
-    ["Response organization", "Organize your defenses and evidence relevant to each claim.",
+    ["Response organization", "Organize your defenses and evidence relevant to each claim."],
     ["Court-compliant filing", "Draft, review, format, and prepare your answer for court filing."],
   ],
   workflowSteps: [

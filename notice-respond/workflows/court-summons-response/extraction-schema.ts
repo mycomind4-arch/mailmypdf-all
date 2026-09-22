@@ -55,7 +55,7 @@ export const courtSummonsExtractionSchema = {
     {
       field: "responseDeadline",
       example: "January 15, 2025",
-    ],
+    },
   ],
 } as const
 
