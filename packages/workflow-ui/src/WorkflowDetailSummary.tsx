@@ -8,6 +8,25 @@ export interface WorkflowDetailMetric {
   mono?: boolean;
 }
 
+/** Content researched for one authenticated workflow, separate from SEO copy and execution readiness. */
+export interface WorkflowDetailGuide {
+  overview: string;
+  appropriateFor?: readonly string[];
+  beforeYouBegin?: readonly string[];
+  documentsAndFacts?: readonly string[];
+  timing?: readonly string[];
+  steps?: readonly { title: string; description: string }[];
+  reviewChecklist?: readonly string[];
+  deliveryAndProof?: readonly string[];
+  afterSubmission?: readonly string[];
+  costsAndLimits?: readonly string[];
+  helpAndAlternatives?: readonly string[];
+  cautions?: readonly string[];
+  sources?: readonly { label: string; url: string }[];
+  scopeNote?: string;
+  reviewedOn?: string;
+}
+
 export interface WorkflowDetailSummaryProps {
   title: string;
   sectionLabel: string;
@@ -17,14 +36,13 @@ export interface WorkflowDetailSummaryProps {
   startLabel?: string;
   unavailableLabel?: string;
   metrics?: WorkflowDetailMetric[];
+  guide?: WorkflowDetailGuide;
   children?: ReactNode;
 }
 
 /**
- * Data-only authenticated workflow detail masthead and status grid.
- *
- * Authority lookup, permissions, admin controls, and routing stay in the host
- * app; this component renders the common operational summary.
+ * Authenticated workflow detail masthead, operational status and researched guide.
+ * Authority lookup, permissions, admin controls and routing stay in the host app.
  */
 export function WorkflowDetailSummary({
   title,
@@ -35,6 +53,7 @@ export function WorkflowDetailSummary({
   startLabel = "Start workflow",
   unavailableLabel = "Runtime not connected",
   metrics = [],
+  guide,
   children,
 }: WorkflowDetailSummaryProps) {
   return (
@@ -69,7 +88,64 @@ export function WorkflowDetailSummary({
         </div>
       )}
 
+      {guide && (
+        <div className="wf-detail-guide">
+          <section className="wf-detail-guide-intro" aria-labelledby="workflow-overview">
+            <h2 id="workflow-overview">About this workflow</h2>
+            <p>{guide.overview}</p>
+          </section>
+          <div className="wf-detail-guide-grid">
+            <GuideList title="Is this the right workflow?" items={guide.appropriateFor} />
+            <GuideList title="Before you begin" items={guide.beforeYouBegin} />
+            <GuideList title="Documents and facts to gather" items={guide.documentsAndFacts} />
+            <GuideList title="Timing and deadlines" items={guide.timing} />
+          </div>
+          {guide.steps && guide.steps.length > 0 && (
+            <section className="wf-detail-guide-panel">
+              <h2>How to proceed</h2>
+              <ol className="wf-detail-guide-steps">
+                {guide.steps.map((step, index) => (
+                  <li key={`${index}-${step.title}`}>
+                    <strong>{step.title}</strong>
+                    <p>{step.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          <div className="wf-detail-guide-grid">
+            <GuideList title="Review before sending" items={guide.reviewChecklist} />
+            <GuideList title="Delivery and proof" items={guide.deliveryAndProof} />
+            <GuideList title="After submission" items={guide.afterSubmission} />
+            <GuideList title="Costs and limits" items={guide.costsAndLimits} />
+            <GuideList title="Other options and help" items={guide.helpAndAlternatives} />
+            <GuideList title="Things to watch for" items={guide.cautions} />
+          </div>
+          {guide.sources && guide.sources.length > 0 && (
+            <section className="wf-detail-guide-panel">
+              <h2>Official guidance and references</h2>
+              <ul>
+                {guide.sources.map((source) => (
+                  <li key={source.url}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.label} ↗</a></li>
+                ))}
+              </ul>
+              {guide.reviewedOn && <p className="wf-detail-guide-meta">Sources reviewed {guide.reviewedOn}. Check the current notice and applicable rules before acting.</p>}
+            </section>
+          )}
+          {guide.scopeNote && <p className="wf-detail-guide-note">{guide.scopeNote}</p>}
+        </div>
+      )}
       {children}
+    </section>
+  );
+}
+
+function GuideList({ title, items }: { title: string; items?: readonly string[] }) {
+  if (!items?.length) return null;
+  return (
+    <section className="wf-detail-guide-panel">
+      <h2>{title}</h2>
+      <ul>{items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul>
     </section>
   );
 }

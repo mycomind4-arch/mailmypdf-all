@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, ShieldCheck, Wrench } from "lucide-react"
 import { WorkflowDetailSummary } from "../../../packages/workflow-ui/src/WorkflowDetailSummary"
 import { isCurrentUserAdmin } from "@/lib/admin.functions"
 import { workflowNavigationItem } from "@/lib/workflow-navigation"
+import { workflowDetailGuide } from "@/lib/workflow-detail-guides"
 import { workflowAuthorityForPath } from "@/lib/workflow-authority-registry"
 import { workflowExecutionRecord } from "@mailmypdf/workflows"
 
@@ -42,6 +43,7 @@ export function AuthenticatedWorkflowDetail({
   // never from SEO/authority state -- authority is display-only metadata below.
   const execution = workflowExecutionRecord(section.id, workflow.slug)
   const executionHref = execution?.executionHref ?? undefined
+  const guide = workflowDetailGuide(section.id, workflow.slug)
 
   return (
     <div className="space-y-6">
@@ -50,6 +52,7 @@ export function AuthenticatedWorkflowDetail({
         sectionLabel={section.label}
         backHref={section.workspaceHref}
         startHref={executionHref}
+        guide={guide}
         metrics={[
           { label: "Execution", value: executionHref ? "Ready" : "Not connected", tone: executionHref ? "success" : "neutral" },
           { label: "Workspace", value: "Available", tone: "success" },
@@ -57,6 +60,12 @@ export function AuthenticatedWorkflowDetail({
           { label: "Product", value: section.label },
         ]}
       />
+
+      {!guide && (
+        <p className="rounded-md border border-rule/70 bg-card px-5 py-4 text-sm text-muted-foreground">
+          A workflow-specific preparation guide is still being researched. Read the original notice and instructions before you start.
+        </p>
+      )}
 
       {isAdmin && (
         <section className="rounded-md border border-rule/70 bg-card">
