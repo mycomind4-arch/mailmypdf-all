@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "prebuild": "pnpm --filter @mailmypdf/documents... --filter @mailmypdf/step-workflow... --filter @mailmypdf/workflows... --filter @mailmypdf/workflow-ui... --filter @mailmypdf/design-system... --filter @mailmypdf/seo... --filter @mailmypdf/secured-transactions... --filter @mailmypdf/identity-capacity... --filter @mailmypdf/intelligence... --filter @mailmypdf/jurisdiction-rules... --filter @mailmypdf/packet-builder... --filter @mailmypdf/pricing... --filter @mailmypdf/core... --filter @mailmypdf/fulfillment... --filter @mailmypdf/ai... --filter @mailmypdf/notifications... --workspace-concurrency=2 run build",
+    "prebuild": "pnpm --filter @mailmypdf/forms... --filter @mailmypdf/documents... --filter @mailmypdf/step-workflow... --filter @mailmypdf/workflows... --filter @mailmypdf/workflow-ui... --filter @mailmypdf/design-system... --filter @mailmypdf/seo... --filter @mailmypdf/secured-transactions... --filter @mailmypdf/identity-capacity... --filter @mailmypdf/intelligence... --filter @mailmypdf/jurisdiction-rules... --filter @mailmypdf/packet-builder... --filter @mailmypdf/pricing... --filter @mailmypdf/core... --filter @mailmypdf/fulfillment... --filter @mailmypdf/ai... --filter @mailmypdf/notifications... --workspace-concurrency=2 run build",
     "build": "vite build && node scripts/fix-ssr-chunk-cycle.mjs .output/server",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
