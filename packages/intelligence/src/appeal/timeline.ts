@@ -174,10 +174,19 @@ function classifyDateMention(localContext: string, broaderContext: string): Appe
   if (/\b(decision|determination|denial|denied|ruling|judgment|order|issued|dated)\b/.test(local)) {
     return "decision";
   }
-  if (/\b(submitted|received|filed|mailed|sent|uploaded|postmarked)\b/.test(local)) {
-    return classifyContext(localContext);
-  }
-  return classifyContext(broaderContext);
+  const fromLocal = classifyContext(localContext);
+  return fromLocal !== "other" ? fromLocal : classifyContext(broaderContext);
+}
+
+/** Text around a date mention, clipped to its own sentence so an adjacent sentence's cue words cannot reclassify it. */
+function sentenceLocalContext(text: string, index: number, length: number, radius: number): string {
+  const before = text.slice(Math.max(0, index - radius), index);
+  const after = text.slice(index + length, Math.min(text.length, index + length + radius));
+  const boundaryBefore = before.search(/[.!?;]\s[^.!?;]*$/);
+  const boundaryAfter = after.search(/[.!?;](\s|$)/);
+  return (boundaryBefore >= 0 ? before.slice(boundaryBefore + 2) : before)
+    + text.slice(index, index + length)
+    + (boundaryAfter >= 0 ? after.slice(0, boundaryAfter) : after);
 }
 
 function parseDate(raw: string): string | null {
@@ -209,10 +218,8 @@ function extractDocumentEvents(caseId: string, doc: AppealTimelineDocument, find
       if (!date) continue;
       const start = Math.max(0, match.index - 120);
       const end = Math.min(doc.text.length, match.index + match[0].length + 120);
-      const localStart = Math.max(0, match.index - 45);
-      const localEnd = Math.min(doc.text.length, match.index + match[0].length + 45);
       const context = cleanContext(doc.text.slice(start, end));
-      const localContext = cleanContext(doc.text.slice(localStart, localEnd));
+      const localContext = cleanContext(sentenceLocalContext(doc.text, match.index, match[0].length, 45));
       extracted.push({
         date,
         context,
@@ -336,10 +343,46 @@ function chooseUniqueEvents(events: AppealTimelineEvent[]): AppealTimelineEvent[
   return [...byIdentity.values()];
 }
 
+const DEFAULT_GAP_RECORDS = ["correspondence", "status updates", "submission receipts", "agency records"] as const;
+
+const GAP_RECORD_SUGGESTIONS: Record<AppealEventCategory, readonly string[]> = {
+  application: [],
+  submission: [],
+  correspondence: ["correspondence", "email confirmation", "mailing receipt"],
+  hearing: ["hearing notice", "hearing transcript", "conference record"],
+  decision: [],
+  deadline: [],
+  agency_action: ["status update", "request for additional information", "internal review record", "agency memo"],
+  user_action: ["submission receipt", "follow-up correspondence", "response letter"],
+  other: [],
+};
+
+// Decisions (initial vs. reconsideration) and deadlines legitimately differ;
+// deadline disagreement is reported by assessDeadline instead.
+const CONFLICT_EXEMPT_CATEGORIES: ReadonlySet<AppealEventCategory> = new Set(["decision", "deadline"]);
+const CONFLICT_WINDOW_DAYS = 90;
+
+function clusterWithinWindow(group: AppealTimelineEvent[]): AppealTimelineEvent[][] {
+  const sorted = [...group].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  const clusters: AppealTimelineEvent[][] = [];
+  for (const event of sorted) {
+    const current = clusters.at(-1);
+    const anchor = current?.[0]?.date;
+    const within = anchor && event.date
+      && (Date.parse(event.date) - Date.parse(anchor)) / 86_400_000 <= CONFLICT_WINDOW_DAYS;
+    if (current && within) current.push(event);
+    else clusters.push([event]);
+  }
+  return clusters.filter((cluster) => new Set(cluster.map((event) => event.date)).size > 1);
+}
+
 function buildConflicts(caseId: string, events: AppealTimelineEvent[], findings: readonly XRayFinding[]): AppealTimelineConflict[] {
   const timeline = createTimeline(caseId, events);
-  return conflictingDates(timeline).map((group) => {
-    const appealEvents = group.map((event) => events.find((candidate) => candidate.id === event.id)!).filter(Boolean);
+  const groups = conflictingDates(timeline)
+    .map((group) => group.map((event) => events.find((candidate) => candidate.id === event.id)!).filter(Boolean))
+    .filter((group) => !CONFLICT_EXEMPT_CATEGORIES.has(group[0]?.category ?? "other"))
+    .flatMap(clusterWithinWindow);
+  return groups.map((appealEvents) => {
     const sourceIds = new Set(appealEvents.flatMap((event) => event.sources.map((source) => String(source.documentId))));
     const finding = findings.find((candidate) =>
       candidate.type === "date_conflict" && candidate.sources.filter((source) => sourceIds.has(source.documentId)).length >= 2,
@@ -462,13 +505,17 @@ export function buildAppealTimeline(input: BuildAppealTimelineInput): AppealTime
   const timeline = createTimeline(input.caseId, events);
   const sorted = sortedByDate(timeline).map((core) => events.find((event) => event.id === core.id)!).filter(Boolean);
   const genericGaps = detectGaps(timeline, 14);
-  const gaps = genericGaps.map((gap) => ({
-    fromDate: gap.startDate,
-    toDate: gap.endDate,
-    daysUnaccounted: gap.daysBetween,
-    significance: gap.daysBetween > 60 ? "high" as const : gap.daysBetween > 30 ? "medium" as const : "low" as const,
-    potentiallyUsefulRecords: ["correspondence", "status updates", "submission receipts", "agency records"],
-  }));
+  const gaps = genericGaps.map((gap) => {
+    const preceding = sorted.find((event) => event.date === gap.startDate);
+    const specific = preceding ? GAP_RECORD_SUGGESTIONS[preceding.category] : [];
+    return {
+      fromDate: gap.startDate,
+      toDate: gap.endDate,
+      daysUnaccounted: gap.daysBetween,
+      significance: gap.daysBetween > 60 ? "high" as const : gap.daysBetween > 30 ? "medium" as const : "low" as const,
+      potentiallyUsefulRecords: specific.length ? [...specific] : [...DEFAULT_GAP_RECORDS],
+    };
+  });
   const conflicts = buildConflicts(input.caseId, events, findings);
   const deadline = assessDeadline(input.caseId, events, input.documents, input.decision, input.today);
 

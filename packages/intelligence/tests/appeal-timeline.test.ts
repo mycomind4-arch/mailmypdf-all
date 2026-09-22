@@ -61,4 +61,74 @@ describe("Appeal timeline adapter", () => {
     assert.ok(timeline.conflicts.some((conflict) => conflict.claims.some((claim) => claim.date === "2026-08-01")));
     assert.ok(timeline.conflicts.some((conflict) => conflict.claims.some((claim) => claim.date === "2026-08-05")));
   });
+
+  test("does not read a decision date as the deadline when the next sentence states the deadline", () => {
+    const decision = createDecision("claim_denial", { agency: "Example Insurer", decisionDate: "2026-09-01" });
+    const timeline = buildAppealTimeline({
+      caseId: "matter-5",
+      decision,
+      today: "2026-09-10",
+      documents: [{
+        id: "d1",
+        name: "denial.pdf",
+        text: "Decision issued September 1, 2026. Appeal due no later than October 1, 2026.",
+        pageCount: 1,
+        isDecision: true,
+        role: "decision",
+      }],
+    });
+
+    assert.equal(timeline.deadline.deadlineDate, "2026-10-01");
+    assert.equal(timeline.deadline.hasPassed, false);
+    assert.deepEqual(timeline.deadline.conflictingDates, []);
+  });
+
+  test("suggests records that fit the event preceding an unexplained gap", () => {
+    const decision = createDecision("claim_denial", { agency: "Example Insurer" });
+    const timeline = buildAppealTimeline({
+      caseId: "matter-6",
+      decision,
+      documents: [{
+        id: "n1",
+        name: "notes.pdf",
+        text: "A hearing was held on February 2, 2026. Records were submitted on May 20, 2026.",
+        pageCount: 1,
+        isDecision: false,
+        role: "evidence",
+      }],
+    });
+
+    assert.equal(timeline.gaps.length, 1);
+    assert.ok(timeline.gaps[0]!.potentiallyUsefulRecords.includes("hearing transcript"));
+  });
+
+  test("does not treat same-type events months apart as a date conflict", () => {
+    const decision = createDecision("claim_denial", { agency: "Example Insurer" });
+    const timeline = buildAppealTimeline({
+      caseId: "matter-3",
+      decision,
+      documents: [
+        { id: "r1", name: "receipt-march.pdf", text: "Medical records were submitted on March 3, 2026.", pageCount: 1, isDecision: false, role: "evidence" },
+        { id: "r2", name: "receipt-sept.pdf", text: "Additional records were submitted on September 8, 2026.", pageCount: 1, isDecision: false, role: "evidence" },
+      ],
+    });
+
+    assert.equal(timeline.conflicts.length, 0);
+  });
+
+  test("does not report differing decision or deadline dates as timeline conflicts", () => {
+    const decision = createDecision("claim_denial", { agency: "Example Insurer" });
+    const timeline = buildAppealTimeline({
+      caseId: "matter-4",
+      decision,
+      documents: [
+        { id: "d1", name: "initial-denial.pdf", text: "Initial determination issued May 2, 2026. Appeal due no later than June 1, 2026.", pageCount: 1, isDecision: true, role: "decision" },
+        { id: "d2", name: "reconsideration.pdf", text: "Reconsideration determination issued June 20, 2026. Appeal due no later than August 19, 2026.", pageCount: 1, isDecision: true, role: "decision" },
+      ],
+    });
+
+    assert.equal(timeline.conflicts.length, 0);
+    assert.deepEqual(timeline.deadline.conflictingDates, ["2026-06-01", "2026-08-19"]);
+    assert.match(timeline.deadline.warning ?? "", /different appeal deadlines/);
+  });
 });
