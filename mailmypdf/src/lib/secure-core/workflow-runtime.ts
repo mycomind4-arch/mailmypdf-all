@@ -2,9 +2,12 @@ import { z } from "zod";
 import { CaseError } from "./case.server";
 import {
   INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS,
+  SSA_RECONSIDERATION_WORKFLOWS,
   getInsuranceAppealWorkflowSpec,
   getNoticeResponseWorkflowProfile,
+  getSsaReconsiderationRuntimePolicy,
   insuranceDraftPack,
+  type SsaReconsiderationWorkflowId,
 } from "@mailmypdf/workflows";
 import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
 
@@ -82,6 +85,9 @@ const workflowDetailsSchema = z.object({
     postal: z.string().trim().regex(/^\d{5}(-\d{4})?$/),
   }).nullable().default(null),
   paymentInstructions: text.nullable().default(null),
+  // SSA reconsideration workflows only; absent for every other workflow.
+  appealStage: z.enum(["reconsideration", "hearing", "appeals_council", "unknown"]).optional(),
+  decisionBasis: z.enum(["medical", "nonmedical", "unknown"]).optional(),
 }).default({
   taxYear: null,
   amountDue: null,
@@ -121,6 +127,8 @@ export interface CaseWorkflowDefinition {
   readonly noticeFamily: "benefits" | "insurance" | "irs";
   readonly responseModes: readonly string[];
   readonly analysisInstructions: string;
+  /** Extra workflowDetails keys this workflow asks the model to report. */
+  readonly analysisDetailFields?: string;
   readonly draftInstructions: string;
 }
 
@@ -285,6 +293,11 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
   if (verticalId === "appeal-mail" && isInsuranceAppealRuntimeWorkflowId(workflowId)) {
     return insuranceAppealCaseWorkflow(workflowId);
   }
+  // SSA reconsideration (SSDI/SSI) runs under the id its shared runtime policy
+  // registers. The legacy "ssdi-denial" definition above serves the v2 routes.
+  if (verticalId === "appeal-mail" && getSsaReconsiderationRuntimePolicy(workflowId)) {
+    return ssaReconsiderationCaseWorkflow(workflowId as SsaReconsiderationWorkflowId);
+  }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
 }
 
@@ -344,4 +357,34 @@ export function assertDraftReady(
     throw new CaseError("All included supporting documents must pass security checks before drafting.");
   if (analysis.promptInjectionObserved)
     throw new CaseError("The notice analysis reported embedded instructions. Review the notice before generating a draft.");
+}
+
+function ssaReconsiderationCaseWorkflow(workflowId: SsaReconsiderationWorkflowId): CaseWorkflowDefinition {
+  const program = SSA_RECONSIDERATION_WORKFLOWS[workflowId];
+  return Object.freeze({
+    id: workflowId,
+    verticalId: "appeal-mail",
+    noticeFamily: "benefits",
+    responseModes: ["reconsideration"],
+    analysisInstructions:
+      `This workflow prepares an ${program} reconsideration request from an SSA denial ` +
+      "notice. Identify the decision, stated reasons and appeal level only if the notice " +
+      "supplies them. Distinguish medical reasons from non-medical (work, income, resources, " +
+      "living arrangement or other eligibility) reasons in the summary. If this is not an " +
+      `${program} denial, report that mismatch in missingInformation. Never calculate an ` +
+      "appeal deadline from a general rule. Treat suggested evidence as suggestions, not " +
+      "evidence already supplied.",
+    analysisDetailFields:
+      'appealStage ("reconsideration" | "hearing" | "appeals_council" | "unknown") and ' +
+      'decisionBasis ("medical" | "nonmedical" | "unknown"). Both must come from the notice ' +
+      `itself, not from this workflow being named ${program}; use "unknown" when the notice ` +
+      "does not clearly establish them",
+    draftInstructions:
+      `Prepare an ${program} reconsideration letter addressing only the reasons stated in the ` +
+      "analysis, using the claimant's confirmed facts. Do not invent diagnoses, functional " +
+      "limitations, work, income or living-arrangement facts, an appeal stage or a statutory " +
+      "form. An enclosure kind is only a label: its contents have not been read, so do not " +
+      `claim it proves eligibility or contradicts a finding. The SSA forms are enclosed ` +
+      "separately; do not describe this letter as completing or filing them.",
+  });
 }

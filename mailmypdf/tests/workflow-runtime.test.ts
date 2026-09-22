@@ -198,7 +198,34 @@ test("insurance-family appeals resolve from the shared pack wherever a runtime p
   }
   assert.match(resolveCaseWorkflow("appeal-dental-insurance-denial", "appeal-mail").draftInstructions, /Dental/);
   assert.throws(() => resolveCaseWorkflow("appeal-car-insurance-claim", "notice-respond"), /enabled case runtime/);
-  // SSDI/SSI still have no platform runtime policy; they must not resolve by name alone.
-  assert.throws(() => resolveCaseWorkflow("appeal-ssdi-denial", "appeal-mail"), /enabled case runtime/);
-  assert.throws(() => resolveCaseWorkflow("appeal-ssi-denial", "appeal-mail"), /enabled case runtime/);
+  assert.throws(() => resolveCaseWorkflow("appeal-medicaid-denial", "appeal-mail"), /enabled case runtime/);
+});
+
+test("SSA reconsideration workflows resolve under the ids their start pages send", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    assert.ok(platformWorkflowRuntimePolicyFor(workflowId), `${workflowId} has a platform runtime policy`);
+    const workflow = resolveCaseWorkflow(workflowId, "appeal-mail");
+    assert.equal(workflow.id, workflowId);
+    assert.match(workflow.analysisDetailFields ?? "", /appealStage/);
+    assert.match(workflow.analysisDetailFields ?? "", /decisionBasis/);
+    assert.throws(() => resolveCaseWorkflow(workflowId, "notice-respond"), /enabled case runtime/);
+  }
+  // The legacy v2 id keeps its own definition.
+  assert.equal(resolveCaseWorkflow("ssdi-denial", "appeal-mail").id, "ssdi-denial");
+  assert.equal(resolveCaseWorkflow("cp14-response", "notice-respond").analysisDetailFields, undefined);
+});
+
+test("stored analysis keeps the SSA appeal level and basis the runtime policy gates on", () => {
+  const policy = platformWorkflowRuntimePolicyFor("appeal-ssdi-denial")!;
+  const stored = (details: Record<string, unknown>) => ({
+    version: 1, documentId: "d", model: "m", createdAt: "2026-09-22T00:00:00Z",
+    result: validateNoticeAnalysis({ ...analysis, workflowDetails: details }),
+  });
+  const reloaded = stored({ appealStage: "reconsideration", decisionBasis: "medical" });
+  assert.equal(reloaded.result.workflowDetails.appealStage, "reconsideration");
+  assert.doesNotThrow(() => policy.validateAnalysis?.(reloaded as never));
+  assert.throws(() => policy.validateAnalysis?.(stored({ appealStage: "hearing", decisionBasis: "medical" }) as never), /not hearing/);
+  assert.throws(() => policy.validateAnalysis?.(stored({}) as never), /appeal level is not confirmed/);
+  assert.throws(() => validateNoticeAnalysis({ ...analysis, workflowDetails: { appealStage: "supreme_court" } }), /invalid/);
+  assert.equal(validateNoticeAnalysis(analysis).workflowDetails.appealStage, undefined);
 });

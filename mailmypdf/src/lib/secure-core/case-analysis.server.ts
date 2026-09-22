@@ -91,7 +91,9 @@ export async function runNoticeAnalysisModel(
       "payerReferences (array of strings), reportedIncome (string or null), " +
       "irsReportedIncome (string or null), incomeSource (string or null), " +
       "paymentInstructions (string or null), and responseAddress " +
-      "(null or { line1, line2, city, state, postal }, using the exact response address printed on the notice). " +
+      "(null or { line1, line2, city, state, postal }, using the exact response address printed on the notice)" +
+      (workflow.analysisDetailFields ? `, and also ${workflow.analysisDetailFields}` : "") +
+      ". " +
       "Use workflowDetails only for facts actually printed in the notice; use null or [] rather than guessing. Return JSON only.",
     context,
   });
