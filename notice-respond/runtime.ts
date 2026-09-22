@@ -22,6 +22,16 @@ export const noticeRespondStartRoutes = Object.freeze([
     path: "/notice-respond/workflows/cp2000-response/start/",
     load: () => import("./workflows/cp2000-response/start/index"),
   },
+  {
+    workflowId: "irs-balance-due-notice-response",
+    path: "/notice-respond/workflows/irs-balance-due-notice-response/start/",
+    load: () => import("./workflows/irs-balance-due-notice-response/start/index"),
+  },
+  {
+    workflowId: "irs-penalty-notice-response",
+    path: "/notice-respond/workflows/irs-penalty-notice-response/start/",
+    load: () => import("./workflows/irs-penalty-notice-response/start/index"),
+  },
 ] as const satisfies readonly NoticeRespondStartRouteRegistration[]);
 
 export function noticeRespondStartRouteFor(

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CaseError } from "./case.server";
+import { getNoticeResponseWorkflowProfile } from "@mailmypdf/workflows";
 import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
@@ -257,6 +258,22 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
     (candidate) => candidate.id === workflowId && verticalIdsMatch(candidate.verticalId, verticalId),
   );
   if (workflow) return workflow;
+  // Workflows that run only on the shared notice shell are defined once, by
+  // their @mailmypdf/workflows profile, instead of being re-declared here.
+  // The legacy definitions above keep precedence for the ids they cover.
+  const profile = verticalIdsMatch("notice-respond", verticalId)
+    ? getNoticeResponseWorkflowProfile(workflowId)
+    : null;
+  if (profile) {
+    return Object.freeze({
+      id: profile.workflowId,
+      verticalId: "notice-respond",
+      noticeFamily: "irs",
+      responseModes: profile.responseModes.map((mode) => mode.value),
+      analysisInstructions: profile.analysisInstructions,
+      draftInstructions: profile.draftInstructions,
+    });
+  }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
 }
 

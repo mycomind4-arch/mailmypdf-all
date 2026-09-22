@@ -27,6 +27,8 @@ import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appe
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
 import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
 import Cp504ResponseStart from "@mailmypdf/notice-respond/workflows/cp504-response/start"
+import IrsBalanceDueNoticeResponseStart from "@mailmypdf/notice-respond/workflows/irs-balance-due-notice-response/start"
+import IrsPenaltyNoticeResponseStart from "@mailmypdf/notice-respond/workflows/irs-penalty-notice-response/start"
 import AgencyRecordsRequestStart from "@mailmypdf/records-request/workflows/agency-records-request/start"
 import GovernmentDocumentsRequestStart from "@mailmypdf/records-request/workflows/government-documents-request/start"
 import OpenRecordsRequestStart from "@mailmypdf/records-request/workflows/open-records-request/start"
@@ -53,6 +55,8 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
   "notice-respond:cp2000-response": Cp2000ResponseStart,
   "notice-respond:cp504-response": Cp504ResponseStart,
+  "notice-respond:irs-balance-due-notice-response": IrsBalanceDueNoticeResponseStart,
+  "notice-respond:irs-penalty-notice-response": IrsPenaltyNoticeResponseStart,
   "records-request:agency-records-request": AgencyRecordsRequestStart,
   "records-request:government-documents-request": GovernmentDocumentsRequestStart,
   "records-request:open-records-request": OpenRecordsRequestStart,

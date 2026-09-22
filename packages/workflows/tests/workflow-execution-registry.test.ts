@@ -47,7 +47,7 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
     const executable = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "executable");
     const notConnected = WORKFLOW_EXECUTION_REGISTRY.filter((r) => r.executionStatus === "not-connected");
     assert.equal(executable.length + notConnected.length, WORKFLOW_EXECUTION_REGISTRY.length);
-    assert.equal(executable.length, 24);
+    assert.equal(executable.length, 26);
     assert.ok(notConnected.length > executable.length);
   });
 
@@ -63,6 +63,8 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
       ["appeal-mail", "appeal-ssi-denial"],
       ["notice-respond", "cp2000-response"],
       ["notice-respond", "cp504-response"],
+      ["notice-respond", "irs-balance-due-notice-response"],
+      ["notice-respond", "irs-penalty-notice-response"],
       ["records-request", "agency-records-request"],
       ["immigration-mail", "immigration-filing-cover-letter"],
       ["secured-transactions", "secured-transaction-eligibility"],

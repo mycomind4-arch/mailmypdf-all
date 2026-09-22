@@ -173,3 +173,15 @@ test("draft service accepts platform-validated input and still gates on the noti
     /notice has changed/,
   );
 });
+
+test("shell-only notice workflows resolve from their shared profile, legacy ids keep their definitions", () => {
+  const penalty = resolveCaseWorkflow("irs-penalty-notice-response", "notice-respond");
+  assert.match(penalty.analysisInstructions, /first-time abatement/);
+  assert.match(penalty.draftInstructions, /Form 843/);
+  assert.ok(penalty.responseModes.includes("reasonable_cause"));
+  const balance = resolveCaseWorkflow("irs-balance-due-notice-response", "notice-respond");
+  assert.match(balance.analysisInstructions, /Collection Due Process/);
+  assert.match(resolveCaseWorkflow("cp14-response", "notice-respond").draftInstructions, /installment/);
+  assert.throws(() => resolveCaseWorkflow("irs-penalty-notice-response", "appeal-mail"), /enabled case runtime/);
+  assert.throws(() => resolveCaseWorkflow("cp3219a-response", "notice-respond"), /enabled case runtime/);
+});
