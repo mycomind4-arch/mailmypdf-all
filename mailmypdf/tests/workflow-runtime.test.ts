@@ -229,3 +229,11 @@ test("stored analysis keeps the SSA appeal level and basis the runtime policy ga
   assert.throws(() => validateNoticeAnalysis({ ...analysis, workflowDetails: { appealStage: "supreme_court" } }), /invalid/);
   assert.equal(validateNoticeAnalysis(analysis).workflowDetails.appealStage, undefined);
 });
+
+test("the immigration cover letter resolves only under the immigration-mail vertical", () => {
+  assert.ok(platformWorkflowRuntimePolicyFor("immigration-filing-cover-letter"));
+  const workflow = resolveCaseWorkflow("immigration-filing-cover-letter", "immigration-mail");
+  assert.equal(workflow.noticeFamily, "immigration");
+  assert.match(workflow.draftInstructions, /not the filing/);
+  assert.throws(() => resolveCaseWorkflow("immigration-filing-cover-letter", "appeal-mail"), /enabled case runtime/);
+});

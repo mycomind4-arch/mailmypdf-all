@@ -5,7 +5,10 @@ import {
   SSA_RECONSIDERATION_WORKFLOWS,
   getInsuranceAppealWorkflowSpec,
   getNoticeResponseWorkflowProfile,
+  getImmigrationRuntimePolicy,
   getSsaReconsiderationRuntimePolicy,
+  IMMIGRATION_COVER_LETTER_WORKFLOW_ID,
+  IMMIGRATION_MAIL_VERTICAL_ID,
   insuranceDraftPack,
   type SsaReconsiderationWorkflowId,
 } from "@mailmypdf/workflows";
@@ -124,7 +127,7 @@ export function validateNoticeAnalysis(value: unknown): NoticeAnalysis {
 export interface CaseWorkflowDefinition {
   readonly id: string;
   readonly verticalId: string;
-  readonly noticeFamily: "benefits" | "insurance" | "irs";
+  readonly noticeFamily: "benefits" | "immigration" | "insurance" | "irs";
   readonly responseModes: readonly string[];
   readonly analysisInstructions: string;
   /** Extra workflowDetails keys this workflow asks the model to report. */
@@ -298,6 +301,9 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
   if (verticalId === "appeal-mail" && getSsaReconsiderationRuntimePolicy(workflowId)) {
     return ssaReconsiderationCaseWorkflow(workflowId as SsaReconsiderationWorkflowId);
   }
+  if (verticalId === IMMIGRATION_MAIL_VERTICAL_ID && getImmigrationRuntimePolicy(workflowId)) {
+    return IMMIGRATION_COVER_LETTER;
+  }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
 }
 
@@ -388,3 +394,24 @@ function ssaReconsiderationCaseWorkflow(workflowId: SsaReconsiderationWorkflowId
       "separately; do not describe this letter as completing or filing them.",
   });
 }
+
+const IMMIGRATION_COVER_LETTER: CaseWorkflowDefinition = Object.freeze({
+  id: IMMIGRATION_COVER_LETTER_WORKFLOW_ID,
+  verticalId: IMMIGRATION_MAIL_VERTICAL_ID,
+  noticeFamily: "immigration",
+  responseModes: ["cover-letter"],
+  analysisInstructions:
+    "This workflow prepares a cover letter to accompany an immigration filing. The " +
+    "source is the application, petition, form or USCIS document being filed. Report " +
+    "the document type in decision, the agency in issuer, any receipt or A-number in " +
+    "referenceNumber, and a deadline only if one is printed. Report a filing or " +
+    "lockbox address in responseAddress only if the document prints it. Never infer " +
+    "eligibility, a filing location, fees or a deadline from general rules.",
+  draftInstructions:
+    "Prepare a concise cover letter that accompanies the filing, using only the " +
+    "user-confirmed applicant, petitioner, filing type, form numbers, receipt or " +
+    "A-number, purpose and special instructions, and listing only the enclosed " +
+    "document kinds. It is not the filing and must not argue eligibility, cite " +
+    "immigration law, state fees, or promise approval or processing times. An " +
+    "enclosure kind is only a label: its contents have not been read.",
+});

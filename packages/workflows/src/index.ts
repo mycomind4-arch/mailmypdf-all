@@ -51,6 +51,7 @@ export * from "./domain-packs/appeal/insurance-manifest.js";
 export * from "./domain-packs/appeal/insurance-runtime.js";
 export * from "./domain-packs/appeal/insurance-runtime-policy.js";
 export * from "./domain-packs/appeal/ssa-reconsideration-runtime-policy.js";
+export * from "./domain-packs/immigration/cover-letter-runtime-policy.js";
 export * from "./domain-packs/records-request/index.js";
 export * from "./matter-runtime-client.js";
 export * from "./matter-runtime.js";
