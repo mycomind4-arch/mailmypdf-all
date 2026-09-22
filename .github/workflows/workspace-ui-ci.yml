@@ -154,6 +154,11 @@ jobs:
             src/platform/authority-provider.test.ts \
             src/services/compound-workflow-service.test.ts \
             src/services/compound-capability-executor.test.ts
+      - name: Build app workspace dependencies
+        shell: bash
+        run: |
+          package_name=$(node -p 'require("./apps/verticals/${{ matrix.app }}/package.json").name')
+          pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
 

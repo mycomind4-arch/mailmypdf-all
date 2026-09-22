@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const workspaceRoot = join(root, "..", "..");
+const workspaceRoot = join(root, "..");
 
 async function appSource(path) {
   return readFile(join(root, path), "utf8");
