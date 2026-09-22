@@ -7,8 +7,8 @@ export function createSectionHead(config: SectionLandingConfig) {
   const image = SITE_ORIGIN + config.heroImage
 
   return {
+    title: config.seoTitle,
     meta: [
-      { title: config.seoTitle },
       { name: "description", content: config.seoDescription },
       { name: "robots", content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" },
       { property: "og:title", content: config.seoTitle },

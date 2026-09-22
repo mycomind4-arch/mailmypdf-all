@@ -8,8 +8,8 @@ export function createWorkflowHead(config: WorkflowLandingConfig) {
     : "noindex,follow"
 
   return {
+    title: config.seoTitle,
     meta: [
-      { title: config.seoTitle },
       { name: "description", content: config.seoDescription },
       { name: "robots", content: robots },
       { property: "og:title", content: config.seoTitle },
