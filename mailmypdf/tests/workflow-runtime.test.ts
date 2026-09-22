@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { validateNoticeAnalysis, resolveCaseWorkflow, assertDraftReady } from "../src/lib/secure-core/workflow-runtime";
 import { generateDraftResponse, analyseSubjectNotice } from "../src/lib/secure-core/case-analysis.server";
 import type { AuthenticatedUserContext } from "../src/lib/secure-core/auth.server";
+import { INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS, platformWorkflowRuntimePolicyFor } from "@mailmypdf/workflows";
 
 const analysis = {
   decision: "denied", issuer: null, referenceNumber: null, decisionDate: null,
@@ -184,4 +185,20 @@ test("shell-only notice workflows resolve from their shared profile, legacy ids 
   assert.match(resolveCaseWorkflow("cp14-response", "notice-respond").draftInstructions, /installment/);
   assert.throws(() => resolveCaseWorkflow("irs-penalty-notice-response", "appeal-mail"), /enabled case runtime/);
   assert.throws(() => resolveCaseWorkflow("cp3219a-response", "notice-respond"), /enabled case runtime/);
+});
+
+test("insurance-family appeals resolve from the shared pack wherever a runtime policy is registered", () => {
+  for (const workflowId of INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS) {
+    assert.ok(platformWorkflowRuntimePolicyFor(workflowId), `${workflowId} has a runtime policy`);
+    const workflow = resolveCaseWorkflow(workflowId, "appeal-mail");
+    assert.equal(workflow.id, workflowId);
+    assert.equal(workflow.noticeFamily, "insurance");
+    assert.match(workflow.analysisInstructions, /Never calculate a deadline/);
+    assert.match(workflow.draftInstructions, /guaranteed outcomes/);
+  }
+  assert.match(resolveCaseWorkflow("appeal-dental-insurance-denial", "appeal-mail").draftInstructions, /Dental/);
+  assert.throws(() => resolveCaseWorkflow("appeal-car-insurance-claim", "notice-respond"), /enabled case runtime/);
+  // SSDI/SSI still have no platform runtime policy; they must not resolve by name alone.
+  assert.throws(() => resolveCaseWorkflow("appeal-ssdi-denial", "appeal-mail"), /enabled case runtime/);
+  assert.throws(() => resolveCaseWorkflow("appeal-ssi-denial", "appeal-mail"), /enabled case runtime/);
 });

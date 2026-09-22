@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { CaseError } from "./case.server";
-import { getNoticeResponseWorkflowProfile } from "@mailmypdf/workflows";
+import {
+  INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS,
+  getInsuranceAppealWorkflowSpec,
+  getNoticeResponseWorkflowProfile,
+  insuranceDraftPack,
+} from "@mailmypdf/workflows";
 import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
@@ -113,7 +118,7 @@ export function validateNoticeAnalysis(value: unknown): NoticeAnalysis {
 export interface CaseWorkflowDefinition {
   readonly id: string;
   readonly verticalId: string;
-  readonly noticeFamily: "benefits" | "irs";
+  readonly noticeFamily: "benefits" | "insurance" | "irs";
   readonly responseModes: readonly string[];
   readonly analysisInstructions: string;
   readonly draftInstructions: string;
@@ -274,7 +279,48 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
       draftInstructions: profile.draftInstructions,
     });
   }
+  // Insurance-family appeals are likewise defined once, by the shared
+  // insurance pack plus each workflow's authority overlay, and are enabled
+  // only where the platform runtime policy registers the same id.
+  if (verticalId === "appeal-mail" && isInsuranceAppealRuntimeWorkflowId(workflowId)) {
+    return insuranceAppealCaseWorkflow(workflowId);
+  }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
+}
+
+function isInsuranceAppealRuntimeWorkflowId(workflowId: string): boolean {
+  return (INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS as readonly string[]).includes(workflowId);
+}
+
+function insuranceAppealCaseWorkflow(workflowId: string): CaseWorkflowDefinition {
+  const spec = getInsuranceAppealWorkflowSpec(workflowId);
+  const subject = spec?.title ?? "Appeal a denied claim";
+  const authorityRules = spec?.authorityRules.length
+    ? `\n\nWorkflow authority rules:\n${spec.authorityRules.map((rule) => `- ${rule}`).join("\n")}`
+    : "";
+  return Object.freeze({
+    id: workflowId,
+    verticalId: "appeal-mail",
+    noticeFamily: "insurance",
+    responseModes: ["appeal"],
+    analysisInstructions:
+      `This workflow prepares: ${subject}. The source document is the claim or ` +
+      "coverage decision. Identify the insurer or plan, claim and policy references, " +
+      "the decision, each stated denial reason, cited policy provisions and any " +
+      "appeal instructions or deadline only if the document states them. If the " +
+      "document is not a claim or coverage decision, report that mismatch in " +
+      "missingInformation. Never calculate a deadline from a general rule. Treat " +
+      "suggested evidence as suggestions, not evidence already supplied." +
+      authorityRules,
+    draftInstructions:
+      `Prepare a ${insuranceDraftPack.draftType} for: ${subject}. Address each denial ` +
+      "reason stated in the analysis by its wording. Use the claimant's confirmed " +
+      "facts, reasons for disagreement and requested outcome. Never include: " +
+      `${insuranceDraftPack.prohibitedUnsupportedClaims.join("; ")}. An enclosure ` +
+      "kind is only a label: its contents have not been read, so do not claim it " +
+      "proves coverage or contradicts a finding." +
+      authorityRules,
+  });
 }
 
 interface DraftDocument {
