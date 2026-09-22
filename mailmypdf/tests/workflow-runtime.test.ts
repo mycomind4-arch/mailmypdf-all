@@ -142,3 +142,34 @@ test("draft service refuses stored analysis after its notice is detached", async
     case_documents: [],
   })), /notice has changed/);
 });
+
+// The shared notice shell (notice-respond/) stores input in the platform
+// policy's shape, which the legacy /notice/$ schema rejects. The generic host
+// passes the policy-validated input through; drafting must accept it and then
+// still apply the document readiness gate.
+const platformNoticeInput = {
+  taxpayerName: "Jane Doe", taxpayerAddress: "1 Main St, Austin, TX 78701", phone: "",
+  noticeNumber: "", taxPeriod: "2023", responseMode: "disagree",
+  responseExplanation: "The 1099-NEC income was reported on Schedule C.",
+  requestedAction: "Please review the enclosed records.", additionalFacts: "",
+  evidenceReviewComplete: true, evidenceReviewFingerprint: "{}",
+};
+const platformDraftRows = {
+  workflow_cases: { workflow_id: "cp2000-response", vertical_id: "notice-respond" },
+  case_analyses: { version: 1, document_id: "notice-1", result: analysis },
+  workflow_case_inputs: { version: 1, input: platformNoticeInput },
+  case_documents: [],
+};
+
+test("legacy draft path still re-validates stored input under its own schema", async () => {
+  await assert.rejects(generateDraftResponse("case-1", context(platformDraftRows)), /incomplete or invalid/);
+});
+
+test("draft service accepts platform-validated input and still gates on the notice", async () => {
+  await assert.rejects(
+    generateDraftResponse("case-1", context(platformDraftRows), {
+      validatedInput: { version: 1, input: platformNoticeInput },
+    }),
+    /notice has changed/,
+  );
+});

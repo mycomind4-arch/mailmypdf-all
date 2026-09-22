@@ -358,8 +358,17 @@ async function intelligenceAnalyze(matterId: string, context: AuthenticatedUserC
   return { documentId, model, result };
 }
 
-async function intelligenceGenerateDraft(matterId: string, context: AuthenticatedUserContext) {
-  const generated = await generateDraftResponse(matterId, context);
+async function intelligenceGenerateDraft(
+  matterId: string,
+  caseInput: WorkflowRuntimeStoredInput,
+  context: AuthenticatedUserContext,
+) {
+  // The platform policy validated this input (and evidence freshness) before
+  // calling us; hand it through rather than re-reading it under the legacy
+  // /notice/$ schema, which rejects the platform input shape.
+  const generated = await generateDraftResponse(matterId, context, {
+    validatedInput: { version: caseInput.version, input: caseInput.input },
+  });
   return {
     bodyText: generated.bodyText,
     model: generated.model,
@@ -476,7 +485,8 @@ export async function handleWorkflowRuntimeRequest(request: Request): Promise<Re
 
     intelligence: {
       analyze: (input) => intelligenceAnalyze(input.matter.matter.id, requireContext()),
-      generateDraft: (input) => intelligenceGenerateDraft(input.matter.matter.id, requireContext()),
+      generateDraft: (input) =>
+        intelligenceGenerateDraft(input.matter.matter.id, input.caseInput, requireContext()),
     },
 
     packet: {

@@ -194,6 +194,17 @@ export async function loadLatestAnalysis(
   };
 }
 
+// Legacy /notice/$ input carries `userFacts`; the shared notice shell carries
+// `responseExplanation` and `additionalFacts` instead.
+function caseInputUserFacts(input: Record<string, unknown> | undefined): string | undefined {
+  if (!input) return undefined;
+  if (typeof input.userFacts === "string") return input.userFacts;
+  const parts = [input.responseExplanation, input.additionalFacts].filter(
+    (part): part is string => typeof part === "string" && part.trim().length > 0,
+  );
+  return parts.length ? parts.join("\n\n") : undefined;
+}
+
 /**
  * Produces draft response text from the stored analysis and the evidence the
  * user has actually chosen to enclose.
@@ -201,10 +212,16 @@ export async function loadLatestAnalysis(
  * The result is returned, not saved. A draft version is created only when the
  * user saves one, so the immutable draft chain records what a person accepted
  * rather than everything a model produced.
+ *
+ * `validatedInput` is for the generic workflow-runtime host: its registered
+ * policy has already validated the stored input (and evidence freshness) in
+ * its own shape, which differs from the legacy /notice/$ schema, so the
+ * legacy re-validation must not be applied to it.
  */
 export async function generateDraftResponse(
   caseId: string,
   context: AuthenticatedUserContext,
+  options: { validatedInput?: { version: number; input: Record<string, unknown> } } = {},
 ): Promise<{
   bodyText: string;
   model: string;
@@ -218,7 +235,10 @@ export async function generateDraftResponse(
   const analysis = await loadLatestAnalysis(caseId, context);
   if (!analysis) throw new CaseNotFoundError("Analyse the notice before drafting a response");
 
-  const caseInput = workflow.id === "ssdi-denial" ? null : await loadLatestCaseInput(caseId, context);
+  const caseInput: { version: number; input: Record<string, unknown> } | null =
+    workflow.id === "ssdi-denial"
+      ? null
+      : (options.validatedInput ?? (await loadLatestCaseInput(caseId, context)));
   if (workflow.id !== "ssdi-denial" && !caseInput)
     throw new CaseError("Save the workflow information before drafting a response");
 
@@ -310,7 +330,7 @@ export async function generateDraftResponse(
           irsReportedIncome: analysis.result.workflowDetails.irsReportedIncome,
           incomeSource: analysis.result.workflowDetails.incomeSource,
         }),
-        userFacts: caseInput?.input.userFacts,
+        userFacts: caseInputUserFacts(caseInput?.input),
         includedEvidenceKinds: enclosed.map((document) => document.evidence_kind ?? "other"),
         requireRequestedAction: true,
       })
