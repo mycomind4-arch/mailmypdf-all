@@ -275,6 +275,7 @@
 .mmp-breadcrumbs a { color: var(--mmp-ink-muted); text-decoration: none; }
 .mmp-breadcrumbs a:hover { color: var(--mmp-accent); }
 .mmp-seo-centered-action { display: flex; justify-content: center; margin-top: 2rem; }
+.mmp-card { border: 1px solid var(--mmp-border); border-radius: var(--mmp-radius-lg); background: var(--mmp-surface); }
 .mmp-seo-topics { background: var(--mmp-paper-deep); border-block: 1px solid var(--mmp-border); }
 .mmp-seo-topic-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
 .mmp-seo-topic-card { padding: 1.5rem; }
