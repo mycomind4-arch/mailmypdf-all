@@ -20,11 +20,15 @@ and applicable nested instructions. Inspect actual code and git status before
 editing. Old chat reports, commit counts, and archive tags are evidence to examine,
 not proof that a feature is missing, integrated, or production-ready.
 
-## Canonical workspace and preservation
+## Workspaces and preservation
 
-- The only authorized working copy is `/Users/macdizzle/dev/mailmypdf-all`, on `main`.
-- Do not create branches, worktrees, clones, or standalone platform/Studio copies.
-- Serialize changes to this checkout. Do not launch the existing worktree-based
+- Separate working copies (clones) are allowed, e.g. `/Users/macdizzle/dev/mailmypdf-all`
+  and `/Users/macdizzle/dev/mailmypdf-all-main`. Each copy works on `main`.
+- Copies do not share state. Before relying on another copy's work, or before
+  pushing, fetch `origin` and reconcile the actual differences; never assume a
+  commit made in one copy exists in another.
+- Do not create branches or worktrees unless the user asks.
+- Serialize changes within a single copy. Do not launch the existing worktree-based
   swarm until its architecture is reconciled with this constraint or the user changes it.
 - Preserve user changes and archival tags. No resets, force pushes, bulk deletion,
   or whole-file conflict choices without reviewing the actual differences.
