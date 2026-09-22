@@ -123,12 +123,29 @@ export interface GlobalFooterProps {
 const DEFAULT_AUTH_HREF = '/auth?redirect=%2Fdashboard'
 
 /**
+ * Primary links, kept identical (labels, order, destinations) to the main
+ * site's ecosystem shell header so a visitor sees one navigation everywhere.
+ */
+export const GLOBAL_NAV_LINKS: readonly { href: string; label: string }[] = [
+  { href: '/products', label: 'Products' },
+  { href: '/ecosystem', label: 'Workflows' },
+  { href: '/how-it-works', label: 'How It Works' },
+  { href: '/security', label: 'Security' },
+  { href: '/about', label: 'About' },
+]
+
+const MAIL_A_PDF_HREF = '/mail-a-pdf'
+
+/**
  * The one global header every public MailMyPDF page (section landing and
  * workflow landing alike) renders, so a visitor never sees two different
- * navigation shells depending on which page depth they land on.
+ * navigation shells depending on which page depth they land on. Below the
+ * desktop breakpoint the links collapse into a <details> menu, which works
+ * without client JavaScript.
  */
 export function createGlobalHeader(h: ElementFactory) {
-  return function GlobalHeader({ productName, sectionPath, workflowsPath, authHref = DEFAULT_AUTH_HREF }: GlobalHeaderProps) {
+  return function GlobalHeader({ productName, workflowsPath, authHref = DEFAULT_AUTH_HREF }: GlobalHeaderProps) {
+    const navLinks = GLOBAL_NAV_LINKS.map((link) => h('a', { key: link.href, href: link.href }, link.label))
     return h(
       'header',
       { className: 'mmp-site-header' },
@@ -138,27 +155,34 @@ export function createGlobalHeader(h: ElementFactory) {
         h(
           'a',
           { className: 'mmp-brand-lockup', href: '/', 'aria-label': 'MailMyPDF home' },
-          h('span', { className: 'mmp-brand-mark', 'aria-hidden': 'true' }, 'M'),
+          h('span', { className: 'mmp-brand-mark', 'aria-hidden': 'true' }, 'PDF'),
           h(
             'span',
             { className: 'mmp-brand-copy' },
-            h('span', { className: 'mmp-brand-name' }, 'MailMyPDF'),
+            h('span', { className: 'mmp-brand-wordmark' }, 'mailmy', h('span', null, 'pdf')),
             h('span', { className: 'mmp-brand-product' }, productName),
           ),
         ),
-        h(
-          'nav',
-          { className: 'mmp-site-nav', 'aria-label': 'Primary navigation' },
-          h('a', { href: '/workflows' }, 'All workflows'),
-          h('a', { href: workflowsPath }, `${productName} workflows`),
-          h('a', { href: '#how-it-works' }, 'How it works'),
-          h('a', { href: '#faq' }, 'FAQ'),
-        ),
+        h('nav', { className: 'mmp-site-nav', 'aria-label': 'Primary navigation' }, ...navLinks),
         h(
           'div',
           { className: 'mmp-site-actions' },
-          h('a', { className: 'mmp-button-secondary', href: authHref }, 'Sign in'),
-          h('a', { className: 'mmp-button-primary', href: workflowsPath }, 'Start a workflow'),
+          h('a', { className: 'mmp-header-signin', href: authHref }, 'Sign In'),
+          h('a', { className: 'mmp-header-cta', href: workflowsPath }, 'Start a Matter'),
+          h('a', { className: 'mmp-header-mail', href: MAIL_A_PDF_HREF }, 'Mail a PDF'),
+        ),
+        h(
+          'details',
+          { className: 'mmp-site-menu' },
+          h('summary', { 'aria-label': 'Menu' }, h('span', { 'aria-hidden': 'true' }, '\u2630')),
+          h(
+            'nav',
+            { className: 'mmp-site-menu__panel', 'aria-label': 'Mobile navigation' },
+            ...GLOBAL_NAV_LINKS.map((link) => h('a', { key: link.href, href: link.href }, link.label)),
+            h('a', { href: MAIL_A_PDF_HREF }, 'Mail a PDF'),
+            h('a', { href: authHref }, 'Sign In'),
+            h('a', { className: 'mmp-header-cta', href: workflowsPath }, 'Start a Matter'),
+          ),
         ),
       ),
     )
@@ -183,7 +207,7 @@ export function createGlobalFooter(h: ElementFactory) {
         h(
           'nav',
           { 'aria-label': 'Footer navigation' },
-          h('a', { href: '/workflows' }, 'Workflows'),
+          h('a', { href: '/ecosystem' }, 'Workflows'),
           h('a', { href: '/privacy' }, 'Privacy'),
           h('a', { href: '/terms' }, 'Terms'),
           h('a', { href: '/contact' }, 'Contact'),
