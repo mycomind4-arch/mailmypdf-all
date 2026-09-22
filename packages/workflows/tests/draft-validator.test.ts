@@ -68,3 +68,11 @@ test("minimum word requirement is policy-controlled", () => {
     true,
   );
 });
+
+test("insurance appeal validation flags legal-advice language", async () => {
+  const { validateAppealDraft } = await import("../src/draft-validator.js");
+  const { insuranceValidationPack } = await import("../src/domain-packs/appeal/insurance-packs.js");
+  const draft = "Re: Claim 12345\nDear Claims Review,\nI appeal this denial. If it is not reversed, you should sue the plan.\nSincerely,\nA. Member";
+  const result = validateAppealDraft(draft, {}, [], [], insuranceValidationPack);
+  assert.ok(result.findings.some((finding) => finding.check === "prohibited_claim:legal advice" && !finding.passed));
+});

@@ -218,6 +218,7 @@ export const insuranceDraftPack: AppealDraftPackConfig = {
     "medical necessity assertions without clinical evidence",
     "legal authority citations without source",
     "guaranteed outcomes",
+    "legal advice",
     "amounts not traceable to extracted facts or user records",
     "policy language not quoted from the actual policy document",
   ],
