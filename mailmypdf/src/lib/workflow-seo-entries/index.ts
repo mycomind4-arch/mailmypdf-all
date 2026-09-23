@@ -2,6 +2,7 @@ import type { WorkflowSeoAuthorityContent } from "../workflow-seo-catalog";
 
 import appealSsdiDenial from "./appeal-ssdi-denial";
 import legalDefenseWrongfulStolenVehicleArrest from "./legal-defense-wrongful-stolen-vehicle-arrest";
+import noticeCp2000Response from "./notice-cp2000-response";
 import noticeIrsNotice from "./notice-irs-notice";
 
 /**
@@ -35,4 +36,5 @@ export const AUTHORED_SEO_ENTRIES: readonly AuthoredWorkflowSeoEntry[] = [
   legalDefenseWrongfulStolenVehicleArrest,
   appealSsdiDenial,
   noticeIrsNotice,
+  noticeCp2000Response,
 ];
