@@ -384,3 +384,50 @@ enabled case runtime" when reaching analysis/draft paths. Three-stage execution:
   secured-transactions families
 - Evidence kinds migration 20260922120000 needs to be applied to connected dev
   Supabase before database mutations test
+
+### 2026-09-23 — mount 35 workflows into mailmypdf/src/routes; correct prior mount errors
+
+Prior session's "Phase 2" claims were false: only CP14/CP504 of the 6 "mounted"
+notice-respond workflows actually worked. CP2000/IRS-balance-due/IRS-penalty had
+a relative-import-path off-by-one (wrong `../` depth + missing trailing slash on
+the route id) that `tsc --noEmit` genuinely failed on; CP523 referenced a
+`notice-respond/workflows/cp523-response/` source directory that was never
+created (only stale `apps/verticals` legacy code exists for CP523).
+
+- Fixed CP2000/IRS-balance-due/IRS-penalty `start/index.tsx` import depth and
+  trailing slash to match the working CP14 pattern.
+- Removed the CP523 mount (`mailmypdf/src/routes/notice-respond/workflows/cp523-response/`)
+  rather than fabricate its public content (notice facts, FAQs) — that workflow
+  still needs its `notice-respond/workflows/cp523-response/` source tree built
+  from scratch (config/seo/schema/authority content), same as any other
+  ground-up workflow, before it can be mounted.
+- Mounted all 35 workflows across three verticals that already had complete
+  source (`config.ts`/`seo.ts`/`schema.ts`/`start/`) but no route files:
+  13 appeal-mail (including the SSDI/SSI reference workflows), 5 records-request,
+  17 secured-transactions (all of them — the "3 secured-transactions" figure in
+  the 2026-09-22 entry above could not be reconstructed from any file; every
+  secured-transactions workflow has a server-side resolver fallback and complete
+  source, so all 17 were mounted, not an arbitrary subset).
+- Discovered mid-mount: `createFileRoute()` calls must live directly in the file
+  TanStack's router codegen scans (`mailmypdf/src/routes/**`) — a thin
+  `export { Route } from "<source>"` re-export is silently dropped from the
+  route tree (no error, route just doesn't exist). Every mount file here calls
+  `createFileRoute` itself and imports only the component/config from the
+  top-level vertical directory.
+- Verified: `cd mailmypdf && npx vite build` exit 0, regenerated
+  `src/routeTree.gen.ts` confirms all 35 landing + 35 start routes registered
+  (`grep -c` before/after). `npx tsc --noEmit` dropped from 45 to 10 errors, all
+  10 pre-existing and unrelated to the touched files (verified by file path —
+  `code-enforcement/config.ts`, `entitlements-management.functions.ts`,
+  `api/v1/documents/index.ts`, `ssdi-denial-workflow.tsx` pre-existing `navigate`
+  call, `obligation-value/ObligationValueIntake.tsx` pre-existing possibly-undefined).
+  `pnpm --filter @mailmypdf/workflows test` 178/178 pass.
+- Not verified: an actual browser render of the new pages (`wrangler dev`
+  bootstrap didn't finish installing in the time available this session) or a
+  signed-in journey through any of the 35. Not verified: whether the resolver
+  fallback (`resolveCaseWorkflow`) actually returns a valid analysis for all 17
+  secured-transactions ids at the server layer — only that the pages themselves
+  now render instead of the placeholder.
+- Next: (1) build CP523's real source tree, (2) browser-verify a sample of the
+  35 (one per vertical) against a running preview, (3) apply the pending
+  evidence-kinds Supabase migration (still blocked on CLI access per prior entries).
