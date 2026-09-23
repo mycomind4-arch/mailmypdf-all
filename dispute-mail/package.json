@@ -1,0 +1,28 @@
+{
+  "name": "@mailmypdf/dispute-mail-section",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "tsx --test workflows/*/tests/*.test.ts workflows/*/tests/*.test.mjs shared/tests/*.test.ts"
+  },
+  "dependencies": {
+    "@mailmypdf/design-system": "workspace:*",
+    "@mailmypdf/seo": "workspace:*",
+    "@mailmypdf/pricing": "workspace:*",
+    "@mailmypdf/step-workflow": "workspace:*",
+    "@mailmypdf/workflow-ui": "workspace:*",
+    "@tanstack/react-router": "^1.170.16",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.8.3",
+    "tsx": "^4.23.12"
+  }
+}

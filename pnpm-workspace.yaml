@@ -9,3 +9,4 @@ packages:
   - "records-request"
   - "immigration-mail"
   - "secured-transactions"
+  - "dispute-mail"

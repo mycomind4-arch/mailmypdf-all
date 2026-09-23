@@ -431,3 +431,73 @@ created (only stale `apps/verticals` legacy code exists for CP523).
 - Next: (1) build CP523's real source tree, (2) browser-verify a sample of the
   35 (one per vertical) against a running preview, (3) apply the pending
   evidence-kinds Supabase migration (still blocked on CLI access per prior entries).
+
+## 2026-09-23 — dispute-mail credit-bureau workflows (equifax/experian/transunion-dispute) verified
+
+- Scope: verify the port of `dispute-mail/workflows/{equifax,experian,transunion}-dispute/`
+  per `.claude/skills/port-workflow/SKILL.md`. All three arrived already staged
+  (untracked) with `config.ts`/`index.tsx`/`schema.ts`/`seo.ts`/`start/index.tsx`/
+  `step-workflow.ts` present, plus a shared `dispute-mail/shared/credit-dispute.ts`
+  (bureau configs, draft generator, evidence analysis) and
+  `dispute-mail/shared/CreditBureauDisputeIntake.tsx` (shared step-workflow UI
+  built on `@mailmypdf/workflow-ui` primitives, same shape as
+  `secured-transactions/workflows/secured-transaction-eligibility/start/`).
+- Step 1 (landing-only stub check): NOT stubs. All three `start/index.tsx` mount
+  files call `createFileRoute` directly (not a re-export) at
+  `mailmypdf/src/routes/dispute-mail/workflows/<id>/{index,start/index}.tsx`,
+  with correct relative depth (6 ups for landing, 7 for start) and trailing
+  slashes on both route ids. No fix needed — this was already done correctly.
+- Step 2 (legacy fidelity): cross-checked `dispute-mail/shared/credit-dispute.ts`
+  against `apps/verticals/notice-respond/src/domain/{credit-dispute.ts,
+  step-workflows/{equifax,experian,transunion}-dispute.ts}`. Mailing addresses,
+  phone numbers, FCRA Section 611/605/623 citations, the six-step shape
+  (Intake/Documents/Analyze/Draft/Review/Mail with `requiresApprovalBeforeStep:
+  "mail"`), the dispute-category evidence-strength logic, and the letter
+  template text all match the legacy source verbatim, including the legacy
+  file's documented address corrections (Equifax: P.O. Box 740256, Atlanta, GA
+  30374-0256, phone 866-349-5191; Experian: P.O. Box 4500, Allen, TX 75013,
+  phone 888-397-3742; TransUnion: P.O. Box 2000, Chester, PA 19016, phone
+  800-916-8800). `CreditBureauDisputeIntake.tsx` reuses `@mailmypdf/workflow-ui`
+  primitives (`StepShell`, `Field`, `DraftFileActions`, etc.) rather than being
+  a bespoke one-off component. Pricing profiles for all three ids exist in
+  `packages/pricing/src/index.ts` (STANDARD $29.99 tier, explicit rationale
+  comment for reusing the tier across bureaus).
+- Step 5 (server resolver): `mailmypdf/src/lib/secure-core/workflow-runtime.ts`
+  already has a `verticalId === "dispute-mail" && isCreditBureauDisputeWorkflowId(workflowId)`
+  block (line ~343) calling `creditBureauDisputeCaseWorkflow(workflowId)`, plus
+  a duplicated, independently-commented `CREDIT_BUREAU_DISPUTE_ADDRESSES` table
+  matching the shared module's addresses/phones exactly. No fix needed.
+- Step 6 (real verification, this session):
+  - `cd mailmypdf && npx vite build` — exit 0 (SSR + client bundles built,
+    wrangler config generated).
+  - `grep -c "dispute-mail/workflows/equifax-dispute" src/routeTree.gen.ts` → 26;
+    same count (26) for `experian-dispute` and `transunion-dispute` — landing
+    and start routes both registered for all three.
+  - `npx tsc --noEmit -p .` — 9 errors, none in `dispute-mail/`, none in the
+    three route mount files or `workflow-runtime.ts`. Remaining 9 are
+    pre-existing and unrelated: `@mailmypdf/design-system` resolution in
+    `code-enforcement/private-office/small-business` configs,
+    `product-family-page.tsx` route-union staleness, `ssdi-denial-workflow.tsx`
+    navigate call, `entitlements-management.functions.ts` User/app_metadata
+    mismatch, `api/v1/documents/index.ts` Uint8Array/ArrayBuffer, and
+    `obligation-value/ObligationValueIntake.tsx` possibly-undefined. Note: an
+    earlier run in this session did show 3 `contentStatus: "active"` type
+    errors (not assignable to `"reviewed" | "scaffold" | "published"`) in all
+    three `config.ts` files plus 6 downstream errors in `schema.ts`/`seo.ts`/
+    the route mounts — by the time this was investigated the files on disk
+    already read `contentStatus: "published"` and tsc was clean, so no edit
+    was made by this session; flagging in case of a race with concurrent
+    editing of this same working copy (a second clone or session may be active
+    against `dispute-mail-all-main`).
+  - `cd dispute-mail && npx tsx --test shared/tests/*.test.ts` — 11/11 pass,
+    covering all three bureaus' addresses, FCRA 30-day language, draft-param
+    synthesis, readiness checklist, and evidence-strength analysis
+    (identity-theft gap detection, strong-item detection).
+- Not verified: no browser render of any of the three landing or `start/`
+  pages, no signed-in end-to-end journey (intake → documents → analyze → draft
+  → review → mail), no verification that `creditBureauDisputeCaseWorkflow`'s
+  actual analysis/draft instructions produce a correct letter at the API
+  layer beyond the unit tests above, no payment/mailing integration test (per
+  AGENTS.md, live mailing/payment is out of scope for a verification pass).
+- No code changes were made this session — all three workflows, their shared
+  module, and the server resolver block were already correct and complete.

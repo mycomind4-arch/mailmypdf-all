@@ -127,7 +127,7 @@ export function validateNoticeAnalysis(value: unknown): NoticeAnalysis {
 export interface CaseWorkflowDefinition {
   readonly id: string;
   readonly verticalId: string;
-  readonly noticeFamily: "benefits" | "immigration" | "insurance" | "irs";
+  readonly noticeFamily: "benefits" | "consumer" | "immigration" | "insurance" | "irs";
   readonly responseModes: readonly string[];
   readonly analysisInstructions: string;
   /** Extra workflowDetails keys this workflow asks the model to report. */
@@ -340,6 +340,9 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
         "reference numbers. Reference only documentation actually provided.",
     });
   }
+  if (verticalId === "dispute-mail" && isCreditBureauDisputeWorkflowId(workflowId)) {
+    return creditBureauDisputeCaseWorkflow(workflowId);
+  }
   if (verticalId === "secured-transactions") {
     return Object.freeze({
       id: workflowId,
@@ -356,6 +359,56 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
     });
   }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
+}
+
+/**
+ * Verified mailing addresses/phone numbers for the three credit-bureau
+ * dispute workflows, carried forward EXACTLY from
+ * `dispute-mail/shared/credit-dispute.ts` (itself ported from
+ * `apps/verticals/notice-respond/src/domain/credit-dispute.ts`'s
+ * `BUREAU_CONFIGS`, verified against each bureau's own published dispute
+ * materials — see that file's comments for the sourcing). Duplicated here
+ * (rather than imported) because this server-side runtime module does not
+ * currently import from top-level vertical trees; do not "correct" or
+ * embellish these values without re-verifying against the source.
+ */
+const CREDIT_BUREAU_DISPUTE_ADDRESSES: Record<string, { org: string; line1: string; city: string; state: string; zip: string; phone: string }> = {
+  "equifax-dispute": { org: "Equifax Information Services LLC", line1: "P.O. Box 740256", city: "Atlanta", state: "GA", zip: "30374-0256", phone: "866-349-5191" },
+  "experian-dispute": { org: "Experian", line1: "P.O. Box 4500", city: "Allen", state: "TX", zip: "75013", phone: "888-397-3742" },
+  "transunion-dispute": { org: "TransUnion LLC, Consumer Dispute Center", line1: "P.O. Box 2000", city: "Chester", state: "PA", zip: "19016", phone: "800-916-8800" },
+};
+
+function isCreditBureauDisputeWorkflowId(workflowId: string): boolean {
+  return workflowId in CREDIT_BUREAU_DISPUTE_ADDRESSES;
+}
+
+function creditBureauDisputeCaseWorkflow(workflowId: string): CaseWorkflowDefinition {
+  const address = CREDIT_BUREAU_DISPUTE_ADDRESSES[workflowId];
+  const bureauName = address.org.split(",")[0].replace(" Information Services LLC", "").replace(" LLC", "");
+  const mailingLine = `${address.org}, ${address.line1}, ${address.city}, ${address.state} ${address.zip}`;
+  return Object.freeze({
+    id: workflowId,
+    verticalId: "dispute-mail",
+    noticeFamily: "consumer",
+    responseModes: ["dispute"],
+    analysisInstructions:
+      `This workflow prepares an FCRA Section 611 credit-report dispute to ${bureauName}. ` +
+      "Identify the consumer's name and address, the report date and report number if " +
+      "stated, and every disputed item with its FCRA dispute category (not mine, mixed " +
+      "file, incorrect amount, incorrect status, incorrect account, duplicate, outdated, " +
+      "incorrect personal info, unauthorized inquiry, or other) and the consumer's stated " +
+      "explanation. Never infer a dispute category or correct balance the consumer did not " +
+      "state. If the document is not a credit report or dispute-related record, report " +
+      "that mismatch in missingInformation.",
+    draftInstructions:
+      `Prepare an FCRA Section 611 dispute letter addressed to ${mailingLine} (phone ` +
+      `${address.phone}). Address each disputed item by the consumer's own stated category ` +
+      "and explanation, cite FCRA Section 611 investigation rights (30/45-day " +
+      "reinvestigation, correction/deletion, and reinvestigation-result rights), and use " +
+      "only the mailing address above — never infer or substitute a different address for " +
+      "this bureau. Never invent account numbers, balances, or facts the consumer did not " +
+      "provide.",
+  });
 }
 
 function isInsuranceAppealRuntimeWorkflowId(workflowId: string): boolean {
