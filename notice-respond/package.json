@@ -17,7 +17,8 @@
     "@mailmypdf/workflow-ui": "workspace:*",
     "@mailmypdf/workflows": "workspace:*",
     "@tanstack/react-router": "^1.170.16",
-    "react": "^19.2.0"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@mailmypdf/packet-builder": "workspace:*",

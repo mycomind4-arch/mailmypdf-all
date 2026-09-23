@@ -8,6 +8,7 @@ const expectedVerticals = [
   "code-enforcement",
   "dispute-mail",
   "immigration-mail",
+  "legal-defense",
   "insurance-claims",
   "notice-respond",
   "permit-reply",

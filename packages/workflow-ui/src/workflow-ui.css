@@ -2493,3 +2493,21 @@ button.wf-communication-row:disabled {
   .wf-intake-actions .wf-btn { flex: 1 1 140px; }
   .wf-intake-review-heading { align-items: flex-start; }
 }
+
+/* Research-backed content on authenticated individual workflow pages. */
+.wf-detail-guide { display: grid; gap: 1rem; margin-top: 0.5rem; }
+.wf-detail-guide-intro, .wf-detail-guide-panel { border: 1px solid var(--wf-color-rule); border-radius: var(--wf-radius-md); background: var(--wf-color-paper); padding: clamp(1rem, 2vw, 1.5rem); }
+.wf-detail-guide h2 { margin: 0 0 0.7rem; color: var(--wf-color-navy); font-size: 1.05rem; font-weight: 700; }
+.wf-detail-guide p { margin: 0; line-height: 1.65; }
+.wf-detail-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.wf-detail-guide ul, .wf-detail-guide ol { margin: 0; padding-left: 1.3rem; line-height: 1.65; }
+.wf-detail-guide li + li { margin-top: 0.5rem; }
+.wf-detail-guide-steps { display: grid; gap: 0.85rem; }
+.wf-detail-guide-steps li { padding-left: 0.3rem; }
+.wf-detail-guide-steps p { margin-top: 0.2rem; }
+.wf-detail-guide a { color: var(--wf-color-navy); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.wf-detail-guide a:focus-visible { outline: 2px solid var(--wf-color-navy); outline-offset: 3px; }
+.wf-detail-guide-meta, .wf-detail-guide-note { color: var(--wf-color-stone); font-size: 0.84rem; }
+.wf-detail-guide-meta { margin-top: 0.75rem !important; }
+.wf-detail-guide-note { padding: 0 0.2rem; line-height: 1.6; }
+@media (max-width: 760px) { .wf-detail-guide-grid { grid-template-columns: 1fr; } }

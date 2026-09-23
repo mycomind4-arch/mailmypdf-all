@@ -72,7 +72,7 @@ jobs:
       - name: Verify secure workflow payment-to-mailing invariants
         run: node --test mailmypdf/tests/secure-workflow-fulfillment.test.mjs
       - name: Build secure workflow package dependencies
-        run: pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build
+        run: pnpm --filter ./mailmypdf run prebuild
       - name: Verify executable notice workflow runtimes
         id: notice-runtime-tests
         shell: bash
@@ -154,6 +154,11 @@ jobs:
             src/platform/authority-provider.test.ts \
             src/services/compound-workflow-service.test.ts \
             src/services/compound-capability-executor.test.ts
+      - name: Build app workspace dependencies
+        shell: bash
+        run: |
+          package_name=$(node -p 'require("./apps/verticals/${{ matrix.app }}/package.json").name')
+          pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
       - name: Build app
         run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
 
