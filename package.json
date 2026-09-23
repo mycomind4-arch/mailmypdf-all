@@ -19,5 +19,14 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.10.0"
+  "packageManager": "pnpm@9.10.0",
+  "pnpm": {
+    "overrides": {
+      "vite": "8.3.0",
+      "react": "19.2.8",
+      "react-dom": "19.2.8",
+      "@tanstack/react-router>react-dom": "19.2.8",
+      "@tanstack/react-store>react-dom": "19.2.8"
+    }
+  }
 }
