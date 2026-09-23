@@ -1,5 +1,46 @@
 # MailMyPDF agent operating instructions
 
+## HARD RULE: workflow execution UI is @mailmypdf/step-workflow, no exceptions
+
+Before writing or touching ANY workflow's `start/` execution UI, run:
+`node scripts/check-step-workflow-execution.mjs`
+
+This is not a suggestion. Building a new bespoke one-off React component for
+workflow execution (a new `InsuranceAppealWorkflow`-shaped thing, a new
+`NoticeResponseWorkflow`-shaped thing, a new generic "scaffold" component,
+etc.) instead of reusing `@mailmypdf/step-workflow` (`packages/step-workflow/`)
+is the single most repeated, most expensive mistake in this repo's history —
+multiple sessions each independently reinvented execution instead of reusing
+what already existed, burning real usage on duplicate work. The user has
+said this directly, more than once, in strong terms. Do not repeat it.
+
+- Porting a legacy `apps/verticals/<vertical>/src/domain/step-workflows/<id>.ts`
+  workflow into the new top-level architecture, or building ANY new workflow's
+  execution UI: use the `port-workflow` skill (`.claude/skills/port-workflow/SKILL.md`)
+  if available, or read it directly — it has the exact procedure, including
+  route-mounting gotchas that have broken "verified" code before.
+- `secured-transactions/workflows/secured-transaction-eligibility/` is the one
+  existing example that already does this correctly — read it as the pattern.
+- If you find yourself about to `import` or copy-paste from any of
+  `InsuranceAppealWorkflow.tsx`, `NoticeResponseWorkflow.tsx`,
+  `RecordsRequestWorkflow.tsx`, `SecuredTransactionWorkflowStartScaffold.tsx`,
+  or write a new component shaped like them — STOP. Those are past mistakes,
+  not the pattern (see `context/CURRENT_WORK.md`, "Execution architecture:
+  step-workflow is the standard, not legacy"). They are flagged for
+  consolidation onto step-workflow, not for further copying.
+- `scripts/check-step-workflow-execution.mjs` enforces this mechanically: it
+  scans every `<vertical>/workflows/*/start/` directory and fails if a
+  workflow NOT on its explicit legacy allowlist doesn't import
+  `@mailmypdf/step-workflow`. Run it before considering any new workflow
+  "done." If it fails on something you just built, fix the build, not the
+  allowlist. If it fails on something pre-existing you didn't touch, that's
+  a known item for the step-workflow consolidation effort — leave the
+  allowlist entry alone unless you are the one doing that consolidation.
+
+This rule is designed to survive being read out of context or after this file
+goes stale elsewhere: even if every other word of this file rots, the script
+above is the source of truth and will fail loudly rather than silently drift.
+
 ## Product objective
 
 Build one dependable MailMyPDF application and a supervised workflow factory.
