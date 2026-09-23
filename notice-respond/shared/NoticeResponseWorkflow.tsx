@@ -17,6 +17,7 @@ import {
   NOTICE_RESPONSE_STEPS,
   completedNoticeResponseSteps,
   createHttpWorkflowMatterClient,
+  findUnresolvedPlaceholders,
   getNoticeResponseWorkflowProfile,
   getWorkflowAccessToken,
   type Cp2000StrategyPlan,
@@ -529,6 +530,10 @@ export default function NoticeResponseWorkflow({
     }
   }
 
+  // Mirrors the server's mailing gate (packages/workflows draft-placeholders)
+  // so the block is visible while editing instead of only on submit.
+  const draftPlaceholders = findUnresolvedPlaceholders(draft);
+
   async function buildPreview(): Promise<void> {
     if (!matterId) return;
     setBusy("preview");
@@ -975,6 +980,16 @@ export default function NoticeResponseWorkflow({
             }}
             placeholder="Generate the response draft or enter your own correspondence."
           />
+          {draftPlaceholders.length > 0 && (
+            <div className="wf-callout wf-callout--warning" role="status">
+              <strong>Unfilled placeholders</strong>
+              <p>
+                This draft still contains {draftPlaceholders.join(", ")}.
+                Replace each one with the real detail — the packet cannot be
+                built or approved until they are gone.
+              </p>
+            </div>
+          )}
           {profile.workflowId === "cp2000-response" && (
             <Cp2000DraftReview
               validation={draftValidation}
@@ -1011,7 +1026,10 @@ export default function NoticeResponseWorkflow({
               type="button"
               onClick={() => void buildPreview()}
               disabled={
-                !draftSaved || !addressReady(recipient) || Boolean(busy)
+                !draftSaved ||
+                draftPlaceholders.length > 0 ||
+                !addressReady(recipient) ||
+                Boolean(busy)
               }
             >
               {busy === "preview" ? "Building…" : "Build exact packet preview"}

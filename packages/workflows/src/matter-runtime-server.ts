@@ -19,6 +19,7 @@ import {
   WorkflowRuntimeError,
   type ExactPacketApproval,
 } from "./matter-runtime.js";
+import { unresolvedPlaceholderMessage } from "./draft-placeholders.js";
 import type { DraftValidationResult } from "./draft-validator.js";
 import type { Cp2000StrategyPlan } from "./domain-packs/notice-response/cp2000-strategy.js";
 
@@ -332,6 +333,13 @@ function requireSourceForPolicy(
   return source;
 }
 
+// A draft that still carries template placeholders must not become a packet,
+// an approval, or mail. Enforced here so no UI can skip it.
+function requireResolvedDraft(draft: { bodyText: string }): void {
+  const message = unresolvedPlaceholderMessage(draft.bodyText);
+  if (message) throw new HttpError(409, message);
+}
+
 function requireFreshDraft(input: {
   draft: WorkflowRuntimeStoredDraft;
   analysis: WorkflowMatterAnalysis;
@@ -619,6 +627,7 @@ export function createWorkflowRuntimeRequestHandler(
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
         policy.validateBeforePacket?.({ matter, caseInput, analysis });
         requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
+        requireResolvedDraft(draft);
         const packet = await deps.packet.preview({
           actor,
           matter,
@@ -659,6 +668,7 @@ export function createWorkflowRuntimeRequestHandler(
           policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
           policy.validateBeforePacket?.({ matter, caseInput, analysis });
           requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
+          requireResolvedDraft(draft);
           const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: selectedMailClass });
           if (current.packetSha256 !== expectedPacketSha256 || current.quote.totalCents !== expectedTotalCents) {
             throw new HttpError(409, "Packet or price changed after preview; review the new packet");

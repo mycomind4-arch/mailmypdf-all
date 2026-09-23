@@ -43,6 +43,7 @@ export * from "./durable-manifest-runner.js";
 
 export * from "./workflow-conditions.js";
 
+export * from "./draft-placeholders.js";
 export * from "./draft-validator.js";
 export * from "./draft-basis.js";
 export * from "./domain-packs/appeal/insurance-packs.js";

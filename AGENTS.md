@@ -20,6 +20,11 @@ and applicable nested instructions. Inspect actual code and git status before
 editing. Old chat reports, commit counts, and archive tags are evidence to examine,
 not proof that a feature is missing, integrated, or production-ready.
 
+Building or touching any customer-facing case workflow (IRS notices, court
+filings, or any workflow like them) requires reading `context/WORKFLOW_UI_STANDARD.md`
+first. It is mandatory, not a style suggestion — it exists specifically because
+past sessions kept drifting back to plain forms mid-build.
+
 ## Workspaces and preservation
 
 - Separate working copies (clones) are allowed, e.g. `/Users/macdizzle/dev/mailmypdf-all`

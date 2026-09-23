@@ -597,3 +597,92 @@ test("shared runtime persists only policy-approved user events", async () => {
   assert.equal(events.length, 1);
   assert.equal(events[0].data.note, "Observed and confirmed by the matter owner.");
 });
+
+test("shared runtime refuses a packet and an approval while the draft still has placeholders", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  let response = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(response)).matter.id as string;
+
+  const sourceForm = new FormData();
+  sourceForm.append("file", new File(["%PDF-test"], "decision.pdf", { type: "application/pdf" }));
+  sourceForm.append("workflowId", "test-workflow");
+  sourceForm.append("purpose", "source_notice");
+  sourceForm.append("consent", "true");
+  response = await handle(request("/documents", { method: "POST", body: sourceForm }));
+  const sourceId = (await body(response)).document.id as string;
+
+  await handle(request(`/matters/${matterId}/documents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ documentId: sourceId, role: "subject_notice", position: 0 }),
+  }));
+  await handle(request(`/matters/${matterId}/analysis`, { method: "POST" }));
+  await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reason: "I disagree with the decision." }),
+  }));
+
+  const formData = new FormData();
+  formData.append("file", new File(["%PDF-form"], "required-form.pdf", { type: "application/pdf" }));
+  formData.append("workflowId", "test-workflow");
+  formData.append("purpose", "required_form");
+  formData.append("consent", "true");
+  response = await handle(request("/documents", { method: "POST", body: formData }));
+  const formId = (await body(response)).document.id as string;
+  await handle(request(`/matters/${matterId}/documents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ documentId: formId, role: "evidence", evidenceKind: "required-form", position: 1 }),
+  }));
+
+  const unresolved = "Dear Sir or Madam,\n\nRe: [NOTICE NUMBER]\n\nSincerely,\n[Your Name]";
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: unresolved }),
+  }));
+  assert.equal(response.status, 200, "saving a working draft stays allowed");
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  const packetPayload = await body(response);
+  assert.equal(response.status, 409, JSON.stringify(packetPayload));
+  assert.match(packetPayload.error, /\[NOTICE NUMBER\], \[Your Name\]/);
+
+  response = await handle(request(`/matters/${matterId}/approval`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      expectedPacketSha256: "a".repeat(64),
+      expectedTotalCents: 0,
+      mailClass: "certified",
+      recipient: { name: "Agency", line1: "1 Main St", city: "Town", state: "CA", postal: "95501" },
+    }),
+  }));
+  assert.equal(response.status, 409);
+  assert.match((await body(response)).error, /placeholders/i);
+
+  response = await handle(request(`/matters/${matterId}/draft`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ bodyText: "Dear Sir or Madam,\n\nRe: CP14\n\nSincerely,\nJane Doe" }),
+  }));
+  assert.equal(response.status, 200);
+
+  response = await handle(request(`/matters/${matterId}/packet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mailClass: "certified" }),
+  }));
+  assert.equal(response.status, 200, "a resolved draft builds a packet normally");
+});
