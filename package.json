@@ -19,5 +19,9 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.10.0"
+  "packageManager": "pnpm@9.10.0",
+  "dependencies": {
+    "mattpocock-skills": "github:mattpocock/skills",
+    "superpowers": "github:obra/superpowers"
+  }
 }

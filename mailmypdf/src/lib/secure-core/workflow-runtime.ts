@@ -88,9 +88,9 @@ const workflowDetailsSchema = z.object({
     postal: z.string().trim().regex(/^\d{5}(-\d{4})?$/),
   }).nullable().default(null),
   paymentInstructions: text.nullable().default(null),
-  // SSA reconsideration workflows only; absent for every other workflow.
-  appealStage: z.enum(["reconsideration", "hearing", "appeals_council", "unknown"]).optional(),
-  decisionBasis: z.enum(["medical", "nonmedical", "unknown"]).optional(),
+  // SSA reconsideration workflows only; stored in analysis and passed to draft
+  appealStage: z.enum(["reconsideration", "hearing", "appeals_council", "unknown"]).nullable().optional(),
+  decisionBasis: z.enum(["medical", "nonmedical", "unknown"]).nullable().optional(),
 }).default({
   taxYear: null,
   amountDue: null,
@@ -303,6 +303,57 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
   }
   if (verticalId === IMMIGRATION_MAIL_VERTICAL_ID && getImmigrationRuntimePolicy(workflowId)) {
     return IMMIGRATION_COVER_LETTER;
+  }
+  // Fallback: generic appeal-mail workflows (administrative-decision-appeal, denied-claim, etc)
+  // These use the shared appeal runtime contract even if they have divergent evidence models
+  if (verticalId === "appeal-mail") {
+    return Object.freeze({
+      id: workflowId,
+      verticalId: "appeal-mail",
+      noticeFamily: "insurance",
+      responseModes: ["appeal"],
+      analysisInstructions:
+        "This workflow prepares an appeal. Identify the insurer or plan, decision, " +
+        "each stated denial reason, cited policy provisions and any appeal instructions or " +
+        "deadline only if the document states them. If the document is not a coverage decision " +
+        "or claim denial, report that mismatch in missingInformation. Never calculate a " +
+        "deadline from a general rule. Treat suggested evidence as suggestions.",
+      draftInstructions:
+        "Prepare a factual appeal letter addressing each denial reason by its wording. " +
+        "Use the claimant's confirmed facts and requested outcome. Reference only " +
+        "evidence actually enclosed. Never invent facts, policy terms, or outcomes.",
+    });
+  }
+  // Records-request and other verticals: generic fallback with minimal analysis
+  if (verticalId === "records-request") {
+    return Object.freeze({
+      id: workflowId,
+      verticalId: "records-request",
+      noticeFamily: "irs",
+      responseModes: ["request"],
+      analysisInstructions:
+        "This workflow prepares a records request. Extract the agency, record types, " +
+        "request deadline if stated, and reference numbers. Never infer record types " +
+        "or deadlines from general rules.",
+      draftInstructions:
+        "Prepare a records request letter using confirmed agency, record types, and " +
+        "reference numbers. Reference only documentation actually provided.",
+    });
+  }
+  if (verticalId === "secured-transactions") {
+    return Object.freeze({
+      id: workflowId,
+      verticalId: "secured-transactions",
+      noticeFamily: "insurance",
+      responseModes: ["intake"],
+      analysisInstructions:
+        "This workflow prepares a secured transaction analysis. Document the transaction " +
+        "parties, property, obligations, and agreements. Extract only facts explicitly " +
+        "stated in the provided documentation.",
+      draftInstructions:
+        "Prepare a secured transaction summary using only the confirmed facts from analysis. " +
+        "Do not infer legal relationships or obligations from general knowledge.",
+    });
   }
   throw new CaseError("This workflow does not yet have an enabled case runtime.");
 }
