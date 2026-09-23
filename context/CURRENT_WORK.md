@@ -1,6 +1,41 @@
 # Current Work — MailMyPDF migration
 
-Updated: 2026-09-16
+Updated: 2026-09-23
+
+## Execution architecture: step-workflow is the standard, not legacy
+
+**Correction (2026-09-23):** earlier revisions of this file implied
+`apps/verticals/**` was a pure content donor to be mined and then deleted, and
+that its execution model was being replaced. That was wrong and led a session
+to rebuild execution UI from scratch (bespoke one-off components per vertical:
+`InsuranceAppealWorkflow`, `RecordsRequestWorkflow`, ad hoc secured-transactions
+scaffolds) instead of reusing `@mailmypdf/step-workflow`, the package
+`apps/verticals/**` was actually built on.
+
+**`@mailmypdf/step-workflow` (`packages/step-workflow/`) is the standing
+execution architecture and should be used for workflow execution UI going
+forward, including new top-level workflows and ports from `apps/verticals/**`.**
+It is not legacy. It already backs real execution today, including inside the
+new top-level architecture — see `secured-transactions/shared/domain` and
+`secured-transactions/workflows/secured-transaction-eligibility/start` for a
+current example of `@mailmypdf/step-workflow` used inside a top-level workflow.
+
+What IS legacy and being replaced is the `apps/verticals/**` **app shell**
+(routing, page chrome, per-app SPA scaffolding) — not the step-workflow
+domain/execution logic living inside it. When porting a vertical's workflow
+out of `apps/verticals/**`:
+- Reuse or adapt its `step-workflows/*.ts` `StepWorkflowDefinition` and
+  associated step components — don't rebuild execution from scratch in a new
+  one-off shared component.
+- Rebuild only the app-shell/page/routing layer in the new top-level
+  `<vertical>/workflows/<id>/` structure (`config.ts`/`seo.ts`/`schema.ts`
+  landing page + a `start/` route that mounts the step-workflow UI).
+- If a vertical's newer top-level workflows already used a bespoke shared
+  component instead of step-workflow (appeal-mail's `InsuranceAppealWorkflow`,
+  records-request's `RecordsRequestWorkflow`), that is itself now considered
+  drift from the standard, not a pattern to keep copying to new workflows —
+  flag it rather than propagate it further. Do not mass-migrate those existing
+  workflows back without asking first; this note governs new work.
 
 ## Active user-directed architecture
 
@@ -9,7 +44,8 @@ For the current migration, **Appeal Mail's active target is the top-level `appea
 - Active target: `appeal-mail/`
 - Active reference workflow: `appeal-mail/workflows/appeal-ssdi-denial/`
 - Shared cross-workflow capabilities remain in `packages/*`.
-- Legacy donor for Appeal Mail: `apps/verticals/appeal-mail/`
+- `apps/verticals/appeal-mail/` holds real step-workflow execution logic to
+  reuse (see note above) — not a pure discard-after-mining donor.
 
 Older context files that still describe `apps/verticals/appeal-mail/` as canonical are stale for this migration and must not override this file or the user's current direction.
 
@@ -73,4 +109,4 @@ Treat these as source forms to preserve while the SSDI workflow is converted int
 
 Started with `apps/verticals/appeal-mail/docs/` because it is non-runtime and can be exhausted safely. Durable design/workflow/SEO/safety rules are being distilled into the new Appeal Mail tree; stale production claims, old deployment claims, and superseded provider assumptions are not carried forward.
 
-After docs, continue through the old Appeal Mail implementation in bounded clusters, prioritizing reusable workflow scaffolding and execution behavior before workflow-specific duplication.
+After docs, continue through the old Appeal Mail implementation in bounded clusters, prioritizing reusable workflow scaffolding and execution behavior before workflow-specific duplication. Per the correction above: "reusable execution behavior" for step-workflow-based code means porting the `step-workflows/*.ts` definitions and step components forward into the new top-level structure, not discarding them once their content has been read once.
