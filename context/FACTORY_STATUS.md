@@ -93,7 +93,7 @@ limitations below as checks complete. Never infer passing results from old repor
     registry file. Authoring does not bypass review: the gate still scores the
     record and `state` only reaches EXECUTABLE when `execution.verified` is set.
   - Authored the first record, `legal-defense/wrongful-stolen-vehicle-arrest`,
-    grounded in `apps/verticals/legal-defense/{README.md,src/model.ts}` rather
+    grounded in `legal-defense/{README.md,src/model.ts}` rather
     than invented: **100/100, 2956 substantive words** (gate floor 1200).
     This also cleared the **pre-existing build-blocking failure** — that record
     was already EXECUTABLE/AUTHORITY_REVIEWED with no content, so

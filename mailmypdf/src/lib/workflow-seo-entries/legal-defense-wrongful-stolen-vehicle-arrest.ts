@@ -4,7 +4,7 @@ const REVIEWED = "2026-09-21";
 
 /**
  * Authority content for the Legal Defense vertical's first executable
- * workflow. Scope and boundaries follow apps/verticals/legal-defense:
+ * workflow. Scope and boundaries follow legal-defense:
  * the workflow reconstructs the record and prepares a packet for counsel.
  * It does not give legal advice, predict suppression, or contact anyone.
  */

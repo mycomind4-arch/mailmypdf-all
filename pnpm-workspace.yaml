@@ -3,6 +3,7 @@ packages:
   - "apps/*"
   - "mailmypdf"
   - "apps/verticals/*"
+  - "!apps/verticals/legal-defense"
   - "services/*"
   - "appeal-mail"
   - "notice-respond"
@@ -10,3 +11,4 @@ packages:
   - "immigration-mail"
   - "secured-transactions"
   - "dispute-mail"
+  - "legal-defense"
