@@ -15,3 +15,4 @@ packages:
   - "secured-transactions"
   - "dispute-mail"
   - "legal-defense"
+  - "insurance-claims"
