@@ -2,6 +2,7 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { sitemapRoutes } from "../src/lib/sitemap";
 
 type ParsedConfig = {
   id?: string;
@@ -103,6 +104,7 @@ const routeFiles = (await walk(routesRoot))
   .sort();
 
 const failures: string[] = [];
+const sitemapPaths = new Set(sitemapRoutes().map((route) => route.loc));
 let mounted = 0;
 let indexable = 0;
 let scaffold = 0;
@@ -140,6 +142,10 @@ for (const routeFile of routeFiles) {
 
   if (config.indexable !== true) continue;
   indexable += 1;
+
+  if (!sitemapPaths.has(expectedPath)) {
+    failures.push(`${id}: indexable mounted workflow is missing from sitemapRoutes().`);
+  }
 
   if (config.contentStatus !== "reviewed" && config.contentStatus !== "published") {
     failures.push(`${id}: indexable page must be reviewed or published, not ${config.contentStatus ?? "missing"}.`);
