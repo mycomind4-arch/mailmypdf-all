@@ -54,6 +54,13 @@ export interface WorkflowLandingConfig {
   readyItems?: ReadonlyArray<readonly [string, string]>
   /** Adjacent workflows to cross-link when this one isn't quite the right fit. */
   relatedWorkflows?: ReadonlyArray<{ title: string; path: string; description: string }>
+  primaryCtaLabel?: string
+  secondaryCtaLabel?: string
+  overview?: string
+  responseOptions?: ReadonlyArray<readonly [string, string]>
+  commonMistakes?: ReadonlyArray<string>
+  sources?: ReadonlyArray<{ title: string; href: string; publisher?: string }>
+  disclaimer?: string
 }
 
 const defaultWhatYouDo = [
@@ -238,6 +245,11 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
   const workflowSteps = config.workflowSteps ?? []
   const readyItems = config.readyItems ?? []
   const relatedWorkflows = config.relatedWorkflows ?? []
+  const responseOptions = config.responseOptions ?? []
+  const commonMistakes = config.commonMistakes ?? []
+  const sources = config.sources ?? []
+  const primaryCtaLabel = config.primaryCtaLabel ?? `Start ${config.title}`
+  const secondaryCtaLabel = config.secondaryCtaLabel ?? "Browse related workflows"
 
   return <div className="mmp-app" data-mmp-theme={config.sectionId}>
     <GlobalHeader productName={config.sectionName} sectionPath={config.sectionPath} workflowsPath={directory} authHref={AUTH_ENTRY_HREF} />
@@ -261,8 +273,8 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
           imageSrc={heroImage}
           imageAlt={config.heroImageAlt ?? config.title}
           actions={<>
-            <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
-            <a className="mmp-button-secondary" href={directory}>Browse related workflows</a>
+            <a className="mmp-button-primary" href={config.startPath}>{primaryCtaLabel} <ArrowRight size={16}/></a>
+            <a className="mmp-button-secondary" href={config.secondaryCtaLabel ? "#how-it-works" : directory}>{secondaryCtaLabel}</a>
           </>}
           meta={<>
             {workflowSteps.length ? <span>{workflowSteps.length}-step guided workflow</span> : null}
@@ -279,8 +291,8 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
             <div>
               <p>{config.heroDescription}</p>
               <div className="mmp-site-actions">
-                <a className="mmp-button-primary" href={config.startPath}>Start {config.title} <ArrowRight size={16}/></a>
-                <a className="mmp-button-secondary" href={directory}>Browse related workflows</a>
+                <a className="mmp-button-primary" href={config.startPath}>{primaryCtaLabel} <ArrowRight size={16}/></a>
+                <a className="mmp-button-secondary" href={config.secondaryCtaLabel ? "#how-it-works" : directory}>{secondaryCtaLabel}</a>
               </div>
             </div>
           </div>
@@ -291,6 +303,15 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         const Icon = trustIcons[index % trustIcons.length]!
         return { icon: <Icon size={16}/>, title, description }
       })} />
+
+      {config.overview ? <section className="mmp-section">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">What this means</div><h2>Understand the notice and the workflow before you start.</h2></div>
+            <p>{config.overview}</p>
+          </div>
+        </div>
+      </section> : null}
 
       <section className="mmp-section mmp-section--tight">
         <div className="mmp-section__inner">
@@ -313,6 +334,22 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
           </div>
         </div>
       </section>
+
+      {responseOptions.length ? <section className="mmp-section">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">Your response path</div><h2>Choose the response that matches your records.</h2></div>
+            <p>The workflow does not assume the IRS proposal is correct. It helps you organize the response path you choose from the notice and your records.</p>
+          </div>
+          <div className="mmp-seo-topic-grid">
+            {responseOptions.map(([title, description]) => <article className="mmp-card mmp-seo-topic-card" key={title}>
+              <FileCheck2 size={20}/>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </article>)}
+          </div>
+        </div>
+      </section> : null}
 
       {workflowSteps.length ? <section id="how-it-works" className="mmp-section">
         <div className="mmp-section__inner">
@@ -350,12 +387,41 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
         </div>
       </section> : null}
 
+      {commonMistakes.length ? <section className="mmp-section mmp-section--tight">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">Common mistakes</div><h2>Avoid the mistakes that can complicate a response.</h2></div>
+            <p>Use the notice itself and your own records as the source of truth. Review every proposed item and the exact response instructions before sending anything.</p>
+          </div>
+          <div className="mmp-card">
+            {commonMistakes.map(item => <p key={item}><CheckCircle2 size={15}/> {item}</p>)}
+          </div>
+        </div>
+      </section> : null}
+
       {config.faqs?.length ? <section id="faq" className="mmp-section">
         <div className="mmp-section__inner mmp-seo-faq-wrap">
           <div><div className="mmp-eyebrow">Common questions</div><h2 className="mmp-seo-faq-title">About this workflow</h2></div>
           <div className="mmp-seo-faq-list">
             {config.faqs.map(([q,a]) => <details className="mmp-seo-faq" key={q}><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}
           </div>
+        </div>
+      </section> : null}
+
+      {sources.length ? <section className="mmp-section mmp-section--tight">
+        <div className="mmp-section__inner">
+          <div className="mmp-section-heading">
+            <div><div className="mmp-eyebrow">Official sources</div><h2>Check the IRS guidance behind this workflow.</h2></div>
+            <p>Always follow the instructions and response date printed on your own notice. These references provide additional official context.</p>
+          </div>
+          <div className="mmp-seo-related-grid">
+            {sources.map(source => <a className="mmp-card mmp-seo-related-card" href={source.href} key={source.href}>
+              <span className="mmp-eyebrow">{source.publisher ?? "Official source"}</span>
+              <h3>{source.title}</h3>
+              <strong>Open source →</strong>
+            </a>)}
+          </div>
+          {config.disclaimer ? <p>{config.disclaimer}</p> : null}
         </div>
       </section> : null}
 
@@ -385,7 +451,7 @@ export function WorkflowLandingPage({ config }: { config: WorkflowLandingConfig 
               <h2>Start with the workflow built for this situation.</h2>
               <p>Review the information and documents as you go. Consequential actions remain behind explicit review and approval steps.</p>
             </div>
-            <div><a className="mmp-button-primary" href={config.startPath}>Start workflow <ArrowRight size={16}/></a></div>
+            <div><a className="mmp-button-primary" href={config.startPath}>{primaryCtaLabel} <ArrowRight size={16}/></a></div>
           </div></div>
         </div>
       </section>
