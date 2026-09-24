@@ -15,6 +15,17 @@ export const workflowConfig = {
   heroDescription: "Start with the actual CP504 notice you received, confirm the tax period, amount due, and printed dates the IRS reports, choose the response path that matches your situation, prepare factual correspondence, review the exact packet, and retain mailing proof.",
   indexable: true,
   contentStatus: "reviewed",
+  discovery: {
+    primaryQuestion: "How do I respond to an IRS CP504 notice?",
+    alternateQuestions: [
+      "What should I do after receiving an IRS CP504 Notice of Intent to Levy?",
+      "What if I disagree with the balance on an IRS CP504?",
+      "How do I document payment or hardship when responding to a CP504?",
+    ],
+    agency: "Internal Revenue Service",
+    jurisdiction: "United States",
+    documentType: "IRS CP504 Notice of Intent to Levy",
+  },
   whatYouDo: [
     "Start from the actual CP504 notice you received, not a generic collection-notice template.",
     "Confirm the notice details the IRS reports: tax period, notice date, amount due, and any printed action or payment date.",
