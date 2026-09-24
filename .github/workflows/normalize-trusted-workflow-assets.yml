@@ -2,6 +2,8 @@ name: Normalize trusted workflow assets
 
 on:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/normalize-trusted-workflow-assets.yml"
       - "pnpm-workspace.yaml"
@@ -13,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: normalize-trusted-workflow-assets
@@ -63,8 +66,10 @@ jobs:
             pdfinfo "${dir}/${output}" | grep -q '^Encrypted:[[:space:]]*no$'
           done
 
-      - name: Commit generated assets and lockfile
+      - name: Open pull request for generated changes
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git add pnpm-lock.yaml appeal-mail/workflows/appeal-ssdi-denial/forms/generated/*.normalized.pdf
@@ -72,8 +77,17 @@ jobs:
             echo "Trusted assets and lockfile are already current."
             exit 0
           fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          branch="automation/normalize-trusted-workflow-assets-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
           git commit -m "build: normalize trusted SSA forms and workspace lock"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git push origin "HEAD:$branch"
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "build: normalize trusted SSA forms and workspace lock" \
+            --body "Automated normalization detected generated SSA PDF and/or pnpm lockfile changes. This PR replaces the previous workflow behavior that pushed directly to main."
