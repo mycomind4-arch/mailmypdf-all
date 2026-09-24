@@ -11,10 +11,12 @@ const themeIds = [
   'dispute-mail',
   'immigration-mail',
   'insurance-claims',
+  'legal-defense',
   'notice-respond',
   'permit-reply',
   'private-office',
   'records-request',
+  'secured-transactions',
   'small-business',
   'tenant-reply',
 ] as const
