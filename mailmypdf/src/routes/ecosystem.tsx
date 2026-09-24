@@ -33,7 +33,7 @@ const categories = [
 ] as const;
 
 function EcosystemPage() {
-  const authorityPages = workflowAuthorityPages();
+  const authorityPages = useMemo(() => workflowAuthorityPages(), []);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All workflows");
   const pages = useMemo(() => {
