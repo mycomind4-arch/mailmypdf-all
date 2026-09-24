@@ -51,7 +51,7 @@ The repository now has one canonical host application and one normalized vertica
 - `apps/mailmypdf` — canonical MailMyPDF host application
 - `apps/verticals/appeal-mail`
 - `apps/verticals/benefits-appeal`
-- `apps/verticals/claim-proof`
+- `claim-proof`
 - `apps/verticals/code-enforcement`
 - `apps/verticals/dispute-mail`
 - `apps/verticals/immigration-mail`

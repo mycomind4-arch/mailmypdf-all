@@ -4,6 +4,7 @@ packages:
   - "mailmypdf"
   - "apps/verticals/*"
   - "!apps/verticals/legal-defense"
+  - "!apps/verticals/claim-proof"
   - "services/*"
   - "appeal-mail"
   - "notice-respond"

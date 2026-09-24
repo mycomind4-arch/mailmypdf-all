@@ -33,7 +33,7 @@ Examples:
 - `/` -> `apps/mailmypdf`
 - `/appeal-mail/*` -> `apps/verticals/appeal-mail`
 - `/benefits-appeal/*` -> `apps/verticals/benefits-appeal`
-- `/claim-proof/*` -> `apps/verticals/claim-proof`
+- `/claim-proof/*` -> `claim-proof`
 - `/code-enforcement/*` -> `apps/verticals/code-enforcement`
 - `/dispute-mail/*` -> `apps/verticals/dispute-mail`
 - `/immigration-mail/*` -> `apps/verticals/immigration-mail`
