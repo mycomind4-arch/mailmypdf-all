@@ -118,6 +118,19 @@ const WORKFLOWS: CombinedWorkflow[] = [
   })),
 ];
 
+const WORKFLOW_BY_ID = new Map(WORKFLOWS.map((entry) => [entry.id, entry] as const));
+const WORKFLOW_BY_ROUTE = new Map(WORKFLOWS.map((entry) => [normalizePath(entry.route), entry] as const));
+const WORKFLOWS_BY_VERTICAL = new Map<string, CombinedWorkflow[]>();
+for (const entry of WORKFLOWS) {
+  const existing = WORKFLOWS_BY_VERTICAL.get(entry.vertical);
+  if (existing) existing.push(entry);
+  else WORKFLOWS_BY_VERTICAL.set(entry.vertical, [entry]);
+}
+
+const AUTHORITY_PAGE_CACHE = new Map<string, WorkflowAuthorityPageData | null>();
+let AUTHORITY_PAGES_CACHE: WorkflowAuthorityPageData[] | null = null;
+let PUBLIC_AUTHORITY_PAGES_CACHE: WorkflowAuthorityPageData[] | null = null;
+
 function normalizePath(path: string): string {
   const withSlash = path.startsWith("/") ? path : `/${path}`;
   return withSlash.replace(/\/+$/, "") || "/";
@@ -176,7 +189,7 @@ function reviewedAtFromGold(gold: WorkflowGoldContent | undefined): string | nul
 }
 
 function workflowById(id: string): CombinedWorkflow | undefined {
-  return WORKFLOWS.find((candidate) => candidate.id === id);
+  return WORKFLOW_BY_ID.get(id);
 }
 
 function relatedDescription(candidate: CombinedWorkflow): string {
@@ -200,9 +213,10 @@ function relatedFor(entry: CombinedWorkflow, authority: WorkflowSeoAuthorityCont
       }));
   }
 
-  const sameVertical = WORKFLOWS.filter((candidate) => candidate.vertical === entry.vertical && candidate.id !== entry.id);
+  const verticalWorkflows = WORKFLOWS_BY_VERTICAL.get(entry.vertical) ?? [];
+  const sameVertical = verticalWorkflows.filter((candidate) => candidate.id !== entry.id);
   if (!sameVertical.length) return [];
-  const currentIndex = Math.max(0, WORKFLOWS.findIndex((candidate) => candidate.id === entry.id));
+  const currentIndex = Math.max(0, verticalWorkflows.findIndex((candidate) => candidate.id === entry.id));
   const start = currentIndex % sameVertical.length;
   const related: WorkflowAuthorityRelated[] = [];
   for (let offset = 0; offset < Math.min(count, sameVertical.length); offset += 1) {
@@ -219,8 +233,13 @@ function relatedFor(entry: CombinedWorkflow, authority: WorkflowSeoAuthorityCont
 
 export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageData | null {
   const normalized = normalizePath(path);
-  const entry = WORKFLOWS.find((candidate) => normalizePath(candidate.route) === normalized);
-  if (!entry) return null;
+  if (AUTHORITY_PAGE_CACHE.has(normalized)) return AUTHORITY_PAGE_CACHE.get(normalized) ?? null;
+
+  const entry = WORKFLOW_BY_ROUTE.get(normalized);
+  if (!entry) {
+    AUTHORITY_PAGE_CACHE.set(normalized, null);
+    return null;
+  }
 
   const product = PRODUCT_BY_VERTICAL[entry.vertical];
   if (!product) return null;
@@ -241,7 +260,7 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
   const sources = authority?.sources.map(({ title: sourceTitle, publisher, url, reviewedAt }) => ({ title: sourceTitle, publisher, url, reviewedAt })) ??
     (gold?.officialSources ?? []).map((source) => ({ ...source }));
 
-  return {
+  const page: WorkflowAuthorityPageData = {
     id: entry.id,
     vertical: entry.vertical,
     path: normalized,
@@ -283,16 +302,25 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
     // Publication state is not enough. The page must pass the Authority Gate.
     indexable: Boolean(gate?.eligibleForIndexing),
   };
+
+  AUTHORITY_PAGE_CACHE.set(normalized, page);
+  return page;
 }
 
 export function workflowAuthorityPages(): WorkflowAuthorityPageData[] {
-  return WORKFLOWS.map((entry) => workflowAuthorityForPath(entry.route)).filter(
-    (page): page is WorkflowAuthorityPageData => Boolean(page),
-  );
+  if (!AUTHORITY_PAGES_CACHE) {
+    AUTHORITY_PAGES_CACHE = WORKFLOWS.map((entry) => workflowAuthorityForPath(entry.route)).filter(
+      (page): page is WorkflowAuthorityPageData => Boolean(page),
+    );
+  }
+  return AUTHORITY_PAGES_CACHE;
 }
 
 export function publicWorkflowAuthorityPages(): WorkflowAuthorityPageData[] {
-  return workflowAuthorityPages().filter((page) => page.indexable);
+  if (!PUBLIC_AUTHORITY_PAGES_CACHE) {
+    PUBLIC_AUTHORITY_PAGES_CACHE = workflowAuthorityPages().filter((page) => page.indexable);
+  }
+  return PUBLIC_AUTHORITY_PAGES_CACHE;
 }
 
 export function workflowAuthorityCount(): number {
