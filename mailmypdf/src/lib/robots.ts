@@ -16,7 +16,17 @@ export const ROBOTS_DISALLOW = [
   "/send$",
 ] as const;
 
-export function renderRobotsTxt(baseUrl: string): string {
+function renderCrawlerGroup(userAgent: string): string {
   const disallow = ROBOTS_DISALLOW.map((path) => `Disallow: ${path}`).join("\n");
-  return `User-agent: *\nAllow: /\n${disallow}\n\nSitemap: ${baseUrl}/sitemap.xml`;
+  return `User-agent: ${userAgent}\nAllow: /\n${disallow}`;
+}
+
+export function renderRobotsTxt(baseUrl: string): string {
+  // OAI-SearchBot is the crawler OpenAI documents for inclusion in ChatGPT
+  // Search. Keep an explicit group here so a future change to the catch-all
+  // crawler policy cannot accidentally remove ChatGPT search visibility.
+  const openAiSearch = renderCrawlerGroup("OAI-SearchBot");
+  const general = renderCrawlerGroup("*");
+
+  return `${openAiSearch}\n\n${general}\n\nSitemap: ${baseUrl}/sitemap.xml`;
 }
