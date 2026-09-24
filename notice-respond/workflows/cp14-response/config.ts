@@ -73,6 +73,26 @@ export const workflowConfig = {
     ["Tax records", "Any return, transcript, account record, or correspondence relevant to the balance you are addressing."],
     ["Your mailing address", "The return address to use for the outgoing response."],
   ],
+  primaryCtaLabel: "Start CP14 Response",
+  secondaryCtaLabel: "See how it works",
+  overview: "An IRS CP14 is a balance-due notice. The IRS says to read the notice carefully, verify the amount and due date, pay by the date shown if you agree, consider a payment plan if you cannot pay in full, and contact the IRS if you disagree. This workflow starts from your actual CP14 so the response stays tied to the tax period, balance, dates, and instructions printed on your notice.",
+  responseOptions: [
+    ["Address the balance", "Use the notice details to organize the payment or other documented response path you intend to take."],
+    ["Disagree with the balance", "Record why the amount or account status appears wrong and connect the records that support your position."],
+    ["Already paid or corrected it", "Document the payment or corrective action and include the records you want referenced in the response."],
+    ["Payment arrangement or hardship", "Organize the facts for a payment-arrangement or hardship-related communication without inventing amounts or claims."],
+  ],
+  commonMistakes: [
+    "Using a generic IRS address instead of the contact or mailing instructions printed on the actual notice.",
+    "Replacing the printed due date with a calculated or assumed deadline.",
+    "Disputing the balance without attaching or identifying the payment, return, transcript, or other record that supports the disagreement.",
+    "Mailing correspondence before reviewing the exact letter, attachments, destination, and tax-period details.",
+  ],
+  sources: [
+    { title: "Understanding your CP14 notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/understanding-your-cp14-notice" },
+    { title: "Responding to a notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/responding-to-a-notice" },
+  ],
+  disclaimer: "MailMyPDF helps organize your notice, facts, supporting records, correspondence, and mailing proof. It does not provide tax or legal advice or guarantee an IRS outcome. Follow the instructions and dates on your own notice.",
 } as const satisfies WorkflowLandingConfig
 
 export default workflowConfig

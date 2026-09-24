@@ -77,6 +77,27 @@ export const workflowConfig = {
     ["Tax records", "Any return, IRS transcript, account record, or correspondence relevant to the balance you are addressing."],
     ["Your mailing address", "The return address to use for the outgoing response."],
   ],
+  primaryCtaLabel: "Start CP504 Response",
+  secondaryCtaLabel: "See how it works",
+  overview: "The IRS describes CP504 as a Notice of Intent to Levy for an unpaid balance. The notice explains the amount due, payment options, collection warnings, and how to contact the IRS if you disagree. This workflow does not treat a generic response letter as an appeal or as a way to stop collection; it helps you organize the actual notice, your chosen response path, supporting records, and a reviewed mailing packet.",
+  responseOptions: [
+    ["Disagree with the balance or account status", "Document the specific issue and connect the records that support your position."],
+    ["Already paid or took corrective action", "Organize payment confirmations, transcripts, or other records showing what has already happened."],
+    ["Address payment arrangements", "Prepare factual correspondence about the payment-arrangement path you intend to pursue without inventing terms or amounts."],
+    ["Explain a financial-hardship situation", "Organize the facts and records you choose to provide while keeping any formal IRS process separate from this correspondence workflow."],
+  ],
+  commonMistakes: [
+    "Assuming that mailing a response letter automatically stops a levy or preserves a separate appeal right.",
+    "Calculating a substitute deadline instead of following the dates and appeal instructions printed on the notice.",
+    "Using a generic IRS address instead of the contact or mailing instructions on the actual CP504.",
+    "Referring to a payment, hardship, or corrective action without including the records that support the statement.",
+    "Mailing the packet before reviewing the exact response, attachments, destination, and tax-period details.",
+  ],
+  sources: [
+    { title: "Understanding your CP504 notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/understanding-your-cp504-notice" },
+    { title: "Responding to a notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/responding-to-a-notice" },
+  ],
+  disclaimer: "MailMyPDF helps organize your CP504, facts, supporting records, correspondence, and mailing proof. It does not file a CAP or CDP appeal, stop a levy, provide tax or legal advice, or guarantee an IRS outcome. Follow the instructions and dates on your own notice.",
 } as const satisfies WorkflowLandingConfig
 
 export default workflowConfig

@@ -13,8 +13,9 @@
     "format": "prettier --write .",
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "seo:authority:validate": "tsx scripts/validate-workflow-authority.ts",
-    "verify:launch": "npm test && npm run seo:authority:validate && npm run build",
-    "verify:production-config": "node scripts/production-readiness.mjs"
+    "verify:launch": "npm test && npm run seo:authority:validate && npm run seo:landing:validate && npm run build",
+    "verify:production-config": "node scripts/production-readiness.mjs",
+    "seo:landing:validate": "tsx scripts/validate-public-workflow-landings.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
