@@ -4,15 +4,19 @@
 import { SEO_PAGES } from "./seo-pages";
 import { PUBLIC_VERTICALS } from "./public-verticals";
 import { workflowAuthorityPages } from "./workflow-authority-registry";
-import type { WorkflowLandingConfig } from "@mailmypdf/design-system";
+import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";
+import cp2000ResponseConfig from "../../../notice-respond/workflows/cp2000-response/config";
+import cp504ResponseConfig from "../../../notice-respond/workflows/cp504-response/config";
 
-// Discover canonical root-section workflow configs at build time instead of
-// maintaining a second hand-written sitemap list. A workflow still has to opt
-// into indexing through its own reviewed config.
-const NEW_ARCHITECTURE_WORKFLOW_CONFIGS = import.meta.glob(
-  "../../../{appeal-mail,benefits-appeal,claim-proof,code-enforcement,dispute-mail,immigration-mail,insurance-claims,legal-defense,notice-respond,permit-reply,private-office,records-request,secured-transactions,small-business,tenant-reply}/workflows/*/config.ts",
-  { eager: true, import: "default" },
-) as Record<string, WorkflowLandingConfig>;
+// Root-architecture workflow landings are deliberately explicit here. The
+// public workflow landing gate verifies that every mounted indexable workflow
+// is present in sitemapRoutes(), so a future workflow cannot silently ship
+// without crawler discovery.
+const NEW_ARCHITECTURE_WORKFLOW_CONFIGS = [
+  cp14ResponseConfig,
+  cp2000ResponseConfig,
+  cp504ResponseConfig,
+] as const;
 
 export type SitemapRoute = {
   loc: string;
@@ -66,7 +70,7 @@ export function sitemapRoutes(): SitemapRoute[] {
     changefreq: "monthly" as const,
   }));
 
-  const newArchitectureWorkflowRoutes: SitemapRoute[] = Object.values(NEW_ARCHITECTURE_WORKFLOW_CONFIGS)
+  const newArchitectureWorkflowRoutes: SitemapRoute[] = NEW_ARCHITECTURE_WORKFLOW_CONFIGS
     .filter((page) => page.indexable)
     .map((page) => ({ loc: page.path, priority: "0.9", changefreq: "monthly" as const }));
 
