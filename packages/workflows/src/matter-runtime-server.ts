@@ -246,11 +246,67 @@ class HttpError extends Error {
   }
 }
 
+const JSON_RESPONSE_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store, max-age=0",
+  pragma: "no-cache",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+} as const;
+
+const DEFAULT_MAX_JSON_BYTES = 1024 * 1024;
+const DEFAULT_MAX_MULTIPART_BYTES = 12 * 1024 * 1024;
+
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: JSON_RESPONSE_HEADERS,
   });
+}
+
+function positiveByteLimit(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${label} must be a positive safe integer`);
+  return value;
+}
+
+async function readLimitedBody(request: Request, maxBytes: number): Promise<Uint8Array> {
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null) {
+    const parsed = Number(declaredLength);
+    if (Number.isFinite(parsed) && parsed > maxBytes) {
+      throw new HttpError(413, "Request body is too large");
+    }
+  }
+
+  if (!request.body) return new Uint8Array();
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new HttpError(413, "Request body is too large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -260,12 +316,53 @@ function asObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function readJson(request: Request): Promise<Record<string, unknown>> {
+async function readJson(request: Request, maxBytes = DEFAULT_MAX_JSON_BYTES): Promise<Record<string, unknown>> {
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new HttpError(415, "application/json is required");
+  }
+
+  const bytes = await readLimitedBody(request, maxBytes);
   try {
-    return asObject(await request.json());
+    return asObject(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(400, "Valid JSON body required");
+  }
+}
+
+async function readMultipartFormData(
+  request: Request,
+  maxBytes = DEFAULT_MAX_MULTIPART_BYTES,
+): Promise<FormData> {
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("multipart/form-data")) {
+    throw new HttpError(415, "multipart/form-data is required");
+  }
+
+  const bytes = await readLimitedBody(request, maxBytes);
+  const replay = new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: bytes,
+  });
+  try {
+    return await replay.formData();
+  } catch {
+    throw new HttpError(400, "Valid multipart form data is required");
+  }
+}
+
+async function describeOwnedDocument(
+  deps: WorkflowRuntimeServerDependencies,
+  actor: WorkflowRuntimeActor,
+  documentId: string,
+) {
+  try {
+    return await deps.documents.describe({ actor, documentId });
+  } catch {
+    // Missing and unauthorized documents are intentionally indistinguishable.
+    throw new HttpError(404, "Document not found");
   }
 }
 
@@ -414,9 +511,11 @@ async function resolveDraftAnalysis(input: {
  */
 export function createWorkflowRuntimeRequestHandler(
   deps: WorkflowRuntimeServerDependencies,
-  options: { basePath?: string } = {},
+  options: { basePath?: string; maxJsonBytes?: number; maxMultipartBytes?: number } = {},
 ): (request: Request) => Promise<Response> {
   const basePath = options.basePath ?? "/api/workflow-runtime";
+  const maxJsonBytes = positiveByteLimit(options.maxJsonBytes ?? DEFAULT_MAX_JSON_BYTES, "maxJsonBytes");
+  const maxMultipartBytes = positiveByteLimit(options.maxMultipartBytes ?? DEFAULT_MAX_MULTIPART_BYTES, "maxMultipartBytes");
   const now = deps.now ?? (() => new Date().toISOString());
   const id = deps.id ?? (() => globalThis.crypto.randomUUID());
 
@@ -428,7 +527,7 @@ export function createWorkflowRuntimeRequestHandler(
       const parts = routeParts(new URL(request.url), basePath);
 
       if (request.method === "POST" && parts.length === 1 && parts[0] === "matters") {
-        const body = await readJson(request);
+        const body = await readJson(request, maxJsonBytes);
         const workflowId = requiredString(body.workflowId, "workflowId");
         const verticalId = requiredString(body.verticalId, "verticalId");
         policyFor(deps, workflowId).validateMatter({ workflowId, verticalId });
@@ -442,7 +541,7 @@ export function createWorkflowRuntimeRequestHandler(
       }
 
       if (request.method === "POST" && parts.length === 1 && parts[0] === "documents") {
-        const form = await request.formData();
+        const form = await readMultipartFormData(request, maxMultipartBytes);
         const file = form.get("file");
         if (!(file instanceof File)) throw new HttpError(400, "file is required");
         const workflowId = requiredString(form.get("workflowId"), "workflowId");
@@ -462,11 +561,11 @@ export function createWorkflowRuntimeRequestHandler(
 
       if (parts[2] === "documents") {
         if (request.method === "POST" && parts.length === 3) {
-          const body = await readJson(request);
+          const body = await readJson(request, maxJsonBytes);
           const documentId = requiredString(body.documentId, "documentId");
           const role = body.role;
           if (role !== "subject_notice" && role !== "evidence") throw new HttpError(400, "role is invalid");
-          const described = await deps.documents.describe({ actor, documentId });
+          const described = await describeOwnedDocument(deps, actor, documentId);
           const next: WorkflowMatterDocument = {
             id: id(),
             documentId,
@@ -496,7 +595,7 @@ export function createWorkflowRuntimeRequestHandler(
             return json({ documents: saved });
           }
           if (request.method === "PATCH") {
-            const body = await readJson(request);
+            const body = await readJson(request, maxJsonBytes);
             const documents = matter.documents.map((item) => item.documentId !== documentId ? item : {
               ...item,
               ...(typeof body.included === "boolean" ? { included: body.included } : {}),
@@ -521,7 +620,7 @@ export function createWorkflowRuntimeRequestHandler(
           if (!policy.validateUserEvent) {
             throw new HttpError(405, "This workflow does not accept user-recorded events");
           }
-          const body = await readJson(request);
+          const body = await readJson(request, maxJsonBytes);
           const existingEvents = await deps.store.loadEvents(actor.id, matterId);
           const validated = policy.validateUserEvent({
             event: body,
@@ -561,7 +660,7 @@ export function createWorkflowRuntimeRequestHandler(
       if (parts[2] === "input" && parts.length === 3) {
         if (request.method === "GET") return json({ input: await deps.store.loadInput(actor.id, matterId) });
         if (request.method === "POST") {
-          const body = await readJson(request);
+          const body = await readJson(request, maxJsonBytes);
           const analysis = await deps.store.loadAnalysis(actor.id, matterId);
           const validated = policy.validateInput(body, analysis, matter);
           const stored = await deps.store.saveInput(actor.id, matterId, validated);
@@ -592,7 +691,7 @@ export function createWorkflowRuntimeRequestHandler(
           });
         }
         if (request.method === "POST" && parts.length === 3) {
-          const body = await readJson(request);
+          const body = await readJson(request, maxJsonBytes);
           const bodyText = requiredString(body.bodyText, "bodyText");
           const caseInput = await deps.store.loadInput(actor.id, matterId);
           if (!caseInput) throw new HttpError(409, "Save workflow facts before saving a draft");
@@ -613,7 +712,7 @@ export function createWorkflowRuntimeRequestHandler(
       }
 
       if (request.method === "POST" && parts[2] === "packet" && parts.length === 3) {
-        const body = await readJson(request);
+        const body = await readJson(request, maxJsonBytes);
         const selectedMailClass = mailClass(body.mailClass);
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
         if (!analysis) throw new HttpError(409, "Analysis is required before packet construction");
@@ -648,7 +747,7 @@ export function createWorkflowRuntimeRequestHandler(
           } : null });
         }
         if (request.method === "POST") {
-          const body = await readJson(request);
+          const body = await readJson(request, maxJsonBytes);
           const expectedPacketSha256 = requiredString(body.expectedPacketSha256, "expectedPacketSha256");
           const expectedTotalCents = body.expectedTotalCents;
           if (!Number.isSafeInteger(expectedTotalCents) || (expectedTotalCents as number) < 0) {
@@ -689,7 +788,7 @@ export function createWorkflowRuntimeRequestHandler(
       }
 
       if (request.method === "POST" && parts[2] === "checkout" && parts.length === 3) {
-        const body = await readJson(request);
+        const body = await readJson(request, maxJsonBytes);
         const approvalId = requiredString(body.approvalId, "approvalId");
         const sender = mailingAddress(body.sender);
         const approval = await deps.store.loadApproval(actor.id, matterId);
