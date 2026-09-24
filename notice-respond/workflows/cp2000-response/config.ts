@@ -137,6 +137,26 @@ export const workflowConfig = {
       description: "Use this for an IRS balance-due notice that does not match the CP2000 proposed-adjustment workflow.",
     },
   ],
+  primaryCtaLabel: "Start CP2000 Response",
+  secondaryCtaLabel: "See how it works",
+  overview: "The IRS says a CP2000 is a proposed-adjustment notice issued when income or payment information reported by third parties does not match the tax return on file. It is not itself a bill. The notice explains the proposed changes and tells you how and when to respond. This workflow turns the notice into an item-by-item review so your response can match the records you actually have.",
+  responseOptions: [
+    ["Agree", "Confirm the proposed items you agree with and prepare the response materials the notice asks for."],
+    ["Partially agree", "Accept the items that match your records while identifying and documenting the specific items you dispute."],
+    ["Disagree", "Identify each proposed item you believe is inaccurate and connect the records that support your position."],
+  ],
+  commonMistakes: [
+    "Treating the proposed amount as a final bill instead of reviewing the individual proposed changes first.",
+    "Sending a broad disagreement without identifying each disputed item and why it is wrong.",
+    "Waiting for a corrected form without also tracking the response date printed on the notice.",
+    "Using a generic IRS mailing address instead of the reply address or submission instructions on the actual CP2000.",
+    "Sending original supporting records instead of retaining originals and reviewing exactly what is included in the response packet.",
+  ],
+  sources: [
+    { title: "Understanding your CP2000 series notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/understanding-your-cp2000-series-notice" },
+    { title: "Responding to a notice", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/responding-to-a-notice" },
+  ],
+  disclaimer: "MailMyPDF helps organize your CP2000, disputed items, supporting records, correspondence, and mailing proof. It does not provide tax or legal advice or determine whether an IRS adjustment is correct. Follow the response date and instructions on your own notice.",
 } as const satisfies WorkflowLandingConfig
 
 export default workflowConfig
