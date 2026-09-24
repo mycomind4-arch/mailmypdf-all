@@ -1,6 +1,6 @@
 import type { SectionLandingConfig } from "@mailmypdf/design-system"
 
-export const SITE_ORIGIN = "https://mailmypdf.pages.dev"
+export const SITE_ORIGIN = "https://mailmypdf.ai"
 
 export function createSectionHead(config: SectionLandingConfig) {
   const canonical = SITE_ORIGIN + config.path
