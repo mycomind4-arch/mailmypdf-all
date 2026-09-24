@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 import { renderRobotsTxt } from "../src/lib/robots";
 import { sitemapRoutes } from "../src/lib/sitemap";
@@ -14,6 +16,16 @@ test("robots.txt explicitly allows OAI-SearchBot on public routes", () => {
   for (const path of ["/api/", "/admin", "/orders/", "/auth", "/verify", "/send$"]) {
     assert.ok(robots.includes(`Disallow: ${path}`));
   }
+});
+
+test("shared SEO metadata uses the production canonical origin", async () => {
+  const seoSource = await readFile(
+    fileURLToPath(new URL("../../packages/seo/src/section-head.ts", import.meta.url)),
+    "utf8",
+  );
+
+  assert.match(seoSource, /https:\/\/mailmypdf\.ai/);
+  assert.doesNotMatch(seoSource, /mailmypdf\.pages\.dev/);
 });
 
 test("new-architecture IRS response pages are present in the sitemap", () => {
