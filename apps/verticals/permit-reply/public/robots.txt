@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://permit-reply.pages.dev/sitemap.xml

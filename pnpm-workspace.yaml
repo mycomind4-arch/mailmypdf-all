@@ -5,6 +5,7 @@ packages:
   - "apps/verticals/*"
   - "!apps/verticals/legal-defense"
   - "!apps/verticals/claim-proof"
+  - "!apps/verticals/permit-reply"
   - "services/*"
   - "appeal-mail"
   - "notice-respond"

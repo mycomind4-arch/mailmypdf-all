@@ -39,7 +39,7 @@ Examples:
 - `/immigration-mail/*` -> `apps/verticals/immigration-mail`
 - `/insurance-claims/*` -> `apps/verticals/insurance-claims`
 - `/notice-respond/*` -> `apps/verticals/notice-respond`
-- `/permit-reply/*` -> `apps/verticals/permit-reply`
+- `/permit-reply/*` -> `permit-reply`
 - `/private-office/*` -> `apps/verticals/private-office`
 - `/records-request/*` -> `apps/verticals/records-request`
 - `/small-business/*` -> `apps/verticals/small-business`

@@ -57,7 +57,7 @@ The repository now has one canonical host application and one normalized vertica
 - `apps/verticals/immigration-mail`
 - `apps/verticals/insurance-claims`
 - `apps/verticals/notice-respond`
-- `apps/verticals/permit-reply`
+- `permit-reply`
 - `apps/verticals/private-office`
 - `apps/verticals/records-request`
 - `apps/verticals/small-business`
