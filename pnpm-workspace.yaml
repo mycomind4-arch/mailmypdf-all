@@ -6,6 +6,7 @@ packages:
   - "!apps/verticals/legal-defense"
   - "!apps/verticals/claim-proof"
   - "!apps/verticals/permit-reply"
+  - "!apps/verticals/tenant-reply"
   - "services/*"
   - "appeal-mail"
   - "notice-respond"

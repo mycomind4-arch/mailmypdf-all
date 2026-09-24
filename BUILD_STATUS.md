@@ -61,7 +61,7 @@ The repository now has one canonical host application and one normalized vertica
 - `apps/verticals/private-office`
 - `apps/verticals/records-request`
 - `apps/verticals/small-business`
-- `apps/verticals/tenant-reply`
+- `tenant-reply`
 
 The former `apps/core` and top-level vertical directories were moved intact; their implementation trees were not deleted or rewritten during the topology migration.
 

@@ -43,7 +43,7 @@ Examples:
 - `/private-office/*` -> `apps/verticals/private-office`
 - `/records-request/*` -> `apps/verticals/records-request`
 - `/small-business/*` -> `apps/verticals/small-business`
-- `/tenant-reply/*` -> `apps/verticals/tenant-reply`
+- `/tenant-reply/*` -> `tenant-reply`
 
 ## Shared platform boundary
 
