@@ -15,6 +15,17 @@ export const workflowConfig = {
   heroDescription: "Identify each disputed item on your Experian credit report, match it to the right FCRA category, organize your evidence, and prepare a specific dispute letter mailed with proof of delivery.",
   indexable: true,
   contentStatus: "published",
+  discovery: {
+    primaryQuestion: "How do I dispute inaccurate information on my Experian credit report?",
+    alternateQuestions: [
+      "What should I include in an Experian credit report dispute?",
+      "How do I document an error on my Experian credit report?",
+      "How do I mail an Experian dispute with supporting evidence?",
+    ],
+    agency: "Experian",
+    jurisdiction: "United States",
+    documentType: "Experian credit report dispute",
+  },
   primaryCtaLabel: "Start Experian Dispute",
   secondaryCtaLabel: "See how it works",
   overview: "If you find information on your Experian credit report that you believe is inaccurate or incomplete, you can dispute it with the credit reporting company. The CFPB recommends identifying each error clearly, explaining why it is wrong, requesting the correction you want, and including copies of supporting documents. This workflow organizes those pieces into a reviewable mailed dispute packet.",
