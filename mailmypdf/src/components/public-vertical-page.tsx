@@ -97,8 +97,8 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
 
 export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
   const config = publicVerticalById(id);
+  const pages = useMemo(() => config ? directoryPagesFor(config) : [], [config]);
   if (!config) return null;
-  const pages = directoryPagesFor(config);
   const featured = pages.slice(0, 6);
   const hasRegisteredWorkflows = pages.length > 0;
 
@@ -260,12 +260,12 @@ export function PublicVerticalWorkflowDirectoryPage({ id }: { id: PublicVertical
   const config = publicVerticalById(id);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All workflows");
-  if (!config) return null;
-  const pages = directoryPagesFor(config);
-  const directoryItems = pages.map((page) => ({
+  const pages = useMemo(() => config ? directoryPagesFor(config) : [], [config]);
+  const directoryItems = useMemo(() => config ? pages.map((page) => ({
     page,
     category: categoryForWorkflow(config, `${page.title} ${page.description} ${page.path}`),
-  }));
+  })) : [], [config, pages]);
+  if (!config) return null;
   const categoryNames = ["All workflows", ...Array.from(new Set(directoryItems.map((item) => item.category)))];
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
