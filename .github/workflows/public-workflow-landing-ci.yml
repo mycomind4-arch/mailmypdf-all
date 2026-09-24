@@ -1,0 +1,49 @@
+name: Public workflow landing gate
+
+on:
+  pull_request:
+    paths:
+      - "mailmypdf/src/routes/**"
+      - "mailmypdf/scripts/validate-public-workflow-landings.ts"
+      - "mailmypdf/package.json"
+      - "packages/design-system/src/workflow-landing.tsx"
+      - "*/workflows/*/config.ts"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/public-workflow-landing-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "mailmypdf/src/routes/**"
+      - "mailmypdf/scripts/validate-public-workflow-landings.ts"
+      - "mailmypdf/package.json"
+      - "packages/design-system/src/workflow-landing.tsx"
+      - "*/workflows/*/config.ts"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/public-workflow-landing-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-public-workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate mounted public workflow landings
+        run: pnpm --dir mailmypdf run seo:landing:validate
