@@ -1,29 +1,33 @@
-import { access, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
-type LandingConfig = {
-  id: string;
-  sectionId: string;
-  path: string;
-  startPath: string;
-  title: string;
-  heroTitle: string;
-  heroDescription: string;
-  indexable: boolean;
-  contentStatus: "scaffold" | "reviewed" | "published";
-  whatYouDo?: readonly string[];
-  whatYouNeed?: readonly string[];
-  outputs?: readonly string[];
-  faqs?: readonly (readonly [string, string])[];
-  workspaceHighlights?: readonly (readonly [string, string])[];
-  workflowSteps?: readonly (readonly [string, string])[];
-  readyItems?: readonly (readonly [string, string])[];
+type ParsedConfig = {
+  id?: string;
+  sectionId?: string;
+  path?: string;
+  startPath?: string;
+  title?: string;
+  heroTitle?: string;
+  heroDescription?: string;
+  indexable?: boolean;
+  contentStatus?: string;
+  counts: Record<string, number>;
 };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../..");
 const routesRoot = path.join(repoRoot, "mailmypdf/src/routes");
+const countedFields = new Set([
+  "whatYouDo",
+  "whatYouNeed",
+  "outputs",
+  "faqs",
+  "workspaceHighlights",
+  "workflowSteps",
+  "readyItems",
+]);
 
 async function walk(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -34,16 +38,64 @@ async function walk(dir: string): Promise<string[]> {
   return nested.flat();
 }
 
-function minItems(
-  config: LandingConfig,
-  key: keyof Pick<LandingConfig, "whatYouDo" | "whatYouNeed" | "outputs" | "faqs" | "workspaceHighlights" | "workflowSteps" | "readyItems">,
-  minimum: number,
-  errors: string[],
-) {
-  const value = config[key] as readonly unknown[] | undefined;
-  if (!value || value.length < minimum) {
-    errors.push(`${config.id}: indexable landing requires ${key} with at least ${minimum} item(s).`);
+function propertyName(node: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(node) || ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return node.text;
+  return undefined;
+}
+
+function literalString(node: ts.Expression): string | undefined {
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined;
+}
+
+function literalBoolean(node: ts.Expression): boolean | undefined {
+  return node.kind === ts.SyntaxKind.TrueKeyword ? true : node.kind === ts.SyntaxKind.FalseKeyword ? false : undefined;
+}
+
+function parseConfig(sourcePath: string, source: string): ParsedConfig {
+  const file = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let object: ts.ObjectLiteralExpression | undefined;
+
+  for (const statement of file.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "workflowConfig" || !declaration.initializer) continue;
+      let initializer: ts.Expression = declaration.initializer;
+      if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression;
+      if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression;
+      if (ts.isObjectLiteralExpression(initializer)) object = initializer;
+    }
   }
+
+  if (!object) throw new Error("workflowConfig object literal not found");
+
+  const result: ParsedConfig = { counts: {} };
+  for (const property of object.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    const name = propertyName(property.name);
+    if (!name) continue;
+
+    if (countedFields.has(name)) {
+      result.counts[name] = ts.isArrayLiteralExpression(property.initializer)
+        ? property.initializer.elements.length
+        : 0;
+      continue;
+    }
+
+    if (name === "indexable") {
+      result.indexable = literalBoolean(property.initializer);
+      continue;
+    }
+
+    if (["id", "sectionId", "path", "startPath", "title", "heroTitle", "heroDescription", "contentStatus"].includes(name)) {
+      (result as Record<string, unknown>)[name] = literalString(property.initializer);
+    }
+  }
+  return result;
+}
+
+function minItems(config: ParsedConfig, id: string, key: string, minimum: number, errors: string[]) {
+  const count = config.counts[key] ?? 0;
+  if (count < minimum) errors.push(`${id}: indexable landing requires ${key} with at least ${minimum} item(s); found ${count}.`);
 }
 
 const routeFiles = (await walk(routesRoot))
@@ -61,8 +113,8 @@ for (const routeFile of routeFiles) {
 
   const [sectionId, , workflowId] = relative;
   mounted += 1;
-
   const configPath = path.join(repoRoot, sectionId, "workflows", workflowId, "config.ts");
+
   try {
     await access(configPath);
   } catch {
@@ -70,49 +122,39 @@ for (const routeFile of routeFiles) {
     continue;
   }
 
-  const imported = await import(pathToFileURL(configPath).href);
-  const config = (imported.workflowConfig ?? imported.default) as LandingConfig | undefined;
-  if (!config) {
-    failures.push(`${sectionId}/${workflowId}: config.ts does not export workflowConfig/default.`);
+  let config: ParsedConfig;
+  try {
+    config = parseConfig(configPath, await readFile(configPath, "utf8"));
+  } catch (error) {
+    failures.push(`${sectionId}/${workflowId}: could not statically parse config.ts (${error instanceof Error ? error.message : String(error)}).`);
     continue;
   }
 
+  const id = config.id ?? `${sectionId}/${workflowId}`;
   const expectedPath = `/${sectionId}/workflows/${workflowId}`;
-  if (config.path !== expectedPath) {
-    failures.push(`${config.id}: path '${config.path}' does not match mounted route '${expectedPath}'.`);
-  }
-  if (config.startPath !== `${expectedPath}/start`) {
-    failures.push(`${config.id}: startPath '${config.startPath}' does not match '${expectedPath}/start'.`);
-  }
+  if (config.path !== expectedPath) failures.push(`${id}: path '${config.path ?? "missing"}' does not match mounted route '${expectedPath}'.`);
+  if (config.startPath !== `${expectedPath}/start`) failures.push(`${id}: startPath '${config.startPath ?? "missing"}' does not match '${expectedPath}/start'.`);
 
   if (config.contentStatus === "scaffold") scaffold += 1;
-  if (config.contentStatus === "scaffold" && config.indexable) {
-    failures.push(`${config.id}: scaffold content may never be indexable.`);
-  }
+  if (config.contentStatus === "scaffold" && config.indexable === true) failures.push(`${id}: scaffold content may never be indexable.`);
 
-  if (!config.indexable) continue;
+  if (config.indexable !== true) continue;
   indexable += 1;
 
   if (config.contentStatus !== "reviewed" && config.contentStatus !== "published") {
-    failures.push(`${config.id}: indexable page must be reviewed or published, not ${config.contentStatus}.`);
+    failures.push(`${id}: indexable page must be reviewed or published, not ${config.contentStatus ?? "missing"}.`);
   }
-  if ((config.heroTitle ?? "").trim().length < 12) {
-    failures.push(`${config.id}: heroTitle is too thin for an indexable public page.`);
-  }
-  if ((config.heroDescription ?? "").trim().length < 100) {
-    failures.push(`${config.id}: heroDescription must clearly explain the workflow (100+ characters).`);
-  }
-  if (/use a guided .* workflow built around/i.test(config.heroDescription ?? "")) {
-    failures.push(`${config.id}: generic scaffold hero copy may not be indexable.`);
-  }
+  if ((config.heroTitle ?? "").trim().length < 12) failures.push(`${id}: heroTitle is too thin for an indexable public page.`);
+  if ((config.heroDescription ?? "").trim().length < 100) failures.push(`${id}: heroDescription must clearly explain the workflow (100+ characters).`);
+  if (/use a guided .* workflow built around/i.test(config.heroDescription ?? "")) failures.push(`${id}: generic scaffold hero copy may not be indexable.`);
 
-  minItems(config, "whatYouDo", 3, failures);
-  minItems(config, "whatYouNeed", 3, failures);
-  minItems(config, "outputs", 3, failures);
-  minItems(config, "workspaceHighlights", 3, failures);
-  minItems(config, "workflowSteps", 4, failures);
-  minItems(config, "readyItems", 3, failures);
-  minItems(config, "faqs", 3, failures);
+  minItems(config, id, "whatYouDo", 3, failures);
+  minItems(config, id, "whatYouNeed", 3, failures);
+  minItems(config, id, "outputs", 3, failures);
+  minItems(config, id, "workspaceHighlights", 3, failures);
+  minItems(config, id, "workflowSteps", 4, failures);
+  minItems(config, id, "readyItems", 3, failures);
+  minItems(config, id, "faqs", 3, failures);
 }
 
 console.log("MailMyPDF Public Workflow Landing Gate");
