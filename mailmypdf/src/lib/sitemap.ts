@@ -8,7 +8,7 @@ import { workflowAuthorityPages } from "./workflow-authority-registry";
 // are not yet enumerated anywhere the sitemap can discover automatically —
 // each new-architecture workflow page needs an explicit entry here, gated on
 // its own config's `indexable` flag, until that registry exists.
-import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";
+import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";\nimport cp2000ResponseConfig from "../../../notice-respond/workflows/cp2000-response/config";
 import cp504ResponseConfig from "../../../notice-respond/workflows/cp504-response/config";
 
 export type SitemapRoute = {
@@ -63,7 +63,7 @@ export function sitemapRoutes(): SitemapRoute[] {
     changefreq: "monthly" as const,
   }));
 
-  const newArchitectureWorkflowRoutes: SitemapRoute[] = [cp14ResponseConfig, cp504ResponseConfig]
+  const newArchitectureWorkflowRoutes: SitemapRoute[] = [cp14ResponseConfig, cp2000ResponseConfig, cp504ResponseConfig]
     .filter((page) => page.indexable)
     .map((page) => ({ loc: page.path, priority: "0.9", changefreq: "monthly" as const }));
 
