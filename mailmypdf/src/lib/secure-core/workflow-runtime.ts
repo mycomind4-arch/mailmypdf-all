@@ -5,11 +5,14 @@ import {
   SSA_RECONSIDERATION_WORKFLOWS,
   getInsuranceAppealWorkflowSpec,
   getNoticeResponseWorkflowProfile,
+  getNoticeResponseRuntimePolicy,
+  getRecordsRequestRuntimePolicy,
   getImmigrationRuntimePolicy,
   getSsaReconsiderationRuntimePolicy,
   IMMIGRATION_COVER_LETTER_WORKFLOW_ID,
   IMMIGRATION_MAIL_VERTICAL_ID,
   insuranceDraftPack,
+  isWorkflowExecutable,
   type SsaReconsiderationWorkflowId,
 } from "@mailmypdf/workflows";
 import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
@@ -277,7 +280,11 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
   // Workflows that run only on the shared notice shell are defined once, by
   // their @mailmypdf/workflows profile, instead of being re-declared here.
   // The legacy definitions above keep precedence for the ids they cover.
-  const profile = verticalIdsMatch("notice-respond", verticalId)
+  const noticeRuntimeEnabled =
+    verticalIdsMatch("notice-respond", verticalId) &&
+    isWorkflowExecutable("notice-respond", workflowId) &&
+    Boolean(getNoticeResponseRuntimePolicy(workflowId));
+  const profile = noticeRuntimeEnabled
     ? getNoticeResponseWorkflowProfile(workflowId)
     : null;
   if (profile) {
@@ -304,9 +311,9 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
   if (verticalId === IMMIGRATION_MAIL_VERTICAL_ID && getImmigrationRuntimePolicy(workflowId)) {
     return IMMIGRATION_COVER_LETTER;
   }
-  // Fallback: generic appeal-mail workflows (administrative-decision-appeal, denied-claim, etc)
-  // These use the shared appeal runtime contract even if they have divergent evidence models
-  if (verticalId === "appeal-mail") {
+  // Generic appeal-mail execution is allowed only for workflows the canonical
+  // execution registry marks executable. Public/catalog presence is not runtime permission.
+  if (verticalId === "appeal-mail" && isWorkflowExecutable("appeal-mail", workflowId)) {
     return Object.freeze({
       id: workflowId,
       verticalId: "appeal-mail",
@@ -324,8 +331,13 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
         "evidence actually enclosed. Never invent facts, policy terms, or outcomes.",
     });
   }
-  // Records-request and other verticals: generic fallback with minimal analysis
-  if (verticalId === "records-request") {
+  // Records Request execution requires both a canonical executable record and
+  // an explicit shared runtime policy. Unknown/catalog-only ids fail closed.
+  if (
+    verticalId === "records-request" &&
+    isWorkflowExecutable("records-request", workflowId) &&
+    getRecordsRequestRuntimePolicy(workflowId)
+  ) {
     return Object.freeze({
       id: workflowId,
       verticalId: "records-request",
@@ -340,10 +352,17 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
         "reference numbers. Reference only documentation actually provided.",
     });
   }
-  if (verticalId === "dispute-mail" && isCreditBureauDisputeWorkflowId(workflowId)) {
+  if (
+    verticalId === "dispute-mail" &&
+    isWorkflowExecutable("dispute-mail", workflowId) &&
+    isCreditBureauDisputeWorkflowId(workflowId)
+  ) {
     return creditBureauDisputeCaseWorkflow(workflowId);
   }
-  if (verticalId === "secured-transactions") {
+  if (
+    verticalId === "secured-transactions" &&
+    isWorkflowExecutable("secured-transactions", workflowId)
+  ) {
     return Object.freeze({
       id: workflowId,
       verticalId: "secured-transactions",
