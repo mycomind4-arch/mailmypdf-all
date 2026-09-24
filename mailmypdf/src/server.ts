@@ -45,6 +45,35 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+const BASE_SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "X-Permitted-Cross-Domain-Policies": "none",
+  "Content-Security-Policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+} as const;
+
+function applySecurityHeaders(response: Response, request: Request): Response {
+  // Switching protocols cannot be reconstructed as an ordinary Response.
+  if (response.status === 101) return response;
+
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(BASE_SECURITY_HEADERS)) {
+    if (!headers.has(name)) headers.set(name, value);
+  }
+
+  if (new URL(request.url).protocol === "https:") {
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 // ── Scheduled (Cron) Handler ───────────────────────────────────────────────────
 //
 // Cloudflare Workers fires the `scheduled` event when a cron trigger fires.
@@ -113,13 +142,14 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      return applySecurityHeaders(normalized, request);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      return applySecurityHeaders(new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      }), request);
     }
   },
 
