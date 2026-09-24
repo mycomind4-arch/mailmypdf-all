@@ -14,6 +14,11 @@ type ParsedConfig = {
   heroDescription?: string;
   indexable?: boolean;
   contentStatus?: string;
+  discoveryPrimaryQuestion?: string;
+  discoveryAgency?: string;
+  discoveryJurisdiction?: string;
+  discoveryDocumentType?: string;
+  discoveryAlternateQuestions: number;
   counts: Record<string, number>;
 };
 
@@ -69,7 +74,7 @@ function parseConfig(sourcePath: string, source: string): ParsedConfig {
 
   if (!object) throw new Error("workflowConfig object literal not found");
 
-  const result: ParsedConfig = { counts: {} };
+  const result: ParsedConfig = { counts: {}, discoveryAlternateQuestions: 0 };
   for (const property of object.properties) {
     if (!ts.isPropertyAssignment(property)) continue;
     const name = propertyName(property.name);
@@ -84,6 +89,26 @@ function parseConfig(sourcePath: string, source: string): ParsedConfig {
 
     if (name === "indexable") {
       result.indexable = literalBoolean(property.initializer);
+      continue;
+    }
+
+    if (name === "discovery" && ts.isObjectLiteralExpression(property.initializer)) {
+      for (const discoveryProperty of property.initializer.properties) {
+        if (!ts.isPropertyAssignment(discoveryProperty)) continue;
+        const discoveryName = propertyName(discoveryProperty.name);
+        if (!discoveryName) continue;
+        if (discoveryName === "alternateQuestions") {
+          result.discoveryAlternateQuestions = ts.isArrayLiteralExpression(discoveryProperty.initializer)
+            ? discoveryProperty.initializer.elements.length
+            : 0;
+          continue;
+        }
+        const value = literalString(discoveryProperty.initializer);
+        if (discoveryName === "primaryQuestion") result.discoveryPrimaryQuestion = value;
+        if (discoveryName === "agency") result.discoveryAgency = value;
+        if (discoveryName === "jurisdiction") result.discoveryJurisdiction = value;
+        if (discoveryName === "documentType") result.discoveryDocumentType = value;
+      }
       continue;
     }
 
@@ -151,6 +176,13 @@ for (const routeFile of routeFiles) {
     failures.push(`${id}: indexable page must be reviewed or published, not ${config.contentStatus ?? "missing"}.`);
   }
   if ((config.heroTitle ?? "").trim().length < 12) failures.push(`${id}: heroTitle is too thin for an indexable public page.`);
+  if (!(config.discoveryPrimaryQuestion ?? "").trim().endsWith("?") || (config.discoveryPrimaryQuestion ?? "").trim().length < 20) {
+    failures.push(`${id}: indexable page requires a substantive discovery.primaryQuestion phrased as a question.`);
+  }
+  if (config.discoveryAlternateQuestions < 2) failures.push(`${id}: indexable page requires at least 2 discovery.alternateQuestions.`);
+  if ((config.discoveryAgency ?? "").trim().length < 2) failures.push(`${id}: indexable page requires discovery.agency (agency, organization, or decision-maker).`);
+  if ((config.discoveryJurisdiction ?? "").trim().length < 2) failures.push(`${id}: indexable page requires discovery.jurisdiction.`);
+  if ((config.discoveryDocumentType ?? "").trim().length < 5) failures.push(`${id}: indexable page requires discovery.documentType.`);
   if ((config.heroDescription ?? "").trim().length < 100) failures.push(`${id}: heroDescription must clearly explain the workflow (100+ characters).`);
   if (/use a guided .* workflow built around/i.test(config.heroDescription ?? "")) failures.push(`${id}: generic scaffold hero copy may not be indexable.`);
 
