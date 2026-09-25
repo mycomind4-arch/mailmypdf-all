@@ -15,6 +15,7 @@ import {
   findWorkflowMatches,
   getWorkflowDescriptor,
 } from "../src/lib/mcp/workflow-catalog";
+import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
@@ -171,6 +172,32 @@ test("assistant file redirects are revalidated before following", async () => {
   );
 });
 
+
+test("get_document_status is read-only and requires matter plus document identity", () => {
+  const statusTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_document_status");
+  assert.ok(statusTool);
+  assert.equal(statusTool.annotations.readOnlyHint, true);
+  assert.equal(statusTool.annotations.destructiveHint, false);
+  assert.equal(statusTool.annotations.openWorldHint, false);
+
+  const schema = statusTool.inputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["document_id", "matter_id"]);
+  assert.deepEqual([...(schema.required ?? [])].sort(), ["document_id", "matter_id"]);
+  assert.equal(MCP_PROTECTED_TOOL_NAMES.has("get_document_status"), true);
+});
+
+test("document readiness fails closed until a clean usable document exists", () => {
+  assert.equal(classifyDocumentReadiness("quarantined", false), "pending_scan");
+  assert.equal(classifyDocumentReadiness("scanning", false), "pending_scan");
+  assert.equal(classifyDocumentReadiness("clean", false), "pending_scan");
+  assert.equal(classifyDocumentReadiness("clean", true), "ready");
+  assert.equal(classifyDocumentReadiness("rejected", false), "rejected");
+  assert.equal(classifyDocumentReadiness("deleting", false), "unavailable");
+  assert.equal(classifyDocumentReadiness("deleted", false), "unavailable");
+});
 
 test("get_order_status is read-only and supports order or matter lookup", () => {
   const statusTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_order_status");

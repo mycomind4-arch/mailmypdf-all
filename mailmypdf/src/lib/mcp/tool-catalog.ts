@@ -152,6 +152,21 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
+    name: "get_document_status",
+    title: "Get secure document readiness",
+    description:
+      "Read the current security/readiness state of one document already attached to an owner-scoped MailMyPDF matter. Use after ingest_document to determine whether scanning has marked the file clean and analysis may proceed. This tool never downloads the stored file and does not expose storage or scanner internals.",
+    inputSchema: objectSchema(
+      {
+        matter_id: string("Owner-scoped MailMyPDF matter id."),
+        document_id: string("MailMyPDF secure document id returned by ingest_document."),
+      },
+      ["matter_id", "document_id"],
+    ),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
     name: "ingest_document",
     title: "Securely ingest an attached document",
     description:

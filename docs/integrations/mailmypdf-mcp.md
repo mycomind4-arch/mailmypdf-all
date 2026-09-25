@@ -12,7 +12,7 @@ POST /api/mcp
 
 The connector is deliberately an adapter over the existing generic workflow runtime. It does not implement a second matter store, document system, packet builder, pricing engine, payment system, or Lob integration.
 
-## v0.3 tool boundary
+## v0.4 tool boundary
 
 Public discovery:
 
@@ -25,6 +25,7 @@ Authenticated matter execution:
 - `create_matter`
 - `get_matter`
 - `get_order_status`
+- `get_document_status`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -66,6 +67,19 @@ Ingress is intentionally not a blind URL fetch:
 - the attached document remains unusable for analysis until its security status becomes `clean`.
 
 A user attaching a file is not approval to mail it. `processing_consent` must be true for ingestion, and exact packet approval plus checkout remain separate actions.
+
+### Scan readiness
+
+After `ingest_document`, assistants should use `get_document_status` before calling `analyze_matter` when the returned security state is not already clean.
+
+The readiness result is deliberately small:
+
+- `ready` only when the document is both `clean` and usable;
+- `pending_scan` while quarantined/scanning or when a clean record is not yet usable;
+- `rejected` when security validation fails;
+- `unavailable` when deletion has started or completed.
+
+The tool reads only the owner-scoped matter snapshot. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
 
 ## Order and mailing status
 
@@ -113,7 +127,7 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 ## Next execution milestones
 
 1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
-2. Exercise `ingest_document` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
+2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
 3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
 4. Add saved-payment support only after a server-side confirmation design is complete.
 5. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.

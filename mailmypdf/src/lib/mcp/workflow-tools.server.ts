@@ -2,6 +2,7 @@ import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
+import { classifyDocumentReadiness } from "./document-readiness";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
 export class McpToolExecutionError extends Error {
@@ -216,6 +217,47 @@ export async function executeMcpTool(
     return callRuntime(request, base, "GET");
   }
 
+  if (name === "get_document_status") {
+    const documentId = requiredString(args.document_id, "document_id");
+    const matterPayload = object(await callRuntime(request, base, "GET"), "matter response");
+    const documents = Array.isArray(matterPayload.documents) ? matterPayload.documents : [];
+    const document = documents.find((candidate) => {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+      return (candidate as Record<string, unknown>).documentId === documentId;
+    });
+
+    if (!document || typeof document !== "object" || Array.isArray(document)) {
+      throw new McpToolExecutionError(404, "Document not found on this matter");
+    }
+
+    const metadata = document as Record<string, unknown>;
+    const securityStatus = requiredString(metadata.securityStatus, "document.securityStatus");
+    const usable = metadata.usable === true;
+    const readiness = classifyDocumentReadiness(securityStatus, usable);
+
+    return {
+      document: {
+        documentId,
+        filename: typeof metadata.filename === "string" ? metadata.filename : null,
+        mimeType: typeof metadata.mimeType === "string" ? metadata.mimeType : null,
+        sizeBytes: typeof metadata.sizeBytes === "number" ? metadata.sizeBytes : null,
+        role: typeof metadata.role === "string" ? metadata.role : null,
+        securityStatus,
+        usable,
+        readiness,
+      },
+      analysisAllowed: readiness === "ready",
+      nextAction:
+        readiness === "ready"
+          ? "The document is clean and may be analyzed."
+          : readiness === "rejected"
+            ? "The document failed security validation and must not be analyzed. Ask the user for a different file."
+            : readiness === "unavailable"
+              ? "The document is unavailable and must be replaced before analysis."
+              : "The document is still in quarantine or scanning. Check this status again before analysis.",
+    };
+  }
+
   if (name === "ingest_document") {
     if (args.processing_consent !== true) {
       throw new McpToolExecutionError(
@@ -290,7 +332,7 @@ export async function executeMcpTool(
       nextAction:
         document.securityStatus === "clean"
           ? "The document is cleared for workflow analysis."
-          : "The document is quarantined. Check matter state until scanning marks it clean before analysis.",
+          : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
     };
   }
 
