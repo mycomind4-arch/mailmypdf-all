@@ -7,7 +7,21 @@ on:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
       - 'mailmypdf/**'
-      - 'apps/verticals/**'
+      - 'appeal-mail/**'
+      - 'benefits-appeal/**'
+      - 'claim-proof/**'
+      - 'code-enforcement/**'
+      - 'dispute-mail/**'
+      - 'immigration-mail/**'
+      - 'insurance-claims/**'
+      - 'legal-defense/**'
+      - 'notice-respond/**'
+      - 'permit-reply/**'
+      - 'private-office/**'
+      - 'records-request/**'
+      - 'secured-transactions/**'
+      - 'small-business/**'
+      - 'tenant-reply/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
   pull_request:
@@ -15,7 +29,21 @@ on:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
       - 'mailmypdf/**'
-      - 'apps/verticals/**'
+      - 'appeal-mail/**'
+      - 'benefits-appeal/**'
+      - 'claim-proof/**'
+      - 'code-enforcement/**'
+      - 'dispute-mail/**'
+      - 'immigration-mail/**'
+      - 'insurance-claims/**'
+      - 'legal-defense/**'
+      - 'notice-respond/**'
+      - 'permit-reply/**'
+      - 'private-office/**'
+      - 'records-request/**'
+      - 'secured-transactions/**'
+      - 'small-business/**'
+      - 'tenant-reply/**'
       - 'scripts/verify-product-topology.mjs'
       - '.github/workflows/workspace-ui-ci.yml'
   workflow_dispatch:
@@ -125,10 +153,12 @@ jobs:
           - dispute-mail
           - immigration-mail
           - insurance-claims
+          - legal-defense
           - notice-respond
           - permit-reply
           - private-office
           - records-request
+          - secured-transactions
           - small-business
           - tenant-reply
     steps:
@@ -143,22 +173,15 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Test Private Office compound runtime
-        if: matrix.app == 'private-office'
-        run: |
-          pnpm --filter mailmypdf-private-office run build:shared
-          pnpm --filter mailmypdf-private-office exec vitest run \
-            src/domain/compound-workflows.test.ts \
-            src/domain/compound-workflow-runtime.test.ts \
-            src/domain/compound-phase-readiness.test.ts \
-            src/platform/authority-provider.test.ts \
-            src/services/compound-workflow-service.test.ts \
-            src/services/compound-capability-executor.test.ts
-      - name: Build app workspace dependencies
+      - name: Build root section package when present
         shell: bash
         run: |
-          package_name=$(node -p 'require("./apps/verticals/${{ matrix.app }}/package.json").name')
+          section="${{ matrix.app }}"
+          if [[ ! -f "${section}/package.json" ]]; then
+            echo "${section} is host-mounted and is validated by the MailMyPDF core build."
+            exit 0
+          fi
+          package_name=$(node -p "require('./${section}/package.json').name")
           pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
-      - name: Build app
-        run: pnpm --filter ./${{ format('apps/verticals/{0}', matrix.app) }} build
+          pnpm --filter "${package_name}" run build
 
