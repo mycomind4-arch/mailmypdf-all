@@ -404,9 +404,47 @@ export async function executeMcpTool(
       ...(typeof position === "number" ? { position } : {}),
     });
 
+    if (document.securityStatus === "quarantined") {
+      try {
+        const context = await requireAuthenticatedUser(request);
+        const { scanQuarantinedDocumentNow } = await import(
+          "@/lib/secure-core/scanner.server"
+        );
+        await scanQuarantinedDocumentNow(document.id, context.user.id);
+      } catch {
+        // Keep the upload successful and quarantined. The scheduled scanner is
+        // the durable retry path if the interactive scanner is unavailable.
+      }
+    }
+
+    let refreshed:
+      | {
+          document?: {
+            securityStatus?: string;
+            readiness?: string;
+            usable?: boolean;
+          };
+        }
+      | null = null;
+    try {
+      refreshed = await getOwnedDocumentStatus(request, document.id);
+    } catch {
+      // The canonical matter/status endpoint can still be checked by the
+      // client; never turn a successful quarantine intake into a failed upload
+      // merely because the status refresh could not be read.
+    }
+
+    const securityStatus =
+      refreshed?.document?.securityStatus ?? document.securityStatus;
+    const readiness =
+      refreshed?.document?.readiness ??
+      classifyDocumentReadiness(securityStatus, refreshed?.document?.usable === true);
+
     return {
       document: {
         ...document,
+        securityStatus,
+        readiness,
         role,
         evidenceKind,
         sourceFileId: downloaded.sourceFileId,
@@ -415,9 +453,11 @@ export async function executeMcpTool(
       },
       attached: attachedPayload,
       nextAction:
-        document.securityStatus === "clean"
-          ? "The document is cleared for workflow analysis."
-          : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
+        readiness === "ready"
+          ? "The document is clean and cleared for workflow analysis."
+          : readiness === "rejected"
+            ? "The document failed security validation. Ask the user for a different file."
+            : "The document remains quarantined or scanning. Call get_document_status before analysis.",
     };
   }
 
