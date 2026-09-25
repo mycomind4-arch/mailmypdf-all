@@ -7,7 +7,6 @@ import {
   MCP_PROTOCOL_VERSION,
   getMcpTool,
 } from "./tool-catalog";
-import { executeMcpTool, McpToolExecutionError } from "./workflow-tools.server";
 
 type JsonRpcRequest = {
   jsonrpc?: unknown;
@@ -227,11 +226,13 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     const authResponse = await requireToolAuth(request, toolName);
     if (authResponse) return authResponse;
 
+    const workflowTools = await import("./workflow-tools.server");
+
     try {
-      const value = await executeMcpTool(request, toolName, params.arguments ?? {});
+      const value = await workflowTools.executeMcpTool(request, toolName, params.arguments ?? {});
       return json(rpcResult(message.id, completeToolResult(value)));
     } catch (error) {
-      if (error instanceof McpToolExecutionError) {
+      if (error instanceof workflowTools.McpToolExecutionError) {
         if (error.status === 401) {
           return json(
             rpcError(message.id, -32001, "MailMyPDF account connection required"),
