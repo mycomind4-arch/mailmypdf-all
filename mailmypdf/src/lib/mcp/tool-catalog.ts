@@ -1,15 +1,13 @@
 export const MCP_CONNECTOR_VERSION = "0.1.0";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
-export const MCP_SCOPES = {
-  PROFILE_READ: "profile:read",
-  WORKFLOW_READ: "workflow:read",
-  MATTER_READ: "matter:read",
-  MATTER_WRITE: "matter:write",
-  DOCUMENT_WRITE: "documents:write",
-  MAIL_PREPARE: "mail:prepare",
-  MAIL_APPROVE: "mail:approve",
-} as const;
+/**
+ * Supabase Auth currently supports the standard OAuth/OIDC scopes below.
+ * Fine-grained MailMyPDF authorization stays server-side through RLS, matter
+ * ownership, workflow policy, and exact packet approval rather than inventing
+ * OAuth scopes the authorization server cannot issue.
+ */
+export const MCP_OAUTH_SCOPES = ["email", "profile"] as const;
 
 type JsonSchema = Readonly<Record<string, unknown>>;
 
@@ -97,7 +95,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       "Return the MailMyPDF account currently connected to this MCP request. Use to confirm which account owns new matters and documents.",
     inputSchema: objectSchema({}),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.PROFILE_READ),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     _meta: { "openai/profile": true },
   },
   {
@@ -113,7 +111,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["workflow_id", "section_id"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_WRITE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "get_matter",
@@ -122,7 +120,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       "Load an owner-scoped MailMyPDF matter and its attached document metadata.",
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_READ),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "save_matter_input",
@@ -141,7 +139,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["matter_id", "input"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_WRITE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "analyze_matter",
@@ -150,7 +148,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       "Run the registered MailMyPDF workflow analysis on the matter's clean source document. Document-first workflows require a previously uploaded and attached clean source document.",
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_WRITE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "generate_draft",
@@ -159,7 +157,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       "Generate a draft from the matter's validated facts, analysis, and clean documents. The generated text is returned for review and is not approved or mailed.",
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_WRITE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "save_draft",
@@ -174,7 +172,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["matter_id", "body_text"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_WRITE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "preview_packet",
@@ -189,7 +187,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["matter_id", "mail_class"],
     ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MATTER_READ, MCP_SCOPES.MAIL_PREPARE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "approve_packet",
@@ -207,7 +205,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["matter_id", "expected_packet_sha256", "expected_total_cents", "recipient", "mail_class"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    securitySchemes: oauth(MCP_SCOPES.MAIL_APPROVE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
     name: "prepare_checkout",
@@ -223,7 +221,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       ["matter_id", "approval_id", "sender"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    securitySchemes: oauth(MCP_SCOPES.MAIL_PREPARE, MCP_SCOPES.MAIL_APPROVE),
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
 ] as const;
 
