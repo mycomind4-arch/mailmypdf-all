@@ -36,29 +36,42 @@ The connector intentionally does **not** expose a raw-card tool or a model-autho
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
 
-## Authentication status
+## Authentication
 
-Public discovery tools can be tested without an account.
+MailMyPDF uses the existing Supabase Auth user base as the OAuth 2.1 authorization server for remote MCP clients.
 
-Protected tools currently validate the same MailMyPDF bearer token used by the authenticated web app. For public ChatGPT/Claude/Grok account linking, production still needs an OAuth 2.1 authorization server that satisfies the MCP authorization contract and maps the linked identity back to the MailMyPDF account.
+Protected tools validate the resulting Supabase access token through the same server-side `getUser(token)` boundary used by the authenticated web app, so existing owner-scoped RLS remains authoritative.
 
-Configure the resource metadata issuer with:
+The application includes a branded consent route:
 
 ```
-MCP_AUTHORIZATION_SERVER="https://auth.example.com"
+/oauth/consent
 ```
 
-The deployment serves protected-resource metadata at:
+and protected-resource metadata:
 
 ```
 GET /.well-known/oauth-protected-resource
 ```
 
-Do not set `MCP_AUTHORIZATION_SERVER` to an issuer until its tokens are actually accepted and mapped by the MailMyPDF resource server.
+When `SUPABASE_URL` is configured, resource metadata automatically advertises `${SUPABASE_URL}/auth/v1` as the authorization server. `MCP_AUTHORIZATION_SERVER` remains an optional override for unusual deployments.
+
+For the hosted Supabase project, enable:
+
+1. OAuth 2.1 Server.
+2. Authorization Path: `/oauth/consent`.
+3. Dynamic client registration for MCP clients.
+4. Explicit user consent for every new client.
+
+Supabase currently supports the standard `email` and `profile` scopes used by MailMyPDF's protected MCP tools. Application-specific permissions such as matter ownership and exact mailing approval are enforced by MailMyPDF server policy/RLS rather than unsupported custom OAuth scopes.
+
+For local Supabase, the equivalent settings are committed in `mailmypdf/supabase/config.toml`.
+
+Do not treat OAuth consent as authorization to mail. Packet approval and checkout remain separate server-side actions.
 
 ## Next execution milestones
 
-1. Wire production OAuth account linking and scope enforcement.
+1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
 2. Add a secure attachment-ingress tool that copies assistant-provided files into MailMyPDF quarantine/storage instead of trusting temporary third-party URLs.
 3. Add an order-status tool backed by the canonical order/fulfillment records.
 4. Add saved-payment support only after a server-side confirmation design is complete.
