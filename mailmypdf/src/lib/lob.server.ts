@@ -335,6 +335,7 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
         metadata: {
           lob_letter_id: letter.id,
           expected_delivery_date: letter.expected_delivery_date,
+          tracking_number: letter.tracking_number ?? null,
           color: order.color ?? false,
           mail_class: order.mail_class ?? "standard",
         },
