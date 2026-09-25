@@ -1,13 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getSiteOrigin } from "@/lib/site-url";
-import { MCP_SCOPES } from "@/lib/mcp/tool-catalog";
+import { MCP_OAUTH_SCOPES } from "@/lib/mcp/tool-catalog";
 
 export const Route = createFileRoute("/.well-known/oauth-protected-resource")({
   server: {
     handlers: {
       GET: ({ request }) => {
         const origin = getSiteOrigin() ?? new URL(request.url).origin;
-        const authorizationServer = process.env.MCP_AUTHORIZATION_SERVER?.trim();
+        const explicitAuthorizationServer = process.env.MCP_AUTHORIZATION_SERVER?.trim();
+        const supabaseUrl = process.env.SUPABASE_URL?.trim();
+        const authorizationServer =
+          explicitAuthorizationServer ||
+          (supabaseUrl ? new URL("/auth/v1", supabaseUrl.endsWith("/") ? supabaseUrl : `${supabaseUrl}/`).toString().replace(/\/$/, "") : null);
 
         if (!authorizationServer) {
           return Response.json(
@@ -26,7 +30,7 @@ export const Route = createFileRoute("/.well-known/oauth-protected-resource")({
           {
             resource: new URL("/api/mcp", origin).toString(),
             authorization_servers: [authorizationServer],
-            scopes_supported: Object.values(MCP_SCOPES),
+            scopes_supported: [...MCP_OAUTH_SCOPES],
             resource_documentation: new URL("/security", origin).toString(),
           },
           {
