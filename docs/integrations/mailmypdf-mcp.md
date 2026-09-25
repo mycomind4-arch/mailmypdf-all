@@ -21,13 +21,14 @@ For modern requests:
 - `MCP-Protocol-Version: 2026-07-28` identifies the modern protocol;
 - `Mcp-Method` must agree with the JSON-RPC method;
 - `Mcp-Name` must agree with `params.name` for tool calls;
-- `server/discover` advertises capabilities without creating a session;
-- `tools/list` returns deterministic cache hints;
-- discovery/list requests do not load the workflow execution runtime.
+- `server/discover` advertises tool and resource capabilities without creating a session;
+- `tools/list`, `resources/list`, and `resources/read` return deterministic cache hints;
+- modern `resources/read` binds `Mcp-Name` to the requested resource URI;
+- discovery/list/resource requests do not load the workflow execution runtime.
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.5 tool boundary
+## v0.6 tool boundary
 
 Public discovery:
 
@@ -53,6 +54,20 @@ Authenticated matter execution:
 The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
+
+## Packet review app
+
+`preview_packet` now requires the intended recipient as part of the review request and advertises the portable MCP Apps resource:
+
+```
+ui://mailmypdf/packet-review-v1.html
+```
+
+The resource is self-contained `text/html;profile=mcp-app` with no external scripts or network dependencies. Compatible hosts can render the exact quote, mail class, page counts, recipient, packet SHA-256, and recipient SHA-256 before approval. Clients that do not render MCP Apps can still use the same structured preview result and narrate those facts to the user.
+
+The review UI cannot charge, mail, or silently approve. It is intentionally a read-only review surface.
+
+MailMyPDF canonicalizes the reviewed recipient and computes a deterministic SHA-256. `approve_packet` requires the exact `expected_recipient_sha256` returned by `preview_packet`. If the recipient changes after review, approval fails closed and the assistant must build a new preview. This is in addition to the existing server-side packet-hash, quote, and mail-class checks.
 
 ## Secure assistant attachments
 
