@@ -1574,6 +1574,12 @@ export const WORKFLOW_NAV_SECTIONS = [
         "workspaceHref": "/dashboard/workflows/notice-respond/court-summons-response"
       },
       {
+        "slug": "cp14-response",
+        "label": "CP14 Response",
+        "publicHref": "/notice-respond/workflows/cp14-response",
+        "workspaceHref": "/dashboard/workflows/notice-respond/cp14-response"
+      },
+      {
         "slug": "cp2000-response",
         "label": "CP2000 Response",
         "publicHref": "/notice-respond/workflows/cp2000-response",
