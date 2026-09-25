@@ -38,6 +38,36 @@ export function getWorkflowDescriptor(workflowId: string): McpWorkflowDescriptor
   return null;
 }
 
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 2);
+}
+
+const WORKFLOW_TOKEN_FREQUENCY = (() => {
+  const frequency = new Map<string, number>();
+
+  for (const section of WORKFLOW_NAV_SECTIONS) {
+    for (const workflow of section.workflows) {
+      const tokens = new Set([
+        ...tokenize(workflow.slug),
+        ...tokenize(workflow.label),
+      ]);
+      for (const token of tokens) {
+        frequency.set(token, (frequency.get(token) ?? 0) + 1);
+      }
+    }
+  }
+
+  return frequency;
+})();
+
+function exactTokenWeight(token: string): number {
+  const frequency = Math.max(1, WORKFLOW_TOKEN_FREQUENCY.get(token) ?? 1);
+  return 80 + Math.round(160 / frequency);
+}
+
 function scoreMatch(
   queryTokens: readonly string[],
   section: WorkflowNavigationSection,
@@ -46,18 +76,34 @@ function scoreMatch(
   const slug = workflow.slug.toLowerCase();
   const label = workflow.label.toLowerCase();
   const sectionLabel = section.label.toLowerCase();
+  const slugTokens = new Set(tokenize(slug));
+  const labelTokens = new Set(tokenize(label));
+  const sectionTokens = new Set(tokenize(sectionLabel));
   let score = 0;
+  let exactWorkflowTokenMatches = 0;
 
   for (const token of queryTokens) {
-    if (slug === token || label === token) score += 100;
-    if (slug.includes(token)) score += 12;
-    if (label.includes(token)) score += 10;
-    if (sectionLabel.includes(token)) score += 4;
+    if (slug === token || label === token) score += 300;
+
+    if (slugTokens.has(token) || labelTokens.has(token)) {
+      score += exactTokenWeight(token);
+      exactWorkflowTokenMatches += 1;
+    } else {
+      if (slug.includes(token)) score += 12;
+      if (label.includes(token)) score += 10;
+    }
+
+    if (sectionTokens.has(token)) score += 8;
+    else if (sectionLabel.includes(token)) score += 4;
   }
 
+  // Reward workflows that explain more of the user's query without allowing
+  // broad catalog terms to drown out a distinctive notice/form identifier.
+  score += exactWorkflowTokenMatches * exactWorkflowTokenMatches * 12;
+
   const wholeQuery = queryTokens.join(" ");
-  if (wholeQuery && label.includes(wholeQuery)) score += 40;
-  if (wholeQuery && slug.includes(wholeQuery.replaceAll(" ", "-"))) score += 40;
+  if (wholeQuery && label.includes(wholeQuery)) score += 120;
+  if (wholeQuery && slug.includes(wholeQuery.replaceAll(" ", "-"))) score += 120;
   return score;
 }
 
