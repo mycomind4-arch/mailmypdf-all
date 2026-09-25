@@ -109,6 +109,18 @@ function matterWorkflowId(payload: unknown): string {
   return requiredString(matter.workflowId, "matter.workflowId");
 }
 
+export type McpDocumentReadiness = "ready" | "pending_scan" | "rejected" | "unavailable";
+
+export function classifyDocumentReadiness(
+  securityStatus: string,
+  usable: boolean,
+): McpDocumentReadiness {
+  if (usable && securityStatus === "clean") return "ready";
+  if (securityStatus === "rejected") return "rejected";
+  if (securityStatus === "deleting" || securityStatus === "deleted") return "unavailable";
+  return "pending_scan";
+}
+
 function uploadedDocument(payload: unknown): {
   id: string;
   filename: string;
@@ -232,14 +244,7 @@ export async function executeMcpTool(
     const metadata = document as Record<string, unknown>;
     const securityStatus = requiredString(metadata.securityStatus, "document.securityStatus");
     const usable = metadata.usable === true;
-    const readiness =
-      usable && securityStatus === "clean"
-        ? "ready"
-        : securityStatus === "rejected"
-          ? "rejected"
-          : securityStatus === "deleting" || securityStatus === "deleted"
-            ? "unavailable"
-            : "pending_scan";
+    const readiness = classifyDocumentReadiness(securityStatus, usable);
 
     return {
       document: {
