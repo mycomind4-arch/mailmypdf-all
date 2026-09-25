@@ -253,6 +253,10 @@ export async function executeMcpTool(
         orderId: args.order_id,
         expectedPacketSha256: args.expected_packet_sha256,
         expectedTotalCents: args.expected_total_cents,
+        expectedSender: args.expected_sender,
+        expectedRecipient: args.expected_recipient,
+        expectedMailClass: args.expected_mail_class,
+        expectedColor: args.expected_color,
       });
     } catch (error) {
       if (error instanceof McpDirectMailError) {
