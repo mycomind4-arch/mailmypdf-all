@@ -12,7 +12,7 @@ POST /api/mcp
 
 The connector is deliberately an adapter over the existing generic workflow runtime. It does not implement a second matter store, document system, packet builder, pricing engine, payment system, or Lob integration.
 
-## v0.2 tool boundary
+## v0.3 tool boundary
 
 Public discovery:
 
@@ -24,6 +24,7 @@ Authenticated matter execution:
 - `get_profile`
 - `create_matter`
 - `get_matter`
+- `get_order_status`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -66,6 +67,16 @@ Ingress is intentionally not a blind URL fetch:
 
 A user attaching a file is not approval to mail it. `processing_consent` must be true for ingestion, and exact packet approval plus checkout remain separate actions.
 
+## Order and mailing status
+
+`get_order_status` is a read-only account tool for questions such as “did it mail yet?”, “was it delivered?”, or “what tracking information does MailMyPDF have?”
+
+The client can supply either a MailMyPDF `order_id` or an owner-scoped workflow `matter_id`. Workflow orders are authorized by loading the linked matter through the existing user-scoped case boundary. Older non-workflow orders fall back to the authenticated account email. Unauthorized and nonexistent orders both return “not found” so the connector does not reveal another customer's order existence.
+
+The result intentionally exposes only customer-useful facts: canonical order state, amount, mail class, document/page summary, recipient name/city/state, workflow linkage, paid/mailed/expected-delivery dates, provider reference, recorded tracking number, and a sanitized event timeline. It does not return lookup tokens, Stripe session ids, storage paths, raw provider webhook metadata, internal errors, or admin notes.
+
+The tool reads MailMyPDF's canonical status/event records instead of polling Lob on each assistant query. When Lob returns a tracking number during submission, MailMyPDF now retains it in the order event so future status queries can report it. Tracking remains `null` when the provider has not supplied one.
+
 ## Authentication
 
 MailMyPDF uses the existing Supabase Auth user base as the OAuth 2.1 authorization server for remote MCP clients.
@@ -103,9 +114,9 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 
 1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
 2. Exercise `ingest_document` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
-3. Add an order-status tool backed by the canonical order/fulfillment records.
+3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
 4. Add saved-payment support only after a server-side confirmation design is complete.
-5. Add MCP Apps review UI for exact PDF, recipient, service, and price confirmation.
+5. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.
 6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
 
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.

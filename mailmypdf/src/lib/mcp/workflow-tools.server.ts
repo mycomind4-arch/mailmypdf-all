@@ -1,5 +1,6 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
+import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
@@ -181,6 +182,31 @@ export async function executeMcpTool(
       workflowId,
       verticalId: sectionId,
     });
+  }
+
+  if (name === "get_order_status") {
+    const orderId =
+      typeof args.order_id === "string" && args.order_id.trim()
+        ? args.order_id.trim()
+        : undefined;
+    const statusMatterId =
+      typeof args.matter_id === "string" && args.matter_id.trim()
+        ? args.matter_id.trim()
+        : undefined;
+
+    try {
+      return {
+        order: await getOwnedOrderStatus(request, {
+          ...(orderId ? { orderId } : {}),
+          ...(statusMatterId ? { matterId: statusMatterId } : {}),
+        }),
+      };
+    } catch (error) {
+      if (error instanceof McpOrderStatusError) {
+        throw new McpToolExecutionError(error.status, error.message);
+      }
+      throw error;
+    }
   }
 
   const matterId = requiredString(args.matter_id, "matter_id");
