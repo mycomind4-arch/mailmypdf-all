@@ -1,38 +1,56 @@
-import { readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const expectedVerticals = [
-  "appeal-mail",
-  "benefits-appeal",
-  "claim-proof",
-  "code-enforcement",
-  "dispute-mail",
-  "immigration-mail",
-  "legal-defense",
-  "insurance-claims",
-  "notice-respond",
-  "permit-reply",
-  "private-office",
-  "records-request",
-  "small-business",
-  "tenant-reply",
-].sort();
+const repoRoot = process.cwd();
+const registryPath = resolve(repoRoot, "mailmypdf/src/lib/section-registry.ts");
+const registrySource = await readFile(registryPath, "utf8");
 
-const verticalRoot = resolve(process.cwd(), "apps/verticals");
-const entries = await readdir(verticalRoot, { withFileTypes: true });
-const actualVerticals = entries
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name)
-  .sort();
+const expectedSections = [
+  ...registrySource.matchAll(/^\s{4}id: "([^"]+)",$/gm),
+].map((match) => match[1]).sort();
 
-const missing = expectedVerticals.filter((name) => !actualVerticals.includes(name));
-const unexpected = actualVerticals.filter((name) => !expectedVerticals.includes(name));
-
-if (missing.length || unexpected.length) {
-  console.error("MailMyPDF product topology drift detected.");
-  if (missing.length) console.error(`Missing canonical verticals: ${missing.join(", ")}`);
-  if (unexpected.length) console.error(`Unexpected vertical directories: ${unexpected.join(", ")}`);
+if (expectedSections.length !== 15) {
+  console.error(`Canonical section registry must contain 15 sections; found ${expectedSections.length}.`);
   process.exit(1);
 }
 
-console.log(`Product topology verified: ${actualVerticals.length} canonical verticals.`);
+const requiredEntries = ["config.ts", "index.tsx", "workflows"];
+
+async function isSectionDirectory(name) {
+  try {
+    await Promise.all(requiredEntries.map((entry) => access(resolve(repoRoot, name, entry))));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const rootEntries = await readdir(repoRoot, { withFileTypes: true });
+const candidateDirectories = rootEntries
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+
+const actualSections = [];
+for (const name of candidateDirectories) {
+  if (await isSectionDirectory(name)) actualSections.push(name);
+}
+actualSections.sort();
+
+const missing = expectedSections.filter((name) => !actualSections.includes(name));
+const unexpected = actualSections.filter((name) => !expectedSections.includes(name));
+
+if (missing.length || unexpected.length) {
+  console.error("MailMyPDF section topology drift detected.");
+  if (missing.length) console.error(`Missing canonical root sections: ${missing.join(", ")}`);
+  if (unexpected.length) console.error(`Unexpected root section directories: ${unexpected.join(", ")}`);
+  process.exit(1);
+}
+
+for (const legacyId of ["appeal-reply", "notice-response", "debt-defense", "small-business-mail"]) {
+  if (expectedSections.includes(legacyId)) {
+    console.error(`Legacy vertical id leaked into canonical section registry: ${legacyId}`);
+    process.exit(1);
+  }
+}
+
+console.log(`Product topology verified: ${actualSections.length} canonical root sections.`);

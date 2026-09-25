@@ -5,19 +5,21 @@ import test from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
 const ecosystem = fs.readFileSync(path.join(root, "src/components/ecosystem-shell.tsx"), "utf8");
+const sections = fs.readFileSync(path.join(root, "src/lib/section-registry.ts"), "utf8");
 const workflowNavigation = fs.readFileSync(path.join(root, "src/lib/workflow-navigation.ts"), "utf8");
 
-test("public product navigation covers every canonical workflow section", () => {
-  const productSlugs = [...ecosystem.matchAll(/slug: "([^"]+)"/g)]
-    .map((match) => match[1])
-    .filter((slug) => slug !== "mailmypdf")
-    .sort();
-
-  const sectionIds = [...workflowNavigation.matchAll(/^\s{4}"id": "([^"]+)"/gm)]
+test("public products and authenticated workflow navigation share the canonical section topology", () => {
+  const canonicalIds = [...sections.matchAll(/^\s{4}id: "([^"]+)",$/gm)]
     .map((match) => match[1])
     .sort();
 
-  assert.deepEqual(productSlugs, sectionIds);
-  assert.equal(sectionIds.length, 15);
-  assert.ok(productSlugs.includes("secured-transactions"));
+  const workflowSectionIds = [...workflowNavigation.matchAll(/^\s{4}"id": "([^"]+)"/gm)]
+    .map((match) => match[1])
+    .sort();
+
+  assert.deepEqual(workflowSectionIds, canonicalIds);
+  assert.equal(canonicalIds.length, 15);
+  assert.ok(canonicalIds.includes("secured-transactions"));
+  assert.match(ecosystem, /import \{ SECTION_REGISTRY \} from "@\/lib\/section-registry"/);
+  assert.match(ecosystem, /\.\.\.SECTION_REGISTRY\.map\(\(section\) => \(\{/);
 });
