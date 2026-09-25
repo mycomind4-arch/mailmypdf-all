@@ -387,19 +387,30 @@ export async function ingestDirectPdf(
     context,
   );
 
-  const readiness = classifyDocumentReadiness(
-    registered.security_status,
-    registered.security_status === "clean",
-  );
+  if (registered.security_status === "quarantined") {
+    try {
+      const { scanQuarantinedDocumentNow } = await import(
+        "@/lib/secure-core/scanner.server"
+      );
+      await scanQuarantinedDocumentNow(registered.id, context.user.id);
+    } catch {
+      // Interactive scanning is a latency optimization, not a trust bypass.
+      // A failed attempt leaves the row quarantined for the scheduled scanner.
+    }
+  }
+
+  const current = await secureDocument(context, registered.id);
+  const usable = documentUsable(current);
+  const readiness = classifyDocumentReadiness(current.security_status, usable);
 
   return {
     document: {
-      documentId: registered.id,
-      filename: registered.safe_filename,
-      mimeType: registered.mime_type,
-      sizeBytes: registered.size_bytes,
-      sha256: registered.sha256,
-      securityStatus: registered.security_status,
+      documentId: current.id,
+      filename: current.safe_filename,
+      mimeType: current.mime_type,
+      sizeBytes: current.size_bytes,
+      sha256: current.sha256,
+      securityStatus: current.security_status,
       readiness,
       sourceFileId: downloaded.sourceFileId,
       sourceHost: downloaded.sourceHost,
@@ -407,7 +418,9 @@ export async function ingestDirectPdf(
     nextAction:
       readiness === "ready"
         ? "The PDF is clean. Prepare the direct-mail order."
-        : "The PDF is quarantined. Check get_document_status with document_id until it is ready.",
+        : readiness === "rejected"
+          ? "The PDF failed security validation. Ask the user for a different file."
+          : "The PDF remains quarantined or scanning. Check get_document_status with document_id until it is ready.",
   };
 }
 
