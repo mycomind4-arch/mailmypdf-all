@@ -216,7 +216,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "approve_direct_pdf_mail",
     title: "Approve exact direct PDF mailing",
     description:
-      "Record explicit user approval of the exact direct-mail PDF hash and exact quoted price. Call only after the user has reviewed the PDF/recipient/mail class/price returned by prepare_direct_pdf_mail.",
+      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings currently on the prepared order. Call only after the user has reviewed those exact details returned by prepare_direct_pdf_mail.",
     inputSchema: objectSchema(
       {
         order_id: string("MailMyPDF direct-mail order id."),
@@ -232,7 +232,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "prepare_direct_pdf_checkout",
     title: "Prepare checkout for approved direct PDF mailing",
     description:
-      "Create or reuse a Stripe-hosted checkout URL for an already approved direct-mail PDF. The server re-verifies the approved PDF hash and price before creating checkout. Raw card data never passes through MCP.",
+      "Create or reuse a Stripe-hosted checkout URL for an already approved direct-mail PDF. The server re-verifies the immutable mailing snapshot, PDF hash, and price before creating checkout. Raw card data never passes through MCP.",
     inputSchema: objectSchema(
       {
         order_id: string("Approved MailMyPDF direct-mail order id."),
