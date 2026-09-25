@@ -7,6 +7,7 @@ import {
   MCP_PROTOCOL_VERSION,
   getMcpTool,
 } from "./tool-catalog";
+import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
 
 type JsonRpcRequest = {
   jsonrpc?: unknown;
@@ -67,14 +68,18 @@ function validateModernHeaders(request: Request, message: JsonRpcRequest): Respo
     return json(rpcError(message.id, -32020, "Mcp-Method header does not match the JSON-RPC method"), 400);
   }
 
-  if (method === "tools/call") {
+  if (method === "tools/call" || method === "resources/read") {
     const params = message.params && typeof message.params === "object" && !Array.isArray(message.params)
       ? message.params as Record<string, unknown>
       : {};
-    const name = typeof params.name === "string" ? params.name : "";
+    const expectedName =
+      method === "tools/call"
+        ? (typeof params.name === "string" ? params.name : "")
+        : (typeof params.uri === "string" ? params.uri : "");
     const headerName = request.headers.get("mcp-name");
-    if (!headerName || headerName !== name) {
-      return json(rpcError(message.id, -32020, "Mcp-Name header does not match the tool name"), 400);
+    if (!headerName || headerName !== expectedName) {
+      const label = method === "tools/call" ? "tool name" : "resource URI";
+      return json(rpcError(message.id, -32020, `Mcp-Name header does not match the ${label}`), 400);
     }
   }
 
@@ -177,7 +182,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
 
     return json(rpcResult(message.id, {
       protocolVersion: requested === MCP_PROTOCOL_VERSION ? MCP_PROTOCOL_VERSION : requested,
-      capabilities: { tools: { listChanged: false } },
+      capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
       serverInfo: { name: "MailMyPDF", version: MCP_CONNECTOR_VERSION },
       instructions:
         "Use MailMyPDF to find document workflows, create owner-scoped matters, generate reviewable drafts, preview exact mailing packets, record explicit approval, and prepare secure checkout. Never claim a document was paid or mailed unless MailMyPDF returns that state.",
@@ -187,11 +192,21 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
   if (message.method === "server/discover") {
     return json(rpcResult(message.id, {
       resultType: "complete",
-      protocolVersion: MCP_PROTOCOL_VERSION,
-      capabilities: { tools: {} },
-      serverInfo: { name: "MailMyPDF", version: MCP_CONNECTOR_VERSION },
+      supportedVersions: [MCP_PROTOCOL_VERSION],
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { listChanged: false },
+      },
       instructions:
         "Use explicit packet review and approval before checkout. MailMyPDF never accepts raw payment-card data through MCP.",
+      ttlMs: 300_000,
+      cacheScope: "public",
+      _meta: {
+        "io.modelcontextprotocol/serverInfo": {
+          name: "MailMyPDF",
+          version: MCP_CONNECTOR_VERSION,
+        },
+      },
     }));
   }
 
@@ -203,6 +218,47 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     return json(rpcResult(message.id, {
       resultType: "complete",
       tools: MAILMYPDF_MCP_TOOLS,
+      ttlMs: 300_000,
+      cacheScope: "public",
+    }));
+  }
+
+  if (message.method === "resources/list") {
+    return json(rpcResult(message.id, {
+      resultType: "complete",
+      resources: [{
+        uri: PACKET_REVIEW_RESOURCE.uri,
+        name: PACKET_REVIEW_RESOURCE.name,
+        title: PACKET_REVIEW_RESOURCE.title,
+        description: PACKET_REVIEW_RESOURCE.description,
+        mimeType: PACKET_REVIEW_RESOURCE.mimeType,
+      }],
+      ttlMs: 300_000,
+      cacheScope: "public",
+    }));
+  }
+
+  if (message.method === "resources/read") {
+    const params =
+      message.params && typeof message.params === "object" && !Array.isArray(message.params)
+        ? message.params as Record<string, unknown>
+        : null;
+    const uri = params && typeof params.uri === "string" ? params.uri : "";
+    if (!uri) {
+      return json(rpcError(message.id, -32602, "resources/read requires a resource URI"), 400);
+    }
+    if (uri !== PACKET_REVIEW_RESOURCE.uri) {
+      return json(rpcError(message.id, -32602, "Unknown resource URI"), 404);
+    }
+
+    return json(rpcResult(message.id, {
+      resultType: "complete",
+      contents: [{
+        uri: PACKET_REVIEW_RESOURCE.uri,
+        mimeType: PACKET_REVIEW_RESOURCE.mimeType,
+        text: PACKET_REVIEW_RESOURCE.text,
+        _meta: PACKET_REVIEW_RESOURCE._meta,
+      }],
       ttlMs: 300_000,
       cacheScope: "public",
     }));
