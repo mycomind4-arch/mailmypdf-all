@@ -12,7 +12,22 @@ POST /api/mcp
 
 The connector is deliberately an adapter over the existing generic workflow runtime. It does not implement a second matter store, document system, packet builder, pricing engine, payment system, or Lob integration.
 
-## v0.4 tool boundary
+## Protocol compatibility
+
+The HTTP endpoint serves the modern MCP `2026-07-28` stateless shape and keeps the legacy initialize path for older clients.
+
+For modern requests:
+
+- `MCP-Protocol-Version: 2026-07-28` identifies the modern protocol;
+- `Mcp-Method` must agree with the JSON-RPC method;
+- `Mcp-Name` must agree with `params.name` for tool calls;
+- `server/discover` advertises capabilities without creating a session;
+- `tools/list` returns deterministic cache hints;
+- discovery/list requests do not load the workflow execution runtime.
+
+MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
+
+## v0.5 tool boundary
 
 Public discovery:
 
@@ -117,6 +132,8 @@ For the hosted Supabase project, enable:
 2. Authorization Path: `/oauth/consent`.
 3. Dynamic client registration for MCP clients.
 4. Explicit user consent for every new client.
+
+Dynamic client registration is currently the Supabase-supported compatibility route for self-registering MCP clients. The MCP 2026 specification deprecates DCR in favor of Client ID Metadata Documents, so this integration should migrate when the authorization platform exposes a compatible CIMD path.
 
 Supabase currently supports the standard `email` and `profile` scopes used by MailMyPDF's protected MCP tools. Application-specific permissions such as matter ownership and exact mailing approval are enforced by MailMyPDF server policy/RLS rather than unsupported custom OAuth scopes.
 
