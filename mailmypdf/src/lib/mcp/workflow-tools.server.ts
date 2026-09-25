@@ -216,6 +216,54 @@ export async function executeMcpTool(
     return callRuntime(request, base, "GET");
   }
 
+  if (name === "get_document_status") {
+    const documentId = requiredString(args.document_id, "document_id");
+    const matterPayload = object(await callRuntime(request, base, "GET"), "matter response");
+    const documents = Array.isArray(matterPayload.documents) ? matterPayload.documents : [];
+    const document = documents.find((candidate) => {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+      return (candidate as Record<string, unknown>).documentId === documentId;
+    });
+
+    if (!document || typeof document !== "object" || Array.isArray(document)) {
+      throw new McpToolExecutionError(404, "Document not found on this matter");
+    }
+
+    const metadata = document as Record<string, unknown>;
+    const securityStatus = requiredString(metadata.securityStatus, "document.securityStatus");
+    const usable = metadata.usable === true;
+    const readiness =
+      usable && securityStatus === "clean"
+        ? "ready"
+        : securityStatus === "rejected"
+          ? "rejected"
+          : securityStatus === "deleting" || securityStatus === "deleted"
+            ? "unavailable"
+            : "pending_scan";
+
+    return {
+      document: {
+        documentId,
+        filename: typeof metadata.filename === "string" ? metadata.filename : null,
+        mimeType: typeof metadata.mimeType === "string" ? metadata.mimeType : null,
+        sizeBytes: typeof metadata.sizeBytes === "number" ? metadata.sizeBytes : null,
+        role: typeof metadata.role === "string" ? metadata.role : null,
+        securityStatus,
+        usable,
+        readiness,
+      },
+      analysisAllowed: readiness === "ready",
+      nextAction:
+        readiness === "ready"
+          ? "The document is clean and may be analyzed."
+          : readiness === "rejected"
+            ? "The document failed security validation and must not be analyzed. Ask the user for a different file."
+            : readiness === "unavailable"
+              ? "The document is unavailable and must be replaced before analysis."
+              : "The document is still in quarantine or scanning. Check this status again before analysis.",
+    };
+  }
+
   if (name === "ingest_document") {
     if (args.processing_consent !== true) {
       throw new McpToolExecutionError(
