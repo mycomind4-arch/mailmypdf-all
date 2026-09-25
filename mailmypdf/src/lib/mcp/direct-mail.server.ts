@@ -554,6 +554,10 @@ export async function approveDirectPdfMail(
     orderId: unknown;
     expectedPacketSha256: unknown;
     expectedTotalCents: unknown;
+    expectedSender: unknown;
+    expectedRecipient: unknown;
+    expectedMailClass: unknown;
+    expectedColor: unknown;
   },
 ) {
   const context = await requireAccount(request);
@@ -578,8 +582,27 @@ export async function approveDirectPdfMail(
   ) {
     throw new McpDirectMailError(400, "expected_total_cents must be a non-negative integer");
   }
+  const expectedSender = parseAddress(input.expectedSender, "expected_sender");
+  const expectedRecipient = parseAddress(input.expectedRecipient, "expected_recipient");
+  const expectedMailClass = parseMailClass(input.expectedMailClass);
+  if (typeof input.expectedColor !== "boolean") {
+    throw new McpDirectMailError(400, "expected_color must be a boolean");
+  }
+  const expectedColor = input.expectedColor;
 
   const order = await requireDirectOrder(orderId, context);
+  const reviewedMailing = {
+    sender: expectedSender,
+    recipient: expectedRecipient,
+    mailClass: expectedMailClass,
+    color: expectedColor,
+  };
+  if (JSON.stringify(reviewedMailing) !== JSON.stringify(mailingSnapshot(order))) {
+    throw new McpDirectMailError(
+      409,
+      "The sender, recipient, mail class, or color setting changed after review. Review the current mailing details before approving.",
+    );
+  }
   const approvalMetadata = await directApprovalEvent(orderId, context.user.id);
   if (!approvalSnapshotMatches(order, approvalMetadata)) {
     throw new McpDirectMailError(
