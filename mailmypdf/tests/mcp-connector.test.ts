@@ -15,7 +15,7 @@ import {
   findWorkflowMatches,
   getWorkflowDescriptor,
 } from "../src/lib/mcp/workflow-catalog";
-import { classifyDocumentReadiness } from "../src/lib/mcp/workflow-tools.server";
+import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
