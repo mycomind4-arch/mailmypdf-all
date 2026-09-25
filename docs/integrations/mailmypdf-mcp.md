@@ -98,7 +98,9 @@ The readiness result is deliberately small:
 - `rejected` when security validation fails;
 - `unavailable` when deletion has started or completed.
 
-The tool reads only the owner-scoped matter snapshot. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
+Interactive MCP ingestion makes a best-effort immediate claim of the just-uploaded, owner-scoped document and runs the exact same structural + malware scanner pipeline used by the scheduled job. This normally lets a chat continue without waiting for the GitHub Actions scan interval. If the scanner service is unavailable or the immediate pass fails, the scanner code returns the record to `quarantined`; the scheduled secure-core scan remains the durable retry path. A scan failure never makes the document usable.
+
+The tool reads only owner-scoped document/matter metadata. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
 
 ## Direct PDF mailing from chat
 
