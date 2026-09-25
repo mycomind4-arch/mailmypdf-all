@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -29,9 +31,13 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("preview_packet"));
   assert.ok(names.includes("approve_packet"));
   assert.ok(names.includes("prepare_checkout"));
+  assert.ok(names.includes("ingest_direct_pdf"));
+  assert.ok(names.includes("prepare_direct_pdf_mail"));
+  assert.ok(names.includes("approve_direct_pdf_mail"));
+  assert.ok(names.includes("prepare_direct_pdf_checkout"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
-  assert.ok(names.length <= 15);
+  assert.ok(names.length <= 20);
 });
 
 test("public discovery tools do not require account authorization", () => {
@@ -109,6 +115,39 @@ test("ingest_document exposes the exact ChatGPT file-parameter shape", () => {
   assert.deepEqual([...(file.required ?? [])].sort(), ["download_url", "file_id"]);
 });
 
+test("direct PDF ingestion uses the same assistant file parameter contract", () => {
+  const ingest = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "ingest_direct_pdf");
+  assert.ok(ingest);
+  assert.deepEqual(ingest._meta?.["openai/fileParams"], ["file"]);
+
+  const schema = ingest.inputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["file", "processing_consent"]);
+  assert.deepEqual([...(schema.required ?? [])].sort(), ["file", "processing_consent"]);
+});
+
+test("direct PDF mailing keeps preparation, approval, and checkout as separate tools", () => {
+  const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_mail");
+  const approve = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "approve_direct_pdf_mail");
+  const checkout = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_checkout");
+  assert.ok(prepare);
+  assert.ok(approve);
+  assert.ok(checkout);
+
+  const approveRequired = (approve.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...approveRequired].sort(), [
+    "expected_packet_sha256",
+    "expected_total_cents",
+    "order_id",
+  ]);
+  assert.equal(prepare.annotations.destructiveHint, false);
+  assert.equal(approve.annotations.destructiveHint, false);
+  assert.equal(checkout.annotations.destructiveHint, false);
+  assert.equal(checkout.annotations.openWorldHint, true);
+});
+
 test("remote attachment URLs reject local/private/nonstandard targets", () => {
   assert.throws(() => validateRemoteDocumentUrl("http://files.example.com/file.pdf"), /public HTTPS/i);
   assert.throws(() => validateRemoteDocumentUrl("https://127.0.0.1/file.pdf"), /public HTTPS|public DNS/i);
@@ -174,7 +213,7 @@ test("assistant file redirects are revalidated before following", async () => {
 });
 
 
-test("get_document_status is read-only and requires matter plus document identity", () => {
+test("get_document_status is read-only and supports workflow or standalone secure documents", () => {
   const statusTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_document_status");
   assert.ok(statusTool);
   assert.equal(statusTool.annotations.readOnlyHint, true);
@@ -186,7 +225,7 @@ test("get_document_status is read-only and requires matter plus document identit
     required?: string[];
   };
   assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["document_id", "matter_id"]);
-  assert.deepEqual([...(schema.required ?? [])].sort(), ["document_id", "matter_id"]);
+  assert.deepEqual([...(schema.required ?? [])].sort(), ["document_id"]);
   assert.equal(MCP_PROTECTED_TOOL_NAMES.has("get_document_status"), true);
 });
 
@@ -357,10 +396,13 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 15);
+  assert.equal(payload.result.tools.length, 19);
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_packet"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_mail"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "approve_direct_pdf_mail"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_checkout"));
 });
 
 test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata", async () => {
@@ -386,4 +428,27 @@ test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata
   assert.match(challenge, /^Bearer /);
   assert.match(challenge, /resource_metadata="https:\/\/mailmypdf\.ai\/\.well-known\/oauth-protected-resource"/);
   assert.match(challenge, /scope="email profile"/);
+});
+
+
+test("direct-mail payment and fulfillment keep immutable approval checks downstream", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const paymentWebhook = fs.readFileSync(
+    path.join(root, "src/routes/api/public/payments/webhook.ts"),
+    "utf8",
+  );
+  const lob = fs.readFileSync(path.join(root, "src/lib/lob.server.ts"), "utf8");
+  const directMail = fs.readFileSync(path.join(root, "src/lib/mcp/direct-mail.server.ts"), "utf8");
+
+  assert.match(paymentWebhook, /order\.approved_price_cents !== null/);
+  assert.match(paymentWebhook, /session\.amount_total !== expectedAmount/);
+
+  assert.match(lob, /assertApprovedOrderPdfHash\(order, supabaseAdmin\)/);
+  assert.match(lob, /fulfillment\.packet_hash_mismatch/);
+  assert.match(lob, /Approved mailing PDF changed after approval/);
+
+  assert.match(directMail, /approved_packet_sha256: currentHash/);
+  assert.match(directMail, /approved_price_cents: totalCents/);
+  assert.match(directMail, /idempotency_key/);
+  assert.match(directMail, /mcp\.direct_mail\.prepared/);
 });
