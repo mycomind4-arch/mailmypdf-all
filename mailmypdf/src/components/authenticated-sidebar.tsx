@@ -185,7 +185,7 @@ function WorkflowNavigator({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search 420 workflows..."
+              placeholder={`Search ${WORKFLOW_NAV_COUNT} workflows...`}
               className="h-9 w-full rounded-md border border-white/10 bg-black/15 pl-8 pr-2 text-xs text-white outline-none placeholder:text-white/30 focus:border-white/25"
             />
           </label>
