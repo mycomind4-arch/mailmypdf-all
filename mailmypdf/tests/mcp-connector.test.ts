@@ -450,12 +450,12 @@ test("direct-mail payment and fulfillment keep immutable approval checks downstr
   assert.match(lob, /assertApprovedOrderIntegrity\(order, supabaseAdmin\)/);
   assert.match(lob, /fulfillment\.packet_hash_mismatch/);
   assert.match(lob, /Approved mailing PDF changed after approval/);
-  assert.match(lob, /fulfillment\\.approval_snapshot_mismatch/);
+  assert.match(lob, /fulfillment\.approval_snapshot_mismatch/);
   assert.match(lob, /Direct-mail details changed after approval/);
 
   assert.match(directMail, /approved_packet_sha256: currentHash/);
   assert.match(directMail, /approved_price_cents: totalCents/);
-  assert.match(directMail, /mailing_snapshot: mailingSnapshot\\(order\\)/);
+  assert.match(directMail, /mailing_snapshot: mailingSnapshot\(order\)/);
   assert.match(
     directMail,
     /JSON\.stringify\(reviewedMailing\) !== JSON\.stringify\(mailingSnapshot\(order\)\)/,
