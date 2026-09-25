@@ -233,34 +233,92 @@ export function mapLobStatusToOrderStatus(
   }
 }
 
-async function assertApprovedOrderPdfHash(
-  order: { id: string; pdf_storage_path: string; approved_packet_sha256?: string | null },
+function directMailSnapshot(order: any) {
+  return {
+    sender: {
+      name: order.sender_name,
+      line1: order.sender_line1,
+      line2: order.sender_line2,
+      city: order.sender_city,
+      state: order.sender_state,
+      postal: order.sender_postal,
+    },
+    recipient: {
+      name: order.recipient_name,
+      line1: order.recipient_line1,
+      line2: order.recipient_line2,
+      city: order.recipient_city,
+      state: order.recipient_state,
+      postal: order.recipient_postal,
+    },
+    mailClass: order.mail_class ?? "standard",
+    color: order.color ?? false,
+  };
+}
+
+async function assertApprovedOrderIntegrity(
+  order: any,
   supabaseAdmin: any,
 ): Promise<void> {
-  if (!order.approved_packet_sha256) return;
+  if (order.approved_packet_sha256) {
+    const { data, error } = await supabaseAdmin.storage
+      .from("order-pdfs")
+      .download(order.pdf_storage_path);
+    if (error || !data) {
+      throw new Error("Approved mailing PDF is unavailable for integrity verification");
+    }
 
-  const { data, error } = await supabaseAdmin.storage
-    .from("order-pdfs")
-    .download(order.pdf_storage_path);
-  if (error || !data) {
-    throw new Error("Approved mailing PDF is unavailable for integrity verification");
+    const { computeSha256 } = await import("@mailmypdf/documents");
+    const actualSha256 = computeSha256(new Uint8Array(await data.arrayBuffer()));
+    if (actualSha256 !== order.approved_packet_sha256) {
+      await supabaseAdmin.from("order_events").insert({
+        order_id: order.id,
+        type: "fulfillment.packet_hash_mismatch",
+        label: "Approved PDF hash did not match before provider submission",
+        metadata: {
+          expected_packet_sha256: order.approved_packet_sha256,
+          actual_packet_sha256: actualSha256,
+        },
+      });
+
+      throw new Error("Approved mailing PDF changed after approval; provider submission blocked");
+    }
   }
 
-  const { computeSha256 } = await import("@mailmypdf/documents");
-  const actualSha256 = computeSha256(new Uint8Array(await data.arrayBuffer()));
-  if (actualSha256 === order.approved_packet_sha256) return;
+  // Workflow orders bind recipient/service in case_approvals. Direct MCP orders
+  // bind those fields in an immutable approval event because they have no case.
+  const { data: directEvents, error: directEventError } = await supabaseAdmin
+    .from("order_events")
+    .select("type,metadata")
+    .eq("order_id", order.id)
+    .in("type", ["mcp.direct_mail.prepared", "mcp.direct_mail.approved"]);
+  if (directEventError) throw new Error("Could not verify direct-mail approval state");
+
+  const isDirectMail = (directEvents ?? []).some((event: any) => event.type === "mcp.direct_mail.prepared");
+  if (!isDirectMail) return;
+
+  const approval = (directEvents ?? []).find((event: any) => event.type === "mcp.direct_mail.approved");
+  const metadata = approval?.metadata;
+  const valid =
+    metadata &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    metadata.packet_sha256 === order.approved_packet_sha256 &&
+    metadata.total_cents === order.approved_price_cents &&
+    JSON.stringify(metadata.mailing_snapshot) === JSON.stringify(directMailSnapshot(order));
+
+  if (valid) return;
 
   await supabaseAdmin.from("order_events").insert({
     order_id: order.id,
-    type: "fulfillment.packet_hash_mismatch",
-    label: "Approved PDF hash did not match before provider submission",
+    type: "fulfillment.approval_snapshot_mismatch",
+    label: "Direct-mail approval did not match current mailing details",
     metadata: {
-      expected_packet_sha256: order.approved_packet_sha256,
-      actual_packet_sha256: actualSha256,
+      approved_packet_sha256: order.approved_packet_sha256,
+      approved_price_cents: order.approved_price_cents,
     },
   });
-
-  throw new Error("Approved mailing PDF changed after approval; provider submission blocked");
+  throw new Error("Direct-mail details changed after approval; provider submission blocked");
 }
 
 // Attempts full auto-submit: signs the stored PDF, sends to Lob, updates the
@@ -294,7 +352,7 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
 
   // Approval-bound orders must still contain the exact bytes the user reviewed.
   // This is rechecked immediately before the provider receives a signed URL.
-  await assertApprovedOrderPdfHash(order, supabaseAdmin);
+  await assertApprovedOrderIntegrity(order, supabaseAdmin);
 
   // Signed URL valid for 1 hour — Lob fetches the file server-side.
   const { data: signed, error: signErr } = await supabaseAdmin.storage
