@@ -16,6 +16,7 @@ import {
   getWorkflowDescriptor,
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
+import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
@@ -271,4 +272,118 @@ test("order status normalization exposes tracking facts without raw event metada
   });
   assert.equal(JSON.stringify(normalized).includes("must-not-leak"), false);
   assert.equal(JSON.stringify(normalized).includes("evt_private"), false);
+});
+
+
+function modernMcpRequest(
+  method: string,
+  params: Record<string, unknown> | undefined = undefined,
+  options: { id?: number; name?: string; includeMethodHeader?: boolean } = {},
+): Request {
+  const headers = new Headers({
+    "content-type": "application/json",
+    "mcp-protocol-version": "2026-07-28",
+  });
+  if (options.includeMethodHeader !== false) headers.set("mcp-method", method);
+  if (options.name) headers.set("mcp-name", options.name);
+
+  return new Request("https://mailmypdf.ai/api/mcp", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: options.id ?? 1,
+      method,
+      ...(params ? { params } : {}),
+    }),
+  });
+}
+
+test("modern server/discover advertises the stateless 2026 protocol", async () => {
+  const response = await handleMailMyPdfMcpRequest(
+    modernMcpRequest("server/discover", undefined, { id: 41 }),
+  );
+  assert.equal(response.status, 200);
+
+  const payload = await response.json() as {
+    jsonrpc: string;
+    id: number;
+    result: {
+      resultType: string;
+      protocolVersion: string;
+      capabilities: Record<string, unknown>;
+      serverInfo: { name: string; version: string };
+    };
+  };
+
+  assert.equal(payload.jsonrpc, "2.0");
+  assert.equal(payload.id, 41);
+  assert.equal(payload.result.resultType, "complete");
+  assert.equal(payload.result.protocolVersion, "2026-07-28");
+  assert.equal(payload.result.serverInfo.name, "MailMyPDF");
+  assert.ok(payload.result.capabilities.tools);
+});
+
+test("modern requests reject missing or mismatched Mcp-Method routing headers", async () => {
+  const missing = await handleMailMyPdfMcpRequest(
+    modernMcpRequest("tools/list", undefined, { includeMethodHeader: false }),
+  );
+  assert.equal(missing.status, 400);
+  const missingPayload = await missing.json() as { error: { code: number; message: string } };
+  assert.equal(missingPayload.error.code, -32020);
+  assert.match(missingPayload.error.message, /Mcp-Method/i);
+
+  const mismatch = modernMcpRequest("tools/list");
+  mismatch.headers.set("mcp-method", "server/discover");
+  const mismatched = await handleMailMyPdfMcpRequest(mismatch);
+  assert.equal(mismatched.status, 400);
+  const mismatchPayload = await mismatched.json() as { error: { code: number; message: string } };
+  assert.equal(mismatchPayload.error.code, -32020);
+});
+
+test("modern tools/list returns deterministic cacheable public tool metadata", async () => {
+  const response = await handleMailMyPdfMcpRequest(modernMcpRequest("tools/list"));
+  assert.equal(response.status, 200);
+
+  const payload = await response.json() as {
+    result: {
+      resultType: string;
+      tools: Array<{ name: string }>;
+      ttlMs: number;
+      cacheScope: string;
+    };
+  };
+
+  assert.equal(payload.result.resultType, "complete");
+  assert.equal(payload.result.ttlMs, 300_000);
+  assert.equal(payload.result.cacheScope, "public");
+  assert.equal(payload.result.tools.length, 15);
+  assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "approve_packet"));
+});
+
+test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata", async () => {
+  const missingName = await handleMailMyPdfMcpRequest(
+    modernMcpRequest(
+      "tools/call",
+      { name: "get_matter", arguments: { matter_id: "matter-test" } },
+    ),
+  );
+  assert.equal(missingName.status, 400);
+  const missingNamePayload = await missingName.json() as { error: { code: number } };
+  assert.equal(missingNamePayload.error.code, -32020);
+
+  const protectedCall = await handleMailMyPdfMcpRequest(
+    modernMcpRequest(
+      "tools/call",
+      { name: "get_matter", arguments: { matter_id: "matter-test" } },
+      { name: "get_matter" },
+    ),
+  );
+  assert.equal(protectedCall.status, 401);
+  const challenge = protectedCall.headers.get("www-authenticate") ?? "";
+  assert.match(challenge, /^Bearer /);
+  assert.match(challenge, /resource_metadata="https:\/\/mailmypdf\.ai\/\.well-known\/oauth-protected-resource"/);
+  assert.match(challenge, /scope="email profile"/);
 });
