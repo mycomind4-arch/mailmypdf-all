@@ -27,7 +27,7 @@ For modern requests:
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.5 tool boundary
+## v0.6 tool boundary
 
 Public discovery:
 
@@ -41,6 +41,10 @@ Authenticated matter execution:
 - `get_matter`
 - `get_order_status`
 - `get_document_status`
+- `ingest_direct_pdf`
+- `prepare_direct_pdf_mail`
+- `approve_direct_pdf_mail`
+- `prepare_direct_pdf_checkout`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -96,6 +100,37 @@ The readiness result is deliberately small:
 
 The tool reads only the owner-scoped matter snapshot. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
 
+## Direct PDF mailing from chat
+
+The connector now supports the core MailMyPDF use case without forcing a finished PDF through a specialized workflow.
+
+The expected sequence is:
+
+1. `ingest_direct_pdf` copies the assistant attachment into the same secure quarantine vault used by workflow evidence.
+2. `get_document_status(document_id)` waits for a clean, usable PDF. A workflow matter id is not required for standalone direct mailing.
+3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
+4. The assistant shows the user the PDF identity, recipient, mail class, and price.
+5. Only after explicit confirmation, `approve_direct_pdf_mail` binds the order to that exact SHA-256 and exact price.
+6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
+7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
+8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
+
+Direct-mail preparation requires a client-supplied `idempotency_key`. Retries of the same mailing intent reuse the existing order; intentionally mailing the same PDF again requires a new key.
+
+The direct-mail tools never return the legacy order lookup token and never accept raw card data.
+
+### Direct-mail integrity boundary
+
+Approval is not merely a UI flag.
+
+- `approved_packet_sha256` and `approved_price_cents` are written only after the user confirms the reviewed values.
+- The existing database trigger makes non-null approved hash/price values immutable.
+- The Stripe webhook rejects a completed payment whose amount differs from any stored approved price.
+- Immediately before Lob receives a signed PDF URL, MailMyPDF downloads the stored order PDF and recomputes SHA-256.
+- A hash mismatch records `fulfillment.packet_hash_mismatch` and blocks provider submission.
+
+This means a successful checkout cannot silently authorize changed PDF bytes.
+
 ## Order and mailing status
 
 `get_order_status` is a read-only account tool for questions such as “did it mail yet?”, “was it delivered?”, or “what tracking information does MailMyPDF have?”
@@ -144,10 +179,11 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 ## Next execution milestones
 
 1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
-2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
-3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
-4. Add saved-payment support only after a server-side confirmation design is complete.
-5. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.
-6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
+2. Exercise workflow `ingest_document` and direct-mail `ingest_direct_pdf` against real ChatGPT/Claude/Grok attachment URLs; configure `MCP_REMOTE_FILE_HOSTS` only when stable provider/CDN domains are known.
+3. Exercise the full direct-PDF sandbox path through Stripe checkout, verified webhook, Lob test submission, and `get_order_status`.
+4. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
+5. Add saved-payment support only after a server-side confirmation design is complete.
+6. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.
+7. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
 
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.
