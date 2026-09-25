@@ -1,4 +1,4 @@
-export const MCP_CONNECTOR_VERSION = "0.2.0";
+export const MCP_CONNECTOR_VERSION = "0.3.0";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
 /**
@@ -130,6 +130,24 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     description:
       "Load an owner-scoped MailMyPDF matter and its attached document metadata.",
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
+    name: "get_order_status",
+    title: "Get mailing order status",
+    description:
+      "Read the connected user's MailMyPDF payment and mailing status, sanitized event history, provider reference, and recorded tracking details. Supply an order_id or matter_id. This tool is read-only and never polls or mutates the mail provider.",
+    inputSchema: objectSchema({
+      order_id: {
+        type: "string",
+        description: "Optional MailMyPDF order id. Supply this or matter_id.",
+      },
+      matter_id: {
+        type: "string",
+        description: "Optional owner-scoped workflow matter id. Supply this or order_id.",
+      },
+    }),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
