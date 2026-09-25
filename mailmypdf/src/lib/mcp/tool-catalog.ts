@@ -1,4 +1,4 @@
-export const MCP_CONNECTOR_VERSION = "0.3.0";
+export const MCP_CONNECTOR_VERSION = "0.4.0";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
 /**
@@ -155,15 +155,91 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "get_document_status",
     title: "Get secure document readiness",
     description:
-      "Read the current security/readiness state of one document already attached to an owner-scoped MailMyPDF matter. Use after ingest_document to determine whether scanning has marked the file clean and analysis may proceed. This tool never downloads the stored file and does not expose storage or scanner internals.",
+      "Read the security/readiness state of a MailMyPDF secure document. Supply document_id; include matter_id when the document belongs to a workflow matter. Use after ingest_document or ingest_direct_pdf before analysis or direct mailing. This tool never downloads the stored file and does not expose storage or scanner internals.",
     inputSchema: objectSchema(
       {
-        matter_id: string("Owner-scoped MailMyPDF matter id."),
-        document_id: string("MailMyPDF secure document id returned by ingest_document."),
+        matter_id: {
+          type: "string",
+          description: "Optional owner-scoped workflow matter id. Omit for a standalone direct-mail PDF.",
+        },
+        document_id: string("MailMyPDF secure document id returned by an ingestion tool."),
       },
-      ["matter_id", "document_id"],
+      ["document_id"],
     ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
+    name: "ingest_direct_pdf",
+    title: "Securely ingest a PDF for direct mailing",
+    description:
+      "Copy a user-authorized PDF attachment into MailMyPDF quarantine storage for direct physical mailing without a specialized workflow. The PDF must clear security scanning before an order can be prepared. This tool does not approve, charge, or mail anything.",
+    inputSchema: objectSchema(
+      {
+        file: assistantFileSchema,
+        processing_consent: {
+          type: "boolean",
+          const: true,
+          description: "Must be true only after the user explicitly asks MailMyPDF to process this PDF.",
+        },
+      },
+      ["file", "processing_consent"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    _meta: {
+      "openai/fileParams": ["file"],
+      "openai/toolInvocation/invoking": "Securing PDF…",
+      "openai/toolInvocation/invoked": "PDF quarantined",
+    },
+  },
+  {
+    name: "prepare_direct_pdf_mail",
+    title: "Prepare a direct PDF mailing",
+    description:
+      "Create or reuse an unpaid MailMyPDF draft order from a clean owner-scoped PDF, sender, recipient, mail class, and color choice. Returns the exact PDF SHA-256 and current price for user review. It does not approve, charge, or mail.",
+    inputSchema: objectSchema(
+      {
+        document_id: string("Clean secure document id returned by ingest_direct_pdf."),
+        sender: addressSchema,
+        recipient: addressSchema,
+        mail_class: mailClassSchema,
+        color: { type: "boolean", default: false, description: "Print in color when true." },
+        idempotency_key: string("Stable 8-128 character key for retries of this one mailing intent. Use a new key for an intentional duplicate mailing."),
+      },
+      ["document_id", "sender", "recipient", "mail_class", "idempotency_key"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
+    name: "approve_direct_pdf_mail",
+    title: "Approve exact direct PDF mailing",
+    description:
+      "Record explicit user approval of the exact direct-mail PDF hash and exact quoted price. Call only after the user has reviewed the PDF/recipient/mail class/price returned by prepare_direct_pdf_mail.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("MailMyPDF direct-mail order id."),
+        expected_packet_sha256: string("Exact PDF SHA-256 returned by prepare_direct_pdf_mail."),
+        expected_total_cents: integer("Exact total price in cents returned by prepare_direct_pdf_mail."),
+      },
+      ["order_id", "expected_packet_sha256", "expected_total_cents"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
+    name: "prepare_direct_pdf_checkout",
+    title: "Prepare checkout for approved direct PDF mailing",
+    description:
+      "Create or reuse a Stripe-hosted checkout URL for an already approved direct-mail PDF. The server re-verifies the approved PDF hash and price before creating checkout. Raw card data never passes through MCP.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+      },
+      ["order_id"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
   },
   {
