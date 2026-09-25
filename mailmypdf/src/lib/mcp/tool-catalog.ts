@@ -63,6 +63,17 @@ const mailClassSchema = {
   description: "Requested mailing class.",
 } as const;
 
+const assistantFileSchema = objectSchema(
+  {
+    download_url: string("Temporary HTTPS download URL supplied by the AI client."),
+    file_id: string("Provider file id for provenance and retry handling."),
+    mime_type: { type: "string", description: "Optional provider-reported MIME type." },
+    file_name: { type: "string", description: "Optional original filename." },
+  },
+  ["download_url", "file_id"],
+);
+
+
 export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
   {
     name: "find_workflow",
@@ -121,6 +132,45 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+  },
+  {
+    name: "ingest_document",
+    title: "Securely ingest an attached document",
+    description:
+      "Copy a user-authorized assistant attachment into MailMyPDF quarantine storage and attach it to an owner-scoped matter. Use only when the user has explicitly asked MailMyPDF to process that file. The document remains untrusted until MailMyPDF scanning marks it clean; this tool does not analyze, approve, pay for, or mail anything.",
+    inputSchema: objectSchema(
+      {
+        matter_id: string("MailMyPDF matter id that should own the document."),
+        file: assistantFileSchema,
+        role: {
+          type: "string",
+          enum: ["subject_notice", "evidence"],
+          description: "subject_notice for the primary notice/letter; evidence for supporting material.",
+        },
+        evidence_kind: {
+          type: ["string", "null"],
+          description: "Optional workflow-specific evidence kind when role is evidence.",
+        },
+        position: {
+          type: "integer",
+          minimum: 0,
+          description: "Optional packet/evidence position.",
+        },
+        processing_consent: {
+          type: "boolean",
+          const: true,
+          description: "Must be true only after the user has explicitly asked MailMyPDF to process this attachment.",
+        },
+      },
+      ["matter_id", "file", "role", "processing_consent"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    _meta: {
+      "openai/fileParams": ["file"],
+      "openai/toolInvocation/invoking": "Securing attachment…",
+      "openai/toolInvocation/invoked": "Attachment quarantined",
+    },
   },
   {
     name: "save_matter_input",
