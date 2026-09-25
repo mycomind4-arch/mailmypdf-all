@@ -138,7 +138,11 @@ test("direct PDF mailing keeps preparation, approval, and checkout as separate t
 
   const approveRequired = (approve.inputSchema.required ?? []) as string[];
   assert.deepEqual([...approveRequired].sort(), [
+    "expected_color",
+    "expected_mail_class",
     "expected_packet_sha256",
+    "expected_recipient",
+    "expected_sender",
     "expected_total_cents",
     "order_id",
   ]);
