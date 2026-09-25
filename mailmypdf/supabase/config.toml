@@ -184,6 +184,13 @@ minimum_password_length = 6
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
 
+# OAuth 2.1 authorization server used by remote MCP clients in local/dev setups.
+# Hosted projects must enable the same settings under Authentication > OAuth Server.
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = true
+
 # Configure passkey sign-ins.
 # [auth.passkey]
 # enabled = false

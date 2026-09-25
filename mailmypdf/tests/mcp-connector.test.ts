@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   MAILMYPDF_MCP_TOOLS,
+  MCP_OAUTH_SCOPES,
   MCP_PROTECTED_TOOL_NAMES,
 } from "../src/lib/mcp/tool-catalog";
 import {
@@ -58,4 +59,22 @@ test("workflow discovery resolves canonical workflow and section ids", () => {
 test("secured-transactions workflows are discoverable through the same connector catalog", () => {
   const matches = findWorkflowMatches("secured transaction priority", 20);
   assert.ok(matches.some((match) => match.sectionId === "secured-transactions"));
+});
+
+
+test("protected tools request only OAuth scopes Supabase can issue", () => {
+  assert.deepEqual([...MCP_OAUTH_SCOPES], ["email", "profile"]);
+
+  const protectedScopes = new Set(
+    MAILMYPDF_MCP_TOOLS.flatMap((tool) =>
+      tool.securitySchemes.flatMap((scheme) =>
+        scheme.type === "oauth2" ? [...scheme.scopes] : [],
+      ),
+    ),
+  );
+
+  assert.deepEqual([...protectedScopes].sort(), ["email", "profile"]);
+  for (const unsupported of ["matter:write", "mail:approve", "documents:write"]) {
+    assert.equal(protectedScopes.has(unsupported), false);
+  }
 });
