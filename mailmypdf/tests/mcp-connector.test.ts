@@ -459,3 +459,44 @@ test("direct-mail payment and fulfillment keep immutable approval checks downstr
   assert.match(directMail, /idempotency_key/);
   assert.match(directMail, /mcp\.direct_mail\.prepared/);
 });
+
+
+test("interactive MCP ingestion uses the trusted scanner with scheduled fallback semantics", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const directMail = fs.readFileSync(
+    path.join(root, "src/lib/mcp/direct-mail.server.ts"),
+    "utf8",
+  );
+  const workflowTools = fs.readFileSync(
+    path.join(root, "src/lib/mcp/workflow-tools.server.ts"),
+    "utf8",
+  );
+  const scanner = fs.readFileSync(
+    path.join(root, "src/lib/secure-core/scanner.server.ts"),
+    "utf8",
+  );
+  const migration = fs.readFileSync(
+    path.join(
+      root,
+      "supabase/migrations/20260925171500_claim_single_secure_document_for_scan.sql",
+    ),
+    "utf8",
+  );
+
+  assert.match(directMail, /scanQuarantinedDocumentNow\(registered\.id, context\.user\.id\)/);
+  assert.match(workflowTools, /scanQuarantinedDocumentNow\(document\.id, context\.user\.id\)/);
+  assert.match(scanner, /claim_secure_document_for_scan/);
+  assert.match(scanner, /security_status:\s*document\.deletion_requested_at[\s\S]*?quarantined/);
+
+  assert.match(migration, /d\.id = p_document_id/);
+  assert.match(migration, /d\.owner_id = p_owner_id/);
+  assert.match(migration, /d\.security_status = 'quarantined'/);
+  assert.match(
+    migration,
+    /revoke all on function public\.claim_secure_document_for_scan\(uuid, uuid\)[\s\S]*?from public, anon, authenticated/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.claim_secure_document_for_scan\(uuid, uuid\)[\s\S]*?to service_role/,
+  );
+});
