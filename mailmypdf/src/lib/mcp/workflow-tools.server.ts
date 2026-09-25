@@ -2,6 +2,7 @@ import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
+import { classifyDocumentReadiness } from "./document-readiness";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
 export class McpToolExecutionError extends Error {
@@ -107,18 +108,6 @@ function matterWorkflowId(payload: unknown): string {
   const root = object(payload, "matter response");
   const matter = object(root.matter, "matter");
   return requiredString(matter.workflowId, "matter.workflowId");
-}
-
-export type McpDocumentReadiness = "ready" | "pending_scan" | "rejected" | "unavailable";
-
-export function classifyDocumentReadiness(
-  securityStatus: string,
-  usable: boolean,
-): McpDocumentReadiness {
-  if (usable && securityStatus === "clean") return "ready";
-  if (securityStatus === "rejected") return "rejected";
-  if (securityStatus === "deleting" || securityStatus === "deleted") return "unavailable";
-  return "pending_scan";
 }
 
 function uploadedDocument(payload: unknown): {
