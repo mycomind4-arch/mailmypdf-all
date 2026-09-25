@@ -94,7 +94,7 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Test Authority Gate and catalog topology invariants
-        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
       - name: Reject thin or unverified indexable workflow pages
         run: pnpm --filter ./mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
