@@ -110,7 +110,7 @@ The expected sequence is:
 2. `get_document_status(document_id)` waits for a clean, usable PDF. A workflow matter id is not required for standalone direct mailing.
 3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
 4. The assistant shows the user the PDF identity, recipient, mail class, and price.
-5. Only after explicit confirmation, `approve_direct_pdf_mail` binds the order to that exact SHA-256 and exact price.
+5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them and then records the immutable approval snapshot.
 6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
 7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
 8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
@@ -123,7 +123,7 @@ The direct-mail tools never return the legacy order lookup token and never accep
 
 Approval is not merely a UI flag.
 
-- `approved_packet_sha256` and `approved_price_cents` are written only after the user confirms the reviewed values.
+- `approved_packet_sha256` and `approved_price_cents` are written only after the client echoes the exact reviewed mailing details and the server confirms they still match the prepared order.
 - The existing database trigger makes non-null approved hash/price values immutable.
 - The Stripe webhook rejects a completed payment whose amount differs from any stored approved price.
 - Immediately before Lob receives a signed PDF URL, MailMyPDF downloads the stored order PDF and recomputes SHA-256.
