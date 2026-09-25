@@ -233,6 +233,36 @@ export function mapLobStatusToOrderStatus(
   }
 }
 
+async function assertApprovedOrderPdfHash(
+  order: { id: string; pdf_storage_path: string; approved_packet_sha256?: string | null },
+  supabaseAdmin: any,
+): Promise<void> {
+  if (!order.approved_packet_sha256) return;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from("order-pdfs")
+    .download(order.pdf_storage_path);
+  if (error || !data) {
+    throw new Error("Approved mailing PDF is unavailable for integrity verification");
+  }
+
+  const { computeSha256 } = await import("@mailmypdf/documents");
+  const actualSha256 = computeSha256(new Uint8Array(await data.arrayBuffer()));
+  if (actualSha256 === order.approved_packet_sha256) return;
+
+  await supabaseAdmin.from("order_events").insert({
+    order_id: order.id,
+    type: "fulfillment.packet_hash_mismatch",
+    label: "Approved PDF hash did not match before provider submission",
+    metadata: {
+      expected_packet_sha256: order.approved_packet_sha256,
+      actual_packet_sha256: actualSha256,
+    },
+  });
+
+  throw new Error("Approved mailing PDF changed after approval; provider submission blocked");
+}
+
 // Attempts full auto-submit: signs the stored PDF, sends to Lob, updates the
 // order, and logs order_events. Idempotent — if the order already has a
 // lob_letter_id, we skip. On error we mark for manual fallback and rethrow.
@@ -261,6 +291,10 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
   if (!isSubmittableStatus(currentStatus)) {
     throw new Error(`Order ${orderId} is not in a submittable state (${currentStatus})`);
   }
+
+  // Approval-bound orders must still contain the exact bytes the user reviewed.
+  // This is rechecked immediately before the provider receives a signed URL.
+  await assertApprovedOrderPdfHash(order, supabaseAdmin);
 
   // Signed URL valid for 1 hour — Lob fetches the file server-side.
   const { data: signed, error: signErr } = await supabaseAdmin.storage
