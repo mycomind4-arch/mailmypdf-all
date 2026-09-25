@@ -6,6 +6,7 @@ import {
   MCP_OAUTH_SCOPES,
   MCP_PROTECTED_TOOL_NAMES,
 } from "../src/lib/mcp/tool-catalog";
+import { normalizeOrderStatus } from "../src/lib/mcp/order-status.server";
 import {
   downloadAssistantFile,
   validateRemoteDocumentUrl,
@@ -21,6 +22,7 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("find_workflow"));
   assert.ok(names.includes("create_matter"));
   assert.ok(names.includes("ingest_document"));
+  assert.ok(names.includes("get_order_status"));
   assert.ok(names.includes("generate_draft"));
   assert.ok(names.includes("preview_packet"));
   assert.ok(names.includes("approve_packet"));
@@ -167,4 +169,79 @@ test("assistant file redirects are revalidated before following", async () => {
       ),
     /public HTTPS|public DNS/i,
   );
+});
+
+
+test("get_order_status is read-only and supports order or matter lookup", () => {
+  const statusTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_order_status");
+  assert.ok(statusTool);
+  assert.equal(statusTool.annotations.readOnlyHint, true);
+  assert.equal(statusTool.annotations.destructiveHint, false);
+  assert.equal(statusTool.annotations.openWorldHint, false);
+
+  const schema = statusTool.inputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["matter_id", "order_id"]);
+  assert.deepEqual(schema.required ?? [], []);
+  assert.equal(MCP_PROTECTED_TOOL_NAMES.has("get_order_status"), true);
+});
+
+test("order status normalization exposes tracking facts without raw event metadata", () => {
+  const normalized = normalizeOrderStatus(
+    {
+      id: "order-1",
+      status: "in_transit",
+      workflow_case_id: "matter-1",
+      case_approval_id: "approval-1",
+      approved_packet_sha256: "a".repeat(64),
+      approved_price_cents: 1299,
+      price_cents: 1399,
+      mail_class: "certified",
+      lob_letter_id: "ltr_123",
+      mailed_at: "2026-09-25T12:00:00.000Z",
+      paid_at: "2026-09-25T11:00:00.000Z",
+      created_at: "2026-09-25T10:00:00.000Z",
+      updated_at: "2026-09-25T13:00:00.000Z",
+      scheduled_delivery_date: null,
+      recipient_name: "Example Recipient",
+      recipient_city: "Sacramento",
+      recipient_state: "CA",
+      file_name: "cp14-response.pdf",
+      page_count: 3,
+      vertical_slug: "notice-respond",
+      email: "owner@example.com",
+    },
+    [
+      {
+        type: "lob.submitted",
+        label: "Submitted to Lob for printing & mailing",
+        created_at: "2026-09-25T11:30:00.000Z",
+        metadata: {
+          tracking_number: "9400111899223856928499",
+          expected_delivery_date: "2026-09-29",
+          secret_provider_payload: "must-not-leak",
+        },
+      },
+      {
+        type: "lob.letter.in_transit",
+        label: "In Transit",
+        created_at: "2026-09-25T13:00:00.000Z",
+        metadata: { external_id: "evt_private" },
+      },
+    ],
+  );
+
+  assert.equal(normalized.amountCents, 1299);
+  assert.equal(normalized.paid, true);
+  assert.equal(normalized.tracking.trackingNumber, "9400111899223856928499");
+  assert.equal(normalized.timing.expectedDeliveryDate, "2026-09-29");
+  assert.deepEqual(normalized.history[0], {
+    type: "lob.submitted",
+    label: "Submitted to Lob for printing & mailing",
+    recordedAt: "2026-09-25T11:30:00.000Z",
+  });
+  assert.equal(JSON.stringify(normalized).includes("must-not-leak"), false);
+  assert.equal(JSON.stringify(normalized).includes("evt_private"), false);
 });
