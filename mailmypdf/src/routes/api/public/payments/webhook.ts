@@ -321,18 +321,17 @@ async function markOrderPaid(
     return;
   }
 
-  // Secure workflow orders carry an immutable approved price. Generic
-  // MailMyPDF orders may legitimately be discounted at checkout (for example
-  // by an active Pro entitlement), so only approval-bound orders use this
-  // exact-amount invariant here.
-  if (order.case_approval_id) {
+  // Any approval-bound order carries an immutable approved price. This includes
+  // workflow packets and direct-PDF MCP orders. Legacy browser orders without
+  // an approved_price_cents value may still apply dynamic checkout pricing.
+  if (order.approved_price_cents !== null) {
     const expectedAmount = order.approved_price_cents;
     if (
       !Number.isSafeInteger(expectedAmount) ||
       !Number.isSafeInteger(session.amount_total) ||
       session.amount_total !== expectedAmount
     ) {
-      log.error("checkout amount does not match approved workflow price", {
+      log.error("checkout amount does not match approved order price", {
         orderId,
         expectedAmount,
         receivedAmount: session.amount_total,
@@ -341,7 +340,7 @@ async function markOrderPaid(
       await supabaseAdmin.from("order_events").insert({
         order_id: orderId,
         type: "payment.amount_mismatch",
-        label: "Payment amount did not match the approved workflow price",
+        label: "Payment amount did not match the approved order price",
         metadata: {
           event_id: eventId,
           expected_amount_cents: expectedAmount,

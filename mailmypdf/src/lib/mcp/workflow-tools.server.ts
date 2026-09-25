@@ -1,6 +1,14 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
+import {
+  McpDirectMailError,
+  approveDirectPdfMail,
+  getOwnedDocumentStatus,
+  ingestDirectPdf,
+  prepareDirectPdfCheckout,
+  prepareDirectPdfMail,
+} from "./direct-mail.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { classifyDocumentReadiness } from "./document-readiness";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
@@ -210,16 +218,85 @@ export async function executeMcpTool(
     }
   }
 
-  const matterId = requiredString(args.matter_id, "matter_id");
-  const base = `/api/workflow-runtime/matters/${encodeURIComponent(matterId)}`;
+  if (name === "ingest_direct_pdf") {
+    try {
+      return await ingestDirectPdf(request, args.file, args.processing_consent);
+    } catch (error) {
+      if (error instanceof McpDirectMailError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
 
-  if (name === "get_matter") {
-    return callRuntime(request, base, "GET");
+  if (name === "prepare_direct_pdf_mail") {
+    try {
+      return await prepareDirectPdfMail(request, {
+        documentId: args.document_id,
+        sender: args.sender,
+        recipient: args.recipient,
+        mailClass: args.mail_class,
+        color: args.color,
+        idempotencyKey: args.idempotency_key,
+      });
+    } catch (error) {
+      if (error instanceof McpDirectMailError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "approve_direct_pdf_mail") {
+    try {
+      return await approveDirectPdfMail(request, {
+        orderId: args.order_id,
+        expectedPacketSha256: args.expected_packet_sha256,
+        expectedTotalCents: args.expected_total_cents,
+        expectedSender: args.expected_sender,
+        expectedRecipient: args.expected_recipient,
+        expectedMailClass: args.expected_mail_class,
+        expectedColor: args.expected_color,
+      });
+    } catch (error) {
+      if (error instanceof McpDirectMailError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "prepare_direct_pdf_checkout") {
+    try {
+      return await prepareDirectPdfCheckout(request, args.order_id);
+    } catch (error) {
+      if (error instanceof McpDirectMailError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
   }
 
   if (name === "get_document_status") {
     const documentId = requiredString(args.document_id, "document_id");
-    const matterPayload = object(await callRuntime(request, base, "GET"), "matter response");
+    const statusMatterId =
+      typeof args.matter_id === "string" && args.matter_id.trim()
+        ? args.matter_id.trim()
+        : null;
+
+    if (!statusMatterId) {
+      try {
+        return await getOwnedDocumentStatus(request, documentId);
+      } catch (error) {
+        if (error instanceof McpDirectMailError) {
+          throw new McpToolExecutionError(error.status, error.message, error.details);
+        }
+        throw error;
+      }
+    }
+
+    const statusBase = `/api/workflow-runtime/matters/${encodeURIComponent(statusMatterId)}`;
+    const matterPayload = object(await callRuntime(request, statusBase, "GET"), "matter response");
     const documents = Array.isArray(matterPayload.documents) ? matterPayload.documents : [];
     const document = documents.find((candidate) => {
       if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
@@ -247,6 +324,7 @@ export async function executeMcpTool(
         readiness,
       },
       analysisAllowed: readiness === "ready",
+      directMailAllowed: readiness === "ready" && metadata.mimeType === "application/pdf",
       nextAction:
         readiness === "ready"
           ? "The document is clean and may be analyzed."
@@ -256,6 +334,13 @@ export async function executeMcpTool(
               ? "The document is unavailable and must be replaced before analysis."
               : "The document is still in quarantine or scanning. Check this status again before analysis.",
     };
+  }
+
+  const matterId = requiredString(args.matter_id, "matter_id");
+  const base = `/api/workflow-runtime/matters/${encodeURIComponent(matterId)}`;
+
+  if (name === "get_matter") {
+    return callRuntime(request, base, "GET");
   }
 
   if (name === "ingest_document") {
@@ -319,9 +404,47 @@ export async function executeMcpTool(
       ...(typeof position === "number" ? { position } : {}),
     });
 
+    if (document.securityStatus === "quarantined") {
+      try {
+        const context = await requireAuthenticatedUser(request);
+        const { scanQuarantinedDocumentNow } = await import(
+          "@/lib/secure-core/scanner.server"
+        );
+        await scanQuarantinedDocumentNow(document.id, context.user.id);
+      } catch {
+        // Keep the upload successful and quarantined. The scheduled scanner is
+        // the durable retry path if the interactive scanner is unavailable.
+      }
+    }
+
+    let refreshed:
+      | {
+          document?: {
+            securityStatus?: string;
+            readiness?: string;
+            usable?: boolean;
+          };
+        }
+      | null = null;
+    try {
+      refreshed = await getOwnedDocumentStatus(request, document.id);
+    } catch {
+      // The canonical matter/status endpoint can still be checked by the
+      // client; never turn a successful quarantine intake into a failed upload
+      // merely because the status refresh could not be read.
+    }
+
+    const securityStatus =
+      refreshed?.document?.securityStatus ?? document.securityStatus;
+    const readiness =
+      refreshed?.document?.readiness ??
+      classifyDocumentReadiness(securityStatus, refreshed?.document?.usable === true);
+
     return {
       document: {
         ...document,
+        securityStatus,
+        readiness,
         role,
         evidenceKind,
         sourceFileId: downloaded.sourceFileId,
@@ -330,9 +453,11 @@ export async function executeMcpTool(
       },
       attached: attachedPayload,
       nextAction:
-        document.securityStatus === "clean"
-          ? "The document is cleared for workflow analysis."
-          : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
+        readiness === "ready"
+          ? "The document is clean and cleared for workflow analysis."
+          : readiness === "rejected"
+            ? "The document failed security validation. Ask the user for a different file."
+            : "The document remains quarantined or scanning. Call get_document_status before analysis.",
     };
   }
 

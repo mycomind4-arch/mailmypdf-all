@@ -126,42 +126,27 @@ function toSecureEnvelope(document: ClaimedDocument): SecureDocumentEnvelope {
   };
 }
 
-/**
- * Claim quarantined documents, verify their immutable intake metadata, run the
- * external malware scanner, and release only documents that pass BOTH the
- * platform's structural document validation and the external scanner.
- */
-export async function scanQuarantinedDocuments(
-  batchSize = DEFAULT_BATCH_SIZE,
-) {
-  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 25) {
-    throw new Error("Scanner batch size must be between 1 and 25");
-  }
+type ScanPassResult = {
+  claimed: number;
+  clean: number;
+  rejected: number;
+  deletion_queued: number;
+  failed: number;
+};
 
-  const { supabaseAdmin } = await import(
-    "@/integrations/supabase/client.server"
-  );
-  const admin = supabaseAdmin;
-
-  const { data, error } = await admin.rpc(
-    "claim_secure_documents_for_scan",
-    { batch_limit: batchSize },
-  );
-  if (error) {
-    throw new Error(
-      `Could not claim quarantined documents: ${error.message}`,
-    );
-  }
-
-  const result = {
-    claimed: data?.length ?? 0,
+async function processClaimedDocuments(
+  admin: any,
+  documents: readonly ClaimedDocument[],
+): Promise<ScanPassResult> {
+  const result: ScanPassResult = {
+    claimed: documents.length,
     clean: 0,
     rejected: 0,
     deletion_queued: 0,
     failed: 0,
   };
 
-  for (const document of (data ?? []) as ClaimedDocument[]) {
+  for (const document of documents) {
     try {
       const { data: stored, error: downloadError } = await admin.storage
         .from(BUCKET)
@@ -240,4 +225,68 @@ export async function scanQuarantinedDocuments(
   }
 
   return result;
+}
+
+/**
+ * Claim quarantined documents, verify their immutable intake metadata, run the
+ * external malware scanner, and release only documents that pass BOTH the
+ * platform's structural document validation and the external scanner.
+ */
+export async function scanQuarantinedDocuments(
+  batchSize = DEFAULT_BATCH_SIZE,
+): Promise<ScanPassResult> {
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 25) {
+    throw new Error("Scanner batch size must be between 1 and 25");
+  }
+
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const admin = supabaseAdmin;
+
+  const { data, error } = await admin.rpc(
+    "claim_secure_documents_for_scan",
+    { batch_limit: batchSize },
+  );
+  if (error) {
+    throw new Error(
+      `Could not claim quarantined documents: ${error.message}`,
+    );
+  }
+
+  return processClaimedDocuments(admin, (data ?? []) as ClaimedDocument[]);
+}
+
+/**
+ * Interactive MCP uploads should not wait for the scheduled 10-minute batch
+ * scanner. Claim exactly one known owner-scoped document and run the same
+ * scanner pipeline immediately. If the scanner itself is unavailable, the
+ * shared processor safely returns the row to quarantine so the scheduled job
+ * can retry later.
+ */
+export async function scanQuarantinedDocumentNow(
+  documentId: string,
+  ownerId: string,
+): Promise<ScanPassResult> {
+  if (!documentId || !ownerId) throw new Error("documentId and ownerId are required");
+
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const admin = supabaseAdmin;
+
+  const { data, error } = await (admin as any).rpc(
+    "claim_secure_document_for_scan",
+    {
+      p_document_id: documentId,
+      p_owner_id: ownerId,
+    },
+  );
+  if (error) {
+    throw new Error(
+      `Could not claim secure document for immediate scan: ${error.message}`,
+    );
+  }
+
+  return processClaimedDocuments(admin, (data ?? []) as ClaimedDocument[]);
 }

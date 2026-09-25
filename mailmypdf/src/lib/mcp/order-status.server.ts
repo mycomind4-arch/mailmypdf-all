@@ -133,6 +133,23 @@ function legacyOrderBelongsToUser(order: OrderRow, context: AuthenticatedUserCon
   return Boolean(userEmail && order.email.trim().toLowerCase() === userEmail);
 }
 
+async function directMcpOrderBelongsToUser(
+  orderId: string,
+  context: AuthenticatedUserContext,
+  supabaseAdmin: any,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("order_events")
+    .select("id")
+    .eq("order_id", orderId)
+    .eq("type", "mcp.direct_mail.prepared")
+    .contains("metadata", { owner_id: context.user.id })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
 export function normalizeOrderStatus(
   order: OrderRow,
   events: readonly OrderEventRow[],
@@ -227,8 +244,11 @@ export async function getOwnedOrderStatus(
     if (!matterId || order.workflow_case_id !== matterId) {
       await requireMatterOwnership(order.workflow_case_id, context);
     }
-  } else if (!legacyOrderBelongsToUser(order, context)) {
-    throw new McpOrderStatusError(404, "Order not found");
+  } else {
+    const directOwned = await directMcpOrderBelongsToUser(order.id, context, supabaseAdmin);
+    if (!directOwned && !legacyOrderBelongsToUser(order, context)) {
+      throw new McpOrderStatusError(404, "Order not found");
+    }
   }
 
   const { data: eventRows, error: eventError } = await supabaseAdmin
