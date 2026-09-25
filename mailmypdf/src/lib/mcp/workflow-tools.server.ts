@@ -343,7 +343,7 @@ export async function executeMcpTool(
       nextAction:
         document.securityStatus === "clean"
           ? "The document is cleared for workflow analysis."
-          : "The document is quarantined. Check matter state until scanning marks it clean before analysis.",
+          : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
     };
   }
 
