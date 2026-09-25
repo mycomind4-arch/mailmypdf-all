@@ -78,9 +78,18 @@ type DirectOrderRow = {
   mail_class: string | null;
   approved_packet_sha256: string | null;
   approved_price_cents: number | null;
+  sender_name: string;
+  sender_line1: string;
+  sender_line2: string | null;
+  sender_city: string;
+  sender_state: string;
+  sender_postal: string;
   recipient_name: string;
+  recipient_line1: string;
+  recipient_line2: string | null;
   recipient_city: string;
   recipient_state: string;
+  recipient_postal: string;
 };
 
 function parseAddress(value: unknown, label: string): DirectMailAddress {
@@ -198,7 +207,7 @@ async function orderById(orderId: string): Promise<DirectOrderRow | null> {
   const { data, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,color,mail_class,approved_packet_sha256,approved_price_cents,recipient_name,recipient_city,recipient_state",
+      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,color,mail_class,approved_packet_sha256,approved_price_cents,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -271,6 +280,29 @@ async function preparedOrderForIdempotency(
   return orderById(event.order_id);
 }
 
+function mailingSnapshot(order: DirectOrderRow) {
+  return {
+    sender: {
+      name: order.sender_name,
+      line1: order.sender_line1,
+      line2: order.sender_line2,
+      city: order.sender_city,
+      state: order.sender_state,
+      postal: order.sender_postal,
+    },
+    recipient: {
+      name: order.recipient_name,
+      line1: order.recipient_line1,
+      line2: order.recipient_line2,
+      city: order.recipient_city,
+      state: order.recipient_state,
+      postal: order.recipient_postal,
+    },
+    mailClass: order.mail_class ?? "standard",
+    color: order.color ?? false,
+  };
+}
+
 function summary(order: DirectOrderRow, packetSha256: string, totalCents: number) {
   return {
     orderId: order.id,
@@ -278,14 +310,44 @@ function summary(order: DirectOrderRow, packetSha256: string, totalCents: number
     totalCents,
     pageCount: order.page_count,
     fileName: order.file_name,
-    mailClass: order.mail_class ?? "standard",
-    color: order.color ?? false,
-    recipient: {
-      name: order.recipient_name,
-      city: order.recipient_city,
-      state: order.recipient_state,
-    },
+    ...mailingSnapshot(order),
   };
+}
+
+function metadataObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+async function directApprovalEvent(
+  orderId: string,
+  ownerId: string,
+): Promise<Record<string, unknown> | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("order_events")
+    .select("metadata")
+    .eq("order_id", orderId)
+    .eq("type", DIRECT_APPROVED_EVENT)
+    .contains("metadata", { owner_id: ownerId })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new McpDirectMailError(500, "Unable to read direct-mail approval");
+  return metadataObject(data?.metadata);
+}
+
+function approvalSnapshotMatches(
+  order: DirectOrderRow,
+  metadata: Record<string, unknown> | null,
+): boolean {
+  const snapshot = metadataObject(metadata?.mailing_snapshot);
+  return Boolean(
+    snapshot &&
+    JSON.stringify(snapshot) === JSON.stringify(mailingSnapshot(order)) &&
+    metadata?.packet_sha256 === order.approved_packet_sha256 &&
+    metadata?.total_cents === order.approved_price_cents
+  );
 }
 
 export async function ingestDirectPdf(
@@ -518,6 +580,14 @@ export async function approveDirectPdfMail(
   }
 
   const order = await requireDirectOrder(orderId, context);
+  const approvalMetadata = await directApprovalEvent(orderId, context.user.id);
+  if (!approvalSnapshotMatches(order, approvalMetadata)) {
+    throw new McpDirectMailError(
+      409,
+      "The current mailing details do not match the user's immutable approval",
+    );
+  }
+
   const currentHash = await orderPdfSha256(order);
   const totalCents = await currentQuote(order);
 
@@ -538,15 +608,37 @@ export async function approveDirectPdfMail(
       order.approved_packet_sha256 === currentHash &&
       order.approved_price_cents === totalCents
     ) {
+      const existingApproval = await directApprovalEvent(orderId, context.user.id);
+      if (!existingApproval) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error: eventError } = await supabaseAdmin.from("order_events").insert({
+          order_id: orderId,
+          type: DIRECT_APPROVED_EVENT,
+          label: "User approved exact direct-mail PDF, price, and mailing details",
+          metadata: {
+            owner_id: context.user.id,
+            packet_sha256: currentHash,
+            total_cents: totalCents,
+            mailing_snapshot: mailingSnapshot(order),
+          },
+        });
+        if (eventError) {
+          throw new McpDirectMailError(500, "Approved order is missing its immutable mailing snapshot");
+        }
+      } else if (!approvalSnapshotMatches(order, existingApproval)) {
+        throw new McpDirectMailError(409, "Stored approval does not match the current mailing details");
+      }
+
       return {
         approval: {
           orderId,
           packetSha256: currentHash,
           totalCents,
+          mailing: mailingSnapshot(order),
           approved: true,
         },
         reused: true,
-        nextAction: "The exact PDF and price are already approved. Prepare checkout.",
+        nextAction: "The exact PDF, price, and mailing details are already approved. Prepare checkout.",
       };
     }
     throw new McpDirectMailError(409, "This order was already approved for different immutable details");
@@ -573,26 +665,34 @@ export async function approveDirectPdfMail(
     throw new McpDirectMailError(409, "The order changed before approval could be recorded");
   }
 
-  await supabaseAdmin.from("order_events").insert({
+  const { error: approvalEventError } = await supabaseAdmin.from("order_events").insert({
     order_id: orderId,
     type: DIRECT_APPROVED_EVENT,
-    label: "User approved exact direct-mail PDF and price",
+    label: "User approved exact direct-mail PDF, price, and mailing details",
     metadata: {
       owner_id: context.user.id,
       packet_sha256: currentHash,
       total_cents: totalCents,
+      mailing_snapshot: mailingSnapshot(order),
     },
   });
+  if (approvalEventError) {
+    throw new McpDirectMailError(
+      500,
+      "The order was approval-bound but its immutable mailing snapshot could not be recorded",
+    );
+  }
 
   return {
     approval: {
       orderId,
       packetSha256: currentHash,
       totalCents,
+      mailing: mailingSnapshot(order),
       approved: true,
     },
     reused: false,
-    nextAction: "The exact PDF and price are approved. Prepare secure checkout.",
+    nextAction: "The exact PDF, price, and mailing details are approved. Prepare secure checkout.",
   };
 }
 
