@@ -93,6 +93,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Build MCP document-ingress dependency
+        run: pnpm --filter @mailmypdf/documents... --workspace-concurrency=2 run build
       - name: Test Authority Gate and catalog topology invariants
         run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
       - name: Reject thin or unverified indexable workflow pages

@@ -1,5 +1,6 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
+import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
 export class McpToolExecutionError extends Error {
@@ -73,6 +74,60 @@ async function callRuntime(
   return payload;
 }
 
+async function callRuntimeForm(
+  request: Request,
+  path: string,
+  form: FormData,
+): Promise<unknown> {
+  const url = new URL(path, request.url);
+  const headers = new Headers();
+  const authorization = request.headers.get("authorization");
+  if (authorization) headers.set("authorization", authorization);
+
+  const response = await handleWorkflowRuntimeRequest(
+    new Request(url, {
+      method: "POST",
+      headers,
+      body: form,
+    }),
+  );
+  const payload = await response.json().catch(() => ({ error: "Workflow runtime returned an unreadable response" }));
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : "MailMyPDF workflow runtime rejected the request";
+    throw new McpToolExecutionError(response.status, message, payload);
+  }
+  return payload;
+}
+
+function matterWorkflowId(payload: unknown): string {
+  const root = object(payload, "matter response");
+  const matter = object(root.matter, "matter");
+  return requiredString(matter.workflowId, "matter.workflowId");
+}
+
+function uploadedDocument(payload: unknown): {
+  id: string;
+  filename: string;
+  sizeBytes: number;
+  securityStatus: string;
+} {
+  const root = object(payload, "document upload response");
+  const document = object(root.document, "document");
+  const sizeBytes = document.sizeBytes;
+  if (typeof sizeBytes !== "number" || !Number.isFinite(sizeBytes) || sizeBytes < 1) {
+    throw new McpToolExecutionError(500, "MailMyPDF returned invalid document size metadata");
+  }
+  return {
+    id: requiredString(document.id, "document.id"),
+    filename: requiredString(document.filename, "document.filename"),
+    sizeBytes,
+    securityStatus: requiredString(document.securityStatus, "document.securityStatus"),
+  };
+}
+
 export async function executeMcpTool(
   request: Request,
   name: string,
@@ -133,6 +188,84 @@ export async function executeMcpTool(
 
   if (name === "get_matter") {
     return callRuntime(request, base, "GET");
+  }
+
+  if (name === "ingest_document") {
+    if (args.processing_consent !== true) {
+      throw new McpToolExecutionError(
+        400,
+        "processing_consent must be true after the user explicitly asks MailMyPDF to process the attachment",
+      );
+    }
+
+    const role = requiredString(args.role, "role");
+    if (role !== "subject_notice" && role !== "evidence") {
+      throw new McpToolExecutionError(400, "role must be subject_notice or evidence");
+    }
+
+    const evidenceKind =
+      args.evidence_kind === null || args.evidence_kind === undefined
+        ? null
+        : requiredString(args.evidence_kind, "evidence_kind");
+    const position = args.position;
+    if (
+      position !== undefined &&
+      (typeof position !== "number" || !Number.isInteger(position) || position < 0)
+    ) {
+      throw new McpToolExecutionError(400, "position must be a non-negative integer");
+    }
+
+    // Confirm matter ownership and derive the workflow id before any remote
+    // network access. This prevents a valid account token from using the file
+    // downloader independently of an owner-scoped MailMyPDF matter.
+    const matterPayload = await callRuntime(request, base, "GET");
+    const workflowId = matterWorkflowId(matterPayload);
+
+    let downloaded;
+    try {
+      downloaded = await downloadAssistantFile(args.file);
+    } catch (error) {
+      if (error instanceof AssistantFileIngressError) {
+        throw new McpToolExecutionError(400, error.message, { code: error.code });
+      }
+      throw error;
+    }
+
+    const form = new FormData();
+    form.set("file", downloaded.file);
+    form.set("workflowId", workflowId);
+    form.set("purpose", "assistant-attachment");
+    form.set("consent", "true");
+
+    const uploadPayload = await callRuntimeForm(
+      request,
+      "/api/workflow-runtime/documents",
+      form,
+    );
+    const document = uploadedDocument(uploadPayload);
+
+    const attachedPayload = await callRuntime(request, `${base}/documents`, "POST", {
+      documentId: document.id,
+      role,
+      evidenceKind,
+      ...(typeof position === "number" ? { position } : {}),
+    });
+
+    return {
+      document: {
+        ...document,
+        role,
+        evidenceKind,
+        sourceFileId: downloaded.sourceFileId,
+        sourceHost: downloaded.sourceHost,
+        sourceMimeType: downloaded.sourceMimeType,
+      },
+      attached: attachedPayload,
+      nextAction:
+        document.securityStatus === "clean"
+          ? "The document is cleared for workflow analysis."
+          : "The document is quarantined. Check matter state until scanning marks it clean before analysis.",
+    };
   }
 
   if (name === "save_matter_input") {
