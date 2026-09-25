@@ -15,6 +15,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight, Search } from "lucide-react";
 import { AuthenticatedSidebar } from "./authenticated-sidebar";
+import { SECTION_REGISTRY } from "@/lib/section-registry";
 
 
 /* ── NavLink: handles both internal and external URLs ───────────────────── */
@@ -43,21 +44,14 @@ export interface EcosystemProduct {
 
 export const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
   { name: "MailMyPDF", slug: "mailmypdf", href: "/", description: "Core document and letter mailing workflows", category: "Core", status: "live" },
-  { name: "Notice Respond", slug: "notice-respond", href: "/notice-respond", description: "Official notices, agency actions, and formal responses", category: "Government / Official", status: "live" },
-  { name: "Code Enforcement", slug: "code-enforcement", href: "/code-enforcement", description: "Notices, inspections, evidence, compliance, hearings, and case records", category: "Government / Official", status: "planned" },
-  { name: "Legal Defense", slug: "legal-defense", href: "/legal-defense", description: "Arrest reconstruction, evidence mapping, discovery organization, and counsel-ready packets", category: "Legal Defense", status: "beta" },
-  { name: "Immigration Mail", slug: "immigration-mail", href: "/immigration-mail", description: "Immigration notices, evidence packages, records requests, and explanation letters", category: "Immigration", status: "live" },
-  { name: "Appeal Mail", slug: "appeal-mail", href: "/appeal-mail", description: "Appeals, reconsiderations, denials, and adverse decisions", category: "Appeals / Claims", status: "live" },
-  { name: "Benefits Appeal", slug: "benefits-appeal", href: "/benefits-appeal", description: "Benefits denials, reconsideration, documentation, and review preparation", category: "Appeals / Claims", status: "planned" },
-  { name: "Claim Proof", slug: "claim-proof", href: "/claim-proof", description: "Evidence-first claim documentation and proof packages", category: "Appeals / Claims", status: "live" },
-  { name: "Insurance Claims", slug: "insurance-claims", href: "/insurance-claims", description: "Claims, denials, underpayments, evidence, supplements, and appeals", category: "Appeals / Claims", status: "planned" },
-  { name: "Dispute Mail", slug: "dispute-mail", href: "/dispute-mail", description: "Debt, credit, billing, collections, and consumer disputes", category: "Disputes", status: "live" },
-  { name: "Tenant Reply", slug: "tenant-reply", href: "/tenant-reply", description: "Tenant notices, repair correspondence, deposits, and housing responses", category: "Housing", status: "live" },
-  { name: "Records Requests", slug: "records-request", href: "/records-request", description: "FOIA, public-records, and agency-record request workflows", category: "Records / Information", status: "live" },
-  { name: "Permit Reply", slug: "permit-reply", href: "/permit-reply", description: "Permit, licensing, inspection, and regulatory response workflows", category: "Regulatory / Permit / Rights", status: "live" },
-  { name: "Small Business", slug: "small-business", href: "/small-business", description: "Business correspondence, reminders, demands, renewals, and compliance", category: "Business", status: "planned" },
-  { name: "Private Office", slug: "private-office", href: "/private-office", description: "Controlled high-stakes correspondence and document records", category: "Private Office", status: "live" },
-  { name: "Secured Transactions", slug: "secured-transactions", href: "/secured-transactions", description: "Identity, capacity, obligations, collateral, evidence, and transaction records", category: "Commercial / Transactions", status: "planned" },
+  ...SECTION_REGISTRY.map((section) => ({
+    name: section.name,
+    slug: section.id,
+    href: section.path,
+    description: section.description,
+    category: section.categoryLabel,
+    status: section.status,
+  })),
 ];
 
 export const ECOSYSTEM_PAGE_URL = "/products";
