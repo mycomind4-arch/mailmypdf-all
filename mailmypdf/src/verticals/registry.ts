@@ -1,49 +1,101 @@
 /**
- * MailMyPDF Vertical Registry
+ * Legacy vertical compatibility API.
  *
- * Single source of truth for user-facing solution verticals.
- * The reusable technology lives in the platform; customer-facing routes are
- * presented as MailMyPDF workflows rather than a separate umbrella brand.
- *
- * Product `status` controls navigation/lifecycle.
- * `executionState` controls Gold Standard execution certification and is kept
- * intentionally separate so a catalog/live route cannot masquerade as a Gold workflow.
+ * The canonical product topology is now the root-level section registry in
+ * src/lib/section-registry.ts. Keep this module only for older callers while
+ * they migrate from "vertical" terminology.
  */
 
+import {
+  LEGACY_SECTION_ALIASES,
+  SECTION_REGISTRY,
+  getSectionByPath,
+  resolveSectionId,
+} from "../lib/section-registry";
 import type { VerticalDefinition, VerticalCategory, VerticalStatus } from "./types";
 
-const makeVertical = (definition: Omit<VerticalDefinition, "seo">): VerticalDefinition => ({
-  ...definition,
-  seo: {
-    title: `${definition.name} | MailMyPDF`,
-    description: definition.description,
-    canonical: definition.route,
-    robots: definition.status === "live" ? "index,follow" : "noindex,nofollow",
-  },
-});
+function toVertical(section: (typeof SECTION_REGISTRY)[number]): VerticalDefinition {
+  return {
+    id: section.id,
+    slug: section.id,
+    name: section.name,
+    shortName: section.shortName,
+    tagline: section.tagline,
+    description: section.description,
+    category: section.category,
+    status: section.status,
+    executionState: section.executionState,
+    route: section.path,
+    icon: section.icon,
+    primaryCTA: section.primaryCTA,
+    enabled: section.enabled,
+    capabilities: section.capabilities,
+    seo: {
+      title: `${section.name} | MailMyPDF`,
+      description: section.description,
+      canonical: section.path,
+      robots: section.status === "live" ? "index,follow" : "noindex,nofollow",
+    },
+  };
+}
 
-const disputeMail = makeVertical({ id: "dispute-mail", slug: "dispute-mail", name: "DisputeMail", shortName: "DisputeMail", tagline: "Dispute anything by mail.", description: "Turn a confusing dispute into a clear written response — then print and mail it without a printer.", category: "disputes", status: "live", executionState: "catalog", route: "/dispute-mail", icon: "ShieldAlert", primaryCTA: "Start a dispute", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const appealReply = makeVertical({ id: "appeal-reply", slug: "appeal-reply", name: "Appeal Mail", shortName: "Appeal Mail", tagline: "Build and mail an appeal.", description: "Organize a decision, supporting documents, deadlines, and evidence into a response you can review before mailing.", category: "appeals", status: "live", executionState: "catalog", route: "/appeal-mail", icon: "Scale", primaryCTA: "Start an Appeal", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const noticeResponse = makeVertical({ id: "notice-response", slug: "notice-response", name: "Notice Respond", shortName: "Notice Respond", tagline: "Respond to notices before deadlines.", description: "Understand an official notice, organize the timeline, prepare your response, and mail it before the stated deadline.", category: "government", status: "live", executionState: "catalog", route: "/notice-respond", icon: "Clock", primaryCTA: "Start a Response", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: false, supportsMailing: true } });
-const claimProof = makeVertical({ id: "claim-proof", slug: "claim-proof", name: "ClaimProof", shortName: "ClaimProof", tagline: "Organize and mail claim documentation.", description: "Compile claim documents, organize supporting evidence, prepare a cover letter, and mail a complete package.", category: "appeals", status: "live", executionState: "catalog", route: "/claim-proof", icon: "FileCheck", primaryCTA: "Start a Claim", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const tenantReply = makeVertical({ id: "tenant-reply", slug: "tenant-reply", name: "TenantReply", shortName: "TenantReply", tagline: "Respond to your landlord in writing.", description: "Organize a landlord or tenant notice, prepare a formal response, and create a documented mailing.", category: "housing", status: "live", executionState: "catalog", route: "/tenant-reply", icon: "Home", primaryCTA: "Start a Reply", enabled: true, capabilities: { requiresAI: true, requiresDocuments: false, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const permitReply = makeVertical({ id: "permit-reply", slug: "permit-reply", name: "PermitReply", shortName: "PermitReply", tagline: "Respond to permit notices and applications.", description: "Organize permit-related correspondence, supporting documents, and a response for review and delivery.", category: "government", status: "live", executionState: "domain-ready", route: "/permit-reply", icon: "FileText", primaryCTA: "Start a Response", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const benefitsAppeal = makeVertical({ id: "benefits-appeal", slug: "benefits-appeal", name: "BenefitsAppeal", shortName: "BenefitsAppeal", tagline: "Appeal a benefits denial.", description: "Organize a benefits decision, deadlines, and supporting evidence into an appeal you can review and mail.", category: "appeals", status: "live", executionState: "catalog", route: "/benefits-appeal", icon: "HeartPulse", primaryCTA: "Start an Appeal", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const debtDefense = makeVertical({ id: "debt-defense", slug: "debt-defense", name: "DebtDefense Mail", shortName: "DebtDefense", tagline: "Respond to debt collection in writing.", description: "Organize a collection notice and supporting information, prepare a written response, and mail it with an appropriate record.", category: "disputes", status: "live", executionState: "catalog", route: "/debt-defense-mail", icon: "ShieldCheck", primaryCTA: "Start a Response", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const recordsRequest = makeVertical({ id: "records-request", slug: "records-request", name: "RecordsRequest", shortName: "RecordsRequest", tagline: "Request public records by mail.", description: "Prepare a focused public records request, organize the request details, and mail it with a documented delivery workflow.", category: "government", status: "live", executionState: "executable", route: "/records-request", icon: "FolderOpen", primaryCTA: "Start a Request", enabled: true, capabilities: { requiresAI: true, requiresDocuments: false, supportsDrafting: true, supportsEvidence: false, supportsMailing: true } });
-const legalDefense = makeVertical({ id: "legal-defense", slug: "legal-defense", name: "Legal Defense", shortName: "Legal Defense", tagline: "Build the defense record before details disappear.", description: "Reconstruct arrests, organize evidence and discovery, map downstream evidence, and prepare attorney-ready defense intelligence packets.", category: "legal", status: "beta", executionState: "executable", route: "/legal-defense", icon: "ShieldCheck", primaryCTA: "Start a Defense File", enabled: true, capabilities: { requiresAI: false, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: false } });
+export const verticals: VerticalDefinition[] = SECTION_REGISTRY.map(toVertical);
 
+export function getVerticalBySlug(slug: string): VerticalDefinition | undefined {
+  const resolved = resolveSectionId(slug);
+  return resolved ? verticals.find((vertical) => vertical.id === resolved) : undefined;
+}
 
-const privateOffice = makeVertical({ id: "private-office", slug: "private-office", name: "Private Office", shortName: "Private Office", tagline: "Professional correspondence, provably delivered.", description: "Organize high-stakes matters — contractor disputes, property insurance claims, bank and wire transfer disputes, trust beneficiary notices — with evidence, approval gates, and certified mailing.", category: "professional", status: "live", executionState: "catalog", route: "/private-office", icon: "Briefcase", primaryCTA: "Start a Matter", enabled: true, capabilities: { requiresAI: true, requiresDocuments: true, supportsDrafting: true, supportsEvidence: true, supportsMailing: true } });
-const smallBusinessMail = makeVertical({ id: "small-business-mail", slug: "small-business-mail", name: "Small Business Mail", shortName: "Business Mail", tagline: "Business correspondence, sent on time.", description: "Create, schedule, track, and prove the documents your business sends with team approvals, templates, and a permanent proof archive.", category: "business", status: "live", executionState: "catalog", route: "/small-business", icon: "Building2", primaryCTA: "Start a Mailing", enabled: true, capabilities: { requiresAI: false, requiresDocuments: true, supportsDrafting: true, supportsEvidence: false, supportsMailing: true } });
+export function getVerticalByRoute(route: string): VerticalDefinition | undefined {
+  const section = getSectionByPath(route);
+  return section ? verticals.find((vertical) => vertical.id === section.id) : undefined;
+}
 
-export const verticals: VerticalDefinition[] = [disputeMail, appealReply, noticeResponse, claimProof, tenantReply, permitReply, benefitsAppeal, debtDefense, recordsRequest, legalDefense, privateOffice, smallBusinessMail];
-export function getVerticalBySlug(slug: string): VerticalDefinition | undefined { return verticals.find((v) => v.slug === slug); }
-export function getVerticalByRoute(route: string): VerticalDefinition | undefined { return verticals.find((v) => v.route === route); }
-export function getVerticalsByCategory(category: VerticalCategory): VerticalDefinition[] { return verticals.filter((v) => v.category === category); }
-export function getVerticalsByStatus(status: VerticalStatus): VerticalDefinition[] { return verticals.filter((v) => v.status === status); }
-export function getNavigationVerticals(): VerticalDefinition[] { return verticals.filter((v) => v.enabled); }
-export function getLiveVerticals(): VerticalDefinition[] { return verticals.filter((v) => v.status === "live"); }
-export function shouldIndexVertical(slug: string): boolean { const v = getVerticalBySlug(slug); return !!v && v.status === "live"; }
-export function getVerticalsByCategoryForNav(): Array<{ category: VerticalCategory; verticals: VerticalDefinition[] }> { const categories: VerticalCategory[] = ["government", "legal", "appeals", "disputes", "housing", "professional", "business"]; return categories.map((category) => ({ category, verticals: getNavigationVerticals().filter((v) => v.category === category) })).filter((group) => group.verticals.length > 0); }
-export function isVerticalLive(slug: string): boolean { return getVerticalBySlug(slug)?.status === "live"; }
+export function getVerticalsByCategory(category: VerticalCategory): VerticalDefinition[] {
+  return verticals.filter((vertical) => vertical.category === category);
+}
+
+export function getVerticalsByStatus(status: VerticalStatus): VerticalDefinition[] {
+  return verticals.filter((vertical) => vertical.status === status);
+}
+
+export function getNavigationVerticals(): VerticalDefinition[] {
+  return verticals.filter((vertical) => vertical.enabled);
+}
+
+export function getLiveVerticals(): VerticalDefinition[] {
+  return verticals.filter((vertical) => vertical.status === "live");
+}
+
+export function shouldIndexVertical(slug: string): boolean {
+  return getVerticalBySlug(slug)?.status === "live";
+}
+
+export function getVerticalsByCategoryForNav(): Array<{
+  category: VerticalCategory;
+  verticals: VerticalDefinition[];
+}> {
+  const categories: VerticalCategory[] = [
+    "government",
+    "legal",
+    "appeals",
+    "disputes",
+    "housing",
+    "professional",
+    "business",
+  ];
+
+  return categories
+    .map((category) => ({
+      category,
+      verticals: getNavigationVerticals().filter((vertical) => vertical.category === category),
+    }))
+    .filter((group) => group.verticals.length > 0);
+}
+
+export function isVerticalLive(slug: string): boolean {
+  return getVerticalBySlug(slug)?.status === "live";
+}
+
+/** @deprecated Use LEGACY_SECTION_ALIASES from the section registry. */
+export const legacyVerticalAliases = LEGACY_SECTION_ALIASES;
