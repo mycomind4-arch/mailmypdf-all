@@ -25,7 +25,7 @@ export interface PostalAddress {
   country?: string; // ISO 3166-1 alpha-2, defaults to "US"
 }
 
-export type MailClass = "standard" | "certified" | "registered";
+export type MailClass = "standard" | "certified" | "certified_return_receipt" | "registered";
 
 export interface LetterResult {
   id: string;
