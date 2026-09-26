@@ -149,6 +149,7 @@ export class MailService {
     }
 
     const { pageCount } = await this.documents.validatePdf(pdfBytes);
+    const documentSha256 = await sha256Hex(pdfBytes);
     const priceCents = this.pricing.calculateTotalCents({
       pageCount,
       color: params.color,
@@ -184,6 +185,7 @@ export class MailService {
       file_size_bytes: params.file.sizeBytes,
       page_count: pageCount,
       pdf_storage_path: storagePath,
+      document_sha256: documentSha256,
       price_cents: priceCents,
       status: "draft",
       color: params.color,
@@ -264,8 +266,9 @@ export class MailService {
       recipientPostal: params.recipient.postalCode,
     });
 
-    // Validate the generated PDF
+    // Validate and fingerprint the exact generated PDF bytes that will be mailed.
     const { pageCount } = await this.documents.validatePdf(pdfBytes);
+    const documentSha256 = await sha256Hex(pdfBytes);
 
     const priceCents = this.pricing.calculateTotalCents({
       pageCount,
@@ -306,6 +309,7 @@ export class MailService {
       file_size_bytes: pdfBytes.byteLength,
       page_count: pageCount,
       pdf_storage_path: storagePath,
+      document_sha256: documentSha256,
       price_cents: priceCents,
       status: "draft",
       color: params.color,
@@ -444,4 +448,10 @@ function decodeBase64(base64: string): Uint8Array {
   for (let index = 0; index < binary.length; index += 1)
     output[index] = binary.charCodeAt(index);
   return output;
+}
+
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

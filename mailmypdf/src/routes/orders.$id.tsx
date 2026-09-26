@@ -13,6 +13,10 @@ interface OrderPageData {
     id: string;
     status: string;
     mail_class?: string | null;
+    tracking_number?: string | null;
+    expected_delivery_date?: string | null;
+    delivered_at?: string | null;
+    document_sha256?: string | null;
     created_at: string;
     file_name: string;
     page_count: number;
@@ -215,6 +219,29 @@ function OrderDetails({
                 {createdAt}
               </div>
             </div>
+            {order.tracking_number && (
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                  Carrier tracking
+                </div>
+                <div className="mt-1 break-all font-mono text-sm">{order.tracking_number}</div>
+                {order.expected_delivery_date && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Expected delivery: {order.expected_delivery_date}
+                  </div>
+                )}
+              </div>
+            )}
+            {order.delivered_at && (
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                  Delivery recorded
+                </div>
+                <div className="mt-1 font-mono text-sm" suppressHydrationWarning>
+                  {new Date(order.delivered_at).toLocaleString()}
+                </div>
+              </div>
+            )}
           </div>
 
           <MailingRecordDownloads id={order.id} token={token} />

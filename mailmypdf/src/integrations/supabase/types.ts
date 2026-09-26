@@ -1654,6 +1654,11 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string
+          delivered_at: string | null
+          document_sha256: string | null
+          expected_delivery_date: string | null
+          last_tracking_event: Json | null
+          tracking_number: string | null
           email: string
           file_name: string
           file_size_bytes: number
@@ -1694,6 +1699,11 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string
+          delivered_at?: string | null
+          document_sha256?: string | null
+          expected_delivery_date?: string | null
+          last_tracking_event?: Json | null
+          tracking_number?: string | null
           email: string
           file_name: string
           file_size_bytes: number
@@ -1734,6 +1744,11 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string
+          delivered_at?: string | null
+          document_sha256?: string | null
+          expected_delivery_date?: string | null
+          last_tracking_event?: Json | null
+          tracking_number?: string | null
           email?: string
           file_name?: string
           file_size_bytes?: number

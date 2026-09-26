@@ -103,9 +103,11 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
           results.errors.push(`window_expiries: ${e instanceof Error ? e.message : String(e)}`);
         }
 
-        log.info("proof-processor completed", results);
+        const ok = results.errors.length === 0;
+        if (ok) log.info("proof-processor completed", results);
+        else log.error("proof-processor completed with errors", results);
 
-        const resp = Response.json({ ok: true, ...results });
+        const resp = Response.json({ ok, ...results }, { status: ok ? 200 : 500 });
         return attachRequestId(resp, requestId);
       },
     },

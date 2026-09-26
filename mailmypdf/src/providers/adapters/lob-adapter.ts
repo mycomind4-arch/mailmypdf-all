@@ -103,10 +103,8 @@ export class LobAdapter implements MailProvider {
     form.set("use_type", "operational");
     form.set("metadata[orderId]", req.orderId);
 
-    if (req.extraService === "certified") {
-      form.set("extra_service", "certified");
-    } else if (req.extraService === "registered") {
-      form.set("extra_service", "registered");
+    if (req.extraService && req.extraService !== "standard") {
+      form.set("extra_service", req.extraService);
     }
 
     const setAddress = (prefix: "to" | "from", a: PostalAddress) => {
