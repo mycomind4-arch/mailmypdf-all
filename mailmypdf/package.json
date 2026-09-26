@@ -17,7 +17,8 @@
     "verify:production-config": "node scripts/production-readiness.mjs",
     "seo:landing:validate": "tsx scripts/validate-public-workflow-landings.ts",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
-    "mcp:e2e:document": "node scripts/mcp-document-e2e.mjs"
+    "mcp:e2e:document": "node scripts/mcp-document-e2e.mjs",
+    "mcp:readiness": "node scripts/mcp-launch-readiness.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
