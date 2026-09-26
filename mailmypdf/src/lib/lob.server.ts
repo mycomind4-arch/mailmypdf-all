@@ -178,7 +178,9 @@ export async function verifyLobWebhook(req: Request): Promise<{ event: any; raw:
   const raw = await req.text();
   if (!signature || !timestamp) throw new Error("Missing Lob signature headers");
 
-  const age = Math.abs(Date.now() - Number(timestamp));
+  const timestampValue = Number(timestamp);
+  const timestampMs = timestampValue < 1_000_000_000_000 ? timestampValue * 1000 : timestampValue;
+  const age = Math.abs(Date.now() - timestampMs);
   if (!Number.isFinite(age) || age > 5 * 60 * 1000) throw new Error("Lob webhook timestamp out of tolerance");
 
   const key = await crypto.subtle.importKey(
