@@ -9,9 +9,9 @@ const REVIEWED = "2026-09-21";
  * It does not give legal advice, predict suppression, or contact anyone.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "legal-defense/wrongful-stolen-vehicle-arrest",
+  id: "legal-defense/stolen-vehicle-arrest-defense",
   execution: {
-    href: "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start",
+    href: "/legal-defense/workflows/stolen-vehicle-arrest-defense/start",
     verified: true,
   },
   content: {
