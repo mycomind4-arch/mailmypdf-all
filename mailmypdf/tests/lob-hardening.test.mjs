@@ -298,6 +298,15 @@ describe("Lob Hardening — Source-Level Tests", () => {
     assert.match(lob, /getLobLetterLifecycleStatus/);
   });
 
+  it("reconciliation prefers Lob tracking lifecycle names over low-level carrier detail events", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const lifecycle = lob.slice(lob.indexOf("export function getLobLetterLifecycleStatus"));
+    const nameIndex = lifecycle.indexOf("normalizeTrackingEventName(latest?.name)");
+    const detailIndex = lifecycle.indexOf("normalizeTrackingEventName(latest?.details?.event)");
+    assert.ok(nameIndex >= 0, "tracking lifecycle name should be inspected");
+    assert.ok(detailIndex > nameIndex, "lifecycle name must take precedence over low-level carrier detail");
+  });
+
   it("proof webhook bridge propagates processing failures so Lob can retry", async () => {
     const bridge = await source("src/lib/proof-of-service/lob-webhook-bridge.ts");
     assert.match(bridge, /if \(error\) throw new Error/);
