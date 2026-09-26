@@ -264,7 +264,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     }
 
     if (parsePacketPreviewResourceUri(uri)) {
-      let context;
+      let context: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
       try {
         context = await requireAuthenticatedUser(request);
       } catch (error) {
