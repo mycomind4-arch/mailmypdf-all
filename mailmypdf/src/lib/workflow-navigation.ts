@@ -14,13 +14,14 @@ export type WorkflowNavigationSection = {
 }
 
 /**
- * Canonical authenticated workflow navigation.
+ * Canonical workflow identity topology.
  *
- * Public workflow URLs remain dedicated SEO/discovery pages. Authenticated
- * navigation always uses workspaceHref so signed-in users stay inside the
- * application shell and never need to pass through marketing pages.
+ * This array owns section/slug identity plus the canonical public and
+ * authenticated paths. Navigation is a projection of this topology; SEO,
+ * maturity, and execution metadata must attach to these identities rather
+ * than inventing parallel workflow IDs.
  */
-export const WORKFLOW_NAV_SECTIONS = [
+export const WORKFLOW_REGISTRY_SECTIONS = [
   {
     "id": "appeal-mail",
     "label": "Appeal Mail",
@@ -2770,6 +2771,12 @@ export const WORKFLOW_NAV_SECTIONS = [
     ]
   }
 ] as const satisfies readonly WorkflowNavigationSection[]
+
+/**
+ * Backwards-compatible navigation name. New identity/topology consumers should
+ * use WORKFLOW_REGISTRY_SECTIONS or the flattened workflow-registry helpers.
+ */
+export const WORKFLOW_NAV_SECTIONS = WORKFLOW_REGISTRY_SECTIONS
 
 export const WORKFLOW_NAV_COUNT = WORKFLOW_NAV_SECTIONS.reduce(
   (total, section) => total + section.workflows.length,
