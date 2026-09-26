@@ -183,4 +183,39 @@ pnpm --filter ./mailmypdf mcp:smoke
 
 The authenticated check calls only `get_profile`. It does not create a matter, upload a document, charge a payment method, or submit mail.
 
+### Document execution E2E
+
+After OAuth and the malware scanner are configured, exercise the first real assistant document path with a disposable test notice:
+
+```bash
+MCP_BASE_URL="https://staging.mailmypdf.ai" \
+MCP_BEARER_TOKEN="<test-user-access-token>" \
+MCP_TEST_FILE_URL="https://public-test-files.example/cp14.pdf" \
+MCP_E2E_ALLOW_WRITES="true" \
+pnpm --filter ./mailmypdf mcp:e2e:document
+```
+
+The harness performs exactly this sequence:
+
+```
+get_workflow
+→ create_matter
+→ ingest_document
+→ get_document_status (until ready)
+→ analyze_matter
+→ stop
+```
+
+It does not call packet approval, checkout, payment, or mailing tools.
+
+Production has an additional interlock. If `MCP_BASE_URL=https://mailmypdf.ai`, the harness refuses to write unless `MCP_E2E_ALLOW_PRODUCTION=true` is also explicitly set. Use staging or local environments by default.
+
+Optional overrides:
+
+- `MCP_TEST_WORKFLOW_ID` (default `cp14-response`)
+- `MCP_TEST_SECTION_ID` (default `notice-respond`)
+- `MCP_TEST_FILE_ID`, `MCP_TEST_FILE_NAME`, `MCP_TEST_FILE_MIME`
+- `MCP_SCAN_POLL_MS` (default 3000)
+- `MCP_SCAN_MAX_WAIT_MS` (default 90000)
+
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.
