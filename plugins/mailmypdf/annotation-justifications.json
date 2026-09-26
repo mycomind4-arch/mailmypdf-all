@@ -1,0 +1,215 @@
+{
+  "version": "0.1.0",
+  "tools": {
+    "find_workflow": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Searches MailMyPDF's bounded workflow catalog and does not create, update, delete, enqueue, or send anything."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Catalog search cannot delete, overwrite, revoke, send, pay, or trigger any irreversible action."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Search is limited to MailMyPDF's own canonical workflow catalog and does not access the public internet or arbitrary external entities."
+      }
+    },
+    "get_workflow": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Retrieves metadata for one canonical MailMyPDF workflow without changing server state."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Workflow metadata lookup has no destructive or irreversible side effect."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Reads only MailMyPDF's bounded internal workflow catalog."
+      }
+    },
+    "get_profile": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Reads the identity of the already-authenticated MailMyPDF account and does not modify it."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Profile lookup cannot modify account data or perform any irreversible action."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Access is limited to the authenticated user's bounded MailMyPDF account."
+      }
+    },
+    "create_matter": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Creates persistent owner-scoped workflow matter state in MailMyPDF."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Creating an empty matter does not delete or overwrite existing data, send anything, charge anything, or trigger irreversible fulfillment."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "The write is confined to the authenticated user's MailMyPDF workspace."
+      }
+    },
+    "get_matter": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Retrieves an owner-scoped matter snapshot and attached-document metadata without modifying it."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Matter retrieval cannot delete, overwrite, send, charge, or trigger an irreversible action."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Reads only the authenticated user's bounded MailMyPDF matter state."
+      }
+    },
+    "get_order_status": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Reads MailMyPDF's recorded payment, fulfillment, tracking, and delivery state without polling or mutating the provider."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Status lookup cannot alter an order, payment, mailing, or provider state."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Reads only bounded MailMyPDF account/order records and does not query arbitrary internet resources."
+      }
+    },
+    "get_document_status": {
+      "readOnlyHint": {
+        "value": true,
+        "justification": "Reads the security/readiness state of a document already attached to the authenticated user's matter."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Readiness lookup cannot change, delete, release, or process the stored document."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Reads only bounded MailMyPDF matter/document metadata."
+      }
+    },
+    "ingest_document": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Downloads a user-authorized attachment, records processing consent, stores it in MailMyPDF quarantine, and attaches it to a matter."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "The tool adds quarantined data but does not delete or overwrite user data, approve a packet, charge a payment method, or submit mail."
+      },
+      "openWorldHint": {
+        "value": true,
+        "justification": "The tool fetches a user-provided public HTTPS attachment URL, with SSRF, redirect, type, and size protections before MailMyPDF intake."
+      }
+    },
+    "save_matter_input": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Persists a new version of structured workflow facts for an owner-scoped MailMyPDF matter."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Inputs are versioned rather than destructively overwriting prior records, and the tool does not send, charge, or fulfill anything."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "The write is confined to the authenticated user's MailMyPDF matter."
+      }
+    },
+    "analyze_matter": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Runs workflow analysis and persists the resulting analysis record for the matter."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Analysis adds derived matter state but does not delete or overwrite source documents, approve a packet, charge, or mail."
+      },
+      "openWorldHint": {
+        "value": true,
+        "justification": "Analysis can call the configured external AI model service using the clean, workflow-scoped document context."
+      }
+    },
+    "generate_draft": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Invokes the configured drafting model and produces workflow draft state for the matter."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Draft generation does not delete source data, approve a packet, charge a payment method, or submit mail; drafts remain reviewable and replaceable."
+      },
+      "openWorldHint": {
+        "value": true,
+        "justification": "Draft generation can call the configured external AI model service."
+      }
+    },
+    "save_draft": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Persists the exact user-reviewed draft text as a new current draft version."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Drafts are versioned and saving text does not itself approve, charge, or mail anything."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "The write is confined to the authenticated user's MailMyPDF matter and does not contact open-ended external entities."
+      }
+    },
+    "preview_packet": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Builds the packet preview and persists measured page-count metadata used by the existing packet workflow, so it is not strictly read-only."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Preview does not approve the packet, charge the user, delete data, or submit mail; it only calculates/reconciles review metadata."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Packet construction and pricing operate on the bounded MailMyPDF matter, stored documents, and internal pricing rules."
+      }
+    },
+    "approve_packet": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Persists an explicit approval record bound to the exact packet hash, price, recipient fingerprint, recipient, and mail class."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "Approval alone does not charge a payment method or submit mail, and a changed packet/recipient requires a new approval."
+      },
+      "openWorldHint": {
+        "value": false,
+        "justification": "Approval is recorded only inside the authenticated user's bounded MailMyPDF matter."
+      }
+    },
+    "prepare_checkout": {
+      "readOnlyHint": {
+        "value": false,
+        "justification": "Creates or reuses MailMyPDF order state and a Stripe-hosted checkout session for an already-approved packet."
+      },
+      "destructiveHint": {
+        "value": false,
+        "justification": "The tool does not collect card data, complete payment, or submit mail; the user must separately complete Stripe-hosted checkout."
+      },
+      "openWorldHint": {
+        "value": true,
+        "justification": "Checkout preparation communicates with Stripe, an external payment service, to create/reuse the hosted checkout session."
+      }
+    }
+  }
+}
