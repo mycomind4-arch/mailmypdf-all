@@ -11,9 +11,27 @@ export function buildMailingRecord({ order, events }: OrderWithEvents) {
     state: order[`${side}_state`],
     postalCode: order[`${side}_postal`],
   });
+
+  const history = events.map((event) => {
+    const metadata =
+      event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata)
+        ? event.metadata as Record<string, unknown>
+        : {};
+    return {
+      event: /^(order|payment|lob|fulfillment)\.[a-z_.-]+$/.test(event.type)
+        ? event.type
+        : "status_update",
+      label: event.label,
+      recordedAt: event.created_at,
+      providerEventId: typeof metadata.external_id === "string" ? metadata.external_id : null,
+      lifecycleStatus: typeof metadata.lifecycle_status === "string" ? metadata.lifecycle_status : null,
+      trackingNumber: typeof metadata.tracking_number === "string" ? metadata.tracking_number : null,
+    };
+  });
+
   return {
-    version: 1,
-    kind: "MailMyPDF mailing record — not a payment receipt",
+    version: 2,
+    kind: "MailMyPDF mailing evidence record — not a payment receipt",
     orderId: order.id,
     status: order.status,
     createdAt: order.created_at,
@@ -21,6 +39,8 @@ export function buildMailingRecord({ order, events }: OrderWithEvents) {
       name: order.file_name,
       pages: order.page_count,
       color: order.color,
+      sha256: order.document_sha256 ?? null,
+      hashAlgorithm: order.document_sha256 ? "SHA-256" : null,
       availability: "Use the separate original PDF download; retained files may be unavailable.",
     },
     sender: address("sender"),
@@ -30,20 +50,25 @@ export function buildMailingRecord({ order, events }: OrderWithEvents) {
       orderAmountCents: order.price_cents,
       currency: "USD",
       paidAt: order.paid_at ?? null,
-      receipt: "Not available in this record",
-      note: "Recorded order amount is not a receipt or a guarantee of the final charged amount.",
+      receipt: "Not included in this record",
     },
-    provider: { reference: order.lob_letter_id ?? null, mailedAt: order.mailed_at ?? null },
+    provider: {
+      name: "Lob",
+      reference: order.lob_letter_id ?? null,
+      trackingNumber: order.tracking_number ?? null,
+      expectedDeliveryDate: order.expected_delivery_date ?? null,
+      mailedAt: order.mailed_at ?? null,
+    },
     delivery: {
-      proof: "Not available in this record",
-      note: "A reported delivery does not establish that the recipient read the document.",
+      status: order.status,
+      deliveredAt: order.delivered_at ?? null,
+      returnReceiptRequested: order.mail_class === "certified_return_receipt",
+      note:
+        order.status === "delivered"
+          ? "A verified provider event recorded delivery. This does not establish that the recipient read or agreed with the document."
+          : "No completed delivery event is recorded yet. Carrier scans can be delayed or incomplete.",
     },
-    history: events.map((event) => ({
-      event: /^(order|payment|lob|fulfillment)\.[a-z_.]+$/.test(event.type)
-        ? event.type
-        : "status_update",
-      recordedAt: event.created_at,
-    })),
+    history,
   };
 }
 
