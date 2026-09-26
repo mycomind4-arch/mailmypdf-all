@@ -2,9 +2,10 @@
 #
 # The app runs on Cloudflare Workers and its own cron (see mailmypdf/
 # deploy.sh) fires one job: proof-processor. It does not touch the secure-core
-# jobs, so the schedule for those lives here. Without it, uploaded documents
+# jobs, so the schedule for them lives here. Without it, uploaded documents
 # stay quarantined forever — promotion to `clean` only happens inside the scan
-# job — and expired documents are never actually deleted.
+# job, expired documents are never actually deleted, and interrupted connector
+# operations remain indefinitely marked as running.
 #
 # Keeping these here rather than in the Worker cron is deliberate: they then
 # survive a change of host, which is exactly what silently broke the proof cron
@@ -14,6 +15,7 @@
 #   MAILMYPDF_APP_URL              https origin of the deployed app
 #   MAILMYPDF_SCANNER_JOB_SECRET   matches the app's env of the same name
 #   MAILMYPDF_RETENTION_JOB_SECRET matches the app's env of the same name
+#   MAILMYPDF_CONNECTOR_JOB_SECRET matches the app's env of the same name
 #
 # Until those are set, every run skips quietly rather than failing on a
 # schedule and mailing the repository owner every few minutes.
@@ -34,7 +36,7 @@ on:
         required: true
         default: scan
         type: choice
-        options: [scan, purge, both]
+        options: [scan, purge, reconcile, all]
 
 concurrency:
   # Never let two scan passes overlap. The database claims rows with
@@ -46,7 +48,7 @@ jobs:
   scan:
     name: Scan quarantined documents
     runs-on: ubuntu-latest
-    if: github.event.schedule != '17 3 * * *' && (github.event_name != 'workflow_dispatch' || inputs.job != 'purge')
+    if: github.event.schedule != '17 3 * * *' && (github.event_name != 'workflow_dispatch' || inputs.job == 'scan' || inputs.job == 'all')
     steps:
       - name: Check configuration
         id: config
@@ -91,7 +93,7 @@ jobs:
   purge:
     name: Purge expired documents
     runs-on: ubuntu-latest
-    if: github.event.schedule != '*/10 * * * *' && (github.event_name != 'workflow_dispatch' || inputs.job != 'scan')
+    if: github.event.schedule != '*/10 * * * *' && (github.event_name != 'workflow_dispatch' || inputs.job == 'purge' || inputs.job == 'all')
     steps:
       - name: Check configuration
         id: config
@@ -123,6 +125,47 @@ jobs:
           echo "HTTP $status"
           {
             echo "### Retention pass"
+            echo '```json'
+            cat "$body"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  reconcile:
+    name: Reconcile interrupted connector operations
+    runs-on: ubuntu-latest
+    if: github.event.schedule != '17 3 * * *' && (github.event_name != 'workflow_dispatch' || inputs.job == 'reconcile' || inputs.job == 'all')
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
+            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run connector operation reconciliation
+        if: steps.config.outputs.configured == 'true'
+        env:
+          APP_URL: ${{ secrets.MAILMYPDF_APP_URL }}
+          JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
+        run: |
+          set -euo pipefail
+          body=$(mktemp)
+          status=$(curl --silent --show-error --fail-with-body \
+            --max-time 120 --retry 2 --retry-delay 5 \
+            --output "$body" --write-out '%{http_code}' \
+            -X POST "${APP_URL%/}/api/internal/reconcile-connector-operations?limit=50&staleAfterMinutes=15" \
+            -H "Authorization: Bearer ${JOB_SECRET}" \
+            -H "Content-Length: 0")
+          echo "HTTP $status"
+          {
+            echo "### Connector reconciliation pass"
             echo '```json'
             cat "$body"
             echo

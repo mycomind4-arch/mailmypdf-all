@@ -115,6 +115,49 @@ function createRow(operation: ConnectorOperation) {
 const OPERATION_COLUMNS =
   "id,owner_id,matter_id,kind,idempotency_key,request_sha256,state,revision,required_action,result,error,created_at,updated_at";
 
+export async function saveConnectorOperationIfRevision(
+  operation: ConnectorOperation,
+  expectedRevision: number,
+  expectedState?: ConnectorOperationState,
+): Promise<ConnectorOperation | null> {
+  const row = createRow(operation);
+  let query = supabaseAdmin
+    .from("connector_operations")
+    .update({
+      state: row.state,
+      revision: row.revision,
+      required_action: row.required_action,
+      result: row.result,
+      error: row.error,
+      updated_at: row.updated_at,
+    })
+    .eq("id", operation.id)
+    .eq("owner_id", operation.ownerId)
+    .eq("revision", expectedRevision);
+  if (expectedState) query = query.eq("state", expectedState);
+  const { data, error } = await query
+    .select(OPERATION_COLUMNS)
+    .maybeSingle();
+  if (error) throw new Error("Unable to update the connector operation.");
+  return data ? fromRow(data) : null;
+}
+
+export async function listStaleRunningConnectorOperations(input: {
+  updatedBefore: string;
+  limit: number;
+}): Promise<readonly ConnectorOperation[]> {
+  const { data, error } = await supabaseAdmin
+    .from("connector_operations")
+    .select(OPERATION_COLUMNS)
+    .eq("state", "running")
+    .lte("updated_at", input.updatedBefore)
+    .order("updated_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(input.limit);
+  if (error) throw new Error("Unable to list stale connector operations.");
+  return (data ?? []).map((row) => fromRow(row));
+}
+
 export class SupabaseConnectorOperationRepository implements ConnectorOperationRepository {
   constructor(private readonly context: AuthenticatedUserContext) {}
 
@@ -156,25 +199,9 @@ export class SupabaseConnectorOperationRepository implements ConnectorOperationR
   }
 
   async save(operation: ConnectorOperation, expectedRevision: number) {
-    const row = createRow(operation);
-    const { data, error } = await supabaseAdmin
-      .from("connector_operations")
-      .update({
-        state: row.state,
-        revision: row.revision,
-        required_action: row.required_action,
-        result: row.result,
-        error: row.error,
-        updated_at: row.updated_at,
-      })
-      .eq("id", operation.id)
-      .eq("owner_id", operation.ownerId)
-      .eq("revision", expectedRevision)
-      .select(OPERATION_COLUMNS)
-      .maybeSingle();
-    if (error) throw new Error("Unable to update the connector operation.");
-    if (!data) throw new Error("Connector operation revision conflict.");
-    return fromRow(data);
+    const saved = await saveConnectorOperationIfRevision(operation, expectedRevision);
+    if (!saved) throw new Error("Connector operation revision conflict.");
+    return saved;
   }
 }
 

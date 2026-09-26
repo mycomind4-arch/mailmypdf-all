@@ -8,7 +8,7 @@ const WORKFLOW = new URL(".github/workflows/secure-core-jobs.yml", repoRoot);
 /* ═══════════════════════════════════════════════════════════
    The secure-core jobs must actually be invoked
 
-   Both jobs had endpoints and nothing called them. The Worker's
+   These jobs had endpoints and nothing called them. The Worker's
    own cron covers proof-processor only, and while the build sat
    on the Pages preset it fired nothing at all, because Pages has
    no scheduled events. Without an external schedule, uploaded
@@ -24,23 +24,30 @@ describe("scheduling", () => {
     assert.match(yaml, /cron: "17 3 \* \* \*"/, "retention must run daily");
   });
 
-  test("both endpoints are actually called", async () => {
+  test("all three safety endpoints are actually called", async () => {
     const yaml = await readFile(WORKFLOW, "utf8");
     assert.match(yaml, /\/api\/internal\/scan-documents/);
     assert.match(yaml, /\/api\/internal\/purge-secure-documents/);
+    assert.match(yaml, /\/api\/internal\/reconcile-connector-operations/);
   });
 
   test("each job authenticates with its own secret", async () => {
     const yaml = await readFile(WORKFLOW, "utf8");
-    // Scoped to each job block: the header comment names both secrets.
+    // Scoped to each job block: the header comment names all secrets.
     const scanBlock = yaml.slice(yaml.indexOf("\n  scan:"), yaml.indexOf("\n  purge:"));
-    const purgeBlock = yaml.slice(yaml.indexOf("\n  purge:"));
+    const purgeBlock = yaml.slice(yaml.indexOf("\n  purge:"), yaml.indexOf("\n  reconcile:"));
+    const reconcileBlock = yaml.slice(yaml.indexOf("\n  reconcile:"));
 
     assert.match(scanBlock, /MAILMYPDF_SCANNER_JOB_SECRET/);
     assert.match(purgeBlock, /MAILMYPDF_RETENTION_JOB_SECRET/);
+    assert.match(reconcileBlock, /MAILMYPDF_CONNECTOR_JOB_SECRET/);
     // The jobs are separately authorised; one secret must not open both.
     assert.doesNotMatch(scanBlock, /MAILMYPDF_RETENTION_JOB_SECRET/);
     assert.doesNotMatch(purgeBlock, /MAILMYPDF_SCANNER_JOB_SECRET/);
+    assert.doesNotMatch(scanBlock, /MAILMYPDF_CONNECTOR_JOB_SECRET/);
+    assert.doesNotMatch(purgeBlock, /MAILMYPDF_CONNECTOR_JOB_SECRET/);
+    assert.doesNotMatch(reconcileBlock, /MAILMYPDF_SCANNER_JOB_SECRET/);
+    assert.doesNotMatch(reconcileBlock, /MAILMYPDF_RETENTION_JOB_SECRET/);
   });
 
   test("a failing job fails the run rather than passing quietly", async () => {
@@ -49,7 +56,7 @@ describe("scheduling", () => {
     const failFlags = yaml
       .split("\n")
       .filter((line) => line.includes("--fail-with-body") && !line.trim().startsWith("#"));
-    assert.equal(failFlags.length, 2, "both curls must treat an error response as a failure");
+    assert.equal(failFlags.length, 3, "all curls must treat an error response as a failure");
     assert.match(yaml, /set -euo pipefail/);
   });
 
@@ -57,6 +64,7 @@ describe("scheduling", () => {
     const yaml = await readFile(WORKFLOW, "utf8");
     assert.doesNotMatch(yaml, /Bearer [A-Za-z0-9]{16,}/, "no literal token may appear in the workflow");
     assert.match(yaml, /\$\{\{ secrets\.MAILMYPDF_SCANNER_JOB_SECRET \}\}/);
+    assert.match(yaml, /\$\{\{ secrets\.MAILMYPDF_CONNECTOR_JOB_SECRET \}\}/);
   });
 
   test("an unconfigured repository skips instead of failing every ten minutes", async () => {
@@ -91,6 +99,10 @@ describe("job endpoints that still have no schedule", () => {
 
     assert.ok(byWorkflow.has("scan-documents"), "the workflow must call the scanner job");
     assert.ok(byWorkflow.has("purge-secure-documents"), "the workflow must call the retention job");
+    assert.ok(
+      byWorkflow.has("reconcile-connector-operations"),
+      "the workflow must call connector reconciliation",
+    );
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
     assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
 
