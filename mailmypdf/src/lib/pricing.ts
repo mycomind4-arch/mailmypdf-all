@@ -15,7 +15,7 @@ import {
 } from "@mailmypdf/pricing";
 import type { VerticalOrderMetadata } from "@/verticals/types";
 
-export type MailClass = "standard" | "certified" | "registered";
+export type MailClass = "standard" | "certified" | "certified_return_receipt" | "registered";
 
 // Re-export canonical mailing prices for backward compatibility
 export { PRICES, LABELS, MAIL_TYPE_MAP, isValidPricingKey };
@@ -24,6 +24,7 @@ export type { PricingKey };
 export const MAIL_CLASS_LABELS: Record<MailClass, string> = {
   standard: "Standard (3–7 business days)",
   certified: "Certified Mail (delivery tracking + confirmation, 3–7 days)",
+  certified_return_receipt: "Certified Mail + Electronic Return Receipt",
   registered: "Registered Mail (secure handling + tracking, 5–10 days)",
 };
 
@@ -31,12 +32,14 @@ export const MAIL_CLASS_LABELS: Record<MailClass, string> = {
 // These costs come from @mailmypdf/pricing and represent the Lob/USPS
 // pass-through costs. The customer-facing prices include a margin.
 export const LOB_CERTIFIED_COST = 695;   // $6.95 per piece
+export const LOB_CERTIFIED_RETURN_RECEIPT_COST = 977; // certified + electronic return receipt estimate
 export const LOB_REGISTERED_COST = 2450; // $24.50 per piece
 export const MAIL_CLASS_MARGIN = 300; // $3.00
 
 export const MAIL_CLASS_SURCHARGE: Record<MailClass, number> = {
   standard: 0,
   certified: LOB_CERTIFIED_COST + MAIL_CLASS_MARGIN,    // $9.95
+  certified_return_receipt: LOB_CERTIFIED_RETURN_RECEIPT_COST + MAIL_CLASS_MARGIN,
   registered: LOB_REGISTERED_COST + MAIL_CLASS_MARGIN,  // $27.50
 };
 
@@ -103,7 +106,7 @@ export function resolveMailClass(
   const config = getVerticalPricing(verticalSlug);
   if (!config?.minimumMailClass) return requested;
 
-  const classRank: Record<MailClass, number> = { standard: 0, certified: 1, registered: 2 };
+  const classRank: Record<MailClass, number> = { standard: 0, certified: 1, certified_return_receipt: 2, registered: 3 };
   if (classRank[requested] < classRank[config.minimumMailClass]) {
     return config.minimumMailClass;
   }
@@ -162,6 +165,7 @@ export function priceDescription(args: {
 
   if (args.color) parts.push("Color printing");
   if (effectiveMailClass === "certified" && !config?.includesCertified) parts.push("Certified Mail");
+  if (effectiveMailClass === "certified_return_receipt") parts.push("Certified Mail + Electronic Return Receipt");
   if (effectiveMailClass === "registered") parts.push("Registered Mail");
   if (config?.processingFeeCents) parts.push("Processing fee");
 
