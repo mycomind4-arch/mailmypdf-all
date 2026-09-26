@@ -47,6 +47,10 @@ export interface PacketPreview {
   quote: Quote;
 }
 
+export interface MaterializedPacketPreview extends PacketPreview {
+  bytes: Uint8Array;
+}
+
 export interface ReviewedPacket {
   packetSha256: string;
   totalCents: number;
@@ -159,11 +163,11 @@ async function loadCurrentDraft(
  * the review window shows, so the figure the user approves is the figure the
  * server calculated from the same bytes.
  */
-export async function previewPacket(
+export async function materializePacketPreview(
   caseId: string,
   mailClass: MailClass,
   context: AuthenticatedUserContext,
-): Promise<PacketPreview> {
+): Promise<MaterializedPacketPreview> {
   const workflowCase = await loadCase(caseId, context);
   const draft = await loadCurrentDraft(caseId, context);
   const documents = await loadPacketDocuments(caseId, context);
@@ -181,12 +185,26 @@ export async function previewPacket(
   });
 
   return {
+    bytes: packet.bytes,
     packetSha256: packet.sha256,
     responsePages: packet.responsePages,
     supportingPages: packet.supportingPages,
     manifest: packet.manifest,
     quote,
   };
+}
+
+export async function previewPacket(
+  caseId: string,
+  mailClass: MailClass,
+  context: AuthenticatedUserContext,
+): Promise<PacketPreview> {
+  const { bytes: _bytes, ...preview } = await materializePacketPreview(
+    caseId,
+    mailClass,
+    context,
+  );
+  return preview;
 }
 
 /**
