@@ -53,7 +53,7 @@ export type LobLetter = {
   url?: string | null;
 };
 
-export type MailClass = "standard" | "certified" | "registered";
+export type MailClass = "standard" | "certified" | "certified_return_receipt" | "registered";
 
 export async function createLobLetter(args: {
   orderId: string;
@@ -63,7 +63,7 @@ export async function createLobLetter(args: {
   description?: string;
   idempotencyKey: string;
   color?: boolean;
-  extraService?: MailClass; // "certified" or "registered" for premium delivery
+  extraService?: MailClass; // Lob extra_service; standard means no extra_service
   /** Optional per-tenant Lob API key. Falls back to platform LOB_API_KEY. */
   apiKey?: string;
 }): Promise<LobLetter> {
@@ -76,11 +76,10 @@ export async function createLobLetter(args: {
   form.set("use_type", "operational");
   form.set("metadata[orderId]", args.orderId);
 
-  // Extra service for tracking/premium delivery
-  if (args.extraService === "certified") {
-    form.set("extra_service", "certified");
-  } else if (args.extraService === "registered") {
-    form.set("extra_service", "registered");
+  // Extra service for tracking/premium delivery. Lob treats
+  // certified_return_receipt as a distinct service from certified mail.
+  if (args.extraService && args.extraService !== "standard") {
+    form.set("extra_service", args.extraService);
   }
 
   const setAddress = (prefix: "to" | "from", a: LobAddress) => {
@@ -201,6 +200,54 @@ export async function verifyLobWebhook(req: Request): Promise<{ event: any; raw:
   return { event: JSON.parse(raw), raw };
 }
 
+/**
+ * Normalize Lob letter event types into lifecycle statuses.
+ *
+ * Certified mail uses event types such as "letter.certified.delivered",
+ * while ordinary letters use "letter.delivered". Return-envelope events are
+ * a separate mailpiece and must not advance the outbound order.
+ */
+export function normalizeLobEventStatus(eventTypeId: string): string | null {
+  if (eventTypeId.startsWith("letter.return_envelope.")) return null;
+  if (eventTypeId.startsWith("letter.certified.")) {
+    return eventTypeId.slice("letter.certified.".length);
+  }
+  if (eventTypeId.startsWith("letter.")) {
+    return eventTypeId.slice("letter.".length);
+  }
+  return null;
+}
+
+function normalizeTrackingEventName(name: unknown): string | null {
+  if (typeof name !== "string" || !name.trim()) return null;
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, "_");
+  if (normalized === "re-routed") return "re-routed";
+  if (normalized === "returned_to_sender") return "returned_to_sender";
+  if (normalized === "processed_for_delivery") return "processed_for_delivery";
+  if (normalized === "in_local_area") return "in_local_area";
+  if (normalized === "in_transit") return "in_transit";
+  if (normalized === "pickup_available") return "pickup_available";
+  if (normalized === "international_exit") return "international_exit";
+  return normalized;
+}
+
+/** Prefer USPS/Lob tracking scans over the letter render status. */
+export function getLobLetterLifecycleStatus(letter: any): string | null {
+  const events = Array.isArray(letter?.tracking_events) ? letter.tracking_events : [];
+  if (events.length > 0) {
+    const sorted = [...events].sort((a, b) => {
+      const at = Date.parse(a?.time ?? a?.date_created ?? a?.date_modified ?? "") || 0;
+      const bt = Date.parse(b?.time ?? b?.date_created ?? b?.date_modified ?? "") || 0;
+      return bt - at;
+    });
+    const latest = sorted[0];
+    const detailed = normalizeTrackingEventName(latest?.details?.event);
+    const named = normalizeTrackingEventName(latest?.name);
+    return detailed ?? named;
+  }
+  return typeof letter?.status === "string" ? letter.status : null;
+}
+
 // Maps a Lob letter status/event to our internal order_status enum.
 export function mapLobStatusToOrderStatus(
   lobStatus: string | null | undefined,
@@ -218,6 +265,8 @@ export function mapLobStatusToOrderStatus(
     case "in_local_area":
     case "processed_for_delivery":
     case "re-routed":
+    case "pickup_available":
+    case "international_exit":
       return "in_transit";
     case "delivered":
       return "delivered";
@@ -227,6 +276,8 @@ export function mapLobStatusToOrderStatus(
     case "failed":
     case "error":
     case "cancelled":
+    case "rejected":
+    case "deleted":
       return "failed_provider_submission";
     default:
       return null;
@@ -306,7 +357,12 @@ export async function submitOrderToLob(orderId: string): Promise<{ lobLetterId: 
 
     const { data: updated } = await supabaseAdmin
       .from("orders")
-      .update({ status: targetStatus, lob_letter_id: letter.id })
+      .update({
+        status: targetStatus,
+        lob_letter_id: letter.id,
+        tracking_number: letter.tracking_number ?? null,
+        expected_delivery_date: letter.expected_delivery_date ?? null,
+      })
       .eq("id", orderId)
       .is("lob_letter_id", null)
       .select("id");
@@ -398,8 +454,9 @@ export async function processLobWebhook(request: Request): Promise<Response> {
     if (!order) {
       // Not a consumer order — check if it's a proof-of-service communication
       const { handleProofOfServiceLobEvent } = await import("@/lib/proof-of-service/lob-webhook-bridge");
-      const lobStatus = eventTypeId.replace("letter.", "");
+      const lobStatus = normalizeLobEventStatus(eventTypeId);
       const externalId = event?.id ?? null;
+      if (!lobStatus) return Response.json({ received: true, ignored: true });
 
       // Extract signature image URL if present (for certified mail delivery)
       const signatureImageUrl =
@@ -434,7 +491,8 @@ export async function processLobWebhook(request: Request): Promise<Response> {
     // existing inline logic is kept here because it includes progress-check
     // (only advance forward) and email notification that the service doesn't
     // handle yet. Future refactoring can migrate this to TrackingService.
-    const lobStatus = eventTypeId.replace("letter.", "");
+    const lobStatus = normalizeLobEventStatus(eventTypeId);
+    if (!lobStatus) return Response.json({ received: true, ignored: true });
     const nextStatus = mapLobStatusToOrderStatus(lobStatus);
     const currentStatus = order.status as OrderStatus;
 
@@ -446,8 +504,21 @@ export async function processLobWebhook(request: Request): Promise<Response> {
         const nextProgress = getFulfillmentProgress(nextStatus);
 
         if (nextProgress > currentProgress || nextStatus === "returned" || nextStatus === "failed_provider_submission") {
-          const update: { status: OrderStatus; mailed_at?: string } = { status: nextStatus };
-          if (nextStatus === "mailed") update.mailed_at = new Date().toISOString();
+          const now = new Date().toISOString();
+          const update: Record<string, unknown> = {
+            status: nextStatus,
+            tracking_number: letter?.tracking_number ?? null,
+            expected_delivery_date: letter?.expected_delivery_date ?? null,
+            last_tracking_event: {
+              provider: "lob",
+              external_id: externalId,
+              event_type: eventTypeId,
+              lifecycle_status: lobStatus,
+              recorded_at: event?.date_created ?? now,
+            },
+          };
+          if (nextStatus === "mailed") update.mailed_at = now;
+          if (nextStatus === "delivered") update.delivered_at = event?.date_created ?? now;
           await supabaseAdmin.from("orders").update(update).eq("id", order.id);
         }
       } else {
@@ -459,7 +530,13 @@ export async function processLobWebhook(request: Request): Promise<Response> {
       order_id: order.id,
       type: `lob.${eventTypeId}`,
       label: lobStatus.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-      metadata: { external_id: externalId },
+      metadata: {
+        external_id: externalId,
+        event_type: eventTypeId,
+        lifecycle_status: lobStatus,
+        tracking_number: letter?.tracking_number ?? null,
+        expected_delivery_date: letter?.expected_delivery_date ?? null,
+      },
     });
 
     if (nextStatus === "mailed") {
@@ -548,7 +625,7 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
   }
 
   const letter = await res.json();
-  const lobStatus = letter.status ?? null;
+  const lobStatus = getLobLetterLifecycleStatus(letter);
   const nextStatus = mapLobStatusToOrderStatus(lobStatus);
   const currentStatus = order.status as OrderStatus;
 
@@ -560,8 +637,20 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
     const nextProgress = getFulfillmentProgress(nextStatus);
 
     if (nextProgress > currentProgress || nextStatus === "returned" || nextStatus === "failed_provider_submission") {
-      const update: { status: OrderStatus; mailed_at?: string } = { status: nextStatus };
-      if (nextStatus === "mailed") update.mailed_at = new Date().toISOString();
+      const now = new Date().toISOString();
+      const update: Record<string, unknown> = {
+        status: nextStatus,
+        tracking_number: letter?.tracking_number ?? null,
+        expected_delivery_date: letter?.expected_delivery_date ?? null,
+        last_tracking_event: {
+          provider: "lob",
+          event_type: "reconciliation",
+          lifecycle_status: lobStatus,
+          recorded_at: now,
+        },
+      };
+      if (nextStatus === "mailed") update.mailed_at = now;
+      if (nextStatus === "delivered") update.delivered_at = now;
       await supabaseAdmin.from("orders").update(update).eq("id", order.id);
       updated = true;
 
@@ -575,6 +664,8 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
           previous_status: currentStatus,
           new_status: nextStatus,
           source: "reconciliation",
+          tracking_number: letter?.tracking_number ?? null,
+          expected_delivery_date: letter?.expected_delivery_date ?? null,
         },
       });
       eventsInserted = 1;
