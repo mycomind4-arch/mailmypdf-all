@@ -17,6 +17,8 @@ import {
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
+import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
+import { PACKET_REVIEW_RESOURCE_URI } from "../src/lib/mcp/ui-resource-ids";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
@@ -51,6 +53,7 @@ test("packet approval declares the exact immutable review inputs", () => {
   const required = (approval.inputSchema.required ?? []) as string[];
   assert.ok(required.includes("expected_packet_sha256"));
   assert.ok(required.includes("expected_total_cents"));
+  assert.ok(required.includes("expected_recipient_sha256"));
   assert.ok(required.includes("recipient"));
   assert.ok(required.includes("mail_class"));
 });
@@ -310,18 +313,28 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     id: number;
     result: {
       resultType: string;
-      protocolVersion: string;
+      supportedVersions: string[];
       capabilities: Record<string, unknown>;
-      serverInfo: { name: string; version: string };
+      ttlMs: number;
+      cacheScope: string;
+      _meta: {
+        "io.modelcontextprotocol/serverInfo": { name: string; version: string };
+      };
     };
   };
 
   assert.equal(payload.jsonrpc, "2.0");
   assert.equal(payload.id, 41);
   assert.equal(payload.result.resultType, "complete");
-  assert.equal(payload.result.protocolVersion, "2026-07-28");
-  assert.equal(payload.result.serverInfo.name, "MailMyPDF");
+  assert.ok(payload.result.supportedVersions.includes("2026-07-28"));
+  assert.equal(
+    payload.result._meta["io.modelcontextprotocol/serverInfo"].name,
+    "MailMyPDF",
+  );
+  assert.equal(payload.result.ttlMs, 300_000);
+  assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
+  assert.ok(payload.result.capabilities.resources);
 });
 
 test("modern requests reject missing or mismatched Mcp-Method routing headers", async () => {
@@ -361,6 +374,110 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_packet"));
+});
+
+test("preview_packet binds the review UI and recipient identity", () => {
+  const preview = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "preview_packet");
+  assert.ok(preview);
+
+  const schema = preview.inputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  assert.deepEqual(
+    [...(schema.required ?? [])].sort(),
+    ["mail_class", "matter_id", "recipient"],
+  );
+  assert.equal(preview.annotations.readOnlyHint, false);
+  assert.equal(preview.annotations.destructiveHint, false);
+  assert.equal(preview.annotations.openWorldHint, false);
+    assert.equal(preview._meta?.["openai/outputTemplate"], PACKET_REVIEW_RESOURCE_URI);
+  const ui = preview._meta?.ui as { resourceUri?: string; visibility?: string[] } | undefined;
+  assert.equal(ui?.resourceUri, PACKET_REVIEW_RESOURCE_URI);
+  assert.deepEqual(ui?.visibility, ["model", "app"]);
+});
+
+test("recipient review fingerprint is canonical and changes with mailing identity", async () => {
+  const first = await recipientReviewSha256({
+    name: " IRS ",
+    line1: "111 Constitution Ave NW",
+    line2: " ",
+    city: "Washington",
+    state: " dc ",
+    postal: "20224",
+  });
+  const same = await recipientReviewSha256({
+    name: "IRS",
+    line1: "111 Constitution Ave NW",
+    line2: null,
+    city: "Washington",
+    state: "DC",
+    postal: "20224",
+  });
+  const changed = await recipientReviewSha256({
+    name: "IRS",
+    line1: "111 Constitution Ave NW",
+    line2: null,
+    city: "Washington",
+    state: "DC",
+    postal: "20225",
+  });
+
+  assert.equal(first.sha256, same.sha256);
+  assert.notEqual(first.sha256, changed.sha256);
+  assert.equal(first.recipient.state, "DC");
+  assert.equal(first.recipient.line2, null);
+});
+
+test("modern resources list/read exposes the portable packet review app", async () => {
+  const listed = await handleMailMyPdfMcpRequest(modernMcpRequest("resources/list"));
+  assert.equal(listed.status, 200);
+  const listedPayload = await listed.json() as {
+    result: {
+      resources: Array<{ uri: string; mimeType: string }>;
+      ttlMs: number;
+      cacheScope: string;
+    };
+  };
+  assert.equal(listedPayload.result.resources.length, 1);
+  assert.equal(listedPayload.result.resources[0]?.uri, PACKET_REVIEW_RESOURCE_URI);
+  assert.equal(
+    listedPayload.result.resources[0]?.mimeType,
+    "text/html;profile=mcp-app",
+  );
+  assert.equal(listedPayload.result.ttlMs, 300_000);
+  assert.equal(listedPayload.result.cacheScope, "public");
+
+  const missingName = await handleMailMyPdfMcpRequest(
+    modernMcpRequest("resources/read", { uri: PACKET_REVIEW_RESOURCE_URI }),
+  );
+  assert.equal(missingName.status, 400);
+  const missingPayload = await missingName.json() as { error: { code: number } };
+  assert.equal(missingPayload.error.code, -32020);
+
+  const read = await handleMailMyPdfMcpRequest(
+    modernMcpRequest(
+      "resources/read",
+      { uri: PACKET_REVIEW_RESOURCE_URI },
+      { name: PACKET_REVIEW_RESOURCE_URI },
+    ),
+  );
+  assert.equal(read.status, 200);
+  const readPayload = await read.json() as {
+    result: {
+      contents: Array<{ uri: string; mimeType: string; text: string }>;
+      ttlMs: number;
+      cacheScope: string;
+    };
+  };
+  const resource = readPayload.result.contents[0];
+  assert.equal(resource?.uri, PACKET_REVIEW_RESOURCE_URI);
+  assert.equal(resource?.mimeType, "text/html;profile=mcp-app");
+  assert.match(resource?.text ?? "", /Review before approval/);
+  assert.match(resource?.text ?? "", /ui\/initialize/);
+  assert.doesNotMatch(resource?.text ?? "", /<script[^>]+src=/i);
+  assert.equal(readPayload.result.ttlMs, 300_000);
+  assert.equal(readPayload.result.cacheScope, "public");
 });
 
 test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata", async () => {
