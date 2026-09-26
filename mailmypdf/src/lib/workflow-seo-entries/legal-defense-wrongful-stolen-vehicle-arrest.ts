@@ -306,10 +306,10 @@ const entry: AuthoredWorkflowSeoEntry = {
       },
     ],
     relatedWorkflowIds: [
-      "records/public-records-request",
-      "records/agency-records-request",
-      "records/records-request",
-      "records/follow-up",
+      "legal-defense/vehicle-search-defense",
+      "records-request/public-records-request",
+      "records-request/agency-records-request",
+      "records-request/arrest-records-request",
     ],
     reviewedAt: REVIEWED,
     disclaimer:
