@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import "../../../packages/design-system/src/tokens.css";
 import "../../../packages/design-system/src/patterns.css";
@@ -16,7 +16,7 @@ import appCss from "../styles.css?url";
 import { registerWorkflowAccessTokenProvider } from "@mailmypdf/workflows";
 import { ensureSupabase, supabase } from "../integrations/supabase/client";
 import { AnalyticsConsent } from "../components/analytics-consent";
-import { startPageTracking } from "../lib/analytics";
+import { getConsent, startPageTracking } from "../lib/analytics";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { absoluteUrl } from "../lib/site-url";
 
@@ -33,11 +33,9 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Analytics domain — when set, Plausible loads. Privacy-friendly, no cookies.
+// Plausible is optional and is loaded only after the user has granted
+// analytics consent, matching the published privacy policy.
 const ANALYTICS_DOMAIN = process.env.PUBLIC_PLAUSIBLE_DOMAIN || process.env.PLAUSIBLE_DOMAIN;
-const ANALYTICS_SCRIPT = ANALYTICS_DOMAIN
-  ? `https://plausible.io/js/script.js`
-  : null;
 
 function NotFoundComponent() {
   return (
@@ -122,15 +120,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Caveat:wght@500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
       },
     ],
-    scripts: ANALYTICS_DOMAIN
-      ? [
-          {
-            src: ANALYTICS_SCRIPT!,
-            defer: true,
-            "data-domain": ANALYTICS_DOMAIN,
-          },
-        ]
-      : [],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -152,6 +141,36 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PlausibleAnalytics() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const refresh = () => setEnabled(Boolean(getConsent()?.analytics));
+    refresh();
+    window.addEventListener("mmp-consent-changed", refresh);
+    return () => window.removeEventListener("mmp-consent-changed", refresh);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || !ANALYTICS_DOMAIN) return;
+    const id = "mmp-plausible";
+    if (document.getElementById(id)) return;
+
+    const script = document.createElement("script");
+    script.id = id;
+    script.defer = true;
+    script.src = "https://plausible.io/js/script.js";
+    script.dataset.domain = ANALYTICS_DOMAIN;
+    document.head.appendChild(script);
+
+    return () => {
+      script.remove();
+    };
+  }, [enabled]);
+
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -170,6 +189,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <PlausibleAnalytics />
       <AnalyticsConsent />
     </QueryClientProvider>
   );
