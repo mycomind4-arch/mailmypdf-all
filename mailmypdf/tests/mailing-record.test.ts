@@ -98,6 +98,18 @@ test("summary is a private attachment, not a payment receipt", async () => {
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.equal((await response.json()).kind, "MailMyPDF mailing evidence record — not a payment receipt");
 });
+test("evidence artifact is a private PDF with order and tracking facts", async () => {
+  const response = await serveMailingRecord(request("evidence"), id, {
+    loadOrder: async () => fixture as never,
+    download: async () => null,
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/pdf");
+  assert.match(response.headers.get("content-disposition")!, /mailing-evidence-/);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
+});
+
 test("download returns stored PDF unchanged and missing PDF is explicit", async () => {
   const original = new Blob(["%PDF-test-original"], { type: "application/pdf" });
   const deps = { loadOrder: async () => fixture as never, download: async () => original };
