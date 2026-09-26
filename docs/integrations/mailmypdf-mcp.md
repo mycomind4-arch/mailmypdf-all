@@ -27,7 +27,7 @@ For modern requests:
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.5 tool boundary
+## v0.6 tool boundary
 
 Public discovery:
 
@@ -53,6 +53,22 @@ Authenticated matter execution:
 The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
+
+## Packet review app
+
+`preview_packet` now requires the intended recipient as part of the review request and advertises the portable MCP Apps resource:
+
+```
+ui://mailmypdf/packet-review-v1.html
+```
+
+The resource is self-contained `text/html;profile=mcp-app` with no external scripts or network dependencies. Compatible hosts can render the quote, mail class, response/supporting page counts, intended recipient, packet SHA-256, and recipient SHA-256 before approval. Clients that do not render MCP Apps can still use the same structured preview result.
+
+The review UI is passive: it cannot approve, charge, or mail. It receives tool input/result through the MCP Apps bridge and only renders what MailMyPDF already calculated.
+
+MailMyPDF canonicalizes the reviewed recipient and computes a deterministic SHA-256. `approve_packet` requires the exact `expected_recipient_sha256` returned by `preview_packet`. If the recipient changes after review, approval fails closed and the assistant must build a new preview. This is in addition to the existing packet-hash, quote, and mail-class checks.
+
+`preview_packet` is intentionally advertised with `readOnlyHint: false` because the existing packet preview path persists measured page-count metadata even though it does not approve, charge, or mail anything.
 
 ## Secure assistant attachments
 
@@ -147,7 +163,7 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
 3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
 4. Add saved-payment support only after a server-side confirmation design is complete.
-5. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.
+5. Exercise the MCP Apps packet review UI in ChatGPT/Claude-compatible hosts, then add a post-mailing status UI if it materially improves the experience.
 6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
 
 ## External smoke testing
