@@ -1,0 +1,95 @@
+{
+  "version": "0.1.0",
+  "releaseNotes": "Initial MailMyPDF plugin submission: secure document workflow discovery and execution, owner-scoped matters, quarantined attachment intake, analysis and drafting, exact PDF/recipient/price review, explicit packet approval, Stripe-hosted checkout preparation, and mailing status/tracking.",
+  "availability": [
+    "US"
+  ],
+  "annotationJustifications": {
+    "find_workflow": {
+      "readOnlyHint": "True because it only searches the static MailMyPDF workflow catalog and changes no state.",
+      "destructiveHint": "False because it cannot delete, overwrite, send, charge, approve, or otherwise change user or external state.",
+      "openWorldHint": "False because it searches only MailMyPDF's bounded workflow catalog and does not access the public internet."
+    },
+    "get_workflow": {
+      "readOnlyHint": "True because it only returns metadata for one canonical MailMyPDF workflow.",
+      "destructiveHint": "False because it changes no user, workflow, payment, or mailing state.",
+      "openWorldHint": "False because it reads only the bounded MailMyPDF workflow catalog."
+    },
+    "get_profile": {
+      "readOnlyHint": "True because it resolves only the profile represented by the already-validated OAuth credentials.",
+      "destructiveHint": "False because it cannot modify the account or any user data.",
+      "openWorldHint": "False because it reads only the connected MailMyPDF account."
+    },
+    "create_matter": {
+      "readOnlyHint": "False because it creates a new owner-scoped matter in the user's MailMyPDF workspace.",
+      "destructiveHint": "False because matter creation is reversible workspace state and does not approve, charge, send, or mail anything.",
+      "openWorldHint": "False because it writes only inside the authenticated user's bounded MailMyPDF workspace."
+    },
+    "get_matter": {
+      "readOnlyHint": "True because it only retrieves an owner-scoped matter and attached document metadata.",
+      "destructiveHint": "False because it performs no write or external action.",
+      "openWorldHint": "False because it reads only the authenticated user's bounded MailMyPDF workspace."
+    },
+    "get_order_status": {
+      "readOnlyHint": "True because it only reads MailMyPDF's persisted order, payment, mailing, tracking, and sanitized event state.",
+      "destructiveHint": "False because it does not poll providers, submit mail, charge payment, or mutate the order.",
+      "openWorldHint": "False because it reads only the authenticated user's bounded MailMyPDF order records."
+    },
+    "get_document_status": {
+      "readOnlyHint": "True because it only reads security/readiness metadata for a document already attached to the user's matter.",
+      "destructiveHint": "False because it cannot alter, delete, scan, or release the document.",
+      "openWorldHint": "False because it reads only the authenticated user's bounded MailMyPDF matter."
+    },
+    "ingest_document": {
+      "readOnlyHint": "False because it copies a user-authorized attachment into MailMyPDF quarantine storage and attaches it to a matter.",
+      "destructiveHint": "False because it creates quarantined workspace data but does not overwrite existing files, approve a packet, charge, or mail.",
+      "openWorldHint": "True because it retrieves a temporary public HTTPS attachment URL supplied by the AI client before storing the validated bytes."
+    },
+    "save_matter_input": {
+      "readOnlyHint": "False because it persists validated workflow facts to the user's matter.",
+      "destructiveHint": "False because it updates reversible matter data and has no payment, mailing, deletion, or other irreversible external side effect.",
+      "openWorldHint": "False because it writes only inside the authenticated user's bounded MailMyPDF matter."
+    },
+    "analyze_matter": {
+      "readOnlyHint": "False because it runs analysis and persists analysis state/results on the matter.",
+      "destructiveHint": "False because it does not delete or overwrite approved artifacts, charge, approve, or mail.",
+      "openWorldHint": "True because the analysis path may call the configured external LLM provider."
+    },
+    "generate_draft": {
+      "readOnlyHint": "False because it generates and persists draft workflow state.",
+      "destructiveHint": "False because the generated draft remains reviewable/editable and is not approval, payment, or mailing.",
+      "openWorldHint": "True because draft generation may call the configured external LLM provider."
+    },
+    "save_draft": {
+      "readOnlyHint": "False because it persists the exact reviewed draft text as current matter state.",
+      "destructiveHint": "False because it changes reversible draft state and cannot approve, charge, or mail.",
+      "openWorldHint": "False because it writes only inside the authenticated user's bounded MailMyPDF matter."
+    },
+    "preview_packet": {
+      "readOnlyHint": "False because packet preview may persist measured page-count metadata while building the immutable review artifact.",
+      "destructiveHint": "False because it does not approve, charge, submit mail, or irreversibly alter user data.",
+      "openWorldHint": "False because packet construction and pricing use bounded MailMyPDF workflow/account data."
+    },
+    "approve_packet": {
+      "readOnlyHint": "False because it records explicit approval of the exact packet hash, recipient, mail class, and quoted total.",
+      "destructiveHint": "False because approval alone does not charge a payment method or submit mail and stale/changed packets require a fresh approval.",
+      "openWorldHint": "False because it records approval only inside the authenticated user's bounded MailMyPDF matter."
+    },
+    "prepare_checkout": {
+      "readOnlyHint": "False because it creates or reuses an approval-bound order and Stripe-hosted Checkout Session.",
+      "destructiveHint": "False because it does not accept card credentials, charge the user, or submit mail; payment still requires user action on hosted checkout.",
+      "openWorldHint": "True because it communicates with Stripe to create or retrieve the hosted Checkout Session."
+    }
+  },
+  "manualSubmissionRequirements": [
+    "Verify the publisher developer/business identity in the OpenAI Platform organization used for submission.",
+    "Ensure the submitter has Apps Management write permission.",
+    "Deploy the production MCP endpoint and run the current tool scan.",
+    "Complete the portal-generated domain verification challenge.",
+    "Provide reviewer demo credentials that work without MFA, SMS, or email confirmation.",
+    "Record and provide the required demo-recording URL.",
+    "Exercise all five positive and three negative review cases against the deployed plugin.",
+    "Confirm public website, support, privacy policy, and terms pages match the verified publisher.",
+    "Select only countries/regions where product, legal terms, and support are ready."
+  ]
+}

@@ -157,9 +157,9 @@ if (token) {
   );
   if (!response.ok) fail("authenticated get_profile failed", body);
 
-  const profile = body?.result?.structuredContent?.profile;
+  const profile = body?.result?.structuredContent;
   if (!profile?.id) fail("authenticated get_profile returned no user id", body);
-  ok(`authenticated profile resolved (${profile.email || profile.id})`);
+  ok(`authenticated profile resolved (${profile.email || profile.name || profile.id})`);
 } else {
   console.log("ℹ️ MCP_BEARER_TOKEN not set; authenticated smoke check skipped");
 }

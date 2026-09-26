@@ -41,6 +41,24 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.length <= 15);
 });
 
+test("profile tool declares the current OpenAI account-recognition contract", () => {
+  const profile = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_profile");
+  assert.ok(profile);
+  assert.equal(profile._meta?.["openai/profile"], true);
+  assert.equal(profile.annotations.readOnlyHint, true);
+  assert.equal(profile.annotations.destructiveHint, false);
+  assert.equal(profile.annotations.openWorldHint, false);
+
+  const schema = profile.outputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+    additionalProperties?: boolean;
+  };
+  assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["email", "id", "name"]);
+  assert.deepEqual(schema.required ?? [], ["id"]);
+  assert.equal(schema.additionalProperties, false);
+});
+
 test("public discovery tools do not require account authorization", () => {
   const publicTools = MAILMYPDF_MCP_TOOLS
     .filter((tool) => tool.securitySchemes.some((scheme) => scheme.type === "noauth"))
