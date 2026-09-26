@@ -3,11 +3,13 @@ import { getSiteOrigin } from "@/lib/site-url";
 import {
   MAILMYPDF_MCP_TOOLS,
   MCP_CONNECTOR_VERSION,
+  MCP_OAUTH_SCOPES,
   MCP_PROTECTED_TOOL_NAMES,
   MCP_PROTOCOL_VERSION,
   getMcpTool,
 } from "./tool-catalog";
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
+import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
 
 type JsonRpcRequest = {
   jsonrpc?: unknown;
@@ -247,21 +249,55 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     if (!uri) {
       return json(rpcError(message.id, -32602, "resources/read requires a resource URI"), 400);
     }
-    if (uri !== PACKET_REVIEW_RESOURCE.uri) {
-      return json(rpcError(message.id, -32602, "Unknown resource URI"), 404);
+    if (uri === PACKET_REVIEW_RESOURCE.uri) {
+      return json(rpcResult(message.id, {
+        resultType: "complete",
+        contents: [{
+          uri: PACKET_REVIEW_RESOURCE.uri,
+          mimeType: PACKET_REVIEW_RESOURCE.mimeType,
+          text: PACKET_REVIEW_RESOURCE.text,
+          _meta: PACKET_REVIEW_RESOURCE._meta,
+        }],
+        ttlMs: 300_000,
+        cacheScope: "public",
+      }));
     }
 
-    return json(rpcResult(message.id, {
-      resultType: "complete",
-      contents: [{
-        uri: PACKET_REVIEW_RESOURCE.uri,
-        mimeType: PACKET_REVIEW_RESOURCE.mimeType,
-        text: PACKET_REVIEW_RESOURCE.text,
-        _meta: PACKET_REVIEW_RESOURCE._meta,
-      }],
-      ttlMs: 300_000,
-      cacheScope: "public",
-    }));
+    if (parsePacketPreviewResourceUri(uri)) {
+      try {
+        const packetPreview = await import("./packet-preview-resource.server");
+        const result = await packetPreview.readPacketPreviewResource(request, uri);
+        return json(rpcResult(message.id, {
+          resultType: "complete",
+          contents: [result.content],
+          cacheScope: "private",
+        }));
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          return json(
+            rpcError(message.id, -32001, "MailMyPDF account connection required"),
+            401,
+            {
+              "www-authenticate": authChallenge(
+                request,
+                [...MCP_OAUTH_SCOPES],
+              ),
+            },
+          );
+        }
+
+        const packetPreview = await import("./packet-preview-resource.server");
+        if (error instanceof packetPreview.PacketPreviewResourceError) {
+          return json(
+            rpcError(message.id, -32030, error.message, { code: error.code }),
+            error.status,
+          );
+        }
+        throw error;
+      }
+    }
+
+    return json(rpcError(message.id, -32602, "Unknown resource URI"), 404);
   }
 
   if (message.method === "tools/call") {
