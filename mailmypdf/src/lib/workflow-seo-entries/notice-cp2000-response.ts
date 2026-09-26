@@ -16,7 +16,7 @@ const REVIEWED = "2026-09-15";
  * who is correct, calculate tax, or file anything with the IRS.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "notice/cp2000-response",
+  id: "notice-respond/cp2000-response",
   content: {
     primaryKeyword: "CP2000 notice response",
     primaryIntent: "Someone who received an IRS CP2000 notice wants to understand which specific income items the IRS says do not match, and how to agree, dispute, or partially dispute each one before the response date.",
