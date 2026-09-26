@@ -26,18 +26,11 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 // Remove an entry only when it has actually been migrated onto step-workflow
 // and verified (tsc/build/tests), not to silence this script.
 const KNOWN_LEGACY_NON_STEP_WORKFLOW = new Set([
-  // appeal-mail: InsuranceAppealWorkflow.tsx (11) + fully custom SSDI/SSI (2)
-  "appeal-mail/appeal-car-insurance-claim",
-  "appeal-mail/appeal-denied-claim",
-  "appeal-mail/appeal-dental-insurance-denial",
-  "appeal-mail/appeal-insurance-claim-denial",
-  "appeal-mail/appeal-insurance-coverage-denial",
-  "appeal-mail/appeal-life-insurance-denial",
-  "appeal-mail/appeal-medical-insurance-denial",
-  "appeal-mail/appeal-medical-necessity-denial",
-  "appeal-mail/appeal-out-of-network-denial",
-  "appeal-mail/appeal-prior-authorization-denial",
-  "appeal-mail/appeal-timely-filing-denial",
+  // appeal-mail: InsuranceAppealWorkflow.tsx's 11 insurance-appeal ids were
+  // migrated onto real @mailmypdf/step-workflow execution (useStepWorkflowMatter)
+  // 2026-09-26 and verified (tsc, mailmypdf build + routeTree.gen.ts, tests) —
+  // removed from this allowlist. appeal-ssdi-denial/appeal-ssi-denial remain:
+  // they are a separate, fully custom implementation, not yet migrated.
   "appeal-mail/appeal-ssdi-denial",
   "appeal-mail/appeal-ssi-denial",
   // notice-respond: NoticeResponseWorkflow.tsx

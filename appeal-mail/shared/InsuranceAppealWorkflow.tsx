@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ApprovalChecklist,
   CheckboxField,
@@ -27,6 +27,13 @@ import {
   type WorkflowMatterDocument,
   type WorkflowPacketPreview,
 } from "@mailmypdf/workflows";
+import {
+  mergeApprovalGate,
+  stepStatusFromPresence,
+  useStepWorkflowMatter,
+  type DeriveSteps,
+  type StepWorkflowDefinition,
+} from "@mailmypdf/step-workflow";
 
 export interface InsuranceAppealWorkflowUiConfig {
   workflowId: string;
@@ -121,7 +128,93 @@ function sourceReady(document: WorkflowMatterDocument | null): boolean {
   return Boolean(document?.usable && document.securityStatus === "clean");
 }
 
+/**
+ * Real @mailmypdf/step-workflow projection for this workflow's matter,
+ * matching completedInsuranceAppealSteps exactly. The rendered component
+ * below keeps its own live local derivation for reactive UI (it does not
+ * refresh this projection after every action), but this is what the shared
+ * package's execution model considers each step's status from a matter
+ * snapshot, and is what actually gets used for the mount-time restore.
+ */
+const deriveInsuranceAppealStepStatuses: DeriveSteps = (context) => {
+  const sourceDocument = context.documents.find((document) => document.role === "subject_notice") ?? null;
+  const hasCleanDecision = sourceReady(sourceDocument);
+  const hasAnalysis = Boolean(context.analysis?.result.summary?.trim());
+  const storedFacts = (context.input?.input ?? {}) as Partial<AppealFacts>;
+  const hasFacts = Boolean(context.input);
+  const hasEvidenceReview =
+    storedFacts.evidenceReviewComplete === true &&
+    (storedFacts as { evidenceReviewFingerprint?: string }).evidenceReviewFingerprint ===
+      insuranceAppealEvidenceReviewFingerprint(context.documents);
+  const hasDraft = Boolean(context.draft?.bodyText);
+  const hasApproval = Boolean(context.approval);
+  const completed = new Set(
+    completedInsuranceAppealSteps({ hasCleanDecision, hasAnalysis, hasFacts, hasEvidenceReview, hasDraft, hasApproval }),
+  );
+  const patch = (id: InsuranceAppealStepId, hasPresence: boolean) => ({
+    status: mergeApprovalGate({
+      status: stepStatusFromPresence({ hasPresence, isComplete: completed.has(id) }),
+      stepId: id,
+      requiresApprovalBeforeStep: "mail",
+      approved: hasApproval,
+    }),
+  });
+  return {
+    decision: patch("decision", Boolean(sourceDocument)),
+    analysis: patch("analysis", Boolean(context.analysis)),
+    facts: patch("facts", hasFacts),
+    evidence: patch("evidence", hasFacts),
+    draft: patch("draft", Boolean(context.draft)),
+    review: patch("review", hasApproval),
+    mail: patch("mail", false),
+  };
+};
+
+/**
+ * Resolves the sessionStorage/URL-carried matter id before the real
+ * workflow (and its useStepWorkflowMatter call) ever mounts. That id is only
+ * knowable client-side, and useStepWorkflowMatter only honors its `matterId`
+ * input at its own mount, so the real workflow must not mount until this is
+ * known — otherwise a restored matter could never be adopted.
+ */
 export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWorkflowUiConfig }) {
+  const matterSessionKey = `mailmypdf:${config.workflowId}:matter`;
+  const [initialMatterId, setInitialMatterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("matter");
+    const stored = fromUrl || sessionStorage.getItem(matterSessionKey) || "";
+    setInitialMatterId(stored);
+    // matterSessionKey is derived from config.workflowId, which is immutable
+    // for one mounted workflow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (initialMatterId === null) {
+    return (
+      <StepShell
+        breadcrumb={[{ label: "Appeal Mail", href: "/appeal-mail" }, { label: config.title }]}
+        title={config.title}
+        subtitle={config.subtitle ?? ""}
+        steps={[...INSURANCE_APPEAL_STEPS]}
+        currentStepId={INSURANCE_APPEAL_STEPS[0]!.id}
+        completedStepIds={[]}
+      >
+        <p>Loading…</p>
+      </StepShell>
+    );
+  }
+
+  return <InsuranceAppealWorkflowActive config={config} initialMatterId={initialMatterId} />;
+}
+
+function InsuranceAppealWorkflowActive({
+  config,
+  initialMatterId,
+}: {
+  config: InsuranceAppealWorkflowUiConfig;
+  initialMatterId: string;
+}) {
   const primaryDocumentLabel = config.primaryDocumentLabel?.trim() || "Denial letter";
   const backHref = config.backHref ?? `/appeal-mail/workflows/${config.workflowId}`;
   const defaultRequestedOutcome =
@@ -138,7 +231,34 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     [primaryDocumentLabel],
   );
 
-  const [matterId, setMatterId] = useState("");
+  const stepWorkflowDefinition = useMemo(
+    () =>
+      ({
+        id: config.workflowId,
+        title: config.title,
+        steps: steps.map(({ id, label }) => ({ id, label })),
+        requiresApprovalBeforeStep: "mail",
+      }) satisfies StepWorkflowDefinition,
+    [config.workflowId, config.title, steps],
+  );
+
+  // Real @mailmypdf/step-workflow execution: replaces this component's
+  // previous hand-rolled matter-creation bookkeeping and its bespoke
+  // Promise.all([loadMatter, loadAnalysis, loadInput, loadDraft, loadApproval])
+  // restore — both now live once, generically, in the shared package.
+  const {
+    matterId,
+    context: restoredContext,
+    error: hookError,
+    createMatter,
+  } = useStepWorkflowMatter({
+    definition: stepWorkflowDefinition,
+    client,
+    matterId: initialMatterId,
+    deriveSteps: deriveInsuranceAppealStepStatuses,
+    verticalId: "appeal-mail",
+  });
+
   const [documents, setDocuments] = useState<WorkflowMatterDocument[]>([]);
   const [analysis, setAnalysis] = useState<WorkflowMatterAnalysis | null>(null);
   const [facts, setFacts] = useState<AppealFacts>(() => emptyFacts(defaultRequestedOutcome));
@@ -154,8 +274,64 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
   const [sender, setSender] = useState<WorkflowMailingAddress>(EMPTY_ADDRESS);
   const [mailClass, setMailClass] =
     useState<"standard" | "certified" | "registered">("certified");
-  const [busy, setBusy] = useState("");
+  const [explicitBusy, setExplicitBusy] = useState("");
   const [error, setError] = useState("");
+
+  const seededRef = useRef(false);
+  const restoring = Boolean(initialMatterId) && !seededRef.current && !hookError;
+  const busy = explicitBusy || (restoring ? "restore" : "");
+
+  // Consumes the matter snapshot useStepWorkflowMatter just loaded, exactly
+  // once, the same way the previous hand-rolled restore() populated local
+  // state from its own parallel fetch. Never re-runs on a later refresh, so
+  // it can never clobber in-progress edits.
+  useEffect(() => {
+    if (!restoredContext || seededRef.current) return;
+    seededRef.current = true;
+    if (restoredContext.matter.workflowId !== config.workflowId || restoredContext.matter.verticalId !== "appeal-mail") {
+      setError("This saved matter belongs to a different workflow.");
+      sessionStorage.removeItem(matterSessionKey);
+      return;
+    }
+    setDocuments(restoredContext.documents);
+    setAnalysis(restoredContext.analysis);
+    let restoredEvidenceReviewComplete = false;
+    if (restoredContext.input?.input) {
+      restoredEvidenceReviewComplete =
+        restoredContext.input.input.evidenceReviewComplete === true &&
+        restoredContext.input.input.evidenceReviewFingerprint ===
+          insuranceAppealEvidenceReviewFingerprint(restoredContext.documents);
+      setFacts({
+        ...emptyFacts(defaultRequestedOutcome),
+        ...(restoredContext.input.input as Partial<AppealFacts>),
+        evidenceReviewComplete: restoredEvidenceReviewComplete,
+      });
+      setFactsSaved(true);
+    }
+    if (restoredContext.draft?.bodyText) {
+      setDraft(restoredContext.draft.bodyText);
+      setDraftSaved(true);
+    }
+    if (restoredContext.approval?.approvalId) setApprovalId(restoredContext.approval.approvalId);
+    const inferred = completedInsuranceAppealSteps({
+      hasCleanDecision: restoredContext.documents.some(
+        (document) =>
+          document.role === "subject_notice" &&
+          document.usable &&
+          document.securityStatus === "clean",
+      ),
+      hasAnalysis: Boolean(restoredContext.analysis?.result.summary?.trim()),
+      hasFacts: Boolean(restoredContext.input),
+      hasEvidenceReview: restoredEvidenceReviewComplete,
+      hasDraft: Boolean(restoredContext.draft?.bodyText),
+      hasApproval: Boolean(restoredContext.approval?.approvalId),
+    });
+    setStepIndex(Math.min(inferred.length, steps.length - 1));
+  }, [restoredContext, config.workflowId, matterSessionKey, defaultRequestedOutcome, steps.length]);
+
+  useEffect(() => {
+    if (hookError) setError(hookError);
+  }, [hookError]);
 
   const sourceDocument =
     documents.find((document) => document.role === "subject_notice") ?? null;
@@ -219,74 +395,12 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     setDocuments(snapshot.documents);
   }
 
-  async function restore(id: string): Promise<void> {
-    setBusy("restore");
-    setError("");
-    try {
-      const [snapshot, storedAnalysis, storedInput, storedDraft, storedApproval] =
-        await Promise.all([
-          client.loadMatter(id),
-          client.loadAnalysis(id),
-          client.loadInput(id),
-          client.loadDraft(id),
-          client.loadApproval(id),
-        ]);
-      if (snapshot.matter.workflowId !== config.workflowId || snapshot.matter.verticalId !== "appeal-mail") {
-        throw new Error("This saved matter belongs to a different workflow.");
-      }
-      setDocuments(snapshot.documents);
-      setAnalysis(storedAnalysis);
-      let restoredEvidenceReviewComplete = false;
-      if (storedInput?.input) {
-        restoredEvidenceReviewComplete =
-          storedInput.input.evidenceReviewComplete === true &&
-          storedInput.input.evidenceReviewFingerprint ===
-            insuranceAppealEvidenceReviewFingerprint(snapshot.documents);
-        setFacts({
-          ...emptyFacts(defaultRequestedOutcome),
-          ...(storedInput.input as Partial<AppealFacts>),
-          evidenceReviewComplete: restoredEvidenceReviewComplete,
-        });
-        setFactsSaved(true);
-      }
-      if (storedDraft?.bodyText) {
-        setDraft(storedDraft.bodyText);
-        setDraftSaved(true);
-      }
-      if (storedApproval?.approvalId) setApprovalId(storedApproval.approvalId);
-      const inferred = completedInsuranceAppealSteps({
-        hasCleanDecision: snapshot.documents.some(
-          (document) =>
-            document.role === "subject_notice" &&
-            document.usable &&
-            document.securityStatus === "clean",
-        ),
-        hasAnalysis: Boolean(storedAnalysis?.result.summary.trim()),
-        hasFacts: Boolean(storedInput),
-        hasEvidenceReview: restoredEvidenceReviewComplete,
-        hasDraft: Boolean(storedDraft?.bodyText),
-        hasApproval: Boolean(storedApproval?.approvalId),
-      });
-      setStepIndex(Math.min(inferred.length, steps.length - 1));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to restore this appeal matter.");
-      sessionStorage.removeItem(matterSessionKey);
-      setMatterId("");
-    } finally {
-      setBusy("");
-    }
+  async function ensureMatter(): Promise<string> {
+    if (matterId) return matterId;
+    const created = await createMatter();
+    sessionStorage.setItem(matterSessionKey, created);
+    return created;
   }
-
-  useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("matter");
-    const stored = fromUrl || sessionStorage.getItem(matterSessionKey);
-    if (!stored) return;
-    setMatterId(stored);
-    sessionStorage.setItem(matterSessionKey, stored);
-    void restore(stored);
-    // Config identity and the session key are immutable for one mounted workflow.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (
@@ -304,22 +418,11 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     return () => window.clearInterval(timer);
   }, [matterId, documents]);
 
-  async function ensureMatter(): Promise<string> {
-    if (matterId) return matterId;
-    const created = await client.createMatter({
-      workflowId: config.workflowId,
-      verticalId: "appeal-mail",
-    });
-    setMatterId(created.id);
-    sessionStorage.setItem(matterSessionKey, created.id);
-    return created.id;
-  }
-
   async function uploadSource(files: File[]): Promise<void> {
     const file = files[0];
     if (!file) return;
     const id = await ensureMatter();
-    setBusy("upload-source");
+    setExplicitBusy("upload-source");
     setError("");
     try {
       if (sourceDocument) await client.detachDocument(id, sourceDocument.documentId);
@@ -340,13 +443,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Unable to upload the ${primaryDocumentLabel.toLowerCase()}.`);
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function analyzeSource(): Promise<void> {
     if (!matterId) return;
-    setBusy("analyze");
+    setExplicitBusy("analyze");
     setError("");
     try {
       const next = await client.analyze(matterId);
@@ -357,7 +460,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Unable to analyze the ${primaryDocumentLabel.toLowerCase()}.`);
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
@@ -369,7 +472,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
 
   async function saveFacts(): Promise<void> {
     if (!matterId) return;
-    setBusy("save-facts");
+    setExplicitBusy("save-facts");
     setError("");
     try {
       await client.saveInput(matterId, { ...facts });
@@ -377,13 +480,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save appeal facts.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function completeEvidenceReview(): Promise<void> {
     if (!matterId || !factsSaved) return;
-    setBusy("review-evidence");
+    setExplicitBusy("review-evidence");
     setError("");
     try {
       const nextFacts: AppealFacts = { ...facts, evidenceReviewComplete: true };
@@ -394,13 +497,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save the evidence review.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function uploadEvidence(files: File[]): Promise<void> {
     const id = await ensureMatter();
-    setBusy("upload-evidence");
+    setExplicitBusy("upload-evidence");
     setError("");
     try {
       let position = documents.length + 1;
@@ -424,7 +527,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to upload supporting evidence.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
@@ -460,7 +563,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
 
   async function generateDraft(): Promise<void> {
     if (!matterId) return;
-    setBusy("generate-draft");
+    setExplicitBusy("generate-draft");
     setError("");
     try {
       const generated = await client.generateDraft(matterId);
@@ -469,13 +572,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to generate the appeal draft.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function saveDraft(): Promise<void> {
     if (!matterId || !draft.trim()) return;
-    setBusy("save-draft");
+    setExplicitBusy("save-draft");
     setError("");
     try {
       await client.saveDraft(matterId, draft);
@@ -485,13 +588,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save the appeal draft.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function buildPreview(): Promise<void> {
     if (!matterId) return;
-    setBusy("preview");
+    setExplicitBusy("preview");
     setError("");
     try {
       setPacket(await client.previewPacket(matterId, mailClass));
@@ -499,13 +602,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to build the appeal packet.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function approve(): Promise<void> {
     if (!matterId || !packet) return;
-    setBusy("approve");
+    setExplicitBusy("approve");
     setError("");
     try {
       const result = await client.approvePacket({
@@ -518,13 +621,13 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to approve the exact packet.");
     } finally {
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
   async function checkout(): Promise<void> {
     if (!matterId || !approvalId) return;
-    setBusy("checkout");
+    setExplicitBusy("checkout");
     setError("");
     try {
       const result = await client.checkout({ matterId, approvalId, sender });
@@ -532,7 +635,7 @@ export function InsuranceAppealWorkflow({ config }: { config: InsuranceAppealWor
       window.location.assign(result.checkoutUrl);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to open secure checkout.");
-      setBusy("");
+      setExplicitBusy("");
     }
   }
 
