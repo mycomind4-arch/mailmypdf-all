@@ -8,6 +8,7 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 - `mcp.json` — remote streamable-HTTP MCP endpoint at `https://mailmypdf.ai/api/mcp`.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
 - `review-cases.json` — positive and negative reviewer prompts for connector behavior.
+- `annotation-justifications.json` — per-tool reviewer explanations for the advertised read-only, destructive, and open-world hints.
 
 The plugin does not duplicate workflow logic. MailMyPDF remains authoritative for authentication, matter ownership, secure document intake, malware scanning, analysis, drafting, packet construction, recipient/packet fingerprints, pricing, approval, Stripe checkout, Lob fulfillment, and mailing status.
 
@@ -44,7 +45,8 @@ The production deployment should have all of the following verified:
    - set the portal-generated value as the deployment secret `OPENAI_APPS_CHALLENGE_TOKEN`;
    - verify that `https://mailmypdf.ai/.well-known/openai-apps-challenge` returns only that exact token;
    - do not commit the token to Git.
-6. The positive and negative cases in `review-cases.json` have been exercised against the deployed connector.
-7. A disposable staging/test account has passed the guarded document E2E path before production testing.
+6. The production tool scan matches the values and explanations in `annotation-justifications.json`.
+7. The positive and negative cases in `review-cases.json` have been exercised against the deployed connector.
+8. A disposable staging/test account has passed the guarded document E2E path before production testing.
 
 Do not place secrets, bearer tokens, Supabase service credentials, Stripe keys, Lob keys, or test-user passwords in this directory.
