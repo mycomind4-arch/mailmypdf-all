@@ -19,6 +19,10 @@ import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
 import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
+import {
+  createPacketPreviewResourceUri,
+  parsePacketPreviewResourceUri,
+} from "../src/lib/mcp/packet-preview-resource";
 import { PACKET_REVIEW_RESOURCE_URI } from "../src/lib/mcp/ui-resource-ids";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
@@ -279,6 +283,56 @@ test("order status normalization exposes tracking facts without raw event metada
 });
 
 
+test("exact packet PDF resource URI is hash-bound and round-trips safely", () => {
+  const packetSha256 = "a".repeat(64);
+  const uri = createPacketPreviewResourceUri({
+    matterId: "matter/with spaces",
+    mailClass: "certified",
+    packetSha256,
+  });
+
+  const parsed = parsePacketPreviewResourceUri(uri);
+  assert.deepEqual(parsed, {
+    matterId: "matter/with spaces",
+    mailClass: "certified",
+    packetSha256,
+  });
+
+  assert.equal(parsePacketPreviewResourceUri("https://mailmypdf.ai/file.pdf"), null);
+  assert.equal(
+    parsePacketPreviewResourceUri(
+      "mailmypdf://packet-preview/matter?mailClass=overnight&packetSha256=" + packetSha256,
+    ),
+    null,
+  );
+  assert.equal(
+    parsePacketPreviewResourceUri(
+      "mailmypdf://packet-preview/matter?mailClass=certified&packetSha256=abc",
+    ),
+    null,
+  );
+  assert.equal(
+    parsePacketPreviewResourceUri(
+      "mailmypdf://packet-preview/matter?mailClass=certified&packetSha256=" +
+        packetSha256 +
+        "&unexpected=1",
+    ),
+    null,
+  );
+});
+
+test("packet review UI loads the exact PDF resource on demand", () => {
+  const html = PACKET_REVIEW_RESOURCE.text;
+
+  assert.match(html, /View exact PDF/);
+  assert.match(html, /request\("resources\/read", \{ uri \}\)/);
+  assert.match(html, /mimeType === "application\/pdf"/);
+  assert.match(html, /URL\.createObjectURL/);
+  assert.match(html, /URL\.revokeObjectURL/);
+  assert.equal(html.includes('name: "prepare_checkout"'), false);
+  assert.equal(html.includes('name: "submit_mail_order"'), false);
+});
+
 function modernMcpRequest(
   method: string,
   params: Record<string, unknown> | undefined = undefined,
@@ -500,6 +554,31 @@ test("modern resources list/read exposes the portable packet review app", async 
   assert.doesNotMatch(resource?.text ?? "", /<script[^>]+src=/i);
   assert.equal(readPayload.result.ttlMs, 300_000);
   assert.equal(readPayload.result.cacheScope, "public");
+});
+
+test("exact packet PDF resource requires OAuth before packet materialization", async () => {
+  const uri = createPacketPreviewResourceUri({
+    matterId: "matter-test",
+    mailClass: "certified",
+    packetSha256: "b".repeat(64),
+  });
+
+  const response = await handleMailMyPdfMcpRequest(
+    modernMcpRequest(
+      "resources/read",
+      { uri },
+      { name: uri },
+    ),
+  );
+
+  assert.equal(response.status, 401);
+  const challenge = response.headers.get("www-authenticate") ?? "";
+  assert.match(challenge, /^Bearer /);
+  assert.match(
+    challenge,
+    /resource_metadata="https:\/\/mailmypdf\.ai\/\.well-known\/oauth-protected-resource"/,
+  );
+  assert.match(challenge, /scope="email profile"/);
 });
 
 test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata", async () => {
