@@ -16,7 +16,8 @@
     "verify:launch": "npm test && npm run seo:authority:validate && npm run seo:landing:validate && npm run build",
     "verify:production-config": "node scripts/production-readiness.mjs",
     "seo:landing:validate": "tsx scripts/validate-public-workflow-landings.ts",
-    "mcp:smoke": "node scripts/mcp-smoke.mjs"
+    "mcp:smoke": "node scripts/mcp-smoke.mjs",
+    "mcp:e2e:document": "node scripts/mcp-document-e2e.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
