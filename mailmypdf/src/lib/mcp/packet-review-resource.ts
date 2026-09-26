@@ -473,6 +473,7 @@ button:disabled {
   _meta: {
     ui: {
       prefersBorder: true,
+      domain: "https://mailmypdf.ai",
       csp: {
         connectDomains: [],
         resourceDomains: [],
