@@ -294,7 +294,8 @@ export async function verifyLobWebhook(
     throw new LobProviderError("Missing Lob signature headers.");
   }
 
-  const timestampMs = Number(timestamp);
+  const timestampValue = Number(timestamp);
+  const timestampMs = timestampValue < 1_000_000_000_000 ? timestampValue * 1000 : timestampValue;
   const toleranceMs = options.toleranceMs ?? DEFAULT_WEBHOOK_TOLERANCE_MS;
   const now = options.now ?? Date.now();
   if (!Number.isFinite(timestampMs) || Math.abs(now - timestampMs) > toleranceMs) {
