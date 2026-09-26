@@ -46,6 +46,10 @@
       "types": "./src/connector-operation.ts",
       "import": "./dist/connector-operation.js"
     },
+    "./connector-operation-reconciliation": {
+      "types": "./src/connector-operation-reconciliation.ts",
+      "import": "./dist/connector-operation-reconciliation.js"
+    },
     "./connector-binding-health": {
       "types": "./src/connector-binding-health.ts",
       "import": "./dist/connector-binding-health.js"

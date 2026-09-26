@@ -22,6 +22,7 @@ export * from "./capability-adapters.js";
 export * from "./capability-contract-validation.js";
 export * from "./connector-readiness.js";
 export * from "./connector-operation.js";
+export * from "./connector-operation-reconciliation.js";
 export * from "./connector-binding-health.js";
 
 export * from "./execution-reliability.js";
