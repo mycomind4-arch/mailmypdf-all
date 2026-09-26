@@ -459,10 +459,23 @@ export async function processLobWebhook(request: Request): Promise<Response> {
       if (!lobStatus) return Response.json({ received: true, ignored: true });
 
       // Extract signature image URL if present (for certified mail delivery)
+      const deliveredTrackingEvent = Array.isArray(letter?.tracking_events)
+        ? letter.tracking_events.find((e: Record<string, unknown>) => {
+            const name = typeof e?.name === "string" ? e.name.toLowerCase() : "";
+            const detail = typeof (e as any)?.details?.event === "string"
+              ? (e as any).details.event.toLowerCase()
+              : "";
+            return name === "delivered" || detail === "delivered";
+          })
+        : null;
+      // Lob's public Letter schema does not guarantee a return-receipt URL.
+      // Preserve one only if a provider payload explicitly supplies it.
       const signatureImageUrl =
-        letter?.tracking_events?.find((e: Record<string, unknown>) =>
-          (e as { event_type?: string })?.event_type === "delivered"
-        )?.signature_url ?? null;
+        typeof letter?.signature_url === "string"
+          ? letter.signature_url
+          : typeof deliveredTrackingEvent?.signature_url === "string"
+            ? deliveredTrackingEvent.signature_url
+            : null;
 
       const handled = await handleProofOfServiceLobEvent(letterId, lobStatus, externalId, signatureImageUrl, { supabaseAdmin });
       if (handled) {
@@ -505,7 +518,14 @@ export async function processLobWebhook(request: Request): Promise<Response> {
 
         if (nextProgress > currentProgress || nextStatus === "returned" || nextStatus === "failed_provider_submission") {
           const now = new Date().toISOString();
-          const update: Record<string, unknown> = {
+          const update: {
+            status: OrderStatus;
+            tracking_number: string | null;
+            expected_delivery_date: string | null;
+            last_tracking_event: Record<string, string | null>;
+            mailed_at?: string;
+            delivered_at?: string;
+          } = {
             status: nextStatus,
             tracking_number: letter?.tracking_number ?? null,
             expected_delivery_date: letter?.expected_delivery_date ?? null,
@@ -638,7 +658,14 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
 
     if (nextProgress > currentProgress || nextStatus === "returned" || nextStatus === "failed_provider_submission") {
       const now = new Date().toISOString();
-      const update: Record<string, unknown> = {
+      const update: {
+            status: OrderStatus;
+            tracking_number: string | null;
+            expected_delivery_date: string | null;
+            last_tracking_event: Record<string, string | null>;
+            mailed_at?: string;
+            delivered_at?: string;
+          } = {
         status: nextStatus,
         tracking_number: letter?.tracking_number ?? null,
         expected_delivery_date: letter?.expected_delivery_date ?? null,
