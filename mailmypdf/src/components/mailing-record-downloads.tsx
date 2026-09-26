@@ -8,13 +8,13 @@ export function MailingRecordDownloads({ id, token }: { id: string; token: strin
         Your mailing record
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Save the recorded addresses, order amount, provider reference, and event history. Download
-        the original PDF separately. Keep both files private.
+        Save the exact document hash, recorded addresses, provider reference, tracking details,
+        and event history. Download the original PDF separately and keep both files private.
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         {(
           [
-            ["summary", "Download order record (.json)"],
+            ["summary", "Download mailing evidence (.json)"],
             ["document", "Download original PDF"],
           ] as const
         ).map(([artifact, label]) => (
@@ -37,9 +37,8 @@ export function MailingRecordDownloads({ id, token }: { id: string; token: strin
         ))}
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
-        This record is not a payment receipt or certified proof of delivery. Those artifacts are not
-        available here. Original PDFs may be unavailable after retention cleanup; a failed download
-        opens an explanation.
+        This is a mailing evidence record, not a payment receipt. Certified and tracked mailings add
+        carrier tracking events as they arrive. Original PDFs may be unavailable after retention cleanup.
       </p>
     </section>
   );
