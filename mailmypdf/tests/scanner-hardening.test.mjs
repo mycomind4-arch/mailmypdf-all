@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 const SCANNER = "src/lib/secure-core/scanner.server.ts";
+const DOCUMENTS = "../packages/documents/src/index.ts";
 
 /* ═══════════════════════════════════════════════════════════
    Quarantine promotion gate
@@ -16,39 +17,42 @@ const SCANNER = "src/lib/secure-core/scanner.server.ts";
 
 describe("promotion requires more than a signature scan", () => {
   test("PDFs are checked for active content after the signature verdict", async () => {
-    const source = await read(SCANNER);
-    assert.match(source, /async function scanWithPdfHardening/);
-    assert.match(source, /findUnsafePdfFeature/);
-    // The batch loop must use the hardened path, not the bare scan.
-    assert.match(source, /const verdict = await scanWithPdfHardening\(content, document\.mime_type\)/);
+    const scanner = await read(SCANNER);
+    const documents = await read(DOCUMENTS);
+    assert.match(scanner, /evaluateQuarantinedDocument/);
+    assert.match(documents, /FORBIDDEN_PDF_TOKENS/);
+    assert.match(documents, /PDF contains forbidden token/);
   });
 
   test("an unsafe PDF is recorded as infected, with the feature named", async () => {
-    const source = await read(SCANNER);
-    const fn = source.slice(source.indexOf("async function scanWithPdfHardening"));
-    assert.match(fn, /status: "infected"/);
-    assert.match(fn, /signature: `Pdf\.\$\{unsafe\}`/);
-    assert.match(fn, /mailmypdf-pdf-safety/);
+    const documents = await read(DOCUMENTS);
+    assert.match(documents, /securityStatus: "rejected"/);
+    assert.match(documents, /status: "infected"/);
+    assert.match(documents, /signature: integrity\.error\.message/);
+    assert.match(documents, /mailmypdf-static-validation/);
   });
 
   test("hardening only overrides a clean verdict, never softens an infected one", async () => {
-    const source = await read(SCANNER);
-    const fn = source.slice(source.indexOf("async function scanWithPdfHardening"));
-    assert.match(fn, /if \(verdict\.status !== "clean" \|\| mimeType !== "application\/pdf"\) return verdict;/);
+    const documents = await read(DOCUMENTS);
+    const verifyAt = documents.indexOf("const integrity = verifyStoredDocument(document, bytes)");
+    const scanAt = documents.indexOf("const verdict = await scanner.scan", verifyAt);
+    assert.ok(verifyAt > 0 && scanAt > verifyAt, "structural validation must precede malware scanning");
+    assert.match(documents.slice(verifyAt, scanAt), /securityStatus: "rejected"/);
   });
 });
 
 describe("fail-closed properties", () => {
   test("only an explicit clean verdict promotes a document", async () => {
-    const source = await read(SCANNER);
-    assert.match(source, /verdict\.status === "clean" \? "clean" : "rejected"/);
-    assert.match(source, /result\.status !== "clean" && result\.status !== "infected"/);
+    const scanner = await read(SCANNER);
+    const documents = await read(DOCUMENTS);
+    assert.match(documents, /verdict\.status === "clean" \? "clean" : "rejected"/);
+    assert.match(scanner, /result\.status !== "clean" && result\.status !== "infected"/);
   });
 
   test("a scan failure returns the document to quarantine", async () => {
     const source = await read(SCANNER);
     const cat = source.slice(source.indexOf("} catch (error) {"));
-    assert.match(cat, /security_status: document\.deletion_requested_at \? "deleting" : "quarantined"/);
+    assert.match(cat, /security_status:\s*document\.deletion_requested_at\s*\? "deleting"\s*:\s*"quarantined"/);
   });
 
   test("a pending deletion is never promoted to clean", async () => {
@@ -57,9 +61,10 @@ describe("fail-closed properties", () => {
   });
 
   test("stored bytes are re-hashed before they are scanned", async () => {
-    const source = await read(SCANNER);
-    const hashAt = source.indexOf('computeSha256(content) !== document.sha256');
-    const scanAt = source.indexOf("await scanWithPdfHardening(");
+    const source = await read(DOCUMENTS);
+    const verifyAt = source.indexOf("export function verifyStoredDocument");
+    const hashAt = source.indexOf("computeSha256(bytes) !== document.sha256", verifyAt);
+    const scanAt = source.indexOf("await scanner.scan(", hashAt);
     assert.ok(hashAt > 0 && scanAt > hashAt, "the integrity check must precede the scan");
   });
 

@@ -6,10 +6,10 @@ import test from "node:test";
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-const registry = read("src/verticals/registry.ts");
+const registry = read("src/lib/section-registry.ts");
 const publicConfig = read("src/lib/public-verticals.ts");
-const workflowModel = read("../verticals/legal-defense/src/model.ts");
-const authority = read("../verticals/legal-defense/src/authority.ts");
+const workflowModel = read("../legal-defense/src/model.ts");
+const authority = read("../legal-defense/src/authority.ts");
 const authenticatedRoute = "src/routes/_authenticated/legal-defense/workflows/$workflowId/start.tsx";
 
 test("Legal Defense is a registered executable beta vertical", () => {

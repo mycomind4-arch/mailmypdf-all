@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sitemapRoutes, renderSitemapXml } from "../src/lib/sitemap";
+import { MOUNTED_WORKFLOW_SEO_CONFIGS, sitemapRoutes, renderSitemapXml } from "../src/lib/sitemap";
 import { renderRobotsTxt, ROBOTS_DISALLOW } from "../src/lib/robots";
-import { PUBLIC_VERTICALS } from "../src/lib/public-verticals";
+import { WORKFLOW_REGISTRY } from "../src/lib/workflow-registry";
 import { SEO_PAGES } from "../src/lib/seo-pages";
 import { workflowAuthorityPages } from "../src/lib/workflow-authority-registry";
 
@@ -16,15 +16,17 @@ function locs(): string[] {
   return [...renderSitemapXml(ORIGIN).matchAll(/<loc>([^<]*)<\/loc>/g)].map(([, loc]) => loc);
 }
 
-test("every public vertical contributes its landing and workflows routes", () => {
+test("every canonical section contributes its landing and workflows routes", () => {
   const paths = new Set(sitemapRoutes().map((route) => route.loc));
+  const sections = new Set(WORKFLOW_REGISTRY.map((workflow) => workflow.sectionId));
 
-  assert.ok(PUBLIC_VERTICALS.length > 0, "PUBLIC_VERTICALS must not be empty");
-  for (const vertical of PUBLIC_VERTICALS) {
-    assert.ok(paths.has(vertical.path), `sitemap is missing ${vertical.path}`);
+  assert.ok(sections.size > 0, "WORKFLOW_REGISTRY must contain sections");
+  for (const section of sections) {
+    const sectionPath = `/${section}`;
+    assert.ok(paths.has(sectionPath), `sitemap is missing ${sectionPath}`);
     assert.ok(
-      paths.has(`${vertical.path}/workflows`),
-      `sitemap is missing ${vertical.path}/workflows`,
+      paths.has(`${sectionPath}/workflows`),
+      `sitemap is missing ${sectionPath}/workflows`,
     );
   }
 });
@@ -44,9 +46,13 @@ test("indexable workflow authority pages are advertised", () => {
 
 test("non-indexable workflow authority pages stay out of the sitemap", () => {
   const paths = new Set(sitemapRoutes().map((route) => route.loc));
+  const separatelyReviewed = new Set(
+    MOUNTED_WORKFLOW_SEO_CONFIGS.filter((config) => config.indexable).map((config) => config.path),
+  );
   const hidden = workflowAuthorityPages().filter((page) => !page.indexable);
 
   for (const page of hidden) {
+    if (separatelyReviewed.has(page.path)) continue;
     assert.ok(!paths.has(page.path), `sitemap leaks non-indexable workflow ${page.path}`);
   }
 });

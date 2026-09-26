@@ -14,6 +14,7 @@ import {
   type DraftValidationResult,
 } from "@mailmypdf/workflows";
 import { assertDraftReady, resolveCaseWorkflow, validateNoticeAnalysis, type NoticeAnalysis } from "./workflow-runtime";
+import type { WorkflowMatterAnalysis } from "@mailmypdf/workflows";
 export type { NoticeAnalysis } from "./workflow-runtime";
 import { CaseError, CaseNotFoundError, listCaseDocuments, loadCase } from "./case.server";
 import { loadLatestCaseInput } from "./case-inputs.server";
@@ -42,6 +43,14 @@ export interface StoredAnalysis {
   documentId: string;
   model: string;
   result: NoticeAnalysis;
+  createdAt: string;
+}
+
+export interface StoredWorkflowAnalysis {
+  version: number;
+  documentId: string;
+  model: string;
+  result: WorkflowMatterAnalysis["result"];
   createdAt: string;
 }
 
@@ -160,6 +169,25 @@ export async function persistCaseAnalysis(
   };
 }
 
+/** Generic runtime persistence deliberately bypasses the legacy notice schema. */
+export async function persistWorkflowAnalysis(
+  caseId: string,
+  analysis: WorkflowMatterAnalysis,
+  context: AuthenticatedUserContext,
+): Promise<StoredWorkflowAnalysis> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("record_case_analysis", {
+    p_case_id: caseId,
+    p_document_id: analysis.documentId,
+    p_model: analysis.model,
+    p_result: analysis.result as unknown as never,
+  });
+  if (error) throw new CaseError(error.message);
+  const stored = data as unknown as { version: number; created_at: string } | null;
+  if (!stored) throw new CaseError("Analysis was not recorded");
+  return { ...analysis, version: stored.version, createdAt: stored.created_at };
+}
+
 /**
  * Analyses the case's subject notice and records the conclusion in one step.
  * Used by the v2 case routes; the generic workflow-runtime host instead calls
@@ -196,6 +224,30 @@ export async function loadLatestAnalysis(
   };
 }
 
+/** Generic runtime load path; preserve domain-specific workflowDetails fields. */
+export async function loadLatestWorkflowAnalysis(
+  caseId: string,
+  context: AuthenticatedUserContext,
+): Promise<StoredWorkflowAnalysis | null> {
+  const { data, error } = await context.supabase
+    .from("case_analyses")
+    .select("version, document_id, model, result, created_at")
+    .eq("case_id", caseId)
+    .eq("owner_id", context.user.id)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new CaseError(error.message);
+  if (!data) return null;
+  return {
+    version: data.version,
+    documentId: data.document_id,
+    model: data.model,
+    result: data.result as WorkflowMatterAnalysis["result"],
+    createdAt: data.created_at,
+  };
+}
+
 // Legacy /notice/$ input carries `userFacts`; the shared notice shell carries
 // `responseExplanation` and `additionalFacts` instead.
 function caseInputUserFacts(input: Record<string, unknown> | undefined): string | undefined {
@@ -223,7 +275,10 @@ function caseInputUserFacts(input: Record<string, unknown> | undefined): string 
 export async function generateDraftResponse(
   caseId: string,
   context: AuthenticatedUserContext,
-  options: { validatedInput?: { version: number; input: Record<string, unknown> } } = {},
+  options: {
+    validatedInput?: { version: number; input: Record<string, unknown> };
+    analysis?: StoredAnalysis;
+  } = {},
 ): Promise<{
   bodyText: string;
   model: string;
@@ -234,7 +289,7 @@ export async function generateDraftResponse(
   const workflowCase = await loadCase(caseId, context);
   const workflow = resolveCaseWorkflow(workflowCase.workflow_id, workflowCase.vertical_id);
 
-  const analysis = await loadLatestAnalysis(caseId, context);
+  const analysis = options.analysis ?? await loadLatestAnalysis(caseId, context);
   if (!analysis) throw new CaseNotFoundError("Analyse the notice before drafting a response");
 
   const caseInput: { version: number; input: Record<string, unknown> } | null =

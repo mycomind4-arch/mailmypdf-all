@@ -215,7 +215,8 @@ async function executeSharedAi(args: {
   } catch (error) {
     if (error instanceof AiGatewayError) throw error;
     const message =
-      error instanceof Error && error.message === "ANTHROPIC_TIMEOUT"
+      error instanceof Error &&
+      (error.message === "ANTHROPIC_TIMEOUT" || error.message === "AI_TIMEOUT")
         ? "Model request timed out"
         : "Model request could not be completed";
     throw new AiGatewayError(message);

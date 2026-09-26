@@ -42,10 +42,9 @@ import {
 } from "./case.server";
 import {
   generateDraftResponse,
-  loadLatestAnalysis,
-  persistCaseAnalysis,
+  loadLatestWorkflowAnalysis,
+  persistWorkflowAnalysis,
   runNoticeAnalysisModel,
-  type NoticeAnalysis,
 } from "./case-analysis.server";
 import { loadLatestCaseDraft, saveCaseDraft } from "./case-draft.server";
 import {
@@ -172,20 +171,14 @@ async function storeSaveAnalysis(
   analysis: WorkflowMatterAnalysis,
   context: AuthenticatedUserContext,
 ): Promise<void> {
-  await persistCaseAnalysis(
-    matterId,
-    analysis.documentId,
-    analysis.model,
-    analysis.result as unknown as NoticeAnalysis,
-    context,
-  );
+  await persistWorkflowAnalysis(matterId, analysis, context);
 }
 
 async function storeLoadAnalysis(
   matterId: string,
   context: AuthenticatedUserContext,
 ): Promise<WorkflowMatterAnalysis | null> {
-  const stored = await loadLatestAnalysis(matterId, context);
+  const stored = await loadLatestWorkflowAnalysis(matterId, context);
   if (!stored) return null;
   return {
     version: stored.version,
@@ -361,6 +354,7 @@ async function intelligenceAnalyze(matterId: string, context: AuthenticatedUserC
 async function intelligenceGenerateDraft(
   matterId: string,
   caseInput: WorkflowRuntimeStoredInput,
+  analysis: WorkflowMatterAnalysis,
   context: AuthenticatedUserContext,
 ) {
   // The platform policy validated this input (and evidence freshness) before
@@ -368,6 +362,13 @@ async function intelligenceGenerateDraft(
   // /notice/$ schema, which rejects the platform input shape.
   const generated = await generateDraftResponse(matterId, context, {
     validatedInput: { version: caseInput.version, input: caseInput.input },
+    analysis: {
+      version: analysis.version,
+      documentId: analysis.documentId,
+      model: analysis.model,
+      createdAt: analysis.createdAt,
+      result: analysis.result as never,
+    },
   });
   return {
     bodyText: generated.bodyText,
@@ -486,7 +487,7 @@ export async function handleWorkflowRuntimeRequest(request: Request): Promise<Re
     intelligence: {
       analyze: (input) => intelligenceAnalyze(input.matter.matter.id, requireContext()),
       generateDraft: (input) =>
-        intelligenceGenerateDraft(input.matter.matter.id, input.caseInput, requireContext()),
+        intelligenceGenerateDraft(input.matter.matter.id, input.caseInput, input.analysis, requireContext()),
     },
 
     packet: {

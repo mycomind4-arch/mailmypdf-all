@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
+const DOCUMENTS = "../packages/documents/src/index.ts";
 
 describe("secure document boundary", () => {
   test("verifies the user and never uses a privileged key", async () => {
@@ -13,13 +14,16 @@ describe("secure document boundary", () => {
   });
 
   test("validates before quarantine and records explicit consent", async () => {
-    const source = await read("src/lib/secure-core/document-intake.server.ts");
-    const validateAt = source.indexOf("validateDocument(");
-    const uploadAt = source.indexOf(".upload(");
+    const adapter = await read("src/lib/secure-core/document-intake.server.ts");
+    const source = await read(DOCUMENTS);
+    const intakeAt = source.indexOf("export async function intakeDocumentToQuarantine");
+    const validateAt = source.indexOf("validateDocument({", intakeAt);
+    const uploadAt = source.indexOf("deps.storage.put(", validateAt);
     assert.ok(validateAt >= 0 && uploadAt > validateAt);
     assert.match(source, /if \(!input\.consent\)/);
-    assert.match(source, /security_status: "quarantined"/);
-    assert.match(source, /storagePath = `\$\{context\.user\.id\}/);
+    assert.match(source, /securityStatus: "quarantined"/);
+    assert.match(source, /buildSecureDocumentPath\(input\.ownerId, id, safeFilename\)/);
+    assert.match(adapter, /intakeDocumentToQuarantine/);
   });
 
   test("database and storage policies enforce owner isolation", async () => {
@@ -38,10 +42,12 @@ describe("secure document boundary", () => {
 
   test("scanner claims work atomically and fails closed", async () => {
     const scanner = await read("src/lib/secure-core/scanner.server.ts");
+    const documents = await read(DOCUMENTS);
     const migration = await read("supabase/migrations/20260904120000_secure_document_vault.sql");
-    assert.match(scanner, /computeSha256\(content\) !== document\.sha256/);
+    assert.match(scanner, /evaluateQuarantinedDocument/);
+    assert.match(documents, /computeSha256\(bytes\) !== document\.sha256/);
     assert.match(scanner, /result\.status !== "clean" && result\.status !== "infected"/);
-    assert.match(scanner, /document\.deletion_requested_at \? "deleting" : "quarantined"/);
+    assert.match(scanner, /document\.deletion_requested_at\s*\? "deleting"\s*:\s*"quarantined"/);
     assert.match(scanner, /url\.protocol !== "https:"/);
     assert.match(migration, /for update skip locked/i);
     assert.match(migration, /grant execute on function public\.claim_secure_documents_for_scan\(integer\) to service_role/i);
@@ -74,9 +80,12 @@ describe("secure document boundary", () => {
 
   test("immutable consent stores a constrained code rather than free-form sensitive text", async () => {
     const intake = await read("src/lib/secure-core/document-intake.server.ts");
+    const documents = await read(DOCUMENTS);
     const migration = await read("supabase/migrations/20260904120000_secure_document_vault.sql");
-    assert.match(intake, /\^\[a-z0-9\]\[a-z0-9\._-\]\{2,63\}\$/);
-    assert.match(intake, /purpose: purposeCode/);
+    assert.match(documents, /\^\[a-z0-9\]\[a-z0-9\._-\]\{2,63\}\$/);
+    assert.match(documents, /const purpose = validateDocumentPurpose\(input\.purpose\)/);
+    assert.match(documents, /recordConsent\(\{[\s\S]{0,200}\bpurpose,/);
+    assert.match(intake, /purpose: input\.purpose/);
     assert.match(migration, /purpose ~ '\^\[a-z0-9\]\[a-z0-9\._-\]\{2,63\}\$'/);
   });
 
@@ -90,7 +99,7 @@ describe("secure document boundary", () => {
     assert.match(migration, /and owner_id = auth\.uid\(\)/i);
     assert.match(migration, /when security_status = 'scanning' then 'scanning'/i);
     assert.match(scanner, /document\.deletion_requested_at\s*\? "deleting"/);
-    assert.match(scanner, /document\.deletion_requested_at \? "deleting" : "quarantined"/);
+    assert.match(scanner, /document\.deletion_requested_at\s*\? "deleting"\s*:\s*"quarantined"/);
   });
 
   test("secure metadata export is owner-scoped, bounded, downloadable, and audited", async () => {

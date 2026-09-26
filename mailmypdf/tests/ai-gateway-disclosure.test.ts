@@ -284,7 +284,7 @@ describe("verified document disclosure", () => {
 describe("provider failure containment", () => {
   for (const withDocument of [false, true]) {
     test(`${withDocument ? "document" : "text"} errors never reflect provider response bodies`, async (t) => {
-      const { state, disclose } = harness(t);
+      const { state, disclose, context } = harness(t);
       let bodyRead = false;
       state.modelResponse = () => new Response(new ReadableStream({
         pull(controller) { bodyRead = true; controller.enqueue(new TextEncoder().encode("SYNTHETIC_PRIVATE_CASE_DATA")); controller.close(); },

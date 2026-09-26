@@ -267,7 +267,9 @@ describe("Lob Hardening — Source-Level Tests", () => {
   it("address validation module exists and validates US addresses", async () => {
     const av = await source("src/lib/address-validation.ts");
     assert.match(av, /validateUsAddress/);
-    assert.match(av, /us_verifications/);
+    assert.match(av, /createLobAddressVerifier/);
+    assert.match(av, /verifyMailingAddresses/);
+    assert.match(av, /@mailmypdf\/fulfillment/);
     assert.match(av, /AddressValidationLevel/);
   });
 

@@ -436,6 +436,7 @@ export type Database = {
       }
       case_drafts: {
         Row: {
+          basis: Json | null
           id: string
           case_id: string
           owner_id: string
@@ -444,6 +445,7 @@ export type Database = {
           created_at: string
         }
         Insert: {
+          basis?: Json | null
           id?: string
           case_id: string
           owner_id: string
@@ -452,6 +454,7 @@ export type Database = {
           created_at?: string
         }
         Update: {
+          basis?: Json | null
           id?: string
           case_id?: string
           owner_id?: string
@@ -1198,6 +1201,182 @@ export type Database = {
           },
         ]
       }
+      notification_deliveries: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          failed_at: string | null
+          idempotency_key: string
+          last_error: string | null
+          provider: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          failed_at?: string | null
+          idempotency_key: string
+          last_error?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          failed_at?: string | null
+          idempotency_key?: string
+          last_error?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      publication_runs: {
+        Row: {
+          approval_note: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          edition_id: string | null
+          provider_id: string | null
+          publication_id: string
+          publication_url: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rendered_json: Json | null
+          run_id: string
+          run_json: Json
+          stage: string
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          edition_id?: string | null
+          provider_id?: string | null
+          publication_id: string
+          publication_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rendered_json?: Json | null
+          run_id: string
+          run_json: Json
+          stage: string
+          status: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_note?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          edition_id?: string | null
+          provider_id?: string | null
+          publication_id?: string
+          publication_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rendered_json?: Json | null
+          run_id?: string
+          run_json?: Json
+          stage?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      publication_schedule_claims: {
+        Row: {
+          claimed_at: string
+          completed_at: string | null
+          error: string | null
+          publication_id: string
+          run_id: string | null
+          schedule_key: string
+          status: string
+        }
+        Insert: {
+          claimed_at?: string
+          completed_at?: string | null
+          error?: string | null
+          publication_id: string
+          run_id?: string | null
+          schedule_key: string
+          status?: string
+        }
+        Update: {
+          claimed_at?: string
+          completed_at?: string | null
+          error?: string | null
+          publication_id?: string
+          run_id?: string | null
+          schedule_key?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_schedule_claims_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "publication_runs"
+            referencedColumns: ["run_id"]
+          },
+        ]
+      }
+      publication_story_memory: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          embedding_model: string | null
+          metadata: Json
+          publication_id: string
+          publication_story_id: string
+          published_at: string
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          embedding_model?: string | null
+          metadata?: Json
+          publication_id: string
+          publication_story_id: string
+          published_at: string
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          embedding_model?: string | null
+          metadata?: Json
+          publication_id?: string
+          publication_story_id?: string
+          published_at?: string
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
       proof_tenants: {
         Row: {
           id: string
@@ -1687,6 +1866,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_notification_delivery: {
+        Args: {
+          p_idempotency_key: string
+          p_now: string
+        }
+        Returns: boolean
+      }
       get_user_entitlements: {
         Args: { p_user_id: string }
         Returns: {
@@ -1695,6 +1881,18 @@ export type Database = {
           is_user_level: boolean
           policy_id: string
           policy_slug: string
+        }[]
+      }
+      match_publication_story_memory: {
+        Args: {
+          p_embedding: string
+          p_limit?: number
+          p_publication_id: string
+        }
+        Returns: {
+          publication_story_id: string
+          published_at: string
+          similarity: number
         }[]
       }
       record_case_analysis: {

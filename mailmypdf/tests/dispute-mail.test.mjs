@@ -230,22 +230,19 @@ describe("DisputeMail — API Endpoints", () => {
 // ── DisputeMail catalog boundary ─────────────────────────────────────────────
 
 describe("DisputeMail — Catalog Boundary", () => {
-  // Dispute Mail's root route was migrated from an internal, noindex/nofollow
-  // prelaunch placeholder to the canonical, indexable public vertical landing
-  // page (see the "Serve Dispute Mail canonical public landing" commit and
-  // the shared PublicVerticalLandingPage component) — dispute-mail now has a
-  // real, gold-standard-gated checkout/fulfillment implementation
-  // (apps/verticals/dispute-mail), so it's no longer "unfinished".
+  const routePath = join(__dirname_test, "..", "src", "routes", "dispute-mail", "index.tsx");
+
   it("serves the canonical, indexable public vertical landing page", () => {
-    const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
-    assert.ok(routeSource.includes('createFileRoute("/dispute-mail")'));
-    assert.ok(routeSource.includes("PublicVerticalLandingPage"));
-    assert.ok(routeSource.includes('id="dispute-mail"'));
+    const routeSource = readFileSync(routePath, "utf-8");
+    assert.ok(routeSource.includes('createFileRoute("/dispute-mail/")'));
+    assert.ok(routeSource.includes("SectionLandingPage"));
+    assert.ok(routeSource.includes("createSectionHead"));
+    assert.ok(routeSource.includes("disputeMailConfig"));
     assert.ok(!routeSource.includes("window.location.replace"));
   });
 
   it("does not mount payment or fulfillment directly on the host's landing page", () => {
-    const routeSource = readFileSync(join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"), "utf-8");
+    const routeSource = readFileSync(routePath, "utf-8");
     assert.ok(!routeSource.includes("createCheckoutForOrder"));
     assert.ok(!routeSource.includes("getStripe"));
     assert.ok(!routeSource.includes("calculateTotalPrice"));
@@ -257,7 +254,7 @@ describe("DisputeMail — Catalog Boundary", () => {
 describe("DisputeMail — Copy Audit", () => {
   it("route does not make unsupported legal claims", () => {
     const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
+      join(__dirname_test, "..", "src", "routes", "dispute-mail", "index.tsx"),
       "utf-8",
     );
     assert.ok(!routeSource.includes("guaranteed result"), "No 'guaranteed result'");
@@ -269,17 +266,17 @@ describe("DisputeMail — Copy Audit", () => {
 
   it("renders the shared canonical vertical landing page, not ad-hoc copy", () => {
     const routeSource = readFileSync(
-      join(__dirname_test, "..", "src", "routes", "dispute-mail.tsx"),
+      join(__dirname_test, "..", "src", "routes", "dispute-mail", "index.tsx"),
       "utf-8",
     );
-    assert.ok(routeSource.includes("PublicVerticalLandingPage"), "Must render the shared canonical landing page");
+    assert.ok(routeSource.includes("SectionLandingPage"), "Must render the shared canonical landing page");
     assert.ok(!routeSource.includes("Start checkout"), "Copy claims belong to the workflow app, not this landing page");
     assert.ok(!routeSource.includes("Ready to mail"), "Copy claims belong to the workflow app, not this landing page");
   });
 
   it("no FairProcess/FairProcessMaps references in any DisputeMail file", () => {
     const files = [
-      "src/routes/dispute-mail.tsx",
+      "src/routes/dispute-mail/index.tsx",
       "src/verticals/dispute-mail/index.ts",
       "src/verticals/dispute-mail/types.ts",
       "src/verticals/dispute-mail/categories.ts",

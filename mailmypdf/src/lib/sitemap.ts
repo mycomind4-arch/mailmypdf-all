@@ -2,14 +2,19 @@
 // asserted directly in tests. The route itself only supplies the origin and
 // wraps this in a Response.
 import { SEO_PAGES } from "./seo-pages";
-import { PUBLIC_VERTICALS } from "./public-verticals";
+import { WORKFLOW_REGISTRY } from "./workflow-registry";
 import { workflowAuthorityPages } from "./workflow-authority-registry";
-// The new root-level workflow packages (notice-respond/, appeal-mail/, ...)
-// are not yet enumerated anywhere the sitemap can discover automatically —
-// each new-architecture workflow page needs an explicit entry here, gated on
-// its own config's `indexable` flag, until that registry exists.
+// Explicitly mounted, reviewed workflow pages own their publication metadata
+// in their canonical config. Keep this list aligned with the mounted public
+// landing gate; authority-catalog routes are added separately below.
+import equifaxDisputeConfig from "../../../dispute-mail/workflows/equifax-dispute/config";
+import experianDisputeConfig from "../../../dispute-mail/workflows/experian-dispute/config";
+import transunionDisputeConfig from "../../../dispute-mail/workflows/transunion-dispute/config";
 import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";
+import cp2000ResponseConfig from "../../../notice-respond/workflows/cp2000-response/config";
 import cp504ResponseConfig from "../../../notice-respond/workflows/cp504-response/config";
+import irsBalanceDueConfig from "../../../notice-respond/workflows/irs-balance-due-notice-response/config";
+import irsPenaltyConfig from "../../../notice-respond/workflows/irs-penalty-notice-response/config";
 
 export type SitemapRoute = {
   loc: string;
@@ -33,6 +38,17 @@ const STATIC_ROUTES: SitemapRoute[] = [
   { loc: "/pro", priority: "0.7", changefreq: "monthly" },
 ];
 
+export const MOUNTED_WORKFLOW_SEO_CONFIGS = [
+  equifaxDisputeConfig,
+  experianDisputeConfig,
+  transunionDisputeConfig,
+  cp14ResponseConfig,
+  cp2000ResponseConfig,
+  cp504ResponseConfig,
+  irsBalanceDueConfig,
+  irsPenaltyConfig,
+] as const;
+
 function dedupeRoutes(routes: SitemapRoute[]): SitemapRoute[] {
   const byPath = new Map<string, SitemapRoute>();
   for (const route of routes) {
@@ -43,9 +59,10 @@ function dedupeRoutes(routes: SitemapRoute[]): SitemapRoute[] {
 
 /** Every path the sitemap advertises, deduplicated, first entry winning. */
 export function sitemapRoutes(): SitemapRoute[] {
-  const verticalRoutes: SitemapRoute[] = PUBLIC_VERTICALS.flatMap((vertical) => [
-    { loc: vertical.path, priority: "0.9", changefreq: "weekly" as const },
-    { loc: `${vertical.path}/workflows`, priority: "0.8", changefreq: "weekly" as const },
+  const sectionPaths = [...new Set(WORKFLOW_REGISTRY.map((workflow) => `/${workflow.sectionId}`))];
+  const verticalRoutes: SitemapRoute[] = sectionPaths.flatMap((sectionPath) => [
+    { loc: sectionPath, priority: "0.9", changefreq: "weekly" as const },
+    { loc: `${sectionPath}/workflows`, priority: "0.8", changefreq: "weekly" as const },
   ]);
 
   const workflowRoutes: SitemapRoute[] = workflowAuthorityPages()
@@ -63,7 +80,7 @@ export function sitemapRoutes(): SitemapRoute[] {
     changefreq: "monthly" as const,
   }));
 
-  const newArchitectureWorkflowRoutes: SitemapRoute[] = [cp14ResponseConfig, cp504ResponseConfig]
+  const mountedWorkflowRoutes: SitemapRoute[] = MOUNTED_WORKFLOW_SEO_CONFIGS
     .filter((page) => page.indexable)
     .map((page) => ({ loc: page.path, priority: "0.9", changefreq: "monthly" as const }));
 
@@ -72,7 +89,7 @@ export function sitemapRoutes(): SitemapRoute[] {
     ...verticalRoutes,
     ...workflowRoutes,
     ...seoRoutes,
-    ...newArchitectureWorkflowRoutes,
+    ...mountedWorkflowRoutes,
   ]);
 }
 

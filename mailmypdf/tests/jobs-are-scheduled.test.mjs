@@ -2,7 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 
-const repoRoot = new URL("../../../", import.meta.url);
+const repoRoot = new URL("../../", import.meta.url);
 const WORKFLOW = new URL(".github/workflows/secure-core-jobs.yml", repoRoot);
 
 /* ═══════════════════════════════════════════════════════════
@@ -82,12 +82,17 @@ describe("job endpoints that still have no schedule", () => {
       new Set([...source.matchAll(/\/api\/internal\/([a-z-]+)/g)].map((m) => m[1]));
 
     const byWorkflow = calledIn(yaml);
-    const byWorkerCron = calledIn(serverEntry);
+    const scheduledJobList = serverEntry.match(/const jobs = \[([^\]]+)\] as const/)?.[1] ?? "";
+    const byWorkerCron = new Set([
+      ...calledIn(serverEntry),
+      ...[...scheduledJobList.matchAll(/["']([a-z-]+)["']/g)].map((match) => match[1]),
+    ]);
     const covered = new Set([...byWorkflow, ...byWorkerCron]);
 
     assert.ok(byWorkflow.has("scan-documents"), "the workflow must call the scanner job");
     assert.ok(byWorkflow.has("purge-secure-documents"), "the workflow must call the retention job");
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
+    assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
 
     // These dispatch webhooks and submit to a mailing provider, so turning them
     // on is a business decision rather than a code one. This list records that,
