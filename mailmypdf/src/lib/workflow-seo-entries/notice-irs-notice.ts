@@ -284,10 +284,10 @@ const entry: AuthoredWorkflowSeoEntry = {
       },
     ],
     relatedWorkflowIds: [
-      "notice/cp2000-response",
-      "notice/agency-action",
-      "notice/file-appeal",
-      "notice/deadline-compliance",
+      "notice-respond/cp2000-response",
+      "notice-respond/agency-action-response",
+      "notice-respond/appeal-after-notice",
+      "notice-respond/follow-up-after-notice-submission",
     ],
     reviewedAt: REVIEWED,
     disclaimer:
