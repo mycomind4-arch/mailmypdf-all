@@ -11,6 +11,7 @@ const workflowId=process.env.MCP_TEST_WORKFLOW_ID?.trim()||"cp14-response";
 const sectionId=process.env.MCP_TEST_SECTION_ID?.trim()||"notice-respond";
 const pollMs=Number(process.env.MCP_SCAN_POLL_MS||3000);
 const maxWaitMs=Number(process.env.MCP_SCAN_MAX_WAIT_MS||90000);
+const runId=crypto.randomUUID();
 
 if(process.env.MCP_E2E_ALLOW_WRITES!=="true"){
   console.error("❌ Refusing to create test data. Set MCP_E2E_ALLOW_WRITES=true explicitly.");
@@ -91,6 +92,7 @@ ok(`created matter ${matterId}`);
 
 const ingested=await rpc("ingest_document",{
   matter_id:matterId,
+  idempotency_key:`e2e.${runId}.ingest`,
   file:{
     download_url:fileUrl,
     file_id:fileId,
@@ -125,7 +127,10 @@ if(readiness!=="ready"){
   fail(`document did not become ready within ${maxWaitMs}ms`,{matterId,documentId});
 }
 
-const analysis=await rpc("analyze_matter",{matter_id:matterId});
+const analysis=await rpc("analyze_matter",{
+  matter_id:matterId,
+  idempotency_key:`e2e.${runId}.analyze`,
+});
 ok("workflow analysis completed");
 
 console.log("\nResult");

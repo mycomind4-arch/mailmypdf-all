@@ -537,6 +537,62 @@ export type Database = {
           },
         ]
       }
+      connector_operations: {
+        Row: {
+          id: string
+          owner_id: string
+          matter_id: string
+          kind: string
+          idempotency_key: string
+          request_sha256: string
+          state: string
+          revision: number
+          required_action: string | null
+          result: Json | null
+          error: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          matter_id: string
+          kind: string
+          idempotency_key: string
+          request_sha256: string
+          state?: string
+          revision?: number
+          required_action?: string | null
+          result?: Json | null
+          error?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          matter_id?: string
+          kind?: string
+          idempotency_key?: string
+          request_sha256?: string
+          state?: string
+          revision?: number
+          required_action?: string | null
+          result?: Json | null
+          error?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connector_operation_owner_matter_fk"
+            columns: ["matter_id", "owner_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_cases"
+            referencedColumns: ["id", "owner_id"]
+          },
+        ]
+      }
       case_documents: {
         Row: {
           id: string

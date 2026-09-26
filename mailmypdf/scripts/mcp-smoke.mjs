@@ -80,10 +80,10 @@ console.log(`MailMyPDF MCP smoke test: ${endpoint}`);
 {
   const { response, body } = await rpc("server/discover");
   if (!response.ok) fail("server/discover failed", body);
-  if (body?.result?.protocolVersion !== "2026-07-28") {
+  if (!body?.result?.supportedVersions?.includes("2026-07-28")) {
     fail("server/discover returned an unexpected protocol version", body);
   }
-  if (body?.result?.serverInfo?.name !== "MailMyPDF") {
+  if (body?.result?._meta?.["io.modelcontextprotocol/serverInfo"]?.name !== "MailMyPDF") {
     fail("server/discover returned unexpected server identity", body);
   }
   ok("server/discover");
@@ -108,15 +108,17 @@ let tools = [];
     "approve_packet",
     "prepare_checkout",
     "get_order_status",
+    "get_operation_status",
+    "get_connector_readiness",
   ]) {
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 15) {
-    fail(`expected 15 MCP tools, found ${tools.length}`);
+  if (tools.length !== 17) {
+    fail(`expected 17 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 15-tool surface");
+  ok("tools/list exposes the expected 17-tool surface");
 }
 
 {

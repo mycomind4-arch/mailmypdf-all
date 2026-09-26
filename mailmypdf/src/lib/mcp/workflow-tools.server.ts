@@ -6,6 +6,22 @@ import { classifyDocumentReadiness } from "./document-readiness";
 import { RecipientReviewError, recipientReviewSha256 } from "./packet-review";
 import { createPacketPreviewResourceUri } from "./packet-preview-resource";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
+import { hashRecord } from "@/lib/proof-of-service/hashing";
+import {
+  assessMcpToolReadiness,
+  getMcpTool,
+} from "./tool-catalog";
+import { probeMcpToolBindingHealth } from "./connector-binding-health.server";
+import {
+  executeDurableConnectorOperation,
+  getOwnedConnectorOperation,
+  publicConnectorOperation,
+  type ConnectorOperationExecution,
+} from "./connector-operations.server";
+import {
+  ConnectorOperationIdempotencyConflict,
+  type ConnectorOperationKind,
+} from "@mailmypdf/workflows/connector-operation";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -31,6 +47,72 @@ function requiredString(value: unknown, label: string): string {
     throw new McpToolExecutionError(400, `${label} is required`);
   }
   return value.trim();
+}
+
+function idempotencyKey(value: unknown): string {
+  const key = requiredString(value, "idempotency_key");
+  if (key.length < 8 || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
+    throw new McpToolExecutionError(
+      400,
+      "idempotency_key must be 8-128 letters, numbers, periods, underscores, colons, or hyphens",
+    );
+  }
+  return key;
+}
+
+export function connectorOperationRequestSha256(args: ToolArguments): string {
+  const request = { ...args };
+  delete request.idempotency_key;
+  if (request.file && typeof request.file === "object" && !Array.isArray(request.file)) {
+    const file = { ...(request.file as Record<string, unknown>) };
+    // Temporary download URLs commonly rotate between retries. The provider
+    // file id and declared file metadata are the stable request identity.
+    delete file.download_url;
+    request.file = file;
+  }
+  return hashRecord(request);
+}
+
+function operationError(error: unknown) {
+  if (error instanceof McpToolExecutionError) {
+    const detailCode =
+      error.details && typeof error.details === "object" && !Array.isArray(error.details) &&
+      "code" in error.details && typeof error.details.code === "string"
+        ? error.details.code
+        : null;
+    return {
+      code: detailCode ?? `MCP_TOOL_${error.status}`,
+      message: error.message.slice(0, 500),
+      retryable: error.status === 408 || error.status === 429 || error.status >= 500,
+    };
+  }
+  return {
+    code: "MCP_TOOL_FAILED",
+    message: "Connector operation failed.",
+    retryable: false,
+  };
+}
+
+function operationResponse(
+  execution: ConnectorOperationExecution<unknown>,
+): Record<string, unknown> {
+  const operation = publicConnectorOperation(execution.operation, { includeResult: false });
+  if (
+    execution.output &&
+    typeof execution.output === "object" &&
+    !Array.isArray(execution.output)
+  ) {
+    return {
+      ...(execution.output as Record<string, unknown>),
+      connectorOperation: operation,
+      connectorReplay: execution.replayed,
+    };
+  }
+  return {
+    connectorOperation: operation,
+    connectorReplay: execution.replayed,
+    ...(execution.output === undefined ? {} : { output: execution.output }),
+  };
 }
 
 function boundedLimit(value: unknown): number {
@@ -212,8 +294,93 @@ export async function executeMcpTool(
     }
   }
 
+  if (name === "get_operation_status") {
+    const context = await requireAuthenticatedUser(request);
+    const operationId = requiredString(args.operation_id, "operation_id");
+    const operation = await getOwnedConnectorOperation(context, operationId);
+    if (!operation) throw new McpToolExecutionError(404, "Connector operation not found");
+    return { operation: publicConnectorOperation(operation) };
+  }
+
+  if (name === "get_connector_readiness") {
+    const context = await requireAuthenticatedUser(request);
+    const toolName = requiredString(args.tool_name, "tool_name");
+    const target = getMcpTool(toolName);
+    if (!target) throw new McpToolExecutionError(404, "Connector tool not found");
+    const readinessMatterId =
+      typeof args.matter_id === "string" && args.matter_id.trim()
+        ? args.matter_id.trim()
+        : undefined;
+    const ownershipRelevant = target.capabilityRequirements.some(
+      (requirement) => requirement.requiresOwnership !== false,
+    );
+    let ownership: "not-applicable" | "verified" | "unverified" =
+      ownershipRelevant ? "unverified" : "not-applicable";
+    let approvalPresent = false;
+
+    if (readinessMatterId) {
+      const readinessBase = `/api/workflow-runtime/matters/${encodeURIComponent(readinessMatterId)}`;
+      await callRuntime(request, readinessBase, "GET");
+      ownership = "verified";
+      const approvalPayload = object(
+        await callRuntime(request, `${readinessBase}/approval`, "GET"),
+        "approval response",
+      );
+      approvalPresent = Boolean(approvalPayload.approval);
+    }
+
+    const initial = assessMcpToolReadiness(toolName, {
+      actor: "authenticated",
+      ownership,
+      ...(approvalPresent ? { approvedCapabilities: ["approval" as const] } : {}),
+    });
+    const health = await probeMcpToolBindingHealth({
+      context,
+      capabilities: initial.resolved,
+      ...(readinessMatterId ? { matterId: readinessMatterId } : {}),
+    });
+    const readiness = assessMcpToolReadiness(toolName, {
+      actor: "authenticated",
+      ownership,
+      ...(approvalPresent ? { approvedCapabilities: ["approval" as const] } : {}),
+      bindingHealth: health.bindingHealth,
+    });
+
+    return {
+      toolName,
+      sideEffectsPerformed: false,
+      readiness,
+      bindingHealth: health.probes,
+      checkedAt: health.checkedAt,
+    };
+  }
+
   const matterId = requiredString(args.matter_id, "matter_id");
   const base = `/api/workflow-runtime/matters/${encodeURIComponent(matterId)}`;
+
+  const runOperation = async (
+    kind: ConnectorOperationKind,
+    execute: () => Promise<unknown>,
+  ): Promise<Record<string, unknown>> => {
+    const context = await requireAuthenticatedUser(request);
+    try {
+      const execution = await executeDurableConnectorOperation({
+        context,
+        kind,
+        matterId,
+        idempotencyKey: idempotencyKey(args.idempotency_key),
+        requestSha256: connectorOperationRequestSha256(args),
+        execute,
+        mapError: operationError,
+      });
+      return operationResponse(execution);
+    } catch (error) {
+      if (error instanceof ConnectorOperationIdempotencyConflict) {
+        throw new McpToolExecutionError(409, error.message, { code: error.code });
+      }
+      throw error;
+    }
+  };
 
   if (name === "get_matter") {
     return callRuntime(request, base, "GET");
@@ -285,75 +452,88 @@ export async function executeMcpTool(
       throw new McpToolExecutionError(400, "position must be a non-negative integer");
     }
 
-    // Confirm matter ownership and derive the workflow id before any remote
-    // network access. This prevents a valid account token from using the file
-    // downloader independently of an owner-scoped MailMyPDF matter.
-    const matterPayload = await callRuntime(request, base, "GET");
-    const workflowId = matterWorkflowId(matterPayload);
+    return runOperation("ingest_document", async () => {
+      // The durable operation repository verifies matter ownership before this
+      // callback runs. Load again through the runtime to derive workflow id;
+      // no remote attachment access occurs before both checks pass.
+      const matterPayload = await callRuntime(request, base, "GET");
+      const workflowId = matterWorkflowId(matterPayload);
 
-    let downloaded;
-    try {
-      downloaded = await downloadAssistantFile(args.file);
-    } catch (error) {
-      if (error instanceof AssistantFileIngressError) {
-        throw new McpToolExecutionError(400, error.message, { code: error.code });
+      let downloaded;
+      try {
+        downloaded = await downloadAssistantFile(args.file);
+      } catch (error) {
+        if (error instanceof AssistantFileIngressError) {
+          throw new McpToolExecutionError(400, error.message, { code: error.code });
+        }
+        throw error;
       }
-      throw error;
-    }
 
-    const form = new FormData();
-    form.set("file", downloaded.file);
-    form.set("workflowId", workflowId);
-    form.set("purpose", "assistant-attachment");
-    form.set("consent", "true");
+      const form = new FormData();
+      form.set("file", downloaded.file);
+      form.set("workflowId", workflowId);
+      form.set("purpose", "assistant-attachment");
+      form.set("consent", "true");
 
-    const uploadPayload = await callRuntimeForm(
-      request,
-      "/api/workflow-runtime/documents",
-      form,
-    );
-    const document = uploadedDocument(uploadPayload);
+      const uploadPayload = await callRuntimeForm(
+        request,
+        "/api/workflow-runtime/documents",
+        form,
+      );
+      const document = uploadedDocument(uploadPayload);
 
-    const attachedPayload = await callRuntime(request, `${base}/documents`, "POST", {
-      documentId: document.id,
-      role,
-      evidenceKind,
-      ...(typeof position === "number" ? { position } : {}),
-    });
-
-    return {
-      document: {
-        ...document,
+      const attachedPayload = await callRuntime(request, `${base}/documents`, "POST", {
+        documentId: document.id,
         role,
         evidenceKind,
-        sourceFileId: downloaded.sourceFileId,
-        sourceHost: downloaded.sourceHost,
-        sourceMimeType: downloaded.sourceMimeType,
-      },
-      attached: attachedPayload,
-      nextAction:
-        document.securityStatus === "clean"
-          ? "The document is cleared for workflow analysis."
-          : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
-    };
+        ...(typeof position === "number" ? { position } : {}),
+      });
+
+      return {
+        document: {
+          ...document,
+          role,
+          evidenceKind,
+          sourceFileId: downloaded.sourceFileId,
+          sourceHost: downloaded.sourceHost,
+          sourceMimeType: downloaded.sourceMimeType,
+        },
+        attached: attachedPayload,
+        nextAction:
+          document.securityStatus === "clean"
+            ? "The document is cleared for workflow analysis."
+            : "The document is quarantined. Call get_document_status until MailMyPDF marks it clean before analysis.",
+      };
+    });
   }
 
   if (name === "save_matter_input") {
-    return callRuntime(request, `${base}/input`, "POST", object(args.input, "input"));
+    return runOperation(
+      "save_matter_input",
+      () => callRuntime(request, `${base}/input`, "POST", object(args.input, "input")),
+    );
   }
 
   if (name === "analyze_matter") {
-    return callRuntime(request, `${base}/analysis`, "POST", {});
+    return runOperation(
+      "analyze_matter",
+      () => callRuntime(request, `${base}/analysis`, "POST", {}),
+    );
   }
 
   if (name === "generate_draft") {
-    return callRuntime(request, `${base}/draft/generate`, "POST", {});
+    return runOperation(
+      "generate_draft",
+      () => callRuntime(request, `${base}/draft/generate`, "POST", {}),
+    );
   }
 
   if (name === "save_draft") {
-    return callRuntime(request, `${base}/draft`, "POST", {
-      bodyText: requiredString(args.body_text, "body_text"),
-    });
+    const bodyText = requiredString(args.body_text, "body_text");
+    return runOperation(
+      "save_draft",
+      () => callRuntime(request, `${base}/draft`, "POST", { bodyText }),
+    );
   }
 
   if (name === "preview_packet") {
@@ -368,30 +548,32 @@ export async function executeMcpTool(
       throw error;
     }
 
-    const packetPayload = object(
-      await callRuntime(request, `${base}/packet`, "POST", {
-        mailClass: selectedMailClass,
-      }),
-      "packet preview response",
-    );
+    return runOperation("preview_packet", async () => {
+      const packetPayload = object(
+        await callRuntime(request, `${base}/packet`, "POST", {
+          mailClass: selectedMailClass,
+        }),
+        "packet preview response",
+      );
 
-    const packet = object(packetPayload.packet, "packet");
-    const packetSha256 = requiredString(packet.packetSha256, "packet.packetSha256").toLowerCase();
-    const previewResourceUri = createPacketPreviewResourceUri({
-      matterId,
-      mailClass: selectedMailClass as "standard" | "certified" | "registered",
-      packetSha256,
-    });
-
-    return {
-      ...packetPayload,
-      review: {
+      const packet = object(packetPayload.packet, "packet");
+      const packetSha256 = requiredString(packet.packetSha256, "packet.packetSha256").toLowerCase();
+      const previewResourceUri = createPacketPreviewResourceUri({
         matterId,
-        mailClass: selectedMailClass,
-        recipientSha256: review.sha256,
-        previewResourceUri,
-      },
-    };
+        mailClass: selectedMailClass as "standard" | "certified" | "registered",
+        packetSha256,
+      });
+
+      return {
+        ...packetPayload,
+        review: {
+          matterId,
+          mailClass: selectedMailClass,
+          recipientSha256: review.sha256,
+          previewResourceUri,
+        },
+      };
+    });
   }
 
   if (name === "approve_packet") {
@@ -426,19 +608,29 @@ export async function executeMcpTool(
       );
     }
 
-    return callRuntime(request, `${base}/approval`, "POST", {
-      expectedPacketSha256: requiredString(args.expected_packet_sha256, "expected_packet_sha256"),
-      expectedTotalCents: total,
-      recipient: review.recipient,
-      mailClass: requiredString(args.mail_class, "mail_class"),
-    });
+    const expectedPacketSha256 = requiredString(
+      args.expected_packet_sha256,
+      "expected_packet_sha256",
+    );
+    const selectedMailClass = requiredString(args.mail_class, "mail_class");
+    return runOperation(
+      "approve_packet",
+      () => callRuntime(request, `${base}/approval`, "POST", {
+        expectedPacketSha256,
+        expectedTotalCents: total,
+        recipient: review.recipient,
+        mailClass: selectedMailClass,
+      }),
+    );
   }
 
   if (name === "prepare_checkout") {
-    return callRuntime(request, `${base}/checkout`, "POST", {
-      approvalId: requiredString(args.approval_id, "approval_id"),
-      sender: object(args.sender, "sender"),
-    });
+    const approvalId = requiredString(args.approval_id, "approval_id");
+    const sender = object(args.sender, "sender");
+    return runOperation(
+      "prepare_checkout",
+      () => callRuntime(request, `${base}/checkout`, "POST", { approvalId, sender }),
+    );
   }
 
   throw new McpToolExecutionError(404, `Unknown MCP tool: ${name}`);

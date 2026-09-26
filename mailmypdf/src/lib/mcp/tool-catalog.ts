@@ -10,8 +10,8 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.3.0";
-export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v1";
+export const MCP_CONNECTOR_VERSION = "0.4.0";
+export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
 /**
@@ -33,6 +33,7 @@ export type MailMyPdfMcpTool = {
   annotations: {
     readOnlyHint: boolean;
     destructiveHint: boolean;
+    idempotentHint?: boolean;
     openWorldHint: boolean;
   };
   securitySchemes: readonly (
@@ -55,6 +56,14 @@ const objectSchema = (
 
 const string = (description: string): JsonSchema => ({ type: "string", description });
 const integer = (description: string): JsonSchema => ({ type: "integer", description, minimum: 0 });
+const idempotencyKeySchema = {
+  type: "string",
+  minLength: 8,
+  maxLength: 128,
+  pattern: "^[A-Za-z0-9._:-]+$",
+  description:
+    "Stable client-generated retry key. Reuse only for the same tool and matter; use a new key for a new attempt.",
+} as const;
 
 const oauth = (...scopes: string[]) => [{ type: "oauth2" as const, scopes }] as const;
 const noauth = [{ type: "noauth" as const }] as const;
@@ -201,6 +210,48 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: capabilities("identity", "matterState", "documentStorage", "documentScanning"),
   },
   {
+    name: "get_operation_status",
+    title: "Get connector operation status",
+    description:
+      "Read one durable owner-scoped connector operation. Use after a timeout or interrupted call to recover its result without repeating the action.",
+    inputSchema: objectSchema(
+      { operation_id: string("Connector operation id returned by an idempotent MailMyPDF tool.") },
+      ["operation_id"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity", "matterState"),
+  },
+  {
+    name: "get_connector_readiness",
+    title: "Check live connector readiness",
+    description:
+      "Check capability, ownership, approval, and live runtime binding health for another MailMyPDF tool without performing that tool's action.",
+    inputSchema: objectSchema(
+      {
+        tool_name: string("MailMyPDF tool name to assess."),
+        matter_id: {
+          type: "string",
+          description: "Owner-scoped matter id when the target tool operates on a matter.",
+        },
+      },
+      ["tool_name"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
     name: "ingest_document",
     title: "Securely ingest an attached document",
     description:
@@ -208,6 +259,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id that should own the document."),
+        idempotency_key: idempotencyKeySchema,
         file: assistantFileSchema,
         role: {
           type: "string",
@@ -229,9 +281,9 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
           description: "Must be true only after the user has explicitly asked MailMyPDF to process this attachment.",
         },
       },
-      ["matter_id", "file", "role", "processing_consent"],
+      ["matter_id", "idempotency_key", "file", "role", "processing_consent"],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("security", "secureUpload", "documentStorage", "documentScanning"),
     _meta: {
@@ -248,15 +300,16 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
+        idempotency_key: idempotencyKeySchema,
         input: {
           type: "object",
           description: "Workflow-specific structured facts collected from the user.",
           additionalProperties: true,
         },
       },
-      ["matter_id", "input"],
+      ["matter_id", "idempotency_key", "input"],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("identity", "matterState", "facts"),
   },
@@ -265,8 +318,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     title: "Analyze a matter source document",
     description:
       "Run the registered MailMyPDF workflow analysis on the matter's clean source document. Document-first workflows require a previously uploaded and attached clean source document.",
-    inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    inputSchema: objectSchema(
+      { matter_id: string("MailMyPDF matter id."), idempotency_key: idempotencyKeySchema },
+      ["matter_id", "idempotency_key"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("security", "documentScanning", "classification", "extraction", "understand", "facts", "provenance", "validation"),
   },
@@ -275,8 +331,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     title: "Generate a draft document",
     description:
       "Generate a draft from the matter's validated facts, analysis, and clean documents. The generated text is returned for review and is not approved or mailed.",
-    inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    inputSchema: objectSchema(
+      { matter_id: string("MailMyPDF matter id."), idempotency_key: idempotencyKeySchema },
+      ["matter_id", "idempotency_key"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("aiExecution", "draft", "draftProvenance", "validation"),
   },
@@ -288,11 +347,12 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
+        idempotency_key: idempotencyKeySchema,
         body_text: string("Exact reviewed draft text to persist."),
       },
-      ["matter_id", "body_text"],
+      ["matter_id", "idempotency_key", "body_text"],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("matterState", "draft", "validation"),
   },
@@ -304,14 +364,15 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
+        idempotency_key: idempotencyKeySchema,
         mail_class: mailClassSchema,
         recipient: addressSchema,
       },
-      ["matter_id", "mail_class", "recipient"],
+      ["matter_id", "idempotency_key", "mail_class", "recipient"],
     ),
     // Packet preview persists measured page counts as workflow metadata, so
     // this is intentionally not advertised as strictly read-only.
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("pdfGeneration", "packetAssembly", "pricing", "addressVerification", "validation"),
     _meta: {
@@ -332,6 +393,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
+        idempotency_key: idempotencyKeySchema,
         expected_packet_sha256: string("Exact SHA-256 returned by preview_packet."),
         expected_total_cents: integer("Exact total price in cents returned by preview_packet."),
         expected_recipient_sha256: string("Exact recipient SHA-256 returned by preview_packet."),
@@ -340,6 +402,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       },
       [
         "matter_id",
+        "idempotency_key",
         "expected_packet_sha256",
         "expected_total_cents",
         "expected_recipient_sha256",
@@ -347,7 +410,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
         "mail_class",
       ],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: [
       ...capabilities("humanReview", "blockingGate", "packetAssembly"),
@@ -362,12 +425,13 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
+        idempotency_key: idempotencyKeySchema,
         approval_id: string("Approval id returned by approve_packet."),
         sender: addressSchema,
       },
-      ["matter_id", "approval_id", "sender"],
+      ["matter_id", "idempotency_key", "approval_id", "sender"],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: [
       ...capabilities("pricing", "approval"),
@@ -375,6 +439,17 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ],
   },
 ] as const;
+
+export const MCP_PERSISTED_OPERATION_TOOL_NAMES = new Set([
+  "ingest_document",
+  "save_matter_input",
+  "analyze_matter",
+  "generate_draft",
+  "save_draft",
+  "preview_packet",
+  "approve_packet",
+  "prepare_checkout",
+]);
 
 export const MCP_PROTECTED_TOOL_NAMES = new Set(
   MAILMYPDF_MCP_TOOLS
@@ -420,6 +495,17 @@ export function validateMcpToolCapabilityContracts(): readonly string[] {
     const protectedTool = tool.securitySchemes.some((scheme) => scheme.type === "oauth2");
     if (protectedTool && !tool.annotations.readOnlyHint && tool.capabilityRequirements.length === 0) {
       errors.push(`${tool.name} mutates state but declares no capability requirements`);
+    }
+    if (MCP_PERSISTED_OPERATION_TOOL_NAMES.has(tool.name)) {
+      const required = Array.isArray(tool.inputSchema.required)
+        ? tool.inputSchema.required as readonly unknown[]
+        : [];
+      if (!required.includes("idempotency_key")) {
+        errors.push(`${tool.name} does not require an idempotency key`);
+      }
+      if (tool.annotations.idempotentHint !== true) {
+        errors.push(`${tool.name} is persisted but does not advertise idempotency`);
+      }
     }
     const seen = new Set<string>();
     for (const requirement of tool.capabilityRequirements) {

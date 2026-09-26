@@ -274,6 +274,8 @@ button:disabled {
 
     return {
       matter_id: matterId,
+      idempotency_key:
+        "approve." + packet.packetSha256.slice(0, 48) + "." + review.recipientSha256.slice(0, 48),
       expected_packet_sha256: packet.packetSha256,
       expected_total_cents: totalCents,
       expected_recipient_sha256: review.recipientSha256,

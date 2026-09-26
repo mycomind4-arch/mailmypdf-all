@@ -5,6 +5,7 @@ import {
   MAILMYPDF_MCP_TOOLS,
   MCP_CONNECTOR_CONTRACT_VERSION,
   MCP_OAUTH_SCOPES,
+  MCP_PERSISTED_OPERATION_TOOL_NAMES,
   MCP_PROTECTED_TOOL_NAMES,
   assessMcpToolReadiness,
   dryRunMcpTool,
@@ -22,6 +23,7 @@ import {
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
+import { connectorOperationRequestSha256 } from "../src/lib/mcp/workflow-tools.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
 import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
 import {
@@ -41,9 +43,11 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("preview_packet"));
   assert.ok(names.includes("approve_packet"));
   assert.ok(names.includes("prepare_checkout"));
+  assert.ok(names.includes("get_operation_status"));
+  assert.ok(names.includes("get_connector_readiness"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
-  assert.ok(names.length <= 15);
+  assert.ok(names.length <= 17);
 });
 
 test("every connector tool has a valid capability contract", () => {
@@ -152,6 +156,56 @@ test("packet approval declares the exact immutable review inputs", () => {
   assert.ok(required.includes("expected_recipient_sha256"));
   assert.ok(required.includes("recipient"));
   assert.ok(required.includes("mail_class"));
+  assert.ok(required.includes("idempotency_key"));
+});
+
+test("every persisted connector action requires and advertises idempotency", () => {
+  for (const name of MCP_PERSISTED_OPERATION_TOOL_NAMES) {
+    const tool = MAILMYPDF_MCP_TOOLS.find((candidate) => candidate.name === name);
+    assert.ok(tool, `${name} is missing`);
+    const required = (tool.inputSchema.required ?? []) as string[];
+    const properties = (tool.inputSchema.properties ?? {}) as Record<string, unknown>;
+    assert.ok(required.includes("idempotency_key"), `${name} does not require idempotency_key`);
+    assert.ok(properties.idempotency_key, `${name} does not declare idempotency_key`);
+    assert.equal(tool.annotations.idempotentHint, true);
+  }
+});
+
+test("operation request hashes ignore rotating download URLs but bind stable arguments", () => {
+  const first = connectorOperationRequestSha256({
+    matter_id: "matter-1",
+    idempotency_key: "ingest-key-1",
+    file: {
+      file_id: "provider-file-1",
+      download_url: "https://files.example/first-token",
+      mime_type: "application/pdf",
+    },
+    role: "subject_notice",
+  });
+  const retried = connectorOperationRequestSha256({
+    matter_id: "matter-1",
+    idempotency_key: "ingest-key-1",
+    file: {
+      file_id: "provider-file-1",
+      download_url: "https://files.example/rotated-token",
+      mime_type: "application/pdf",
+    },
+    role: "subject_notice",
+  });
+  const changed = connectorOperationRequestSha256({
+    matter_id: "matter-1",
+    idempotency_key: "ingest-key-1",
+    file: {
+      file_id: "provider-file-2",
+      download_url: "https://files.example/rotated-token",
+      mime_type: "application/pdf",
+    },
+    role: "subject_notice",
+  });
+
+  assert.equal(first, retried);
+  assert.notEqual(first, changed);
+  assert.match(first, /^[0-9a-f]{64}$/);
 });
 
 test("workflow discovery resolves canonical workflow and section ids", () => {
@@ -453,6 +507,7 @@ test("packet review UI approves only the exact reviewed packet", () => {
 
   assert.match(html, /Approve this exact packet/);
   assert.match(html, /name:\s*"approve_packet"/);
+  assert.match(html, /idempotency_key:/);
   assert.match(html, /expected_packet_sha256:\s*packet\.packetSha256/);
   assert.match(html, /expected_total_cents:\s*totalCents/);
   assert.match(html, /expected_recipient_sha256:\s*review\.recipientSha256/);
@@ -510,7 +565,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 15);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 17);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -554,9 +609,11 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 15);
+  assert.equal(payload.result.tools.length, 17);
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "get_operation_status"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "get_connector_readiness"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_packet"));
   const ingest = payload.result.tools.find((tool) => tool.name === "ingest_document");
   assert.ok(ingest?._meta?.["mailmypdf/requiredCapabilities"]?.includes("secureUpload"));
@@ -573,7 +630,7 @@ test("preview_packet binds the review UI and recipient identity", () => {
   };
   assert.deepEqual(
     [...(schema.required ?? [])].sort(),
-    ["mail_class", "matter_id", "recipient"],
+    ["idempotency_key", "mail_class", "matter_id", "recipient"],
   );
   assert.equal(preview.annotations.readOnlyHint, false);
   assert.equal(preview.annotations.destructiveHint, false);
