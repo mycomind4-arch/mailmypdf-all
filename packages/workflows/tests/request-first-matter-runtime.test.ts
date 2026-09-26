@@ -198,10 +198,24 @@ test("request-first workflow drafts and previews a packet without a fake source 
   let response = await handle(request("/matters", {
     method: "POST",
     headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "request-first", verticalId: "wrong-vertical" }),
+  }));
+  assert.equal(response.status, 400);
+
+  response = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ workflowId: "request-first", verticalId: "records" }),
   }));
   assert.equal(response.status, 201);
   const matterId = (await json(response)).matter.id as string;
+
+  response = await handle(request(`/matters/${matterId}/input`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recordsSought: "" }),
+  }));
+  assert.equal(response.status, 400);
 
   response = await handle(request(`/matters/${matterId}/input`, {
     method: "POST",
@@ -356,4 +370,3 @@ test("request-first packet rejects a draft saved against an older input version"
   }));
   assert.equal(response.status, 200);
 });
-

@@ -307,6 +307,19 @@ function policyFor(deps: WorkflowRuntimeServerDependencies, workflowId: string):
   return policy;
 }
 
+function normalizePolicyError(error: unknown, code: string): WorkflowRuntimeError {
+  if (error instanceof WorkflowRuntimeError) return error;
+  return new WorkflowRuntimeError(error instanceof Error ? error.message : String(error), code);
+}
+
+function validatePolicyMatter(policy: WorkflowRuntimePolicy, input: { workflowId: string; verticalId: string }): void {
+  try {
+    policy.validateMatter(input);
+  } catch (error) {
+    throw normalizePolicyError(error, "WORKFLOW_INPUT_INVALID");
+  }
+}
+
 function nextAnalysisVersion(previous: WorkflowMatterAnalysis | null): number {
   return (previous?.version ?? 0) + 1;
 }
@@ -396,7 +409,11 @@ async function resolveDraftAnalysis(input: {
     createdAt: input.now(),
     result,
   };
-  input.policy.validateAnalysis?.(analysis);
+  try {
+    input.policy.validateAnalysis?.(analysis);
+  } catch (error) {
+    throw normalizePolicyError(error, "ANALYSIS_INVALID");
+  }
   await input.deps.store.saveAnalysis(input.actor.id, input.matter.matter.id, analysis);
   return analysis;
 }
@@ -431,7 +448,7 @@ export function createWorkflowRuntimeRequestHandler(
         const body = await readJson(request);
         const workflowId = requiredString(body.workflowId, "workflowId");
         const verticalId = requiredString(body.verticalId, "verticalId");
-        policyFor(deps, workflowId).validateMatter({ workflowId, verticalId });
+        validatePolicyMatter(policyFor(deps, workflowId), { workflowId, verticalId });
         const matter = await deps.store.createMatter({
           ownerId: actor.id,
           workflowId,
@@ -552,7 +569,11 @@ export function createWorkflowRuntimeRequestHandler(
             version: nextAnalysisVersion(previous),
             createdAt: now(),
           };
-          policy.validateAnalysis?.(analysis);
+          try {
+            policy.validateAnalysis?.(analysis);
+          } catch (error) {
+            throw normalizePolicyError(error, "ANALYSIS_INVALID");
+          }
           await deps.store.saveAnalysis(actor.id, matterId, analysis);
           return json({ analysis });
         }
@@ -563,7 +584,12 @@ export function createWorkflowRuntimeRequestHandler(
         if (request.method === "POST") {
           const body = await readJson(request);
           const analysis = await deps.store.loadAnalysis(actor.id, matterId);
-          const validated = policy.validateInput(body, analysis, matter);
+          let validated: Record<string, unknown>;
+          try {
+            validated = policy.validateInput(body, analysis, matter);
+          } catch (error) {
+            throw normalizePolicyError(error, "WORKFLOW_INPUT_INVALID");
+          }
           const stored = await deps.store.saveInput(actor.id, matterId, validated);
           return json({ version: stored.version });
         }
@@ -580,8 +606,12 @@ export function createWorkflowRuntimeRequestHandler(
           requireSourceForPolicy(policy, matter.documents);
           requireIncludedDocumentsReady(matter.documents);
           const analysis = await resolveDraftAnalysis({ deps, policy, actor, matter, caseInput, now });
-          policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
-          policy.validateBeforeDraft?.({ matter, caseInput, analysis });
+          try {
+            policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
+            policy.validateBeforeDraft?.({ matter, caseInput, analysis });
+          } catch (error) {
+            throw normalizePolicyError(error, "DRAFT_NOT_READY");
+          }
           const generated = await deps.intelligence.generateDraft({ actor, matter, analysis, caseInput });
           return json({
             bodyText: generated.bodyText,
@@ -600,8 +630,12 @@ export function createWorkflowRuntimeRequestHandler(
           requireSourceForPolicy(policy, matter.documents);
           requireIncludedDocumentsReady(matter.documents);
           const analysis = await resolveDraftAnalysis({ deps, policy, actor, matter, caseInput, now });
-          policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
-          policy.validateBeforeDraft?.({ matter, caseInput, analysis });
+          try {
+            policy.validateDocumentsBeforeDraft?.(matter.documents, analysis);
+            policy.validateBeforeDraft?.({ matter, caseInput, analysis });
+          } catch (error) {
+            throw normalizePolicyError(error, "DRAFT_NOT_READY");
+          }
           const basis = createWorkflowDraftBasis({
             analysis,
             inputVersion: caseInput.version,
@@ -624,8 +658,12 @@ export function createWorkflowRuntimeRequestHandler(
         matter = await requireMatter(deps, actor, matterId);
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
-        policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-        policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        try {
+          policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+          policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        } catch (error) {
+          throw normalizePolicyError(error, "PACKET_NOT_READY");
+        }
         requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
         requireResolvedDraft(draft);
         const packet = await deps.packet.preview({
@@ -665,8 +703,12 @@ export function createWorkflowRuntimeRequestHandler(
           matter = await requireMatter(deps, actor, matterId);
           requireSourceForPolicy(policy, matter.documents);
           const included = requireIncludedDocumentsReady(matter.documents);
-          policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-          policy.validateBeforePacket?.({ matter, caseInput, analysis });
+          try {
+            policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+            policy.validateBeforePacket?.({ matter, caseInput, analysis });
+          } catch (error) {
+            throw normalizePolicyError(error, "PACKET_NOT_READY");
+          }
           requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
           requireResolvedDraft(draft);
           const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: selectedMailClass });
