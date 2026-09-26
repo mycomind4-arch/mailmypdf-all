@@ -31,23 +31,6 @@ function indexablePagesFor(config: PublicVerticalConfig): WorkflowAuthorityPageD
   return publicWorkflowAuthorityPages().filter((page) => config.verticalKeys.includes(page.vertical));
 }
 
-const HERO_IMAGES: Record<PublicVerticalId, string> = {
-  "notice-respond": "/heroes/notice-respond.jpg",
-  "appeal-mail": "/heroes/appeal-mail.jpg",
-  "immigration-mail": "/heroes/immigration-mail.jpg",
-  "dispute-mail": "/heroes/dispute-mail.jpg",
-  "records-request": "/heroes/records-request.jpg",
-  "private-office": "/heroes/private-office.jpg",
-  "small-business": "/heroes/small-business.jpg",
-  "insurance-claims": "/heroes/insurance-claims.jpg",
-  "legal-defense": "/heroes/legal-defense.svg",
-  "code-enforcement": "/heroes/code-enforcement.jpg",
-  "benefits-appeal": "/heroes/benefits-appeal.jpg",
-  "claim-proof": "/heroes/claim-proof.jpg",
-  "permit-reply": "/heroes/permit-reply.jpg",
-  "tenant-reply": "/heroes/tenant-reply.jpg",
-};
-
 function pageStatus(page: WorkflowAuthorityPageData): string {
   if (page.executionHref) return "Workflow available";
   return "Guide available";
