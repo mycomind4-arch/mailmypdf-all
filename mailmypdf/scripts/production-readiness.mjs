@@ -6,8 +6,8 @@
  * Read-only. It never prints credential values, creates payments, or submits mail.
  *
  * Usage:
- *   pnpm --filter ./apps/mailmypdf verify:production-config
- *   pnpm --filter ./apps/mailmypdf verify:production-config -- --live
+ *   pnpm --filter ./mailmypdf verify:production-config
+ *   pnpm --filter ./mailmypdf verify:production-config -- --live
  *
  * --live adds harmless connectivity/schema probes against Supabase and the malware
  * scanner. Stripe/Lob credentials are format-checked only; no provider operation is
