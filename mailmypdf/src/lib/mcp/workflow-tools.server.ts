@@ -3,6 +3,7 @@ import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { classifyDocumentReadiness } from "./document-readiness";
+import { RecipientReviewError, recipientReviewSha256 } from "./packet-review";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
 export class McpToolExecutionError extends Error {
@@ -355,9 +356,32 @@ export async function executeMcpTool(
   }
 
   if (name === "preview_packet") {
-    return callRuntime(request, `${base}/packet`, "POST", {
-      mailClass: requiredString(args.mail_class, "mail_class"),
-    });
+    const selectedMailClass = requiredString(args.mail_class, "mail_class");
+    let review;
+    try {
+      review = await recipientReviewSha256(args.recipient);
+    } catch (error) {
+      if (error instanceof RecipientReviewError) {
+        throw new McpToolExecutionError(400, error.message);
+      }
+      throw error;
+    }
+
+    const packetPayload = object(
+      await callRuntime(request, `${base}/packet`, "POST", {
+        mailClass: selectedMailClass,
+      }),
+      "packet preview response",
+    );
+
+    return {
+      ...packetPayload,
+      review: {
+        matterId,
+        mailClass: selectedMailClass,
+        recipientSha256: review.sha256,
+      },
+    };
   }
 
   if (name === "approve_packet") {
@@ -365,10 +389,37 @@ export async function executeMcpTool(
     if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0) {
       throw new McpToolExecutionError(400, "expected_total_cents must be a non-negative integer");
     }
+
+    let review;
+    try {
+      review = await recipientReviewSha256(args.recipient);
+    } catch (error) {
+      if (error instanceof RecipientReviewError) {
+        throw new McpToolExecutionError(400, error.message);
+      }
+      throw error;
+    }
+
+    const expectedRecipientSha256 = requiredString(
+      args.expected_recipient_sha256,
+      "expected_recipient_sha256",
+    ).toLowerCase();
+    if (review.sha256 !== expectedRecipientSha256) {
+      throw new McpToolExecutionError(
+        409,
+        "Recipient changed after preview; build and review a new packet preview before approval",
+        {
+          code: "RECIPIENT_REVIEW_CHANGED",
+          reviewedRecipientSha256: expectedRecipientSha256,
+          currentRecipientSha256: review.sha256,
+        },
+      );
+    }
+
     return callRuntime(request, `${base}/approval`, "POST", {
       expectedPacketSha256: requiredString(args.expected_packet_sha256, "expected_packet_sha256"),
       expectedTotalCents: total,
-      recipient: object(args.recipient, "recipient"),
+      recipient: review.recipient,
       mailClass: requiredString(args.mail_class, "mail_class"),
     });
   }
