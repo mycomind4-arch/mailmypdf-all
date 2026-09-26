@@ -60,7 +60,7 @@ export function publicVerticalHead(id: PublicVerticalId, kind: "landing" | "dire
   const description = kind === "directory" ? config.directoryDescription : config.description;
   const canonicalPath = kind === "directory" ? `${config.path}/workflows` : config.path;
   const canonical = absoluteUrl(canonicalPath);
-  const heroImage = absoluteUrl(HERO_IMAGES[config.id]);
+  const heroImage = config.heroImage.startsWith("data:") ? config.heroImage : absoluteUrl(config.heroImage);
   const itemList = kind === "directory"
     ? {
         "@context": "https://schema.org",
@@ -107,7 +107,7 @@ export function PublicVerticalLandingPage({ id }: { id: PublicVerticalId }) {
       <SiteHeader />
       <main>
         <section className="relative min-h-[34rem] overflow-hidden border-b border-rule/60 bg-ink">
-          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: `url(${HERO_IMAGES[config.id]})` }} />
+          <div className="absolute inset-0 bg-cover bg-center" aria-hidden style={{ backgroundImage: `url(${config.heroImage})` }} />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,20,35,0.92)_0%,rgba(5,20,35,0.7)_42%,rgba(5,20,35,0.2)_100%),linear-gradient(0deg,rgba(5,20,35,0.72)_0%,transparent_48%)]" aria-hidden />
           <div className="relative mx-auto flex min-h-[34rem] max-w-6xl items-end px-4 pb-14 pt-20 sm:px-6 sm:pb-16 lg:pb-20">
             <div className="max-w-2xl text-white">
