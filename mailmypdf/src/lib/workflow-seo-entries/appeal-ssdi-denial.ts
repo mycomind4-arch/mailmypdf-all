@@ -12,7 +12,7 @@ const REVIEWED = "2026-09-21";
  * file anything with the Social Security Administration.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "appeal/ssdi-denial",
+  id: "appeal-mail/appeal-ssdi-denial",
   content: {
     primaryKeyword: "appeal an SSDI denial",
     primaryIntent:
