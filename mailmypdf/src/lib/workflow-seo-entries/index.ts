@@ -7,7 +7,7 @@ import noticeIrsNotice from "./notice-irs-notice";
 
 /**
  * One authored authority record. `id` must match a canonical workflow id in
- * WORKFLOW_INVENTORY.json — the catalog merges by id and never invents routes.
+ * WORKFLOW_REGISTRY — the catalog merges by id and never invents routes.
  *
  * Authoring a record here is what promotes a workflow out of DRAFT/noindex.
  * It does not bypass review: the Authority Gate still scores the content and
