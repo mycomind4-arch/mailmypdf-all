@@ -7,7 +7,8 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 - `plugin.json` — portable plugin metadata.
 - `mcp.json` — remote streamable-HTTP MCP endpoint at `https://mailmypdf.ai/api/mcp`.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
-- `review-cases.json` — positive and negative reviewer prompts for connector behavior.
+- `review-cases.json` — exactly five positive and three negative reviewer cases for connector behavior.
+- `submission-materials.json` — release notes, availability intent, all 15 tool-annotation justifications, and the remaining manual portal/deployment requirements.
 
 The plugin does not duplicate workflow logic. MailMyPDF remains authoritative for authentication, matter ownership, secure document intake, malware scanning, analysis, drafting, packet construction, recipient/packet fingerprints, pricing, approval, Stripe checkout, Lob fulfillment, and mailing status.
 
@@ -31,6 +32,16 @@ discover workflow
 ```
 
 No plugin instruction authorizes a raw-card charge or a direct provider-mail bypass.
+
+## Repository readiness check
+
+Run:
+
+```bash
+pnpm plugin:mailmypdf:submission:validate
+```
+
+This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, 15-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
 
 ## Before public submission
 
