@@ -7,9 +7,10 @@ import noticeIrsNotice from "./notice-irs-notice";
 
 /**
  * One authored authority record. `id` must match a canonical workflow id in
- * WORKFLOW_INVENTORY.json — the catalog merges by id and never invents routes.
+ * WORKFLOW_REGISTRY — the catalog merges by id and never invents routes.
  *
- * Authoring a record here is what promotes a workflow out of DRAFT/noindex.
+ * Register the module and review date in canonical-workflows.json to promote
+ * a workflow out of DRAFT/noindex. Authored content alone cannot promote it.
  * It does not bypass review: the Authority Gate still scores the content and
  * blocks indexing (and fails `pnpm seo:authority:validate`) if it is thin,
  * duplicated, generically worded, or missing authoritative sources.
@@ -18,9 +19,8 @@ export type AuthoredWorkflowSeoEntry = {
   id: string;
   content: WorkflowSeoAuthorityContent;
   /**
-   * Set only when the authenticated execution entry point has actually been
-   * exercised. `verified: true` is what allows an EXECUTABLE CTA to render, so
-   * it is a claim about a real, working route — not about the content.
+   * @deprecated Compatibility only. Execution href and verification now belong
+   * to the canonical registry. The catalog rejects disagreement with it.
    */
   execution?: { href: string; verified: boolean };
 };

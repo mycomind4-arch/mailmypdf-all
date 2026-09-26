@@ -2,6 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import test from "node:test"
 import assert from "node:assert/strict"
+import { WORKFLOW_REGISTRY, workflowById } from "@mailmypdf/workflows/canonical-registry"
 
 const root = path.resolve(import.meta.dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8")
@@ -26,13 +27,14 @@ test("authenticated workflow browser contains no marketing hero or image system"
 })
 
 test("workflow registry separates public SEO and authenticated workspace hrefs", () => {
-  const source = read("src/lib/workflow-navigation.ts")
-  assert.equal((source.match(/"slug":/g) || []).length, 420)
-  assert.equal((source.match(/"workflows": \[/g) || []).length, 14)
-  assert.equal((source.match(/"publicHref":/g) || []).length, 434)
-  assert.equal((source.match(/"workspaceHref":/g) || []).length, 434)
-  assert.match(source, /\/dashboard\/workflows\/notice-respond\/cp2000-response/)
-  assert.match(source, /\/notice-respond\/workflows\/cp2000-response/)
+  for (const workflow of WORKFLOW_REGISTRY) {
+    assert.ok(workflow.publicHref.startsWith(`/${workflow.sectionId}/workflows/`))
+    assert.ok(workflow.workspaceHref.startsWith(`/dashboard/workflows/${workflow.sectionId}/`))
+    assert.notEqual(workflow.publicHref, workflow.workspaceHref)
+  }
+  const cp2000 = workflowById("notice-respond/cp2000-response")
+  assert.equal(cp2000.publicHref, "/notice-respond/workflows/cp2000-response")
+  assert.equal(cp2000.workspaceHref, "/dashboard/workflows/notice-respond/cp2000-response")
 })
 
 test("Studio sidebar routes signed-in workflow navigation to workspace URLs", () => {

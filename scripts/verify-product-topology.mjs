@@ -1,5 +1,6 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { workflowRegistryTopologyIssues } from "./workflow-registry-topology.mjs";
 
 const repoRoot = process.cwd();
 const registryPath = resolve(repoRoot, "mailmypdf/src/lib/section-registry.ts");
@@ -98,4 +99,9 @@ for (const legacyId of ["appeal-reply", "notice-response", "debt-defense", "smal
   }
 }
 
-console.log(`Product topology verified: ${actualSections.length} canonical root sections.`);
+const workflowIssues = workflowRegistryTopologyIssues(repoRoot, expectedSections);
+if (workflowIssues.length) {
+  console.error("Canonical workflow topology drift detected:\n" + workflowIssues.join("\n"));
+  process.exit(1);
+}
+console.log(`Product topology verified: ${actualSections.length} canonical root sections and their registered workflows.`);

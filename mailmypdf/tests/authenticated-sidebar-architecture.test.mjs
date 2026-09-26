@@ -2,6 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import test from "node:test"
 import assert from "node:assert/strict"
+import { WORKFLOW_REGISTRY } from "@mailmypdf/workflows/canonical-registry"
 
 const root = path.resolve(import.meta.dirname, "..")
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8")
@@ -25,9 +26,9 @@ test("workflow navigation covers every canonical section without a hard-coded wo
   const sections = read("src/lib/section-registry.ts")
   const sidebar = read("src/components/authenticated-sidebar.tsx")
 
-  const navSectionIds = [...registry.matchAll(/^\s{4}"id": "([^"]+)"/gm)].map((match) => match[1]).sort()
+  const navSectionIds = [...new Set(WORKFLOW_REGISTRY.map((workflow) => workflow.sectionId))].sort()
   const canonicalSectionIds = [...sections.matchAll(/^\s{4}id: "([^"]+)",$/gm)].map((match) => match[1]).sort()
-  const workflowCount = (registry.match(/"slug":/g) || []).length
+  const workflowCount = WORKFLOW_REGISTRY.length
 
   assert.deepEqual(navSectionIds, canonicalSectionIds)
   assert.equal(navSectionIds.length, 15)

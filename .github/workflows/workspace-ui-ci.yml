@@ -6,6 +6,7 @@ on:
     paths:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
+      - 'packages/workflows/**'
       - 'mailmypdf/**'
       - 'appeal-mail/**'
       - 'benefits-appeal/**'
@@ -23,11 +24,14 @@ on:
       - 'small-business/**'
       - 'tenant-reply/**'
       - 'scripts/verify-product-topology.mjs'
+      - 'scripts/*workflow*'
+      - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
   pull_request:
     paths:
       - 'packages/design-system/**'
       - 'packages/workflow-ui/**'
+      - 'packages/workflows/**'
       - 'mailmypdf/**'
       - 'appeal-mail/**'
       - 'benefits-appeal/**'
@@ -45,6 +49,8 @@ on:
       - 'small-business/**'
       - 'tenant-reply/**'
       - 'scripts/verify-product-topology.mjs'
+      - 'scripts/*workflow*'
+      - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
   workflow_dispatch:
 
@@ -56,6 +62,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-registry:
+    name: Canonical workflow registry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./mailmypdf run prebuild
+      - run: node scripts/verify-product-topology.mjs
+      - run: node --test scripts/workflow-registry-topology.test.mjs
+      - run: pnpm registry:check
+      - run: pnpm --filter @mailmypdf/workflows test
+      - name: Verify every projection and preserve existing executable workflows
+        run: |
+          pnpm --filter ./mailmypdf exec tsx --test \
+            tests/workflow-registry.test.ts tests/workflow-projections.test.ts \
+            tests/workflow-seo-canonicalization.test.ts tests/workflow-legacy-aliases.test.ts
+
   design-system:
     name: Design system typecheck
     runs-on: ubuntu-latest
@@ -122,8 +153,8 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
-      - name: Build MCP document-ingress dependency
-        run: pnpm --filter @mailmypdf/documents... --workspace-concurrency=2 run build
+      - name: Build MCP document-ingress and canonical registry dependencies
+        run: pnpm --filter @mailmypdf/documents... --filter @mailmypdf/workflows... --workspace-concurrency=2 run build
       - name: Test Authority Gate and catalog topology invariants
         run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
       - name: Verify MCP document E2E safety interlocks
@@ -160,7 +191,7 @@ jobs:
   build-core:
     name: Build mailmypdf core
     runs-on: ubuntu-latest
-    needs: authority-gate
+    needs: [authority-gate, workflow-registry]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -221,4 +252,3 @@ jobs:
           package_name=$(node -p "require('./${section}/package.json').name")
           pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
           pnpm --filter "${package_name}" run build
-

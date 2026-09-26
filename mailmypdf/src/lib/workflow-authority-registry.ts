@@ -1,5 +1,6 @@
-import inventory from "../../WORKFLOW_INVENTORY.json";
 import { WORKFLOW_GOLD_CONTENT, type WorkflowGoldContent } from "./workflow-gold-content";
+import { WORKFLOW_REGISTRY } from "./workflow-registry";
+import { canonicalWorkflowIdForLegacyId, canonicalWorkflowPathForLegacyPath } from "./workflow-legacy-aliases";
 import { validateAuthorityRecord, type AuthorityGateResult } from "./workflow-authority-gate";
 import {
   SEO_WORKFLOW_CATALOG,
@@ -53,24 +54,11 @@ export type WorkflowAuthorityPageData = {
   indexable: boolean;
 };
 
-type InventoryWorkflow = {
-  id: string;
-  vertical: string;
-  route: string;
-  maturity?: string;
-  hasGoldContent?: boolean;
-  hasApiEndpoint?: boolean;
-  sourceVerified?: boolean;
-  testStatus?: string;
-  lastReviewed?: string | null;
-};
-
 type CombinedWorkflow = {
   id: string;
   vertical: string;
   route: string;
-  inventory?: InventoryWorkflow;
-  seo?: WorkflowSeoCatalogEntry;
+  seo: WorkflowSeoCatalogEntry;
 };
 
 type ProductConfig = {
@@ -81,42 +69,38 @@ type ProductConfig = {
 };
 
 const PRODUCT_BY_VERTICAL: Record<string, ProductConfig> = {
-  mail: { product: "MailMyPDF", href: "/mail-a-pdf", pipeline: "Core mailing", noun: "mailing workflow" },
-  appeal: { product: "Appeal Mail", href: "/appeal-mail", pipeline: "Appeal & reconsideration", noun: "appeal workflow" },
-  notice: { product: "Notice Respond", href: "/notice-respond", pipeline: "Official notice response", noun: "notice response workflow" },
-  immigration: { product: "Immigration Mail", href: "/immigration-mail", pipeline: "Immigration correspondence", noun: "immigration correspondence workflow" },
-  dispute: { product: "Dispute Mail", href: "/dispute-mail", pipeline: "Documented dispute", noun: "dispute workflow" },
-  business: { product: "Small Business", href: "/small-business", pipeline: "Business correspondence", noun: "business correspondence workflow" },
-  records: { product: "Records Requests", href: "/records-request", pipeline: "Records & information request", noun: "records request workflow" },
-  tenant: { product: "Tenant Reply", href: "/tenant-reply", pipeline: "Tenant correspondence", noun: "tenant response workflow" },
-  permit: { product: "Permit Reply", href: "/permit-reply", pipeline: "Permit & regulatory response", noun: "permit response workflow" },
-  benefits: { product: "Benefits Appeal", href: "/benefits-appeal", pipeline: "Benefits review & appeal", noun: "benefits appeal workflow" },
-  claim: { product: "Claim Proof", href: "/claim-proof", pipeline: "Claim evidence & proof", noun: "claim documentation workflow" },
+  "appeal-mail": { product: "Appeal Mail", href: "/appeal-mail", pipeline: "Appeal & reconsideration", noun: "appeal workflow" },
+  "benefits-appeal": { product: "Benefits Appeal", href: "/benefits-appeal", pipeline: "Benefits review & appeal", noun: "benefits appeal workflow" },
+  "claim-proof": { product: "Claim Proof", href: "/claim-proof", pipeline: "Claim evidence & proof", noun: "claim documentation workflow" },
   "code-enforcement": { product: "Code Enforcement", href: "/code-enforcement", pipeline: "Code enforcement response", noun: "code enforcement workflow" },
-  insurance: { product: "Insurance Claims", href: "/insurance-claims", pipeline: "Insurance claim preparation", noun: "insurance claim workflow" },
+  "dispute-mail": { product: "Dispute Mail", href: "/dispute-mail", pipeline: "Documented dispute", noun: "dispute workflow" },
+  "immigration-mail": { product: "Immigration Mail", href: "/immigration-mail", pipeline: "Immigration correspondence", noun: "immigration correspondence workflow" },
   "insurance-claims": { product: "Insurance Claims", href: "/insurance-claims", pipeline: "Insurance claim preparation", noun: "insurance claim workflow" },
-  "private-office": { product: "Private Office", href: "/private-office", pipeline: "Private document operations", noun: "private office workflow" },
   "legal-defense": { product: "Legal Defense", href: "/legal-defense", pipeline: "Evidence-first defense preparation", noun: "legal defense preparation workflow" },
+  "notice-respond": { product: "Notice Respond", href: "/notice-respond", pipeline: "Official notice response", noun: "notice response workflow" },
+  "permit-reply": { product: "Permit Reply", href: "/permit-reply", pipeline: "Permit & regulatory response", noun: "permit response workflow" },
+  "private-office": { product: "Private Office", href: "/private-office", pipeline: "Private document operations", noun: "private office workflow" },
+  "records-request": { product: "Records Requests", href: "/records-request", pipeline: "Records & information request", noun: "records request workflow" },
+  "secured-transactions": { product: "Secured Transactions", href: "/secured-transactions", pipeline: "Secured transaction analysis", noun: "secured transaction workflow" },
+  "small-business": { product: "Small Business", href: "/small-business", pipeline: "Business correspondence", noun: "business correspondence workflow" },
+  "tenant-reply": { product: "Tenant Reply", href: "/tenant-reply", pipeline: "Tenant correspondence", noun: "tenant response workflow" },
 };
 
-const INVENTORY_WORKFLOWS = (inventory.workflows ?? []) as InventoryWorkflow[];
-const SEO_BY_ID = new Map(SEO_WORKFLOW_CATALOG.map((entry) => [entry.id, entry] as const));
+const WORKFLOWS: CombinedWorkflow[] = SEO_WORKFLOW_CATALOG.map((entry) => ({
+  id: entry.id,
+  vertical: entry.vertical,
+  route: entry.route,
+  seo: entry,
+}));
 
-const WORKFLOWS: CombinedWorkflow[] = [
-  ...INVENTORY_WORKFLOWS.map((entry) => ({
-    id: entry.id,
-    vertical: SEO_BY_ID.get(entry.id)?.vertical ?? entry.vertical,
-    route: SEO_BY_ID.get(entry.id)?.route ?? entry.route,
-    inventory: entry,
-    seo: SEO_BY_ID.get(entry.id),
-  })),
-  ...SEO_WORKFLOW_CATALOG.filter((entry) => !INVENTORY_WORKFLOWS.some((legacy) => legacy.id === entry.id)).map((entry) => ({
-    id: entry.id,
-    vertical: entry.vertical,
-    route: entry.route,
-    seo: entry,
-  })),
-];
+const GOLD_BY_CANONICAL_ID = new Map<string, WorkflowGoldContent>();
+for (const workflow of WORKFLOW_REGISTRY) {
+  if (workflow.legacyGoldId) {
+    const gold = WORKFLOW_GOLD_CONTENT[workflow.legacyGoldId];
+    if (!gold) throw new Error(`Missing legacy content for '${workflow.id}'.`);
+    GOLD_BY_CANONICAL_ID.set(workflow.id, gold);
+  }
+}
 
 const WORKFLOW_BY_ID = new Map(WORKFLOWS.map((entry) => [entry.id, entry] as const));
 const WORKFLOW_BY_ROUTE = new Map(WORKFLOWS.map((entry) => [normalizePath(entry.route), entry] as const));
@@ -164,7 +148,7 @@ function workflowSlug(entry: CombinedWorkflow): string {
 }
 
 function goldFor(entry: CombinedWorkflow): WorkflowGoldContent | undefined {
-  return WORKFLOW_GOLD_CONTENT[entry.id];
+  return GOLD_BY_CANONICAL_ID.get(entry.id);
 }
 
 function legacyFaqPairs(items: string[]): WorkflowAuthorityFAQ[] {
@@ -189,11 +173,14 @@ function reviewedAtFromGold(gold: WorkflowGoldContent | undefined): string | nul
 }
 
 function workflowById(id: string): CombinedWorkflow | undefined {
-  return WORKFLOW_BY_ID.get(id);
+  const direct = WORKFLOW_BY_ID.get(id);
+  if (direct) return direct;
+  const canonicalId = canonicalWorkflowIdForLegacyId(id);
+  return canonicalId ? WORKFLOW_BY_ID.get(canonicalId) : undefined;
 }
 
 function relatedDescription(candidate: CombinedWorkflow): string {
-  const authority = candidate.seo?.content;
+  const authority = candidate.seo.content;
   if (authority?.overview) return authority.overview;
   const gold = goldFor(candidate);
   if (gold?.overview) return gold.overview;
@@ -201,41 +188,44 @@ function relatedDescription(candidate: CombinedWorkflow): string {
 }
 
 function relatedFor(entry: CombinedWorkflow, authority: WorkflowSeoAuthorityContent | null, count = 4): WorkflowAuthorityRelated[] {
-  if (authority?.relatedWorkflowIds.length) {
-    return authority.relatedWorkflowIds
-      .map((id) => workflowById(id))
-      .filter((candidate): candidate is CombinedWorkflow => Boolean(candidate))
-      .slice(0, count)
-      .map((candidate) => ({
-        title: candidate.seo?.content?.h1 ?? titleFromSlug(workflowSlug(candidate)),
-        href: normalizePath(candidate.route),
-        description: relatedDescription(candidate),
-      }));
+  const selected: CombinedWorkflow[] = [];
+  const selectedIds = new Set<string>([entry.id]);
+
+  for (const relatedId of authority?.relatedWorkflowIds ?? []) {
+    const candidate = workflowById(relatedId);
+    if (!candidate || selectedIds.has(candidate.id)) continue;
+    selected.push(candidate);
+    selectedIds.add(candidate.id);
+    if (selected.length >= count) break;
   }
 
   const verticalWorkflows = WORKFLOWS_BY_VERTICAL.get(entry.vertical) ?? [];
-  const sameVertical = verticalWorkflows.filter((candidate) => candidate.id !== entry.id);
-  if (!sameVertical.length) return [];
+  const sameVertical = verticalWorkflows.filter((candidate) => !selectedIds.has(candidate.id));
   const currentIndex = Math.max(0, verticalWorkflows.findIndex((candidate) => candidate.id === entry.id));
-  const start = currentIndex % sameVertical.length;
-  const related: WorkflowAuthorityRelated[] = [];
-  for (let offset = 0; offset < Math.min(count, sameVertical.length); offset += 1) {
+  const start = sameVertical.length ? currentIndex % sameVertical.length : 0;
+
+  for (let offset = 0; selected.length < count && offset < sameVertical.length; offset += 1) {
     const candidate = sameVertical[(start + offset) % sameVertical.length];
-    if (!candidate) continue;
-    related.push({
-      title: candidate.seo?.content?.h1 ?? titleFromSlug(workflowSlug(candidate)),
-      href: normalizePath(candidate.route),
-      description: relatedDescription(candidate),
-    });
+    if (!candidate || selectedIds.has(candidate.id)) continue;
+    selected.push(candidate);
+    selectedIds.add(candidate.id);
   }
-  return related;
+
+  return selected.map((candidate) => ({
+    title: candidate.seo.content?.h1 ?? titleFromSlug(workflowSlug(candidate)),
+    href: normalizePath(candidate.route),
+    description: relatedDescription(candidate),
+  }));
 }
 
 export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageData | null {
   const normalized = normalizePath(path);
   if (AUTHORITY_PAGE_CACHE.has(normalized)) return AUTHORITY_PAGE_CACHE.get(normalized) ?? null;
 
-  const entry = WORKFLOW_BY_ROUTE.get(normalized);
+  const canonicalAlias = canonicalWorkflowPathForLegacyPath(normalized);
+  const entry =
+    WORKFLOW_BY_ROUTE.get(normalized) ??
+    (canonicalAlias ? WORKFLOW_BY_ROUTE.get(normalizePath(canonicalAlias)) : undefined);
   if (!entry) {
     AUTHORITY_PAGE_CACHE.set(normalized, null);
     return null;
@@ -246,9 +236,9 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
 
   const gold = goldFor(entry);
   const seoEntry = entry.seo;
-  const authority = seoEntry?.content ?? null;
-  const gate = seoEntry ? validateAuthorityRecord(seoEntry) : null;
-  const publicationState: WorkflowPublicationState = seoEntry?.state ?? "DRAFT";
+  const authority = seoEntry.content ?? null;
+  const gate = validateAuthorityRecord(seoEntry);
+  const publicationState: WorkflowPublicationState = seoEntry.state;
   const fallbackTitle = titleFromSlug(workflowSlug(entry));
   const title = authority?.h1 ?? fallbackTitle;
   const overview =
@@ -263,7 +253,7 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
   const page: WorkflowAuthorityPageData = {
     id: entry.id,
     vertical: entry.vertical,
-    path: normalized,
+    path: normalizePath(entry.route),
     product: product.product,
     productHref: product.href,
     pipeline: product.pipeline,
@@ -298,12 +288,13 @@ export function workflowAuthorityForPath(path: string): WorkflowAuthorityPageDat
     authorityGate: gate,
     authority,
     executionHref:
-      publicationState === "EXECUTABLE" && seoEntry?.execution?.verified ? seoEntry.execution.href : null,
+      publicationState === "EXECUTABLE" && seoEntry.execution?.verified ? seoEntry.execution.href : null,
     // Publication state is not enough. The page must pass the Authority Gate.
     indexable: Boolean(gate?.eligibleForIndexing),
   };
 
   AUTHORITY_PAGE_CACHE.set(normalized, page);
+  AUTHORITY_PAGE_CACHE.set(page.path, page);
   return page;
 }
 

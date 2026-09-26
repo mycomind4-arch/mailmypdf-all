@@ -16,7 +16,7 @@ const REVIEWED = "2026-09-15";
  * who is correct, calculate tax, or file anything with the IRS.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "notice/cp2000-response",
+  id: "notice-respond/cp2000-response",
   content: {
     primaryKeyword: "CP2000 notice response",
     primaryIntent: "Someone who received an IRS CP2000 notice wants to understand which specific income items the IRS says do not match, and how to agree, dispute, or partially dispute each one before the response date.",
@@ -137,7 +137,12 @@ const entry: AuthoredWorkflowSeoEntry = {
       { title: "Understanding Your CP2000 Series Notice", publisher: "Internal Revenue Service", url: "https://www.irs.gov/individuals/understanding-your-cp2000-notice", reviewedAt: REVIEWED, kind: "official" },
       { title: "Responding to a Notice", publisher: "Internal Revenue Service", url: "https://www.irs.gov/individuals/responding-to-a-notice", reviewedAt: REVIEWED, kind: "official" },
     ],
-    relatedWorkflowIds: ["notice/irs-notice", "notice/evidence-package", "notice/deadline-compliance", "notice/file-appeal"],
+    relatedWorkflowIds: [
+      "notice-respond/irs-notice-response",
+      "notice-respond/irs-underreporter-notice-response",
+      "notice-respond/appeal-after-notice",
+      "notice-respond/deadline-extension-request",
+    ],
     reviewedAt: REVIEWED,
     disclaimer: "This workflow prepares a document for your review and does not provide tax or legal advice; for complex underreporting, amended-return, or deficiency questions, consider consulting a tax professional.",
   },

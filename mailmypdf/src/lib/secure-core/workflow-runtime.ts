@@ -16,6 +16,7 @@ import {
   type SsaReconsiderationWorkflowId,
 } from "@mailmypdf/workflows";
 import { NOTICE_WORKFLOW_CONFIGS, type NoticeWorkflowId } from "../notice-workflow-registry";
+import { workflowByRuntimeId } from "@mailmypdf/workflows/canonical-registry";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -277,6 +278,10 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
     (candidate) => candidate.id === workflowId && verticalIdsMatch(candidate.verticalId, verticalId),
   );
   if (workflow) return workflow;
+  const canonical = workflowByRuntimeId(workflowId);
+  if (!canonical || !verticalIdsMatch(canonical.sectionId, verticalId)) {
+    throw new CaseError("This workflow does not yet have an enabled case runtime.");
+  }
   // Workflows that run only on the shared notice shell are defined once, by
   // their @mailmypdf/workflows profile, instead of being re-declared here.
   // The legacy definitions above keep precedence for the ids they cover.

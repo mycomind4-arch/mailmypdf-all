@@ -1,9 +1,13 @@
-import inventory from "../../WORKFLOW_INVENTORY.json";
+import { WORKFLOW_REGISTRY, workflowById } from "./workflow-registry";
 import { AUTHORED_SEO_ENTRIES } from "./workflow-seo-entries";
 
 export type WorkflowPublicationState = "DRAFT" | "SEO_READY" | "EXECUTABLE";
 export type WorkflowAuthorityReviewStatus = "NEEDS_INDIVIDUAL_REVIEW" | "AUTHORITY_REVIEWED";
-export type WorkflowSeoProvenanceKind = "modeled-inventory" | "build-spec" | "manual-review";
+export type WorkflowSeoProvenanceKind =
+  | "canonical-registry"
+  | "modeled-inventory"
+  | "build-spec"
+  | "manual-review";
 
 export type WorkflowSeoProvenance = {
   kind: WorkflowSeoProvenanceKind;
@@ -86,14 +90,13 @@ export type WorkflowSeoAuthorityContent = {
 };
 
 export type WorkflowSeoCatalogEntry = {
+  /** Canonical workflow id: section/slug. */
   id: string;
+  /** Compatibility field; now always contains the canonical section id. */
   vertical: string;
+  /** Canonical public workflow route. */
   route: string;
   state: WorkflowPublicationState;
-  /**
-   * Migration-compatible optional fields: the topology gate treats omission as a
-   * build failure for publication. DRAFT inventory records are populated below.
-   */
   reviewStatus?: WorkflowAuthorityReviewStatus;
   provenance?: readonly WorkflowSeoProvenance[];
   content?: WorkflowSeoAuthorityContent;
@@ -105,78 +108,83 @@ export type WorkflowSeoCatalogEntry = {
   };
 };
 
-type InventoryWorkflow = {
-  id: string;
-  vertical: string;
-  route: string;
-};
-
 /**
  * MASTER PUBLIC SEO CATALOG.
  *
- * The existing WORKFLOW_INVENTORY is now wired into this catalog only as DRAFT
- * topology. This does NOT endorse the old inventory's content-quality labels.
- * Every seeded record is intentionally NEEDS_INDIVIDUAL_REVIEW and noindex until
- * the workflow itself is reviewed and upgraded to the standard it is supposed to
- * reach.
+ * Workflow identity and route ownership now come from WORKFLOW_REGISTRY, not
+ * WORKFLOW_INVENTORY.json. Every canonical workflow begins as DRAFT/noindex.
+ * Individually authored authority content can promote that identity to
+ * SEO_READY, and only a separately verified execution target can promote it to
+ * EXECUTABLE.
  *
- * Spec-only concepts live in workflow-seo-candidates.ts until canonical identity
- * and route ownership are resolved. This prevents an incomplete build spec from
- * silently creating an indexable page or stealing an existing route.
- *
- * Only records carrying the complete authority content contract AND an explicit
- * AUTHORITY_REVIEWED status may be promoted to SEO_READY. A record may become
- * EXECUTABLE only when its execution entry point is separately verified.
- *
- * Do not invent missing workflows or bulk-fill generic prose to reach a target
- * count. Extraction, normalization, individual review, authority publication, and
- * executable certification are separate steps.
+ * Legacy inventory remains migration input only. It may not invent public
+ * routes, override canonical workflow identity, or confer publication status.
  */
 const AUTHORED_BY_ID = new Map(AUTHORED_SEO_ENTRIES.map((entry) => [entry.id, entry]));
+if (AUTHORED_BY_ID.size !== AUTHORED_SEO_ENTRIES.length) {
+  throw new Error("Duplicate authored workflow authority identity.");
+}
 
-const INVENTORY_PROVENANCE: WorkflowSeoProvenance = {
-  kind: "modeled-inventory",
-  sourcePath: "apps/mailmypdf/WORKFLOW_INVENTORY.json",
-  note: "Imported as topology only; prior maturity/content flags do not constitute authority review.",
+for (const authored of AUTHORED_SEO_ENTRIES) {
+  const workflow = workflowById(authored.id);
+  if (!workflow) {
+    throw new Error(
+      `Authored SEO entry '${authored.id}' does not resolve to a canonical workflow identity.`,
+    );
+  }
+  if (!workflow.authority || workflow.authority.reviewedAt !== authored.content.reviewedAt) {
+    throw new Error(`Authority review metadata drift for '${authored.id}'.`);
+  }
+  if (authored.execution && (authored.execution.href !== workflow.executionHref ||
+      authored.execution.verified !== Boolean(workflow.execution?.verified))) {
+    throw new Error(`Authority execution metadata must come from the registry for '${authored.id}'.`);
+  }
+}
+
+const REGISTRY_PROVENANCE: WorkflowSeoProvenance = {
+  kind: "canonical-registry",
+  sourcePath: "packages/workflows/src/canonical-workflows.json",
+  note: "Canonical workflow identity, review metadata and execution bindings are owned by the shared registry.",
 };
 
-export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] = (
-  (inventory.workflows ?? []) as InventoryWorkflow[]
-).map((workflow) => {
-  const authored = AUTHORED_BY_ID.get(workflow.id);
-  if (!authored) {
+export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] =
+  WORKFLOW_REGISTRY.map((workflow) => {
+    const authored = AUTHORED_BY_ID.get(workflow.id);
+    if (workflow.authority && !authored) {
+      throw new Error(`Missing authored authority content for '${workflow.id}'.`);
+    }
+    if (!authored) {
+      return {
+        id: workflow.id,
+        vertical: workflow.sectionId,
+        route: workflow.publicHref,
+        state: "DRAFT",
+        reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
+        provenance: [REGISTRY_PROVENANCE],
+      };
+    }
+
     return {
       id: workflow.id,
-      vertical: workflow.vertical,
-      route: workflow.route,
-      state: "DRAFT",
-      reviewStatus: "NEEDS_INDIVIDUAL_REVIEW",
-      provenance: [INVENTORY_PROVENANCE],
+      vertical: workflow.sectionId,
+      route: workflow.publicHref,
+      state: workflow.execution?.verified ? "EXECUTABLE" : "SEO_READY",
+      reviewStatus: "AUTHORITY_REVIEWED",
+      provenance: [
+        REGISTRY_PROVENANCE,
+        {
+          kind: "manual-review",
+          sourcePath: `mailmypdf/src/lib/workflow-seo-entries/${workflow.authority!.module}.ts`,
+          note: "Authority content authored and individually reviewed against the Authority Gate contract.",
+        },
+      ],
+      content: authored.content,
+      execution: workflow.executionHref ? {
+        href: workflow.executionHref,
+        verified: Boolean(workflow.execution?.verified),
+      } : undefined,
     };
-  }
-
-  // An authored record leaves DRAFT, but the Authority Gate still scores it and
-  // blocks indexing if the content does not hold up. EXECUTABLE additionally
-  // requires an explicitly verified execution entry point, so a record without
-  // one is published as SEO_READY rather than silently advertising a CTA.
-  return {
-    id: workflow.id,
-    vertical: workflow.vertical,
-    route: workflow.route,
-    state: authored.execution?.verified ? "EXECUTABLE" : "SEO_READY",
-    reviewStatus: "AUTHORITY_REVIEWED",
-    provenance: [
-      INVENTORY_PROVENANCE,
-      {
-        kind: "manual-review",
-        sourcePath: `apps/mailmypdf/src/lib/workflow-seo-entries/${workflow.id.replace(/\//g, "-")}.ts`,
-        note: "Authority content authored and individually reviewed against the Authority Gate contract.",
-      },
-    ],
-    content: authored.content,
-    execution: authored.execution,
-  };
-});
+  });
 
 export function defineWorkflowSeoEntry<T extends WorkflowSeoCatalogEntry>(entry: T): T {
   return entry;

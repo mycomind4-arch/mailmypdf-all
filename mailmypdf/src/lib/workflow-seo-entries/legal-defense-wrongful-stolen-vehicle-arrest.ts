@@ -9,11 +9,7 @@ const REVIEWED = "2026-09-21";
  * It does not give legal advice, predict suppression, or contact anyone.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "legal-defense/wrongful-stolen-vehicle-arrest",
-  execution: {
-    href: "/legal-defense/workflows/wrongful-stolen-vehicle-arrest/start",
-    verified: true,
-  },
+  id: "legal-defense/stolen-vehicle-arrest-defense",
   content: {
     primaryKeyword: "wrongful stolen vehicle arrest",
     primaryIntent:
@@ -306,10 +302,10 @@ const entry: AuthoredWorkflowSeoEntry = {
       },
     ],
     relatedWorkflowIds: [
-      "records/public-records-request",
-      "records/agency-records-request",
-      "records/records-request",
-      "records/follow-up",
+      "legal-defense/vehicle-search-defense",
+      "records-request/public-records-request",
+      "records-request/agency-records-request",
+      "records-request/arrest-records-request",
     ],
     reviewedAt: REVIEWED,
     disclaimer:

@@ -1,10 +1,7 @@
 // Thin file-route mount for the top-level secured-transactions/workflows/pre-filing-lien-priority-search/start/ implementation.
 import { createFileRoute } from "@tanstack/react-router"
-import workflowConfig from "../../../../../../../secured-transactions/workflows/pre-filing-lien-priority-search/config"
-import { SecuredTransactionWorkflowStartScaffold } from "../../../../../../../secured-transactions/shared/components/SecuredTransactionWorkflowStartScaffold"
+import { SecuredTransactionReviewIntake } from "../../../../../../../secured-transactions/shared/components/SecuredTransactionReviewIntake"
 
 export const Route = createFileRoute("/secured-transactions/workflows/pre-filing-lien-priority-search/start/")({
-  component: () => (
-    <SecuredTransactionWorkflowStartScaffold title={workflowConfig.title} description={workflowConfig.heroDescription} />
-  ),
+  component: () => <SecuredTransactionReviewIntake workflowId="pre-filing-lien-priority-search" />,
 })

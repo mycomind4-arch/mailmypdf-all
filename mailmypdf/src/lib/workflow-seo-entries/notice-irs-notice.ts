@@ -12,7 +12,7 @@ const REVIEWED = "2026-09-21";
  * advice, calculate what is owed, or represent anyone before the IRS.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "notice/irs-notice",
+  id: "notice-respond/irs-notice-response",
   content: {
     primaryKeyword: "respond to an irs notice",
     primaryIntent:
@@ -284,10 +284,10 @@ const entry: AuthoredWorkflowSeoEntry = {
       },
     ],
     relatedWorkflowIds: [
-      "notice/cp2000-response",
-      "notice/agency-action",
-      "notice/file-appeal",
-      "notice/deadline-compliance",
+      "notice-respond/cp2000-response",
+      "notice-respond/agency-action-response",
+      "notice-respond/appeal-after-notice",
+      "notice-respond/follow-up-after-notice-submission",
     ],
     reviewedAt: REVIEWED,
     disclaimer:
