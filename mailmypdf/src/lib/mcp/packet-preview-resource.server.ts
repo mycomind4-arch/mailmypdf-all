@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
+import type { AuthenticatedUserContext } from "@/lib/secure-core/auth.server";
 import { materializePacketPreview } from "@/lib/secure-core/case-approval.server";
 import {
   parsePacketPreviewResourceUri,
@@ -31,8 +31,8 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 export async function readPacketPreviewResource(
-  request: Request,
   uri: string,
+  context: AuthenticatedUserContext,
 ): Promise<{
   identity: PacketPreviewResourceIdentity;
   content: {
@@ -50,7 +50,6 @@ export async function readPacketPreviewResource(
     );
   }
 
-  const context = await requireAuthenticatedUser(request);
   const preview = await materializePacketPreview(
     identity.matterId,
     identity.mailClass,
