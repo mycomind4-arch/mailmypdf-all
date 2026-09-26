@@ -162,11 +162,9 @@ export async function executeMcpTool(
           : null;
 
     return {
-      profile: {
-        id: context.user.id,
-        email: context.user.email ?? null,
-        fullName,
-      },
+      id: context.user.id,
+      name: fullName,
+      email: context.user.email ?? null,
     };
   }
 
