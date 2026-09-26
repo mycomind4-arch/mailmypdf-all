@@ -1,5 +1,7 @@
 import type { AuthenticatedUserContext } from "@/lib/secure-core/auth.server";
 import { materializePacketPreview } from "@/lib/secure-core/case-approval.server";
+import { CaseError, CaseNotFoundError } from "@/lib/secure-core/case.server";
+import { PacketError } from "@/lib/secure-core/packet.server";
 import {
   parsePacketPreviewResourceUri,
   type PacketPreviewResourceIdentity,
@@ -50,12 +52,31 @@ export async function readPacketPreviewResource(
     );
   }
 
-  const preview = await materializePacketPreview(
-    identity.matterId,
-    identity.mailClass,
-    context,
-    { persistMeasuredPages: false },
-  );
+  let preview;
+  try {
+    preview = await materializePacketPreview(
+      identity.matterId,
+      identity.mailClass,
+      context,
+      { persistMeasuredPages: false },
+    );
+  } catch (error) {
+    if (error instanceof CaseNotFoundError) {
+      throw new PacketPreviewResourceError(
+        404,
+        "Packet preview resource not found",
+        "PACKET_PREVIEW_NOT_FOUND",
+      );
+    }
+    if (error instanceof CaseError || error instanceof PacketError) {
+      throw new PacketPreviewResourceError(
+        409,
+        "The packet preview is no longer available. Build and review a fresh packet.",
+        "PACKET_PREVIEW_UNAVAILABLE",
+      );
+    }
+    throw error;
+  }
 
   if (preview.packetSha256.toLowerCase() !== identity.packetSha256) {
     throw new PacketPreviewResourceError(
