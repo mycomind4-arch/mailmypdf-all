@@ -136,7 +136,7 @@ const policy: WorkflowRuntimePolicy = {
 
 function dependencies(): WorkflowRuntimeServerDependencies & { store: MemoryStore; checkoutCalls: { count: number } } {
   const store = new MemoryStore();
-  const docs = new Map<string, { filename: string; securityStatus: string; usable: boolean }>();
+  const docs = new Map<string, { ownerId: string; filename: string; securityStatus: string; usable: boolean }>();
   const checkoutCalls = { count: 0 };
   let idCounter = 0;
 
@@ -145,18 +145,23 @@ function dependencies(): WorkflowRuntimeServerDependencies & { store: MemoryStor
     store,
     now: () => "2026-09-17T00:00:00.000Z",
     id: () => `id-${++idCounter}`,
-    authenticate: async (request) => request.headers.get("authorization") === "Bearer test" ? { id: "user-1", scopes: ["ai:execute"] } : null,
+    authenticate: async (request) => {
+      const authorization = request.headers.get("authorization");
+      if (authorization === "Bearer test") return { id: "user-1", scopes: ["ai:execute"] };
+      if (authorization === "Bearer other") return { id: "user-2", scopes: ["ai:execute"] };
+      return null;
+    },
     policyFor: (workflowId) => workflowId === "test-workflow" ? policy : null,
     documents: {
-      async upload({ file, consent }) {
+      async upload({ actor, file, consent }) {
         if (!consent) throw new Error("consent required");
         const id = `doc-${docs.size + 1}`;
-        docs.set(id, { filename: file.name, securityStatus: "clean", usable: true });
+        docs.set(id, { ownerId: actor.id, filename: file.name, securityStatus: "clean", usable: true });
         return { id, filename: file.name, sizeBytes: file.size, securityStatus: "clean" };
       },
-      async describe({ documentId }) {
+      async describe({ actor, documentId }) {
         const document = docs.get(documentId);
-        if (!document) throw new Error("document not found");
+        if (!document || document.ownerId !== actor.id) throw new Error("document not found");
         return {
           filename: document.filename,
           mimeType: "application/pdf",
@@ -245,10 +250,14 @@ function dependencies(): WorkflowRuntimeServerDependencies & { store: MemoryStor
   };
 }
 
-function request(path: string, init: RequestInit = {}) {
+function requestAs(token: "test" | "other", path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  headers.set("authorization", "Bearer test");
+  headers.set("authorization", `Bearer ${token}`);
   return new Request(`https://example.test/api/workflow-runtime${path}`, { ...init, headers });
+}
+
+function request(path: string, init: RequestInit = {}) {
+  return requestAs("test", path, init);
 }
 
 async function body(response: Response) {
@@ -260,6 +269,87 @@ test("shared runtime requires authentication", async () => {
   const handle = createWorkflowRuntimeRequestHandler(deps);
   const response = await handle(new Request("https://example.test/api/workflow-runtime/matters"));
   assert.equal(response.status, 401);
+});
+
+test("runtime responses disable caching and MIME sniffing", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const response = await handle(new Request("https://example.test/api/workflow-runtime/matters"));
+  assert.equal(response.headers.get("cache-control"), "no-store, max-age=0");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+});
+
+test("runtime rejects oversized JSON before invoking workflow policy or persistence", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps, { maxJsonBytes: 64 });
+  const response = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      workflowId: "test-workflow",
+      verticalId: "test-vertical",
+      padding: "x".repeat(256),
+    }),
+  }));
+  assert.equal(response.status, 413);
+  assert.equal(deps.store.matters.size, 0);
+});
+
+test("runtime rejects oversized multipart uploads before the document gateway", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps, { maxMultipartBytes: 256 });
+  const form = new FormData();
+  form.append("file", new File(["x".repeat(1024)], "large.pdf", { type: "application/pdf" }));
+  form.append("workflowId", "test-workflow");
+  form.append("purpose", "source_notice");
+  form.append("consent", "true");
+  const response = await handle(request("/documents", { method: "POST", body: form }));
+  assert.equal(response.status, 413);
+});
+
+test("another authenticated user cannot load a matter they do not own", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(created)).matter.id as string;
+
+  const response = await handle(requestAs("other", `/matters/${matterId}`));
+  assert.equal(response.status, 404);
+  assert.match((await body(response)).error, /not found/i);
+});
+
+test("another authenticated user cannot attach a document they do not own", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+
+  const upload = new FormData();
+  upload.append("file", new File(["%PDF-test"], "private.pdf", { type: "application/pdf" }));
+  upload.append("workflowId", "test-workflow");
+  upload.append("purpose", "source_notice");
+  upload.append("consent", "true");
+  const uploaded = await handle(request("/documents", { method: "POST", body: upload }));
+  const documentId = (await body(uploaded)).document.id as string;
+
+  const created = await handle(requestAs("other", "/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  const matterId = (await body(created)).matter.id as string;
+
+  const response = await handle(requestAs("other", `/matters/${matterId}/documents`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ documentId, role: "subject_notice" }),
+  }));
+  assert.equal(response.status, 404);
+  assert.deepEqual(await body(response), { error: "Document not found" });
 });
 
 test("shared runtime exposes workflow state gates as conflicts instead of server failures", async () => {
