@@ -101,6 +101,8 @@ jobs:
         run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs
       - name: Verify portable MailMyPDF plugin package
         run: node --test mailmypdf/tests/plugin-package.test.mjs
+      - name: Verify plugin annotation justifications
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/plugin-annotation-justifications.test.ts
       - name: Verify OpenAI domain challenge behavior
         run: pnpm --filter ./mailmypdf exec tsx --test tests/openai-domain-challenge.test.ts
       - name: Reject thin or unverified indexable workflow pages
