@@ -10,6 +10,14 @@ export const RECORDS_REQUEST_STEPS = [
   { id: "response", label: "Response" },
 ] as const;
 
+/** Canonical step-workflow definition used by every records-request variant. */
+export const RECORDS_REQUEST_WORKFLOW_DEFINITION = {
+  id: "records-request",
+  title: "Records request",
+  steps: RECORDS_REQUEST_STEPS.map(({ id, label }) => ({ id, label })),
+  requiresApprovalBeforeStep: "send",
+} as const;
+
 export type RecordsRequestStepId =
   (typeof RECORDS_REQUEST_STEPS)[number]["id"];
 

@@ -22,9 +22,14 @@ import {
   type WorkflowPacketPreview,
 } from "@mailmypdf/workflows";
 import {
+  useStepWorkflowMatter,
+  type StepProjectionContext,
+} from "@mailmypdf/step-workflow";
+import {
   RECORDS_REQUEST_CONTEXT_KINDS,
   RECORDS_REQUEST_STEPS,
   RECORDS_REQUEST_VERTICAL_ID,
+  RECORDS_REQUEST_WORKFLOW_DEFINITION,
   completedRecordsRequestSteps,
   includedRecordsContextReady,
   type RecordsRequestContextKind,
@@ -104,6 +109,21 @@ const EMPTY_ADDRESS: WorkflowMailingAddress = {
 
 const client = createHttpWorkflowMatterClient({ basePath: "/api/workflow-runtime" });
 
+function deriveRecordsRequestSteps(snapshot: StepProjectionContext) {
+  const input = snapshot.input?.input ?? {};
+  const contextReady = includedRecordsContextReady(snapshot.documents);
+  const scopeConfirmed = input.scopeConfirmed === true;
+  const contextReviewed = input.contextReviewed === true && contextReady;
+  const authorityReviewed = input.authorityReviewed === true;
+  return {
+    scope: { status: scopeConfirmed ? "complete" as const : "in_progress" as const, data: { scopeConfirmed } },
+    context: { status: contextReviewed ? "complete" as const : "not_started" as const, data: { contextReady, contextReviewed } },
+    authority: { status: authorityReviewed ? "complete" as const : "not_started" as const, data: { authorityReviewed } },
+    draft: { status: snapshot.draft ? "complete" as const : "not_started" as const, data: { draftSaved: Boolean(snapshot.draft) } },
+    review: { status: snapshot.approval ? "complete" as const : "not_started" as const, data: { approvalSaved: Boolean(snapshot.approval) } },
+  };
+}
+
 function addressReady(value: WorkflowMailingAddress): boolean {
   return Boolean(
     value.name.trim() &&
@@ -159,6 +179,14 @@ export default function RecordsRequestWorkflow({
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
+  const canonicalWorkflow = useStepWorkflowMatter({
+    definition: RECORDS_REQUEST_WORKFLOW_DEFINITION,
+    client,
+    matterId,
+    deriveSteps: deriveRecordsRequestSteps,
+    verticalId: RECORDS_REQUEST_VERTICAL_ID,
+  });
+
   const primaryContext =
     documents.find((document) => document.role === "subject_notice") ?? null;
   const contextDocuments = documents.filter(
@@ -203,6 +231,13 @@ export default function RecordsRequestWorkflow({
 
   const currentStep = RECORDS_REQUEST_STEPS[stepIndex]!;
 
+  useEffect(() => {
+    const canonicalStepId = canonicalWorkflow.state?.currentStepId;
+    if (!canonicalStepId) return;
+    const nextIndex = RECORDS_REQUEST_STEPS.findIndex(({ id }) => id === canonicalStepId);
+    if (nextIndex >= 0 && nextIndex !== stepIndex) setStepIndex(nextIndex);
+  }, [canonicalWorkflow.state?.currentStepId, stepIndex]);
+
   function invalidateAfterInputChange(): void {
     setDraftSaved(false);
     setPacket(null);
@@ -240,13 +275,10 @@ export default function RecordsRequestWorkflow({
 
   async function ensureMatter(): Promise<string> {
     if (matterId) return matterId;
-    const matter = await client.createMatter({
-      workflowId: config.workflowId,
-      verticalId: RECORDS_REQUEST_VERTICAL_ID,
-    });
-    setMatterId(matter.id);
-    sessionStorage.setItem(storageKey(config.workflowId), matter.id);
-    return matter.id;
+    const id = await canonicalWorkflow.createMatter();
+    setMatterId(id);
+    sessionStorage.setItem(storageKey(config.workflowId), id);
+    return id;
   }
 
   async function refreshDocuments(id = matterId): Promise<void> {

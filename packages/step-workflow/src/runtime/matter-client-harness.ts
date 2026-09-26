@@ -173,6 +173,15 @@ export function useStepWorkflowMatter(input: UseStepWorkflowMatterInput): UseSte
     };
   }, []);
 
+  // Route-level workflow components restore matter ids from the URL or
+  // session storage after mount. Keep the canonical harness aligned with
+  // that external restore instead of maintaining a second matter identity.
+  useEffect(() => {
+    if (input.matterId !== undefined && input.matterId !== matterId) {
+      setMatterId(input.matterId);
+    }
+  }, [input.matterId, matterId]);
+
   const refresh = useCallback(async () => {
     if (!matterId) return;
     setLoading(true);
