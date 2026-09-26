@@ -311,10 +311,10 @@ const entry: AuthoredWorkflowSeoEntry = {
       },
     ],
     relatedWorkflowIds: [
-      "appeal/ssi-denial",
-      "appeal/social-security-denial",
-      "benefits/benefits-reconsideration",
-      "benefits/hearing-preparation",
+      "appeal-mail/appeal-ssi-denial",
+      "benefits-appeal/ssdi-reconsideration",
+      "benefits-appeal/benefits-hearing-preparation",
+      "benefits-appeal/ssdi-appeals-council",
     ],
     reviewedAt: REVIEWED,
     disclaimer:
