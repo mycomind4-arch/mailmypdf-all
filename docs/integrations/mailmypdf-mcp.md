@@ -27,7 +27,7 @@ For modern requests:
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.6 tool boundary
+## v0.7 tool boundary
 
 Public discovery:
 
@@ -237,5 +237,22 @@ Optional overrides:
 The packet review MCP Apps card now exposes an **Approve this exact packet** action. The UI calls the same `approve_packet` MCP tool used by headless clients and passes the exact packet SHA-256, quoted total, recipient SHA-256, recipient, and mail class from the review. The server re-materializes/revalidates the current packet and rejects stale or changed review data before saving approval.
 
 The review card deliberately has no checkout, payment, or mailing action. Approval only makes the immutable packet eligible for the separate secure checkout step.
+
+### Exact PDF review
+
+Every successful `preview_packet` now returns an owner-scoped `review.previewResourceUri` bound to the matter id, selected mail class, and exact packet SHA-256.
+
+The packet review app can use `resources/read` to fetch that URI on demand. MailMyPDF:
+
+- requires the connected MailMyPDF account before loading packet/PDF runtime code;
+- rebuilds the current packet from the saved draft and included clean documents;
+- does not mutate case state during the resource read;
+- refuses the resource when the rebuilt packet hash no longer matches the reviewed hash;
+- returns the PDF as an MCP binary resource (`application/pdf` + base64 `blob`);
+- marks the resource response private rather than publishing a storage URL.
+
+The widget converts those bytes to a temporary browser Blob URL only while the user is viewing the PDF and revokes that URL when the preview is hidden or the component leaves the page.
+
+The PDF resource represents the exact packet bytes. The mailing recipient remains a separately reviewed, SHA-256-bound destination because Lob applies recipient addressing during fulfillment rather than baking that destination into these packet bytes.
 
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.
