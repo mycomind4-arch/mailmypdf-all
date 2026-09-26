@@ -97,6 +97,8 @@ jobs:
         run: pnpm --filter @mailmypdf/documents... --workspace-concurrency=2 run build
       - name: Test Authority Gate and catalog topology invariants
         run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
+      - name: Verify MCP document E2E safety interlocks
+        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs
       - name: Reject thin or unverified indexable workflow pages
         run: pnpm --filter ./mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
