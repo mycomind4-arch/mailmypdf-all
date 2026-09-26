@@ -207,6 +207,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify production payment, fulfillment, and evidence rails
         run: |
+          pnpm --filter @mailmypdf/fulfillment test
+          pnpm --filter @mailmypdf/payment-fulfillment test
           node --test             mailmypdf/tests/lob-hardening.test.mjs             mailmypdf/tests/stripe-production.test.mjs             mailmypdf/tests/payment-fulfillment-boundary.test.mjs             mailmypdf/tests/webhook-security.test.mjs
           pnpm --filter ./mailmypdf exec tsx --test tests/mailing-record.test.ts
       - name: Build core app
