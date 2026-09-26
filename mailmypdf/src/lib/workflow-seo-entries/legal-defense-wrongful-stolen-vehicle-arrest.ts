@@ -10,10 +10,6 @@ const REVIEWED = "2026-09-21";
  */
 const entry: AuthoredWorkflowSeoEntry = {
   id: "legal-defense/stolen-vehicle-arrest-defense",
-  execution: {
-    href: "/legal-defense/workflows/stolen-vehicle-arrest-defense/start",
-    verified: true,
-  },
   content: {
     primaryKeyword: "wrongful stolen vehicle arrest",
     primaryIntent:
