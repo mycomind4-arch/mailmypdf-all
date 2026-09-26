@@ -113,7 +113,7 @@ function projectSection(config: SectionLandingConfig): PublicVerticalConfig {
     id,
     path: config.path as `/${string}`,
     product: config.name,
-    verticalKeys: LEGACY_VERTICAL_KEYS[id],
+    verticalKeys: [id, ...LEGACY_VERTICAL_KEYS[id]],
     eyebrow: config.eyebrow,
     heroTitle: config.heroTitle,
     description: config.heroDescription,
