@@ -7,7 +7,7 @@ function RetentionPolicyPage() {
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="font-serif text-4xl md:text-5xl tracking-tight">Data Retention Policy</h1>
-        <p className="mt-4 text-muted-foreground text-lg">Last updated: August 15, 2026</p>
+        <p className="mt-4 text-muted-foreground text-lg">Last updated: September 25, 2026</p>
 
         <div className="mt-10 space-y-8 text-sm leading-7 text-muted-foreground">
           <section>
@@ -16,6 +16,25 @@ function RetentionPolicyPage() {
               MailMyPDF retains user data only as long as necessary to provide the service and
               comply with legal record-keeping requirements. This document describes what data we
               keep, how long we keep it, and how users can request deletion.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl text-foreground">Secure Workflow Documents</h2>
+            <p className="mt-3">
+              Documents uploaded into the secure workflow system — including attachments processed
+              through a connected AI assistant — receive a retention deadline when they enter
+              quarantine. The current default retention period for these secure workflow document
+              bytes is 30 days. Expired files are claimed by an automated retention job, removed
+              from secure storage, and reduced to a deletion record so the system can preserve the
+              fact that deletion occurred without retaining the document contents.
+            </p>
+            <p className="mt-3">
+              Matter metadata, workflow facts, drafts, analysis records, approvals, and order
+              records are separate from the uploaded file bytes and may have different retention
+              needs while a matter is active, an order is being fulfilled, support or dispute
+              handling is ongoing, or recordkeeping obligations apply. You may request deletion as
+              described below.
             </p>
           </section>
 
