@@ -34,16 +34,16 @@ export function buildCspHeader(): string {
     "default-src 'self'",
     // Scripts: self + Stripe + inline (needed for TanStack Start hydration)
     isDev
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.com"
-      : "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.com",
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.com https://plausible.io"
+      : "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.com https://plausible.io",
     // Styles: self + inline (Tailwind requires unsafe-inline)
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     // Images: self + data: (inline SVGs) + blob: (file previews)
     "img-src 'self' data: blob: https:",
     // Fonts: self
-    "font-src 'self'",
+    "font-src 'self' https://fonts.gstatic.com",
     // Connect: self + Stripe APIs + Lob API
-    `connect-src 'self' https://api.stripe.com https://api.lob.com ${config.supabase.url}`,
+    `connect-src 'self' https://api.stripe.com https://api.lob.com https://plausible.io ${config.supabase.url}`,
     // Frames: Stripe embedded checkout
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     // Objects: none (no Flash/Java)
