@@ -3,8 +3,13 @@ import test from "node:test";
 
 import {
   MAILMYPDF_MCP_TOOLS,
+  MCP_CONNECTOR_CONTRACT_VERSION,
   MCP_OAUTH_SCOPES,
   MCP_PROTECTED_TOOL_NAMES,
+  assessMcpToolReadiness,
+  dryRunMcpTool,
+  getMcpConnectorContract,
+  validateMcpToolCapabilityContracts,
 } from "../src/lib/mcp/tool-catalog";
 import { normalizeOrderStatus } from "../src/lib/mcp/order-status.server";
 import {
@@ -39,6 +44,92 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
   assert.ok(names.length <= 15);
+});
+
+test("every connector tool has a valid capability contract", () => {
+  assert.deepEqual(validateMcpToolCapabilityContracts(), []);
+
+  const mutatingProtected = MAILMYPDF_MCP_TOOLS.filter(
+    (tool) =>
+      tool.securitySchemes.some((scheme) => scheme.type === "oauth2") &&
+      !tool.annotations.readOnlyHint,
+  );
+  assert.ok(mutatingProtected.length > 0);
+  for (const tool of mutatingProtected) {
+    assert.ok(tool.capabilityRequirements.length > 0, `${tool.name} has no capabilities`);
+  }
+
+  const approval = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "approve_packet");
+  assert.ok(approval);
+  assert.ok(approval.capabilityRequirements.some((item) => item.id === "approval"));
+  assert.ok(approval.capabilityRequirements.some((item) => item.id === "packetAssembly"));
+});
+
+test("connector contract is derived from the canonical tool and capability registries", () => {
+  const contract = getMcpConnectorContract();
+  assert.equal(contract.schemaVersion, MCP_CONNECTOR_CONTRACT_VERSION);
+  assert.equal(contract.tools.length, MAILMYPDF_MCP_TOOLS.length);
+  assert.deepEqual(
+    contract.tools.map((tool) => tool.name),
+    MAILMYPDF_MCP_TOOLS.map((tool) => tool.name),
+  );
+  assert.ok(
+    contract.tools
+      .find((tool) => tool.name === "ingest_document")
+      ?.requiredCapabilities.includes("secureUpload"),
+  );
+});
+
+test("connector tool readiness fails closed without ownership, approval, or healthy bindings", () => {
+  const profile = assessMcpToolReadiness("get_profile", {
+    actor: "authenticated",
+    ownership: "not-applicable",
+  });
+  assert.equal(profile.ready, true);
+
+  const missingOwnership = assessMcpToolReadiness("ingest_document", {
+    actor: "authenticated",
+    ownership: "unverified",
+  });
+  assert.equal(missingOwnership.ready, false);
+  assert.ok(missingOwnership.diagnostics.some((item) => item.code === "OWNERSHIP_REQUIRED"));
+
+  const approvalRecording = assessMcpToolReadiness("approve_packet", {
+    actor: "authenticated",
+    ownership: "verified",
+  });
+  assert.equal(approvalRecording.ready, true);
+
+  const missingApproval = assessMcpToolReadiness("prepare_checkout", {
+    actor: "authenticated",
+    ownership: "verified",
+  });
+  assert.equal(missingApproval.ready, false);
+  assert.ok(missingApproval.diagnostics.some((item) => item.code === "APPROVAL_REQUIRED"));
+
+  const unhealthy = assessMcpToolReadiness("ingest_document", {
+    actor: "authenticated",
+    ownership: "verified",
+    requireHealthyBindings: true,
+    bindingHealth: { secureUpload: "unavailable" },
+  });
+  assert.equal(unhealthy.ready, false);
+  assert.ok(
+    unhealthy.diagnostics.some(
+      (item) => item.capability === "secureUpload" && item.code === "BINDING_UNAVAILABLE",
+    ),
+  );
+});
+
+test("connector tool dry run never performs the requested external effect", () => {
+  const dryRun = dryRunMcpTool("prepare_checkout", {
+    actor: "authenticated",
+    ownership: "verified",
+    approvedCapabilities: ["approval", "payment"],
+  });
+  assert.equal(dryRun.sideEffectsPerformed, false);
+  assert.equal(dryRun.toolName, "prepare_checkout");
+  assert.ok(dryRun.resolvedCapabilities.includes("pricing"));
 });
 
 test("public discovery tools do not require account authorization", () => {
@@ -402,6 +493,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
       cacheScope: string;
       _meta: {
         "io.modelcontextprotocol/serverInfo": { name: string; version: string };
+        "mailmypdf/connectorContract": { schemaVersion: string; toolCount: number };
       };
     };
   };
@@ -414,6 +506,11 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["io.modelcontextprotocol/serverInfo"].name,
     "MailMyPDF",
   );
+  assert.equal(
+    payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
+    MCP_CONNECTOR_CONTRACT_VERSION,
+  );
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 15);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -444,7 +541,11 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   const payload = await response.json() as {
     result: {
       resultType: string;
-      tools: Array<{ name: string }>;
+      tools: Array<{
+        name: string;
+        capabilityRequirements?: unknown;
+        _meta?: { "mailmypdf/requiredCapabilities"?: string[] };
+      }>;
       ttlMs: number;
       cacheScope: string;
     };
@@ -457,6 +558,9 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_packet"));
+  const ingest = payload.result.tools.find((tool) => tool.name === "ingest_document");
+  assert.ok(ingest?._meta?.["mailmypdf/requiredCapabilities"]?.includes("secureUpload"));
+  assert.equal(ingest?.capabilityRequirements, undefined);
 });
 
 test("preview_packet binds the review UI and recipient identity", () => {

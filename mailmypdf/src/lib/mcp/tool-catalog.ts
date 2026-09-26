@@ -1,6 +1,17 @@
 import { PACKET_REVIEW_RESOURCE_URI } from "./ui-resource-ids";
+import {
+  assessConnectorCapabilities,
+  connectorCapabilityVersion,
+  isCapabilityVersionCompatible,
+  isRegisteredConnectorCapability,
+  type CapabilityId,
+  type ConnectorCapabilityAssessment,
+  type ConnectorCapabilityContext,
+  type ConnectorCapabilityRequirement,
+} from "@mailmypdf/workflows/connector-readiness";
 
 export const MCP_CONNECTOR_VERSION = "0.3.0";
+export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v1";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
 /**
@@ -28,6 +39,7 @@ export type MailMyPdfMcpTool = {
     | { type: "noauth" }
     | { type: "oauth2"; scopes: readonly string[] }
   )[];
+  capabilityRequirements: readonly ConnectorCapabilityRequirement[];
   _meta?: Readonly<Record<string, unknown>>;
 };
 
@@ -46,6 +58,19 @@ const integer = (description: string): JsonSchema => ({ type: "integer", descrip
 
 const oauth = (...scopes: string[]) => [{ type: "oauth2" as const, scopes }] as const;
 const noauth = [{ type: "noauth" as const }] as const;
+const capabilityRequirement = (
+  id: CapabilityId,
+  overrides: Partial<ConnectorCapabilityRequirement> = {},
+): ConnectorCapabilityRequirement => ({
+  id,
+  required: true,
+  version: "^1.0.0",
+  ...overrides,
+});
+const capabilities = (...ids: CapabilityId[]): readonly ConnectorCapabilityRequirement[] =>
+  ids.map((id) => capabilityRequirement(id));
+const accountCapabilities = (...ids: CapabilityId[]): readonly ConnectorCapabilityRequirement[] =>
+  ids.map((id) => capabilityRequirement(id, { requiresOwnership: false }));
 
 const addressSchema = objectSchema(
   {
@@ -91,6 +116,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: noauth,
+    capabilityRequirements: [],
   },
   {
     name: "get_workflow",
@@ -100,6 +126,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({ workflow_id: string("Canonical workflow id/slug.") }, ["workflow_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: noauth,
+    capabilityRequirements: [],
   },
   {
     name: "get_profile",
@@ -109,6 +136,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({}),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
     _meta: { "openai/profile": true },
   },
   {
@@ -125,6 +153,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity", "matterState"),
   },
   {
     name: "get_matter",
@@ -134,6 +163,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "matterState"),
   },
   {
     name: "get_order_status",
@@ -152,6 +182,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "tracking", "proofAudit"),
   },
   {
     name: "get_document_status",
@@ -167,6 +198,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "matterState", "documentStorage", "documentScanning"),
   },
   {
     name: "ingest_document",
@@ -201,6 +233,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("security", "secureUpload", "documentStorage", "documentScanning"),
     _meta: {
       "openai/fileParams": ["file"],
       "openai/toolInvocation/invoking": "Securing attachment…",
@@ -225,6 +258,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "matterState", "facts"),
   },
   {
     name: "analyze_matter",
@@ -234,6 +268,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("security", "documentScanning", "classification", "extraction", "understand", "facts", "provenance", "validation"),
   },
   {
     name: "generate_draft",
@@ -243,6 +278,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("aiExecution", "draft", "draftProvenance", "validation"),
   },
   {
     name: "save_draft",
@@ -258,6 +294,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("matterState", "draft", "validation"),
   },
   {
     name: "preview_packet",
@@ -276,6 +313,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     // this is intentionally not advertised as strictly read-only.
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("pdfGeneration", "packetAssembly", "pricing", "addressVerification", "validation"),
     _meta: {
       ui: {
         resourceUri: PACKET_REVIEW_RESOURCE_URI,
@@ -311,6 +349,10 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("humanReview", "blockingGate", "packetAssembly"),
+      capabilityRequirement("approval", { requiresApproval: false }),
+    ],
   },
   {
     name: "prepare_checkout",
@@ -327,6 +369,10 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("payment", { requiresApproval: false }),
+    ],
   },
 ] as const;
 
@@ -338,4 +384,133 @@ export const MCP_PROTECTED_TOOL_NAMES = new Set(
 
 export function getMcpTool(name: string): MailMyPdfMcpTool | undefined {
   return MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === name);
+}
+
+export function listMcpToolsForDiscovery() {
+  const errors = validateMcpToolCapabilityContracts();
+  if (errors.length > 0) throw new Error(errors.join("\n"));
+  return MAILMYPDF_MCP_TOOLS.map((tool) => {
+    const { capabilityRequirements, ...protocolTool } = tool;
+    return {
+      ...protocolTool,
+      _meta: {
+        ...tool._meta,
+        "mailmypdf/requiredCapabilities": capabilityRequirements
+          .filter((requirement) => requirement.required !== false)
+          .map((requirement) => requirement.id),
+      },
+    };
+  });
+}
+
+export type McpConnectorContract = {
+  schemaVersion: typeof MCP_CONNECTOR_CONTRACT_VERSION;
+  capabilitySchemaVersion: "mailmypdf.capabilities/v1";
+  connectorVersion: string;
+  tools: readonly {
+    name: string;
+    requiredCapabilities: readonly CapabilityId[];
+    capabilityVersions: Readonly<Record<string, string>>;
+  }[];
+};
+
+export function validateMcpToolCapabilityContracts(): readonly string[] {
+  const errors: string[] = [];
+  for (const tool of MAILMYPDF_MCP_TOOLS) {
+    const protectedTool = tool.securitySchemes.some((scheme) => scheme.type === "oauth2");
+    if (protectedTool && !tool.annotations.readOnlyHint && tool.capabilityRequirements.length === 0) {
+      errors.push(`${tool.name} mutates state but declares no capability requirements`);
+    }
+    const seen = new Set<string>();
+    for (const requirement of tool.capabilityRequirements) {
+      if (seen.has(requirement.id)) errors.push(`${tool.name} declares duplicate capability ${requirement.id}`);
+      seen.add(requirement.id);
+      if (!isRegisteredConnectorCapability(requirement.id)) {
+        errors.push(`${tool.name} declares unknown capability ${requirement.id}`);
+        continue;
+      }
+      const available = connectorCapabilityVersion(requirement.id);
+      if (!available || (requirement.version && !isCapabilityVersionCompatible(requirement.version, available))) {
+        errors.push(`${tool.name} requires incompatible ${requirement.id} version ${requirement.version ?? "unspecified"}`);
+      }
+    }
+  }
+  return errors;
+}
+
+export function getMcpConnectorContract(): McpConnectorContract {
+  const errors = validateMcpToolCapabilityContracts();
+  if (errors.length > 0) throw new Error(errors.join("\n"));
+  return {
+    schemaVersion: MCP_CONNECTOR_CONTRACT_VERSION,
+    capabilitySchemaVersion: "mailmypdf.capabilities/v1",
+    connectorVersion: MCP_CONNECTOR_VERSION,
+    tools: MAILMYPDF_MCP_TOOLS.map((tool) => ({
+      name: tool.name,
+      requiredCapabilities: tool.capabilityRequirements
+        .filter((requirement) => requirement.required !== false)
+        .map((requirement) => requirement.id as CapabilityId),
+      capabilityVersions: Object.fromEntries(
+        tool.capabilityRequirements.map((requirement) => [
+          requirement.id,
+          connectorCapabilityVersion(requirement.id) ?? "unknown",
+        ]),
+      ),
+    })),
+  };
+}
+
+export type McpToolReadiness = ConnectorCapabilityAssessment & {
+  toolName: string;
+  knownTool: boolean;
+};
+
+export function assessMcpToolReadiness(
+  toolName: string,
+  context: ConnectorCapabilityContext,
+): McpToolReadiness {
+  const tool = getMcpTool(toolName);
+  if (!tool) {
+    return {
+      toolName,
+      knownTool: false,
+      requested: [],
+      resolved: [],
+      required: [],
+      ready: false,
+      diagnostics: [{
+        capability: toolName,
+        code: "UNKNOWN_CAPABILITY",
+        severity: "error",
+        message: `Unknown connector tool ${toolName}.`,
+      }],
+    };
+  }
+  return {
+    toolName,
+    knownTool: true,
+    ...assessConnectorCapabilities(tool.capabilityRequirements, context),
+  };
+}
+
+export function dryRunMcpTool(
+  toolName: string,
+  context: ConnectorCapabilityContext,
+): {
+  toolName: string;
+  knownTool: boolean;
+  ready: boolean;
+  sideEffectsPerformed: false;
+  resolvedCapabilities: readonly CapabilityId[];
+  diagnostics: McpToolReadiness["diagnostics"];
+} {
+  const assessment = assessMcpToolReadiness(toolName, context);
+  return {
+    toolName,
+    knownTool: assessment.knownTool,
+    ready: assessment.ready,
+    sideEffectsPerformed: false,
+    resolvedCapabilities: assessment.resolved,
+    diagnostics: assessment.diagnostics,
+  };
 }

@@ -3,10 +3,12 @@ import { getSiteOrigin } from "@/lib/site-url";
 import {
   MAILMYPDF_MCP_TOOLS,
   MCP_CONNECTOR_VERSION,
+  getMcpConnectorContract,
   MCP_OAUTH_SCOPES,
   MCP_PROTECTED_TOOL_NAMES,
   MCP_PROTOCOL_VERSION,
   getMcpTool,
+  listMcpToolsForDiscovery,
 } from "./tool-catalog";
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
 import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
@@ -192,6 +194,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
   }
 
   if (message.method === "server/discover") {
+    const connectorContract = getMcpConnectorContract();
     return json(rpcResult(message.id, {
       resultType: "complete",
       supportedVersions: [MCP_PROTOCOL_VERSION],
@@ -208,6 +211,10 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
           name: "MailMyPDF",
           version: MCP_CONNECTOR_VERSION,
         },
+        "mailmypdf/connectorContract": {
+          schemaVersion: connectorContract.schemaVersion,
+          toolCount: connectorContract.tools.length,
+        },
       },
     }));
   }
@@ -219,7 +226,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
   if (message.method === "tools/list") {
     return json(rpcResult(message.id, {
       resultType: "complete",
-      tools: MAILMYPDF_MCP_TOOLS,
+      tools: listMcpToolsForDiscovery(),
       ttlMs: 300_000,
       cacheScope: "public",
     }));
