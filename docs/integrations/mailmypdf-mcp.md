@@ -157,6 +157,28 @@ For local Supabase, the equivalent settings are committed in `mailmypdf/supabase
 
 Do not treat OAuth consent as authorization to mail. Packet approval and checkout remain separate server-side actions.
 
+## Capability contract and preflight
+
+Each protected MCP tool now declares its required canonical MailMyPDF
+capabilities. The declaration is validated against the shared Capability
+Registry, including semantic version compatibility. `server/discover`
+advertises the connector contract version, while `tools/list` places required
+capability IDs in namespaced `_meta` so the protocol tool shape stays portable.
+
+The shared connector-readiness boundary can evaluate authentication, matter
+ownership, explicit approval, jurisdiction/domain applicability, and runtime
+binding health. It also supports side-effect-free dry runs and reports
+unsupported or unavailable requirements instead of inventing automation.
+
+This preflight is additive. Existing server-side authentication, RLS, ownership,
+packet-hash approval, payment, and fulfillment checks remain authoritative.
+Declared capability metadata is never sufficient authorization for a tool call.
+
+Long-running connector actions also have a provider-neutral resumable operation
+contract with queued, running, waiting-for-user, succeeded, failed, and cancelled
+states bound to owner, matter, revision, and idempotency key. Persistence and an
+MCP polling tool are follow-up integration work; they are not claimed live yet.
+
 ## Next execution milestones
 
 1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.

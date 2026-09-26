@@ -740,3 +740,33 @@ created (only stale `apps/verticals` legacy code exists for CP523).
   separate from declaring the capability optional on a placeholder-maturity
   manifest); no UI/step exists yet for actually capturing a signature in
   this workflow's `start/` route.
+
+### 2026-09-26 — connector-first capability control plane
+
+- Added `packages/workflows/src/connector-readiness.ts`: canonical capability
+  dependency/version checks, ownership and approval policy diagnostics,
+  binding-health inputs, side-effect-free workflow dry runs, and acceptance-gap
+  reporting. It extends the existing Capability Registry rather than creating a
+  connector-specific registry.
+- Added `packages/workflows/src/connector-operation.ts`: a provider-neutral,
+  owner/matter/idempotency-bound lifecycle for resumable connector operations.
+  Invalid transitions and incomplete success/failure/waiting states fail closed.
+- Mapped all 15 MCP tools to canonical capability requirements. Discovery exposes
+  those requirements through namespaced `_meta`; non-standard internal fields are
+  removed from the serialized protocol tool objects.
+- `server/discover` now advertises `mailmypdf.connector/v1`, derived from the
+  canonical tool and capability registries.
+- TDD evidence: initial compile/runtime RED states were observed before each
+  implementation. Focused GREEN: connector readiness/operation 12/12 and MCP
+  connector 31/31. Full workflow and repository verification follows this entry;
+  see `docs/CONNECTOR_CONTROL_PLANE_TDD.md` for exact guarantees and limitations.
+- Honest limitation: health probes are inputs to the new contract but are not yet
+  wired to deployed services; operation state is not yet persisted or exposed as
+  an MCP polling tool. Existing handler-level auth/RLS/ownership/approval remains
+  authoritative.
+- Integrated verification: `@mailmypdf/workflows` 194/194, MailMyPDF JavaScript
+  tests 605/605, MailMyPDF TypeScript tests 215/215, root TypeScript project build
+  clean, and focused new-module coverage 92.73% lines / 88.33% branches / 90.63%
+  functions. Standalone MailMyPDF typecheck retains only the documented
+  pre-existing design-system, route, metadata, and typed-array errors; no new
+  connector-control-plane error was reported.

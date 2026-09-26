@@ -13,9 +13,9 @@ adapters. The existing top-level section architecture and
 
 | Surface | Current state |
 | --- | --- |
-| Canonical capability definitions | 43 registered IDs |
+| Canonical capability definitions | 66 registered IDs |
 | Contract metadata | Version, input/output schema, requirements, security posture, applicability, failure modes, fixtures, certification state, and runtime bindings |
-| Package adapters | 18 existing workspace packages mapped through `capability-adapters.ts` |
+| Package adapters | 25 existing workspace packages mapped through `capability-adapters.ts` |
 | Composition | Discovery, filtering, transitive dependency resolution, stable ordering, and compiler manifest generation |
 | Validation | Unknown dependencies, missing dependencies, cycles, consequential gate reachability, duplicate selection, and applicability diagnostics |
 | Existing factory integration | `composeWorkflow()` and `WorkflowManifest` remain authoritative; the new capability manifest is an additive compiler input |
@@ -46,11 +46,20 @@ validation; approval gates; PDF and packet assembly; pricing, payment,
 address verification, mailing, tracking, notifications, proof, archive,
 resilience, observability, and acceptance testing.
 
+The latest shared additions also register secure sharing, legal holds, IRS/tax
+notice normalization, creative-finance amortization, translation boundaries,
+template similarity, identity verification, signatures, notarization, and
+e-filing contracts. UCC filing and title/lien search now have provider-neutral
+contracts, but remain explicitly planned until jurisdictional providers and
+certification evidence exist.
+
 Existing package adapters are registered for identity-capacity,
 jurisdiction-rules, registry-adapters, secured-transactions, security,
 documents, document-intelligence, AI, packet-builder, payment-fulfillment,
 fulfillment, mailing-client, proof, workflow-acceptance, step-workflow,
 notifications, and pricing.
+The `@mailmypdf/capability-services` package supplies the provider-neutral
+secure-file, tax, creative-finance, translation, and template services.
 
 ## Gaps and next capability families
 

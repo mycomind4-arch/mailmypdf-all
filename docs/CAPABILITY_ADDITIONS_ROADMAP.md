@@ -3,7 +3,7 @@
 Updated 2026-09-26 from the live `mailmypdf-all-main` checkout.
 
 This is a planning inventory, not a claim that every item exists. The current
-registry has 43 capability IDs. New items remain roadmap candidates until they
+registry has 66 capability IDs. New items remain roadmap candidates until they
 have a contract, an adapter or native implementation, fixtures, security
 review, and acceptance evidence.
 
@@ -22,7 +22,7 @@ replacement plan before it can move beyond `planned`.
 
 ## Already registered in the current repository
 
-These are covered by the current 43-ID registry and should be deepened before
+These are covered by the current 66-ID registry and should be deepened before
 creating near-duplicate capabilities:
 
 `identity`, `matterState`, `security`, `secureUpload`, `documentStorage`,
@@ -183,4 +183,3 @@ unreviewed legal conclusions.
    provenance and replacement contracts are in place.
 6. Add domain families one at a time, using synthetic acceptance scenarios and
    explicit jurisdiction coverage.
-
