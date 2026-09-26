@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { SectionWorkflowDirectoryPage } from "@mailmypdf/design-system"
 import securedTransactionsConfig from "../../../../../secured-transactions/config"
-import { workflowsForSection } from "@/lib/workflow-registry"
+import { WORKFLOW_NAV_SECTIONS } from "@/lib/workflow-navigation"
 import { absoluteUrl } from "@/lib/site-url"
 
-const workflows = workflowsForSection("secured-transactions")
+const section = WORKFLOW_NAV_SECTIONS.find((item) => item.id === "secured-transactions")
+const workflows = section?.workflows ?? []
 
 export const Route = createFileRoute("/secured-transactions/workflows/")({
   head: () => {
