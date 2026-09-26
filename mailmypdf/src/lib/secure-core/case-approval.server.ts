@@ -167,6 +167,7 @@ export async function materializePacketPreview(
   caseId: string,
   mailClass: MailClass,
   context: AuthenticatedUserContext,
+  options: { persistMeasuredPages?: boolean } = {},
 ): Promise<MaterializedPacketPreview> {
   const workflowCase = await loadCase(caseId, context);
   const draft = await loadCurrentDraft(caseId, context);
@@ -174,7 +175,9 @@ export async function materializePacketPreview(
 
   const letter = await renderResponseLetter(draft.body);
   const packet = await assemblePacket(letter, documents);
-  await persistMeasuredPageCounts(caseId, packet.manifest, context);
+  if (options.persistMeasuredPages !== false) {
+    await persistMeasuredPageCounts(caseId, packet.manifest, context);
+  }
 
   const quote = calculateQuote({
     workflowId: workflowCase.workflow_id,
