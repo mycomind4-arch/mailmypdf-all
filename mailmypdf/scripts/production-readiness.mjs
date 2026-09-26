@@ -113,6 +113,16 @@ const lobWebhook = value("LOB_WEBHOOK_SECRET");
 if (!lobWebhook) fail("LOB_WEBHOOK_SECRET", "missing");
 else pass("LOB_WEBHOOK_SECRET", "configured");
 
+requireSecret("MAILMYPDF_CLEANUP_SECRET", 32);
+
+const resendKey = value("RESEND_API_KEY");
+if (resendKey) pass("RESEND_API_KEY", "configured");
+else fail("RESEND_API_KEY", "missing — payment and mailing confirmations need transactional email");
+
+const resendFrom = value("RESEND_FROM_ADDRESS");
+if (resendFrom) pass("RESEND_FROM_ADDRESS", "configured");
+else fail("RESEND_FROM_ADDRESS", "missing — configure a sender on a verified email domain");
+
 const autoSubmit = String(value("AUTO_SUBMIT_TO_LOB") || "false").toLowerCase() === "true";
 if (autoSubmit) warn("AUTO_SUBMIT_TO_LOB", "enabled — use only after controlled end-to-end verification");
 else pass("AUTO_SUBMIT_TO_LOB", "disabled");
