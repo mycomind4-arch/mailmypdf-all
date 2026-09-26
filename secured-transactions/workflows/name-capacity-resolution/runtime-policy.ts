@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Name & Capacity Resolution runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Name & Capacity Resolution remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;
