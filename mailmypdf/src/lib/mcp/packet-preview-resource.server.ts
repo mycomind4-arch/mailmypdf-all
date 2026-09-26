@@ -54,6 +54,7 @@ export async function readPacketPreviewResource(
     identity.matterId,
     identity.mailClass,
     context,
+    { persistMeasuredPages: false },
   );
 
   if (preview.packetSha256.toLowerCase() !== identity.packetSha256) {
