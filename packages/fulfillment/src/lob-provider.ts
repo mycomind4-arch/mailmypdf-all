@@ -4,7 +4,7 @@ const DEFAULT_LOB_API_BASE = "https://api.lob.com/v1";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_WEBHOOK_TOLERANCE_MS = 5 * 60 * 1000;
 
-export type LobMailClass = "standard" | "certified" | "registered";
+export type LobMailClass = "standard" | "certified" | "certified_return_receipt" | "registered";
 
 export interface LobAddress {
   name: string;
@@ -138,7 +138,7 @@ export async function createLobLetter(
   form.set("use_type", "operational");
   form.set("metadata[referenceId]", input.referenceId);
 
-  if (input.extraService === "certified" || input.extraService === "registered") {
+  if (input.extraService && input.extraService !== "standard") {
     form.set("extra_service", input.extraService);
   }
 
@@ -247,6 +247,8 @@ export function normalizeLobStatus(status: unknown): NormalizedLobStatus {
     case "in_local_area":
     case "processed_for_delivery":
     case "re-routed":
+    case "pickup_available":
+    case "international_exit":
       return "in_transit";
     case "delivered":
       return "delivered";
