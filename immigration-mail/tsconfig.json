@@ -5,6 +5,6 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "react"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "tests"]
+  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"],
+  "exclude": ["node_modules", "tests", "**/index.tsx"]
 }

@@ -36,7 +36,7 @@ export const securedTransactionsConfig = {
   faqs: [
     ["Does capitalization create a separate legal person?", "No. Name normalization is used for comparison and search; identity and capacity are resolved from evidence and applicable rules."],
     ["Will the workflow guess when records conflict?", "No. Material conflicts should remain visible until they are resolved or explicitly reviewed."],
-    ["Can this scaffold take consequential actions?", "No. The current section shell and initial workflow are deliberately non-executable while rule and authority coverage are still being built."],
+    ["Can these workflows take consequential actions?", "The current family is domain-ready for structured analysis and preparation, but consequential filing or transaction actions remain gated until the required authority, jurisdiction, evidence, and human-review checks are satisfied."],
   ],
   related: [
     { name: "Records Requests", path: "/records-request", description: "Obtain source records that may support a matter." },

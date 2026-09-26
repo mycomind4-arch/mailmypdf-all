@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Perfection Execution runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Perfection Execution remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;

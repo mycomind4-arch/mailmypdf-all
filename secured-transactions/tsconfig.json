@@ -5,6 +5,20 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "react"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"],
-  "exclude": ["node_modules", "tests"]
+  "include": [
+    "config.ts",
+    "workflows/**/*.ts",
+    "workflows/**/*.tsx",
+    "shared/**/*.ts",
+    "shared/**/*.tsx",
+    "env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "tests",
+    "index.tsx",
+    "workflows/*/index.tsx",
+    "workflows/*/start/index.tsx",
+    "workflows/*/tests/**"
+  ]
 }

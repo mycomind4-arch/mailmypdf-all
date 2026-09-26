@@ -58,7 +58,7 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
           <a className="mmp-button-primary" href={directory}>Browse {config.name} workflows <ArrowRight size={16}/></a>
           <a className="mmp-button-secondary" href="#how-it-works">How it works</a>
         </>}
-        meta={<><span>30 focused workflows</span><span>Review before consequential action</span><span>Mailing & proof options</span></>}
+        meta={<><span>Focused workflow directory</span><span>Review before consequential action</span><span>Mailing & proof options</span></>}
       />
 
       <TrustStrip items={[
@@ -90,7 +90,7 @@ export function SectionLandingPage({ config }: { config: SectionLandingConfig })
             </article>
             })}
           </div>
-          <div className="mmp-seo-centered-action"><a className="mmp-button-primary" href={directory}>Browse all 30 {config.name} workflows <ArrowRight size={16}/></a></div>
+          <div className="mmp-seo-centered-action"><a className="mmp-button-primary" href={directory}>Browse all {config.name} workflows <ArrowRight size={16}/></a></div>
         </div>
       </section>
 

@@ -143,3 +143,5 @@ export * from './section-landing.js'
 export * from './admin-surface.js'
 
 export * from './workflow-landing.js'
+
+export * from './section-workflow-directory.js'

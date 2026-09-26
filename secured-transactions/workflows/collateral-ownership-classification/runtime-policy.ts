@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Collateral Ownership & Classification runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Collateral Ownership & Classification remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;

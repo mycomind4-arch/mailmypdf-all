@@ -10,7 +10,7 @@ import { SiteHeader, SiteFooter } from "@/components/site-chrome";
 import { DocumentUpload, type UploadedFile } from "@/components/document-upload";
 import { ProUpsell } from "@/components/pro-upsell";
 
-export const Route = createFileRoute("/records-request")({
+export const Route = createFileRoute("/records-request/workflows/public-records-request/start")({
   head: () => ({
     meta: [
       { title: "RecordsRequest — File FOIA and Public Records Requests by Mail" },

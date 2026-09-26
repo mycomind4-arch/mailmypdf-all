@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Priority Strategy runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Priority Strategy remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;

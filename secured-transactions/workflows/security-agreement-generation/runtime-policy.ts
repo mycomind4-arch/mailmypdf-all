@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Security Agreement Generation runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Security Agreement Generation remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;

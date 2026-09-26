@@ -14,7 +14,7 @@ export const workflowConfig = {
   heroTitle: "Immigration Filing Cover Letter",
   heroDescription: "Prepare a clear filing cover letter around the application, petition, forms, and supporting documents you are sending, then review the exact packet before mailing.",
   indexable: false,
-  contentStatus: "executable",
+  contentStatus: "reviewed",
   workspaceHighlights: [
     ["Document-first intake", "Start from the actual filing document or USCIS record that the cover letter will accompany."],
     ["Packet organization", "Categorize and explicitly select the supporting documents that belong in the outgoing packet."],

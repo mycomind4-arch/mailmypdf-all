@@ -10,7 +10,7 @@ import {
 import type { ValueEvidenceKind } from "@mailmypdf/secured-transactions";
 import { assessObligationValue, type ObligationValueInput, type ObligationValueSourceType } from "../rules/assessment";
 
-type FormState = Omit<ObligationValueInput, "principalAmount"> & { principalAmount: string };
+type FormState = Omit<ObligationValueInput, "principalAmount" | "sourceLabel"> & { principalAmount: string; sourceLabel: string };
 
 const INITIAL_FORM: FormState = {
   obligationId: "obligation-1",
