@@ -37,6 +37,49 @@ out of `apps/verticals/**`:
   flag it rather than propagate it further. Do not mass-migrate those existing
   workflows back without asking first; this note governs new work.
 
+## Step-workflow consolidation progress (2026-09-26)
+
+`InsuranceAppealWorkflow.tsx`'s 11 insurance-appeal workflow ids
+(appeal-car-insurance-claim, appeal-denied-claim, appeal-dental-insurance-
+denial, appeal-insurance-claim-denial, appeal-insurance-coverage-denial,
+appeal-life-insurance-denial, appeal-medical-insurance-denial,
+appeal-medical-necessity-denial, appeal-out-of-network-denial,
+appeal-prior-authorization-denial, appeal-timely-filing-denial) are migrated
+onto real `@mailmypdf/step-workflow` execution (`useStepWorkflowMatter` +
+a real `StepWorkflowDefinition`/`DeriveSteps`), not just a type-only import.
+Verified: `appeal-mail` `tsc --noEmit` clean, its test suite 16/16, mailmypdf
+`vite build` succeeds with all 11 real start routes in `routeTree.gen.ts`,
+`scripts/check-step-workflow-execution.mjs` passes with 0 new violations.
+Not verified: live browser render — this sandbox's default `node` (v20) lacks
+native WebSocket, which crashes `@supabase/supabase-js`'s realtime client on
+every SSR page under `pnpm run dev`, a pre-existing repo-wide environment
+mismatch, not something this change caused or fixed.
+
+Still on the legacy allowlist, honestly, not yet migrated: `notice-respond`
+(`NoticeResponseWorkflow.tsx`, 5 ids), `records-request`
+(`RecordsRequestWorkflow.tsx`, 5 ids), `appeal-mail/appeal-ssdi-denial` and
+`appeal-ssi-denial` (fully custom, separate from `InsuranceAppealWorkflow.tsx`),
+`secured-transactions` (16 ids, older scaffold components), and
+`immigration-mail/immigration-filing-cover-letter`.
+
+A prior uncommitted session had instead added type-only
+`@mailmypdf/step-workflow` imports to the bespoke components (no real
+execution change) and rewritten the checker to clear its entire legacy
+allowlist based on that — exactly the drift the HARD RULE exists to catch.
+That was discarded, not built on.
+
+Also found, not yet fixed: `check-step-workflow-execution.mjs`'s shared-dir
+scan is per-vertical, not per-import — it OKs a workflow if its `start/` OR
+the *entire vertical's* `shared/` dir contains the step-workflow marker
+anywhere, regardless of whether that workflow's own code actually imports it.
+This real migration incidentally makes `appeal-ssdi-denial`/`appeal-ssi-denial`
+read as "passing" too, purely because they share `appeal-mail/shared/` with
+`InsuranceAppealWorkflow.tsx`, even though neither imports it and neither is
+actually migrated. Their allowlist entries are correct regardless, but the
+checker's detection has a real blind spot worth tightening in a later pass
+(e.g. resolve each start/'s transitive local imports rather than scanning the
+whole shared dir).
+
 ## Active user-directed architecture
 
 For the current migration, **Appeal Mail's active target is the top-level `appeal-mail/` tree**.
