@@ -107,6 +107,14 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     description:
       "Return the MailMyPDF account currently connected to this MCP request. Use to confirm which account owns new matters and documents.",
     inputSchema: objectSchema({}),
+    outputSchema: objectSchema(
+      {
+        id: string("Stable MailMyPDF profile identifier for the connected account."),
+        name: { type: ["string", "null"], description: "Display name for the connected account." },
+        email: { type: ["string", "null"], description: "Email address for the connected account." },
+      },
+      ["id"],
+    ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     _meta: { "openai/profile": true },
