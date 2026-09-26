@@ -159,12 +159,42 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 
 ## Next execution milestones
 
-1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
-2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
-3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
-4. Add saved-payment support only after a server-side confirmation design is complete.
-5. Exercise the MCP Apps packet review UI in ChatGPT/Claude-compatible hosts, then add a post-mailing status UI if it materially improves the experience.
-6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
+1. Deploy the current connector build to the production HTTPS domain.
+2. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real account connection.
+3. Run `mcp:readiness` against production and resolve every failure before public submission.
+4. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
+5. Exercise the exact-PDF packet review and approval UI in ChatGPT developer mode.
+6. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
+7. Add saved-payment support only after a server-side confirmation design is complete.
+
+## Launch-readiness diagnostic
+
+Use the stricter read-only diagnostic after deploying staging or production:
+
+```bash
+MCP_BASE_URL="https://mailmypdf.ai" \
+pnpm --filter ./mailmypdf mcp:readiness
+```
+
+It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 15-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata.
+
+To additionally verify a real connected account without creating any matter or document:
+
+```bash
+MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BEARER_TOKEN="<temporary-user-access-token>" \
+pnpm --filter ./mailmypdf mcp:readiness
+```
+
+During OpenAI directory submission, the portal provides a domain-verification token. Verify that exact deployed token with:
+
+```bash
+MCP_BASE_URL="https://mailmypdf.ai" \
+OPENAI_CHALLENGE_EXPECTED_TOKEN="<portal-provided-token>" \
+pnpm --filter ./mailmypdf mcp:readiness
+```
+
+The readiness command invokes only the read-only `find_workflow` and `get_profile` tools. It never creates matters, uploads files, analyzes documents, approves packets, creates checkout, charges, or mails.
 
 ## External smoke testing
 
