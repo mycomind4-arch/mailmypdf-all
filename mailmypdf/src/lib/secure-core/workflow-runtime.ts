@@ -137,6 +137,14 @@ export interface CaseWorkflowDefinition {
   /** Extra workflowDetails keys this workflow asks the model to report. */
   readonly analysisDetailFields?: string;
   readonly draftInstructions: string;
+  /**
+   * False for request-first workflows whose analysis is deterministically
+   * derived from user input rather than a disclosed source document (e.g.
+   * Records Request's synthetic `workflow-input:<version>` analysis id).
+   * Defaults to true (a real subject_notice document is required) so every
+   * existing document-first workflow keeps its current safety check.
+   */
+  readonly requiresSourceDocument?: boolean;
 }
 
 // Register execution only when the case service supports the workflow. The
@@ -355,6 +363,11 @@ export function resolveCaseWorkflow(workflowId: string, verticalId: string): Cas
       draftInstructions:
         "Prepare a records request letter using confirmed agency, record types, and " +
         "reference numbers. Reference only documentation actually provided.",
+      // Matches the records-request runtime policy's requiresSourceDocument:
+      // false (packages/workflows/src/domain-packs/records-request/runtime-policy.ts)
+      // — its analysis is deterministically derived from user input, not a
+      // disclosed source document, so there is never a real subject_notice to check.
+      requiresSourceDocument: false,
     });
   }
   if (
@@ -481,12 +494,16 @@ export function assertDraftReady(
   analysisDocumentId: string,
   analysis: NoticeAnalysis,
   documents: readonly DraftDocument[],
+  options: { requiresSourceDocument?: boolean } = {},
 ): void {
-  const notice = documents.find((document) => document.role === "subject_notice");
-  if (!notice || notice.document_id !== analysisDocumentId)
-    throw new CaseError("The notice has changed. Analyze the current notice before drafting.");
-  if (!notice.usable)
-    throw new CaseError("The source notice must pass security checks before drafting.");
+  const requiresSourceDocument = options.requiresSourceDocument !== false;
+  if (requiresSourceDocument) {
+    const notice = documents.find((document) => document.role === "subject_notice");
+    if (!notice || notice.document_id !== analysisDocumentId)
+      throw new CaseError("The notice has changed. Analyze the current notice before drafting.");
+    if (!notice.usable)
+      throw new CaseError("The source notice must pass security checks before drafting.");
+  }
   if (documents.some((document) => document.role === "evidence" && document.included && !document.usable))
     throw new CaseError("All included supporting documents must pass security checks before drafting.");
   if (analysis.promptInjectionObserved)

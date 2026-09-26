@@ -245,7 +245,9 @@ export async function generateDraftResponse(
     throw new CaseError("Save the workflow information before drafting a response");
 
   const documents = await listCaseDocuments(caseId, context);
-  assertDraftReady(analysis.documentId, analysis.result, documents);
+  assertDraftReady(analysis.documentId, analysis.result, documents, {
+    requiresSourceDocument: workflow.requiresSourceDocument,
+  });
   const enclosed = documents.filter((d) => d.included && d.role === "evidence");
 
   // Only the kinds are sent, not filenames — a filename can carry personal
