@@ -15,6 +15,10 @@ existing MailMyPDF MCP contract:
 4. A long-running connector action has a resumable, idempotent state contract.
 5. MCP discovery remains protocol-compatible by placing MailMyPDF extensions in
    `_meta`, not as non-standard top-level tool fields.
+6. Retrying one action cannot duplicate work or silently bind changed arguments.
+7. An owner can recover operation status after losing a tool response.
+8. Readiness can inspect live database, storage, payment, and mailing bindings
+   without performing the target action.
 
 ## RED and GREEN evidence
 
@@ -26,6 +30,10 @@ existing MailMyPDF MCP contract:
 | Discovery exposes capability requirements without non-standard top-level tool fields | `mailmypdf/tests/mcp-connector.test.ts` | Test found no `_meta` capability declaration | MCP connector suite passed 31/31 |
 | Exact and caret capability-version rules are enforced | `packages/workflows/tests/connector-readiness.test.ts` | The original major-only comparison accepted incompatible versions | Corrected semantic-version tests passed |
 | Approval preflight does not require an approval before recording approval | `mailmypdf/tests/mcp-connector.test.ts` | Review test exposed a circular `APPROVAL_REQUIRED` result | Tool-specific policy override passed while checkout still requires prior approval |
+| Idempotency cannot cross an owner/matter/request boundary | `packages/workflows/tests/connector-operation.test.ts` | Repository replay had no persistence/request-binding contract | Repository tests reject matter and request-hash rebinding |
+| Provider-family probes are bounded and secret-safe | `packages/workflows/tests/connector-binding-health.test.ts` | Compile failed because no probe runner existed | Probe deduplication, safe failure, unknown state, and timeout tests pass |
+| Operation persistence is owner-read/server-write with database transition guards | `mailmypdf/tests/connector-operation-migration.test.ts` | No operation migration existed | RLS/grant, compound ownership, idempotency, and transition-trigger checks pass |
+| MCP exposes polling/readiness and requires keys for persisted actions | `mailmypdf/tests/mcp-connector.test.ts` | Tool surface had neither status/readiness tools nor required retry keys | Connector catalog and discovery tests pass with 17 tools |
 
 ## Implemented boundaries
 
@@ -33,27 +41,33 @@ existing MailMyPDF MCP contract:
   binding-health, dry-run, and acceptance-gap contracts.
 - `@mailmypdf/workflows/connector-operation` owns the provider-neutral queued,
   running, waiting, succeeded, failed, and cancelled lifecycle.
+- `@mailmypdf/workflows/connector-binding-health` owns bounded, provider-family
+  health-probe orchestration and safe result normalization.
 - The MCP tool catalog maps each protected operation to canonical capability IDs.
 - `server/discover` advertises the connector contract version and tool count.
 - `tools/list` publishes required capability IDs through namespaced `_meta`.
+- `connector_operations` persists owner/matter/request-bound state with RLS and
+  database-enforced optimistic transitions.
+- `get_operation_status` recovers owner-scoped state/results;
+  `get_connector_readiness` runs live binding probes without the target effect.
 
 ## Known gaps
 
-- Binding-health inputs are supported by the contract, but no deployed service
-  probes are wired yet.
-- Connector-operation state is a reusable contract, not yet persisted or exposed
-  as a new MCP polling tool.
+- The migration is implemented and statically verified but has not been applied
+  to staging or production in this task.
+- Operations execute inside the initiating request. There is no background
+  worker/reconciler yet; an interrupted `running` operation remains visible and
+  is deliberately not repeated automatically.
+- `create_matter` remains outside the matter-bound operation model because a
+  matter id does not exist before creation.
+- AI and malware-scanner checks are configuration-aware but report `unknown`
+  when configured; neither provider exposes a safe no-effect reachability probe.
 - Existing tool handlers remain authoritative for authentication, owner-scoped
   matter access, approval, payment, and mailing. Readiness metadata is not an
   authorization replacement.
 - Production OAuth and assistant-host smoke tests require a configured deployment.
 
-Focused Node coverage for the two new workflow modules is 92.73% lines, 88.33%
-branches, and 90.63% functions.
-
-Integrated verification also passed the complete `@mailmypdf/workflows` suite
-(194/194), all MailMyPDF JavaScript tests (605/605), all MailMyPDF TypeScript
-tests (215/215), the root TypeScript project build, and `git diff --check`.
-The standalone MailMyPDF typecheck still reports its documented pre-existing
-design-system resolution, route typing, metadata typing, and `Uint8Array`
-errors; none point to the connector-control-plane files changed here.
+Integrated verification passed the complete `@mailmypdf/workflows` suite
+(204/204), all MailMyPDF JavaScript tests (605/605), all MailMyPDF TypeScript
+tests (218/218), the standalone MailMyPDF typecheck, the root TypeScript project
+build, and `git diff --check`.

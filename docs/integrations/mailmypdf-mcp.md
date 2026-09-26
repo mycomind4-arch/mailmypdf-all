@@ -27,7 +27,7 @@ For modern requests:
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.7 tool boundary
+## v0.4 / connector-v2 tool boundary
 
 Public discovery:
 
@@ -41,6 +41,8 @@ Authenticated matter execution:
 - `get_matter`
 - `get_order_status`
 - `get_document_status`
+- `get_operation_status`
+- `get_connector_readiness`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -69,6 +71,37 @@ The review UI is passive: it cannot approve, charge, or mail. It receives tool i
 MailMyPDF canonicalizes the reviewed recipient and computes a deterministic SHA-256. `approve_packet` requires the exact `expected_recipient_sha256` returned by `preview_packet`. If the recipient changes after review, approval fails closed and the assistant must build a new preview. This is in addition to the existing packet-hash, quote, and mail-class checks.
 
 `preview_packet` is intentionally advertised with `readOnlyHint: false` because the existing packet preview path persists measured page-count metadata even though it does not approve, charge, or mail anything.
+
+## Durable operations and retries
+
+The eight matter-bound write/action tools require an `idempotency_key`:
+
+- `ingest_document`
+- `save_matter_input`
+- `analyze_matter`
+- `generate_draft`
+- `save_draft`
+- `preview_packet`
+- `approve_packet`
+- `prepare_checkout`
+
+The key must be 8–128 characters using letters, numbers, periods, underscores,
+colons, or hyphens. A connector must reuse the key only when retrying the same
+tool with the same matter and arguments. MailMyPDF binds it to the owner, matter,
+tool kind, and a canonical SHA-256 of the request. Reusing a key with another
+matter or changed arguments returns a conflict instead of replaying the wrong
+result.
+
+Successful tool responses preserve their existing fields and add
+`connectorOperation` plus `connectorReplay`. If a call is interrupted, use
+`get_operation_status` with the returned operation id. Owner-scoped RLS protects
+status reads; only trusted server code can create or transition operation rows.
+
+This is durable retry/status support, not a background job system. A process that
+dies after an external effect but before recording success leaves a visible
+`running` operation for reconciliation and will not automatically repeat the
+effect. `create_matter` is not yet part of this operation model because there is
+no matter id to bind before creation.
 
 ## Secure assistant attachments
 
@@ -170,23 +203,33 @@ ownership, explicit approval, jurisdiction/domain applicability, and runtime
 binding health. It also supports side-effect-free dry runs and reports
 unsupported or unavailable requirements instead of inventing automation.
 
+`get_connector_readiness` now runs those checks through deployed bindings. It
+uses owner-scoped Supabase queries for workflow persistence, verifies the secure
+storage bucket, and calls the existing Stripe, Lob, and notification provider
+health adapters when those providers are relevant. AI and malware-scanner
+bindings report configured/unavailable honestly because they do not expose a
+safe zero-effect reachability check. Provider error bodies and credentials are
+never returned.
+
 This preflight is additive. Existing server-side authentication, RLS, ownership,
 packet-hash approval, payment, and fulfillment checks remain authoritative.
 Declared capability metadata is never sufficient authorization for a tool call.
 
-Long-running connector actions also have a provider-neutral resumable operation
-contract with queued, running, waiting-for-user, succeeded, failed, and cancelled
-states bound to owner, matter, revision, and idempotency key. Persistence and an
-MCP polling tool are follow-up integration work; they are not claimed live yet.
+Long-running connector actions use the shared provider-neutral queued, running,
+waiting-for-user, succeeded, failed, and cancelled state contract. Database
+constraints enforce legal transitions, monotonic revisions, immutable operation
+identity, owner/matter binding, and one row per owner/tool/idempotency key.
 
 ## Next execution milestones
 
 1. Enable/verify Supabase OAuth 2.1 settings on the hosted project and exercise a real dynamic-client login.
 2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
 3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
-4. Add saved-payment support only after a server-side confirmation design is complete.
-5. Exercise the MCP Apps packet review UI in ChatGPT/Claude-compatible hosts, then add a post-mailing status UI if it materially improves the experience.
-6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
+4. Apply the connector-operations migration in staging, then verify interruption/retry/status recovery through real OAuth sessions.
+5. Add a reconciliation worker for operations left `running` by process interruption; never blindly repeat consequential effects.
+6. Add saved-payment support only after a server-side confirmation design is complete.
+7. Exercise the MCP Apps packet review UI in ChatGPT/Claude-compatible hosts, then add a post-mailing status UI if it materially improves the experience.
+8. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
 
 ## External smoke testing
 
@@ -207,7 +250,7 @@ The unauthenticated smoke verifies:
 - `/api/mcp` is reachable and remains POST-only;
 - protected-resource OAuth metadata is present (or reports configuration missing);
 - modern `server/discover` returns protocol `2026-07-28`;
-- `tools/list` exposes the expected 15-tool surface;
+- `tools/list` exposes the expected 17-tool surface;
 - public workflow discovery resolves `cp14-response`;
 - a protected tool returns a 401 OAuth challenge with `resource_metadata`.
 

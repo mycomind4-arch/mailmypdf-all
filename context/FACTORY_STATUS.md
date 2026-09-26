@@ -751,22 +751,53 @@ created (only stale `apps/verticals` legacy code exists for CP523).
 - Added `packages/workflows/src/connector-operation.ts`: a provider-neutral,
   owner/matter/idempotency-bound lifecycle for resumable connector operations.
   Invalid transitions and incomplete success/failure/waiting states fail closed.
-- Mapped all 15 MCP tools to canonical capability requirements. Discovery exposes
+- Mapped the then-current 15 MCP tools to canonical capability requirements. Discovery exposes
   those requirements through namespaced `_meta`; non-standard internal fields are
   removed from the serialized protocol tool objects.
-- `server/discover` now advertises `mailmypdf.connector/v1`, derived from the
+- At this phase, `server/discover` advertised `mailmypdf.connector/v1`, derived from the
   canonical tool and capability registries.
 - TDD evidence: initial compile/runtime RED states were observed before each
   implementation. Focused GREEN: connector readiness/operation 12/12 and MCP
   connector 31/31. Full workflow and repository verification follows this entry;
   see `docs/CONNECTOR_CONTROL_PLANE_TDD.md` for exact guarantees and limitations.
-- Honest limitation: health probes are inputs to the new contract but are not yet
-  wired to deployed services; operation state is not yet persisted or exposed as
-  an MCP polling tool. Existing handler-level auth/RLS/ownership/approval remains
-  authoritative.
+- Phase-one limitation, closed by the entry below: health probes were inputs only,
+  and operation state was not persisted or exposed as an MCP polling tool.
+  Existing handler-level auth/RLS/ownership/approval remains authoritative.
 - Integrated verification: `@mailmypdf/workflows` 194/194, MailMyPDF JavaScript
   tests 605/605, MailMyPDF TypeScript tests 215/215, root TypeScript project build
   clean, and focused new-module coverage 92.73% lines / 88.33% branches / 90.63%
   functions. Standalone MailMyPDF typecheck retains only the documented
   pre-existing design-system, route, metadata, and typed-array errors; no new
   connector-control-plane error was reported.
+
+### 2026-09-26 — durable connector operations and live binding health
+
+- Supersedes the two connector limitations recorded immediately above.
+  `mailmypdf.connector/v2` / connector `0.4.0` now exposes 17 tools, including
+  owner-scoped `get_operation_status` and side-effect-free
+  `get_connector_readiness`.
+- Added `public.connector_operations` migration. Rows are bound to an existing
+  owner/matter pair; authenticated users have RLS-protected read-only access;
+  trusted server code owns writes. Database checks and a transition trigger
+  enforce immutable identity, monotonic revision, valid state payloads, legal
+  transitions, and one operation per owner/tool/idempotency key.
+- Eight matter-bound mutating/action tools now require an MCP-standard
+  `idempotentHint` plus an explicit `idempotency_key`. The durable operation is
+  also bound to a canonical request SHA-256, so changing the matter or arguments
+  while reusing a key fails with a conflict. Temporary assistant download URLs
+  are intentionally excluded from the hash; the provider file id remains the
+  stable attachment identity.
+- Added bounded provider-family health probes. Supabase workflow/storage checks
+  are live; existing Stripe, Lob, and notification health adapters are reused;
+  AI/scanner checks report configured/unknown or unavailable without sending a
+  paid model request or test document. Raw provider errors are not returned.
+- Updated the packet-review app and document E2E harness to supply stable
+  idempotency keys. Updated the smoke harness for the 17-tool surface.
+- Verified: `@mailmypdf/workflows` 204/204, MailMyPDF JavaScript 605/605,
+  MailMyPDF TypeScript 218/218, MailMyPDF `tsc --noEmit` clean, root `tsc -b`
+  clean, and `git diff --check` clean.
+- Not production-verified: the new migration was not applied; no hosted OAuth,
+  Stripe, Lob, storage-bucket, scanner, or model-provider check was executed.
+  Operations remain request-executed rather than queued background jobs. A
+  process interruption can leave a visible `running` operation that requires a
+  future reconciler; the system deliberately will not blindly repeat its effect.
