@@ -80,8 +80,9 @@ Before approval:
    - exact intended recipient;
    - selected mail class.
 3. Show the user the returned packet facts, including price, mail class, page counts, recipient, packet SHA-256, and recipient SHA-256. When an MCP Apps review card is available, let it render those same server-calculated facts.
-4. The user may approve the exact reviewed packet from the review card. That button calls `approve_packet` with the exact preview values; do not call `approve_packet` a second time if the card already returned an approval.
-5. Make clear that previewing or approving does not charge or mail anything. Checkout remains a separate step.
+4. When the review card exposes `View exact PDF`, use that owner-scoped resource to let the user inspect the exact packet bytes before approval. Do not substitute a recreated document, public storage URL, or assistant-generated rendering for the MailMyPDF packet resource.
+5. The user may approve the exact reviewed packet from the review card. That button calls `approve_packet` with the exact preview values; do not call `approve_packet` a second time if the card already returned an approval.
+6. Make clear that viewing, previewing, or approving does not charge or mail anything. Checkout remains a separate step.
 
 If any of these change, build a new preview before approval:
 
