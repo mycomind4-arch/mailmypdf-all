@@ -21,6 +21,7 @@ export type CapabilityOwner = "platform" | "vertical" | "hybrid";
  * "implemented" is not silently accepted as production-ready.
  */
 export type CapabilityStatus = "foundation" | "partial" | "implemented" | "production";
+export type CapabilityCertificationState = "planned" | "implemented" | "certified";
 export type CapabilityCategory =
   | "identity"
   | "documents"
@@ -65,6 +66,11 @@ export type CapabilityId =
   | "approval"
   | "pdfGeneration"
   | "packetAssembly"
+  | "signature"
+  | "identityVerification"
+  | "notarization"
+  | "efiling"
+  | "piiDetection"
   | "pricing"
   | "payment"
   | "addressVerification"
@@ -77,6 +83,68 @@ export type CapabilityId =
   | "observability"
   | "acceptanceTesting";
 
+/** JSON-Schema-shaped metadata kept deliberately structural so manifests can
+ * be consumed by the factory without bringing a schema validator into the
+ * shared workflow package. Runtime validators remain package-owned. */
+export type CapabilitySchema = {
+  type: "object" | "array" | "string" | "number" | "integer" | "boolean" | "null" | "unknown";
+  title?: string;
+  description?: string;
+  properties?: Readonly<Record<string, CapabilitySchema>>;
+  items?: CapabilitySchema;
+  required?: readonly string[];
+  additionalProperties?: boolean;
+  format?: string;
+};
+
+export type CapabilityRequirement =
+  | { kind: "capability"; capability: CapabilityId; reason: string }
+  | { kind: "security" | "configuration" | "jurisdiction" | "human"; key: string; reason: string };
+
+export type CapabilitySecurityPosture = {
+  dataClass: "public" | "account" | "matter" | "sensitive" | "regulated";
+  reads: readonly string[];
+  writes: readonly string[];
+  externalEffects: readonly ("none" | "ai" | "payment" | "mailing" | "notification" | "registry")[];
+  requiresOwnership: boolean;
+  requiresApproval: boolean;
+  failClosed: boolean;
+};
+
+export type CapabilityApplicability = {
+  jurisdictions: readonly string[];
+  domains: readonly string[];
+  limitations: readonly string[];
+};
+
+export type CapabilityFailureMode = {
+  code: string;
+  behavior: "block" | "retry" | "warn" | "degrade";
+  description: string;
+};
+
+export type CapabilityFixture = {
+  id: string;
+  kind: "unit" | "integration" | "acceptance";
+  path: string;
+  status: "present" | "missing";
+};
+
+export type CapabilityCertification = {
+  state: CapabilityCertificationState;
+  evidence: readonly string[];
+  gaps: readonly string[];
+  reviewedAt?: string;
+};
+
+export type CapabilityRuntimeBinding = {
+  kind: "package-export" | "adapter" | "service";
+  package: `@mailmypdf/${string}`;
+  exportPath: string;
+  status: "implemented" | "planned";
+  notes?: string;
+};
+
 export type CapabilityDefinition = {
   id: CapabilityId;
   name: string;
@@ -86,6 +154,16 @@ export type CapabilityDefinition = {
   /** Canonical package that owns the reusable implementation or contract. */
   implementation: `@mailmypdf/${string}`;
   status: CapabilityStatus;
+  version: string;
+  inputSchema: CapabilitySchema;
+  outputSchema: CapabilitySchema;
+  requirements: readonly CapabilityRequirement[];
+  security: CapabilitySecurityPosture;
+  applicability: CapabilityApplicability;
+  failureModes: readonly CapabilityFailureMode[];
+  fixtures: readonly CapabilityFixture[];
+  certification: CapabilityCertification;
+  runtimeBindings: readonly CapabilityRuntimeBinding[];
   /** Consequential capabilities must not run before explicit review/approval gates. */
   consequential?: boolean;
   dependencies?: readonly CapabilityId[];
@@ -99,8 +177,29 @@ const capability = (
   description: string,
   implementation: `@mailmypdf/${string}`,
   status: CapabilityStatus,
-  extras: Pick<CapabilityDefinition, "consequential" | "dependencies"> = {},
-): CapabilityDefinition => ({ id, name, owner, category, description, implementation, status, ...extras });
+  extras: Partial<Pick<CapabilityDefinition, "consequential" | "dependencies" | "version" | "inputSchema" | "outputSchema" | "requirements" | "security" | "applicability" | "failureModes" | "fixtures" | "certification" | "runtimeBindings">> = {},
+): CapabilityDefinition => ({
+  id, name, owner, category, description, implementation, status,
+  version: "1.0.0",
+  inputSchema: { type: "object", title: `${name} input` },
+  outputSchema: { type: "object", title: `${name} output` },
+  requirements: [],
+  security: {
+    dataClass: category === "documents" || category === "intelligence" ? "sensitive" : "matter",
+    reads: [], writes: [], externalEffects: ["none"], requiresOwnership: true,
+    requiresApproval: extras.consequential === true, failClosed: true,
+  },
+  applicability: { jurisdictions: ["unspecified"], domains: [category], limitations: [] },
+  failureModes: [{ code: "UNAVAILABLE", behavior: "block", description: "Capability cannot execute when its binding is unavailable." }],
+  fixtures: [],
+  certification: extras.certification ?? {
+    state: status === "production" ? "certified" : status === "implemented" ? "implemented" : "planned",
+    evidence: [],
+    gaps: status === "production" ? [] : ["Production binding or certification evidence is incomplete."],
+  },
+  runtimeBindings: extras.runtimeBindings ?? [{ kind: "package-export", package: implementation, exportPath: ".", status: status === "foundation" || status === "partial" ? "planned" : "implemented" }],
+  ...extras,
+} as CapabilityDefinition);
 
 export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> = {
   // The following capabilities previously had no explicit status argument
@@ -144,6 +243,11 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   approval: capability("approval", "Approval", "hybrid", "workflow", "Role- or policy-based explicit approval for consequential transitions.", "@mailmypdf/workflows", "production", { consequential: true, dependencies: ["humanReview", "blockingGate"] }),
   pdfGeneration: capability("pdfGeneration", "PDF Generation", "platform", "documents", "Generate printable deterministic PDFs from approved content.", "@mailmypdf/packet-builder", "implemented"),
   packetAssembly: capability("packetAssembly", "Packet Assembly", "platform", "documents", "Merge the approved response and selected supporting documents into the exact mail-ready packet.", "@mailmypdf/packet-builder", "production", { dependencies: ["pdfGeneration"] }),
+  signature: capability("signature", "Electronic Signature", "platform", "documents", "Provider-neutral electronic signature capture, affirmative consent, and completion state bound to a specific document hash.", "@mailmypdf/signature", "implemented", { dependencies: ["documentStorage"] }),
+  identityVerification: capability("identityVerification", "Identity Verification", "platform", "documents", "Provider-neutral identity proofing (document/database/biometric checks) confirming a matter party is who they claim to be, distinct from platform auth/ownership.", "@mailmypdf/identity-verification", "implemented"),
+  notarization: capability("notarization", "Remote Online Notarization", "platform", "fulfillment", "Provider-neutral notarized-signature session requiring prior identity verification before a notary attests a signature.", "@mailmypdf/notarization", "implemented", { consequential: true, dependencies: ["identityVerification", "humanReview", "blockingGate"] }),
+  efiling: capability("efiling", "Electronic Court/Agency Filing", "platform", "fulfillment", "Provider-neutral direct electronic filing submission to a court or agency, as an alternative fulfillment path to physical mailing.", "@mailmypdf/efiling", "implemented", { consequential: true, dependencies: ["packetAssembly", "approval", "humanReview", "blockingGate"] }),
+  piiDetection: capability("piiDetection", "PII Detection", "hybrid", "documents", "Automatic detection of sensitive personal data spans feeding the existing privacy release/redaction review before a document may be disclosed or reused as a template.", "@mailmypdf/documents", "foundation", { dependencies: ["documentStorage"] }),
   pricing: capability("pricing", "Server-authoritative Pricing", "platform", "commerce", "Deterministic workflow and mailing quotes controlled by the server.", "@mailmypdf/pricing", "implemented"),
   payment: capability("payment", "Payment", "platform", "commerce", "Stripe/payment intent state and immutable approved-artifact payment boundary.", "@mailmypdf/payment-fulfillment", "production", { consequential: true, dependencies: ["pricing", "approval"] }),
   addressVerification: capability("addressVerification", "Address Verification", "platform", "fulfillment", "Normalize and verify recipient/sender postal addresses before submission.", "@mailmypdf/fulfillment", "production"),
@@ -197,6 +301,17 @@ export function validateCapabilityRegistry(): string[] {
         errors.push(`${id} declares unknown dependency ${dependency}`);
       }
     }
+    const definition = CAPABILITIES[id];
+    for (const requirement of definition.requirements) {
+      if (requirement.kind === "capability" && !hasCapability(requirement.capability)) {
+        errors.push(`${id} declares unknown capability requirement ${requirement.capability}`);
+      }
+    }
+    if (definition.failureModes.length === 0) errors.push(`${id} must declare at least one failure mode`);
+    if (definition.runtimeBindings.length === 0) errors.push(`${id} must declare at least one runtime binding`);
+    if (definition.certification.state === "certified" && definition.certification.gaps.length > 0) {
+      errors.push(`${id} is certified but still declares certification gaps`);
+    }
   }
 
   const visiting = new Set<CapabilityId>();
@@ -240,4 +355,149 @@ export function validateCapabilityRegistry(): string[] {
   }
 
   return [...new Set(errors)];
+}
+
+export type CapabilityQuery = {
+  ids?: readonly string[];
+  category?: CapabilityCategory;
+  owner?: CapabilityOwner;
+  status?: CapabilityStatus;
+  certification?: CapabilityCertificationState;
+  domain?: string;
+  jurisdiction?: string;
+  consequential?: boolean;
+};
+
+export type CapabilityCompositionRequest = {
+  required: readonly string[];
+  optional?: readonly string[];
+  notApplicable?: readonly string[];
+  jurisdiction?: string;
+  domain?: string;
+};
+
+export type CapabilityComposition = {
+  requested: readonly CapabilityId[];
+  resolved: readonly CapabilityId[];
+  required: readonly CapabilityId[];
+  optional: readonly CapabilityId[];
+  diagnostics: readonly string[];
+  executable: boolean;
+};
+
+function isCapabilityId(value: string): value is CapabilityId {
+  return hasCapability(value);
+}
+
+/** Stable topological order for compiler-facing manifests. Dependencies are
+ * emitted before their consumers, while preserving registry order otherwise. */
+export function resolveCapabilityDependencies(ids: readonly CapabilityId[]): {
+  ordered: readonly CapabilityId[];
+  errors: readonly string[];
+} {
+  const selected = new Set<CapabilityId>();
+  const errors: string[] = [];
+  const visit = (id: CapabilityId, path: readonly CapabilityId[]) => {
+    if (selected.has(id)) return;
+    if (path.includes(id)) {
+      errors.push(`capability dependency cycle: ${[...path, id].join(" -> ")}`);
+      return;
+    }
+    for (const dependency of capabilityDependencies(id)) {
+      if (!hasCapability(dependency)) {
+        errors.push(`${id} requires unknown capability ${dependency}`);
+      } else visit(dependency, [...path, id]);
+    }
+    selected.add(id);
+  };
+  for (const id of ids) visit(id, []);
+  return { ordered: capabilityIds.filter((id) => selected.has(id)), errors: [...new Set(errors)] };
+}
+
+export class CapabilityRegistry {
+  constructor(readonly definitions: Readonly<Record<CapabilityId, CapabilityDefinition>> = CAPABILITIES) {}
+
+  get(id: string): CapabilityDefinition | undefined {
+    return isCapabilityId(id) ? this.definitions[id] : undefined;
+  }
+
+  discover(query: CapabilityQuery = {}): readonly CapabilityDefinition[] {
+    return Object.values(this.definitions).filter((definition) => {
+      if (query.ids && (!query.ids.includes(definition.id))) return false;
+      if (query.category && definition.category !== query.category) return false;
+      if (query.owner && definition.owner !== query.owner) return false;
+      if (query.status && definition.status !== query.status) return false;
+      if (query.certification && definition.certification.state !== query.certification) return false;
+      if (query.domain && !definition.applicability.domains.includes(query.domain)) return false;
+      if (query.jurisdiction && !definition.applicability.jurisdictions.includes(query.jurisdiction) && !definition.applicability.jurisdictions.includes("unspecified")) return false;
+      if (query.consequential !== undefined && definition.consequential !== query.consequential) return false;
+      return true;
+    });
+  }
+
+  compose(request: CapabilityCompositionRequest): CapabilityComposition {
+    const diagnostics: string[] = [];
+    const notApplicable = new Set(request.notApplicable ?? []);
+    const required = request.required.filter(isCapabilityId);
+    const optional = (request.optional ?? []).filter(isCapabilityId);
+    for (const id of [...request.required, ...(request.optional ?? [])]) {
+      if (!isCapabilityId(id)) diagnostics.push(`unknown capability ${id}`);
+      if (notApplicable.has(id)) diagnostics.push(`capability ${id} is both selected and not applicable`);
+    }
+    const requested = [...new Set([...required, ...optional])];
+    const resolution = resolveCapabilityDependencies(requested);
+    diagnostics.push(...resolution.errors);
+    const selected = new Set(resolution.ordered);
+    for (const id of resolution.ordered) {
+      const definition = this.definitions[id];
+      if (request.domain && !definition.applicability.domains.includes(request.domain) && !definition.applicability.domains.includes("shared")) {
+        diagnostics.push(`${id} is not applicable to domain ${request.domain}`);
+      }
+      if (request.jurisdiction && !definition.applicability.jurisdictions.includes("unspecified") && !definition.applicability.jurisdictions.includes(request.jurisdiction)) {
+        diagnostics.push(`${id} is not applicable to jurisdiction ${request.jurisdiction}`);
+      }
+    }
+    for (const id of requested) {
+      if (!selected.has(id)) diagnostics.push(`could not resolve capability ${id}`);
+    }
+    return {
+      requested, resolved: resolution.ordered,
+      required: required.filter((id) => selected.has(id)),
+      optional: optional.filter((id) => selected.has(id)),
+      diagnostics: [...new Set(diagnostics)],
+      executable: diagnostics.length === 0,
+    };
+  }
+}
+
+export const capabilityRegistry = new CapabilityRegistry();
+
+export type CapabilityManifest = {
+  schemaVersion: "mailmypdf.capabilities/v1";
+  workflow: { id: string; version: number };
+  required: readonly CapabilityId[];
+  optional: readonly CapabilityId[];
+  resolved: readonly CapabilityId[];
+  bindings: Readonly<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>;
+};
+
+/** Compiles a validated registry composition into the factory's stable input.
+ * The compiler consumes this artifact; it never infers capabilities from code. */
+export function compileCapabilityManifest(input: {
+  workflowId: string;
+  workflowVersion?: number;
+  composition: CapabilityComposition;
+}): CapabilityManifest {
+  if (!input.composition.executable) {
+    throw new Error(input.composition.diagnostics.join("\n"));
+  }
+  const bindings = Object.fromEntries(input.composition.resolved.map((id) => [id, CAPABILITIES[id].runtimeBindings])) as Readonly<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>;
+  return {
+    schemaVersion: "mailmypdf.capabilities/v1",
+    workflow: { id: input.workflowId, version: input.workflowVersion ?? 1 },
+    required: input.composition.required,
+    optional: input.composition.optional,
+    resolved: input.composition.resolved,
+    bindings,
+  };
 }

@@ -18,6 +18,8 @@ export * from "./workflow-certifier.js";
 export * from "./reference-pipeline-profiles.js";
 
 export * from "./capability-registry.js";
+export * from "./capability-adapters.js";
+export * from "./capability-contract-validation.js";
 
 export * from "./execution-reliability.js";
 export * from "./workflow-observability.js";

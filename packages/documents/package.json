@@ -23,8 +23,8 @@
       "import": "./dist/retention/retention.js"
     },
     "./privacy": {
-      "types": "./src/privacy/privacy-release-review.ts",
-      "import": "./dist/privacy/privacy-release-review.js"
+      "types": "./src/privacy/index.ts",
+      "import": "./dist/privacy/index.js"
     }
   },
   "files": [

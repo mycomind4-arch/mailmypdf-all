@@ -567,3 +567,135 @@ created (only stale `apps/verticals` legacy code exists for CP523).
   AGENTS.md, live mailing/payment is out of scope for a verification pass).
 - No code changes were made this session — all three workflows, their shared
   module, and the server resolver block were already correct and complete.
+
+### 2026-09-26 — Capability-registry audit and stabilization pass
+
+- Working checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, branch `main`.
+  User requested a full audit of existing reusable capabilities plus a
+  sourced proposal for new ones; directed to stabilize the foundation first.
+- Environment note: this session's `node_modules/.bin` had only 3 entries
+  (`tsc`, `tsserver`, `turbo`) and `@types/node`/`vitest` were entirely
+  absent, so `pnpm test`/`pnpm typecheck` fail (`tsc: command not found` /
+  `Cannot find module 'node:test'`). A plain `pnpm install` at the workspace
+  root immediately prompts to remove and reinstall all 54 workspace
+  `node_modules` directories from scratch; did not run it non-interactively
+  given the size/risk and other uncommitted work already in this tree —
+  flagged for the user to decide. Worked around it by invoking the
+  already-present `node_modules/typescript/bin/tsc` and the pnpm-store `tsx`
+  binary directly by path (both packages are actually installed; only the
+  `.bin` shims are missing/incomplete).
+- Verified the uncommitted `packages/workflows/src/capability-registry.ts` v2
+  upgrade (schemas, security posture, certification, jurisdiction/domain
+  applicability, `CapabilityRegistry.discover()/compose()`,
+  `compileCapabilityManifest()`) plus the new `capability-adapters.ts`:
+  `node <tsx-cli> --test tests/*.test.ts` from `packages/workflows/` —
+  **186/186 passing, 0 failures**; `tsc --noEmit` clean except 3 pre-existing,
+  unrelated missing-test-type errors (`vitest`/`node:test` ambient types in
+  two stray `src/*.test.ts` files, not part of this work). This upgrade is
+  solid; it had simply never been run before this session.
+- Fixed: `packages/forms` (official government/agency PDF form registry +
+  required-form completeness checks against packet documents) is real,
+  tested, and consumed by `appeal-mail/workflows/appeal-ssdi-denial`, but was
+  never registered in `capability-adapters.ts`. Confirmed no overlap with
+  `packet-builder` (greped its `src/`, no official-form logic, no dependency
+  on `@mailmypdf/forms`) and added it under `packetAssembly`. Re-verified
+  186/186 passing after the change.
+- Found, deliberately **not** fixed without user input:
+  1. **Split-brain `identity` capability declaration**:
+     `capability-registry.ts` names `@mailmypdf/ecosystem` as canonical for
+     `identity`, but `capability-adapters.ts` instead wires
+     `@mailmypdf/identity-capacity`, and `@mailmypdf/ecosystem` has zero real
+     importers anywhere in the repo (confirmed by grep, independent of the
+     declarative string in the registry). Genuinely ambiguous which is
+     correct: `identity-capacity`'s own stated purpose (naming/capacity/
+     party-resolution) doesn't cleanly match the capability's own description
+     ("identity, ownership, entitlement, and access boundaries") either —
+     that description matches `ecosystem`'s unused `EcosystemIdentity`
+     contract better. Needs a product decision, not a guess.
+  2. `@mailmypdf/ecosystem` also contains a second, unused
+     notification-dispatch system (`notifications.ts`) duplicating
+     `@mailmypdf/notifications` (the actually-wired owner) almost
+     field-for-field. Not deleted — may be deliberate unused scaffolding
+     rather than confirmed-dead code.
+  3. `packages/evidence-graph` is confirmed dead:
+     `packages/intelligence/src/traceability.ts` states in its own comment
+     that it is "the generalized replacement for the legacy Code Enforcement
+     evidence-graph lookup," and grep confirms zero importers anywhere
+     outside its own `package.json`. Candidate for a
+     `context/MIGRATION_PRUNE_LEDGER.md` disposition entry and deletion, not
+     done here.
+  4. `mailmypdf/src/lib/publication-{runtime,scheduler}.server.ts` import
+     `@mailmypdf/autonomous-publishing` via a relative path
+     (`../../../packages/autonomous-publishing/src/index`) instead of the
+     package specifier; `mailmypdf/package.json` never declares the
+     dependency. Works today, but bypasses the workspace boundary. The real
+     fix needs a workspace install to create the
+     `node_modules/@mailmypdf/autonomous-publishing` symlink — deferred
+     pending the reinstall decision above.
+  5. `packages/vertical-foundry` (95 files, 15 tests, a real
+     RESEARCH→SELECT→SPECIFY→BUILD→QA→RED_TEAM→VERIFY→DEPLOY→REGISTER
+     agent-swarm pipeline) has zero external importers anywhere — nothing in
+     production runs it — while `packages/dev-agent-swarm` is the swarm this
+     file's own history shows actually being run (CP504 pilot, SEO agent
+     hardening, etc.). Likely two parallel implementations of the same job;
+     needs a decision on which is canonical before either is extended.
+- Full capability + package inventory (43 registered capabilities, 32
+  packages) and sourced proposals for new `signature`, `piiDetection`,
+  `identityVerification`, `notarization`, and `efiling` capabilities were
+  given to the user in-conversation; not duplicated here to avoid drift
+  between this file and the conversation record.
+- User approved a full workspace reinstall (`pnpm install`, confirmed
+  non-interactively) to fix the broken toolchain described above: `.bin`
+  went from 3 entries to 50, `@types/node`/`vitest` are now present. Real
+  `pnpm --filter <pkg> test`/`typecheck` work normally again in this
+  environment from this point forward.
+- Built and registered four new platform capabilities, following this
+  repo's own established pattern (provider-neutral contract + state machine
+  + in-memory reference provider + real tests; no vendor credentials, no
+  live network calls, no production claim without a real adapter):
+  - `packages/signature` (`@mailmypdf/signature`) — e-signature envelope/
+    consent state machine. 7/7 tests.
+  - `packages/identity-verification` (`@mailmypdf/identity-verification`) —
+    identity-proofing session state machine (document/database/biometric
+    checks), distinct from platform auth/ownership. 7/7 tests.
+  - `packages/notarization` (`@mailmypdf/notarization`) — RON session state
+    machine; structurally cannot be created without a real
+    `VerifiedIdentity` from `identity-verification` (a real `workspace:*`
+    dependency, not just a registry note). Consequential capability. 5/5
+    tests.
+  - `packages/efiling` (`@mailmypdf/efiling`) — direct court/agency
+    electronic filing submission state machine, an alternative fulfillment
+    path to physical mailing. Consequential capability. 6/6 tests. Covers
+    UCC filing (`jurisdiction.kind: "agency"`) without needing a separate
+    module — `registry-adapters`' `ucc-search` is a read-only search
+    framework and was correctly left alone; its README now cross-references
+    `efiling` for the actual filing-submission half.
+  - `packages/documents/src/privacy/detection.ts` (new file in the
+    existing package, not a new package) — `RegexPiiDetector`, a
+    foundation-status reference PII detector feeding `SensitiveFinding[]`
+    into the already-built-but-previously-unregistered
+    `privacy-release-review.ts` gate. New `piiDetection` capability added
+    to the registry pointing at `@mailmypdf/documents`. 3 new tests (96/96
+    package total).
+  - All four new `CapabilityId`s registered in `capability-registry.ts` and
+    `capability-adapters.ts` with honest `implemented` status (real logic +
+    tests, no live vendor — matches this file's own documented maturity
+    definitions) and added to the root `tsconfig.json` project references.
+  - Verified after every change, not just at the end:
+    `pnpm --filter @mailmypdf/workflows test` stayed at **186/186** passing
+    throughout (the capability-registry tests iterate all registered
+    capabilities generically, so they exercised every new entry without
+    needing new test cases); `pnpm --filter @mailmypdf/workflows typecheck`
+    clean throughout. Confirmed no exhaustive `switch`/consumer elsewhere in
+    the monorepo depends on `CapabilityId` being a closed set (checked every
+    real importer outside `packages/workflows`), so adding new union members
+    was non-breaking.
+  - None of the five are `production` — every README states exactly what
+    real vendor/EFSP integration is still needed and links the sourcing
+    research (Documenso/Dropbox Sign, Stripe Identity/Persona, Proof.com,
+    Tyler Technologies Odyssey File & Serve, Wolters Kluwer Lien Solutions).
+  - Not done: wiring any of these into an actual workflow's pipeline/manifest
+    (no workflow currently declares `signature`/`identityVerification`/
+    `notarization`/`efiling`/`piiDetection` as required/optional) — that is
+    a per-workflow decision for whichever workflow first needs one of these,
+    not part of this platform-capability pass.

@@ -97,6 +97,18 @@
       "path": "./packages/notifications"
     },
     {
+      "path": "./packages/signature"
+    },
+    {
+      "path": "./packages/identity-verification"
+    },
+    {
+      "path": "./packages/notarization"
+    },
+    {
+      "path": "./packages/efiling"
+    },
+    {
       "path": "./packages/autonomous-publishing"
     },
     {
