@@ -22,4 +22,13 @@ describe("Security Agreement Generation workflow", () => {
     assert.equal(workflowManifest.manifest.allowsConsequentialAction, false);
     assert.equal(workflowRuntimeClient.executable, false);
   });
+
+  test("declares signature capture as optional, with its documentStorage dependency satisfied", () => {
+    // A throw here would come from defineWorkflow()'s eager
+    // assertCapabilityDependencies() check at module load time, not from
+    // this assertion — this test documents the intent explicitly.
+    assert.ok(workflowManifest.manifest.optionalCapabilities.includes("signature"));
+    assert.ok(workflowManifest.manifest.optionalCapabilities.includes("documentStorage"));
+    assert.equal(workflowManifest.manifest.requiredCapabilities.includes("signature"), false);
+  });
 });

@@ -694,8 +694,49 @@ created (only stale `apps/verticals` legacy code exists for CP523).
     real vendor/EFSP integration is still needed and links the sourcing
     research (Documenso/Dropbox Sign, Stripe Identity/Persona, Proof.com,
     Tyler Technologies Odyssey File & Serve, Wolters Kluwer Lien Solutions).
-  - Not done: wiring any of these into an actual workflow's pipeline/manifest
-    (no workflow currently declares `signature`/`identityVerification`/
-    `notarization`/`efiling`/`piiDetection` as required/optional) — that is
-    a per-workflow decision for whichever workflow first needs one of these,
-    not part of this platform-capability pass.
+  - Not done at the time of that commit: wiring any of these into an actual
+    workflow's manifest.
+
+### 2026-09-26 — wired `signature` into a real workflow manifest
+
+- Chose `secured-transactions/workflows/security-agreement-generation/manifest.ts`:
+  it is `maturity: "placeholder"` / `allowsConsequentialAction: false` (low
+  blast radius — nothing production-live depends on this workflow's
+  certification today), and a generated security agreement is exactly the
+  kind of document that plausibly needs a captured signature, unlike most
+  of secured-transactions' other search/analysis-only workflows.
+- Added `"documentStorage"` and `"signature"` to `optionalCapabilities`
+  (not required — the workflow doesn't allow consequential action yet, and
+  forcing a real signature integration to exist before that is true would
+  be inventing a requirement, not reflecting one). `signature` depends on
+  `documentStorage` in `capability-registry.ts`; both are declared together
+  so `assertCapabilityDependencies()` stays clean. `defineWorkflow()`
+  validates this eagerly at module load — a wrong pairing throws
+  immediately, not silently.
+- Added an explicit test
+  (`security-agreement-generation/tests/security-agreement.test.ts`)
+  asserting `signature`/`documentStorage` are optional, not required.
+- **Found and fixed a real, separate bug while verifying this**: the first
+  test run crashed with `Cannot read properties of undefined (reading
+  'dependencies')` inside `packages/workflows/dist/capability-registry.js`.
+  Root cause: `secured-transactions` (like every other consumer outside
+  `packages/workflows` itself) resolves `@mailmypdf/workflows` through its
+  *compiled* `dist/`, not live source — and that `dist/` predated this
+  session's new capability entries. Fixed by rebuilding
+  `@mailmypdf/workflows` (`pnpm --filter @mailmypdf/workflows build`); this
+  is the same "packages/*/dist is gitignored and must be built by hand"
+  class of issue this file has documented before, not a new defect. Also
+  rebuilt `documents`/`signature`/`identity-verification`/`notarization`/
+  `efiling` for hygiene, though nothing outside their own packages consumes
+  them yet. **Any future session extending `capability-registry.ts` should
+  rebuild `@mailmypdf/workflows` before testing a consumer outside that
+  package**, or this exact crash will recur.
+- Verified: `pnpm --dir secured-transactions typecheck` clean;
+  `pnpm --dir secured-transactions test` 74/74 passing (was 70/72 before
+  the rebuild fix, with the 2 failures being the crash above surfacing
+  twice, not two independent bugs).
+- Not done: no `CapabilityHandler` is registered for `signature` anywhere
+  (that's a `CapabilityRuntime`-level, execution-time concern, appropriately
+  separate from declaring the capability optional on a placeholder-maturity
+  manifest); no UI/step exists yet for actually capturing a signature in
+  this workflow's `start/` route.

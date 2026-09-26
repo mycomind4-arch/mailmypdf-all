@@ -14,7 +14,13 @@ export const workflowManifest = defineWorkflow({
   pipeline: SECURED_TRANSACTION_PIPELINE_ID,
   adapters: [SECURED_TRANSACTION_ADAPTER_ID],
   requiredCapabilities: [...SECURED_TRANSACTION_BASE_REQUIRED_CAPABILITIES],
-  optionalCapabilities: [],
+  // Optional, not required: this workflow is still "placeholder" maturity
+  // and does not yet allow consequential action. Capturing a signature on
+  // the approved security agreement is the eventual point of this workflow,
+  // but it must not block today's evidence/drafting work while unwired.
+  // "signature" depends on "documentStorage" (see capability-registry.ts),
+  // so both are declared together to keep assertCapabilityDependencies clean.
+  optionalCapabilities: ["documentStorage", "signature"],
   notApplicableCapabilities: [],
   maturity: "placeholder",
   primaryInput: "case",
