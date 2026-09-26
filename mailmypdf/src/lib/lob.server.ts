@@ -241,9 +241,14 @@ export function getLobLetterLifecycleStatus(letter: any): string | null {
       return bt - at;
     });
     const latest = sorted[0];
-    const detailed = normalizeTrackingEventName(latest?.details?.event);
+    // Lob's tracking event "name" is the normalized lifecycle category
+    // (e.g. Mailed, In Transit, Delivered). details.event is a lower-level
+    // carrier scan such as package_arrived/package_departed and should only
+    // be used as a fallback.
     const named = normalizeTrackingEventName(latest?.name);
-    return detailed ?? named;
+    if (named) return named;
+    const detailed = normalizeTrackingEventName(latest?.details?.event);
+    return detailed;
   }
   return typeof letter?.status === "string" ? letter.status : null;
 }
