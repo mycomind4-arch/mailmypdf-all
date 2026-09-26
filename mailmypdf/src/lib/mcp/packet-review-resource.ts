@@ -119,6 +119,25 @@ button:disabled {
   line-height: 1.45;
   opacity: .76;
 }
+.pdf-shell {
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.pdf-shell iframe {
+  display: block;
+  width: 100%;
+  height: min(70vh, 760px);
+  border: 0;
+  background: #fff;
+}
+.secondary {
+  background: transparent;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+}
 .error {
   color: #b91c1c;
   font-size: 13px;
@@ -167,10 +186,14 @@ button:disabled {
       and mail class must still match this review.
     </div>
     <div class="actions">
+      <button id="viewPdf" class="secondary" type="button">View exact PDF</button>
       <button id="approve" type="button">Approve this exact packet</button>
       <div id="approvalStatus" class="approval-status">
         Approval does not charge a payment method or submit mail.
       </div>
+    </div>
+    <div id="pdfShell" class="pdf-shell" hidden>
+      <iframe id="pdfFrame" title="Exact MailMyPDF packet preview"></iframe>
     </div>
   </div>
   <div id="error" class="error" hidden></div>
@@ -181,6 +204,7 @@ button:disabled {
   let requestId = 1;
   let toolInput = null;
   let toolResult = null;
+  let pdfObjectUrl = null;
   const pending = new Map();
 
   const byId = (id) => document.getElementById(id);
@@ -218,6 +242,14 @@ button:disabled {
       recipient.line2,
       [recipient.city, recipient.state, recipient.postal].filter(Boolean).join(", ").replace(", " + recipient.postal, " " + recipient.postal),
     ].filter(Boolean).join("\n");
+  }
+
+  function previewResourceUri() {
+    const structured = toolResult && toolResult.structuredContent ? toolResult.structuredContent : {};
+    const review = structured.review || {};
+    return typeof review.previewResourceUri === "string" && review.previewResourceUri
+      ? review.previewResourceUri
+      : null;
   }
 
   function approvalArguments() {
@@ -276,9 +308,67 @@ button:disabled {
 
     const approveButton = byId("approve");
     approveButton.disabled = !approvalArguments();
+    const viewButton = byId("viewPdf");
+    viewButton.disabled = !previewResourceUri();
     byId("content").hidden = false;
     byId("status").textContent = "Confirm these details before authorizing checkout.";
   }
+
+  byId("viewPdf").addEventListener("click", async () => {
+    const uri = previewResourceUri();
+    if (!uri) {
+      byId("error").hidden = false;
+      byId("error").textContent = "The exact PDF preview is unavailable. Build a fresh packet preview.";
+      return;
+    }
+
+    const shell = byId("pdfShell");
+    const frame = byId("pdfFrame");
+    const button = byId("viewPdf");
+
+    if (!shell.hidden) {
+      shell.hidden = true;
+      frame.removeAttribute("src");
+      if (pdfObjectUrl) {
+        URL.revokeObjectURL(pdfObjectUrl);
+        pdfObjectUrl = null;
+      }
+      button.textContent = "View exact PDF";
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Loading PDF…";
+    byId("error").hidden = true;
+
+    try {
+      const result = await request("resources/read", { uri });
+      const contents = result && Array.isArray(result.contents) ? result.contents : [];
+      const pdf = contents.find((item) =>
+        item && item.uri === uri && item.mimeType === "application/pdf" && typeof item.blob === "string"
+      );
+      if (!pdf) throw new Error("MailMyPDF did not return the exact PDF resource.");
+
+      const binary = atob(pdf.blob);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+
+      if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
+      pdfObjectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      frame.src = pdfObjectUrl;
+      shell.hidden = false;
+      button.textContent = "Hide exact PDF";
+    } catch (error) {
+      byId("error").hidden = false;
+      byId("error").textContent =
+        error instanceof Error ? error.message : "MailMyPDF could not load the exact PDF preview.";
+      button.textContent = "View exact PDF";
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   byId("approve").addEventListener("click", async () => {
     const args = approvalArguments();
@@ -311,6 +401,13 @@ button:disabled {
       byId("error").hidden = false;
       byId("error").textContent =
         error instanceof Error ? error.message : "MailMyPDF could not record this approval.";
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (pdfObjectUrl) {
+      URL.revokeObjectURL(pdfObjectUrl);
+      pdfObjectUrl = null;
     }
   });
 
