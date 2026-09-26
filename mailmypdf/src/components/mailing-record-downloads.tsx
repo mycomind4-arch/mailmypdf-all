@@ -14,7 +14,8 @@ export function MailingRecordDownloads({ id, token }: { id: string; token: strin
       <div className="mt-4 flex flex-wrap gap-3">
         {(
           [
-            ["summary", "Download mailing evidence (.json)"],
+            ["evidence", "Download mailing evidence (.pdf)"],
+            ["summary", "Download evidence data (.json)"],
             ["document", "Download original PDF"],
           ] as const
         ).map(([artifact, label]) => (
