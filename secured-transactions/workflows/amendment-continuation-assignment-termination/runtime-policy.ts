@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Amendment / Continuation / Assignment / Termination runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Amendment / Continuation / Assignment / Termination remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;
