@@ -18,27 +18,32 @@ function PrivacyPage() {
       <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="postmark w-fit">MailMyPDF / Privacy</div>
         <h1 className="mt-6 font-serif text-4xl sm:text-5xl">Privacy Policy</h1>
-        <p className="mt-4 text-sm text-muted-foreground">Last updated: August 2026</p>
+        <p className="mt-4 text-sm text-muted-foreground">Last updated: September 2026</p>
 
         <div className="mt-10 space-y-8 text-sm leading-7 text-muted-foreground">
           <section>
             <h2 className="font-serif text-xl text-foreground">What we collect</h2>
-            <p className="mt-3">When you use MailMyPDF, we collect the minimum information needed to operate the service: your email address (for account access and order notifications), mailing addresses (sender and recipient), and the documents you upload for printing and mailing. Payment processing is handled by Stripe; we never store your card details.</p>
+            <p className="mt-3">When you use MailMyPDF, we collect the minimum information needed to perform the workflow you request. This can include your account email and profile name, sender and recipient mailing addresses, documents and attachments you ask us to process, workflow facts you provide, document-analysis results, drafts and packet metadata, approval records, order and payment status, and mailing or tracking records. Payment processing is handled by Stripe; MailMyPDF does not receive or store your full card number or CVC.</p>
           </section>
 
           <section>
             <h2 className="font-serif text-xl text-foreground">How we use your data</h2>
-            <p className="mt-3">Your documents and address data are used to fulfill your mailing orders through our print-and-mail provider. We use your email to send order confirmations, tracking updates, and account-related notifications. With your opt-in, we may collect analytics to improve the product. We never sell your data.</p>
+            <p className="mt-3">We use this data to authenticate your account, securely ingest and scan documents, run the document workflow you requested, analyze source material when a workflow requires it, generate and save reviewable drafts, construct and price mailing packets, record your explicit approval, prepare secure checkout, fulfill paid mailing orders, provide status and tracking, prevent abuse, and support your account. With your opt-in, we may collect analytics to improve the product. We do not sell your personal data.</p>
           </section>
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Document retention</h2>
-            <p className="mt-3">Uploaded documents are retained for a limited period after your order is fulfilled to support reprints, proof of mailing, and dispute resolution. After the retention period, documents are permanently deleted. You can request earlier deletion at any time. See our <a href="/retention" className="text-cobalt hover:underline">Data Retention Policy</a> for details.</p>
+            <p className="mt-3">Documents, workflow records, approvals, and mailing records are retained only for the periods described in our <a href="/retention" className="text-cobalt hover:underline">Data Retention Policy</a>, including the periods needed to operate active matters, fulfill orders, provide proof and support, prevent abuse, and meet applicable recordkeeping obligations. When a retention period ends, data covered by that schedule is deleted or de-identified as described there. You can request deletion at any time, subject to security, fulfillment, dispute, and legal recordkeeping requirements.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl text-foreground">Connected AI assistants</h2>
+            <p className="mt-3">If you connect MailMyPDF to an AI assistant or other MCP-compatible client, that client may send MailMyPDF the tool inputs needed for the action you request, including temporary attachment download information when you ask us to process a file. MailMyPDF returns only the workflow result needed to continue the requested task. Account connection does not authorize packet approval, payment, or mailing; those remain separate actions. The connected assistant provider processes your conversation and its copy of tool inputs and results under its own terms and privacy policy.</p>
           </section>
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Third-party services</h2>
-            <p className="mt-3">We use the following services to operate: Stripe (payments), Lob or equivalent (print and mail fulfillment), Cloudflare (hosting and CDN), and Supabase (database and authentication). Each service has its own privacy policy. We share only the data necessary to fulfill your orders.</p>
+            <p className="mt-3">We use service providers to operate MailMyPDF, including Stripe for payments, Lob or an equivalent provider for print-and-mail fulfillment, Cloudflare for hosting and network services, Supabase for database and authentication, and configured AI model providers for workflows that require document analysis or draft generation. When you use MailMyPDF through a connected AI assistant, the assistant provider also participates in the interaction as described above. We disclose only the data reasonably necessary for the applicable service or workflow.</p>
           </section>
 
           <section>
