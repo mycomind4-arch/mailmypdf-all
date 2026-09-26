@@ -4,6 +4,7 @@ import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server"
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { classifyDocumentReadiness } from "./document-readiness";
 import { RecipientReviewError, recipientReviewSha256 } from "./packet-review";
+import { createPacketPreviewResourceUri } from "./packet-preview-resource";
 import { findWorkflowMatches, getWorkflowDescriptor } from "./workflow-catalog";
 
 export class McpToolExecutionError extends Error {
@@ -374,12 +375,21 @@ export async function executeMcpTool(
       "packet preview response",
     );
 
+    const packet = object(packetPayload.packet, "packet");
+    const packetSha256 = requiredString(packet.packetSha256, "packet.packetSha256").toLowerCase();
+    const previewResourceUri = createPacketPreviewResourceUri({
+      matterId,
+      mailClass: selectedMailClass as "standard" | "certified" | "registered",
+      packetSha256,
+    });
+
     return {
       ...packetPayload,
       review: {
         matterId,
         mailClass: selectedMailClass,
         recipientSha256: review.sha256,
+        previewResourceUri,
       },
     };
   }
