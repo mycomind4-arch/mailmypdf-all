@@ -12,7 +12,7 @@ const REVIEWED = "2026-09-21";
  * advice, calculate what is owed, or represent anyone before the IRS.
  */
 const entry: AuthoredWorkflowSeoEntry = {
-  id: "notice/irs-notice",
+  id: "notice-respond/irs-notice-response",
   content: {
     primaryKeyword: "respond to an irs notice",
     primaryIntent:
