@@ -445,7 +445,12 @@ export async function processLobWebhook(request: Request): Promise<Response> {
 
     const eventTypeId: string = event?.event_type?.id ?? event?.event_type ?? "";
     const letter = event?.body ?? {};
-    const letterId: string | undefined = letter?.id;
+    const letterId: string | undefined =
+      typeof letter?.id === "string"
+        ? letter.id
+        : typeof event?.reference_id === "string"
+          ? event.reference_id
+          : undefined;
     if (!letterId || !eventTypeId.startsWith("letter.")) {
       logWebhook({ provider: "lob", eventType: eventTypeId, message: "ignoring non-letter event", level: "debug" });
       return Response.json({ received: true, ignored: true });
