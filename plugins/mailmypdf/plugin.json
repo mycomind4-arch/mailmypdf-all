@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mailmypdf",
+  "version": "0.1.0",
+  "description": "Create, review, securely process, and mail document workflows through MailMyPDF.",
+  "author": {
+    "name": "MailMyPDF",
+    "email": "help@mailmypdf.ai",
+    "url": "https://mailmypdf.ai"
+  },
+  "homepage": "https://mailmypdf.ai",
+  "repository": "https://github.com/mycomind4-arch/mailmypdf-all",
+  "keywords": [
+    "documents",
+    "pdf",
+    "mail",
+    "certified-mail",
+    "workflow",
+    "appeals",
+    "records"
+  ]
+}
