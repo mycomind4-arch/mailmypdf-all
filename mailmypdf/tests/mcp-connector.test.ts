@@ -18,6 +18,7 @@ import {
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
+import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
 import { PACKET_REVIEW_RESOURCE_URI } from "../src/lib/mcp/ui-resource-ids";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
@@ -301,6 +302,27 @@ function modernMcpRequest(
     }),
   });
 }
+
+test("packet review UI approves only the exact reviewed packet", () => {
+  const html = PACKET_REVIEW_RESOURCE.text;
+
+  assert.match(html, /Approve this exact packet/);
+  assert.match(html, /name:\s*"approve_packet"/);
+  assert.match(html, /expected_packet_sha256:\s*packet\.packetSha256/);
+  assert.match(html, /expected_total_cents:\s*totalCents/);
+  assert.match(html, /expected_recipient_sha256:\s*review\.recipientSha256/);
+  assert.match(html, /recipient,/);
+  assert.match(html, /mail_class:\s*mailClass/);
+  assert.match(html, /No payment has been taken and nothing has been mailed/);
+});
+
+test("packet review UI cannot bypass approval into checkout or mailing", () => {
+  const html = PACKET_REVIEW_RESOURCE.text;
+
+  assert.equal(html.includes('name: "prepare_checkout"'), false);
+  assert.equal(html.includes('name: "submit_mail_order"'), false);
+  assert.equal(html.includes('name: "charge_card"'), false);
+});
 
 test("modern server/discover advertises the stateless 2026 protocol", async () => {
   const response = await handleMailMyPdfMcpRequest(

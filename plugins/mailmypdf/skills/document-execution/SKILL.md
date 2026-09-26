@@ -80,7 +80,8 @@ Before approval:
    - exact intended recipient;
    - selected mail class.
 3. Show the user the returned packet facts, including price, mail class, page counts, recipient, packet SHA-256, and recipient SHA-256. When an MCP Apps review card is available, let it render those same server-calculated facts.
-4. Make clear that previewing does not approve, charge, or mail anything.
+4. The user may approve the exact reviewed packet from the review card. That button calls `approve_packet` with the exact preview values; do not call `approve_packet` a second time if the card already returned an approval.
+5. Make clear that previewing or approving does not charge or mail anything. Checkout remains a separate step.
 
 If any of these change, build a new preview before approval:
 
@@ -93,7 +94,7 @@ If any of these change, build a new preview before approval:
 
 ## Explicit approval
 
-Call `approve_packet` only after the user explicitly approves the exact reviewed packet.
+Call `approve_packet` only after the user explicitly approves the exact reviewed packet, unless the MCP Apps review card has already recorded that exact approval through the same tool.
 
 Pass the exact values returned by the most recent preview:
 

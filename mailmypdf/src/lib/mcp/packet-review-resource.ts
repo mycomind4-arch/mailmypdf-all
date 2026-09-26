@@ -90,6 +90,35 @@ h1 {
   font-size: 12px;
   line-height: 1.5;
 }
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #1d4ed8;
+  color: #fff;
+}
+button:hover { filter: brightness(1.05); }
+button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+.approval-status {
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: .76;
+}
 .error {
   color: #b91c1c;
   font-size: 13px;
@@ -136,6 +165,12 @@ h1 {
       This is a review only. No payment has been taken and nothing has been mailed.
       Approval is a separate MailMyPDF action, and the recipient, packet hash, price,
       and mail class must still match this review.
+    </div>
+    <div class="actions">
+      <button id="approve" type="button">Approve this exact packet</button>
+      <div id="approvalStatus" class="approval-status">
+        Approval does not charge a payment method or submit mail.
+      </div>
     </div>
   </div>
   <div id="error" class="error" hidden></div>
@@ -185,6 +220,36 @@ h1 {
     ].filter(Boolean).join("\n");
   }
 
+  function approvalArguments() {
+    const structured = toolResult && toolResult.structuredContent ? toolResult.structuredContent : {};
+    const packet = structured.packet || {};
+    const review = structured.review || {};
+    const recipient = toolInput && toolInput.recipient ? toolInput.recipient : null;
+    const matterId = review.matterId || (toolInput && toolInput.matter_id);
+    const mailClass = review.mailClass || (toolInput && toolInput.mail_class);
+    const totalCents = packet.quote && packet.quote.totalCents;
+
+    if (
+      !matterId ||
+      !packet.packetSha256 ||
+      !Number.isInteger(totalCents) ||
+      !review.recipientSha256 ||
+      !recipient ||
+      !mailClass
+    ) {
+      return null;
+    }
+
+    return {
+      matter_id: matterId,
+      expected_packet_sha256: packet.packetSha256,
+      expected_total_cents: totalCents,
+      expected_recipient_sha256: review.recipientSha256,
+      recipient,
+      mail_class: mailClass,
+    };
+  }
+
   function render() {
     if (!toolResult) return;
 
@@ -209,9 +274,45 @@ h1 {
     setText("packetHash", packet.packetSha256 || "—");
     setText("recipientHash", review.recipientSha256 || "—");
 
+    const approveButton = byId("approve");
+    approveButton.disabled = !approvalArguments();
     byId("content").hidden = false;
     byId("status").textContent = "Confirm these details before authorizing checkout.";
   }
+
+  byId("approve").addEventListener("click", async () => {
+    const args = approvalArguments();
+    if (!args) {
+      byId("error").hidden = false;
+      byId("error").textContent = "This review is incomplete. Build a fresh preview before approval.";
+      return;
+    }
+
+    const button = byId("approve");
+    const status = byId("approvalStatus");
+    button.disabled = true;
+    status.textContent = "Requesting approval…";
+
+    try {
+      const result = await request("tools/call", {
+        name: "approve_packet",
+        arguments: args,
+      });
+      const approved = result && result.structuredContent ? result.structuredContent : result;
+      const approvalId = approved && approved.approvalId ? approved.approvalId : null;
+      status.textContent = approvalId
+        ? "Approved for secure checkout. No payment has been taken and nothing has been mailed."
+        : "Packet approved. Continue in chat to secure checkout.";
+      button.textContent = "Approved";
+      button.disabled = true;
+    } catch (error) {
+      button.disabled = false;
+      status.textContent = "Approval was not recorded.";
+      byId("error").hidden = false;
+      byId("error").textContent =
+        error instanceof Error ? error.message : "MailMyPDF could not record this approval.";
+    }
+  });
 
   window.addEventListener("message", (event) => {
     if (event.source !== window.parent) return;

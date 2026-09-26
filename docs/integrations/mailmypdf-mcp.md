@@ -234,4 +234,8 @@ Optional overrides:
 - `MCP_SCAN_POLL_MS` (default 3000)
 - `MCP_SCAN_MAX_WAIT_MS` (default 90000)
 
+The packet review MCP Apps card now exposes an **Approve this exact packet** action. The UI calls the same `approve_packet` MCP tool used by headless clients and passes the exact packet SHA-256, quoted total, recipient SHA-256, recipient, and mail class from the review. The server re-materializes/revalidates the current packet and rejects stale or changed review data before saving approval.
+
+The review card deliberately has no checkout, payment, or mailing action. Approval only makes the immutable packet eligible for the separate secure checkout step.
+
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.
