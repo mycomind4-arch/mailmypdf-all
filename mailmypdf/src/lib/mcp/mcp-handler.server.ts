@@ -264,14 +264,9 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     }
 
     if (parsePacketPreviewResourceUri(uri)) {
+      let context;
       try {
-        const packetPreview = await import("./packet-preview-resource.server");
-        const result = await packetPreview.readPacketPreviewResource(request, uri);
-        return json(rpcResult(message.id, {
-          resultType: "complete",
-          contents: [result.content],
-          cacheScope: "private",
-        }));
+        context = await requireAuthenticatedUser(request);
       } catch (error) {
         if (error instanceof AuthenticationError) {
           return json(
@@ -285,8 +280,18 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
             },
           );
         }
+        throw error;
+      }
 
-        const packetPreview = await import("./packet-preview-resource.server");
+      const packetPreview = await import("./packet-preview-resource.server");
+      try {
+        const result = await packetPreview.readPacketPreviewResource(uri, context);
+        return json(rpcResult(message.id, {
+          resultType: "complete",
+          contents: [result.content],
+          cacheScope: "private",
+        }));
+      } catch (error) {
         if (error instanceof packetPreview.PacketPreviewResourceError) {
           return json(
             rpcError(message.id, -32030, error.message, { code: error.code }),
