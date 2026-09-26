@@ -388,7 +388,10 @@ test("preview_packet binds the review UI and recipient identity", () => {
     [...(schema.required ?? [])].sort(),
     ["mail_class", "matter_id", "recipient"],
   );
-  assert.equal(preview._meta?.["openai/outputTemplate"], PACKET_REVIEW_RESOURCE_URI);
+  assert.equal(preview.annotations.readOnlyHint, false);
+  assert.equal(preview.annotations.destructiveHint, false);
+  assert.equal(preview.annotations.openWorldHint, false);
+    assert.equal(preview._meta?.["openai/outputTemplate"], PACKET_REVIEW_RESOURCE_URI);
   const ui = preview._meta?.ui as { resourceUri?: string; visibility?: string[] } | undefined;
   assert.equal(ui?.resourceUri, PACKET_REVIEW_RESOURCE_URI);
   assert.deepEqual(ui?.visibility, ["model", "app"]);
