@@ -280,6 +280,30 @@ describe("Lob Hardening — Source-Level Tests", () => {
     assert.match(rl, /logAddressValidation/);
   });
 
+  it("supports certified return receipt without downgrading it to certified", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const bridge = await source("src/lib/proof-of-service/lob-bridge.ts");
+    assert.match(lob, /"certified_return_receipt"/);
+    assert.match(lob, /form\.set\("extra_service", args\.extraService\)/);
+    assert.match(bridge, /return "certified_return_receipt"/);
+  });
+
+  it("normalizes Lob certified tracking webhooks and persists evidence fields", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    assert.match(lob, /eventTypeId\.startsWith\("letter\.certified\."\)/);
+    assert.match(lob, /tracking_number/);
+    assert.match(lob, /expected_delivery_date/);
+    assert.match(lob, /delivered_at/);
+    assert.match(lob, /last_tracking_event/);
+    assert.match(lob, /getLobLetterLifecycleStatus/);
+  });
+
+  it("proof webhook bridge propagates processing failures so Lob can retry", async () => {
+    const bridge = await source("src/lib/proof-of-service/lob-webhook-bridge.ts");
+    assert.match(bridge, /if \(error\) throw new Error/);
+    assert.doesNotMatch(bridge, /catch\s*\{\s*return false/);
+  });
+
   it("webhook handler uses structured logging instead of console.log", async () => {
     const lob = await source("src/lib/lob.server.ts");
     // The processLobWebhook function should use logWebhook, not console.log/warn
