@@ -94,12 +94,28 @@ export function getSecurityHeaders(): Record<string, string> {
  * Called from middleware after the response is generated.
  */
 export function applySecurityHeaders(response: Response): Response {
-  const headers = getSecurityHeaders();
-  for (const [key, value] of Object.entries(headers)) {
-    // Don't override existing headers (e.g., if the route set its own CSP)
-    if (!response.headers.has(key)) {
-      response.headers.set(key, value);
+  const securityHeaders = getSecurityHeaders();
+
+  const apply = (headers: Headers) => {
+    for (const [key, value] of Object.entries(securityHeaders)) {
+      // Don't override existing headers (e.g., if the route set its own CSP).
+      if (!headers.has(key)) headers.set(key, value);
     }
+  };
+
+  try {
+    apply(response.headers);
+    return response;
+  } catch {
+    // Response.redirect() and some platform-generated Responses have immutable
+    // header guards. Preserve the response body/status while copying its
+    // headers into a mutable Response rather than turning a redirect into 500.
+    const headers = new Headers(response.headers);
+    apply(headers);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
-  return response;
 }
