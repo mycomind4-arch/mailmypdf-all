@@ -158,6 +158,10 @@ async function executeRun(request: LaunchRequest & { repoRoot: string }, state: 
   const prepared = await prepareWorktree(repoRoot, state.worktreeDir, state.branch, emit);
   if (!prepared.pass) {
     state.status = "failed";
+    // Preparation may have created the worktree before a later overlay or
+    // install step failed. Clean it up immediately so failed autonomous runs
+    // do not leak branches and registered worktrees.
+    await cleanupWorktree(repoRoot, state);
     await writeRunState(repoRoot, state);
     return;
   }

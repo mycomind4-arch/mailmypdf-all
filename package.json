@@ -4,6 +4,8 @@
   "private": true,
   "description": "MailMyPDF ecosystem — document mailing, tracking, proof, and vertical products",
   "scripts": {
+    "registry:generate": "pnpm --filter ./mailmypdf exec tsx ../scripts/sync-workflow-inventory.ts --write",
+    "registry:check": "pnpm --filter ./mailmypdf exec tsx ../scripts/sync-workflow-inventory.ts",
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",

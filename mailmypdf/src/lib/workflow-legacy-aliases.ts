@@ -47,9 +47,10 @@ export function canonicalWorkflowPathForLegacyPath(path: string): string | null 
   if (!normalized) return null
 
   const parts = normalized.split("/")
-  if (parts[1] === "workflows" && parts.length >= 3) {
-    const direct = workflowById(`${parts[0]}/${parts[2]}`)
-    return direct?.publicHref ?? null
+  if (parts[1] === "workflows") {
+    if (parts.length !== 3) return null
+    const canonicalId = canonicalWorkflowIdForLegacyId(`${parts[0]}/${parts[2]}`)
+    return canonicalId ? workflowById(canonicalId)?.publicHref ?? null : null
   }
 
   const canonicalId = canonicalWorkflowIdForLegacyId(normalized)

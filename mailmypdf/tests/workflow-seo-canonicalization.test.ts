@@ -5,7 +5,6 @@ import { WORKFLOW_REGISTRY } from "../src/lib/workflow-registry"
 import { SEO_WORKFLOW_CATALOG } from "../src/lib/workflow-seo-catalog"
 
 test("SEO catalog is a one-to-one projection of the canonical workflow registry", () => {
-  assert.equal(SEO_WORKFLOW_CATALOG.length, 438)
   assert.equal(SEO_WORKFLOW_CATALOG.length, WORKFLOW_REGISTRY.length)
 
   const registryById = new Map(WORKFLOW_REGISTRY.map((workflow) => [workflow.id, workflow]))

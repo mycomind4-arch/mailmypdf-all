@@ -1,4 +1,4 @@
-import inventory from "../WORKFLOW_INVENTORY.json";
+import inventory from "../../docs/migrations/legacy-workflow-inventory.json";
 import { validateAuthorityCatalog } from "../src/lib/workflow-authority-gate";
 import { canonicalWorkflowIdForLegacyId } from "../src/lib/workflow-legacy-aliases";
 import { WORKFLOW_REGISTRY } from "../src/lib/workflow-registry";

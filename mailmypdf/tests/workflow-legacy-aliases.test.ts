@@ -23,4 +23,6 @@ test("reviewed renamed legacy identities resolve explicitly", () => {
   assert.equal(canonicalWorkflowIdForLegacyId("appeal/ssdi-denial"), "appeal-mail/appeal-ssdi-denial")
   assert.equal(canonicalWorkflowIdForLegacyId("legal-defense/wrongful-stolen-vehicle-arrest"), "legal-defense/stolen-vehicle-arrest-defense")
   assert.equal(canonicalWorkflowPathForLegacyPath("/notice/irs-notice"), "/notice-respond/workflows/irs-notice-response")
+  assert.equal(canonicalWorkflowPathForLegacyPath("/legal-defense/workflows/wrongful-stolen-vehicle-arrest"), "/legal-defense/workflows/stolen-vehicle-arrest-defense")
+  assert.equal(canonicalWorkflowPathForLegacyPath("/notice-respond/workflows/cp14-response/start"), null)
 })

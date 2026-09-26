@@ -35,7 +35,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -50,17 +50,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Sync lockfile importer
-        if: github.event_name == 'push'
-        run: |
-          pnpm install --lockfile-only --no-frozen-lockfile
-          if ! git diff --quiet -- pnpm-lock.yaml; then
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add pnpm-lock.yaml
-            git commit -m "build(notice-respond): sync workspace lockfile"
-            git push
-          fi
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Build Notice Respond dependencies

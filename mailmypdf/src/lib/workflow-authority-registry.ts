@@ -1,4 +1,5 @@
 import { WORKFLOW_GOLD_CONTENT, type WorkflowGoldContent } from "./workflow-gold-content";
+import { WORKFLOW_REGISTRY } from "./workflow-registry";
 import { canonicalWorkflowIdForLegacyId, canonicalWorkflowPathForLegacyPath } from "./workflow-legacy-aliases";
 import { validateAuthorityRecord, type AuthorityGateResult } from "./workflow-authority-gate";
 import {
@@ -93,10 +94,11 @@ const WORKFLOWS: CombinedWorkflow[] = SEO_WORKFLOW_CATALOG.map((entry) => ({
 }));
 
 const GOLD_BY_CANONICAL_ID = new Map<string, WorkflowGoldContent>();
-for (const [legacyId, gold] of Object.entries(WORKFLOW_GOLD_CONTENT)) {
-  const canonicalId = canonicalWorkflowIdForLegacyId(legacyId);
-  if (canonicalId && !GOLD_BY_CANONICAL_ID.has(canonicalId)) {
-    GOLD_BY_CANONICAL_ID.set(canonicalId, gold);
+for (const workflow of WORKFLOW_REGISTRY) {
+  if (workflow.legacyGoldId) {
+    const gold = WORKFLOW_GOLD_CONTENT[workflow.legacyGoldId];
+    if (!gold) throw new Error(`Missing legacy content for '${workflow.id}'.`);
+    GOLD_BY_CANONICAL_ID.set(workflow.id, gold);
   }
 }
 
@@ -146,7 +148,7 @@ function workflowSlug(entry: CombinedWorkflow): string {
 }
 
 function goldFor(entry: CombinedWorkflow): WorkflowGoldContent | undefined {
-  return WORKFLOW_GOLD_CONTENT[entry.id] ?? GOLD_BY_CANONICAL_ID.get(entry.id);
+  return GOLD_BY_CANONICAL_ID.get(entry.id);
 }
 
 function legacyFaqPairs(items: string[]): WorkflowAuthorityFAQ[] {

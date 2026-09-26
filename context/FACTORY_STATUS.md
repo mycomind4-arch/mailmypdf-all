@@ -66,8 +66,74 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verification ledger
 
+### 2026-09-25 — canonical workflow registry continuation
+
+- Working checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, branch
+  `architecture/workflow-seo-canonicalization` (PR #122). Local main was
+  fast-forwarded to GitHub `66e2ce89`; merged PRs #119 and #121 are included.
+- Added the shared canonical identity/maturity registry, navigation/execution/SEO
+  compatibility projections, generated inventory, runtime binding guards and CI
+  topology checks. Preserved the original inventory as a migration snapshot.
+- Regression tests first reproduced inventory identity drift and the missing CP14
+  execution record. After consolidation, the first projection/host run passed
+  35/35. The new filesystem guard also found three already-mounted bureau
+  intakes absent from the old catalogs; they are now registered as local-only,
+  bringing coverage to 441 workflows. No start UI or domain engine was rewritten.
+- Full validation results and remaining limits are recorded in the PR. No live
+  payment, mailing, database migration or paid-model test is part of this change.
+- Architecture and update procedure:
+  `docs/architecture/canonical-workflow-registry.md`.
+
 Add exact commands, exit status, tested revision or working-tree state, and
 limitations below as checks complete. Never infer passing results from old reports.
+
+### 2026-09-25 — secured-transactions workflow promotion slice
+
+- Working checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, branch
+  `architecture/workflow-seo-canonicalization`, with pre-existing user changes
+  preserved.
+- Added deterministic workflow compositions and focused tests for
+  `pre-filing-lien-priority-search`, `priority-strategy`, and
+  `security-agreement-generation`. These preserve provenance, uncertainty, and
+  human-review boundaries; none permits filing, payment, mailing, or a legal
+  conclusion.
+- Replaced the three secured-transactions start-route scaffolds with a shared,
+  workflow-specific guided intake/review experience using
+  `@mailmypdf/step-workflow` and `@mailmypdf/workflow-ui`.
+- Verification: step-workflow enforcement `PASS` with 0 new violations;
+  secured-transactions typecheck exit 0; focused workflow tests 9/9 passing;
+  dev-agent-swarm typecheck exit 0; dev-agent-swarm tests 10/10 passing; diff
+  check exit 0.
+- Fixed autonomous-factory cleanup when worktree preparation fails after branch
+  creation, preventing orphaned worktrees and branches.
+- Limitation: the broad `mailmypdf` host typecheck did not complete after several
+  minutes and was stopped; account-backed matter persistence, document upload,
+  server adapters, browser verification, and production promotion remain open.
+
+### 2026-09-25 — full-project ECC audit pass
+
+- Audited the release surface, branch/diff state, workflow topology, CI
+  permissions, environment-file tracking, production preflight, agent factory,
+  authentication, document E2E interlocks, payment/fulfillment invariants, and
+  secured-transactions changes.
+- Verified: canonical product topology passes; workflow topology test passes;
+  step-workflow enforcement reports 0 new violations; canonical registry and
+  projection tests pass 16/16; workflow package tests pass 182/182 when run
+  from its package directory; dev-agent-swarm tests pass 10/10 and typecheck
+  passes; focused security/interlock tests pass 16/16; `git diff --check`
+  passes.
+- Fine-tuned `.github/workflows/notice-respond-package-ci.yml`: removed its
+  direct lockfile commit/push behavior and reduced permissions from
+  `contents: write` to `contents: read`. Lockfile changes now require normal
+  review and rollback paths.
+- Production preflight is blocked in this local shell by 14 missing deployment
+  variables (Supabase, payments, Lob, scanner, retention, and HTTPS origin).
+  No credential values were printed or modified. AgentShield was not installed,
+  so no unpinned remote scanner was run; local configuration and secret-pattern
+  checks were used instead.
+- Evidence gap: the broad `mailmypdf` typecheck remained non-terminating after
+  several minutes and was stopped; no browser session, live Supabase probe,
+  payment, mailing, or deployment was performed.
 
 - 2026-09-21, Studio SEO agent hardening + authority-content authoring surface,
   working tree on `main` (`0f966b93` plus uncommitted changes), checkout

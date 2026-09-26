@@ -121,24 +121,38 @@ export type WorkflowSeoCatalogEntry = {
  * routes, override canonical workflow identity, or confer publication status.
  */
 const AUTHORED_BY_ID = new Map(AUTHORED_SEO_ENTRIES.map((entry) => [entry.id, entry]));
+if (AUTHORED_BY_ID.size !== AUTHORED_SEO_ENTRIES.length) {
+  throw new Error("Duplicate authored workflow authority identity.");
+}
 
 for (const authored of AUTHORED_SEO_ENTRIES) {
-  if (!workflowById(authored.id)) {
+  const workflow = workflowById(authored.id);
+  if (!workflow) {
     throw new Error(
       `Authored SEO entry '${authored.id}' does not resolve to a canonical workflow identity.`,
     );
+  }
+  if (!workflow.authority || workflow.authority.reviewedAt !== authored.content.reviewedAt) {
+    throw new Error(`Authority review metadata drift for '${authored.id}'.`);
+  }
+  if (authored.execution && (authored.execution.href !== workflow.executionHref ||
+      authored.execution.verified !== Boolean(workflow.execution?.verified))) {
+    throw new Error(`Authority execution metadata must come from the registry for '${authored.id}'.`);
   }
 }
 
 const REGISTRY_PROVENANCE: WorkflowSeoProvenance = {
   kind: "canonical-registry",
-  sourcePath: "mailmypdf/src/lib/workflow-registry.ts",
-  note: "Canonical workflow identity and public route are owned by the 438-workflow registry.",
+  sourcePath: "packages/workflows/src/canonical-workflows.json",
+  note: "Canonical workflow identity, review metadata and execution bindings are owned by the shared registry.",
 };
 
 export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] =
   WORKFLOW_REGISTRY.map((workflow) => {
     const authored = AUTHORED_BY_ID.get(workflow.id);
+    if (workflow.authority && !authored) {
+      throw new Error(`Missing authored authority content for '${workflow.id}'.`);
+    }
     if (!authored) {
       return {
         id: workflow.id,
@@ -154,18 +168,21 @@ export const SEO_WORKFLOW_CATALOG: readonly WorkflowSeoCatalogEntry[] =
       id: workflow.id,
       vertical: workflow.sectionId,
       route: workflow.publicHref,
-      state: authored.execution?.verified ? "EXECUTABLE" : "SEO_READY",
+      state: workflow.execution?.verified ? "EXECUTABLE" : "SEO_READY",
       reviewStatus: "AUTHORITY_REVIEWED",
       provenance: [
         REGISTRY_PROVENANCE,
         {
           kind: "manual-review",
-          sourcePath: "mailmypdf/src/lib/workflow-seo-entries",
+          sourcePath: `mailmypdf/src/lib/workflow-seo-entries/${workflow.authority!.module}.ts`,
           note: "Authority content authored and individually reviewed against the Authority Gate contract.",
         },
       ],
       content: authored.content,
-      execution: authored.execution,
+      execution: workflow.executionHref ? {
+        href: workflow.executionHref,
+        verified: Boolean(workflow.execution?.verified),
+      } : undefined,
     };
   });
 

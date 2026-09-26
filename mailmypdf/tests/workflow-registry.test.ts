@@ -11,9 +11,12 @@ import {
   workflowsForSection,
 } from "../src/lib/workflow-registry"
 
-test("canonical workflow registry contains all 438 workflow identities", () => {
-  assert.equal(WORKFLOW_REGISTRY_COUNT, 438)
-  assert.equal(WORKFLOW_REGISTRY.length, 438)
+test("canonical workflow registry includes all original identities and recovered bureau intakes", () => {
+  assert.equal(WORKFLOW_REGISTRY_COUNT, 441)
+  assert.equal(WORKFLOW_REGISTRY.length, 441)
+  for (const slug of ["equifax-dispute", "experian-dispute", "transunion-dispute"]) {
+    assert.equal(workflowById(`dispute-mail/${slug}`)?.maturity, "domain-ready")
+  }
 })
 
 test("workflow ids and canonical paths are unique", () => {
