@@ -98,7 +98,7 @@ jobs:
       - name: Test Authority Gate and catalog topology invariants
         run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
       - name: Verify MCP document E2E safety interlocks
-        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs
+        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs mailmypdf/tests/mcp-checkout-prep-e2e-harness.test.mjs
       - name: Verify portable MailMyPDF plugin package
         run: node --test mailmypdf/tests/plugin-package.test.mjs
       - name: Verify OpenAI domain challenge behavior
