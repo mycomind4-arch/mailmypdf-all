@@ -1,3 +1,5 @@
+import { PACKET_REVIEW_RESOURCE_URI } from "./ui-resource-ids";
+
 export const MCP_CONNECTOR_VERSION = "0.3.0";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -261,16 +263,26 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "preview_packet",
     title: "Preview mailing packet and quote",
     description:
-      "Build the current immutable mailing packet preview and price quote from the saved draft and included documents. This does not approve, charge, or mail anything.",
+      "Build the current immutable mailing packet preview and price quote, and bind the review to the recipient shown to the user. This does not approve, charge, or mail anything.",
     inputSchema: objectSchema(
       {
         matter_id: string("MailMyPDF matter id."),
         mail_class: mailClassSchema,
+        recipient: addressSchema,
       },
-      ["matter_id", "mail_class"],
+      ["matter_id", "mail_class", "recipient"],
     ),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    _meta: {
+      ui: {
+        resourceUri: PACKET_REVIEW_RESOURCE_URI,
+        visibility: ["model", "app"],
+      },
+      "openai/outputTemplate": PACKET_REVIEW_RESOURCE_URI,
+      "openai/toolInvocation/invoking": "Building exact mailing preview…",
+      "openai/toolInvocation/invoked": "Mailing preview ready",
+    },
   },
   {
     name: "approve_packet",
@@ -282,10 +294,18 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
         matter_id: string("MailMyPDF matter id."),
         expected_packet_sha256: string("Exact SHA-256 returned by preview_packet."),
         expected_total_cents: integer("Exact total price in cents returned by preview_packet."),
+        expected_recipient_sha256: string("Exact recipient SHA-256 returned by preview_packet."),
         recipient: addressSchema,
         mail_class: mailClassSchema,
       },
-      ["matter_id", "expected_packet_sha256", "expected_total_cents", "recipient", "mail_class"],
+      [
+        "matter_id",
+        "expected_packet_sha256",
+        "expected_total_cents",
+        "expected_recipient_sha256",
+        "recipient",
+        "mail_class",
+      ],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
