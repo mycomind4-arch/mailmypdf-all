@@ -801,3 +801,27 @@ created (only stale `apps/verticals` legacy code exists for CP523).
   Operations remain request-executed rather than queued background jobs. A
   process interruption can leave a visible `running` operation that requires a
   future reconciler; the system deliberately will not blindly repeat its effect.
+
+### 2026-09-26 — safe connector-operation reconciliation
+
+- Added the provider-neutral
+  `@mailmypdf/workflows/connector-operation-reconciliation` contract. Resolvers
+  may confirm success, confirm failure, or require review from observable
+  evidence; the service exposes no callback that can repeat the original action.
+- Added bounded stale-operation scanning with optimistic revision checks and
+  repository-identity validation. Races are skipped safely instead of
+  overwriting a newer operation state.
+- Added `POST /api/internal/reconcile-connector-operations`, protected by its
+  own timing-safe `MAILMYPDF_CONNECTOR_JOB_SECRET`. It scans only operations
+  left `running` for at least 15 minutes and currently moves ambiguous outcomes
+  to `waiting_for_user` with explicit non-replay instructions.
+- Added a partial database index for stale `running` scans and scheduled the job
+  alongside the secure-core ten-minute jobs. Missing deployment secrets cause a
+  safe scheduler skip.
+- This closes the indefinite-`running` operational gap, but not exact automatic
+  recovery. Kind-specific immutable effect/receipt correlation remains the next
+  requirement before a resolver may mark interrupted work succeeded or failed.
+- Verified: `@mailmypdf/workflows` 210/210, MailMyPDF TypeScript 223/223,
+  MailMyPDF JavaScript 605/605, focused reconciliation/scheduling 18/18,
+  TanStack/Vite app build clean, root `tsc -b` clean,
+  and `git diff --check` clean.

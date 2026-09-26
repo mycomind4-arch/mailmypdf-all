@@ -97,11 +97,22 @@ Successful tool responses preserve their existing fields and add
 `get_operation_status` with the returned operation id. Owner-scoped RLS protects
 status reads; only trusted server code can create or transition operation rows.
 
-This is durable retry/status support, not a background job system. A process that
-dies after an external effect but before recording success leaves a visible
-`running` operation for reconciliation and will not automatically repeat the
-effect. `create_matter` is not yet part of this operation model because there is
-no matter id to bind before creation.
+This is durable retry/status support, not blind background replay. A scheduled,
+separately authorized reconciliation job scans operations that have remained
+`running` for at least 15 minutes. If MailMyPDF cannot prove the outcome from an
+immutable receipt, it moves the operation to `waiting_for_user` and returns an
+explicit review instruction through `get_operation_status`. The reconciler has
+no callback capable of repeating the original action.
+
+The shared reconciliation contract supports future kind-specific resolvers that
+can mark an operation succeeded or failed only from observable evidence. Those
+receipt correlations are not implemented yet, so the current production-safe
+fallback is review rather than guessing. Configure the app and scheduler with a
+dedicated 32+ character `MAILMYPDF_CONNECTOR_JOB_SECRET`; do not reuse scanner,
+retention, or general cleanup credentials.
+
+`create_matter` is not yet part of this operation model because there is no
+matter id to bind before creation.
 
 ## Secure assistant attachments
 
@@ -226,7 +237,8 @@ identity, owner/matter binding, and one row per owner/tool/idempotency key.
 2. Exercise `ingest_document` + `get_document_status` against real ChatGPT/Claude/Grok attachment URLs and configure `MCP_REMOTE_FILE_HOSTS` if stable provider/CDN domains are available.
 3. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
 4. Apply the connector-operations migration in staging, then verify interruption/retry/status recovery through real OAuth sessions.
-5. Add a reconciliation worker for operations left `running` by process interruption; never blindly repeat consequential effects.
+5. Add immutable effect/receipt correlation for each operation kind, then add
+   kind-specific reconciliation resolvers; retain review as the ambiguous fallback.
 6. Add saved-payment support only after a server-side confirmation design is complete.
 7. Exercise the MCP Apps packet review UI in ChatGPT/Claude-compatible hosts, then add a post-mailing status UI if it materially improves the experience.
 8. Package OpenAI-specific skills/manifest after the production MCP URL is stable.

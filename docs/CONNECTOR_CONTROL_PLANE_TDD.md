@@ -19,6 +19,8 @@ existing MailMyPDF MCP contract:
 7. An owner can recover operation status after losing a tool response.
 8. Readiness can inspect live database, storage, payment, and mailing bindings
    without performing the target action.
+9. A scheduled reconciler detects stale `running` operations and quarantines
+   ambiguous outcomes for review without rerunning the original action.
 
 ## RED and GREEN evidence
 
@@ -34,6 +36,8 @@ existing MailMyPDF MCP contract:
 | Provider-family probes are bounded and secret-safe | `packages/workflows/tests/connector-binding-health.test.ts` | Compile failed because no probe runner existed | Probe deduplication, safe failure, unknown state, and timeout tests pass |
 | Operation persistence is owner-read/server-write with database transition guards | `mailmypdf/tests/connector-operation-migration.test.ts` | No operation migration existed | RLS/grant, compound ownership, idempotency, and transition-trigger checks pass |
 | MCP exposes polling/readiness and requires keys for persisted actions | `mailmypdf/tests/mcp-connector.test.ts` | Tool surface had neither status/readiness tools nor required retry keys | Connector catalog and discovery tests pass with 17 tools |
+| Interrupted operations are reconciled without replaying effects | `packages/workflows/tests/connector-operation-reconciliation.test.ts` | No reconciliation contract or stale-operation processor existed | Evidence-only decisions, review fallback, conflict handling, and repository-identity tests pass |
+| Reconciliation is scheduled and separately authorized | `mailmypdf/tests/connector-operation-reconciliation.test.ts`, `mailmypdf/tests/jobs-are-scheduled.test.mjs` | No endpoint, scoped secret, stale-running index, or scheduler invocation existed | POST-only job, timing-safe secret, bounded inputs, partial index, and ten-minute schedule checks pass |
 
 ## Implemented boundaries
 
@@ -50,14 +54,21 @@ existing MailMyPDF MCP contract:
   database-enforced optimistic transitions.
 - `get_operation_status` recovers owner-scoped state/results;
   `get_connector_readiness` runs live binding probes without the target effect.
+- `@mailmypdf/workflows/connector-operation-reconciliation` accepts only
+  observable-evidence decisions. It deliberately has no original-action
+  execution callback.
+- A separately authorized scheduled job scans operations stale for at least 15
+  minutes. Operations without a receipt-backed resolver move to
+  `waiting_for_user` with explicit review instructions.
 
 ## Known gaps
 
 - The migration is implemented and statically verified but has not been applied
   to staging or production in this task.
-- Operations execute inside the initiating request. There is no background
-  worker/reconciler yet; an interrupted `running` operation remains visible and
-  is deliberately not repeated automatically.
+- Operations still execute inside the initiating request. The reconciler can
+  quarantine ambiguous interrupted actions, but exact automatic success/failure
+  recovery requires kind-specific immutable receipt correlation that is not yet
+  implemented.
 - `create_matter` remains outside the matter-bound operation model because a
   matter id does not exist before creation.
 - AI and malware-scanner checks are configuration-aware but report `unknown`
@@ -67,7 +78,6 @@ existing MailMyPDF MCP contract:
   authorization replacement.
 - Production OAuth and assistant-host smoke tests require a configured deployment.
 
-Integrated verification passed the complete `@mailmypdf/workflows` suite
-(204/204), all MailMyPDF JavaScript tests (605/605), all MailMyPDF TypeScript
-tests (218/218), the standalone MailMyPDF typecheck, the root TypeScript project
-build, and `git diff --check`.
+Verification counts for this phase are recorded in `context/FACTORY_STATUS.md`.
+The repository build remains the authoritative workspace typecheck; the broad
+standalone app-only typecheck currently includes unrelated pre-existing errors.
