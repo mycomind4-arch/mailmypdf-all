@@ -40,7 +40,10 @@ The production deployment should have all of the following verified:
 2. Hosted Supabase OAuth 2.1 Server is enabled with authorization path `/oauth/consent`.
 3. Dynamic client registration/account linking has been exercised with a real external MCP client.
 4. Public privacy policy, terms, and support pages are current.
-5. The MailMyPDF domain is verified through the platform's current app/plugin verification challenge.
+5. The MailMyPDF domain is verified through the platform's current app/plugin verification challenge:
+   - set the portal-generated value as the deployment secret `OPENAI_APPS_CHALLENGE_TOKEN`;
+   - verify that `https://mailmypdf.ai/.well-known/openai-apps-challenge` returns only that exact token;
+   - do not commit the token to Git.
 6. The positive and negative cases in `review-cases.json` have been exercised against the deployed connector.
 7. A disposable staging/test account has passed the guarded document E2E path before production testing.
 
