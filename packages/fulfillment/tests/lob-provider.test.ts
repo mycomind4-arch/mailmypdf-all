@@ -89,6 +89,41 @@ test("Lob status normalization is fail-closed", () => {
   assert.throws(() => normalizeLobStatus("mystery-status"), /Unknown Lob status/);
 });
 
+test("Lob webhook verifier accepts epoch-second timestamps without weakening signature verification", async () => {
+  const secret = "whsec_test";
+  const nowMs = 1_730_000_000_000;
+  const timestamp = String(Math.floor(nowMs / 1000));
+  const raw = JSON.stringify({ id: "evt_seconds", event_type: { id: "letter.delivered" } });
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signed = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${timestamp}.${raw}`),
+  );
+  const signature = Array.from(new Uint8Array(signed), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  const request = new Request("https://example.test/webhook", {
+    method: "POST",
+    headers: {
+      "lob-signature": signature,
+      "lob-signature-timestamp": timestamp,
+    },
+    body: raw,
+  });
+
+  const verified = await verifyLobWebhook(request, secret, { now: nowMs });
+  assert.equal((verified.event as { id: string }).id, "evt_seconds");
+});
+
 test("Lob webhook verifier validates HMAC and timestamp", async () => {
   const secret = "whsec_test";
   const timestamp = "1730000000000";
