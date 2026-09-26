@@ -370,6 +370,13 @@ test("packet review UI approves only the exact reviewed packet", () => {
   assert.match(html, /No payment has been taken and nothing has been mailed/);
 });
 
+test("packet review resource declares the production UI origin and closed CSP", () => {
+  const ui = PACKET_REVIEW_RESOURCE._meta.ui;
+  assert.equal(ui.domain, "https://mailmypdf.ai");
+  assert.deepEqual(ui.csp.connectDomains, []);
+  assert.deepEqual(ui.csp.resourceDomains, []);
+});
+
 test("packet review UI cannot bypass approval into checkout or mailing", () => {
   const html = PACKET_REVIEW_RESOURCE.text;
 
