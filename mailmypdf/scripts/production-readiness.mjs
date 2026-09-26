@@ -141,6 +141,7 @@ if (live && supabaseUrl && serverKey) {
 
   const schemaProbes = [
     ["orders workflow bridge", "/rest/v1/orders?select=id,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents&limit=0"],
+    ["orders delivery evidence", "/rest/v1/orders?select=id,document_sha256,tracking_number,expected_delivery_date,delivered_at,last_tracking_event&limit=0"],
     ["workflow_cases", "/rest/v1/workflow_cases?select=id,status&limit=0"],
     ["case_approvals", "/rest/v1/case_approvals?select=id,packet_sha256&limit=0"],
     ["secure_documents", "/rest/v1/secure_documents?select=id,security_status&limit=0"],
