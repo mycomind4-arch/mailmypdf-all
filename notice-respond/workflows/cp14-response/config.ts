@@ -15,6 +15,17 @@ export const workflowConfig = {
   heroDescription: "Start with the actual CP14 notice, confirm the balance and tax-period details, choose the appropriate response path, prepare supporting correspondence, review the exact packet, and retain mailing proof.",
   indexable: true,
   contentStatus: "reviewed",
+  discovery: {
+    primaryQuestion: "How do I respond to an IRS CP14 notice?",
+    alternateQuestions: [
+      "What should I do after receiving an IRS CP14 balance-due notice?",
+      "What if I already paid the balance shown on an IRS CP14?",
+      "Can I dispute the balance on an IRS CP14 notice?",
+    ],
+    agency: "Internal Revenue Service",
+    jurisdiction: "United States",
+    documentType: "IRS CP14 balance-due notice",
+  },
   whatYouDo: [
     "Start from the actual CP14 notice you received, not a generic tax-notice template.",
     "Confirm the notice series, tax period, printed due date, and balance the IRS reports.",

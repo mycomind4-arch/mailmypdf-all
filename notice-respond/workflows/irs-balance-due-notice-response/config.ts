@@ -15,6 +15,17 @@ export const workflowConfig = {
   heroDescription: "Start with the IRS balance due notice, confirm the tax liability amount, explore payment or dispute options, prepare your response, review the exact packet, and retain all proof.",
   indexable: true,
   contentStatus: "published",
+  discovery: {
+    primaryQuestion: "How do I respond to an IRS balance due notice?",
+    alternateQuestions: [
+      "What should I do if I cannot pay an IRS balance due notice in full?",
+      "How do I dispute an IRS balance due notice I believe is incorrect?",
+      "What documents should I gather before responding to an IRS balance due notice?",
+    ],
+    agency: "Internal Revenue Service",
+    jurisdiction: "United States",
+    documentType: "IRS balance due notice",
+  },
   whatYouDo: [
     "Start from the actual IRS balance due notice you received, not a generic template.",
     "Confirm the tax year, amount due, penalties and interest, and payment deadline.",

@@ -15,6 +15,17 @@ export const workflowConfig = {
   heroDescription: "Start with the IRS penalty notice, understand the penalty type and basis, prepare a reasonable cause claim if applicable, review the exact packet, and retain proof of your response.",
   indexable: true,
   contentStatus: "published",
+  discovery: {
+    primaryQuestion: "How do I respond to an IRS penalty notice?",
+    alternateQuestions: [
+      "How do I request IRS penalty abatement for reasonable cause?",
+      "What documents can support a response to an IRS penalty assessment?",
+      "What should I review before responding to an IRS penalty notice?",
+    ],
+    agency: "Internal Revenue Service",
+    jurisdiction: "United States",
+    documentType: "IRS penalty assessment notice",
+  },
   whatYouDo: [
     "Start from the actual IRS penalty notice you received, not a generic document.",
     "Confirm the penalty type (failure to file, failure to pay, accuracy-related, etc.) and amount.",

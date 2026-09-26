@@ -18,6 +18,17 @@ export const workflowConfig = {
   heroTone: "dark",
   indexable: true,
   contentStatus: "reviewed",
+  discovery: {
+    primaryQuestion: "How do I respond to an IRS CP2000 notice?",
+    alternateQuestions: [
+      "What should I do if I disagree with an IRS CP2000 proposed adjustment?",
+      "Can I partially agree with an IRS CP2000 notice?",
+      "What documents should I include with a CP2000 response?",
+    ],
+    agency: "Internal Revenue Service",
+    jurisdiction: "United States",
+    documentType: "IRS CP2000 proposed-adjustment notice",
+  },
   whatYouDo: [
     "Start from the actual CP2000 notice and identify the tax year, printed response date, proposed changes, and each income or payment item the IRS says does not match your return.",
     "Review each proposed item separately instead of treating the notice as one all-or-nothing disagreement.",

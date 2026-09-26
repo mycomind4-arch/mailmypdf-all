@@ -26,6 +26,19 @@ const TrustStrip = createTrustStrip(createElement)
 const GlobalHeader = createGlobalHeader(createElement)
 const GlobalFooter = createGlobalFooter(createElement)
 
+export interface WorkflowDiscoveryConfig {
+  /** The natural-language question this page should answer most directly. */
+  primaryQuestion: string
+  /** Closely related user questions that are substantively answered on-page. */
+  alternateQuestions?: ReadonlyArray<string>
+  /** Government agency, organization, or decision-maker named by the source document. */
+  agency?: string
+  /** Jurisdiction the workflow content was reviewed for. */
+  jurisdiction?: string
+  /** Human-readable source document or matter type. */
+  documentType?: string
+}
+
 export interface WorkflowLandingConfig {
   id: string
   sectionId: string
@@ -45,6 +58,8 @@ export interface WorkflowLandingConfig {
   heroTone?: "light" | "dark"
   indexable: boolean
   contentStatus: "scaffold" | "reviewed" | "published"
+  /** Structured retrieval context used by SEO/schema generators; never a substitute for visible page content. */
+  discovery?: WorkflowDiscoveryConfig
   whatYouDo?: ReadonlyArray<string>
   whatYouNeed?: ReadonlyArray<string>
   outputs?: ReadonlyArray<string>

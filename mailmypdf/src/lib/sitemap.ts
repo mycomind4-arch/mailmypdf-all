@@ -4,12 +4,29 @@
 import { SEO_PAGES } from "./seo-pages";
 import { PUBLIC_VERTICALS } from "./public-verticals";
 import { workflowAuthorityPages } from "./workflow-authority-registry";
-// The new root-level workflow packages (notice-respond/, appeal-mail/, ...)
-// are not yet enumerated anywhere the sitemap can discover automatically —
-// each new-architecture workflow page needs an explicit entry here, gated on
-// its own config's `indexable` flag, until that registry exists.
+import equifaxDisputeConfig from "../../../dispute-mail/workflows/equifax-dispute/config";
+import experianDisputeConfig from "../../../dispute-mail/workflows/experian-dispute/config";
+import transunionDisputeConfig from "../../../dispute-mail/workflows/transunion-dispute/config";
 import cp14ResponseConfig from "../../../notice-respond/workflows/cp14-response/config";
+import cp2000ResponseConfig from "../../../notice-respond/workflows/cp2000-response/config";
 import cp504ResponseConfig from "../../../notice-respond/workflows/cp504-response/config";
+import irsBalanceDueNoticeResponseConfig from "../../../notice-respond/workflows/irs-balance-due-notice-response/config";
+import irsPenaltyNoticeResponseConfig from "../../../notice-respond/workflows/irs-penalty-notice-response/config";
+
+// Root-architecture workflow landings are deliberately explicit here. The
+// public workflow landing gate verifies that every mounted indexable workflow
+// is present in sitemapRoutes(), so a future workflow cannot silently ship
+// without crawler discovery.
+const NEW_ARCHITECTURE_WORKFLOW_CONFIGS = [
+  equifaxDisputeConfig,
+  experianDisputeConfig,
+  transunionDisputeConfig,
+  cp14ResponseConfig,
+  cp2000ResponseConfig,
+  cp504ResponseConfig,
+  irsBalanceDueNoticeResponseConfig,
+  irsPenaltyNoticeResponseConfig,
+] as const;
 
 export type SitemapRoute = {
   loc: string;
@@ -63,7 +80,7 @@ export function sitemapRoutes(): SitemapRoute[] {
     changefreq: "monthly" as const,
   }));
 
-  const newArchitectureWorkflowRoutes: SitemapRoute[] = [cp14ResponseConfig, cp504ResponseConfig]
+  const newArchitectureWorkflowRoutes: SitemapRoute[] = NEW_ARCHITECTURE_WORKFLOW_CONFIGS
     .filter((page) => page.indexable)
     .map((page) => ({ loc: page.path, priority: "0.9", changefreq: "monthly" as const }));
 

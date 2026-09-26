@@ -27,6 +27,18 @@ export function createWorkflowHead(config: WorkflowLandingConfig) {
 
 export function createWorkflowSchema(config: WorkflowLandingConfig) {
   const canonical = SITE_ORIGIN + config.path
+  const discovery = config.discovery
+  const about = [
+    { "@type": "Thing", name: config.title },
+    ...(discovery?.agency ? [{ "@type": "Organization", name: discovery.agency }] : []),
+    ...(discovery?.jurisdiction ? [{ "@type": "Place", name: discovery.jurisdiction }] : []),
+    ...(discovery?.documentType ? [{ "@type": "Thing", name: discovery.documentType }] : []),
+  ]
+  const discoveryKeywords = discovery
+    ? [discovery.primaryQuestion, ...(discovery.alternateQuestions ?? []), discovery.agency, discovery.jurisdiction, discovery.documentType]
+        .filter((value): value is string => Boolean(value))
+    : []
+
   const schemas: Record<string, unknown>[] = [
     {
       "@context": "https://schema.org",
@@ -44,7 +56,9 @@ export function createWorkflowSchema(config: WorkflowLandingConfig) {
       description: config.seoDescription,
       url: canonical,
       isPartOf: { "@type": "WebSite", name: "MailMyPDF", url: SITE_ORIGIN + "/" },
-      about: { "@type": "Thing", name: config.title },
+      about,
+      ...(discoveryKeywords.length ? { keywords: discoveryKeywords.join(", ") } : {}),
+      ...(config.sources?.length ? { citation: config.sources.map((source) => source.href) } : {}),
     },
   ]
 
