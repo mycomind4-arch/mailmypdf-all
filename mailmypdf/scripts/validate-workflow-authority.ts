@@ -1,5 +1,7 @@
 import inventory from "../WORKFLOW_INVENTORY.json";
 import { validateAuthorityCatalog } from "../src/lib/workflow-authority-gate";
+import { canonicalWorkflowIdForLegacyId } from "../src/lib/workflow-legacy-aliases";
+import { WORKFLOW_REGISTRY } from "../src/lib/workflow-registry";
 import { SEO_WORKFLOW_CANDIDATES } from "../src/lib/workflow-seo-candidates";
 import { SEO_WORKFLOW_CATALOG } from "../src/lib/workflow-seo-catalog";
 import { validateWorkflowSeoTopology } from "../src/lib/workflow-seo-topology";
@@ -27,12 +29,16 @@ const onlyId = flagValue("--id");
 // route lookup avoids making every caller reverse-engineer the id scheme.
 const onlyRoute = flagValue("--route");
 
-const modeled = (inventory.workflows ?? []) as InventoryWorkflow[];
+const legacyInventory = (inventory.workflows ?? []) as InventoryWorkflow[];
+const legacyResolved = legacyInventory.filter((workflow) => canonicalWorkflowIdForLegacyId(workflow.id));
+const legacyUnresolved = legacyInventory.filter((workflow) => !canonicalWorkflowIdForLegacyId(workflow.id));
+
+const modeled = WORKFLOW_REGISTRY.map((workflow) => ({
+  id: workflow.id,
+  route: workflow.publicHref,
+}));
 const modeledIds = new Set(modeled.map((workflow) => workflow.id));
-const knownWorkflowIds = new Set([
-  ...modeledIds,
-  ...SEO_WORKFLOW_CATALOG.map((entry) => entry.id),
-]);
+const knownWorkflowIds = new Set(modeledIds);
 
 const topologyIssues = validateWorkflowSeoTopology(SEO_WORKFLOW_CATALOG, modeled);
 const report = validateAuthorityCatalog(SEO_WORKFLOW_CATALOG, knownWorkflowIds);
@@ -105,7 +111,9 @@ if (asJson) {
 
 console.log("MailMyPDF Workflow Authority Gate");
 console.log("=================================");
-console.log(`Known modeled workflow IDs: ${modeledIds.size}`);
+console.log(`Canonical workflow IDs: ${modeledIds.size}`);
+console.log(`Legacy inventory records mapped to canonical IDs: ${legacyResolved.length}`);
+console.log(`Legacy inventory records still unresolved: ${legacyUnresolved.length}`);
 console.log(`Master SEO catalog records: ${report.counts.total}`);
 console.log(`DRAFT/noindex catalog records: ${draftCount}`);
 console.log(`Catalog records needing individual review: ${needsIndividualReviewCount}`);
