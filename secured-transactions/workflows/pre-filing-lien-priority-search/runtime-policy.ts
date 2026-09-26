@@ -6,6 +6,10 @@ export const workflowRuntimePolicy: WorkflowRuntimePolicy = {
       throw new Error("Pre-Filing Lien & Priority Search runtime identity does not match this workflow.");
     }
   },
+
+  validateInput() {
+    throw new Error("Pre-Filing Lien & Priority Search remains scaffolded and does not accept platform runtime input.");
+  },
 };
 
 export default workflowRuntimePolicy;
