@@ -209,7 +209,7 @@ jobs:
         run: |
           pnpm --filter @mailmypdf/fulfillment test
           pnpm --filter @mailmypdf/payment-fulfillment test
-          node --test             mailmypdf/tests/lob-hardening.test.mjs             mailmypdf/tests/stripe-production.test.mjs             mailmypdf/tests/payment-fulfillment-boundary.test.mjs             mailmypdf/tests/webhook-security.test.mjs
+          node --test mailmypdf/tests/lob-hardening.test.mjs mailmypdf/tests/stripe-production.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/webhook-security.test.mjs mailmypdf/tests/security-headers-wiring.test.mjs
           pnpm --filter ./mailmypdf exec tsx --test tests/mailing-record.test.ts
       - name: Build core app
         run: pnpm --filter ./mailmypdf build
