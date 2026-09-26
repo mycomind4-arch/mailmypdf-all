@@ -19,6 +19,9 @@
   "files": [],
   "references": [
     {
+      "path": "./packages/capability-services"
+    },
+    {
       "path": "./packages/pricing"
     },
     {

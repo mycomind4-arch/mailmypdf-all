@@ -37,6 +37,14 @@
     "./runtime-safety": {
       "types": "./src/runtime-safety.ts",
       "import": "./dist/runtime-safety.js"
+    },
+    "./connector-readiness": {
+      "types": "./src/connector-readiness.ts",
+      "import": "./dist/connector-readiness.js"
+    },
+    "./connector-operation": {
+      "types": "./src/connector-operation.ts",
+      "import": "./dist/connector-operation.js"
     }
   },
   "files": [

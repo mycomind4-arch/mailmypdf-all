@@ -110,7 +110,7 @@ export async function dispatchNotification(
     return { status: "skipped", reason: "provider_not_configured" };
   }
 
-  const result = await provider.send(command.message).catch((error) => ({
+  const result: NotificationProviderResult = await provider.send(command.message).catch((error): NotificationProviderResult => ({
     ok: false,
     error: error instanceof Error ? error.message : String(error),
   }));

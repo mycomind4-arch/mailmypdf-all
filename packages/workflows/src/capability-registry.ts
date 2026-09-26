@@ -40,6 +40,11 @@ export type CapabilityId =
   | "secureUpload"
   | "documentStorage"
   | "documentScanning"
+  | "officialForms"
+  | "piiDetection"
+  | "privacyRelease"
+  | "secureSharing"
+  | "legalHold"
   | "retention"
   | "classification"
   | "extraction"
@@ -55,6 +60,10 @@ export type CapabilityId =
   | "discrepancies"
   | "requirements"
   | "evidence"
+  | "auditTrail"
+  | "uccSearch"
+  | "titleLienSearch"
+  | "identityVerification"
   | "research"
   | "risk"
   | "strategy"
@@ -64,13 +73,12 @@ export type CapabilityId =
   | "blockingGate"
   | "humanReview"
   | "approval"
-  | "pdfGeneration"
-  | "packetAssembly"
   | "signature"
-  | "identityVerification"
   | "notarization"
   | "efiling"
-  | "piiDetection"
+  | "uccFiling"
+  | "pdfGeneration"
+  | "packetAssembly"
   | "pricing"
   | "payment"
   | "addressVerification"
@@ -81,7 +89,17 @@ export type CapabilityId =
   | "archive"
   | "resilience"
   | "observability"
-  | "acceptanceTesting";
+  | "acceptanceTesting"
+  | "taxNoticeClassification"
+  | "taxDocumentExtraction"
+  | "taxDeadlineAnalysis"
+  | "taxResponse"
+  | "dealStructure"
+  | "amortization"
+  | "attachmentAnalysis"
+  | "perfectionAnalysis"
+  | "translation"
+  | "templateSimilarity";
 
 /** JSON-Schema-shaped metadata kept deliberately structural so manifests can
  * be consumed by the factory without bringing a schema validator into the
@@ -211,12 +229,16 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   // yet exposes a confirmed live production runtime/adapter binding for them
   // (there is still no deployed /api/workflow-runtime host wiring any of
   // this into a running system) — so "production" was not evidence-based.
-  identity: capability("identity", "Identity / Authorization", "platform", "identity", "Canonical MailMyPDF identity, ownership, entitlement, and access boundaries.", "@mailmypdf/ecosystem", "implemented"),
+  identity: capability("identity", "Identity / Authorization", "platform", "identity", "Canonical MailMyPDF identity, ownership, entitlement, and access boundaries.", "@mailmypdf/identity-capacity", "implemented"),
   matterState: capability("matterState", "Matter State", "platform", "workflow", "Durable workflow/matter state, optimistic concurrency, resume, and ownership.", "@mailmypdf/step-workflow", "implemented"),
   security: capability("security", "Security Boundary", "platform", "documents", "Authorization, safe intake, tenant isolation, input validation, and disclosure controls.", "@mailmypdf/documents", "implemented"),
   secureUpload: capability("secureUpload", "Secure Upload", "platform", "documents", "Validated consented document intake into quarantine before processing.", "@mailmypdf/documents", "production", { dependencies: ["security"] }),
   documentStorage: capability("documentStorage", "Document Storage", "platform", "documents", "Private object storage, ownership-safe paths, signed retrieval, hashes, and deletion.", "@mailmypdf/documents", "production", { dependencies: ["security"] }),
   documentScanning: capability("documentScanning", "Document Scanning", "platform", "documents", "Malware and structural scanning before a document becomes disclosable.", "@mailmypdf/documents", "production", { dependencies: ["secureUpload", "documentStorage"] }),
+  officialForms: capability("officialForms", "Official Form Registry", "platform", "documents", "Versioned official-form definitions, source provenance, signatures, and completeness rules.", "@mailmypdf/forms", "implemented"),
+  privacyRelease: capability("privacyRelease", "Privacy Release Review", "platform", "documents", "Human-reviewed retain, redact, or exclude decisions before disclosure or template reuse.", "@mailmypdf/documents", "implemented", { dependencies: ["piiDetection", "documentStorage", "humanReview", "blockingGate"] }),
+  secureSharing: capability("secureSharing", "Secure Artifact Sharing", "platform", "documents", "Scoped, expiring, revocable artifact sharing with access audit.", "@mailmypdf/capability-services", "implemented", { dependencies: ["security", "documentStorage", "auditTrail"] }),
+  legalHold: capability("legalHold", "Legal Hold", "platform", "documents", "Suspend deletion for an authorized matter or evidence set with release history.", "@mailmypdf/capability-services", "implemented", { dependencies: ["retention", "auditTrail"] }),
   retention: capability("retention", "Retention / Deletion", "platform", "documents", "Retention policy, deletion requests, purge jobs, and tombstones.", "@mailmypdf/documents", "production", { dependencies: ["documentStorage"] }),
   classification: capability("classification", "Domain Classification", "hybrid", "intelligence", "Classify source material using reusable document intelligence plus domain rules.", "@mailmypdf/document-intelligence", "implemented"),
   extraction: capability("extraction", "Structured Extraction", "hybrid", "intelligence", "Extract page-aware text and structured values from source material.", "@mailmypdf/document-intelligence", "implemented"),
@@ -232,6 +254,9 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   discrepancies: capability("discrepancies", "Discrepancy Detection", "platform", "intelligence", "Identify mismatches between source claims, facts, requirements, and evidence.", "@mailmypdf/intelligence", "implemented"),
   requirements: capability("requirements", "Requirements Analysis", "hybrid", "intelligence", "Map source/domain requirements to case evidence and response obligations.", "@mailmypdf/intelligence", "implemented"),
   evidence: capability("evidence", "Evidence", "platform", "intelligence", "Evidence organization, sufficiency, linkage, missing-item detection, and traceability.", "@mailmypdf/intelligence", "implemented"),
+  auditTrail: capability("auditTrail", "Audit Trail", "platform", "proof", "Durable actor, access, decision, and external-effect audit events.", "@mailmypdf/audit", "implemented", { dependencies: ["provenance"] }),
+  uccSearch: capability("uccSearch", "UCC Search", "hybrid", "intelligence", "Provider-neutral UCC search, normalization, coverage, and source provenance.", "@mailmypdf/registry-adapters", "implemented", { dependencies: ["identity", "provenance"] }),
+  titleLienSearch: capability("titleLienSearch", "Title and Lien Search", "hybrid", "intelligence", "Normalize title, lien, judgment, tax, and encumbrance evidence without making a legal conclusion.", "@mailmypdf/registry-adapters", "foundation", { dependencies: ["identity", "provenance"] }),
   research: capability("research", "Authority / Research", "hybrid", "intelligence", "Ground rules and authoritative sources when a workflow requires external authority.", "@mailmypdf/intelligence", "implemented"),
   risk: capability("risk", "Risk Assessment", "platform", "intelligence", "Assess supported strength, uncertainty, readiness, and consequential risk.", "@mailmypdf/intelligence", "implemented"),
   strategy: capability("strategy", "Case Strategy", "hybrid", "intelligence", "Translate verified facts and domain rules into case-specific next actions.", "@mailmypdf/intelligence", "implemented"),
@@ -241,10 +266,11 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   blockingGate: capability("blockingGate", "Blocking Gate", "platform", "workflow", "Prevent consequential action while critical requirements remain unresolved.", "@mailmypdf/workflows", "implemented"),
   humanReview: capability("humanReview", "Human Review", "platform", "workflow", "Require explicit review before consequential action.", "@mailmypdf/workflows", "implemented"),
   approval: capability("approval", "Approval", "hybrid", "workflow", "Role- or policy-based explicit approval for consequential transitions.", "@mailmypdf/workflows", "production", { consequential: true, dependencies: ["humanReview", "blockingGate"] }),
+  uccFiling: capability("uccFiling", "UCC Filing", "hybrid", "fulfillment", "Prepare and submit authorized UCC filings where a supported filing adapter exists.", "@mailmypdf/registry-adapters", "foundation", { consequential: true, dependencies: ["uccSearch", "signature", "humanReview", "blockingGate", "auditTrail"] }),
   pdfGeneration: capability("pdfGeneration", "PDF Generation", "platform", "documents", "Generate printable deterministic PDFs from approved content.", "@mailmypdf/packet-builder", "implemented"),
   packetAssembly: capability("packetAssembly", "Packet Assembly", "platform", "documents", "Merge the approved response and selected supporting documents into the exact mail-ready packet.", "@mailmypdf/packet-builder", "production", { dependencies: ["pdfGeneration"] }),
-  signature: capability("signature", "Electronic Signature", "platform", "documents", "Provider-neutral electronic signature capture, affirmative consent, and completion state bound to a specific document hash.", "@mailmypdf/signature", "implemented", { dependencies: ["documentStorage"] }),
   identityVerification: capability("identityVerification", "Identity Verification", "platform", "documents", "Provider-neutral identity proofing (document/database/biometric checks) confirming a matter party is who they claim to be, distinct from platform auth/ownership.", "@mailmypdf/identity-verification", "implemented"),
+  signature: capability("signature", "Electronic Signature", "platform", "documents", "Provider-neutral electronic signature capture, affirmative consent, and completion state bound to a specific document hash.", "@mailmypdf/signature", "implemented", { dependencies: ["documentStorage"] }),
   notarization: capability("notarization", "Remote Online Notarization", "platform", "fulfillment", "Provider-neutral notarized-signature session requiring prior identity verification before a notary attests a signature.", "@mailmypdf/notarization", "implemented", { consequential: true, dependencies: ["identityVerification", "humanReview", "blockingGate"] }),
   efiling: capability("efiling", "Electronic Court/Agency Filing", "platform", "fulfillment", "Provider-neutral direct electronic filing submission to a court or agency, as an alternative fulfillment path to physical mailing.", "@mailmypdf/efiling", "implemented", { consequential: true, dependencies: ["packetAssembly", "approval", "humanReview", "blockingGate"] }),
   piiDetection: capability("piiDetection", "PII Detection", "hybrid", "documents", "Automatic detection of sensitive personal data spans feeding the existing privacy release/redaction review before a document may be disclosed or reused as a template.", "@mailmypdf/documents", "foundation", { dependencies: ["documentStorage"] }),
@@ -259,6 +285,16 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   resilience: capability("resilience", "Execution Resilience", "platform", "operations", "Idempotency, bounded retries, replay-safe external actions, and recovery semantics.", "@mailmypdf/workflows", "implemented"),
   observability: capability("observability", "Workflow Observability", "platform", "operations", "Privacy-safe workflow telemetry, diagnostics, and execution health.", "@mailmypdf/workflows", "implemented"),
   acceptanceTesting: capability("acceptanceTesting", "Workflow Acceptance Testing", "platform", "operations", "Synthetic end-to-end tests with mock Stripe/Lob and production PDF primitives.", "@mailmypdf/workflow-acceptance", "production"),
+  taxNoticeClassification: capability("taxNoticeClassification", "Tax Notice Classification", "hybrid", "intelligence", "Classify IRS notices into supported notice families, stated issues, response windows, and evidence needs.", "@mailmypdf/capability-services", "implemented", { dependencies: ["classification", "officialForms", "deadlines", "provenance"] }),
+  taxDocumentExtraction: capability("taxDocumentExtraction", "Tax Document Extraction", "hybrid", "intelligence", "Extract tax-year, taxpayer, payer, amounts, withholding, and form identifiers with source linkage.", "@mailmypdf/capability-services", "implemented", { dependencies: ["extraction", "provenance"] }),
+  taxDeadlineAnalysis: capability("taxDeadlineAnalysis", "Tax Deadline Analysis", "hybrid", "intelligence", "Derive IRS response and appeal deadlines from notice dates, receipt evidence, and authoritative rules.", "@mailmypdf/capability-services", "implemented", { dependencies: ["deadlines", "research", "provenance"] }),
+  taxResponse: capability("taxResponse", "Tax Response Packet", "hybrid", "documents", "Assemble a reviewed IRS response with grounded facts, forms, evidence, and mailing proof.", "@mailmypdf/capability-services", "implemented", { dependencies: ["taxNoticeClassification", "taxDocumentExtraction", "validation", "packetAssembly", "humanReview"] }),
+  dealStructure: capability("dealStructure", "Creative Finance Deal Structure", "hybrid", "intelligence", "Represent seller financing, lease option, land contract, subject-to, wraparound, and private-loan structures.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["identity", "facts", "research"] }),
+  amortization: capability("amortization", "Amortization and Scenario Analysis", "platform", "intelligence", "Deterministically calculate payment schedules, interest, principal, balloons, and payoff scenarios.", "@mailmypdf/capability-services", "implemented", { dependencies: ["dealStructure"] }),
+  attachmentAnalysis: capability("attachmentAnalysis", "Attachment Analysis", "hybrid", "intelligence", "Analyze obligation, value, rights in collateral, and authenticated agreement facts.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["dealStructure", "facts", "provenance"] }),
+  perfectionAnalysis: capability("perfectionAnalysis", "Perfection Analysis", "hybrid", "intelligence", "Map filing, possession, control, and other perfection steps to collateral and jurisdiction.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["attachmentAnalysis", "research", "uccSearch"] }),
+  translation: capability("translation", "Translation and Localization", "hybrid", "documents", "Prepare translated drafts while preserving source text, review status, and uncertainty.", "@mailmypdf/capability-services", "implemented", { dependencies: ["provenance", "humanReview"] }),
+  templateSimilarity: capability("templateSimilarity", "Template Similarity and Deduplication", "platform", "operations", "Detect near-duplicate workflow templates before publication.", "@mailmypdf/capability-services", "implemented", { dependencies: ["privacyRelease", "provenance"] }),
 };
 
 export const capabilityIds = Object.keys(CAPABILITIES) as CapabilityId[];

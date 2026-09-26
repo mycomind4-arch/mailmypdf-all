@@ -7,5 +7,8 @@ export * from "./search-strategy.js";
 export { searchExecutionToCertificationCoverage } from "./certification-coverage.js";
 export * from "./business-registries/index.js";
 export * from "./ucc-search/index.js";
+export * from "./ucc-search/filing.js";
+export * from "./title-lien/index.js";
 export * as BusinessRegistries from "./business-registries/index.js";
 export * as UccSearch from "./ucc-search/index.js";
+export * as TitleLien from "./title-lien/index.js";

@@ -20,6 +20,8 @@ export * from "./reference-pipeline-profiles.js";
 export * from "./capability-registry.js";
 export * from "./capability-adapters.js";
 export * from "./capability-contract-validation.js";
+export * from "./connector-readiness.js";
+export * from "./connector-operation.js";
 
 export * from "./execution-reliability.js";
 export * from "./workflow-observability.js";
