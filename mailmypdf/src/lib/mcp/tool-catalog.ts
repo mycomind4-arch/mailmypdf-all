@@ -272,7 +272,9 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
       },
       ["matter_id", "mail_class", "recipient"],
     ),
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    // Packet preview persists measured page counts as workflow metadata, so
+    // this is intentionally not advertised as strictly read-only.
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     _meta: {
       ui: {
