@@ -150,4 +150,37 @@ Do not treat OAuth consent as authorization to mail. Packet approval and checkou
 5. Add MCP Apps review UI for exact PDF, recipient, service, price, and post-mailing status.
 6. Package OpenAI-specific skills/manifest after the production MCP URL is stable.
 
+## External smoke testing
+
+Use the smoke command after local startup, staging deploys, and production deploys:
+
+```bash
+MCP_BASE_URL="http://127.0.0.1:8082" pnpm --filter ./mailmypdf mcp:smoke
+```
+
+For production:
+
+```bash
+MCP_BASE_URL="https://mailmypdf.ai" pnpm --filter ./mailmypdf mcp:smoke
+```
+
+The unauthenticated smoke verifies:
+
+- `/api/mcp` is reachable and remains POST-only;
+- protected-resource OAuth metadata is present (or reports configuration missing);
+- modern `server/discover` returns protocol `2026-07-28`;
+- `tools/list` exposes the expected 15-tool surface;
+- public workflow discovery resolves `cp14-response`;
+- a protected tool returns a 401 OAuth challenge with `resource_metadata`.
+
+To verify a real connected account without performing any write action:
+
+```bash
+MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BEARER_TOKEN="<temporary-user-access-token>" \
+pnpm --filter ./mailmypdf mcp:smoke
+```
+
+The authenticated check calls only `get_profile`. It does not create a matter, upload a document, charge a payment method, or submit mail.
+
 The connector must remain useful without custom UI; UI is a review surface, not an authorization bypass.
