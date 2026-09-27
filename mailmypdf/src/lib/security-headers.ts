@@ -14,8 +14,6 @@
  * across different deployment environments.
  */
 
-import { getConfig } from "@/config";
-
 /**
  * Build the Content-Security-Policy directive.
  *
@@ -27,8 +25,15 @@ import { getConfig } from "@/config";
  * - Frames from Stripe (for embedded checkout)
  */
 export function buildCspHeader(): string {
-  const config = getConfig();
-  const isDev = config.stripe.env === "sandbox";
+  const isDev = process.env.NODE_ENV !== "production";
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const connectSources = [
+    "'self'",
+    "https://api.stripe.com",
+    "https://api.lob.com",
+    "https://plausible.io",
+    ...(supabaseUrl ? [supabaseUrl] : []),
+  ].join(" ");
 
   const directives = [
     "default-src 'self'",
@@ -43,7 +48,7 @@ export function buildCspHeader(): string {
     // Fonts: self
     "font-src 'self' https://fonts.gstatic.com",
     // Connect: self + Stripe APIs + Lob API
-    `connect-src 'self' https://api.stripe.com https://api.lob.com https://plausible.io ${config.supabase.url}`,
+    `connect-src ${connectSources}`,
     // Frames: Stripe embedded checkout
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     // Objects: none (no Flash/Java)
@@ -65,7 +70,7 @@ export function buildCspHeader(): string {
  * Security headers to apply to all responses.
  */
 export function getSecurityHeaders(): Record<string, string> {
-  const isDev = getConfig().stripe.env === "sandbox";
+  const isDev = process.env.NODE_ENV !== "production";
 
   return {
     "Content-Security-Policy": buildCspHeader(),
