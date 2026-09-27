@@ -66,6 +66,36 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verification ledger
 
+### 2026-09-26 — production database rollout completed (September 27 UTC)
+
+- Applied the 25 reviewed forward migrations to `akpjuhrzypmcbivgsegt` using
+  Supabase's audited migration tool as one explicit transaction, with bounded
+  lock/statement timeouts and server-only RPC assertions before commit. Remote
+  version: `20260927054844`, `mailmypdf_verified_connector_rollout_25_migrations`.
+  Source filenames, SHA-256 hashes, and commit are recorded in
+  `docs/integrations/database-rollout-20260927.json`. No earlier legacy migrations
+  were replayed or falsely marked applied. The remote batch ledger is not the
+  canonical per-file ledger: future `db push` requires explicit reconciliation.
+- Rehearsed the atomic batch against the original public schema/data in the
+  network-isolated local replica, then rolled that local transaction back.
+  Restoring the baseline required removing two policies left by the earlier
+  local rehearsal; these local-only resets never ran against production.
+  Stopped the local replica afterward; retained the private backup and logs.
+- Post-rollout: all 43 public tables have RLS enabled. Six trusted approval,
+  analysis, packet, and scan RPCs allow service_role and deny anon/authenticated.
+  Counts for all 49 backed-up tables match, except storage.buckets 1 → 2 as
+  expected. Accounts remain 14, stored objects 4, orders 0. No payment, mailing,
+  object deletion, or synthetic production test records were created.
+- Latest code CI at `d4e22f6a`: Workspace UI verification succeeded. Local main
+  matched origin/main before documentation updates; no unrelated changes found.
+- Cloudflare login refreshed successfully. Read-only Worker binding inspection
+  confirms missing expected-project binding, scanner endpoint/key, three job
+  secrets, Stripe/Lob webhook secrets, and Resend key/sender. GitHub Actions
+  secret inventory is empty. Existing encrypted values were not disclosed.
+  No Cloudflare configuration was changed and no Worker was deployed. Deployment
+  stays blocked on service configuration; scanner hosting and verified email
+  sender need user direction/access. Do not bypass the production preflight.
+
 ### 2026-09-26 — production backup rehearsal and approval permission correction
 
 - Correct project `akpjuhrzypmcbivgsegt` is now accessible through the Supabase

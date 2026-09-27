@@ -1,0 +1,110 @@
+{
+  "project_ref": "akpjuhrzypmcbivgsegt",
+  "applied_version": "20260927054844",
+  "applied_name": "mailmypdf_verified_connector_rollout_25_migrations",
+  "source_commit": "d4e22f6af1ca50af829be223a9ac8e2ecc7907fa",
+  "method": "Supabase apply_migration; one explicit transaction; standalone file BEGIN/COMMIT wrappers removed; server-only RPC assertions before commit.",
+  "history_warning": "The remote ledger records this batch, not the individual source versions. The pre-existing legacy schema had no migration ledger. Do not run db push or replay these source migrations against this project until history has been explicitly reconciled. Do not add this batch to the normal migration directory: fresh databases must execute the original files only once.",
+  "sources": [
+    {
+      "file": "20260820163000_ecosystem_ai_control_plane.sql",
+      "sha256": "30dc537853ff219b23698f959cb2e3e41d5e69d43db3d8a6f2a7cd5a85f95460"
+    },
+    {
+      "file": "20260904120000_secure_document_vault.sql",
+      "sha256": "f376c24e3c70706656e726e094f860ebd2ccc5db6284f9f952d4141a988588b5"
+    },
+    {
+      "file": "20260904140000_workflow_cases_and_evidence.sql",
+      "sha256": "3d4b94ede60a3d36134163d05803077e206f9dfa051f0c203c8437e8792cd378"
+    },
+    {
+      "file": "20260904160000_case_analyses.sql",
+      "sha256": "1f5636886d5af9ccc4ee1db1f72ab3f73bd563f74a20e13ec6a9cc46f12cf2d8"
+    },
+    {
+      "file": "20260905000000_core_entitlements_system.sql",
+      "sha256": "6d65d3d70638c4aafa1a36c900a048b7b6dfa9ebbd7c1603211cfc6a0b5a6997"
+    },
+    {
+      "file": "20260905010000_entitlements_seed_data.sql",
+      "sha256": "b36400e4c3196308e5607c4437488fee838fb03d36f261ae44c669b10dcc9c98"
+    },
+    {
+      "file": "20260905010009_secure_quote_authority.sql",
+      "sha256": "4d4945851dfd336c9cd9b067e26a6111fd7e0288f62eac724e242ec36eb03b4e"
+    },
+    {
+      "file": "20260905120000_workflow_case_inputs.sql",
+      "sha256": "a0a9d7fc8e4aff16d0d7d589d861b51e0022a651e5c649bc04e2b7e6102e45c0"
+    },
+    {
+      "file": "20260910210000_workflow_order_bridge.sql",
+      "sha256": "169c5a43d2dc3bc1eb7fd8619c5f8e902d949f2b3d101946e7c7782346d3c0f9"
+    },
+    {
+      "file": "20260910212000_tax_evidence_kinds.sql",
+      "sha256": "b69cee3d6acd3917094a8d423755bbb0126ff02a3277604586ad3c3af24afc71"
+    },
+    {
+      "file": "20260910214000_source_notice_not_auto_enclosure.sql",
+      "sha256": "94802bbcc1b3a02b2a3c2bf743b6232fba7f95ce775c98d92d36bbcde45d9777"
+    },
+    {
+      "file": "20260911013600_order_pdfs_bucket.sql",
+      "sha256": "8d057386ac85eb2c4bb6176728ddfa9acab8a388ce0b2ceb470e3e32c4a9c135"
+    },
+    {
+      "file": "20260916054500_notification_deliveries.sql",
+      "sha256": "b80d6ec0afdae631afd4199a99f4133dc061fd294b73b367185d8c0e3a51cadf"
+    },
+    {
+      "file": "20260916193000_autonomous_publications.sql",
+      "sha256": "b52959f14d55246a0f3aba8c3a16c00b6aabd5950b420ec8f7ff9dba07750e0a"
+    },
+    {
+      "file": "20260920100000_workflow_runtime_bridge.sql",
+      "sha256": "a0817b33fde207c0515308883cbfaa218f65d5c190484ed68ec0088ba1e96729"
+    },
+    {
+      "file": "20260922120000_workflow_evidence_kinds.sql",
+      "sha256": "eac3e9d1959c14c3684cf47dbc621654e155aded1b918263d66a80bd4507508c"
+    },
+    {
+      "file": "20260924110000_case_document_ownership_hardening.sql",
+      "sha256": "acf347214a7d13c6d9a1a6edaec6db23bff590cd87aff635bb5f4e93840ff264"
+    },
+    {
+      "file": "20260925170000_mcp_direct_mail_approval_events.sql",
+      "sha256": "a795f3fdfa5e9572f3fa94e6a8ad4d90b19d9091dac4da03166db76e4589924b"
+    },
+    {
+      "file": "20260925171500_claim_single_secure_document_for_scan.sql",
+      "sha256": "1fb5da12db13cdb8ec3611446b0faa40dba3b5fa2f8364feb6356f9f961d051d"
+    },
+    {
+      "file": "20260926120000_connector_operations.sql",
+      "sha256": "ebab34d5f143b030e4947f5a46ff51df1e26058354dc9c76cf66fcf8c5b7ffec"
+    },
+    {
+      "file": "20260926150000_connector_operation_reconciliation.sql",
+      "sha256": "4a71f6953155b191a536f0e1b23e0f18361a2b7757b2b295b1f204096afe0532"
+    },
+    {
+      "file": "20260926223000_add_order_delivery_evidence.sql",
+      "sha256": "1c0525373b6ed4c6f9696384e21fb3e4e0b77a5144e9ca42cd39e94a28a3b4c5"
+    },
+    {
+      "file": "20260926224500_secure_rate_limit_buckets.sql",
+      "sha256": "f6e726c5ab0c6ffaf953f9ad0efdb863cf251d4a3ad9c9e2ab3797269764b6cc"
+    },
+    {
+      "file": "20260927010000_atomic_mcp_direct_mail_approval.sql",
+      "sha256": "283aef8d2900b3a6bb799aa56ff686df8971be585210e737c7a8560c9b72602a"
+    },
+    {
+      "file": "20260927020000_restore_server_only_workflow_approval.sql",
+      "sha256": "da48a6de7401ab25cbf3c38f018b81da0231d8b79dc8e6c1c81f66dd2b37fa4e"
+    }
+  ]
+}
