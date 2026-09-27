@@ -22,6 +22,7 @@ import {
 import { unresolvedPlaceholderMessage } from "./draft-placeholders.js";
 import type { DraftValidationResult } from "./draft-validator.js";
 import type { Cp2000StrategyPlan } from "./domain-packs/notice-response/cp2000-strategy.js";
+import type { WorkflowRuntimeChatContract } from "./workflow-chat-contract.js";
 
 export interface WorkflowRuntimeActor {
   id: string;
@@ -183,6 +184,8 @@ export interface WorkflowRuntimeCheckoutGateway {
 }
 
 export interface WorkflowRuntimePolicy {
+  /** Declarative contract used to certify chat/connector execution. */
+  chatContract?: WorkflowRuntimeChatContract;
   validateMatter(input: { workflowId: string; verticalId: string }): void;
   /** Defaults to true. Request-first workflows may explicitly opt out. */
   requiresSourceDocument?: boolean;
