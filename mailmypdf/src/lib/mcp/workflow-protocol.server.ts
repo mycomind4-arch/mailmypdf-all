@@ -5,13 +5,13 @@ import {
   getNoticeResponseRuntimePolicy,
   getNoticeResponseWorkflowProfile,
   getRecordsRequestRuntimePolicy,
-  workflowByRuntimeId,
   workflowProtocolDefinitionFromManifest,
   type WorkflowChatReadinessCertification,
   type WorkflowManifest,
   type WorkflowProtocolDefinition,
   type WorkflowRuntimePolicy,
 } from "@mailmypdf/workflows";
+import { workflowByRuntimeId } from "@mailmypdf/workflows/canonical-registry";
 import { MAILMYPDF_MCP_TOOLS } from "./tool-catalog";
 
 export type McpWorkflowProtocolRegistration = Readonly<{
