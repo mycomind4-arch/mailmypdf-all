@@ -307,6 +307,21 @@ describe("Lob Hardening — Source-Level Tests", () => {
     assert.ok(detailIndex > nameIndex, "lifecycle name must take precedence over low-level carrier detail");
   });
 
+  it("persists Lob evidence even when lifecycle status does not advance", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const webhook = lob.slice(lob.indexOf("export async function processLobWebhook"));
+    assert.match(webhook, /Persist carrier evidence even when the order status does not advance/);
+    assert.match(webhook, /await supabaseAdmin\.from\("orders"\)\.update\(update\)\.eq\("id", order\.id\)/);
+    assert.match(webhook, /statusAdvanced && nextStatus === "mailed"/);
+  });
+
+  it("reconciliation preserves known tracking data when Lob omits it", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const reconciliation = lob.slice(lob.indexOf("export async function reconcileOrderWithLob"));
+    assert.match(reconciliation, /letter\?\.tracking_number \?\? order\.tracking_number \?\? null/);
+    assert.match(reconciliation, /letter\?\.expected_delivery_date \?\? order\.expected_delivery_date \?\? null/);
+  });
+
   it("proof webhook bridge propagates processing failures so Lob can retry", async () => {
     const bridge = await source("src/lib/proof-of-service/lob-webhook-bridge.ts");
     assert.match(bridge, /if \(error\) throw new Error/);
