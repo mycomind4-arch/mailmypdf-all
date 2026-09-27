@@ -13,6 +13,46 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — ECC MCP recovery and connected-app controls
+
+- Applied ECC `mcp-server-patterns` and `browser-qa` to a bounded first pass.
+  `mailmypdf/src/lib/mcp/connector-operations.server.ts` now separates action
+  failure from completion-record failure. If an action succeeds but the database
+  acknowledgement is lost, read back the owned operation; return a confirmed
+  saved result when available, otherwise preserve running state and instruct the
+  caller to poll rather than change retry keys. Never mark that completed action
+  failed merely because its success record could not be saved.
+- `workflow-tools.server.ts` returns an explicit tool error for replayed failed
+  or cancelled operations, preserving the operation ID for diagnosis.
+- Added `ConnectedApps.tsx` to authenticated account settings, using the installed
+  Supabase SDK's `auth.oauth.listGrants()` and `revokeGrant({ clientId })`.
+  Includes confirmation/cancel, pending, empty, load retry, revocation failure,
+  and success states. Client names are explicitly unverified. Identity scopes
+  are not misrepresented as read-only authorization; existing access tokens may
+  outlive grant revocation until expiration. No production grant was revoked.
+- Verification: focused execution/reconciliation/MCP/direct-mail/review/transport
+  suite **61/61 passed**, including seven new execution/replay cases. Vite app
+  build and SSR cycle repair passed. App-wide `tsc --noEmit` remains failing in
+  unchanged design-system resolution, SSDI navigation, entitlements typing, and
+  PDF byte-buffer types; no diagnostics named the changed files.
+- Browser evidence: real component with a credential-free in-memory fixture at
+  `http://127.0.0.1:4197/`; observed confirmation, keep-connected, confirmed removal
+  with empty/success state, failed revocation retaining the app, failed load and
+  successful refresh. Console warning/error capture was empty. Visually inspected
+  default and narrow rendering with no measured horizontal overflow (effective
+  narrow layout width was 469 CSS pixels, not the requested 375). No screenshot
+  baseline, complete accessibility audit, or hosted account-settings login test.
+  Reproducible fixture instructions are under `mailmypdf/tests/fixtures/connected-apps/`.
+- Still open: queued background execution, receipt-based provider recovery,
+  server/database-enforced read-only authorization, admin connector health,
+  actual ChatGPT/Claude OAuth round trips, and deployment. This pass makes no
+  live-readiness claim. Existing hosting/billing/provider-secret blockers remain;
+  no new migrations, paid services, payments, or mail were performed.
+  Fresh public check of the workers.dev OAuth resource-discovery URL still
+  returned `200 text/html`, not the required JSON metadata.
+
+### Earlier recovery observations
+
 - Canonical checkout is dev/mailmypdf-all, main. Archive tags retain old histories.
 - The prior estimate of 20–35 lost features was unsupported. Small-business and
   Idaho recovery merges changed no files. Records commerce's 10 changed archive

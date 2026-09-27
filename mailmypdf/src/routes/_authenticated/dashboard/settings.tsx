@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Suspense, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserProfile, updateUserProfile } from "@/lib/user.functions";
+import { ConnectedApps } from "@/components/ConnectedApps";
 
 export const Route = createFileRoute("/_authenticated/dashboard/settings")({
   head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
@@ -140,6 +141,8 @@ function SettingsPage() {
           </button>
         </form>
       </div>
+
+      <ConnectedApps />
 
       {/* Password change */}
       <div className="envelope-card p-6">

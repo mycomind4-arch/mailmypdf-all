@@ -259,15 +259,9 @@ export async function executeDurableConnectorOperation<TResult>(input: {
     };
   }
 
+  let output: TResult;
   try {
-    const output = await input.execute();
-    const succeeded = await transitionStoredConnectorOperation(
-      repository,
-      running,
-      "succeeded",
-      { now: new Date().toISOString(), result: output },
-    );
-    return { operation: succeeded, replayed: !begun.created, output };
+    output = await input.execute();
   } catch (error) {
     try {
       await transitionStoredConnectorOperation(repository, running, "failed", {
@@ -279,6 +273,32 @@ export async function executeDurableConnectorOperation<TResult>(input: {
       // error. A running row remains visible for operational reconciliation.
     }
     throw error;
+  }
+
+  // The action has completed. A lost database acknowledgement must never
+  // relabel it as a failed action or encourage a second checkout/mailing.
+  try {
+    const succeeded = await transitionStoredConnectorOperation(
+      repository,
+      running,
+      "succeeded",
+      { now: new Date().toISOString(), result: output },
+    );
+    return { operation: succeeded, replayed: !begun.created, output };
+  } catch {
+    try {
+      const current = await repository.loadOwned(input.context.user.id, running.id);
+      if (current) {
+        return {
+          operation: current as ConnectorOperation<TResult>,
+          replayed: !begun.created,
+          ...(current.state === "succeeded" ? { output: current.result as TResult } : {}),
+        };
+      }
+    } catch {
+      // Keep the last confirmed running state for polling/reconciliation.
+    }
+    return { operation: running, replayed: !begun.created };
   }
 }
 
@@ -305,6 +325,9 @@ export function publicConnectorOperation(
     revision: operation.revision,
     createdAt: operation.createdAt,
     updatedAt: operation.updatedAt,
+    ...(operation.state === "running"
+      ? { nextAction: "Check get_operation_status using this operation id. The action may have completed; do not repeat it with a new idempotency key." }
+      : {}),
     ...(operation.requiredAction ? { requiredAction: operation.requiredAction } : {}),
     ...(operation.state === "succeeded" && options.includeResult !== false
       ? { result: operation.result }

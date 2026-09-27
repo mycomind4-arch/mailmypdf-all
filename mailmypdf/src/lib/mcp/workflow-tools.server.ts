@@ -105,6 +105,15 @@ function operationResponse(
   execution: ConnectorOperationExecution<unknown>,
 ): Record<string, unknown> {
   const operation = publicConnectorOperation(execution.operation, { includeResult: false });
+  if (execution.operation.state === "failed" || execution.operation.state === "cancelled") {
+    throw new McpToolExecutionError(
+      409,
+      execution.operation.state === "failed"
+        ? "The saved connector operation failed. Check its status before starting another action."
+        : "The saved connector operation was cancelled.",
+      { connectorOperation: operation, connectorReplay: execution.replayed },
+    );
+  }
   if (
     execution.output &&
     typeof execution.output === "object" &&
