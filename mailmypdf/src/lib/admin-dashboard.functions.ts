@@ -55,7 +55,16 @@ export const getDashboardOverview = createServerFn({ method: "GET" })
       .from("orders")
       .select("price_cents, paid_at, status")
       .not("paid_at", "is", null)
-      .in("status", ["paid_pending_manual_fulfillment", "manual_fulfillment_in_progress", "submitted_to_provider", "provider_processing", "mailed"]);
+      .in("status", [
+        "paid_pending_manual_fulfillment",
+        "manual_fulfillment_in_progress",
+        "submitted_to_provider",
+        "provider_processing",
+        "mailed",
+        "in_transit",
+        "delivered",
+        "returned",
+      ]);
 
     const allPaidOrders = revenueData ?? [];
     const totalRevenue = allPaidOrders.reduce((s, o) => s + (o.price_cents ?? 0), 0);
@@ -191,7 +200,16 @@ export const getRevenueSeries = createServerFn({ method: "GET" })
       .select("price_cents, paid_at, status")
       .not("paid_at", "is", null)
       .gte("paid_at", daysAgo(30))
-      .in("status", ["paid_pending_manual_fulfillment", "manual_fulfillment_in_progress", "submitted_to_provider", "provider_processing", "mailed"])
+      .in("status", [
+        "paid_pending_manual_fulfillment",
+        "manual_fulfillment_in_progress",
+        "submitted_to_provider",
+        "provider_processing",
+        "mailed",
+        "in_transit",
+        "delivered",
+        "returned",
+      ])
       .order("paid_at", { ascending: true });
 
     // Group by day
