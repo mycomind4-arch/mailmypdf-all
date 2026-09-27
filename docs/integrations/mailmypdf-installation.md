@@ -8,10 +8,24 @@ the future `.ai` domain; use the explicit Workers endpoint for a custom connecti
 
 The current live Worker is an older release: `/api/mcp` returned the HTML
 not-found page, not MCP. Its public authentication configuration identifies
-Supabase project `akpjuhrzypmcbivgsegt`. That project's OAuth discovery currently
-returns `404 feature_disabled`. Neither local CLI credentials nor the connected
-Supabase integration has management access to it. Do not use the unrelated
-Private Office project or bypass production preflight to publish the new server.
+Supabase project `akpjuhrzypmcbivgsegt`. OAuth discovery now succeeds and advertises
+dynamic client registration and PKCE S256; both the connected Supabase integration
+and local CLI can identify the correct project. The CLI's automatic database-login
+role endpoint is denied, so manual exports required a privately entered database
+password. Do not use the unrelated Private Office project or bypass production
+preflight to publish the new server.
+
+The live project's migration history is empty despite existing application tables.
+The document vault, workflow-case, and connector-operation tables are absent.
+A private roles/schema/data export has been completed, its SHA-256 checksums
+verified, and the full export restored into a network-isolated local Supabase
+database. All 25 migrations from `20260820163000` onward, including the new
+server-only workflow approval correction, passed there. Both executable SQL
+security suites passed. Counts across all 49 backed-up tables were preserved,
+except for the expected addition of the secure-document bucket. This does not
+back up uploaded Storage file contents or dashboard configuration. Production
+migrations are still unapplied. Do not blindly replay the old table-creation
+migrations or mark missing migrations as applied.
 
 ## Deployment checklist
 

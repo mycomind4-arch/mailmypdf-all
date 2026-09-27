@@ -66,6 +66,49 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verification ledger
 
+### 2026-09-26 — production backup rehearsal and approval permission correction
+
+- Correct project `akpjuhrzypmcbivgsegt` is now accessible through the Supabase
+  integration and local CLI. User enabled hosted OAuth/DCR; discovery advertises
+  registration and PKCE S256. The CLI's automatic login-role endpoint returned
+  403, so the user supplied a database password privately in Terminal for export.
+  No password, account/session data, or backup SQL was committed.
+- Exported roles, schema, and data outside Git under a private home-directory
+  backup folder (directory 0700, SQL files 0600). All three SHA-256 checksums
+  passed. Storage object contents and dashboard settings are NOT included.
+- Restored the complete export transactionally into local Supabase PostgreSQL
+  17.6.1.155. Before importing private records, stopped the local Auth service
+  and disconnected the database container from its Docker network. The first
+  restore as `postgres` correctly failed on a reserved-role statement and rolled
+  back; the isolated-local-superuser restore succeeded without editing the dump.
+- Rehearsed all 25 repository migrations from `20260820163000` through
+  `20260927020000` against that restored copy: all passed. Compared row counts for
+  all 49 backed-up tables afterward: no unexpected changes; only the expected
+  additional `secure-documents` bucket. Existing account/application records were
+  preserved. Both `tests/sql/entitlement-security.sql` and the new
+  `tests/sql/workflow-approval-security.sql` passed with synthetic changes rolled
+  back. Local verification logs remain private alongside the export.
+- Found a genuine permission regression: `20260920100000` replaces the secured
+  eight-argument `approve_case_packet` with a nine-argument function and regrants
+  authenticated EXECUTE. Added a forward-only correction, preserving server-role
+  access and the existing server-side exact-document/price checks. The new
+  ordered-migration regression failed before the fix and passed afterward;
+  executable SQL checks all extant trusted RPC overloads for client exclusion.
+- Found duplicate `[auth.oauth_server]` TOML tables in the host's Supabase config.
+  The CLI reproduced `table oauth_server already exists`. Removed only the stale
+  disabled duplicate; new regression reproduced the failure then passed. CLI
+  parsing now succeeds (no host-local database container is expected to exist).
+- Application `.mjs` suite passed from `mailmypdf/`; an initial invocation from
+  repository root failed because several existing tests resolve paths from cwd.
+  Focused approval/ownership tests 5/5 and local-config test 1/1 passed;
+  `git diff --check` passed. No application production deployment, production
+  migration/history repair, live payment, or mailing was performed.
+- Remaining: reconcile the empty production migration ledger with existing
+  legacy schema; apply reviewed forward changes safely; configure scanner,
+  scheduler/webhook/email secrets; pass production preflight; deploy and verify
+  real client OAuth. Initial full local-stack startup failed an auxiliary service
+  health check; the minimal DB/Auth setup succeeded and was used for the rehearsal.
+
 ### 2026-09-26 — MCP branch integration and installation blockers
 
 - Checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, `main`; no history rewritten
