@@ -95,8 +95,10 @@ test("insurance appeal facts are trimmed and evidence review defaults fail close
     reasonsForDisagreement: "Reason",
     requestedOutcome: "Review",
     evidenceReviewComplete: true,
+    factsConfirmed: true,
   });
   assert.equal(reviewed.evidenceReviewComplete, true);
+  assert.equal(reviewed.factsConfirmed, true);
 
   assert.throws(
     () => validateInsuranceAppealRuntimeInput({
@@ -203,6 +205,7 @@ test("insurance evidence review is bound to the exact current source and evidenc
       reasonsForDisagreement: "The denial does not address the current record.",
       requestedOutcome: "Reconsider the denial.",
       evidenceReviewComplete: true,
+      factsConfirmed: true,
       evidenceReviewFingerprint: "client-spoofed-value",
     },
     analysis(),
@@ -276,3 +279,32 @@ test("insurance drafting fails closed until evidence review is explicitly comple
   );
 });
 
+
+
+test("insurance drafting also requires explicit fact confirmation", () => {
+  const workflowId = "appeal-insurance-claim-denial";
+  const policy = getInsuranceAppealRuntimePolicy(workflowId)!;
+  const currentMatter = matterSnapshot(workflowId, [cleanSource]);
+  const normalized = policy.validateInput(
+    {
+      claimantName: "Jane Doe",
+      claimantAddress: "1 Main St",
+      reasonsForDisagreement: "The denial does not address the supplied facts.",
+      requestedOutcome: "Reconsider the denial.",
+      evidenceReviewComplete: true,
+      factsConfirmed: false,
+    },
+    analysis(),
+    currentMatter,
+  );
+
+  assert.throws(
+    () =>
+      policy.validateBeforeDraft?.({
+        matter: currentMatter,
+        caseInput: reviewedInput(normalized),
+        analysis: analysis(),
+      }),
+    /confirm the material appeal facts/i,
+  );
+});
