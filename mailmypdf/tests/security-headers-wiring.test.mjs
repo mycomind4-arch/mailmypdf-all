@@ -14,6 +14,13 @@ test("Worker boundary applies the shared security headers to success and error r
   assert.match(server, /return applySecurityHeaders\(new Response\(renderErrorPage\(\)/);
 });
 
+test("unknown runtime environment defaults to production security posture", async () => {
+  const headers = await source("src/lib/security-headers.ts");
+  assert.match(headers, /NODE_ENV === "development"/);
+  assert.match(headers, /NODE_ENV === "test"/);
+  assert.doesNotMatch(headers, /NODE_ENV !== "production"/);
+});
+
 test("CSP permits the external resources that the root shell can intentionally load", async () => {
   const headers = await source("src/lib/security-headers.ts");
   assert.match(headers, /https:\/\/fonts\.googleapis\.com/);
