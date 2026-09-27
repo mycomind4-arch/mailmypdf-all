@@ -202,13 +202,22 @@ export function certifyWorkflowChatReadiness(input: {
   }
 
   for (const field of contract.connectorFields ?? []) {
-    if (runtimeBindings.has(field.id)) {
+    const existing = runtimeBindings.get(field.id);
+    if (existing?.connector) {
       diagnostics.push({
         code: "DUPLICATE_RUNTIME_FIELD_BINDING",
         fieldId: field.id,
-        message: `Runtime chat field ${field.id} is bound more than once.`,
+        message: `Runtime chat connector field ${field.id} is bound more than once.`,
       });
       continue;
+    }
+    if (existing && existing.required !== field.required) {
+      diagnostics.push({
+        code: "FIELD_REQUIREDNESS_MISMATCH",
+        fieldId: field.id,
+        message:
+          `Runtime input and connector bindings disagree about whether ${field.id} is required.`,
+      });
     }
     if (!supportedConnectorFieldBinding(field)) {
       diagnostics.push({
@@ -219,7 +228,10 @@ export function certifyWorkflowChatReadiness(input: {
           `Chat protocol does not yet support binding ${field.id} to ${field.toolName}.${field.argumentName}.`,
       });
     }
-    runtimeBindings.set(field.id, { required: field.required, connector: field });
+    runtimeBindings.set(field.id, {
+      required: existing?.required ?? field.required,
+      connector: field,
+    });
   }
 
   for (const [fieldId, manifestField] of manifestFieldMap) {
