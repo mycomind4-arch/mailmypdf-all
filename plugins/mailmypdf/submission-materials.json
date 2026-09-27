@@ -134,6 +134,11 @@
       "readOnlyHint": "False because it creates or reuses an approval-bound order and Stripe-hosted Checkout Session.",
       "destructiveHint": "False because it does not accept card credentials, charge the user, or submit mail; payment still requires user action on hosted checkout.",
       "openWorldHint": "True because it communicates with Stripe to create or retrieve the hosted Checkout Session."
+    },
+    "get_workflow_state": {
+      "readOnlyHint": "True because it only reads owner-scoped matter, workflow, document, draft, approval, and order state to derive safe next actions.",
+      "destructiveHint": "False because it cannot change workflow state, approve a packet, create checkout, charge payment, or submit mail.",
+      "openWorldHint": "False because it derives guidance only from bounded MailMyPDF records and registered workflow contracts without contacting external providers."
     }
   },
   "manualSubmissionRequirements": [
