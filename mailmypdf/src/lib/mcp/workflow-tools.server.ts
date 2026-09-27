@@ -296,6 +296,22 @@ export async function executeMcpTool(
         `Workflow ${workflowId} belongs to section ${workflow.sectionId}, not ${sectionId}`,
       );
     }
+    const registration = getMcpWorkflowProtocolRegistration(workflowId);
+    if (!registration?.certification.certified || !registration.definition) {
+      throw new McpToolExecutionError(
+        409,
+        `Workflow ${workflowId} is not certified for chat-guided execution.`,
+        {
+          code: registration
+            ? "WORKFLOW_CHAT_READINESS_NOT_CERTIFIED"
+            : "WORKFLOW_PROTOCOL_NOT_REGISTERED",
+          workflowId,
+          ...(registration
+            ? { chatReadiness: registration.certification }
+            : {}),
+        },
+      );
+    }
     return callRuntime(request, "/api/workflow-runtime/matters", "POST", {
       workflowId,
       verticalId: sectionId,
