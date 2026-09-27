@@ -7,6 +7,7 @@ import type {
   WorkflowRuntimeStoredEvent,
 } from "../../matter-runtime-server.js";
 import { recordRecordsResponse } from "./tracking.js";
+import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 
 export const RECORDS_REQUEST_VERTICAL_ID = "records-request";
 
@@ -39,6 +40,15 @@ function optionalBoolean(value: unknown, label: string): boolean | undefined {
   return value;
 }
 
+function inputValue(
+  input: Record<string, unknown>,
+  manifestId: string,
+  legacyId?: string,
+): unknown {
+  if (Object.prototype.hasOwnProperty.call(input, manifestId)) return input[manifestId];
+  return legacyId ? input[legacyId] : undefined;
+}
+
 function storedText(input: Record<string, unknown>, key: string): string {
   const value = input[key];
   return typeof value === "string" ? value.trim() : "";
@@ -46,10 +56,10 @@ function storedText(input: Record<string, unknown>, key: string): string {
 
 function hasAuthorityClaim(input: Record<string, unknown>): boolean {
   return [
-    input.authorityName,
-    input.authorityCitation,
-    input.responseTimingDescription,
-    input.withholdingInstruction,
+    inputValue(input, "authority-name", "authorityName"),
+    inputValue(input, "authority-citation", "authorityCitation"),
+    inputValue(input, "response-timing-description", "responseTimingDescription"),
+    inputValue(input, "withholding-instruction", "withholdingInstruction"),
   ].some((value) => typeof value === "string" && value.trim().length > 0);
 }
 
@@ -73,6 +83,49 @@ export function createRecordsRequestRuntimePolicy(
   workflowId: RecordsRequestRuntimeWorkflowId,
 ): WorkflowRuntimePolicy {
   return {
+    chatContract: defineWorkflowRuntimeChatContract({
+      sourceDocument: "optional",
+      inputFields: [
+        { id: "requester-name", required: true },
+        { id: "requester-address", required: true },
+        { id: "requester-email", required: false },
+        { id: "requester-phone", required: false },
+        { id: "agency", required: true },
+        { id: "custodian", required: false },
+        { id: "agency-address", required: true },
+        { id: "records-sought", required: true },
+        { id: "date-range", required: false },
+        { id: "case-reference", required: false },
+        { id: "property-reference", required: false },
+        { id: "preferred-format", required: false },
+        { id: "fee-limit", required: false },
+        { id: "fee-waiver-basis", required: false },
+        { id: "additional-instructions", required: false },
+        { id: "scope-confirmed", required: true },
+        { id: "context-reviewed", required: true },
+        { id: "jurisdiction", required: false },
+        { id: "authority-name", required: false },
+        { id: "authority-citation", required: false },
+        { id: "response-timing-description", required: false },
+        { id: "withholding-instruction", required: false },
+        { id: "authority-verified", required: false },
+        { id: "authority-reviewed", required: true },
+      ],
+      connectorFields: [
+        {
+          id: "agency-address",
+          required: true,
+          toolName: "preview_packet",
+          argumentName: "recipient",
+        },
+      ],
+      enforcedGateIds: [
+        "scope-confirmed",
+        "authority-grounding",
+        "exact-packet-review",
+        "mailing-authorization",
+      ],
+    }),
     requiresSourceDocument: false,
 
     validateMatter(input) {
@@ -129,30 +182,30 @@ export function createRecordsRequestRuntimePolicy(
 
     validateInput(input) {
       const normalized = {
-        requesterName: text(input.requesterName, "Requester name", 200, true),
-        requesterAddress: text(input.requesterAddress, "Requester mailing address", 1000, true),
-        requesterEmail: text(input.requesterEmail, "Requester email", 320),
-        requesterPhone: text(input.requesterPhone, "Requester phone", 60),
+        requesterName: text(inputValue(input, "requester-name", "requesterName"), "Requester name", 200, true),
+        requesterAddress: text(inputValue(input, "requester-address", "requesterAddress"), "Requester mailing address", 1000, true),
+        requesterEmail: text(inputValue(input, "requester-email", "requesterEmail"), "Requester email", 320),
+        requesterPhone: text(inputValue(input, "requester-phone", "requesterPhone"), "Requester phone", 60),
         agency: text(input.agency, "Agency or public body", 300, true),
         custodian: text(input.custodian, "Records custodian or department", 300),
-        agencyAddress: text(input.agencyAddress, "Agency mailing address", 1000, true),
-        recordsSought: text(input.recordsSought, "Records sought", 16000, true),
-        dateRange: text(input.dateRange, "Relevant date range", 500),
-        caseReference: text(input.caseReference, "Case or matter reference", 200),
-        propertyReference: text(input.propertyReference, "Property or subject reference", 1000),
-        preferredFormat: text(input.preferredFormat, "Preferred production format", 300),
-        feeLimit: text(input.feeLimit, "Fee limit", 128),
-        feeWaiverBasis: text(input.feeWaiverBasis, "Fee waiver basis", 4000),
+        agencyAddress: text(inputValue(input, "agency-address", "agencyAddress"), "Agency mailing address", 1000, true),
+        recordsSought: text(inputValue(input, "records-sought", "recordsSought"), "Records sought", 16000, true),
+        dateRange: text(inputValue(input, "date-range", "dateRange"), "Relevant date range", 500),
+        caseReference: text(inputValue(input, "case-reference", "caseReference"), "Case or matter reference", 200),
+        propertyReference: text(inputValue(input, "property-reference", "propertyReference"), "Property or subject reference", 1000),
+        preferredFormat: text(inputValue(input, "preferred-format", "preferredFormat"), "Preferred production format", 300),
+        feeLimit: text(inputValue(input, "fee-limit", "feeLimit"), "Fee limit", 128),
+        feeWaiverBasis: text(inputValue(input, "fee-waiver-basis", "feeWaiverBasis"), "Fee waiver basis", 4000),
         jurisdiction: text(input.jurisdiction, "Jurisdiction", 300),
-        authorityName: text(input.authorityName, "Authority name", 500),
-        authorityCitation: text(input.authorityCitation, "Authority citation", 500),
-        responseTimingDescription: text(input.responseTimingDescription, "Response timing description", 3000),
-        withholdingInstruction: text(input.withholdingInstruction, "Withholding instruction", 3000),
-        authorityVerified: optionalBoolean(input.authorityVerified, "Authority verified") ?? false,
-        scopeConfirmed: optionalBoolean(input.scopeConfirmed, "Scope confirmed") ?? false,
-        contextReviewed: optionalBoolean(input.contextReviewed, "Context reviewed") ?? false,
-        authorityReviewed: optionalBoolean(input.authorityReviewed, "Authority reviewed") ?? false,
-        additionalInstructions: text(input.additionalInstructions, "Additional instructions", 6000),
+        authorityName: text(inputValue(input, "authority-name", "authorityName"), "Authority name", 500),
+        authorityCitation: text(inputValue(input, "authority-citation", "authorityCitation"), "Authority citation", 500),
+        responseTimingDescription: text(inputValue(input, "response-timing-description", "responseTimingDescription"), "Response timing description", 3000),
+        withholdingInstruction: text(inputValue(input, "withholding-instruction", "withholdingInstruction"), "Withholding instruction", 3000),
+        authorityVerified: optionalBoolean(inputValue(input, "authority-verified", "authorityVerified"), "Authority verified") ?? false,
+        scopeConfirmed: optionalBoolean(inputValue(input, "scope-confirmed", "scopeConfirmed"), "Scope confirmed") ?? false,
+        contextReviewed: optionalBoolean(inputValue(input, "context-reviewed", "contextReviewed"), "Context reviewed") ?? false,
+        authorityReviewed: optionalBoolean(inputValue(input, "authority-reviewed", "authorityReviewed"), "Authority reviewed") ?? false,
+        additionalInstructions: text(inputValue(input, "additional-instructions", "additionalInstructions"), "Additional instructions", 6000),
       };
 
       if (!normalized.scopeConfirmed) {
@@ -169,10 +222,10 @@ export function createRecordsRequestRuntimePolicy(
     },
 
     validateBeforeDraft({ caseInput }) {
-      if (caseInput.input.contextReviewed !== true) {
+      if (caseInput.inputValue(input, "context-reviewed", "contextReviewed") !== true) {
         throw new Error("Complete the context review before drafting.");
       }
-      if (caseInput.input.authorityReviewed !== true) {
+      if (caseInput.inputValue(input, "authority-reviewed", "authorityReviewed") !== true) {
         throw new Error("Complete the authority review before drafting.");
       }
     },
@@ -182,10 +235,10 @@ export function createRecordsRequestRuntimePolicy(
     },
 
     validateBeforePacket({ caseInput }) {
-      if (caseInput.input.contextReviewed !== true) {
+      if (caseInput.inputValue(input, "context-reviewed", "contextReviewed") !== true) {
         throw new Error("Complete the context review before packet assembly.");
       }
-      if (caseInput.input.authorityReviewed !== true) {
+      if (caseInput.inputValue(input, "authority-reviewed", "authorityReviewed") !== true) {
         throw new Error("Complete the authority review before packet assembly.");
       }
     },
