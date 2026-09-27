@@ -34,6 +34,8 @@ Also verify the required `order-pdfs` and `secure-documents` storage buckets and
 
 The production deployment must point at the intended MailMyPDF Supabase project. Do not substitute another project merely because it is reachable.
 
+Set `MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF` to that exact hosted project ref. The production preflight fails if it is missing or if `SUPABASE_URL` points somewhere else.
+
 ## 3. Required production secrets
 
 Configure server-side secrets in Cloudflare Workers. Never expose secret/service-role values through `VITE_` variables.
