@@ -137,3 +137,40 @@ test("response events require a trusted actual-send event", () => {
   assert.equal(event?.type, "records_response_not_received");
   assert.equal(event?.occurredOn, "2026-10-01");
 });
+
+
+test("manifest-style chat field ids normalize into the existing stored input contract", () => {
+  const policy = recordsRequestRuntimePolicyFor("public-records-request")!;
+  const normalized = policy.validateInput(
+    {
+      "requester-name": "Jordan Example",
+      "requester-address": "123 Main St, Eureka, CA 95501",
+      agency: "Example County",
+      "agency-address": "825 5th St, Eureka, CA 95501",
+      "records-sought": "Inspection records for parcel 000-000-000",
+      "scope-confirmed": true,
+      "context-reviewed": true,
+      "authority-reviewed": true,
+    },
+    null,
+    {
+      matter: {
+        id: "matter-chat",
+        workflowId: "public-records-request",
+        verticalId: "records-request",
+        status: "active",
+        createdAt: "2026-09-27T00:00:00.000Z",
+        updatedAt: "2026-09-27T00:00:00.000Z",
+      },
+      documents: [],
+    },
+  );
+
+  assert.equal(normalized.requesterName, "Jordan Example");
+  assert.equal(normalized.requesterAddress, "123 Main St, Eureka, CA 95501");
+  assert.equal(normalized.agencyAddress, "825 5th St, Eureka, CA 95501");
+  assert.equal(normalized.recordsSought, "Inspection records for parcel 000-000-000");
+  assert.equal(normalized.scopeConfirmed, true);
+  assert.equal(normalized.contextReviewed, true);
+  assert.equal(normalized.authorityReviewed, true);
+});
