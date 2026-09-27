@@ -113,11 +113,14 @@ test("public workflow discovery reports certified chat execution separately", as
 
 test("MCP matter creation fails before runtime access for uncertified workflows", async () => {
   const request = new Request("https://mailmypdf.ai/api/mcp");
+  const workflow = getWorkflowDescriptor("police-records-request");
+  assert.ok(workflow);
+
   await assert.rejects(
     () =>
       executeMcpTool(request, "create_matter", {
-        workflow_id: "police-records-request",
-        section_id: "records-request",
+        workflow_id: workflow.workflowId,
+        section_id: workflow.sectionId,
       }),
     (error: unknown) =>
       error instanceof Error &&
