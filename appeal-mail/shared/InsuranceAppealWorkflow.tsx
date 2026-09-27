@@ -54,6 +54,7 @@ interface AppealFacts {
   reasonsForDisagreement: string;
   requestedOutcome: string;
   additionalFacts: string;
+  factsConfirmed: boolean;
   evidenceReviewComplete: boolean;
 }
 
@@ -78,6 +79,7 @@ function emptyFacts(defaultRequestedOutcome: string): AppealFacts {
     reasonsForDisagreement: "",
     requestedOutcome: defaultRequestedOutcome,
     additionalFacts: "",
+    factsConfirmed: false,
     evidenceReviewComplete: false,
   };
 }
@@ -141,7 +143,7 @@ const deriveInsuranceAppealStepStatuses: DeriveSteps = (context) => {
   const hasCleanDecision = sourceReady(sourceDocument);
   const hasAnalysis = Boolean(context.analysis?.result.summary?.trim());
   const storedFacts = (context.input?.input ?? {}) as Partial<AppealFacts>;
-  const hasFacts = Boolean(context.input);
+  const hasFacts = Boolean(context.input) && storedFacts.factsConfirmed === true;
   const hasEvidenceReview =
     storedFacts.evidenceReviewComplete === true &&
     (storedFacts as { evidenceReviewFingerprint?: string }).evidenceReviewFingerprint ===
@@ -344,12 +346,12 @@ function InsuranceAppealWorkflowActive({
       completedInsuranceAppealSteps({
         hasCleanDecision: hasCleanSource,
         hasAnalysis: analysisReady,
-        hasFacts: factsSaved,
-        hasEvidenceReview: factsSaved && facts.evidenceReviewComplete,
+        hasFacts: factsSaved && facts.factsConfirmed,
+        hasEvidenceReview: factsSaved && facts.factsConfirmed && facts.evidenceReviewComplete,
         hasDraft: draftSaved,
         hasApproval: Boolean(approvalId),
       }),
-    [hasCleanSource, analysisReady, factsSaved, facts.evidenceReviewComplete, draftSaved, approvalId],
+    [hasCleanSource, analysisReady, factsSaved, facts.factsConfirmed, facts.evidenceReviewComplete, draftSaved, approvalId],
   );
 
   const currentStep = steps[stepIndex] ?? steps[0]!;
@@ -642,8 +644,8 @@ function InsuranceAppealWorkflowActive({
   function stepReady(step: InsuranceAppealStepId): boolean {
     if (step === "decision") return hasCleanSource;
     if (step === "analysis") return analysisReady;
-    if (step === "facts") return factsSaved;
-    if (step === "evidence") return factsSaved && facts.evidenceReviewComplete;
+    if (step === "facts") return factsSaved && facts.factsConfirmed;
+    if (step === "evidence") return factsSaved && facts.factsConfirmed && facts.evidenceReviewComplete;
     if (step === "draft") return draftSaved;
     if (step === "review") return Boolean(approvalId);
     return false;
@@ -668,8 +670,8 @@ function InsuranceAppealWorkflowActive({
         items={[
           { id: "source", label: `${primaryDocumentLabel} cleared security scanning`, done: hasCleanSource },
           { id: "analysis", label: "Denial analyzed", done: analysisReady },
-          { id: "facts", label: "Appeal facts confirmed", done: factsSaved },
-          { id: "evidence", label: "Current supporting evidence reviewed", done: factsSaved && facts.evidenceReviewComplete },
+          { id: "facts", label: "Appeal facts confirmed", done: factsSaved && facts.factsConfirmed },
+          { id: "evidence", label: "Current supporting evidence reviewed", done: factsSaved && facts.factsConfirmed && facts.evidenceReviewComplete },
           { id: "draft", label: "Appeal draft reviewed and saved", done: draftSaved },
           { id: "approval", label: "Exact packet approved", done: Boolean(approvalId) },
         ]}
@@ -808,6 +810,11 @@ function InsuranceAppealWorkflowActive({
           <Field label="Additional facts">
             <TextArea rows={5} value={facts.additionalFacts} onChange={(event) => updateFact("additionalFacts", event.target.value)} />
           </Field>
+          <CheckboxField
+            checked={facts.factsConfirmed}
+            onChange={() => updateFact("factsConfirmed", !facts.factsConfirmed)}
+            label="I reviewed and confirm the material facts used in this appeal."
+          />
         </SectionCard>
       )}
 
@@ -821,7 +828,7 @@ function InsuranceAppealWorkflowActive({
                 className="wf-btn wf-btn--primary"
                 type="button"
                 onClick={() => void completeEvidenceReview()}
-                disabled={!factsSaved || Boolean(busy)}
+                disabled={!factsSaved || !facts.factsConfirmed || Boolean(busy)}
               >
                 {busy === "review-evidence"
                   ? "Saving review…"
@@ -880,7 +887,7 @@ function InsuranceAppealWorkflowActive({
                 className="wf-btn wf-btn--outline"
                 type="button"
                 onClick={() => void generateDraft()}
-                disabled={!factsSaved || !facts.evidenceReviewComplete || Boolean(busy)}
+                disabled={!factsSaved || !facts.factsConfirmed || !facts.evidenceReviewComplete || Boolean(busy)}
               >
                 Generate draft
               </button>
