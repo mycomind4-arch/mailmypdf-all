@@ -767,6 +767,7 @@ test("exact packet PDF resource requires OAuth before packet materialization", a
   assert.match(challenge, /scope="email profile"/);
 });
 
+
 test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata", async () => {
   const missingName = await handleMailMyPdfMcpRequest(
     modernMcpRequest(
