@@ -33,7 +33,7 @@ function PrivacyPage() {
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Document retention</h2>
-            <p className="mt-3">Uploaded documents are retained for a limited period after your order is fulfilled to support reprints, proof of mailing, and dispute resolution. After the retention period, documents are permanently deleted. You can request earlier deletion at any time. See our <a href="/retention" className="text-cobalt hover:underline">Data Retention Policy</a> for details.</p>
+            <p className="mt-3">Uploaded documents are retained for a limited period after your order is fulfilled to support reprints, mailing records, and dispute resolution. After the retention period, documents are permanently deleted. You can request earlier deletion at any time. See our <a href="/retention" className="text-cobalt hover:underline">Data Retention Policy</a> for details.</p>
           </section>
 
           <section>

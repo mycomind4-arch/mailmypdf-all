@@ -34,7 +34,7 @@ function mailTypeToLobExtraService(mailType: MailType): MailClass | undefined {
     case "certified":
       return "certified";
     case "certified_return_receipt":
-      return "certified"; // Lob handles return receipt via electronic delivery
+      return "certified_return_receipt";
     case "registered":
       return "registered";
     default:

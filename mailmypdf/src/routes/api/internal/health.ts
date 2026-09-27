@@ -52,8 +52,8 @@ async function checkStripe(): Promise<HealthCheck> {
 }
 
 async function checkLob(): Promise<HealthCheck> {
-  const lobKey = process.env.LOB_SECRET_KEY ?? process.env.LOB_SANDBOX_SECRET_KEY;
-  if (!lobKey) {
+  const config = getConfig();
+  if (!config.lob.apiKey) {
     return { name: "lob", status: "degraded", message: "Lob not configured" };
   }
   return { name: "lob", status: "healthy", message: "Configured" };

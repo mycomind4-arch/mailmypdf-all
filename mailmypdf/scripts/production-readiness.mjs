@@ -6,8 +6,8 @@
  * Read-only. It never prints credential values, creates payments, or submits mail.
  *
  * Usage:
- *   pnpm --filter ./apps/mailmypdf verify:production-config
- *   pnpm --filter ./apps/mailmypdf verify:production-config -- --live
+ *   pnpm --filter ./mailmypdf verify:production-config
+ *   pnpm --filter ./mailmypdf verify:production-config -- --live
  *
  * --live adds harmless connectivity/schema probes against Supabase and the malware
  * scanner. Stripe/Lob credentials are format-checked only; no provider operation is
@@ -15,7 +15,7 @@
  */
 
 const EXPECTED_SUPABASE_PROJECT_REF =
-  process.env.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF || "ntbnqkbhabjdbiqzoefk";
+  process.env.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF?.trim() || null;
 const live = process.argv.includes("--live");
 
 const results = [];
@@ -60,13 +60,20 @@ const serverKey = value("SUPABASE_SECRET_KEY") || value("SUPABASE_SERVICE_ROLE_K
 if (serverKey) pass("Supabase server secret", "configured");
 else fail("Supabase server secret", "set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY");
 
+if (!EXPECTED_SUPABASE_PROJECT_REF) {
+  fail(
+    "MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF",
+    "missing — set this to the intended production Supabase project ref",
+  );
+}
+
 if (supabaseUrl) {
   try {
     const host = new URL(supabaseUrl).hostname;
     const ref = host.endsWith(".supabase.co") ? host.slice(0, -".supabase.co".length) : null;
-    if (ref === EXPECTED_SUPABASE_PROJECT_REF) {
+    if (EXPECTED_SUPABASE_PROJECT_REF && ref === EXPECTED_SUPABASE_PROJECT_REF) {
       pass("Canonical Supabase project", ref);
-    } else {
+    } else if (EXPECTED_SUPABASE_PROJECT_REF) {
       fail("Canonical Supabase project", `expected ${EXPECTED_SUPABASE_PROJECT_REF}; configured URL points to ${ref || host}`);
     }
   } catch {
@@ -113,6 +120,16 @@ const lobWebhook = value("LOB_WEBHOOK_SECRET");
 if (!lobWebhook) fail("LOB_WEBHOOK_SECRET", "missing");
 else pass("LOB_WEBHOOK_SECRET", "configured");
 
+requireSecret("MAILMYPDF_CLEANUP_SECRET", 32);
+
+const resendKey = value("RESEND_API_KEY");
+if (resendKey) pass("RESEND_API_KEY", "configured");
+else fail("RESEND_API_KEY", "missing — payment and mailing confirmations need transactional email");
+
+const resendFrom = value("RESEND_FROM_ADDRESS");
+if (resendFrom) pass("RESEND_FROM_ADDRESS", "configured");
+else fail("RESEND_FROM_ADDRESS", "missing — configure a sender on a verified email domain");
+
 const autoSubmit = String(value("AUTO_SUBMIT_TO_LOB") || "false").toLowerCase() === "true";
 if (autoSubmit) warn("AUTO_SUBMIT_TO_LOB", "enabled — use only after controlled end-to-end verification");
 else pass("AUTO_SUBMIT_TO_LOB", "disabled");
@@ -141,6 +158,7 @@ if (live && supabaseUrl && serverKey) {
 
   const schemaProbes = [
     ["orders workflow bridge", "/rest/v1/orders?select=id,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents&limit=0"],
+    ["orders delivery evidence", "/rest/v1/orders?select=id,document_sha256,tracking_number,expected_delivery_date,delivered_at,last_tracking_event&limit=0"],
     ["workflow_cases", "/rest/v1/workflow_cases?select=id,status&limit=0"],
     ["case_approvals", "/rest/v1/case_approvals?select=id,packet_sha256&limit=0"],
     ["secure_documents", "/rest/v1/secure_documents?select=id,security_status&limit=0"],

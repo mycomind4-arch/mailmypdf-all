@@ -29,8 +29,11 @@ if ! grep -q 'preset: "cloudflare_module"' vite.config.ts; then
   exit 1
 fi
 
+echo "🔎 Running production readiness preflight..."
+pnpm verify:production-config -- --live
+
 echo "📦 Building..."
-npm run build
+pnpm build
 
 echo "🔧 Adding cron triggers to wrangler config..."
 cd .output/server

@@ -15,6 +15,8 @@
     "seo:authority:validate": "tsx scripts/validate-workflow-authority.ts",
     "verify:launch": "npm test && npm run seo:authority:validate && npm run seo:landing:validate && npm run build",
     "verify:production-config": "node scripts/production-readiness.mjs",
+    "verify:canary": "node scripts/verify-canary.mjs",
+    "verify:deployment": "node scripts/verify-deployment.mjs",
     "seo:landing:validate": "tsx scripts/validate-public-workflow-landings.ts",
     "mcp:smoke": "node scripts/mcp-smoke.mjs",
     "mcp:e2e:document": "node scripts/mcp-document-e2e.mjs"

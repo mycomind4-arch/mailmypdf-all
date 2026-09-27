@@ -1,5 +1,7 @@
 # MailMyPDF — Production Baseline Audit
 
+> **Historical snapshot only.** This document records the August 21, 2026 state and must not be used as a current go-live approval. For current production requirements use `docs/PRODUCTION_LAUNCH_RUNBOOK.md` and run `pnpm verify:production-config -- --live`. A successful code build does not replace the Stripe → Lob sandbox/live canaries.
+
 **Date:** 2026-08-21
 **Branch:** main (commit c0c2946)
 **Deployment:** Cloudflare Workers (mailmypdf.mycomind4.workers.dev)

@@ -23,7 +23,7 @@ function TermsPage() {
         <div className="mt-10 space-y-8 text-sm leading-7 text-muted-foreground">
           <section>
             <h2 className="font-serif text-xl text-foreground">What MailMyPDF is</h2>
-            <p className="mt-3">MailMyPDF is a document preparation and mailing service. We print, stamp, and mail your documents via USPS and provide tracking and proof of mailing. We are not a law firm and do not provide legal, tax, financial, or professional advice.</p>
+            <p className="mt-3">MailMyPDF is a document preparation and mailing service. We print and mail your documents through a print-and-mail provider and preserve the document fingerprint, provider reference, and available mailing or tracking events for your order. We are not a law firm and do not provide legal, tax, financial, or professional advice.</p>
           </section>
 
           <section>
@@ -38,7 +38,7 @@ function TermsPage() {
 
           <section>
             <h2 className="font-serif text-xl text-foreground">Mailing and delivery</h2>
-            <p className="mt-3">MailMyPDF uses USPS for delivery. Delivery timelines are estimates based on USPS service standards and are not guaranteed. Certified and registered mail include tracking and proof of delivery. We are not responsible for mail lost or delayed by USPS after handoff.</p>
+            <p className="mt-3">MailMyPDF uses USPS for delivery. Delivery timelines are estimates based on USPS service standards and are not guaranteed. Certified and registered services can include carrier tracking and delivery confirmation according to the selected service and provider availability. We are not responsible for mail lost or delayed by USPS after handoff.</p>
           </section>
 
           <section>

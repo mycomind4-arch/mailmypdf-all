@@ -280,6 +280,64 @@ describe("Lob Hardening — Source-Level Tests", () => {
     assert.match(rl, /logAddressValidation/);
   });
 
+  it("supports certified return receipt without downgrading it to certified", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const bridge = await source("src/lib/proof-of-service/lob-bridge.ts");
+    assert.match(lob, /"certified_return_receipt"/);
+    assert.match(lob, /form\.set\("extra_service", args\.extraService\)/);
+    assert.match(bridge, /return "certified_return_receipt"/);
+  });
+
+  it("normalizes Lob certified tracking webhooks and persists evidence fields", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    assert.match(lob, /eventTypeId\.startsWith\("letter\.certified\."\)/);
+    assert.match(lob, /tracking_number/);
+    assert.match(lob, /expected_delivery_date/);
+    assert.match(lob, /delivered_at/);
+    assert.match(lob, /last_tracking_event/);
+    assert.match(lob, /getLobLetterLifecycleStatus/);
+  });
+
+  it("reconciliation prefers Lob tracking lifecycle names over low-level carrier detail events", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const lifecycle = lob.slice(lob.indexOf("export function getLobLetterLifecycleStatus"));
+    const nameIndex = lifecycle.indexOf("normalizeTrackingEventName(latest?.name)");
+    const detailIndex = lifecycle.indexOf("normalizeTrackingEventName(latest?.details?.event)");
+    assert.ok(nameIndex >= 0, "tracking lifecycle name should be inspected");
+    assert.ok(detailIndex > nameIndex, "lifecycle name must take precedence over low-level carrier detail");
+  });
+
+  it("allows authoritative forward Lob recovery when intermediate events were missed", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    assert.match(lob, /export function canApplyLobLifecycleTransition/);
+    assert.match(lob, /currentProgress >= 1 && nextProgress > currentProgress/);
+    const webhook = lob.slice(lob.indexOf("export async function processLobWebhook"));
+    assert.match(webhook, /canApplyLobLifecycleTransition\(currentStatus, nextStatus\)/);
+    const reconciliation = lob.slice(lob.indexOf("export async function reconcileOrderWithLob"));
+    assert.match(reconciliation, /canApplyLobLifecycleTransition\(currentStatus, nextStatus\)/);
+  });
+
+  it("persists Lob evidence even when lifecycle status does not advance", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const webhook = lob.slice(lob.indexOf("export async function processLobWebhook"));
+    assert.match(webhook, /Persist carrier evidence even when the order status does not advance/);
+    assert.match(webhook, /await supabaseAdmin\.from\("orders"\)\.update\(update\)\.eq\("id", order\.id\)/);
+    assert.match(webhook, /statusAdvanced && nextStatus === "mailed"/);
+  });
+
+  it("reconciliation preserves known tracking data when Lob omits it", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    const reconciliation = lob.slice(lob.indexOf("export async function reconcileOrderWithLob"));
+    assert.match(reconciliation, /letter\?\.tracking_number \?\? order\.tracking_number \?\? null/);
+    assert.match(reconciliation, /letter\?\.expected_delivery_date \?\? order\.expected_delivery_date \?\? null/);
+  });
+
+  it("proof webhook bridge propagates processing failures so Lob can retry", async () => {
+    const bridge = await source("src/lib/proof-of-service/lob-webhook-bridge.ts");
+    assert.match(bridge, /if \(error\) throw new Error/);
+    assert.doesNotMatch(bridge, /catch\s*\{\s*return false/);
+  });
+
   it("webhook handler uses structured logging instead of console.log", async () => {
     const lob = await source("src/lib/lob.server.ts");
     // The processLobWebhook function should use logWebhook, not console.log/warn

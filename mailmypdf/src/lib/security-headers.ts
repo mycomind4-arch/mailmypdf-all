@@ -14,8 +14,6 @@
  * across different deployment environments.
  */
 
-import { getConfig } from "@/config";
-
 /**
  * Build the Content-Security-Policy directive.
  *
@@ -27,23 +25,30 @@ import { getConfig } from "@/config";
  * - Frames from Stripe (for embedded checkout)
  */
 export function buildCspHeader(): string {
-  const config = getConfig();
-  const isDev = config.stripe.env === "sandbox";
+  const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const connectSources = [
+    "'self'",
+    "https://api.stripe.com",
+    "https://api.lob.com",
+    "https://plausible.io",
+    ...(supabaseUrl ? [supabaseUrl] : []),
+  ].join(" ");
 
   const directives = [
     "default-src 'self'",
     // Scripts: self + Stripe + inline (needed for TanStack Start hydration)
     isDev
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.com"
-      : "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.com",
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://m.stripe.com https://plausible.io"
+      : "script-src 'self' 'unsafe-inline' https://js.stripe.com https://m.stripe.com https://plausible.io",
     // Styles: self + inline (Tailwind requires unsafe-inline)
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     // Images: self + data: (inline SVGs) + blob: (file previews)
     "img-src 'self' data: blob: https:",
     // Fonts: self
-    "font-src 'self'",
+    "font-src 'self' https://fonts.gstatic.com",
     // Connect: self + Stripe APIs + Lob API
-    `connect-src 'self' https://api.stripe.com https://api.lob.com ${config.supabase.url}`,
+    `connect-src ${connectSources}`,
     // Frames: Stripe embedded checkout
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     // Objects: none (no Flash/Java)
@@ -65,7 +70,7 @@ export function buildCspHeader(): string {
  * Security headers to apply to all responses.
  */
 export function getSecurityHeaders(): Record<string, string> {
-  const isDev = getConfig().stripe.env === "sandbox";
+  const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
 
   return {
     "Content-Security-Policy": buildCspHeader(),
@@ -94,12 +99,28 @@ export function getSecurityHeaders(): Record<string, string> {
  * Called from middleware after the response is generated.
  */
 export function applySecurityHeaders(response: Response): Response {
-  const headers = getSecurityHeaders();
-  for (const [key, value] of Object.entries(headers)) {
-    // Don't override existing headers (e.g., if the route set its own CSP)
-    if (!response.headers.has(key)) {
-      response.headers.set(key, value);
+  const securityHeaders = getSecurityHeaders();
+
+  const apply = (headers: Headers) => {
+    for (const [key, value] of Object.entries(securityHeaders)) {
+      // Don't override existing headers (e.g., if the route set its own CSP).
+      if (!headers.has(key)) headers.set(key, value);
     }
+  };
+
+  try {
+    apply(response.headers);
+    return response;
+  } catch {
+    // Response.redirect() and some platform-generated Responses have immutable
+    // header guards. Preserve the response body/status while copying its
+    // headers into a mutable Response rather than turning a redirect into 500.
+    const headers = new Headers(response.headers);
+    apply(headers);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
-  return response;
 }

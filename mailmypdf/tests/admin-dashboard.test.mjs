@@ -222,6 +222,33 @@ describe("Admin Dashboard — Revenue Calculation", () => {
     assert.equal(total, 898);
   });
 
+  it("keeps in-transit, delivered, and returned paid orders in revenue while excluding refunded", async () => {
+    const f = await source("src/lib/admin-dashboard.functions.ts");
+    assert.match(f, /"in_transit"/);
+    assert.match(f, /"delivered"/);
+    assert.match(f, /"returned"/);
+    const paidStatuses = [
+      "paid_pending_manual_fulfillment",
+      "manual_fulfillment_in_progress",
+      "submitted_to_provider",
+      "provider_processing",
+      "mailed",
+      "in_transit",
+      "delivered",
+      "returned",
+    ];
+    const orders = [
+      { price_cents: 100, paid_at: "2026-09-27T00:00:00Z", status: "in_transit" },
+      { price_cents: 200, paid_at: "2026-09-27T00:00:00Z", status: "delivered" },
+      { price_cents: 300, paid_at: "2026-09-27T00:00:00Z", status: "returned" },
+      { price_cents: 400, paid_at: "2026-09-27T00:00:00Z", status: "refunded" },
+    ];
+    const total = orders
+      .filter((o) => o.paid_at && paidStatuses.includes(o.status))
+      .reduce((sum, o) => sum + o.price_cents, 0);
+    assert.equal(total, 600);
+  });
+
   it("calculates AOV as total revenue / paid order count", () => {
     const totalRevenue = 10000;
     const paidCount = 25;

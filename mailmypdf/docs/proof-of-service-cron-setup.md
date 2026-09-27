@@ -125,10 +125,10 @@ Ensure these are set in the MailMyPDF deployment:
 
 ## Webhook URL Configuration
 
-Point Lob's webhook to the extended endpoint:
+Point Lob's webhook to the combined consumer + proof-of-service endpoint:
 
 ```
-https://mailmypdf.ai/api/public/lob-webhook-v2
+https://mailmypdf.ai/api/public/lob-webhook
 ```
 
 This endpoint handles both consumer orders (existing flow) and
