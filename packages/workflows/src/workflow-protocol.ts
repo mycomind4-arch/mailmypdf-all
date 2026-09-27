@@ -39,6 +39,7 @@ export type WorkflowProtocolDefinition = Readonly<{
   workflowId: string;
   title: string;
   primaryDocument: WorkflowDocumentRequirement | null;
+  analysisRequired: boolean;
   inputRequired: boolean;
   inputFields: readonly WorkflowFieldManifest[];
   requiresDraft: boolean;
@@ -98,6 +99,7 @@ export function workflowProtocolDefinitionFromManifest(
     workflowId: manifest.id,
     title: manifest.title,
     primaryDocument,
+    analysisRequired: manifest.primaryInput === "document",
     inputRequired: inputFields.some((field) => field.required),
     inputFields: Object.freeze([...inputFields]),
     requiresDraft:
@@ -149,6 +151,7 @@ export function deriveWorkflowProtocolState(input: {
 }): WorkflowProtocolState {
   const source = sourceDocument(input.documents);
   const sourceReady = sourceIsReady(source);
+  const analysisReady = input.analysisPresent || !input.definition.analysisRequired;
   const inputReady = input.inputPresent || !input.definition.inputRequired;
   const draftReady = input.draftPresent || !input.definition.requiresDraft;
   const blockers: string[] = [];
@@ -194,7 +197,7 @@ export function deriveWorkflowProtocolState(input: {
         },
       }),
     ];
-  } else if (!input.analysisPresent) {
+  } else if (input.definition.analysisRequired && !input.analysisPresent) {
     nextActions = [
       action({
         id: "analyze-matter",
@@ -316,7 +319,7 @@ export function deriveWorkflowProtocolState(input: {
     matterStatus: input.matter.status,
     progress: Object.freeze({
       sourceDocumentReady: sourceReady || !input.definition.primaryDocument,
-      analysisReady: input.analysisPresent,
+      analysisReady,
       inputReady,
       draftReady,
       approvalReady: input.approvalPresent,
