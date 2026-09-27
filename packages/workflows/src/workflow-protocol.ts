@@ -7,6 +7,7 @@ import type {
   WorkflowMatterDocument,
   WorkflowMatterRecord,
 } from "./matter-runtime-client.js";
+import type { WorkflowRuntimeChatContract } from "./workflow-chat-contract.js";
 
 export const WORKFLOW_PROTOCOL_VERSION = "mailmypdf.workflow/v1" as const;
 
@@ -39,6 +40,8 @@ export type WorkflowProtocolDefinition = Readonly<{
   workflowId: string;
   title: string;
   primaryDocument: WorkflowDocumentRequirement | null;
+  primaryDocumentRequired: boolean;
+  packetRecipientField: WorkflowFieldManifest | null;
   analysisRequired: boolean;
   inputRequired: boolean;
   inputFields: readonly WorkflowFieldManifest[];
@@ -84,11 +87,25 @@ function flattenFields(manifest: WorkflowManifest): readonly WorkflowFieldManife
  */
 export function workflowProtocolDefinitionFromManifest(
   manifest: WorkflowManifest,
+  runtimeContract?: WorkflowRuntimeChatContract,
 ): WorkflowProtocolDefinition {
   const primaryDocument =
-    manifest.documents?.find((document) => document.required && document.role === "primary") ??
-    null;
-  const inputFields = flattenFields(manifest);
+    manifest.documents?.find((document) => document.role === "primary") ?? null;
+  const allFields = flattenFields(manifest);
+  const inputIds = runtimeContract
+    ? new Set(runtimeContract.inputFields.map((field) => field.id))
+    : null;
+  const inputFields = inputIds
+    ? allFields.filter((field) => inputIds.has(field.id))
+    : allFields;
+  const recipientBinding = runtimeContract?.connectorFields?.find(
+    (binding) =>
+      binding.toolName === "preview_packet" &&
+      binding.argumentName === "recipient",
+  );
+  const packetRecipientField = recipientBinding
+    ? allFields.find((field) => field.id === recipientBinding.id) ?? null
+    : null;
   const requiredOutputs = new Set(
     (manifest.outputs ?? [])
       .filter((output) => output.required)
@@ -99,6 +116,8 @@ export function workflowProtocolDefinitionFromManifest(
     workflowId: manifest.id,
     title: manifest.title,
     primaryDocument,
+    primaryDocumentRequired: primaryDocument?.required ?? false,
+    packetRecipientField,
     analysisRequired: manifest.primaryInput === "document",
     inputRequired: inputFields.some((field) => field.required),
     inputFields: Object.freeze([...inputFields]),
@@ -157,7 +176,7 @@ export function deriveWorkflowProtocolState(input: {
   const blockers: string[] = [];
   let nextActions: WorkflowProtocolAction[] = [];
 
-  if (input.definition.primaryDocument && !source) {
+  if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
     nextActions = [
       action({
         id: "upload-primary-document",
@@ -260,6 +279,9 @@ export function deriveWorkflowProtocolState(input: {
         idempotencyRequired: true,
         consequential: false,
         arguments: { matter_id: input.matter.id },
+        ...(input.definition.packetRecipientField
+          ? { fields: [input.definition.packetRecipientField] }
+          : {}),
       }),
     ];
   } else if (input.approvalPresent && input.definition.requiresMailing && !input.orderPresent) {
@@ -318,7 +340,9 @@ export function deriveWorkflowProtocolState(input: {
     sectionId: input.matter.verticalId,
     matterStatus: input.matter.status,
     progress: Object.freeze({
-      sourceDocumentReady: sourceReady || !input.definition.primaryDocument,
+      sourceDocumentReady:
+        sourceReady ||
+        !input.definition.primaryDocumentRequired,
       analysisReady,
       inputReady,
       draftReady,
