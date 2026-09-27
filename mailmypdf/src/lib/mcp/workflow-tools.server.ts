@@ -38,7 +38,7 @@ import {
   type WorkflowMatterDocument,
   type WorkflowMatterRecord,
 } from "@mailmypdf/workflows";
-import { getMcpWorkflowProtocolDefinition } from "./workflow-protocol.server";
+import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -554,14 +554,20 @@ export async function executeMcpTool(
     const documents = Array.isArray(matterPayload.documents)
       ? matterPayload.documents as WorkflowMatterDocument[]
       : [];
-    const definition = getMcpWorkflowProtocolDefinition(storedMatter.workflowId);
+    const registration = getMcpWorkflowProtocolRegistration(storedMatter.workflowId);
+    const definition = registration?.definition ?? null;
     if (!definition) {
       throw new McpToolExecutionError(
         409,
-        `Workflow ${storedMatter.workflowId} is not registered for chat-guided execution yet.`,
+        `Workflow ${storedMatter.workflowId} is not certified for chat-guided execution yet.`,
         {
-          code: "WORKFLOW_PROTOCOL_NOT_REGISTERED",
+          code: registration
+            ? "WORKFLOW_CHAT_READINESS_NOT_CERTIFIED"
+            : "WORKFLOW_PROTOCOL_NOT_REGISTERED",
           workflowId: storedMatter.workflowId,
+          ...(registration
+            ? { chatReadiness: registration.certification }
+            : {}),
         },
       );
     }
