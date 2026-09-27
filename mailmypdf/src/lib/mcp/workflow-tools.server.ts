@@ -33,6 +33,12 @@ import {
   ConnectorOperationIdempotencyConflict,
   type ConnectorOperationKind,
 } from "@mailmypdf/workflows/connector-operation";
+import {
+  deriveWorkflowProtocolState,
+  type WorkflowMatterDocument,
+  type WorkflowMatterRecord,
+} from "@mailmypdf/workflows";
+import { getMcpWorkflowProtocolDefinition } from "./workflow-protocol.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -538,6 +544,63 @@ export async function executeMcpTool(
       throw error;
     }
   };
+
+  if (name === "get_workflow_state") {
+    const matterPayload = object(
+      await callRuntime(request, base, "GET"),
+      "matter response",
+    );
+    const storedMatter = object(matterPayload.matter, "matter") as unknown as WorkflowMatterRecord;
+    const documents = Array.isArray(matterPayload.documents)
+      ? matterPayload.documents as WorkflowMatterDocument[]
+      : [];
+    const definition = getMcpWorkflowProtocolDefinition(storedMatter.workflowId);
+    if (!definition) {
+      throw new McpToolExecutionError(
+        409,
+        `Workflow ${storedMatter.workflowId} is not registered for chat-guided execution yet.`,
+        {
+          code: "WORKFLOW_PROTOCOL_NOT_REGISTERED",
+          workflowId: storedMatter.workflowId,
+        },
+      );
+    }
+
+    const [analysisPayload, inputPayload, draftPayload, approvalPayload] = await Promise.all([
+      callRuntime(request, `${base}/analysis`, "GET"),
+      callRuntime(request, `${base}/input`, "GET"),
+      callRuntime(request, `${base}/draft`, "GET"),
+      callRuntime(request, `${base}/approval`, "GET"),
+    ]);
+
+    const analysisPresent = Boolean(object(analysisPayload, "analysis response").analysis);
+    const inputPresent = Boolean(object(inputPayload, "input response").input);
+    const draftPresent = Boolean(object(draftPayload, "draft response").draft);
+    const approvalPresent = Boolean(object(approvalPayload, "approval response").approval);
+
+    let orderPresent = false;
+    if (approvalPresent) {
+      try {
+        await getOwnedOrderStatus(request, { matterId });
+        orderPresent = true;
+      } catch (error) {
+        if (!(error instanceof McpOrderStatusError) || error.status !== 404) throw error;
+      }
+    }
+
+    return {
+      workflowState: deriveWorkflowProtocolState({
+        matter: storedMatter,
+        documents,
+        definition,
+        analysisPresent,
+        inputPresent,
+        draftPresent,
+        approvalPresent,
+        orderPresent,
+      }),
+    };
+  }
 
   if (name === "get_matter") {
     return callRuntime(request, base, "GET");
