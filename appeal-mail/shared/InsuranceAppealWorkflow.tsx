@@ -358,7 +358,7 @@ function InsuranceAppealWorkflowActive({
 
   function invalidateAfterSourceChange(): void {
     setAnalysis(null);
-    setFacts((current) => ({ ...current, evidenceReviewComplete: false }));
+    setFacts((current) => ({ ...current, factsConfirmed: false, evidenceReviewComplete: false }));
     setFactsSaved(false);
     setDraft("");
     setDraftSaved(false);
@@ -367,7 +367,7 @@ function InsuranceAppealWorkflowActive({
   }
 
   function invalidateAfterAnalysisChange(): void {
-    setFacts((current) => ({ ...current, evidenceReviewComplete: false }));
+    setFacts((current) => ({ ...current, factsConfirmed: false, evidenceReviewComplete: false }));
     setDraftSaved(false);
     setPacket(null);
     setApprovalId("");
