@@ -460,7 +460,7 @@ export async function processLobWebhook(request: Request): Promise<Response> {
 
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, status")
+      .select("id, status, tracking_number, expected_delivery_date, mailed_at, delivered_at")
       .eq("lob_letter_id", letterId)
       .maybeSingle();
     if (!order) {
@@ -521,42 +521,55 @@ export async function processLobWebhook(request: Request): Promise<Response> {
     const nextStatus = mapLobStatusToOrderStatus(lobStatus);
     const currentStatus = order.status as OrderStatus;
 
+    const now = new Date().toISOString();
+    const recordedAt = event?.date_created ?? now;
+    const update: {
+      tracking_number?: string;
+      expected_delivery_date?: string;
+      last_tracking_event: Record<string, string | null>;
+      status?: OrderStatus;
+      mailed_at?: string;
+      delivered_at?: string;
+    } = {
+      last_tracking_event: {
+        provider: "lob",
+        external_id: externalId,
+        event_type: eventTypeId,
+        lifecycle_status: lobStatus,
+        recorded_at: recordedAt,
+      },
+    };
+
+    if (typeof letter?.tracking_number === "string" && letter.tracking_number) {
+      update.tracking_number = letter.tracking_number;
+    }
+    if (typeof letter?.expected_delivery_date === "string" && letter.expected_delivery_date) {
+      update.expected_delivery_date = letter.expected_delivery_date;
+    }
+    if (nextStatus === "delivered" && !order.delivered_at) {
+      update.delivered_at = recordedAt;
+    }
+
+    let statusAdvanced = false;
     if (nextStatus) {
-      // Use the state machine to validate the transition
+      // Use the state machine to validate the transition.
       if (canTransition(currentStatus, nextStatus)) {
-        // Only advance if the next status is further in the fulfillment pipeline
         const currentProgress = getFulfillmentProgress(currentStatus);
         const nextProgress = getFulfillmentProgress(nextStatus);
 
         if (nextProgress > currentProgress || nextStatus === "returned" || nextStatus === "failed_provider_submission") {
-          const now = new Date().toISOString();
-          const update: {
-            status: OrderStatus;
-            tracking_number: string | null;
-            expected_delivery_date: string | null;
-            last_tracking_event: Record<string, string | null>;
-            mailed_at?: string;
-            delivered_at?: string;
-          } = {
-            status: nextStatus,
-            tracking_number: letter?.tracking_number ?? null,
-            expected_delivery_date: letter?.expected_delivery_date ?? null,
-            last_tracking_event: {
-              provider: "lob",
-              external_id: externalId,
-              event_type: eventTypeId,
-              lifecycle_status: lobStatus,
-              recorded_at: event?.date_created ?? now,
-            },
-          };
-          if (nextStatus === "mailed") update.mailed_at = now;
-          if (nextStatus === "delivered") update.delivered_at = event?.date_created ?? now;
-          await supabaseAdmin.from("orders").update(update).eq("id", order.id);
+          update.status = nextStatus;
+          statusAdvanced = true;
+          if (nextStatus === "mailed" && !order.mailed_at) update.mailed_at = recordedAt;
         }
-      } else {
+      } else if (nextStatus !== currentStatus) {
         logWebhook({ provider: "lob", eventType: eventTypeId, orderId: order.id, message: `invalid transition ${currentStatus} → ${nextStatus}, skipping status update`, level: "warn", metadata: { currentStatus, nextStatus } });
       }
     }
+
+    // Persist carrier evidence even when the order status does not advance
+    // (for example, multiple distinct in-transit scans).
+    await supabaseAdmin.from("orders").update(update).eq("id", order.id);
 
     await supabaseAdmin.from("order_events").insert({
       order_id: order.id,
@@ -566,12 +579,12 @@ export async function processLobWebhook(request: Request): Promise<Response> {
         external_id: externalId,
         event_type: eventTypeId,
         lifecycle_status: lobStatus,
-        tracking_number: letter?.tracking_number ?? null,
-        expected_delivery_date: letter?.expected_delivery_date ?? null,
+        tracking_number: letter?.tracking_number ?? order.tracking_number ?? null,
+        expected_delivery_date: letter?.expected_delivery_date ?? order.expected_delivery_date ?? null,
       },
     });
 
-    if (nextStatus === "mailed") {
+    if (statusAdvanced && nextStatus === "mailed") {
       await sendMailedEmail(supabaseAdmin, order.id);
     }
 
@@ -623,7 +636,7 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
 
   const { data: order, error } = await supabaseAdmin
     .from("orders")
-    .select("id, status, lob_letter_id")
+    .select("id, status, lob_letter_id, tracking_number, expected_delivery_date, mailed_at, delivered_at")
     .eq("id", orderId)
     .maybeSingle();
   if (error) throw new Error(error.message);
