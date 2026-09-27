@@ -74,6 +74,7 @@ h1 {
   line-height: 1.45;
   font-size: 14px;
 }
+.address .value { white-space: pre-line; }
 .hash {
   margin-top: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -176,6 +177,18 @@ button:disabled {
       <div class="label">Recipient shown for this review</div>
       <div id="recipient" class="value"></div>
     </div>
+    <div id="directDetails" hidden>
+      <p id="documentName" class="subtle"></p>
+      <div class="address"><div class="label">Return address</div><div id="sender" class="value"></div></div>
+      <p id="verification" class="subtle"></p>
+      <p id="delivery" class="subtle"></p>
+      <p id="printColor" class="subtle"></p>
+      <div id="envelope" class="address" hidden>
+        <div class="label">Envelope layout · illustration, not final carrier artwork</div>
+        <pre id="envelopeSender" style="white-space:pre-wrap;font:inherit"></pre>
+        <pre id="envelopeRecipient" style="white-space:pre-wrap;font:inherit;margin-left:25%"></pre>
+      </div>
+    </div>
     <div class="hash">
       <div><strong>Packet SHA-256:</strong> <span id="packetHash"></span></div>
       <div><strong>Recipient SHA-256:</strong> <span id="recipientHash"></span></div>
@@ -187,12 +200,17 @@ button:disabled {
     </div>
     <div class="actions">
       <button id="viewPdf" class="secondary" type="button">View exact PDF</button>
+      <button id="viewEnvelope" class="secondary" type="button" hidden>Preview envelope layout</button>
       <button id="approve" type="button">Approve this exact packet</button>
       <div id="approvalStatus" class="approval-status">
         Approval does not charge a payment method or submit mail.
       </div>
     </div>
     <div id="pdfShell" class="pdf-shell" hidden>
+      <p class="subtle" style="padding:12px">
+        <a id="downloadPdf" download="mailmypdf-reviewed-document.pdf" target="_blank" rel="noopener noreferrer">Download exact PDF</a>
+        <span id="pdfHelp"> If the inline preview is blank, download and review this exact file before approval.</span>
+      </p>
       <iframe id="pdfFrame" title="Exact MailMyPDF packet preview"></iframe>
     </div>
   </div>
@@ -245,6 +263,7 @@ button:disabled {
   }
 
   function previewResourceUri() {
+    if (!toolResult || toolResult.isError) return null;
     const structured = toolResult && toolResult.structuredContent ? toolResult.structuredContent : {};
     const review = structured.review || {};
     return typeof review.previewResourceUri === "string" && review.previewResourceUri
@@ -253,9 +272,20 @@ button:disabled {
   }
 
   function approvalArguments() {
+    if (!toolResult || toolResult.isError) return null;
     const structured = toolResult && toolResult.structuredContent ? toolResult.structuredContent : {};
     const packet = structured.packet || {};
     const review = structured.review || {};
+    if (review.kind === "direct") {
+      const draft = structured.draft;
+      if (!draft || !draft.readyForApproval || !draft.id || !draft.document || !draft.document.sha256 ||
+          !draft.cost || !Number.isInteger(draft.cost.totalCents) || !draft.sender || !draft.recipient ||
+          !draft.mailingMethod || typeof draft.color !== "boolean") return null;
+      return { order_id: draft.id, expected_packet_sha256: draft.document.sha256,
+        expected_total_cents: draft.cost.totalCents, expected_sender: draft.sender,
+        expected_recipient: draft.recipient, expected_mail_class: draft.mailingMethod,
+        expected_color: draft.color };
+    }
     const recipient = toolInput && toolInput.recipient ? toolInput.recipient : null;
     const matterId = review.matterId || (toolInput && toolInput.matter_id);
     const mailClass = review.mailClass || (toolInput && toolInput.mail_class);
@@ -288,6 +318,7 @@ button:disabled {
     if (!toolResult) return;
 
     if (toolResult.isError) {
+      byId("content").hidden = true;
       byId("error").hidden = false;
       byId("error").textContent = "MailMyPDF could not build this review.";
       byId("status").textContent = "Review unavailable.";
@@ -297,7 +328,8 @@ button:disabled {
     const structured = toolResult.structuredContent || {};
     const packet = structured.packet || {};
     const review = structured.review || {};
-    const recipient = toolInput && toolInput.recipient ? toolInput.recipient : null;
+    const draft = review.kind === "direct" ? structured.draft : null;
+    const recipient = draft ? draft.recipient : toolInput && toolInput.recipient ? toolInput.recipient : null;
     const mailClass = review.mailClass || (toolInput && toolInput.mail_class);
 
     setText("price", money(packet.quote && packet.quote.totalCents));
@@ -307,16 +339,37 @@ button:disabled {
     setText("recipient", recipientText(recipient));
     setText("packetHash", packet.packetSha256 || "—");
     setText("recipientHash", review.recipientSha256 || "—");
+    byId("directDetails").hidden = !draft;
+    byId("viewEnvelope").hidden = !draft;
+    if (draft) {
+      setText("documentName", "Document: " + (draft.document && draft.document.name || "PDF"));
+      setText("sender", recipientText(draft.sender));
+      setText("envelopeSender", recipientText(draft.sender));
+      setText("envelopeRecipient", recipientText(draft.recipient));
+      const verification = draft.addressVerification || {};
+      setText("verification", "Recipient: " + (verification.recipient && verification.recipient.message || "Not verified") +
+        " Return address: " + (verification.sender && verification.sender.message || "Not verified"));
+      setText("delivery", draft.deliveryExpectation);
+      setText("printColor", draft.color ? "Print in color" : "Print in black and white");
+    }
 
     const approveButton = byId("approve");
     approveButton.disabled = !approvalArguments();
+    approveButton.textContent = draft ? "Approve details for checkout" : "Approve this exact packet";
     const viewButton = byId("viewPdf");
     viewButton.disabled = !previewResourceUri();
     byId("content").hidden = false;
     byId("status").textContent = "Confirm these details before authorizing checkout.";
   }
 
+  byId("viewEnvelope").addEventListener("click", () => {
+    const envelope = byId("envelope");
+    envelope.hidden = !envelope.hidden;
+    byId("viewEnvelope").textContent = envelope.hidden ? "Preview envelope layout" : "Hide envelope layout";
+  });
+
   byId("viewPdf").addEventListener("click", async () => {
+    const currentResult = toolResult;
     const uri = previewResourceUri();
     if (!uri) {
       byId("error").hidden = false;
@@ -331,6 +384,7 @@ button:disabled {
     if (!shell.hidden) {
       shell.hidden = true;
       frame.removeAttribute("src");
+      byId("downloadPdf").removeAttribute("href");
       if (pdfObjectUrl) {
         URL.revokeObjectURL(pdfObjectUrl);
         pdfObjectUrl = null;
@@ -345,6 +399,7 @@ button:disabled {
 
     try {
       const result = await request("resources/read", { uri });
+      if (toolResult !== currentResult) return;
       const contents = result && Array.isArray(result.contents) ? result.contents : [];
       const pdf = contents.find((item) =>
         item && item.uri === uri && item.mimeType === "application/pdf" && typeof item.blob === "string"
@@ -359,20 +414,29 @@ button:disabled {
 
       if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
       pdfObjectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-      frame.src = pdfObjectUrl;
+      byId("downloadPdf").href = pdfObjectUrl;
+      const nativePdfAvailable = typeof navigator !== "undefined" && navigator.pdfViewerEnabled === true;
+      frame.hidden = !nativePdfAvailable;
+      byId("pdfHelp").textContent = nativePdfAvailable
+        ? " If the inline preview is blank, download and review this exact file before approval."
+        : " This chat browser cannot display PDF files inline. Download and review this exact file before approval.";
+      if (nativePdfAvailable) frame.src = pdfObjectUrl;
+      else frame.removeAttribute("src");
       shell.hidden = false;
       button.textContent = "Hide exact PDF";
     } catch (error) {
+      if (toolResult !== currentResult) return;
       byId("error").hidden = false;
       byId("error").textContent =
         error instanceof Error ? error.message : "MailMyPDF could not load the exact PDF preview.";
       button.textContent = "View exact PDF";
     } finally {
-      button.disabled = false;
+      if (toolResult === currentResult) button.disabled = false;
     }
   });
 
   byId("approve").addEventListener("click", async () => {
+    const currentResult = toolResult;
     const args = approvalArguments();
     if (!args) {
       byId("error").hidden = false;
@@ -387,11 +451,16 @@ button:disabled {
 
     try {
       const result = await request("tools/call", {
-        name: "approve_packet",
+        name: args.order_id ? "approve_direct_pdf_mail" : "approve_packet",
         arguments: args,
       });
+      if (toolResult !== currentResult) return;
       const approved = result && result.structuredContent ? result.structuredContent : result;
-      const approvalId = approved && approved.approvalId ? approved.approvalId : null;
+      const approvalId = args.order_id
+        ? approved && approved.approval && approved.approval.approved === true &&
+          approved.approval.orderId === args.order_id && approved.approval.packetSha256 === args.expected_packet_sha256 &&
+          approved.approval.totalCents === args.expected_total_cents
+        : approved && approved.approvalId ? approved.approvalId : null;
       if (!result || result.isError || !approvalId) {
         throw new Error(approved && approved.error || "MailMyPDF did not confirm this approval. Please retry after reviewing the packet.");
       }
@@ -399,6 +468,7 @@ button:disabled {
       button.textContent = "Approved";
       button.disabled = true;
     } catch (error) {
+      if (toolResult !== currentResult) return;
       button.disabled = false;
       status.textContent = "Approval was not recorded.";
       byId("error").hidden = false;
@@ -431,6 +501,16 @@ button:disabled {
       toolInput = message.params || null;
       render();
     } else if (message.method === "ui/notifications/tool-result") {
+      byId("pdfShell").hidden = true;
+      byId("pdfFrame").removeAttribute("src");
+      byId("downloadPdf").removeAttribute("href");
+      if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
+      pdfObjectUrl = null;
+      byId("viewPdf").textContent = "View exact PDF";
+      byId("envelope").hidden = true;
+      byId("viewEnvelope").textContent = "Preview envelope layout";
+      byId("approvalStatus").textContent = "Approval does not charge a payment method or submit mail.";
+      byId("error").hidden = true;
       toolResult = message.params || null;
       render();
     }

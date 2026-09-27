@@ -49,7 +49,9 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("get_connector_readiness"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
-  assert.equal(names.length, 21);
+  assert.ok(names.includes("review_direct_pdf_mail"));
+  assert.ok(names.includes("get_mailing_context"));
+  assert.equal(names.length, 23);
 });
 
 test("every connector tool has a valid capability contract", () => {
@@ -563,7 +565,7 @@ test("packet review UI approves only the exact reviewed packet", () => {
   const html = PACKET_REVIEW_RESOURCE.text;
 
   assert.match(html, /Approve this exact packet/);
-  assert.match(html, /name:\s*"approve_packet"/);
+  assert.match(html, /name: args.order_id \? "approve_direct_pdf_mail" : "approve_packet"/);
   assert.match(html, /idempotency_key:/);
   assert.match(html, /expected_packet_sha256:\s*packet\.packetSha256/);
   assert.match(html, /expected_total_cents:\s*totalCents/);
@@ -622,7 +624,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 21);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 23);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -666,7 +668,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 21);
+  assert.equal(payload.result.tools.length, 23);
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_operation_status"));

@@ -8,6 +8,8 @@ import {
   ingestDirectPdf,
   prepareDirectPdfCheckout,
   prepareDirectPdfMail,
+  reviewDirectPdfMail,
+  getMailingContext,
 } from "./direct-mail.server";
 import { AssistantFileIngressError, downloadAssistantFile } from "./remote-document.server";
 import { classifyDocumentReadiness } from "./document-readiness";
@@ -368,6 +370,17 @@ export async function executeMcpTool(
       bindingHealth: health.probes,
       checkedAt: health.checkedAt,
     };
+  }
+
+  if (name === "review_direct_pdf_mail" || name === "get_mailing_context") {
+    try {
+      return name === "review_direct_pdf_mail"
+        ? await reviewDirectPdfMail(request, args.order_id)
+        : await getMailingContext(request);
+    } catch (error) {
+      if (error instanceof McpDirectMailError) throw new McpToolExecutionError(error.status, error.message, error.details);
+      throw error;
+    }
   }
 
   if (name === "ingest_direct_pdf") {

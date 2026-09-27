@@ -37,7 +37,7 @@ Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
 Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
 browser origins are validated and account responses are never HTTP-cacheable.
 
-## v0.5 / connector-v2 tool boundary (21 tools)
+## v0.6 / connector-v2 tool boundary (23 tools)
 
 Public discovery:
 
@@ -55,6 +55,8 @@ Authenticated matter execution:
 - `get_connector_readiness`
 - `ingest_direct_pdf`
 - `prepare_direct_pdf_mail`
+- `get_mailing_context`
+- `review_direct_pdf_mail`
 - `approve_direct_pdf_mail`
 - `prepare_direct_pdf_checkout`
 - `ingest_document`
@@ -181,8 +183,8 @@ The expected sequence is:
 1. `ingest_direct_pdf` copies the assistant attachment into the same secure quarantine vault used by workflow evidence.
 2. `get_document_status(document_id)` waits for a clean, usable PDF. A workflow matter id is not required for standalone direct mailing.
 3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
-4. The assistant shows the user the PDF identity, recipient, mail class, and price.
-5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them and then records the immutable approval snapshot.
+4. `review_direct_pdf_mail` verifies both addresses and returns a structured draft, owner-only exact PDF resource, illustrative envelope layout, actual price, color, and delivery caveat. Postal verification is not recipient-identity verification. Corrections, missing units, and unavailable verification block approval; changed addresses require a new draft. Successful verification is bound to the mailing snapshot and reused for up to 30 minutes.
+5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them, requires unexpired verification for both current addresses, and then records the immutable approval snapshot.
 6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
 7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
 8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
@@ -190,6 +192,24 @@ The expected sequence is:
 Direct-mail preparation requires a client-supplied `idempotency_key`. Retries of the same mailing intent reuse the existing order; intentionally mailing the same PDF again requires a new key.
 
 The direct-mail tools never return the legacy order lookup token and never accept raw card data.
+
+`get_mailing_context` returns at most ten owner-scoped recent direct mailings for
+recipient/return-address reuse. It is not an address book, public company lookup,
+or named sender-profile system. Ask the user to select among candidates.
+`prompts/list` and `prompts/get(name="mail_this")` expose the conversational guide;
+the same instructions are returned during initialization for clients that do not
+expose MCP prompts. Text/structured results remain usable without card rendering.
+
+The existing MCP review card now supports direct-mail drafts, including sender,
+recipient, file name, service, price, color, verification, PDF, and illustrative
+envelope layout. Approval requests echo only the displayed draft values. The
+card does not create checkout or send mail; the conversation continues with the
+separate checkout tool after approval. Provider estimates are not invented.
+
+Local visual fixture (no providers or credentials): from `mailmypdf`, run
+`node --import tsx tests/fixtures/conversational-mailing.mts`, then open
+`http://127.0.0.1:4198/`. The `scenario=blocked` and `scenario=approval-error`
+query parameters exercise failure states. Its $8.42 price is fictional.
 
 ### Direct-mail integrity boundary
 

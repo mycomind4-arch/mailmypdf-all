@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.5.0";
+export const MCP_CONNECTOR_VERSION = "0.6.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -308,10 +308,29 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: capabilities("identity", "documentStorage", "documentScanning", "pricing", "addressVerification"),
   },
   {
+    name: "get_mailing_context",
+    title: "Find my recent mailing addresses",
+    description: "Return up to ten recent direct-mail orders belonging to the connected account, including recipient and return addresses. Use for 'same recipient as last time' or a previous business return address. Never guess between candidates; ask the user to select. This is not public address search or a saved-profile directory.",
+    inputSchema: objectSchema({}),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "review_direct_pdf_mail",
+    title: "Review this mailing before payment",
+    description: "Verify both postal addresses, save verification evidence, and return a structured draft with exact PDF resource, illustrative envelope layout, price, service, color, and delivery caveat. Postal verification can incur provider usage. Corrections, missing units, or unavailable verification block approval. Never send mail or charge a customer from this tool.",
+    inputSchema: objectSchema({ order_id: string("Owned unpaid direct-mail draft order id.") }, ["order_id"]),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "documentStorage", "pricing", "addressVerification"),
+    _meta: { ui: { resourceUri: PACKET_REVIEW_RESOURCE_URI }, "openai/outputTemplate": PACKET_REVIEW_RESOURCE_URI },
+  },
+  {
     name: "approve_direct_pdf_mail",
     title: "Approve exact direct PDF mailing",
     description:
-      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings currently on the prepared order. Call only after the user has reviewed those exact details returned by prepare_direct_pdf_mail.",
+      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings. Call only after review_direct_pdf_mail verifies both addresses and the user explicitly approves the displayed details. Expired verification requires a fresh review. This does not pay or send mail.",
     inputSchema: objectSchema(
       {
         order_id: string("MailMyPDF direct-mail order id."),

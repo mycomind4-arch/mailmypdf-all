@@ -5,6 +5,16 @@
     "US"
   ],
   "annotationJustifications": {
+    "get_mailing_context": {
+      "readOnlyHint": "True because it reads only recent direct-mail orders belonging to the connected account.",
+      "destructiveHint": "False because it cannot change addresses, approvals, payment, or mailing state.",
+      "openWorldHint": "False because it searches bounded private account history, not public address directories."
+    },
+    "review_direct_pdf_mail": {
+      "readOnlyHint": "False because it records server-verified postal-address evidence for the draft.",
+      "destructiveHint": "False because review never approves, pays, or submits mail.",
+      "openWorldHint": "True because it checks postal deliverability with Lob and obtains a current price."
+    },
     "ingest_direct_pdf": {
       "readOnlyHint": "False because it stores a user-authorized PDF in the secure quarantine vault.",
       "destructiveHint": "False because uploading and scanning do not approve, charge for, or mail a PDF.",

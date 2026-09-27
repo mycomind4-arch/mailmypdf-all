@@ -70,7 +70,7 @@ real client OAuth flow has been completed; the old Worker remains live.
 
    Public checks do not prove account linking. Complete OAuth through the client
    and call `get_profile` with the resulting user-scoped access token. Verify
-   the 21-tool catalog, owner isolation, exact PDF review, and negative approval
+   the 23-tool catalog, owner isolation, exact PDF review, and negative approval
    cases. Never use a real payment or mail submission as an automated smoke test.
 
 ## ChatGPT custom connection

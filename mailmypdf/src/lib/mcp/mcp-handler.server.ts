@@ -13,6 +13,7 @@ import {
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
 import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
 import { isAllowedMcpOrigin, readMcpMessage, SUPPORTED_MCP_VERSIONS } from "./transport";
+import { CONVERSATIONAL_MAILING_INSTRUCTIONS, MAILING_PROMPT, parseDirectPdfPreviewUri } from "./conversational-mailing";
 
 type JsonRpcRequest = {
   jsonrpc?: unknown;
@@ -213,10 +214,9 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
 
     return json(rpcResult(message.id, {
       protocolVersion: SUPPORTED_MCP_VERSIONS.some((version) => version === requested) ? requested : "2025-11-25",
-      capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
+      capabilities: { tools: { listChanged: false }, resources: { listChanged: false }, prompts: { listChanged: false } },
       serverInfo: { name: "MailMyPDF", version: MCP_CONNECTOR_VERSION },
-      instructions:
-        "Use MailMyPDF to find document workflows, create owner-scoped matters, generate reviewable drafts, preview exact mailing packets, record explicit approval, and prepare secure checkout. Never claim a document was paid or mailed unless MailMyPDF returns that state.",
+      instructions: CONVERSATIONAL_MAILING_INSTRUCTIONS,
     }));
   }
 
@@ -228,9 +228,9 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
       capabilities: {
         tools: { listChanged: false },
         resources: { listChanged: false },
+        prompts: { listChanged: false },
       },
-      instructions:
-        "Use explicit packet review and approval before checkout. MailMyPDF never accepts raw payment-card data through MCP.",
+      instructions: CONVERSATIONAL_MAILING_INSTRUCTIONS,
       ttlMs: 300_000,
       cacheScope: "public",
       _meta: {
@@ -248,6 +248,21 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
 
   if (message.method === "ping") {
     return json(rpcResult(message.id, { resultType: "complete" }));
+  }
+
+  if (message.method === "prompts/list") {
+    return json(rpcResult(message.id, { prompts: [MAILING_PROMPT] }));
+  }
+
+  if (message.method === "prompts/get") {
+    const params = message.params as Record<string, unknown> | undefined;
+    const args = params?.arguments;
+    if (params?.name !== MAILING_PROMPT.name || (args !== undefined &&
+      (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length))) {
+      return json(rpcError(message.id, -32602, "Unknown prompt or unsupported prompt arguments"), 400);
+    }
+    return json(rpcResult(message.id, { description: MAILING_PROMPT.description,
+      messages: [{ role: "user", content: { type: "text", text: CONVERSATIONAL_MAILING_INSTRUCTIONS } }] }));
   }
 
   if (message.method === "tools/list") {
@@ -298,6 +313,19 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
         ttlMs: 300_000,
         cacheScope: "public",
       }));
+    }
+
+    if (parseDirectPdfPreviewUri(uri)) {
+      const authResponse = await requireToolAuth(request, "review_direct_pdf_mail", message.id);
+      if (authResponse) return authResponse;
+      const direct = await import("./direct-mail.server");
+      try {
+        const content = await direct.readDirectPdfPreview(request, uri);
+        return json(rpcResult(message.id, { resultType: "complete", contents: [content], cacheScope: "private" }));
+      } catch (error) {
+        if (error instanceof direct.McpDirectMailError) return json(rpcError(message.id, -32030, error.message), error.status);
+        throw error;
+      }
     }
 
     if (parsePacketPreviewResourceUri(uri)) {

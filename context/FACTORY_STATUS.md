@@ -13,6 +13,36 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — ECC conversational direct-mail review
+
+- Extended the existing MCP review resource and direct-mail pipeline (no new
+  workflow start UI). MCP 0.6.0 exposes 23 tools, including owner-scoped recent
+  mailing context and a structured direct-PDF review; added the `mail_this` prompt.
+- Address verification is explicit and fails closed on provider outages,
+  corrections, missing units, or undeliverability. Persisted verification expires
+  after 30 minutes and is bound to the exact mailing snapshot. Approval still
+  binds the current document hash, addresses, service, and server price; checkout
+  remains separate. No real payment or mailing was made.
+- Added owner/hash-bound private PDF resources, an illustrative envelope preview,
+  and an exact-file download fallback for hosts with blank inline PDF rendering.
+  Review cards never initiate checkout. Replaced results invalidate stale UI work.
+- Verification: app TypeScript tests 260/260; JavaScript tests 626/626; plugin
+  submission validator passes for 23 tools; Vite production build passes and
+  SSR cycle repair reports no cycles. Existing unrelated TypeScript diagnostics
+  remain; this is not a clean whole-repository typecheck certification.
+- Browser fixture exercised review, envelope, approval success, blocked address,
+  and approval failure. Exact PDF resource/download link is present. Native PDF
+  embedding remained blank in the test host despite its advertised viewer support;
+  the download fallback remains visible. No ChatGPT/Claude-host acceptance,
+  full accessibility audit, or visual regression baseline was established.
+- Follow-up design: `docs/integrations/address-and-sender-profiles.md` separates
+  recipient autocomplete from verification and reusable sender profiles from
+  billing/account addresses. These profile/search features are not implemented.
+  Actual backend remains Supabase; no InsForge migration or paid service added.
+- Not deployed. Production scanner/billing/secrets and live connector acceptance
+  remain operational blockers. Existing verification rate limiting is best-effort,
+  not an atomic cross-isolate spending ceiling.
+
 ### 2026-09-27 — ECC MCP recovery and connected-app controls
 
 - Applied ECC `mcp-server-patterns` and `browser-qa` to a bounded first pass.

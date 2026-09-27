@@ -1,6 +1,9 @@
 import { computeSha256 } from "@mailmypdf/documents";
 import { canonicalJSON } from "@/lib/proof-of-service/hashing";
 import { z } from "zod";
+import { validateOrderAddresses } from "@/lib/address-validation";
+import { distributedRateLimit } from "@/lib/distributed-rate-limit";
+import { directPdfPreviewUri, parseDirectPdfPreviewUri, reviewAddress } from "./conversational-mailing";
 
 import { getClientIp } from "@/lib/rate-limit";
 import {
@@ -21,6 +24,7 @@ const DIRECT_MAIL_PURPOSE = "assistant-direct-mail";
 const DIRECT_PREPARED_EVENT = "mcp.direct_mail.prepared";
 const DIRECT_APPROVED_EVENT = "mcp.direct_mail.approved";
 const DIRECT_CHECKOUT_EVENT = "mcp.direct_mail.checkout_created";
+const DIRECT_REVIEW_EVENT = "mcp.direct_mail.addresses_reviewed";
 
 const addressSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -240,12 +244,106 @@ async function requireDirectOrder(
 }
 
 async function orderPdfSha256(order: DirectOrderRow): Promise<string> {
+  return computeSha256(await orderPdfBytes(order));
+}
+
+async function orderPdfBytes(order: DirectOrderRow): Promise<Uint8Array> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage
     .from("order-pdfs")
     .download(order.pdf_storage_path);
   if (error || !data) throw new McpDirectMailError(409, "The prepared mailing PDF is unavailable");
-  return computeSha256(new Uint8Array(await data.arrayBuffer()));
+  if (data.size > 25 * 1024 * 1024) throw new McpDirectMailError(413, "PDF preview is too large");
+  return new Uint8Array(await data.arrayBuffer());
+}
+
+export async function readDirectPdfPreview(request: Request, uri: string) {
+  const identity = parseDirectPdfPreviewUri(uri);
+  if (!identity) throw new McpDirectMailError(404, "PDF preview not found");
+  const context = await requireAccount(request);
+  const order = await requireDirectOrder(identity.orderId, context);
+  const bytes = await orderPdfBytes(order);
+  if (computeSha256(bytes) !== identity.sha256) throw new McpDirectMailError(409, "The PDF changed. Review the current mailing again.");
+  return { uri, mimeType: "application/pdf", blob: Buffer.from(bytes).toString("base64") };
+}
+
+export async function getMailingContext(request: Request) {
+  const context = await requireAccount(request);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.from("order_events")
+    .select("order_id").eq("type", DIRECT_PREPARED_EVENT)
+    .contains("metadata", { owner_id: context.user.id })
+    .order("created_at", { ascending: false }).limit(10);
+  if (error) throw new McpDirectMailError(500, "Unable to load your mailing history");
+  const ids = [...new Set((data ?? []).map((event) => event.order_id))];
+  const orders = await Promise.all(ids.map((id) => requireDirectOrder(id, context)));
+  return {
+    recentMailings: orders.map((order) => ({ orderId: order.id, status: order.status, fileName: order.file_name, ...mailingSnapshot(order) })),
+    nextAction: "These are this account's recent direct-mail addresses, not verified business profiles. Ask the user which recipient and return address to reuse; if none match, ask for the complete addresses. Re-verify before approval.",
+  };
+}
+
+async function addressReviewEvent(orderId: string, ownerId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.from("order_events").select("metadata")
+    .eq("order_id", orderId).eq("type", DIRECT_REVIEW_EVENT)
+    .contains("metadata", { owner_id: ownerId }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new McpDirectMailError(500, "Unable to read address verification");
+  return metadataObject(data?.metadata);
+}
+
+function verifiedReviewMatches(order: DirectOrderRow, event: Record<string, unknown> | null): boolean {
+  return event?.verified === true && typeof event.expires_at === "string" && Date.parse(event.expires_at) > Date.now()
+    && canonicalJSON(event.mailing_snapshot) === canonicalJSON(mailingSnapshot(order));
+}
+
+export async function reviewDirectPdfMail(request: Request, rawOrderId: unknown) {
+  if (typeof rawOrderId !== "string" || !rawOrderId.trim()) throw new McpDirectMailError(400, "order_id is required");
+  const context = await requireAccount(request);
+  const order = await requireDirectOrder(rawOrderId.trim(), context);
+  if (order.status !== "draft") throw new McpDirectMailError(409, "Only unpaid drafts can be reviewed; check order status instead");
+  const snapshot = mailingSnapshot(order);
+  const packetSha256 = await orderPdfSha256(order);
+  const totalCents = await currentQuote(order);
+  const cached = await addressReviewEvent(order.id, context.user.id);
+  let verification;
+  if (verifiedReviewMatches(order, cached)) {
+    verification = cached!.verification as { sender: ReturnType<typeof reviewAddress>; recipient: ReturnType<typeof reviewAddress> };
+  } else {
+    const limit = await distributedRateLimit(context.user.id, "mcp-address-review", { maxRequests: 10, windowMs: 60_000 });
+    if (!limit.allowed) throw new McpDirectMailError(429, "Too many address checks. Wait before retrying.");
+    const checked = await validateOrderAddresses(snapshot.recipient, snapshot.sender);
+    verification = { sender: reviewAddress(snapshot.sender, checked.from), recipient: reviewAddress(snapshot.recipient, checked.to) };
+    if (verification.sender.ready && verification.recipient.ready) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin.from("order_events").insert({
+        order_id: order.id, type: DIRECT_REVIEW_EVENT, label: "Postal addresses verified for exact mailing review",
+        metadata: { owner_id: context.user.id, verified: true, mailing_snapshot: snapshot, verification,
+          expires_at: new Date(Date.now() + 30 * 60_000).toISOString() },
+      });
+      if (error) throw new McpDirectMailError(503, "Address verification could not be saved. Retry review before approval.");
+    }
+  }
+  const readyForApproval = verification.sender.ready && verification.recipient.ready;
+  return {
+    order: summary(order, packetSha256, totalCents),
+    draft: {
+      id: order.id, status: readyForApproval ? "awaiting_confirmation" : "address_attention_required",
+      document: { name: order.file_name, sha256: packetSha256, pageCount: order.page_count },
+      attachments: [], sender: snapshot.sender, recipient: snapshot.recipient,
+      senderProfile: { source: "entered_address", address: snapshot.sender },
+      addressVerification: verification, mailingMethod: snapshot.mailClass, color: snapshot.color,
+      cost: { currency: "USD", totalCents }, readyForApproval,
+      deliveryExpectation: "No delivery date is guaranteed. Tracking and any carrier estimate appear after submission.",
+      envelopePreview: { illustrative: true, sender: snapshot.sender, recipient: snapshot.recipient,
+        note: "Address-layout illustration only; final carrier envelope artwork may differ." },
+      confirmation: "Approve these details and continue to payment? Approval alone does not pay or send mail.",
+    },
+    packet: { packetSha256, quote: { totalCents }, responsePages: order.page_count, supportingPages: 0 },
+    review: { kind: "direct", previewResourceUri: directPdfPreviewUri(order.id, packetSha256), mailClass: snapshot.mailClass },
+    nextAction: readyForApproval ? "Show the exact PDF, envelope layout, addresses, service, color, and total. Ask for explicit approval before checkout."
+      : "Do not approve. Resolve the address verification issue. If an address changes, prepare a new draft with a new retry key and review again.",
+  };
 }
 
 async function currentQuote(order: DirectOrderRow): Promise<number> {
@@ -497,9 +595,7 @@ export async function prepareDirectPdfMail(
       order: summary(existing.order, packetSha256, totalCents),
       reused: true,
       nextAction:
-        existing.order.approved_packet_sha256 && existing.order.approved_price_cents !== null
-          ? "This direct-mail order is already approved. Prepare checkout."
-          : "Show the exact PDF hash, recipient, mail class, and price to the user before approval.",
+        "Call review_direct_pdf_mail to verify addresses and display the exact mailing before approval or checkout.",
     };
   }
 
@@ -571,7 +667,7 @@ export async function prepareDirectPdfMail(
     order: summary(order, packetSha256, totalCents),
     reused: false,
     nextAction:
-      "Show the exact PDF hash, recipient, mail class, and price to the user. Do not approve until the user explicitly confirms those details.",
+      "Call review_direct_pdf_mail to verify addresses and display the PDF and envelope layout. Do not approve until the user explicitly confirms the reviewed details.",
   };
 }
 
@@ -640,6 +736,10 @@ export async function approveDirectPdfMail(
     throw new McpDirectMailError(409, "The mailing price changed after review. Review the current price before approving.", {
       currentTotalCents: totalCents,
     });
+  }
+
+  if (!verifiedReviewMatches(order, await addressReviewEvent(orderId, context.user.id))) {
+    throw new McpDirectMailError(409, "Verify both current mailing addresses with review_direct_pdf_mail before approval. The previous verification may have expired.");
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
