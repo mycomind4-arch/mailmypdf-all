@@ -78,6 +78,9 @@ export function createRecordsRequestManifest(
         uses: ["secureUpload", "documentStorage", "documentScanning", "classification", "extraction", "visionAnalysis", "understand", "provenance", "evidence"],
         optional: true,
         completeWhen: ["included_context_documents_clean"],
+        fields: [
+          { id: "context-reviewed", label: "I reviewed the context documents included with this request", type: "checkbox", required: true, origin: "user" },
+        ],
       },
       {
         id: "authority",
@@ -93,6 +96,7 @@ export function createRecordsRequestManifest(
           { id: "response-timing-description", label: "Verified response timing rule", type: "textarea", required: false, origin: "either", maxLength: 3000 },
           { id: "withholding-instruction", label: "Withholding or redaction instruction", type: "textarea", required: false, origin: "either", maxLength: 3000 },
           { id: "authority-verified", label: "I verified any authority, citation, withholding, or timing language entered above", type: "checkbox", required: false, origin: "user" },
+          { id: "authority-reviewed", label: "I reviewed the authority and response-rule section before drafting", type: "checkbox", required: true, origin: "user" },
         ],
       },
       {
