@@ -13,6 +13,42 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — Universal chat workflow protocol and CP14 adapter
+
+- Added `packages/workflows/src/workflow-protocol.ts` with
+  `mailmypdf.workflow/v1`: a deterministic, side-effect-free workflow state
+  reducer that reports progress, blockers, and typed next connector actions.
+  It distinguishes document-first from request/fact-first workflows.
+- MCP v0.8 now exposes 27 tools. New authenticated read-only
+  `get_workflow_state` reads owner-scoped canonical runtime state and recommends
+  the existing execution primitives rather than allowing the LLM to guess the
+  workflow sequence. Approval, checkout, payment, and mailing remain separate
+  existing boundaries.
+- First adapter is the shared Notice Respond manifest/profile family, including
+  CP14. Unregistered workflows fail closed with
+  `WORKFLOW_PROTOCOL_NOT_REGISTERED`; no generic fallback is allowed to invent
+  workflow behavior.
+- Intentionally did not register Records Request after finding manifest field IDs
+  and runtime input keys are not yet a single canonical contract. The shared
+  reducer nevertheless has tested request-first semantics so that family can be
+  added once the contract is reconciled.
+- Updated plugin annotation justifications, launch-readiness/smoke catalog
+  counts, and Workspace UI CI paths so MailMyPDF plugin bundle changes run the
+  submission checks automatically.
+- Verification: Shared capability, Notice Respond, Records Request, and SSDI
+  package workflows passed after the protocol changes. Final Workspace UI run
+  `36316852480` for commit
+  `ef4c96c5e89f0b4f74f82b480a9ddeee11380783` completed **20/20 jobs green**,
+  including 64/64 MCP transport/connector tests, 51/51 authority/catalog tests,
+  plugin submission validation, launch-readiness, executable notice runtimes,
+  production core build, and all section builds.
+- Remaining: certify/register adapters for the other executable workflow
+  families; reconcile Records Request manifest/runtime input names; surface
+  durable generated-draft/packet-preview receipts in state for exact mid-step
+  resume; then run real deployed ChatGPT/Claude OAuth + connector acceptance.
+  No live payment, mailing, provider mutation, or production deployment was
+  performed in this pass.
+
 ### 2026-09-27 — Activation check and deployment-gate repair
 
 - Fresh read-only checks: `/api/mcp` and OAuth protected-resource metadata on
