@@ -13,6 +13,35 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — Activation check and deployment-gate repair
+
+- Fresh read-only checks: `/api/mcp` and OAuth protected-resource metadata on
+  `mailmypdf.mycomind4.workers.dev` both return 200 HTML, not the new connector.
+  Supabase confirms `akpjuhrzypmcbivgsegt` is the healthy MailMyPDF project;
+  saved-address table and writer RPC are still absent. No migration applied.
+- Fly's app-list command refuses access because the trial ended and a credit
+  card is required. GitHub repository Actions secrets are still empty.
+  Cloudflare secret-name inspection shows Stripe/Lob core keys exist, but no
+  scanner URL/key, scan/retention/connector job secrets, payment webhook secrets,
+  Lob webhook secret, Resend key/sender, or expected Supabase project reference.
+  Names prove presence only, not validity. Local preflight credentials differ
+  from Worker secrets; do not equate missing local values with missing live keys.
+- Fixed the launch checker from 21 to all 26 current tools; a regression test
+  compares it to the canonical catalog. Production preflight now checks saved
+  addresses, connector operations and the reconciliation job secret. Credentialed
+  database probes require the exact bare HTTPS canonical project origin, reject
+  redirects and have timeouts. Probes remain read-only and omit row contents.
+- Verification: JavaScript suite 630/630 passed; focused launch/preflight tests
+  7/7. A read-only live preflight using the confirmed project correctly reports
+  the missing saved-address table while existing core schema/storage probes pass.
+  No build rerun needed for script/test-only changes; no new application UI.
+- Blocked on billing/provider configuration before deployment. No purchases,
+  live payments, mail, production configuration writes or credential rotation.
+  Next: user completes Fly billing, then configure scanner/email/webhooks/jobs,
+  roll out the single new migration with backup review, deploy through preflight,
+  and verify account linking in real clients. Guided next-step/resume features
+  from the proposed roadmap have not been implemented in this activation pass.
+
 ### 2026-09-27 — ECC saved sender profiles and recipient entries
 
 - MCP v0.7 adds three authenticated tools: list saved addresses by kind, save a

@@ -7,6 +7,17 @@ const root=path.resolve(import.meta.dirname,"..");
 const readiness=fs.readFileSync(path.join(root,"scripts/mcp-launch-readiness.mjs"),"utf8");
 const smoke=fs.readFileSync(path.join(root,"scripts/mcp-smoke.mjs"),"utf8");
 
+test("launch required tools match the canonical tool catalog",()=>{
+  const catalog=fs.readFileSync(path.join(root,"src/lib/mcp/tool-catalog.ts"),"utf8");
+  const catalogBlock=catalog.slice(catalog.indexOf("export const MAILMYPDF_MCP_TOOLS"));
+  const names=[...catalogBlock.matchAll(/^    name: "([^"]+)",/gm)].map(match=>match[1]);
+  const requiredBlock=readiness.match(/const requiredTools=\[([\s\S]*?)\];/)?.[1];
+  assert.ok(requiredBlock);
+  const required=[...requiredBlock.matchAll(/"([^"]+)"/g)].map(match=>match[1]);
+  assert.equal(names.length,26);
+  assert.deepEqual(required.sort(),names.sort());
+});
+
 test("launch readiness invokes only read-only MCP tools",()=>{
   const calls=[...readiness.matchAll(/callTool\("([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual([...new Set(calls)].sort(),["find_workflow","get_profile"]);

@@ -17,6 +17,7 @@
 const EXPECTED_SUPABASE_PROJECT_REF =
   process.env.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF?.trim() || null;
 const live = process.argv.includes("--live");
+let canonicalProjectConfirmed = false;
 
 const results = [];
 function pass(name, detail = "") { results.push({ status: "PASS", name, detail }); }
@@ -69,12 +70,16 @@ if (!EXPECTED_SUPABASE_PROJECT_REF) {
 
 if (supabaseUrl) {
   try {
-    const host = new URL(supabaseUrl).hostname;
+    const u = new URL(supabaseUrl);
+    const host = u.hostname;
     const ref = host.endsWith(".supabase.co") ? host.slice(0, -".supabase.co".length) : null;
-    if (EXPECTED_SUPABASE_PROJECT_REF && ref === EXPECTED_SUPABASE_PROJECT_REF) {
+    if (EXPECTED_SUPABASE_PROJECT_REF && ref === EXPECTED_SUPABASE_PROJECT_REF && u.protocol === "https:" && !u.username && !u.password && !u.port && u.pathname === "/" && !u.search && !u.hash) {
+      canonicalProjectConfirmed = true;
       pass("Canonical Supabase project", ref);
     } else if (EXPECTED_SUPABASE_PROJECT_REF) {
-      fail("Canonical Supabase project", `expected ${EXPECTED_SUPABASE_PROJECT_REF}; configured URL points to ${ref || host}`);
+      fail("Canonical Supabase project", ref === EXPECTED_SUPABASE_PROJECT_REF
+        ? "must be a bare HTTPS project origin without credentials, path, query, or fragment"
+        : `expected ${EXPECTED_SUPABASE_PROJECT_REF}; configured URL points to ${ref || host}`);
     }
   } catch {
     fail("SUPABASE_URL", "not a valid URL");
@@ -138,6 +143,7 @@ requireSecret("MAILMYPDF_SCANNER_JOB_SECRET", 32);
 const scannerUrl = requireValue("MAILMYPDF_MALWARE_SCANNER_URL");
 requireSecret("MAILMYPDF_MALWARE_SCANNER_KEY", 32);
 requireSecret("MAILMYPDF_RETENTION_JOB_SECRET", 32);
+requireSecret("MAILMYPDF_CONNECTOR_JOB_SECRET", 32);
 
 const baseUrl = requireValue("MAILMYPDF_BASE_URL");
 if (baseUrl) {
@@ -150,7 +156,10 @@ if (baseUrl) {
   }
 }
 
-if (live && supabaseUrl && serverKey) {
+if (live && supabaseUrl && serverKey && !canonicalProjectConfirmed) {
+  fail("Supabase live probes", "skipped — confirm the exact HTTPS production project before transmitting credentials");
+}
+if (live && supabaseUrl && serverKey && canonicalProjectConfirmed) {
   const headers = {
     apikey: serverKey,
     Authorization: `Bearer ${serverKey}`,
@@ -165,11 +174,13 @@ if (live && supabaseUrl && serverKey) {
     ["case_documents", "/rest/v1/case_documents?select=id,role,included&limit=0"],
     ["case_analyses", "/rest/v1/case_analyses?select=id,version&limit=0"],
     ["workflow case inputs", "/rest/v1/workflow_case_inputs?select=id,version&limit=0"],
+    ["saved mailing addresses", "/rest/v1/saved_mailing_addresses?select=id,owner_id,kind,address,verification,revision,is_default,archived_at&limit=0"],
+    ["connector operations", "/rest/v1/connector_operations?select=id,owner_id,state,revision&limit=0"],
   ];
 
   for (const [name, path] of schemaProbes) {
     try {
-      const response = await fetch(`${supabaseUrl}${path}`, { headers });
+      const response = await fetch(`${supabaseUrl}${path}`, { headers, signal: AbortSignal.timeout(10_000), redirect: "error" });
       if (response.ok) pass(`Supabase schema: ${name}`, "reachable");
       else fail(`Supabase schema: ${name}`, `HTTP ${response.status}`);
     } catch (error) {
@@ -178,7 +189,7 @@ if (live && supabaseUrl && serverKey) {
   }
 
   try {
-    const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, { headers });
+    const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, { headers, signal: AbortSignal.timeout(10_000), redirect: "error" });
     if (!response.ok) {
       fail("Supabase storage buckets", `HTTP ${response.status}`);
     } else {

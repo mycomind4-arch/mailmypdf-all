@@ -1,5 +1,20 @@
 # Install MailMyPDF in ChatGPT or Claude
 
+## Latest activation check (2026-09-27)
+
+Activation remains blocked: Fly CLI reports an ended trial requiring a credit
+card; the live MCP and protected-resource endpoints still return HTML; the
+saved-address table/RPC are absent; repository Actions secrets are empty.
+Worker secret-name inspection confirms missing scanner, secure-job, webhook,
+Resend and expected-project bindings. Existing Stripe/Lob core key names are
+present but their values were not inspected or verified. Local environment
+preflight failures must not be interpreted as a live Worker secret inventory.
+No production settings, database schema, payment or mail were changed by this check.
+
+The launch checker now requires all 26 tools. Production preflight also verifies
+saved-address/connector schema and the connector job secret, and refuses to send
+database credentials unless the configured project origin is confirmed exactly.
+
 ## Saved-address rollout addition (2026-09-27)
 
 The additive `20260928010000_saved_mailing_addresses.sql` migration is not part
