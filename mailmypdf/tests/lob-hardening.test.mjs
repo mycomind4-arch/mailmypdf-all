@@ -307,6 +307,16 @@ describe("Lob Hardening — Source-Level Tests", () => {
     assert.ok(detailIndex > nameIndex, "lifecycle name must take precedence over low-level carrier detail");
   });
 
+  it("allows authoritative forward Lob recovery when intermediate events were missed", async () => {
+    const lob = await source("src/lib/lob.server.ts");
+    assert.match(lob, /export function canApplyLobLifecycleTransition/);
+    assert.match(lob, /currentProgress >= 1 && nextProgress > currentProgress/);
+    const webhook = lob.slice(lob.indexOf("export async function processLobWebhook"));
+    assert.match(webhook, /canApplyLobLifecycleTransition\(currentStatus, nextStatus\)/);
+    const reconciliation = lob.slice(lob.indexOf("export async function reconcileOrderWithLob"));
+    assert.match(reconciliation, /canApplyLobLifecycleTransition\(currentStatus, nextStatus\)/);
+  });
+
   it("persists Lob evidence even when lifecycle status does not advance", async () => {
     const lob = await source("src/lib/lob.server.ts");
     const webhook = lob.slice(lob.indexOf("export async function processLobWebhook"));
