@@ -8,7 +8,9 @@ import {
 } from "../src/workflow-protocol.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
 import { cp14NoticeResponseProfile } from "../src/domain-packs/notice-response/profiles.js";
+import { createNoticeResponseRuntimePolicy } from "../src/domain-packs/notice-response/runtime-policy.js";
 import { createRecordsRequestManifest } from "../src/domain-packs/records-request/manifest.js";
+import { createRecordsRequestRuntimePolicy } from "../src/domain-packs/records-request/runtime-policy.js";
 import type {
   WorkflowMatterDocument,
   WorkflowMatterRecord,
@@ -38,8 +40,10 @@ const cleanSource: WorkflowMatterDocument = {
   usable: true,
 };
 
+const noticePolicy = createNoticeResponseRuntimePolicy("cp14-response");
 const definition = workflowProtocolDefinitionFromManifest(
   createNoticeResponseManifest({ profile: cp14NoticeResponseProfile }),
+  noticePolicy.chatContract,
 );
 
 function state(
@@ -64,7 +68,8 @@ test("workflow protocol is derived from the canonical CP14 manifest", () => {
   assert.equal(definition.analysisRequired, true);
   assert.equal(definition.inputRequired, true);
   assert.ok(definition.inputFields.some((field) => field.id === "responseMode"));
-  assert.ok(definition.inputFields.some((field) => field.id === "recipientAddress"));
+  assert.equal(definition.inputFields.some((field) => field.id === "recipientAddress"), false);
+  assert.equal(definition.packetRecipientField?.id, "recipientAddress");
 });
 
 test("workflow protocol asks for the primary document first", () => {
@@ -114,6 +119,7 @@ test("fact-first workflows collect input before generating a draft", () => {
       workflowId: "public-records-request",
       title: "Public Records Request",
     }).manifest,
+    createRecordsRequestRuntimePolicy("public-records-request").chatContract,
   );
 
   assert.equal(recordsDefinition.analysisRequired, false);
@@ -136,4 +142,12 @@ test("fact-first workflows collect input before generating a draft", () => {
 
   assert.equal(result.progress.analysisReady, true);
   assert.equal(result.nextActions[0]?.toolName, "save_matter_input");
+});
+
+
+test("packet preview exposes only the certified recipient field", () => {
+  const result = state({ approvalPresent: false });
+  const preview = result.nextActions[0];
+  assert.equal(preview?.toolName, "preview_packet");
+  assert.deepEqual(preview?.fields?.map((field) => field.id), ["recipientAddress"]);
 });
