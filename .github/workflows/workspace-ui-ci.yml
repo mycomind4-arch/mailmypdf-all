@@ -207,6 +207,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify production payment, fulfillment, and evidence rails
         run: |
+          node --check mailmypdf/scripts/verify-canary.mjs
           pnpm --filter @mailmypdf/core build
           pnpm --filter @mailmypdf/mailing-client build
           pnpm --filter @mailmypdf/fulfillment test
