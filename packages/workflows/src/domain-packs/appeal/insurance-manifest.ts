@@ -1,4 +1,12 @@
 import type { AdapterId } from "../../adapter-registry.js";
+import {
+  checkboxField,
+  longTextField,
+  personNameField,
+  postalAddressField,
+  referenceNumberField,
+  textField,
+} from "../../workflow-fields.js";
 import { defineWorkflow, type DefinedWorkflow } from "../../define-workflow.js";
 import type {
   WorkflowManifest,
@@ -91,6 +99,60 @@ export function createInsuranceAppealManifest(
         uses: ["matterState", "facts"],
         requires: ["denial_analyzed"],
         completeWhen: ["appeal_facts_confirmed"],
+        fields: [
+          personNameField({
+            id: "claimantName",
+            label: "Claimant name",
+            required: true,
+          }),
+          postalAddressField({
+            id: "claimantAddress",
+            label: "Claimant mailing address",
+            required: true,
+          }),
+          {
+            id: "phone",
+            label: "Phone",
+            type: "phone",
+            required: false,
+            origin: "user",
+            maxLength: 100,
+          },
+          referenceNumberField({
+            id: "claimNumber",
+            label: "Claim or reference number",
+            origin: "extracted_confirmation",
+          }),
+          textField({
+            id: "organizationName",
+            label: "Insurer or organization name",
+            origin: "extracted_confirmation",
+            maxLength: 300,
+          }),
+          longTextField({
+            id: "reasonsForDisagreement",
+            label: "Reasons for disagreement",
+            required: true,
+            maxLength: 12_000,
+          }),
+          longTextField({
+            id: "requestedOutcome",
+            label: "Requested outcome",
+            required: true,
+            maxLength: 4_000,
+          }),
+          longTextField({
+            id: "additionalFacts",
+            label: "Additional confirmed facts",
+            maxLength: 12_000,
+          }),
+          checkboxField({
+            id: "factsConfirmed",
+            label: "I reviewed and confirm the material facts used in this appeal.",
+            required: true,
+            origin: "user",
+          }),
+        ],
       },
       {
         id: "evidence",
@@ -98,6 +160,14 @@ export function createInsuranceAppealManifest(
         description: "Upload, scan, organize, and explicitly select evidence for the appeal packet.",
         uses: ["secureUpload", "documentStorage", "documentScanning", "evidence", "provenance"],
         completeWhen: ["evidence_reviewed"],
+        fields: [
+          checkboxField({
+            id: "evidenceReviewComplete",
+            label: "I reviewed the supporting-evidence set that will be used for this appeal.",
+            required: true,
+            origin: "user",
+          }),
+        ],
       },
       {
         id: "draft",
@@ -114,6 +184,15 @@ export function createInsuranceAppealManifest(
         uses: ["pdfGeneration", "packetAssembly", "pricing", "addressVerification", "blockingGate", "humanReview", "approval"],
         requires: ["draft_validated"],
         completeWhen: ["exact_packet_approved"],
+        fields: [
+          postalAddressField({
+            id: "recipientAddress",
+            label: "Appeal mailing destination",
+            required: true,
+            origin: "extracted_confirmation",
+            hint: "Confirm this against the destination in the controlling denial notice or current verified instructions.",
+          }),
+        ],
       },
       {
         id: "mail",
