@@ -87,6 +87,15 @@ test("CP14 and Records Request are registered only after chat-readiness certific
   assert.ok(records.definition.inputFields.some((field) => field.id === "records-sought"));
   assert.equal(records.definition.packetRecipientField?.id, "agency-address");
 
+  const insurance = getMcpWorkflowProtocolRegistration("appeal-insurance-claim-denial");
+  assert.ok(insurance);
+  assert.equal(insurance.certification.certified, true);
+  assert.ok(insurance.definition);
+  assert.equal(insurance.definition.analysisRequired, true);
+  assert.ok(insurance.definition.inputFields.some((field) => field.id === "reasonsForDisagreement"));
+  assert.ok(insurance.definition.inputFields.some((field) => field.id === "factsConfirmed"));
+  assert.equal(insurance.definition.packetRecipientField?.id, "recipientAddress");
+
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
 
