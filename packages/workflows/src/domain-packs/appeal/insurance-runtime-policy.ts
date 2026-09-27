@@ -9,6 +9,7 @@ import type {
 } from "../../matter-runtime-server.js";
 import { WorkflowRuntimeError } from "../../matter-runtime.js";
 import { assertStoredAnalysisReadyForDraft } from "../../runtime-safety.js";
+import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 import { insuranceAppealWorkflowSpecs } from "./insurance-workflows.js";
 
 export const INSURANCE_APPEAL_RUNTIME_WORKFLOW_IDS = Object.freeze([
@@ -29,6 +30,7 @@ export interface InsuranceAppealRuntimeInput extends Record<string, unknown> {
   requestedOutcome: string;
   additionalFacts: string;
   evidenceReviewComplete: boolean;
+  factsConfirmed: boolean;
   evidenceReviewFingerprint: string;
 }
 
@@ -76,6 +78,7 @@ export function validateInsuranceAppealRuntimeInput(
     requestedOutcome: text(input.requestedOutcome, "Requested outcome", { required: true, maxLength: 4_000 }),
     additionalFacts: text(input.additionalFacts, "Additional facts", { maxLength: 12_000 }),
     evidenceReviewComplete: booleanValue(input.evidenceReviewComplete, "Evidence review complete"),
+    factsConfirmed: booleanValue(input.factsConfirmed, "Facts confirmed"),
     // This value is server-authored below. Ignore any client-supplied fingerprint.
     evidenceReviewFingerprint: "",
   };
@@ -161,6 +164,35 @@ export function createInsuranceAppealRuntimePolicy(
   workflowId: InsuranceAppealRuntimeWorkflowId,
 ): WorkflowRuntimePolicy {
   const policy: WorkflowRuntimePolicy = {
+    chatContract: defineWorkflowRuntimeChatContract({
+      sourceDocument: "required",
+      inputFields: [
+        { id: "claimantName", required: true },
+        { id: "claimantAddress", required: true },
+        { id: "phone", required: false },
+        { id: "claimNumber", required: false },
+        { id: "organizationName", required: false },
+        { id: "reasonsForDisagreement", required: true },
+        { id: "requestedOutcome", required: true },
+        { id: "additionalFacts", required: false },
+        { id: "factsConfirmed", required: true },
+        { id: "evidenceReviewComplete", required: true },
+      ],
+      connectorFields: [
+        {
+          id: "recipientAddress",
+          required: true,
+          toolName: "preview_packet",
+          argumentName: "recipient",
+        },
+      ],
+      enforcedGateIds: [
+        "source-document-ready",
+        "facts-confirmed",
+        "exact-packet-review",
+        "mailing-authorization",
+      ],
+    }),
     validateMatter(input) {
       if (input.workflowId !== workflowId || input.verticalId !== "appeal-mail") {
         throw new WorkflowRuntimeError(
@@ -184,12 +216,24 @@ export function createInsuranceAppealRuntimePolicy(
     },
     validateBeforeDraft({ matter, caseInput }) {
       assertEvidenceReviewCurrent(matter, caseInput);
+      if (caseInput.input.factsConfirmed !== true) {
+        throw new WorkflowRuntimeError(
+          "Confirm the material appeal facts before drafting.",
+          "APPEAL_FACT_CONFIRMATION_REQUIRED",
+        );
+      }
     },
     validateDocumentsBeforePacket(documents, analysis) {
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
     validateBeforePacket({ matter, caseInput }) {
       assertEvidenceReviewCurrent(matter, caseInput);
+      if (caseInput.input.factsConfirmed !== true) {
+        throw new WorkflowRuntimeError(
+          "Confirm the material appeal facts before packet assembly.",
+          "APPEAL_FACT_CONFIRMATION_REQUIRED",
+        );
+      }
     },
   };
 
