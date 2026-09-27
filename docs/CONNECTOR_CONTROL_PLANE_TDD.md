@@ -108,6 +108,68 @@ production core build, and every section build.
   operational gates; this repository verification does not claim a live
   ChatGPT/Claude round trip.
 
+
+## Chat-readiness factory certification — 2026-09-27
+
+The workflow factory now has a fail-closed chat-execution certification layer
+above ordinary static composition.
+
+- `WorkflowRuntimePolicy.chatContract` declares the runtime-visible source
+  document mode, user-input bindings, connector-owned field bindings, and
+  runtime-enforced manifest gates.
+- `certifyWorkflowChatReadiness()` compares the canonical manifest against the
+  runtime chat contract and actual connector tool catalog. Certification fails
+  for unbound manifest fields, runtime-only fields, requiredness drift,
+  unsupported connector bindings, unenforced required gates, source-document
+  disagreement, missing request-first analysis, or missing connector tools.
+- `composeWorkflowForChat()` combines ordinary factory composition with chat
+  certification and exposes `chatExecutable` only when both pass.
+- MCP workflow registration is now gated by that factory result. Known but
+  uncertified workflows return structured chat-readiness diagnostics and cannot
+  create an MCP matter.
+- Public `get_workflow` exposes
+  `chatExecution: { protocol: "mailmypdf.workflow/v1", certified: boolean }`
+  so an assistant can distinguish catalog discovery from safe chat execution
+  before matter creation.
+
+Three reusable workflow archetypes are now certified through the same protocol:
+
+1. **Document-first official response** — Notice Respond / CP14 family.
+2. **Fact-first request** — Records Request family, including manifest-style
+   chat field ids normalized to the existing stored camelCase runtime model.
+3. **Evidence-heavy appeal** — all 11 platform insurance-appeal workflows.
+   The shared insurance manifest now declares claimant facts, explicit fact
+   confirmation, evidence review, and recipient review. Runtime and web UI both
+   enforce the same confirmation contract.
+
+The insurance family was also consolidated so `appeal-denied-claim` uses the
+shared insurance manifest factory while preserving its existing
+`standard-denied-claim` acceptance-scenario identity.
+
+Verification: Workspace UI verification run `36322701374` completed
+successfully with **20/20 jobs green** on code commit
+`08b393a8f690566467bdebe7830cb97153628403`. This includes the workflow package
+tests, Records Request verification, Notice Respond verification, insurance
+appeal acceptance coverage exercised through the Appeal Mail/SSDI gate,
+canonical registry verification, MCP connector/authority checks, every section
+build, and the final production MailMyPDF core build.
+
+### Remaining factory work
+
+- Move family manifest/policy resolution out of the MCP host into one shared
+  canonical chat-execution registry so new certified families self-register
+  without host edits.
+- Model optional evidence/source uploads as explicit parallel `nextActions`
+  rather than relying on the model to call ingestion outside the primary
+  progression.
+- Surface durable generated-draft and packet-preview operation receipts through
+  workflow state for exact mid-step resume.
+- Add chat contracts and certification evidence for SSA/benefits,
+  immigration, disputes, code enforcement, and the remaining platform runtime
+  families.
+- Add certification reporting to Studio so workflow generation shows exact
+  blocking diagnostics before a workflow can be promoted to chat-executable.
+
 ## Known gaps
 
 - The migration is implemented and statically verified but has not been applied
