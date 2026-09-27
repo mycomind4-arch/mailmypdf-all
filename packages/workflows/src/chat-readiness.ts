@@ -137,7 +137,7 @@ export function certifyWorkflowChatReadiness(input: {
       workflowId: input.manifest.id,
       certified: false,
       requiredTools: Object.freeze([]),
-      diagnostics: Object.freeze([
+      diagnostics: Object.freeze<WorkflowChatReadinessDiagnostic[]>([
         {
           code: "RUNTIME_CHAT_CONTRACT_MISSING",
           message: "The runtime policy does not declare a chat-execution contract.",
