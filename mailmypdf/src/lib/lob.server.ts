@@ -291,6 +291,33 @@ export function mapLobStatusToOrderStatus(
   }
 }
 
+/**
+ * Provider lifecycle webhooks/reconciliation are authoritative observations,
+ * not user-initiated business transitions. If intermediate Lob events were
+ * missed, allow a monotonic forward jump within the post-submission pipeline
+ * while still rejecting backwards movement and payment-state shortcuts.
+ */
+export function canApplyLobLifecycleTransition(
+  currentStatus: OrderStatus,
+  nextStatus: OrderStatus,
+): boolean {
+  if (canTransition(currentStatus, nextStatus)) return true;
+
+  const currentProgress = getFulfillmentProgress(currentStatus);
+  const nextProgress = getFulfillmentProgress(nextStatus);
+
+  if (currentProgress >= 1 && nextProgress > currentProgress) return true;
+
+  if (
+    nextStatus === "returned" &&
+    ["submitted_to_provider", "provider_processing", "mailed", "in_transit", "delivered"].includes(currentStatus)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 // Attempts full auto-submit: signs the stored PDF, sends to Lob, updates the
 // order, and logs order_events. Idempotent — if the order already has a
 // lob_letter_id, we skip. On error we mark for manual fallback and rethrow.
@@ -553,7 +580,7 @@ export async function processLobWebhook(request: Request): Promise<Response> {
     let statusAdvanced = false;
     if (nextStatus) {
       // Use the state machine to validate the transition.
-      if (canTransition(currentStatus, nextStatus)) {
+      if (canApplyLobLifecycleTransition(currentStatus, nextStatus)) {
         const currentProgress = getFulfillmentProgress(currentStatus);
         const nextProgress = getFulfillmentProgress(nextStatus);
 
@@ -677,7 +704,7 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
   let updated = false;
   let eventsInserted = 0;
 
-  if (nextStatus && canTransition(currentStatus, nextStatus)) {
+  if (nextStatus && canApplyLobLifecycleTransition(currentStatus, nextStatus)) {
     const currentProgress = getFulfillmentProgress(currentStatus);
     const nextProgress = getFulfillmentProgress(nextStatus);
 
