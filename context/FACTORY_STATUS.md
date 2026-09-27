@@ -13,6 +13,41 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — Chat-readiness certification and three certified archetypes
+
+- Added `mailmypdf.chat-readiness/v1` and a declarative
+  `WorkflowRuntimePolicy.chatContract`. Certification compares manifest
+  fields/documents/gates with runtime bindings and the live MCP tool catalog.
+  It fails closed on field drift, requiredness mismatches, missing runtime
+  analysis, unsupported connector bindings, unenforced gates, or missing tools.
+- Added `composeWorkflowForChat()` to the workflow factory. A workflow is
+  `chatExecutable` only when ordinary composition and chat certification both
+  pass.
+- MCP registration, `get_workflow_state`, and `create_matter` now enforce
+  certification. `get_workflow` reports
+  `chatExecution.certified` separately from ordinary catalog discovery.
+- Certified three shared archetypes through one protocol:
+  Notice Respond (document-first), Records Request (fact-first), and all 11
+  platform Insurance Appeal workflows (evidence-heavy appeal).
+- Records Request chat fields now normalize into the existing stored camelCase
+  model while preserving the manifest as the connector wire contract.
+- Insurance Appeal manifests now declare claimant facts, explicit
+  `factsConfirmed`, evidence review, and recipient review. Runtime blocks
+  drafting/packet assembly without current evidence review and fact
+  confirmation. The shared web UI exposes the same confirmation control and
+  invalidates it when the source decision or analysis changes.
+- Consolidated the old hand-written `appeal-denied-claim` manifest onto the
+  shared insurance factory while preserving the existing
+  `standard-denied-claim` acceptance scenario id.
+- Verification: Workspace UI run `36322701374` passed **20/20 jobs** against
+  code commit `08b393a8f690566467bdebe7830cb97153628403`, including the
+  production core build. Records Request, Notice Respond, shared capability,
+  insurance acceptance, registry, connector, and section builds were green.
+- Next factory step: replace MCP-local family resolution with one shared
+  canonical chat-execution registry, then surface certification diagnostics in
+  Studio and expand contracts to SSA/benefits, immigration, disputes, and code
+  enforcement.
+
 ### 2026-09-27 — Universal chat workflow protocol and CP14 adapter
 
 - Added `packages/workflows/src/workflow-protocol.ts` with
