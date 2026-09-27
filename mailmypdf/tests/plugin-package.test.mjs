@@ -67,7 +67,9 @@ test("OpenAI install metadata points at public MailMyPDF policy surfaces",()=>{
   assert.equal(openai.websiteURL,"https://mailmypdf.ai");
   assert.equal(openai.privacyPolicyURL,"https://mailmypdf.ai/privacy");
   assert.equal(openai.termsOfServiceURL,"https://mailmypdf.ai/terms");
-  assert.match(openai.defaultPrompt,/explicit confirmation/i);
+  assert.ok(Array.isArray(openai.defaultPrompt));
+  assert.ok(openai.defaultPrompt.length >= 1 && openai.defaultPrompt.length <= 3);
+  assert.ok(openai.defaultPrompt.every((prompt) => typeof prompt === "string" && prompt.length <= 128));
   assert.match(openai.brandColor,/^#[0-9A-F]{6}$/i);
 });
 

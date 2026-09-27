@@ -23,14 +23,25 @@
     "com.openai": {
       "interface": {
         "displayName": "MailMyPDF",
-        "shortDescription": "Create, review, and mail PDFs from chat.",
+        "shortDescription": "Create and mail PDFs from chat",
         "longDescription": "Use MailMyPDF to turn notices, appeals, disputes, records requests, claims, and other document problems into secure matters, reviewable drafts and packets, hosted checkout, physical mailing, tracking, and proof.",
         "developerName": "MailMyPDF",
         "websiteURL": "https://mailmypdf.ai",
         "privacyPolicyURL": "https://mailmypdf.ai/privacy",
         "termsOfServiceURL": "https://mailmypdf.ai/terms",
-        "defaultPrompt": "Help me handle this document with MailMyPDF. Identify the right workflow, ask only for missing facts, create a reviewable response, and do not approve payment or mailing without my explicit confirmation.",
-        "brandColor": "#1D4ED8"
+        "defaultPrompt": [
+          "Help me respond to this attached notice and prepare a reviewable mailing packet.",
+          "Create a MailMyPDF workflow from these facts and show me the exact packet before approval.",
+          "Check whether my MailMyPDF order was mailed and show any available tracking."
+        ],
+        "brandColor": "#1D4ED8",
+        "category": "Productivity",
+        "capabilities": [
+          "Process document workflows",
+          "Create and review PDF packets",
+          "Prepare secure physical mailing"
+        ],
+        "supportURL": "https://mailmypdf.ai/support"
       }
     }
   }
