@@ -111,6 +111,20 @@ test("public workflow discovery reports certified chat execution separately", as
   assert.equal(catalogOnly.workflow.chatExecution.certified, false);
 });
 
+test("MCP matter creation fails before runtime access for uncertified workflows", async () => {
+  const request = new Request("https://mailmypdf.ai/api/mcp");
+  await assert.rejects(
+    () =>
+      executeMcpTool(request, "create_matter", {
+        workflow_id: "police-records-request",
+        section_id: "records-request",
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      /not certified for chat-guided execution/i.test(error.message),
+  );
+});
+
 test("every connector tool has a valid capability contract", () => {
   assert.deepEqual(validateMcpToolCapabilityContracts(), []);
 
