@@ -1,5 +1,7 @@
 import {
   composeWorkflowForChat,
+  getInsuranceAppealRuntimePolicy,
+  createInsuranceAppealManifestForWorkflow,
   createNoticeResponseManifest,
   createRecordsRequestManifest,
   getNoticeResponseRuntimePolicy,
@@ -28,6 +30,25 @@ function manifestAndPolicy(workflowId: string): {
     return {
       manifest: createNoticeResponseManifest({ profile: noticeProfile }),
       policy: getNoticeResponseRuntimePolicy(workflowId),
+    };
+  }
+
+  const insurancePolicy = getInsuranceAppealRuntimePolicy(workflowId);
+  if (insurancePolicy) {
+    const canonical = workflowByRuntimeId(workflowId);
+    const manifest = createInsuranceAppealManifestForWorkflow(workflowId);
+    if (
+      !canonical ||
+      canonical.sectionId !== "appeal-mail" ||
+      canonical.execution?.kind !== "platform" ||
+      canonical.execution.policyFamily !== "insurance-appeal" ||
+      !manifest
+    ) {
+      return null;
+    }
+    return {
+      manifest: manifest.manifest,
+      policy: insurancePolicy,
     };
   }
 
