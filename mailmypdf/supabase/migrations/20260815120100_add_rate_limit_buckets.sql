@@ -19,3 +19,9 @@ CREATE INDEX IF NOT EXISTS rate_limit_buckets_bucket_key_idx
 
 COMMENT ON TABLE rate_limit_buckets IS
 'Distributed rate limiting buckets for cross-isolate coordination on Cloudflare Workers';
+
+-- Server-only coordination data. Do not expose limiter state to browser roles.
+REVOKE ALL ON public.rate_limit_buckets FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.rate_limit_buckets TO service_role;
+ALTER TABLE public.rate_limit_buckets ENABLE ROW LEVEL SECURITY;
+-- No anon/authenticated policies: server-side service_role is the only intended caller.
