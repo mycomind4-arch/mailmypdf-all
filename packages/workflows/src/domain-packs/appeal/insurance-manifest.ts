@@ -36,6 +36,110 @@ export interface InsuranceAppealManifestOptions {
   route?: string;
 }
 
+export interface InsuranceAppealManifestProfile
+  extends Omit<InsuranceAppealManifestOptions, "maturity" | "route"> {}
+
+export const INSURANCE_APPEAL_MANIFEST_PROFILES: readonly InsuranceAppealManifestProfile[] = Object.freeze([
+  {
+    workflowId: "appeal-denied-claim",
+    title: "Appeal Denied Claim",
+    primaryDocumentId: "claim-denial-letter",
+    primaryDocumentLabel: "Claim denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+    adapters: ["insurance", "government", "benefits"],
+  },
+  {
+    workflowId: "appeal-insurance-claim-denial",
+    title: "Appeal an Insurance Claim Denial",
+    primaryDocumentId: "insurance-claim-denial",
+    primaryDocumentLabel: "Insurance claim denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-medical-insurance-denial",
+    title: "Appeal a Medical Insurance Denial",
+    primaryDocumentId: "medical-insurance-denial",
+    primaryDocumentLabel: "Medical insurance denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-prior-authorization-denial",
+    title: "Appeal a Prior Authorization Denial",
+    primaryDocumentId: "prior-authorization-denial",
+    primaryDocumentLabel: "Prior authorization denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-insurance-coverage-denial",
+    title: "Appeal an Insurance Coverage Denial",
+    primaryDocumentId: "insurance-coverage-denial",
+    primaryDocumentLabel: "Insurance coverage denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-medical-necessity-denial",
+    title: "Appeal a Medical Necessity Denial",
+    primaryDocumentId: "medical-necessity-denial",
+    primaryDocumentLabel: "Medical necessity denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-out-of-network-denial",
+    title: "Appeal an Out-of-Network Denial",
+    primaryDocumentId: "out-of-network-denial",
+    primaryDocumentLabel: "Out-of-network denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-dental-insurance-denial",
+    title: "Dental Insurance Appeal",
+    primaryDocumentId: "dental-insurance-denial",
+    primaryDocumentLabel: "Dental insurance denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-life-insurance-denial",
+    title: "Life Insurance Denial Appeal",
+    primaryDocumentId: "life-insurance-denial",
+    primaryDocumentLabel: "Life insurance denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-car-insurance-claim",
+    title: "Appeal a Car Insurance Claim",
+    primaryDocumentId: "car-insurance-claim-decision",
+    primaryDocumentLabel: "Car insurance claim decision",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+  {
+    workflowId: "appeal-timely-filing-denial",
+    title: "Appeal a Timely Filing Denial",
+    primaryDocumentId: "timely-filing-denial",
+    primaryDocumentLabel: "Timely filing denial letter",
+    extractionSchema: "claim-denial-letter-v1",
+  },
+]);
+
+export function insuranceAppealManifestProfile(
+  workflowId: string,
+): InsuranceAppealManifestProfile | null {
+  return INSURANCE_APPEAL_MANIFEST_PROFILES.find(
+    (profile) => profile.workflowId === workflowId,
+  ) ?? null;
+}
+
+export function createInsuranceAppealManifestForWorkflow(
+  workflowId: string,
+  options: Pick<InsuranceAppealManifestOptions, "maturity" | "route"> = {},
+): DefinedWorkflow<WorkflowManifest> | null {
+  const profile = insuranceAppealManifestProfile(workflowId);
+  if (!profile) return null;
+  return createInsuranceAppealManifest({
+    ...profile,
+    ...options,
+  });
+}
+
 /**
  * Build the canonical seven-step insurance appeal contract.
  *
