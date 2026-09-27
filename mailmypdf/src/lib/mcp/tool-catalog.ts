@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.7.0";
+export const MCP_CONNECTOR_VERSION = "0.8.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -181,6 +181,27 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("identity", "matterState"),
+  },
+  {
+    name: "get_workflow_state",
+    title: "Get workflow state and next actions",
+    description:
+      "Load the canonical owner-scoped matter state and return MailMyPDF workflow progress, blockers, and typed next safe connector actions. Use this after creating a matter and after each meaningful workflow action instead of guessing the next step.",
+    inputSchema: objectSchema(
+      { matter_id: string("MailMyPDF matter id.") },
+      ["matter_id"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "matterState"),
+    _meta: {
+      "mailmypdf/workflowProtocol": "mailmypdf.workflow/v1",
+    },
   },
   {
     name: "get_order_status",
