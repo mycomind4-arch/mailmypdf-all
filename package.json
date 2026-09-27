@@ -6,6 +6,7 @@
   "scripts": {
     "registry:generate": "pnpm --filter ./mailmypdf exec tsx ../scripts/sync-workflow-inventory.ts --write",
     "registry:check": "pnpm --filter ./mailmypdf exec tsx ../scripts/sync-workflow-inventory.ts",
+    "capabilities:check": "pnpm --filter @mailmypdf/workflows validate:capabilities",
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",

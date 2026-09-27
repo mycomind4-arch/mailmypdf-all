@@ -8,9 +8,32 @@ import {
   listStaleRunningConnectorOperations,
   saveConnectorOperationIfRevision,
 } from "./connector-operations.server";
+import { createStripeClient } from "@/lib/stripe.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { ConnectorOperation } from "@mailmypdf/workflows/connector-operation";
 
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_STALE_MINUTES = 15;
+
+type CheckoutReceiptCandidate = {
+  id: string;
+  workflow_case_id: string | null;
+  case_approval_id: string | null;
+  approved_packet_sha256: string | null;
+  approved_price_cents: number | null;
+  stripe_session_id: string | null;
+};
+
+type CheckoutSessionReceipt = {
+  id: string;
+  status: string | null;
+  url: string | null;
+  amount_total: number | null;
+  metadata: Record<string, string> | null;
+};
+
+const CHECKOUT_REVIEW_ACTION =
+  "MailMyPDF found an interrupted checkout whose receipt was missing or ambiguous. Check the matter and order status before preparing another checkout; do not repeat the action automatically.";
 
 function configuredSecret(): string {
   const value = process.env.MAILMYPDF_CONNECTOR_JOB_SECRET;
@@ -56,6 +79,90 @@ const repository: ConnectorOperationReconciliationRepository = {
   },
 };
 
+export function createConnectorReceiptResolver(deps: {
+  findCheckoutCandidates(operation: ConnectorOperation): Promise<readonly CheckoutReceiptCandidate[]>;
+  retrieveCheckoutSession(sessionId: string): Promise<CheckoutSessionReceipt>;
+}) {
+  return async function resolveConnectorReceipt(operation: ConnectorOperation) {
+    if (operation.kind !== "prepare_checkout") {
+      return requireReviewForStaleConnectorOperation(operation);
+    }
+
+    const candidates = await deps.findCheckoutCandidates(operation);
+    if (candidates.length !== 1) {
+      return { outcome: "requires_review" as const, requiredAction: CHECKOUT_REVIEW_ACTION };
+    }
+
+    const order = candidates[0]!;
+    if (
+      order.workflow_case_id !== operation.matterId ||
+      !order.case_approval_id ||
+      !order.stripe_session_id ||
+      !order.approved_packet_sha256 ||
+      !Number.isSafeInteger(order.approved_price_cents) ||
+      order.approved_price_cents! < 0
+    ) {
+      return { outcome: "requires_review" as const, requiredAction: CHECKOUT_REVIEW_ACTION };
+    }
+
+    const session = await deps.retrieveCheckoutSession(order.stripe_session_id);
+    const receiptMatches =
+      session.id === order.stripe_session_id &&
+      session.metadata?.orderId === order.id &&
+      session.metadata?.workflowCaseId === operation.matterId &&
+      session.metadata?.caseApprovalId === order.case_approval_id &&
+      session.metadata?.connectorOperationId === operation.id &&
+      session.metadata?.connectorRequestSha256 === operation.requestSha256 &&
+      session.amount_total === order.approved_price_cents;
+
+    if (
+      !receiptMatches ||
+      (session.status !== "open" && session.status !== "complete") ||
+      (session.status === "open" && !session.url)
+    ) {
+      return { outcome: "requires_review" as const, requiredAction: CHECKOUT_REVIEW_ACTION };
+    }
+
+    return {
+      outcome: "confirmed_succeeded" as const,
+      result: {
+        checkoutUrl: session.status === "open" ? session.url : null,
+        orderId: order.id,
+        packetSha256: order.approved_packet_sha256,
+        totalCents: order.approved_price_cents,
+      },
+    };
+  };
+}
+
+const resolveConnectorReceipt = createConnectorReceiptResolver({
+  async findCheckoutCandidates(operation) {
+    const lowerBound = new Date(Date.parse(operation.createdAt) - 1_000).toISOString();
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select("id,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents,stripe_session_id")
+      .eq("workflow_case_id", operation.matterId)
+      .filter("vertical_metadata->>owner_user_id", "eq", operation.ownerId)
+      // An order can predate a retried checkout operation. The checkout claim
+      // updates the row, so use the receipt-bearing mutation time, not creation.
+      .gte("updated_at", lowerBound)
+      .order("updated_at", { ascending: false })
+      .limit(2);
+    if (error) throw new Error("Unable to read checkout receipt candidates.");
+    return data ?? [];
+  },
+  async retrieveCheckoutSession(sessionId) {
+    const session = await createStripeClient().checkout.sessions.retrieve(sessionId);
+    return {
+      id: session.id,
+      status: session.status,
+      url: session.url,
+      amount_total: session.amount_total,
+      metadata: session.metadata,
+    };
+  },
+});
+
 export async function reconcileInterruptedConnectorOperations(input: {
   limit?: number;
   staleAfterMinutes?: number;
@@ -71,7 +178,7 @@ export async function reconcileInterruptedConnectorOperations(input: {
 
   return reconcileStaleConnectorOperations({
     repository,
-    resolve: requireReviewForStaleConnectorOperation,
+    resolve: resolveConnectorReceipt,
     updatedBefore: updatedBefore.toISOString(),
     limit,
     now: now.toISOString(),

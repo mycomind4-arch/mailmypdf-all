@@ -217,7 +217,7 @@ export async function executeDurableConnectorOperation<TResult>(input: {
   matterId: string;
   idempotencyKey: string;
   requestSha256: string;
-  execute(): Promise<TResult>;
+  execute(operation: ConnectorOperation): Promise<TResult>;
   mapError(error: unknown): ConnectorOperationError;
 }): Promise<ConnectorOperationExecution<TResult>> {
   const repository = new SupabaseConnectorOperationRepository(input.context);
@@ -261,7 +261,7 @@ export async function executeDurableConnectorOperation<TResult>(input: {
 
   let output: TResult;
   try {
-    output = await input.execute();
+    output = await input.execute(running);
   } catch (error) {
     try {
       await transitionStoredConnectorOperation(repository, running, "failed", {

@@ -29,6 +29,13 @@ Do not invoke MailMyPDF merely because the conversation mentions one of these to
 
 Create a matter only after the user is actually asking MailMyPDF to perform or preserve work for that matter.
 
+When the user asks to continue existing work or does not know the matter id:
+
+1. Call `list_recent_matters` rather than asking the user to locate an internal id.
+2. Confirm the matching workflow/matter with the user when more than one result is plausible.
+3. Call `get_matter` and follow its persisted progress and conservative `nextAction` recommendation.
+4. Treat `nextAction` as navigation, not authorization. It never replaces required processing consent, packet review, explicit approval, or payment confirmation.
+
 Call:
 
 `create_matter(workflow_id, section_id)`

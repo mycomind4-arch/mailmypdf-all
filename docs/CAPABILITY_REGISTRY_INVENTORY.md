@@ -1,6 +1,6 @@
 # Capability Registry Inventory
 
-Updated 2026-09-26 from the live `mailmypdf-all-main` checkout.
+Updated 2026-09-27 from the live `mailmypdf-all-main` checkout.
 
 ## Scope audited
 
@@ -13,13 +13,13 @@ adapters. The existing top-level section architecture and
 
 | Surface | Current state |
 | --- | --- |
-| Canonical capability definitions | 66 registered IDs |
+| Canonical capability definitions | 66 registered IDs: 18 certified, 46 implemented, 2 planned |
 | Contract metadata | Version, input/output schema, requirements, security posture, applicability, failure modes, fixtures, certification state, and runtime bindings |
-| Package adapters | 25 existing workspace packages mapped through `capability-adapters.ts` |
-| Composition | Discovery, filtering, transitive dependency resolution, stable ordering, and compiler manifest generation |
-| Validation | Unknown dependencies, missing dependencies, cycles, consequential gate reachability, duplicate selection, and applicability diagnostics |
-| Existing factory integration | `composeWorkflow()` and `WorkflowManifest` remain authoritative; the new capability manifest is an additive compiler input |
-| Existing runtime integration | `CapabilityRuntime` and `PlatformCapabilityBundle` remain authoritative for execution bindings |
+| Package adapters | 23 runtime owner packages derived from canonical bindings, plus explicit supporting-package contributions |
+| Composition | Discovery, filtering, true topological dependency closure, separate required/optional closure, and plan/execute/production modes |
+| Validation | Contract identity/version, source provenance, requirements, dependencies, cycles, fixtures, certification, bindings, consequential gates, and applicability |
+| Existing factory integration | `composeWorkflow()` and `WorkflowManifest` remain authoritative and now return a compiled v2 capability manifest |
+| Existing runtime integration | `CapabilityRuntime` and `PlatformCapabilityBundle` remain authoritative for execution bindings and consume the canonical registry |
 
 ## Certification vocabulary
 
@@ -49,9 +49,16 @@ resilience, observability, and acceptance testing.
 The latest shared additions also register secure sharing, legal holds, IRS/tax
 notice normalization, creative-finance amortization, translation boundaries,
 template similarity, identity verification, signatures, notarization, and
-e-filing contracts. UCC filing and title/lien search now have provider-neutral
+e-filing contracts. Automatic PII detection is now implemented and tested; the
+separate privacy-release gate still requires human review. UCC filing and
+title/lien search have provider-neutral
 contracts, but remain explicitly planned until jurisdictional providers and
 certification evidence exist.
+
+The complete machine-readable report is available through
+`buildCapabilityInventory()`, and the complete table can be produced with
+`renderCapabilityInventoryMarkdown()`. The contract and operating rules are in
+`docs/architecture/MASTER_CAPABILITY_REGISTRY.md`.
 
 Existing package adapters are registered for identity-capacity,
 jurisdiction-rules, registry-adapters, secured-transactions, security,

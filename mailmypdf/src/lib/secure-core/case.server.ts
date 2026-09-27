@@ -132,6 +132,29 @@ export async function loadCase(
   return data as WorkflowCase;
 }
 
+/**
+ * Returns only the authenticated owner's most recently updated matters.
+ * RLS remains the primary authorization boundary; the explicit owner filter
+ * prevents this helper from ever becoming a broad administrative listing.
+ */
+export async function listRecentCases(
+  limit: number,
+  context: AuthenticatedUserContext,
+): Promise<WorkflowCase[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20) {
+    throw new CaseError("Matter list limit must be between 1 and 20");
+  }
+
+  const { data, error } = await context.supabase
+    .from("workflow_cases")
+    .select("id, workflow_id, vertical_id, status, created_at, updated_at")
+    .eq("owner_id", context.user.id)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new CaseError("Unable to list matters");
+  return (data ?? []) as WorkflowCase[];
+}
+
 export async function listCaseDocuments(
   caseId: string,
   context: AuthenticatedUserContext,

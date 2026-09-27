@@ -90,6 +90,18 @@ if(typeof matterId!=="string"||!matterId){
 }
 ok(`created matter ${matterId}`);
 
+const recent=await rpc("list_recent_matters",{limit:20});
+if(!recent?.matters?.some((matter)=>matter?.matterId===matterId)){
+  fail("new matter was not discoverable through list_recent_matters",recent);
+}
+ok("new matter is discoverable for conversational resume");
+
+const initialMatter=await rpc("get_matter",{matter_id:matterId});
+if(initialMatter?.nextAction?.toolName!=="ingest_document"){
+  fail("new matter did not recommend secure document intake",initialMatter);
+}
+ok("new matter exposes a safe continuation step");
+
 const ingested=await rpc("ingest_document",{
   matter_id:matterId,
   idempotency_key:`e2e.${runId}.ingest`,
@@ -133,6 +145,12 @@ const analysis=await rpc("analyze_matter",{
 });
 ok("workflow analysis completed");
 
+const resumedMatter=await rpc("get_matter",{matter_id:matterId});
+if(resumedMatter?.nextAction?.toolName!=="save_matter_input"){
+  fail("analyzed matter did not recommend required-facts collection",resumedMatter);
+}
+ok("analyzed matter resumes at required-facts collection");
+
 console.log("\nResult");
 console.log(JSON.stringify({
   matterId,
@@ -141,6 +159,8 @@ console.log(JSON.stringify({
   sectionId,
   analysisVersion:analysis?.analysis?.version??analysis?.version??null,
   analysisDocumentId:analysis?.analysis?.documentId??analysis?.documentId??null,
+  nextTool:resumedMatter?.nextAction?.toolName??null,
+  requiredFacts:resumedMatter?.requiredFacts??[],
 },null,2));
 
 console.log("\n✅ End-to-end document path passed");

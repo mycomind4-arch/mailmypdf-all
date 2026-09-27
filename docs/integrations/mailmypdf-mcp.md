@@ -37,7 +37,7 @@ Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
 Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
 browser origins are validated and account responses are never HTTP-cacheable.
 
-## v0.7 / connector-v2 tool boundary (26 tools)
+## v0.8 / connector-v2 tool boundary (27 tools)
 
 Public discovery:
 
@@ -48,6 +48,7 @@ Authenticated matter execution:
 
 - `get_profile`
 - `create_matter`
+- `list_recent_matters`
 - `get_matter`
 - `get_order_status`
 - `get_document_status`
@@ -72,6 +73,12 @@ Authenticated matter execution:
 - `prepare_checkout`
 
 The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
+
+`list_recent_matters` is owner-scoped and returns compact recent matter metadata.
+`get_matter` combines the existing matter/document snapshot with persisted
+progress, bounded missing-fact labels, and one conservative `nextAction`. The
+recommendation navigates the existing runtime; it does not bypass processing
+consent, document scanning, exact packet review, approval, or payment boundaries.
 
 Saved senders and recipients are private and separate by kind. Saving requires
 explicit consent and an owned order with fresh successful postal review; clients
@@ -128,6 +135,12 @@ Successful tool responses preserve their existing fields and add
 `get_operation_status` with the returned operation id. Owner-scoped RLS protects
 status reads; only trusted server code can create or transition operation rows.
 
+Checkout operations also bind the connector operation id and canonical request
+hash into Stripe checkout metadata. Reconciliation may recover a timed-out
+`prepare_checkout` operation only when the persisted order, session, approval,
+packet, amount, owner, matter, operation id, and request hash all match.
+Ambiguous or incomplete receipts remain in manual review.
+
 This is durable retry/status support, not blind background replay. A scheduled,
 separately authorized reconciliation job scans operations that have remained
 `running` for at least 15 minutes. If MailMyPDF cannot prove the outcome from an
@@ -135,10 +148,10 @@ immutable receipt, it moves the operation to `waiting_for_user` and returns an
 explicit review instruction through `get_operation_status`. The reconciler has
 no callback capable of repeating the original action.
 
-The shared reconciliation contract supports future kind-specific resolvers that
-can mark an operation succeeded or failed only from observable evidence. Those
-receipt correlations are not implemented yet, so the current production-safe
-fallback is review rather than guessing. Configure the app and scheduler with a
+The shared reconciliation contract supports kind-specific resolvers that can
+mark an operation succeeded or failed only from observable evidence. Checkout
+receipt correlation is implemented; other operation kinds still use the
+production-safe review fallback rather than guessing. Configure the app and scheduler with a
 dedicated 32+ character `MAILMYPDF_CONNECTOR_JOB_SECRET`; do not reuse scanner,
 retention, or general cleanup credentials.
 
@@ -323,7 +336,7 @@ identity, owner/matter binding, and one row per owner/tool/idempotency key.
 5. Exercise the exact-PDF packet review and approval UI in ChatGPT developer mode.
 6. Exercise `get_order_status` against paid, mailed, delivered, returned, and failed production-like orders.
 7. Add saved-payment support only after a server-side confirmation design is complete.
-8. Apply the connector-operation migrations, then verify interruption/retry/status recovery through real OAuth sessions. Keep review as the fallback until immutable effect/receipt correlation is available.
+8. Verify interruption/retry/status recovery through real OAuth sessions for every external effect. Checkout receipt correlation is implemented; other provider effects must remain review-first until their immutable receipt correlation is equally complete.
 
 ## Launch-readiness diagnostic
 
@@ -334,7 +347,7 @@ MCP_BASE_URL="https://mailmypdf.ai" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
 
-It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 15-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata.
+It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 27-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata. With a bearer token it also verifies the owner-scoped recent-matter resume path without creating data.
 
 To additionally verify a real connected account without creating any matter or document:
 
@@ -373,7 +386,7 @@ The unauthenticated smoke verifies:
 - `/api/mcp` is reachable and remains POST-only;
 - protected-resource OAuth metadata is present (or reports configuration missing);
 - modern `server/discover` returns protocol `2026-07-28`;
-- `tools/list` exposes the expected 17-tool surface;
+- `tools/list` exposes the expected 27-tool surface;
 - public workflow discovery resolves `cp14-response`;
 - a protected tool returns a 401 OAuth challenge with `resource_metadata`.
 
@@ -404,9 +417,12 @@ The harness performs exactly this sequence:
 ```
 get_workflow
 → create_matter
+→ list_recent_matters
+→ get_matter (expects ingest_document)
 → ingest_document
 → get_document_status (until ready)
 → analyze_matter
+→ get_matter (expects save_matter_input)
 → stop
 ```
 

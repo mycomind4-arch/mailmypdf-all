@@ -20,7 +20,7 @@ test("launch required tools match the canonical tool catalog",()=>{
 
 test("launch readiness invokes only read-only MCP tools",()=>{
   const calls=[...readiness.matchAll(/callTool\("([^"]+)"/g)].map(match=>match[1]);
-  assert.deepEqual([...new Set(calls)].sort(),["find_workflow","get_profile"]);
+  assert.deepEqual([...new Set(calls)].sort(),["find_workflow","get_profile","list_recent_matters"]);
   for(const forbidden of [
     "create_matter",
     "ingest_document",

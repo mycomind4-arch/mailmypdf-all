@@ -24,6 +24,8 @@ test("document execution skill has valid frontmatter and required safe workflow 
   assert.match(skill,/^---\nname: mailmypdf-document-execution\ndescription: .+\n---/);
   for(const required of [
     "find_workflow",
+    "list_recent_matters",
+    "get_matter",
     "create_matter",
     "ingest_document",
     "get_document_status",

@@ -1,6 +1,6 @@
 # MailMyPDF factory status
 
-Updated: 2026-09-14. This is the active repair queue, not a readiness certification.
+Updated: 2026-09-27. This is the active repair queue, not a readiness certification.
 
 ## Objective and current focus
 
@@ -54,7 +54,7 @@ and reviewed reusable registry templates generated from real customer needs.
   `mailmypdf.workflow/v1`: a deterministic, side-effect-free workflow state
   reducer that reports progress, blockers, and typed next connector actions.
   It distinguishes document-first from request/fact-first workflows.
-- MCP v0.8 now exposes 27 tools. New authenticated read-only
+- MCP v0.8 now exposes 28 tools. New authenticated read-only
   `get_workflow_state` reads owner-scoped canonical runtime state and recommends
   the existing execution primitives rather than allowing the LLM to guess the
   workflow sequence. Approval, checkout, payment, and mailing remain separate
@@ -83,6 +83,30 @@ and reviewed reusable registry templates generated from real customer needs.
   resume; then run real deployed ChatGPT/Claude OAuth + connector acceptance.
   No live payment, mailing, provider mutation, or production deployment was
   performed in this pass.
+### 2026-09-27 — Receipt-backed checkout operation recovery
+
+- Extended the existing durable MCP operation reconciler rather than adding a
+  second connector path. The authorized checkout action now binds the validated
+  running operation ID and request hash into Stripe metadata. A stale
+  `prepare_checkout` operation can be marked succeeded only when exactly one
+  owner- and matter-scoped order plus a read-only Stripe session receipt agree
+  on that exact operation, request, order, workflow case, approval, amount,
+  packet hash and active/completed session. Completed sessions return no reusable
+  checkout URL. Missing, duplicate, expired or mismatched evidence fails closed
+  to human review and never creates a session or repeats the checkout action.
+- Other interrupted connector actions remain review-only. Receipt resolvers for
+  document analysis, drafting, packet approval and mailing have not been added.
+- Verification: focused and adjacent reconciliation, durable-operation and MCP
+  connector tests 53/53 passed; shared workflow reconciliation tests 5/5 passed.
+  The Cloudflare production build passed (client,
+  SSR and Nitro worker). The separate replay test remains incompatible with the
+  installed Node test runner because it does not provide `mock.module`; it did
+  not exercise the changed reconciliation path. A clean full-project typecheck
+  is not claimed; the attempted check was stopped after making no progress
+  output. `git diff --check` is recorded after this entry.
+- No production database write, deployment, payment, checkout creation or mail
+  occurred. Existing rollout, hosting billing, OAuth, provider-secret and live
+  client/Stripe/Lob acceptance blockers remain unchanged.
 
 ### 2026-09-27 — Activation check and deployment-gate repair
 

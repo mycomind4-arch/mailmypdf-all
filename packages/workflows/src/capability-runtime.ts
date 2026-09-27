@@ -1,9 +1,9 @@
 import {
-  CAPABILITIES,
-  assertCapabilityDependencies,
-  isConsequentialCapability,
+  capabilityRegistry,
   type CapabilityId,
+  type CapabilityRegistry,
 } from "./capability-registry.js";
+import { validateCapabilityValue } from "./capability-contract-validation.js";
 import type { WorkflowManifest, WorkflowStepManifest } from "./workflow-manifest.js";
 
 export type CapabilityExecutionStatus = "passed" | "warning" | "blocked" | "failed";
@@ -34,7 +34,13 @@ export interface CapabilityHandler {
 export class CapabilityRuntime {
   private readonly handlers = new Map<CapabilityId, CapabilityHandler>();
 
+  constructor(
+    private readonly registry: CapabilityRegistry = capabilityRegistry,
+    private readonly validateContracts = true,
+  ) {}
+
   register(handler: CapabilityHandler): this {
+    if (!this.registry.has(handler.id)) throw new Error(`Unknown capability handler: ${handler.id}`);
     if (this.handlers.has(handler.id)) throw new Error(`Capability handler already registered: ${handler.id}`);
     this.handlers.set(handler.id, handler);
     return this;
@@ -55,7 +61,7 @@ export class CapabilityRuntime {
       ...manifest.requiredCapabilities,
       ...manifest.optionalCapabilities,
     ];
-    const dependencyErrors = assertCapabilityDependencies(declared);
+    const dependencyErrors = this.registry.validateSelection(declared);
 
     // V2 manifests execute only capabilities explicitly attached to steps.
     // Operational/build-time capabilities such as observability, resilience,
@@ -71,7 +77,7 @@ export class CapabilityRuntime {
     const missingHandlers = runtimeRequired.filter((id) => !this.handlers.has(id));
     const errors = [
       ...missingHandlers.map(
-        (id) => `missing handler for ${id} (${CAPABILITIES[id].implementation})`,
+        (id) => `missing handler for ${id} (${this.registry.getOrThrow(id).implementation})`,
       ),
       ...dependencyErrors,
     ];
@@ -87,7 +93,19 @@ export class CapabilityRuntime {
       throw new Error(`Workflow ${manifest.id} did not declare capability ${id}`);
     }
 
-    if (isConsequentialCapability(id)) {
+    const definition = this.registry.getOrThrow(id);
+    if (this.validateContracts) {
+      const contractIssues = validateCapabilityValue(definition.inputSchema, input.input);
+      if (contractIssues.length > 0) {
+        return {
+          capability: id,
+          status: "blocked",
+          messages: contractIssues.map((issue) => `Input contract ${issue.path}: ${issue.message}`),
+        };
+      }
+    }
+
+    if (definition.consequential === true) {
       const requiredGateIds = (manifest.gates ?? [])
         .filter((gate) => gate.required && gate.beforeCapability === id)
         .map((gate) => gate.id);
@@ -111,6 +129,19 @@ export class CapabilityRuntime {
 
     const result = await this.get(id).execute({ ...input, workflowId: manifest.id });
     if (result.capability !== id) throw new Error(`Capability handler mismatch: expected ${id}, received ${result.capability}`);
+    if (this.validateContracts && result.output !== undefined) {
+      const contractIssues = validateCapabilityValue(definition.outputSchema, result.output);
+      if (contractIssues.length > 0) {
+        return {
+          capability: id,
+          status: "failed",
+          messages: [
+            ...result.messages,
+            ...contractIssues.map((issue) => `Output contract ${issue.path}: ${issue.message}`),
+          ],
+        };
+      }
+    }
     return result;
   }
 }
@@ -138,7 +169,7 @@ export type WorkflowExecutionPlan = {
 };
 
 export function compileWorkflowExecutionPlan(manifest: WorkflowManifest): WorkflowExecutionPlan {
-  const dependencyErrors = assertCapabilityDependencies([
+  const dependencyErrors = capabilityRegistry.validateSelection([
     ...manifest.requiredCapabilities,
     ...manifest.optionalCapabilities,
   ]);

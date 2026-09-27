@@ -104,6 +104,7 @@ let tools = [];
     "approve_direct_pdf_mail",
     "prepare_direct_pdf_checkout",
     "create_matter",
+    "list_recent_matters",
     "ingest_document",
     "get_document_status",
     "analyze_matter",
@@ -166,6 +167,16 @@ if (token) {
   const profile = body?.result?.structuredContent;
   if (!profile?.id) fail("authenticated get_profile returned no user id", body);
   ok(`authenticated profile resolved (${profile.email || profile.name || profile.id})`);
+
+  const recent = await rpc(
+    "tools/call",
+    { name: "list_recent_matters", arguments: { limit: 1 } },
+    { name: "list_recent_matters", token },
+  );
+  if (!recent.response.ok || !Array.isArray(recent.body?.result?.structuredContent?.matters)) {
+    fail("authenticated list_recent_matters failed", recent.body);
+  }
+  ok("authenticated recent matters are readable");
 } else {
   console.log("ℹ️ MCP_BEARER_TOKEN not set; authenticated smoke check skipped");
 }

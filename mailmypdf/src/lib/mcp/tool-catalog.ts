@@ -173,10 +173,41 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: accountCapabilities("identity", "matterState"),
   },
   {
+    name: "list_recent_matters",
+    title: "List recent MailMyPDF matters",
+    description:
+      "List the connected account's most recently updated matters so a conversation can safely resume work without asking the user to find an internal matter id.",
+    inputSchema: objectSchema({
+      limit: { type: "integer", minimum: 1, maximum: 20, default: 8 },
+    }),
+    outputSchema: objectSchema(
+      {
+        matters: {
+          type: "array",
+          items: objectSchema(
+            {
+              matterId: string("Owner-scoped MailMyPDF matter id."),
+              workflowId: string("Canonical workflow id."),
+              sectionId: string("Canonical workflow section id."),
+              status: string("Persisted matter lifecycle status."),
+              createdAt: string("ISO creation timestamp."),
+              updatedAt: string("ISO last-updated timestamp."),
+            },
+            ["matterId", "workflowId", "sectionId", "status", "createdAt", "updatedAt"],
+          ),
+        },
+      },
+      ["matters"],
+    ),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity", "matterState"),
+  },
+  {
     name: "get_matter",
     title: "Get matter state",
     description:
-      "Load an owner-scoped MailMyPDF matter and its attached document metadata.",
+      "Load an owner-scoped MailMyPDF matter, attached document metadata, completion progress, missing facts reported by analysis, and one conservative next tool recommendation.",
     inputSchema: objectSchema({ matter_id: string("MailMyPDF matter id.") }, ["matter_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),

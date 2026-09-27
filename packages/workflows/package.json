@@ -65,6 +65,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
+    "validate:capabilities": "tsc -p tsconfig.test.json && node --test dist-test/tests/capability-registry.test.js dist-test/tests/capability-certification.test.js dist-test/tests/connector-readiness.test.js",
     "lint": "tsc --noEmit"
   }
 }

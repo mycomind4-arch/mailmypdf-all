@@ -31,14 +31,19 @@ import {
 } from "./connector-operations.server";
 import {
   ConnectorOperationIdempotencyConflict,
+  type ConnectorOperation,
   type ConnectorOperationKind,
 } from "@mailmypdf/workflows/connector-operation";
 import {
   deriveWorkflowProtocolState,
+  platformWorkflowRuntimePolicyFor,
   type WorkflowMatterDocument,
   type WorkflowMatterRecord,
 } from "@mailmypdf/workflows";
 import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
+import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
+import { listRecentCases } from "@/lib/secure-core/case.server";
+import { deriveMatterGuidance } from "./matter-guidance";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -154,6 +159,7 @@ function runtimeRequest(
   path: string,
   method: "GET" | "POST" | "PATCH" | "DELETE",
   body?: unknown,
+  operation?: Pick<ConnectorOperation, "id" | "requestSha256">,
 ): Request {
   const url = new URL(path, request.url);
   const authorization = request.headers.get("authorization");
@@ -161,11 +167,14 @@ function runtimeRequest(
   if (authorization) headers.set("authorization", authorization);
   if (body !== undefined) headers.set("content-type", "application/json");
 
-  return new Request(url, {
+  const runtime = new Request(url, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  return operation
+    ? bindConnectorCheckoutCorrelation(runtime, operation)
+    : runtime;
 }
 
 async function callRuntime(
@@ -173,8 +182,11 @@ async function callRuntime(
   path: string,
   method: "GET" | "POST" | "PATCH" | "DELETE",
   body?: unknown,
+  operation?: Pick<ConnectorOperation, "id" | "requestSha256">,
 ): Promise<unknown> {
-  const response = await handleWorkflowRuntimeRequest(runtimeRequest(request, path, method, body));
+  const response = await handleWorkflowRuntimeRequest(
+    runtimeRequest(request, path, method, body, operation),
+  );
   const payload = await response.json().catch(() => ({ error: "Workflow runtime returned an unreadable response" }));
   if (!response.ok) {
     const message =
@@ -316,6 +328,25 @@ export async function executeMcpTool(
       workflowId,
       verticalId: sectionId,
     });
+  }
+
+  if (name === "list_recent_matters") {
+    const context = await requireAuthenticatedUser(request);
+    const matters = await listRecentCases(boundedLimit(args.limit), context);
+    return {
+      matters: matters.map((matter) => ({
+        matterId: matter.id,
+        workflowId: matter.workflow_id,
+        sectionId: matter.vertical_id,
+        status: matter.status,
+        createdAt: matter.created_at,
+        updatedAt: matter.updated_at,
+      })),
+      nextAction:
+        matters.length > 0
+          ? "Choose the matching matter with the user, then call get_matter for current progress and the safest continuation step."
+          : "No matters were found. Use find_workflow before creating a new matter.",
+    };
   }
 
   if (name === "get_order_status") {
@@ -551,7 +582,7 @@ export async function executeMcpTool(
 
   const runOperation = async (
     kind: ConnectorOperationKind,
-    execute: () => Promise<unknown>,
+    execute: (operation: ConnectorOperation) => Promise<unknown>,
   ): Promise<Record<string, unknown>> => {
     const context = await requireAuthenticatedUser(request);
     try {
@@ -634,7 +665,54 @@ export async function executeMcpTool(
   }
 
   if (name === "get_matter") {
-    return callRuntime(request, base, "GET");
+    const snapshot = object(await callRuntime(request, base, "GET"), "matter response");
+    const matter = object(snapshot.matter, "matter");
+    const workflowId = requiredString(matter.workflowId, "matter.workflowId");
+    const verticalId = requiredString(matter.verticalId, "matter.verticalId");
+    const status = requiredString(matter.status, "matter.status");
+    const documents = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+    const [inputPayload, analysisPayload, draftPayload, approvalPayload] = await Promise.all([
+      callRuntime(request, `${base}/input`, "GET"),
+      callRuntime(request, `${base}/analysis`, "GET"),
+      callRuntime(request, `${base}/draft`, "GET"),
+      callRuntime(request, `${base}/approval`, "GET"),
+    ]);
+    const storedInput = object(inputPayload, "matter input response").input;
+    const analysis = object(analysisPayload, "matter analysis response").analysis;
+    const draft = object(draftPayload, "matter draft response").draft;
+    const approval = object(approvalPayload, "matter approval response").approval;
+    const approvalId =
+      approval && typeof approval === "object" && !Array.isArray(approval) &&
+      typeof (approval as Record<string, unknown>).approvalId === "string"
+        ? (approval as Record<string, unknown>).approvalId as string
+        : null;
+    const policy = platformWorkflowRuntimePolicyFor(workflowId);
+    const guidance = deriveMatterGuidance({
+      matter: {
+        id: requiredString(matter.id, "matter.id"),
+        workflowId,
+        verticalId,
+        status,
+      },
+      documents: documents.flatMap((candidate) => {
+        if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+        const document = candidate as Record<string, unknown>;
+        if (typeof document.documentId !== "string" || typeof document.role !== "string") return [];
+        return [{
+          documentId: document.documentId,
+          role: document.role,
+          included: document.included === true,
+          securityStatus: typeof document.securityStatus === "string" ? document.securityStatus : "unknown",
+          usable: document.usable === true,
+        }];
+      }),
+      requiresSourceDocument: policy?.requiresSourceDocument !== false,
+      analysis: analysis ?? null,
+      hasInput: Boolean(storedInput),
+      hasDraft: Boolean(draft),
+      approvalId,
+    });
+    return { ...snapshot, ...guidance };
   }
 
   if (name === "ingest_document") {
@@ -854,7 +932,13 @@ export async function executeMcpTool(
     const sender = object(args.sender, "sender");
     return runOperation(
       "prepare_checkout",
-      () => callRuntime(request, `${base}/checkout`, "POST", { approvalId, sender }),
+      (operation) => callRuntime(
+        request,
+        `${base}/checkout`,
+        "POST",
+        { approvalId, sender },
+        operation,
+      ),
     );
   }
 

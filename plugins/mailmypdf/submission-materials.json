@@ -80,6 +80,11 @@
       "destructiveHint": "False because matter creation is reversible workspace state and does not approve, charge, send, or mail anything.",
       "openWorldHint": "False because it writes only inside the authenticated user's bounded MailMyPDF workspace."
     },
+    "list_recent_matters": {
+      "readOnlyHint": "True because it only lists compact matter metadata belonging to the connected MailMyPDF account.",
+      "destructiveHint": "False because listing recent matters cannot change documents, approvals, payments, or mailing state.",
+      "openWorldHint": "False because it reads a bounded private account list and never searches public or third-party data."
+    },
     "get_matter": {
       "readOnlyHint": "True because it only retrieves an owner-scoped matter and attached document metadata.",
       "destructiveHint": "False because it performs no write or external action.",

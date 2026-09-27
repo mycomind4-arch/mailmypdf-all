@@ -30,6 +30,8 @@ test("document E2E harness stops before consequential money or mailing tools",()
   for(const required of [
     '"get_workflow"',
     '"create_matter"',
+    '"list_recent_matters"',
+    '"get_matter"',
     '"ingest_document"',
     '"get_document_status"',
     '"analyze_matter"',

@@ -91,3 +91,28 @@ test("readiness requires handlers only for executable manifest steps", () => {
 
   assert.doesNotThrow(() => runtime.assertWorkflowReady(stepScoped));
 });
+
+test("runtime enforces the registered input contract before invoking a handler", async () => {
+  let invoked = false;
+  const runtime = new CapabilityRuntime();
+  runtime.register({
+    id: "security",
+    async execute() {
+      invoked = true;
+      return { capability: "security", status: "passed", output: {}, messages: [] };
+    },
+  });
+
+  const result = await runtime.executeCapability(manifest, "security", {
+    matterId: "m1",
+    actorId: "u1",
+    scopes: [],
+    approvals: [],
+    input: "not-an-object",
+    prior: new Map(),
+  });
+
+  assert.equal(result.status, "blocked");
+  assert.equal(invoked, false);
+  assert.match(result.messages[0] ?? "", /Input contract/);
+});

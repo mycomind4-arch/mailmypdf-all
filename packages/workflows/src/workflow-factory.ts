@@ -1,4 +1,10 @@
 import { getAdapter, type AdapterId } from "./adapter-registry.js";
+import {
+  capabilityRegistry,
+  compileCapabilityManifest,
+  type CapabilityComposition,
+  type CapabilityManifest,
+} from "./capability-registry.js";
 import { invalidAdapterPairings } from "./pipeline-adapter-matrix.js";
 import { getPipeline } from "./pipeline-registry.js";
 import { type WorkflowCapability, type WorkflowManifest, validateManifestShape } from "./workflow-manifest.js";
@@ -7,7 +13,15 @@ import type { WorkflowRuntimePolicy } from "./matter-runtime-server.js";
 
 export type FactoryDiagnosticSeverity = "error" | "warning";
 export type FactoryDiagnostic = { severity: FactoryDiagnosticSeverity; code: string; message: string };
-export type WorkflowFactoryResult = { executable: boolean; manifest: WorkflowManifest; pipeline: ReturnType<typeof getPipeline>; adapters: ReturnType<typeof getAdapter>[]; diagnostics: readonly FactoryDiagnostic[] };
+export type WorkflowFactoryResult = {
+  executable: boolean;
+  manifest: WorkflowManifest;
+  pipeline: ReturnType<typeof getPipeline>;
+  adapters: ReturnType<typeof getAdapter>[];
+  capabilityComposition: CapabilityComposition;
+  capabilityManifest: CapabilityManifest | null;
+  diagnostics: readonly FactoryDiagnostic[];
+};
 
 export const PIPELINE_STAGE_TO_CAPABILITY: Readonly<Record<string, WorkflowCapability>> = {
   security: "security", classification: "classification", extraction: "extraction", understand: "understand", facts: "facts",
@@ -19,6 +33,20 @@ export const PIPELINE_STAGE_TO_CAPABILITY: Readonly<Record<string, WorkflowCapab
 
 export function composeWorkflow(manifest: WorkflowManifest): WorkflowFactoryResult {
   const diagnostics: FactoryDiagnostic[] = validateManifestShape(manifest).map((message) => ({ severity: "error", code: "INVALID_MANIFEST", message }));
+  const capabilityComposition = capabilityRegistry.compose({
+    required: manifest.requiredCapabilities,
+    optional: manifest.optionalCapabilities,
+    notApplicable: manifest.notApplicableCapabilities,
+    // Factory composition validates structure and dependency closure. Runtime
+    // and production readiness remain separate evidence gates so a valid
+    // manifest is not mistaken for a certified deployment.
+    mode: "plan",
+  });
+  diagnostics.push(...capabilityComposition.issues.map((issue) => ({
+    severity: issue.severity,
+    code: issue.code,
+    message: issue.message,
+  })));
   let pipeline: ReturnType<typeof getPipeline>;
   try { pipeline = getPipeline(manifest.pipeline); }
   catch (error) { diagnostics.push({ severity: "error", code: "UNKNOWN_PIPELINE", message: error instanceof Error ? error.message : String(error) }); pipeline = getPipeline("P01_CORE_MAIL"); }
@@ -45,7 +73,23 @@ export function composeWorkflow(manifest: WorkflowManifest): WorkflowFactoryResu
   if (manifest.allowsConsequentialAction && !manifest.requiresHumanReview) diagnostics.push({ severity: "error", code: "MISSING_HUMAN_REVIEW", message: "Consequential workflows require explicit human review." });
   if (manifest.maturity === "production-verified" && diagnostics.some((d) => d.severity === "error")) diagnostics.push({ severity: "error", code: "PRODUCTION_STATUS_INVALID", message: "A production-verified workflow cannot have factory errors." });
 
-  return { executable: diagnostics.every((d) => d.severity !== "error"), manifest, pipeline, adapters, diagnostics };
+  const capabilityManifest = capabilityComposition.executable
+    ? compileCapabilityManifest({
+        workflowId: manifest.id,
+        workflowVersion: manifest.version,
+        composition: capabilityComposition,
+      })
+    : null;
+
+  return {
+    executable: diagnostics.every((d) => d.severity !== "error"),
+    manifest,
+    pipeline,
+    adapters,
+    capabilityComposition,
+    capabilityManifest,
+    diagnostics,
+  };
 }
 
 export function composeWorkflowOrThrow(manifest: WorkflowManifest): WorkflowFactoryResult {

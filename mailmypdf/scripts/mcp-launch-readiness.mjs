@@ -18,6 +18,7 @@ const requiredTools=[
   "get_workflow",
   "get_profile",
   "create_matter",
+  "list_recent_matters",
   "get_matter",
   "get_workflow_state",
   "get_order_status",
@@ -234,6 +235,12 @@ if(token){
   if(!response.ok) fail("authenticated profile check failed",body);
   else if(!body?.result?.structuredContent?.id) fail("authenticated profile check returned no user identity");
   else pass("authenticated MailMyPDF profile resolves through MCP");
+
+  const recent=await callTool("list_recent_matters",{limit:1},{token});
+  if(!recent.response.ok) fail("authenticated recent-matter check failed",recent.body);
+  else if(!Array.isArray(recent.body?.result?.structuredContent?.matters)) {
+    fail("authenticated recent-matter check returned an invalid shape",recent.body);
+  } else pass("authenticated recent matters are owner-scoped and readable");
 }else{
   warn("MCP_BEARER_TOKEN not set; live account-link token verification was skipped");
 }

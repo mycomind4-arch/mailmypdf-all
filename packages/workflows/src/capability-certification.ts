@@ -97,7 +97,10 @@ export function certifyWorkflowCapabilities(
 
   const dependencyErrors = assertCapabilityDependencies(declared);
   const nonProductionRequired = manifest.requiredCapabilities.filter(
-    (id) => CAPABILITIES[id].status !== "production",
+    (id) =>
+      CAPABILITIES[id].status !== "production" ||
+      CAPABILITIES[id].certification.state !== "certified" ||
+      !CAPABILITIES[id].runtimeBindings.some((binding) => binding.status === "implemented"),
   );
 
   const productionBaseline = productionBaselineFor(manifest);
@@ -115,7 +118,7 @@ export function certifyWorkflowCapabilities(
       code: "capability_not_production" as const,
       capability,
       message:
-        `Required capability ${capability} is ${CAPABILITIES[capability].status}, not production.`,
+        `Required capability ${capability} is not production-ready (status=${CAPABILITIES[capability].status}, certification=${CAPABILITIES[capability].certification.state}).`,
     })),
   ];
 

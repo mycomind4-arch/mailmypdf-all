@@ -149,17 +149,53 @@ export async function ensureCheckoutSession(input: {
   caseId: string;
   workflowId: string;
   email: string;
+  connectorOperation?: {
+    operationId: string;
+    requestSha256: string;
+  };
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const stripe = createStripeClient();
 
+  const bindConnectorReceipt = async <T extends {
+    id: string;
+    metadata: Record<string, string> | null;
+  }>(session: T): Promise<T> => {
+    const correlation = input.connectorOperation;
+    if (!correlation) return session;
+
+    const priorOperationId = session.metadata?.connectorOperationId;
+    const priorRequestSha256 = session.metadata?.connectorRequestSha256;
+    if (priorOperationId || priorRequestSha256) {
+      // Correlation is immutable. A later operation may safely reuse the same
+      // approval-bound checkout, but it must not steal the earlier receipt.
+      return session;
+    }
+
+    const bound = await stripe.checkout.sessions.update(session.id, {
+      metadata: {
+        connectorOperationId: correlation.operationId,
+        connectorRequestSha256: correlation.requestSha256,
+      },
+    });
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({ stripe_session_id: session.id })
+      .eq("id", input.order.id)
+      .eq("stripe_session_id", session.id);
+    if (error) throw new Error("Unable to persist checkout receipt correlation.");
+    return bound as T;
+  };
+
   if (input.order.stripe_session_id) {
     const priorSessionId = input.order.stripe_session_id;
-    const existing = await stripe.checkout.sessions.retrieve(priorSessionId);
+    let existing = await stripe.checkout.sessions.retrieve(priorSessionId);
     if (existing.status === "open" && existing.url) {
+      existing = await bindConnectorReceipt(existing);
       return { checkoutUrl: existing.url, sessionId: existing.id };
     }
     if (existing.status === "complete") {
+      await bindConnectorReceipt(existing);
       return { checkoutUrl: null, sessionId: existing.id };
     }
 
@@ -227,6 +263,10 @@ export async function ensureCheckoutSession(input: {
       orderId: input.order.id,
       workflowCaseId: input.caseId,
       caseApprovalId: input.approvalId,
+      ...(input.connectorOperation ? {
+        connectorOperationId: input.connectorOperation.operationId,
+        connectorRequestSha256: input.connectorOperation.requestSha256,
+      } : {}),
     },
     payment_intent_data: {
       metadata: {

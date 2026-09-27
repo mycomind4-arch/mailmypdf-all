@@ -55,6 +55,11 @@ import {
 } from "./case-approval.server";
 import { createOrLoadOrder, ensureCheckoutSession } from "./workflow-checkout.server";
 import { intakeSecureDocument } from "./document-intake.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  getConnectorCheckoutCorrelation,
+  type ConnectorCheckoutCorrelation,
+} from "@/lib/mcp/connector-runtime-correlation.server";
 
 function toMatterRecord(row: {
   id: string;
@@ -394,7 +399,12 @@ async function packetPreview(
 }
 
 async function checkoutMatter(
-  input: { matterId: string; approval: ExactPacketApproval; sender: WorkflowMailingAddress },
+  input: {
+    matterId: string;
+    approval: ExactPacketApproval;
+    sender: WorkflowMailingAddress;
+    connectorOperation?: ConnectorCheckoutCorrelation;
+  },
   context: AuthenticatedUserContext,
 ) {
   if (!context.user.email) {
@@ -402,6 +412,25 @@ async function checkoutMatter(
       "A verified account email is required for payment receipts.",
       "CHECKOUT_EMAIL_REQUIRED",
     );
+  }
+
+  if (input.connectorOperation) {
+    const { data, error } = await supabaseAdmin
+      .from("connector_operations")
+      .select("id")
+      .eq("id", input.connectorOperation.operationId)
+      .eq("owner_id", context.user.id)
+      .eq("matter_id", input.matterId)
+      .eq("kind", "prepare_checkout")
+      .eq("state", "running")
+      .eq("request_sha256", input.connectorOperation.requestSha256)
+      .maybeSingle();
+    if (error || !data) {
+      throw new WorkflowRuntimeError(
+        "Connector checkout operation is no longer valid.",
+        "CONNECTOR_OPERATION_INVALID",
+      );
+    }
   }
 
   const packet = await materializeApprovedPacket(input.matterId, input.approval.approvalId, context);
@@ -419,6 +448,7 @@ async function checkoutMatter(
     caseId: input.matterId,
     workflowId: packet.workflowId,
     email: context.user.email,
+    connectorOperation: input.connectorOperation,
   });
 
   if (!checkout.checkoutUrl) {
@@ -497,7 +527,12 @@ export async function handleWorkflowRuntimeRequest(request: Request): Promise<Re
     checkout: {
       checkout: (input) =>
         checkoutMatter(
-          { matterId: input.matter.matter.id, approval: input.approval, sender: input.sender },
+          {
+            matterId: input.matter.matter.id,
+            approval: input.approval,
+            sender: input.sender,
+            connectorOperation: getConnectorCheckoutCorrelation(request),
+          },
           requireContext(),
         ),
     },

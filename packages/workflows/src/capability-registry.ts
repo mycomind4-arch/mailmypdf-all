@@ -22,6 +22,7 @@ export type CapabilityOwner = "platform" | "vertical" | "hybrid";
  */
 export type CapabilityStatus = "foundation" | "partial" | "implemented" | "production";
 export type CapabilityCertificationState = "planned" | "implemented" | "certified";
+export type CapabilityCompositionMode = "plan" | "execute" | "production";
 export type CapabilityCategory =
   | "identity"
   | "documents"
@@ -163,6 +164,15 @@ export type CapabilityRuntimeBinding = {
   notes?: string;
 };
 
+export type CapabilityImplementationSource = {
+  origin: "workspace" | "public-repository" | "external-service";
+  package: `@mailmypdf/${string}`;
+  repository?: string;
+  revision?: string;
+  license?: string;
+  reviewState: "not-required" | "pending" | "approved";
+};
+
 export type CapabilityDefinition = {
   id: CapabilityId;
   name: string;
@@ -182,6 +192,9 @@ export type CapabilityDefinition = {
   fixtures: readonly CapabilityFixture[];
   certification: CapabilityCertification;
   runtimeBindings: readonly CapabilityRuntimeBinding[];
+  /** Provenance for the implementation. Public code never becomes trusted by
+   * merely appearing here; it must retain its immutable revision and review. */
+  sources: readonly CapabilityImplementationSource[];
   /** Consequential capabilities must not run before explicit review/approval gates. */
   consequential?: boolean;
   dependencies?: readonly CapabilityId[];
@@ -195,29 +208,125 @@ const capability = (
   description: string,
   implementation: `@mailmypdf/${string}`,
   status: CapabilityStatus,
-  extras: Partial<Pick<CapabilityDefinition, "consequential" | "dependencies" | "version" | "inputSchema" | "outputSchema" | "requirements" | "security" | "applicability" | "failureModes" | "fixtures" | "certification" | "runtimeBindings">> = {},
-): CapabilityDefinition => ({
-  id, name, owner, category, description, implementation, status,
-  version: "1.0.0",
-  inputSchema: { type: "object", title: `${name} input` },
-  outputSchema: { type: "object", title: `${name} output` },
-  requirements: [],
-  security: {
-    dataClass: category === "documents" || category === "intelligence" ? "sensitive" : "matter",
-    reads: [], writes: [], externalEffects: ["none"], requiresOwnership: true,
-    requiresApproval: extras.consequential === true, failClosed: true,
-  },
-  applicability: { jurisdictions: ["unspecified"], domains: [category], limitations: [] },
-  failureModes: [{ code: "UNAVAILABLE", behavior: "block", description: "Capability cannot execute when its binding is unavailable." }],
-  fixtures: [],
-  certification: extras.certification ?? {
-    state: status === "production" ? "certified" : status === "implemented" ? "implemented" : "planned",
-    evidence: [],
-    gaps: status === "production" ? [] : ["Production binding or certification evidence is incomplete."],
-  },
-  runtimeBindings: extras.runtimeBindings ?? [{ kind: "package-export", package: implementation, exportPath: ".", status: status === "foundation" || status === "partial" ? "planned" : "implemented" }],
-  ...extras,
-} as CapabilityDefinition);
+  extras: Partial<Pick<CapabilityDefinition, "consequential" | "dependencies" | "version" | "inputSchema" | "outputSchema" | "requirements" | "security" | "applicability" | "failureModes" | "fixtures" | "certification" | "runtimeBindings" | "sources">> = {},
+): CapabilityDefinition => {
+  const dependencies = extras.dependencies ?? [];
+  const implemented = status === "implemented" || status === "production";
+  const fixturePath = capabilityFixturePath(id, implementation);
+  const fixtures = extras.fixtures ?? [{
+    id: `${id}-contract`,
+    kind: "unit" as const,
+    path: fixturePath,
+    status: implemented ? "present" as const : "missing" as const,
+  }];
+  const runtimeBindings = extras.runtimeBindings ?? [{
+    kind: "package-export" as const,
+    package: implementation,
+    exportPath: ".",
+    status: implemented ? "implemented" as const : "planned" as const,
+  }];
+  const externalEffects = defaultExternalEffects(id, category);
+  const certification = extras.certification ?? {
+    state: status === "production" ? "certified" as const : implemented ? "implemented" as const : "planned" as const,
+    evidence: implemented
+      ? [`fixture:${fixturePath}`, `binding:${implementation}#${runtimeBindings[0]?.exportPath ?? "."}`]
+      : [],
+    gaps: status === "production"
+      ? []
+      : implemented
+        ? ["Live production binding and production certification are not recorded."]
+        : ["Implementation, runtime binding, and certification evidence are incomplete."],
+    reviewedAt: "2026-09-27",
+  };
+
+  return {
+    id, name, owner, category, description, implementation, status,
+    version: "1.0.0",
+    inputSchema: {
+      type: "object",
+      title: `${name} input`,
+      description: `Provider-neutral ${id} payload. Package-specific validation remains authoritative.`,
+      additionalProperties: true,
+    },
+    outputSchema: {
+      type: "object",
+      title: `${name} output`,
+      description: `Provider-neutral ${id} result. Package-specific validation remains authoritative.`,
+      additionalProperties: true,
+    },
+    requirements: dependencies.map((dependency) => ({
+      kind: "capability" as const,
+      capability: dependency,
+      reason: `${id} depends on ${dependency}.`,
+    })),
+    security: {
+      dataClass: category === "documents" || category === "intelligence" || category === "ai" ? "sensitive" : "matter",
+      reads: [], writes: [], externalEffects, requiresOwnership: true,
+      requiresApproval: extras.consequential === true, failClosed: true,
+    },
+    applicability: { jurisdictions: ["unspecified"], domains: ["shared"], limitations: [] },
+    failureModes: [
+      { code: "CONTRACT_VIOLATION", behavior: "block", description: "Input, output, or policy validation failed." },
+      { code: "BINDING_UNAVAILABLE", behavior: externalEffects.includes("none") ? "block" : "retry", description: "No healthy runtime binding is available." },
+    ],
+    fixtures,
+    certification,
+    runtimeBindings,
+    sources: extras.sources ?? [{ origin: "workspace", package: implementation, reviewState: "not-required" }],
+    consequential: extras.consequential,
+    dependencies,
+    ...extras,
+  };
+};
+
+function defaultExternalEffects(
+  id: CapabilityId,
+  category: CapabilityCategory,
+): CapabilitySecurityPosture["externalEffects"] {
+  if (id === "payment") return ["payment"];
+  if (["mailing", "tracking", "addressVerification"].includes(id)) return ["mailing"];
+  if (id === "notifications") return ["notification"];
+  if (["uccSearch", "titleLienSearch", "uccFiling", "efiling", "research"].includes(id)) return ["registry"];
+  if (category === "ai") return ["ai"];
+  return ["none"];
+}
+
+const PACKAGE_FIXTURES: Readonly<Record<string, string>> = {
+  "@mailmypdf/ai": "packages/ai/tests/document-disclosure.test.ts",
+  "@mailmypdf/audit": "packages/audit/tests/audit.test.ts",
+  "@mailmypdf/capability-services": "packages/capability-services/tests/capability-services.test.ts",
+  "@mailmypdf/document-intelligence": "packages/document-intelligence/tests/extraction-schema.test.ts",
+  "@mailmypdf/documents": "packages/documents/tests/secure-lifecycle.test.ts",
+  "@mailmypdf/efiling": "packages/efiling/tests/efiling.test.ts",
+  "@mailmypdf/forms": "packages/forms/tests/forms.test.ts",
+  "@mailmypdf/fulfillment": "packages/fulfillment/tests/fulfillment.test.ts",
+  "@mailmypdf/identity-capacity": "packages/identity-capacity/tests/name-capacity-certification.test.ts",
+  "@mailmypdf/identity-verification": "packages/identity-verification/tests/identity-verification.test.ts",
+  "@mailmypdf/intelligence": "packages/intelligence/tests/cross-vertical.test.ts",
+  "@mailmypdf/notarization": "packages/notarization/tests/notarization.test.ts",
+  "@mailmypdf/notifications": "packages/notifications/tests/notifications.test.ts",
+  "@mailmypdf/packet-builder": "packages/packet-builder/tests/packet-builder.test.ts",
+  "@mailmypdf/payment-fulfillment": "packages/payment-fulfillment/tests/approved-checkout.test.ts",
+  "@mailmypdf/pricing": "packages/pricing/tests/pricing-engine.test.ts",
+  "@mailmypdf/proof": "packages/proof/tests/proof.test.ts",
+  "@mailmypdf/registry-adapters": "packages/registry-adapters/tests/ucc-search.test.ts",
+  "@mailmypdf/secured-transactions": "packages/secured-transactions/tests/attachment-readiness.test.ts",
+  "@mailmypdf/signature": "packages/signature/tests/signature.test.ts",
+  "@mailmypdf/step-workflow": "packages/step-workflow/src/step-workflow.test.ts",
+  "@mailmypdf/workflow-acceptance": "appeal-mail/tests/acceptance/appeal-denied-claim/run.acceptance.ts",
+  "@mailmypdf/workflows": "packages/workflows/tests/capability-runtime.test.ts",
+};
+
+function capabilityFixturePath(
+  id: CapabilityId,
+  implementation: `@mailmypdf/${string}`,
+): string {
+  if (id === "piiDetection") return "packages/documents/tests/pii-detection.test.ts";
+  if (id === "privacyRelease") return "packages/documents/tests/privacy-release-review.test.ts";
+  if (id === "titleLienSearch") return "packages/registry-adapters/tests/title-lien-search.test.ts";
+  if (id === "uccFiling") return "packages/registry-adapters/tests/ucc-filing.test.ts";
+  return PACKAGE_FIXTURES[implementation] ?? `packages/${implementation.replace("@mailmypdf/", "")}/tests`;
+}
 
 export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> = {
   // The following capabilities previously had no explicit status argument
@@ -255,8 +364,8 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   requirements: capability("requirements", "Requirements Analysis", "hybrid", "intelligence", "Map source/domain requirements to case evidence and response obligations.", "@mailmypdf/intelligence", "implemented"),
   evidence: capability("evidence", "Evidence", "platform", "intelligence", "Evidence organization, sufficiency, linkage, missing-item detection, and traceability.", "@mailmypdf/intelligence", "implemented"),
   auditTrail: capability("auditTrail", "Audit Trail", "platform", "proof", "Durable actor, access, decision, and external-effect audit events.", "@mailmypdf/audit", "implemented", { dependencies: ["provenance"] }),
-  uccSearch: capability("uccSearch", "UCC Search", "hybrid", "intelligence", "Provider-neutral UCC search, normalization, coverage, and source provenance.", "@mailmypdf/registry-adapters", "implemented", { dependencies: ["identity", "provenance"] }),
-  titleLienSearch: capability("titleLienSearch", "Title and Lien Search", "hybrid", "intelligence", "Normalize title, lien, judgment, tax, and encumbrance evidence without making a legal conclusion.", "@mailmypdf/registry-adapters", "foundation", { dependencies: ["identity", "provenance"] }),
+  uccSearch: capability("uccSearch", "UCC Search", "hybrid", "intelligence", "Provider-neutral UCC search, normalization, coverage, and source provenance.", "@mailmypdf/registry-adapters", "implemented", { dependencies: ["identity", "provenance"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["Search results are evidence, not a filing or legal conclusion."] } }),
+  titleLienSearch: capability("titleLienSearch", "Title and Lien Search", "hybrid", "intelligence", "Normalize title, lien, judgment, tax, and encumbrance evidence without making a legal conclusion.", "@mailmypdf/registry-adapters", "foundation", { dependencies: ["identity", "provenance"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "property"], limitations: ["A provider contract exists, but no reviewed jurisdictional provider is registered."] } }),
   research: capability("research", "Authority / Research", "hybrid", "intelligence", "Ground rules and authoritative sources when a workflow requires external authority.", "@mailmypdf/intelligence", "implemented"),
   risk: capability("risk", "Risk Assessment", "platform", "intelligence", "Assess supported strength, uncertainty, readiness, and consequential risk.", "@mailmypdf/intelligence", "implemented"),
   strategy: capability("strategy", "Case Strategy", "hybrid", "intelligence", "Translate verified facts and domain rules into case-specific next actions.", "@mailmypdf/intelligence", "implemented"),
@@ -266,14 +375,14 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   blockingGate: capability("blockingGate", "Blocking Gate", "platform", "workflow", "Prevent consequential action while critical requirements remain unresolved.", "@mailmypdf/workflows", "implemented"),
   humanReview: capability("humanReview", "Human Review", "platform", "workflow", "Require explicit review before consequential action.", "@mailmypdf/workflows", "implemented"),
   approval: capability("approval", "Approval", "hybrid", "workflow", "Role- or policy-based explicit approval for consequential transitions.", "@mailmypdf/workflows", "production", { consequential: true, dependencies: ["humanReview", "blockingGate"] }),
-  uccFiling: capability("uccFiling", "UCC Filing", "hybrid", "fulfillment", "Prepare and submit authorized UCC filings where a supported filing adapter exists.", "@mailmypdf/registry-adapters", "foundation", { consequential: true, dependencies: ["uccSearch", "signature", "humanReview", "blockingGate", "auditTrail"] }),
+  uccFiling: capability("uccFiling", "UCC Filing", "hybrid", "fulfillment", "Prepare and submit authorized UCC filings where a supported filing adapter exists.", "@mailmypdf/registry-adapters", "foundation", { consequential: true, dependencies: ["uccSearch", "signature", "humanReview", "blockingGate", "auditTrail"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["A provider-neutral contract exists, but no reviewed filing-office provider is registered."] } }),
   pdfGeneration: capability("pdfGeneration", "PDF Generation", "platform", "documents", "Generate printable deterministic PDFs from approved content.", "@mailmypdf/packet-builder", "implemented"),
   packetAssembly: capability("packetAssembly", "Packet Assembly", "platform", "documents", "Merge the approved response and selected supporting documents into the exact mail-ready packet.", "@mailmypdf/packet-builder", "production", { dependencies: ["pdfGeneration"] }),
   identityVerification: capability("identityVerification", "Identity Verification", "platform", "documents", "Provider-neutral identity proofing (document/database/biometric checks) confirming a matter party is who they claim to be, distinct from platform auth/ownership.", "@mailmypdf/identity-verification", "implemented"),
   signature: capability("signature", "Electronic Signature", "platform", "documents", "Provider-neutral electronic signature capture, affirmative consent, and completion state bound to a specific document hash.", "@mailmypdf/signature", "implemented", { dependencies: ["documentStorage"] }),
   notarization: capability("notarization", "Remote Online Notarization", "platform", "fulfillment", "Provider-neutral notarized-signature session requiring prior identity verification before a notary attests a signature.", "@mailmypdf/notarization", "implemented", { consequential: true, dependencies: ["identityVerification", "humanReview", "blockingGate"] }),
   efiling: capability("efiling", "Electronic Court/Agency Filing", "platform", "fulfillment", "Provider-neutral direct electronic filing submission to a court or agency, as an alternative fulfillment path to physical mailing.", "@mailmypdf/efiling", "implemented", { consequential: true, dependencies: ["packetAssembly", "approval", "humanReview", "blockingGate"] }),
-  piiDetection: capability("piiDetection", "PII Detection", "hybrid", "documents", "Automatic detection of sensitive personal data spans feeding the existing privacy release/redaction review before a document may be disclosed or reused as a template.", "@mailmypdf/documents", "foundation", { dependencies: ["documentStorage"] }),
+  piiDetection: capability("piiDetection", "PII Detection", "hybrid", "documents", "Automatic detection of sensitive personal data spans feeding the existing privacy release/redaction review before a document may be disclosed or reused as a template.", "@mailmypdf/documents", "implemented", { dependencies: ["documentStorage"], applicability: { jurisdictions: ["unspecified"], domains: ["shared"], limitations: ["Detection produces review findings; it does not authorize disclosure or silently redact source files."] } }),
   pricing: capability("pricing", "Server-authoritative Pricing", "platform", "commerce", "Deterministic workflow and mailing quotes controlled by the server.", "@mailmypdf/pricing", "implemented"),
   payment: capability("payment", "Payment", "platform", "commerce", "Stripe/payment intent state and immutable approved-artifact payment boundary.", "@mailmypdf/payment-fulfillment", "production", { consequential: true, dependencies: ["pricing", "approval"] }),
   addressVerification: capability("addressVerification", "Address Verification", "platform", "fulfillment", "Normalize and verify recipient/sender postal addresses before submission.", "@mailmypdf/fulfillment", "production"),
@@ -285,113 +394,20 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   resilience: capability("resilience", "Execution Resilience", "platform", "operations", "Idempotency, bounded retries, replay-safe external actions, and recovery semantics.", "@mailmypdf/workflows", "implemented"),
   observability: capability("observability", "Workflow Observability", "platform", "operations", "Privacy-safe workflow telemetry, diagnostics, and execution health.", "@mailmypdf/workflows", "implemented"),
   acceptanceTesting: capability("acceptanceTesting", "Workflow Acceptance Testing", "platform", "operations", "Synthetic end-to-end tests with mock Stripe/Lob and production PDF primitives.", "@mailmypdf/workflow-acceptance", "production"),
-  taxNoticeClassification: capability("taxNoticeClassification", "Tax Notice Classification", "hybrid", "intelligence", "Classify IRS notices into supported notice families, stated issues, response windows, and evidence needs.", "@mailmypdf/capability-services", "implemented", { dependencies: ["classification", "officialForms", "deadlines", "provenance"] }),
-  taxDocumentExtraction: capability("taxDocumentExtraction", "Tax Document Extraction", "hybrid", "intelligence", "Extract tax-year, taxpayer, payer, amounts, withholding, and form identifiers with source linkage.", "@mailmypdf/capability-services", "implemented", { dependencies: ["extraction", "provenance"] }),
-  taxDeadlineAnalysis: capability("taxDeadlineAnalysis", "Tax Deadline Analysis", "hybrid", "intelligence", "Derive IRS response and appeal deadlines from notice dates, receipt evidence, and authoritative rules.", "@mailmypdf/capability-services", "implemented", { dependencies: ["deadlines", "research", "provenance"] }),
-  taxResponse: capability("taxResponse", "Tax Response Packet", "hybrid", "documents", "Assemble a reviewed IRS response with grounded facts, forms, evidence, and mailing proof.", "@mailmypdf/capability-services", "implemented", { dependencies: ["taxNoticeClassification", "taxDocumentExtraction", "validation", "packetAssembly", "humanReview"] }),
-  dealStructure: capability("dealStructure", "Creative Finance Deal Structure", "hybrid", "intelligence", "Represent seller financing, lease option, land contract, subject-to, wraparound, and private-loan structures.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["identity", "facts", "research"] }),
-  amortization: capability("amortization", "Amortization and Scenario Analysis", "platform", "intelligence", "Deterministically calculate payment schedules, interest, principal, balloons, and payoff scenarios.", "@mailmypdf/capability-services", "implemented", { dependencies: ["dealStructure"] }),
-  attachmentAnalysis: capability("attachmentAnalysis", "Attachment Analysis", "hybrid", "intelligence", "Analyze obligation, value, rights in collateral, and authenticated agreement facts.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["dealStructure", "facts", "provenance"] }),
-  perfectionAnalysis: capability("perfectionAnalysis", "Perfection Analysis", "hybrid", "intelligence", "Map filing, possession, control, and other perfection steps to collateral and jurisdiction.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["attachmentAnalysis", "research", "uccSearch"] }),
+  taxNoticeClassification: capability("taxNoticeClassification", "Tax Notice Classification", "hybrid", "intelligence", "Classify IRS notices into supported notice families, stated issues, response windows, and evidence needs.", "@mailmypdf/capability-services", "implemented", { dependencies: ["classification", "officialForms", "deadlines", "provenance"], applicability: { jurisdictions: ["US-federal"], domains: ["tax", "irs"], limitations: ["Only registered notice families are supported."] } }),
+  taxDocumentExtraction: capability("taxDocumentExtraction", "Tax Document Extraction", "hybrid", "intelligence", "Extract tax-year, taxpayer, payer, amounts, withholding, and form identifiers with source linkage.", "@mailmypdf/capability-services", "implemented", { dependencies: ["extraction", "provenance"], applicability: { jurisdictions: ["US-federal"], domains: ["tax", "irs"], limitations: ["Extracted values require source linkage and confirmation before consequential use."] } }),
+  taxDeadlineAnalysis: capability("taxDeadlineAnalysis", "Tax Deadline Analysis", "hybrid", "intelligence", "Derive IRS response and appeal deadlines from notice dates, receipt evidence, and authoritative rules.", "@mailmypdf/capability-services", "implemented", { dependencies: ["deadlines", "research", "provenance"], applicability: { jurisdictions: ["US-federal"], domains: ["tax", "irs"], limitations: ["Uncertain trigger dates or authority coverage block definitive deadline claims."] } }),
+  taxResponse: capability("taxResponse", "Tax Response Packet", "hybrid", "documents", "Assemble a reviewed IRS response with grounded facts, forms, evidence, and mailing proof.", "@mailmypdf/capability-services", "implemented", { dependencies: ["taxNoticeClassification", "taxDocumentExtraction", "validation", "packetAssembly", "humanReview"], applicability: { jurisdictions: ["US-federal"], domains: ["tax", "irs"], limitations: ["Human review remains mandatory; the capability does not provide tax advice."] } }),
+  dealStructure: capability("dealStructure", "Creative Finance Deal Structure", "hybrid", "intelligence", "Represent seller financing, lease option, land contract, subject-to, wraparound, and private-loan structures.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["identity", "facts", "research"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["The structure is an analytical model, not a legal conclusion or closing authorization."] } }),
+  amortization: capability("amortization", "Amortization and Scenario Analysis", "platform", "intelligence", "Deterministically calculate payment schedules, interest, principal, balloons, and payoff scenarios.", "@mailmypdf/capability-services", "implemented", { dependencies: ["dealStructure"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["Calculations depend on the confirmed terms supplied to the engine."] } }),
+  attachmentAnalysis: capability("attachmentAnalysis", "Attachment Analysis", "hybrid", "intelligence", "Analyze obligation, value, rights in collateral, and authenticated agreement facts.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["dealStructure", "facts", "provenance"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["Unsupported or disputed facts remain unresolved and block certification."] } }),
+  perfectionAnalysis: capability("perfectionAnalysis", "Perfection Analysis", "hybrid", "intelligence", "Map filing, possession, control, and other perfection steps to collateral and jurisdiction.", "@mailmypdf/secured-transactions", "implemented", { dependencies: ["attachmentAnalysis", "research", "uccSearch"], applicability: { jurisdictions: ["unspecified"], domains: ["creative-finance", "secured-transactions"], limitations: ["Jurisdiction-specific authority and current registry evidence are required."] } }),
   translation: capability("translation", "Translation and Localization", "hybrid", "documents", "Prepare translated drafts while preserving source text, review status, and uncertainty.", "@mailmypdf/capability-services", "implemented", { dependencies: ["provenance", "humanReview"] }),
   templateSimilarity: capability("templateSimilarity", "Template Similarity and Deduplication", "platform", "operations", "Detect near-duplicate workflow templates before publication.", "@mailmypdf/capability-services", "implemented", { dependencies: ["privacyRelease", "provenance"] }),
 };
 
+export const CAPABILITY_REGISTRY_VERSION = "2.0.0";
 export const capabilityIds = Object.keys(CAPABILITIES) as CapabilityId[];
-
-export function hasCapability(id: string): id is CapabilityId {
-  return Object.prototype.hasOwnProperty.call(CAPABILITIES, id);
-}
-
-export function capabilityDependencies(id: CapabilityId): readonly CapabilityId[] {
-  return CAPABILITIES[id].dependencies ?? [];
-}
-
-export function isConsequentialCapability(id: CapabilityId): boolean {
-  return CAPABILITIES[id].consequential === true;
-}
-
-export function assertCapabilityDependencies(ids: readonly CapabilityId[]): string[] {
-  const selected = new Set(ids);
-  const errors: string[] = [];
-  for (const id of ids) {
-    for (const dependency of capabilityDependencies(id)) {
-      if (!selected.has(dependency)) errors.push(`${id} requires capability ${dependency}`);
-    }
-  }
-  return errors;
-}
-
-
-/**
- * Audits the registry itself independently of any one workflow selection.
- * This catches unknown dependencies and dependency cycles before manifests are
- * generated from the registry.
- */
-export function validateCapabilityRegistry(): string[] {
-  const errors: string[] = [];
-
-  for (const id of capabilityIds) {
-    for (const dependency of capabilityDependencies(id)) {
-      if (!hasCapability(dependency)) {
-        errors.push(`${id} declares unknown dependency ${dependency}`);
-      }
-    }
-    const definition = CAPABILITIES[id];
-    for (const requirement of definition.requirements) {
-      if (requirement.kind === "capability" && !hasCapability(requirement.capability)) {
-        errors.push(`${id} declares unknown capability requirement ${requirement.capability}`);
-      }
-    }
-    if (definition.failureModes.length === 0) errors.push(`${id} must declare at least one failure mode`);
-    if (definition.runtimeBindings.length === 0) errors.push(`${id} must declare at least one runtime binding`);
-    if (definition.certification.state === "certified" && definition.certification.gaps.length > 0) {
-      errors.push(`${id} is certified but still declares certification gaps`);
-    }
-  }
-
-  const visiting = new Set<CapabilityId>();
-  const visited = new Set<CapabilityId>();
-
-  const visit = (id: CapabilityId, path: readonly CapabilityId[]) => {
-    if (visited.has(id)) return;
-    if (visiting.has(id)) {
-      const cycleStart = path.indexOf(id);
-      const cycle = [...path.slice(Math.max(0, cycleStart)), id];
-      errors.push(`capability dependency cycle: ${cycle.join(" -> ")}`);
-      return;
-    }
-
-    visiting.add(id);
-    for (const dependency of capabilityDependencies(id)) {
-      visit(dependency, [...path, id]);
-    }
-    visiting.delete(id);
-    visited.add(id);
-  };
-
-  for (const id of capabilityIds) visit(id, []);
-
-  for (const id of capabilityIds.filter(isConsequentialCapability)) {
-    const reachable = new Set<CapabilityId>();
-    const queue = [...capabilityDependencies(id)];
-    while (queue.length) {
-      const dependency = queue.shift()!;
-      if (reachable.has(dependency)) continue;
-      reachable.add(dependency);
-      queue.push(...capabilityDependencies(dependency));
-    }
-
-    if (!reachable.has("humanReview")) {
-      errors.push(`consequential capability ${id} must depend on humanReview directly or transitively`);
-    }
-    if (!reachable.has("blockingGate")) {
-      errors.push(`consequential capability ${id} must depend on blockingGate directly or transitively`);
-    }
-  }
-
-  return [...new Set(errors)];
-}
 
 export type CapabilityQuery = {
   ids?: readonly string[];
@@ -410,51 +426,251 @@ export type CapabilityCompositionRequest = {
   notApplicable?: readonly string[];
   jurisdiction?: string;
   domain?: string;
+  mode?: CapabilityCompositionMode;
+  /** Exact or caret semantic-version requirements keyed by capability ID. */
+  versionRequirements?: Readonly<Record<string, string>>;
+  /** Non-capability requirement keys already satisfied by the host. These are
+   * enforced for execute/production composition, never guessed by the factory. */
+  satisfiedRequirements?: readonly string[];
+};
+
+export type CapabilityRegistryIssueCode =
+  | "INVALID_DEFINITION"
+  | "UNKNOWN_DEPENDENCY"
+  | "DEPENDENCY_CYCLE"
+  | "MISSING_GATE_DEPENDENCY"
+  | "INVALID_CERTIFICATION"
+  | "INVALID_BINDING"
+  | "INVALID_FIXTURE"
+  | "INVALID_SOURCE"
+  | "UNKNOWN_CAPABILITY"
+  | "VERSION_INCOMPATIBLE"
+  | "NOT_APPLICABLE"
+  | "UNSUPPORTED_DOMAIN"
+  | "UNSUPPORTED_JURISDICTION"
+  | "UNSATISFIED_REQUIREMENT"
+  | "CAPABILITY_NOT_IMPLEMENTED"
+  | "CAPABILITY_NOT_CERTIFIED"
+  | "RUNTIME_BINDING_UNAVAILABLE";
+
+export type CapabilityRegistryIssue = {
+  code: CapabilityRegistryIssueCode;
+  severity: "error" | "warning";
+  capability?: CapabilityId;
+  message: string;
 };
 
 export type CapabilityComposition = {
+  mode: CapabilityCompositionMode;
   requested: readonly CapabilityId[];
+  versionRequirements: Readonly<Partial<Record<CapabilityId, string>>>;
   resolved: readonly CapabilityId[];
   required: readonly CapabilityId[];
   optional: readonly CapabilityId[];
+  issues: readonly CapabilityRegistryIssue[];
   diagnostics: readonly string[];
   executable: boolean;
 };
 
-function isCapabilityId(value: string): value is CapabilityId {
-  return hasCapability(value);
-}
-
-/** Stable topological order for compiler-facing manifests. Dependencies are
- * emitted before their consumers, while preserving registry order otherwise. */
-export function resolveCapabilityDependencies(ids: readonly CapabilityId[]): {
+export type CapabilityDependencyResolution = {
   ordered: readonly CapabilityId[];
   errors: readonly string[];
-} {
-  const selected = new Set<CapabilityId>();
-  const errors: string[] = [];
-  const visit = (id: CapabilityId, path: readonly CapabilityId[]) => {
-    if (selected.has(id)) return;
-    if (path.includes(id)) {
-      errors.push(`capability dependency cycle: ${[...path, id].join(" -> ")}`);
-      return;
-    }
-    for (const dependency of capabilityDependencies(id)) {
-      if (!hasCapability(dependency)) {
-        errors.push(`${id} requires unknown capability ${dependency}`);
-      } else visit(dependency, [...path, id]);
-    }
-    selected.add(id);
-  };
-  for (const id of ids) visit(id, []);
-  return { ordered: capabilityIds.filter((id) => selected.has(id)), errors: [...new Set(errors)] };
+};
+
+type SemanticVersion = { major: number; minor: number; patch: number };
+
+function semanticVersion(value: string): SemanticVersion | null {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(value.trim());
+  return match
+    ? { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) }
+    : null;
+}
+
+function compareSemanticVersions(left: SemanticVersion, right: SemanticVersion): number {
+  return left.major - right.major || left.minor - right.minor || left.patch - right.patch;
+}
+
+/** Exact requirements match exactly. Caret requirements accept compatible
+ * versions using standard major-zero semantics. */
+export function satisfiesCapabilityVersion(requested: string, available: string): boolean {
+  const caret = requested.startsWith("^");
+  const requestedVersion = semanticVersion(caret ? requested.slice(1) : requested);
+  const availableVersion = semanticVersion(available);
+  if (!requestedVersion || !availableVersion) return false;
+  if (!caret) return compareSemanticVersions(availableVersion, requestedVersion) === 0;
+  if (compareSemanticVersions(availableVersion, requestedVersion) < 0) return false;
+  if (requestedVersion.major > 0) return availableVersion.major === requestedVersion.major;
+  if (requestedVersion.minor > 0) return availableVersion.major === 0 && availableVersion.minor === requestedVersion.minor;
+  return availableVersion.major === 0 && availableVersion.minor === 0 && availableVersion.patch === requestedVersion.patch;
 }
 
 export class CapabilityRegistry {
   constructor(readonly definitions: Readonly<Record<CapabilityId, CapabilityDefinition>> = CAPABILITIES) {}
 
+  ids(): readonly CapabilityId[] {
+    return Object.keys(this.definitions) as CapabilityId[];
+  }
+
+  has(id: string): id is CapabilityId {
+    return Object.prototype.hasOwnProperty.call(this.definitions, id);
+  }
+
   get(id: string): CapabilityDefinition | undefined {
-    return isCapabilityId(id) ? this.definitions[id] : undefined;
+    return this.has(id) ? this.definitions[id] : undefined;
+  }
+
+  getOrThrow(id: string): CapabilityDefinition {
+    const definition = this.get(id);
+    if (!definition) throw new Error(`Unknown capability ${id}`);
+    return definition;
+  }
+
+  dependencies(id: CapabilityId): readonly CapabilityId[] {
+    return this.definitions[id].dependencies ?? [];
+  }
+
+  dependents(id: CapabilityId, transitive = false): readonly CapabilityId[] {
+    const direct = this.ids().filter((candidate) => this.dependencies(candidate).includes(id));
+    if (!transitive) return direct;
+    const discovered = new Set<CapabilityId>();
+    const queue = [...direct];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (discovered.has(current)) continue;
+      discovered.add(current);
+      queue.push(...this.ids().filter((candidate) => this.dependencies(candidate).includes(current)));
+    }
+    return this.ids().filter((candidate) => discovered.has(candidate));
+  }
+
+  /** Stable topological order for compiler-facing manifests. Dependencies are
+   * emitted before consumers, including dependencies declared later in source. */
+  resolve(ids: readonly string[]): CapabilityDependencyResolution {
+    const visited = new Set<CapabilityId>();
+    const visiting = new Set<CapabilityId>();
+    const ordered: CapabilityId[] = [];
+    const errors: string[] = [];
+
+    const visit = (id: CapabilityId, path: readonly CapabilityId[]) => {
+      if (visited.has(id)) return;
+      if (visiting.has(id)) {
+        const start = path.indexOf(id);
+        errors.push(`capability dependency cycle: ${[...path.slice(Math.max(0, start)), id].join(" -> ")}`);
+        return;
+      }
+      visiting.add(id);
+      for (const dependency of this.dependencies(id)) {
+        if (!this.has(dependency)) errors.push(`${id} requires unknown capability ${dependency}`);
+        else visit(dependency, [...path, id]);
+      }
+      visiting.delete(id);
+      visited.add(id);
+      ordered.push(id);
+    };
+
+    for (const rawId of ids) {
+      if (!this.has(rawId)) errors.push(`unknown capability ${rawId}`);
+      else visit(rawId, []);
+    }
+    return { ordered, errors: [...new Set(errors)] };
+  }
+
+  validateSelection(ids: readonly CapabilityId[]): readonly string[] {
+    const selected = new Set(ids);
+    const errors: string[] = [];
+    for (const id of ids) {
+      for (const dependency of this.dependencies(id)) {
+        if (!selected.has(dependency)) errors.push(`${id} requires capability ${dependency}`);
+      }
+    }
+    return [...new Set(errors)];
+  }
+
+  audit(): readonly CapabilityRegistryIssue[] {
+    const issues: CapabilityRegistryIssue[] = [];
+    const add = (code: CapabilityRegistryIssueCode, message: string, capability?: CapabilityId, severity: "error" | "warning" = "error") => {
+      issues.push({ code, severity, capability, message });
+    };
+
+    for (const id of this.ids()) {
+      const definition = this.definitions[id];
+      if (definition.id !== id) add("INVALID_DEFINITION", `${id} definition id is ${definition.id}`, id);
+      if (!/^\d+\.\d+\.\d+$/.test(definition.version)) add("INVALID_DEFINITION", `${id} has invalid semantic version ${definition.version}`, id);
+      if (!definition.name.trim() || !definition.description.trim()) add("INVALID_DEFINITION", `${id} requires a name and description`, id);
+      if (!definition.inputSchema.type || !definition.outputSchema.type) add("INVALID_DEFINITION", `${id} requires input and output schemas`, id);
+      if (definition.applicability.domains.length === 0 || definition.applicability.jurisdictions.length === 0) add("INVALID_DEFINITION", `${id} requires domain and jurisdiction applicability`, id);
+      if (definition.failureModes.length === 0) add("INVALID_DEFINITION", `${id} must declare at least one failure mode`, id);
+      if (definition.runtimeBindings.length === 0) add("INVALID_BINDING", `${id} must declare at least one runtime binding`, id);
+      if (definition.sources.length === 0) add("INVALID_SOURCE", `${id} must declare implementation provenance`, id);
+      if (new Set(this.dependencies(id)).size !== this.dependencies(id).length) add("INVALID_DEFINITION", `${id} declares duplicate dependencies`, id);
+      if (new Set(definition.failureModes.map((failure) => failure.code)).size !== definition.failureModes.length) add("INVALID_DEFINITION", `${id} declares duplicate failure-mode codes`, id);
+      if (new Set(definition.fixtures.map((fixture) => fixture.id)).size !== definition.fixtures.length) add("INVALID_FIXTURE", `${id} declares duplicate fixture IDs`, id);
+      if (definition.security.externalEffects.includes("none") && definition.security.externalEffects.length > 1) add("INVALID_DEFINITION", `${id} cannot combine the none external effect with real effects`, id);
+
+      for (const dependency of this.dependencies(id)) {
+        if (!this.has(dependency)) add("UNKNOWN_DEPENDENCY", `${id} declares unknown dependency ${dependency}`, id);
+        if (!definition.requirements.some((requirement) => requirement.kind === "capability" && requirement.capability === dependency)) {
+          add("INVALID_DEFINITION", `${id} dependency ${dependency} is missing its requirement rationale`, id);
+        }
+      }
+      for (const requirement of definition.requirements) {
+        if (requirement.kind === "capability" && !this.has(requirement.capability)) {
+          add("UNKNOWN_DEPENDENCY", `${id} declares unknown capability requirement ${requirement.capability}`, id);
+        }
+      }
+      for (const source of definition.sources) {
+        if (source.origin === "public-repository" && (!source.repository || !source.revision || !source.license)) {
+          add("INVALID_SOURCE", `${id} public-repository source requires repository, immutable revision, and license`, id);
+        }
+        if (source.origin !== "workspace" && source.reviewState !== "approved" && definition.certification.state === "certified") {
+          add("INVALID_SOURCE", `${id} cannot be certified with an unapproved external source`, id);
+        }
+      }
+      for (const binding of definition.runtimeBindings) {
+        if (!binding.package.startsWith("@mailmypdf/") || !binding.exportPath.trim()) add("INVALID_BINDING", `${id} has an invalid runtime binding`, id);
+        if (!definition.sources.some((source) => source.package === binding.package)) add("INVALID_SOURCE", `${id} binding ${binding.package} has no implementation source`, id);
+      }
+      const bindingKeys = definition.runtimeBindings.map((binding) => `${binding.kind}:${binding.package}:${binding.exportPath}`);
+      if (new Set(bindingKeys).size !== bindingKeys.length) add("INVALID_BINDING", `${id} declares duplicate runtime bindings`, id);
+      if (definition.certification.state === "certified") {
+        if (definition.certification.gaps.length > 0) add("INVALID_CERTIFICATION", `${id} is certified but still declares certification gaps`, id);
+        if (definition.certification.evidence.length === 0) add("INVALID_CERTIFICATION", `${id} is certified without evidence`, id);
+        if (definition.status !== "production") add("INVALID_CERTIFICATION", `${id} is certified but status is ${definition.status}`, id);
+      }
+      if (definition.status === "production" && definition.certification.state !== "certified") {
+        add("INVALID_CERTIFICATION", `${id} is production without certified evidence`, id);
+      }
+      if ((definition.status === "foundation" || definition.status === "partial") && definition.certification.state === "certified") {
+        add("INVALID_CERTIFICATION", `${id} cannot be ${definition.status} and certified`, id);
+      }
+      if (definition.certification.state !== "planned" && definition.certification.evidence.length === 0) {
+        add("INVALID_CERTIFICATION", `${id} is ${definition.certification.state} without evidence`, id);
+      }
+      if (definition.certification.reviewedAt && Number.isNaN(Date.parse(definition.certification.reviewedAt))) {
+        add("INVALID_CERTIFICATION", `${id} has an invalid certification review date`, id);
+      }
+      if (definition.certification.state !== "planned" && !definition.fixtures.some((fixture) => fixture.status === "present")) {
+        add("INVALID_FIXTURE", `${id} is ${definition.certification.state} without a present fixture`, id);
+      }
+      if (definition.consequential && !definition.security.requiresApproval) {
+        add("INVALID_DEFINITION", `${id} is consequential but its security posture does not require approval`, id);
+      }
+      if (definition.consequential && !definition.security.failClosed) {
+        add("INVALID_DEFINITION", `${id} is consequential but does not fail closed`, id);
+      }
+    }
+
+    for (const message of this.resolve(this.ids()).errors.filter((error) => error.includes("cycle"))) {
+      add("DEPENDENCY_CYCLE", message);
+    }
+
+    for (const id of this.ids().filter((candidate) => this.definitions[candidate].consequential === true)) {
+      const reachable = new Set(this.resolve(this.dependencies(id)).ordered);
+      if (!reachable.has("humanReview")) add("MISSING_GATE_DEPENDENCY", `consequential capability ${id} must depend on humanReview directly or transitively`, id);
+      if (!reachable.has("blockingGate")) add("MISSING_GATE_DEPENDENCY", `consequential capability ${id} must depend on blockingGate directly or transitively`, id);
+    }
+
+    return [...new Map(issues.map((issue) => [`${issue.code}:${issue.capability ?? "registry"}:${issue.message}`, issue])).values()];
   }
 
   discover(query: CapabilityQuery = {}): readonly CapabilityDefinition[] {
@@ -472,49 +688,191 @@ export class CapabilityRegistry {
   }
 
   compose(request: CapabilityCompositionRequest): CapabilityComposition {
-    const diagnostics: string[] = [];
+    const mode = request.mode ?? "plan";
+    const issues: CapabilityRegistryIssue[] = [];
+    const add = (code: CapabilityRegistryIssueCode, message: string, capability?: CapabilityId, severity: "error" | "warning" = "error") => {
+      issues.push({ code, severity, capability, message });
+    };
     const notApplicable = new Set(request.notApplicable ?? []);
-    const required = request.required.filter(isCapabilityId);
-    const optional = (request.optional ?? []).filter(isCapabilityId);
+    const requiredRoots = request.required.filter((id): id is CapabilityId => this.has(id));
+    const optionalRoots = (request.optional ?? []).filter((id): id is CapabilityId => this.has(id));
     for (const id of [...request.required, ...(request.optional ?? [])]) {
-      if (!isCapabilityId(id)) diagnostics.push(`unknown capability ${id}`);
-      if (notApplicable.has(id)) diagnostics.push(`capability ${id} is both selected and not applicable`);
+      if (!this.has(id)) add("UNKNOWN_CAPABILITY", `unknown capability ${id}`);
+      else if (notApplicable.has(id)) add("NOT_APPLICABLE", `capability ${id} is both selected and not applicable`, id);
     }
-    const requested = [...new Set([...required, ...optional])];
-    const resolution = resolveCapabilityDependencies(requested);
-    diagnostics.push(...resolution.errors);
-    const selected = new Set(resolution.ordered);
+    const requested = [...new Set([...requiredRoots, ...optionalRoots])];
+    const requiredResolution = this.resolve(requiredRoots);
+    const optionalResolution = this.resolve(optionalRoots);
+    const resolution = this.resolve(requested);
+    for (const message of [...requiredResolution.errors, ...optionalResolution.errors, ...resolution.errors]) {
+      add(message.includes("cycle") ? "DEPENDENCY_CYCLE" : "UNKNOWN_DEPENDENCY", message);
+    }
+    const requiredSet = new Set(requiredResolution.ordered);
+    const optionalSet = new Set(optionalResolution.ordered.filter((id) => !requiredSet.has(id)));
+    const satisfiedRequirements = new Set(request.satisfiedRequirements ?? []);
+
     for (const id of resolution.ordered) {
       const definition = this.definitions[id];
       if (request.domain && !definition.applicability.domains.includes(request.domain) && !definition.applicability.domains.includes("shared")) {
-        diagnostics.push(`${id} is not applicable to domain ${request.domain}`);
+        add("UNSUPPORTED_DOMAIN", `${id} is not applicable to domain ${request.domain}`, id, requiredSet.has(id) ? "error" : "warning");
       }
       if (request.jurisdiction && !definition.applicability.jurisdictions.includes("unspecified") && !definition.applicability.jurisdictions.includes(request.jurisdiction)) {
-        diagnostics.push(`${id} is not applicable to jurisdiction ${request.jurisdiction}`);
+        add("UNSUPPORTED_JURISDICTION", `${id} is not applicable to jurisdiction ${request.jurisdiction}`, id, requiredSet.has(id) ? "error" : "warning");
+      }
+      if (notApplicable.has(id)) {
+        add("NOT_APPLICABLE", `${id} is required transitively but declared not applicable`, id, requiredSet.has(id) ? "error" : "warning");
+      }
+      const versionRequirement = request.versionRequirements?.[id];
+      if (versionRequirement && !satisfiesCapabilityVersion(versionRequirement, definition.version)) {
+        add("VERSION_INCOMPATIBLE", `${id} requires ${versionRequirement}; ${definition.version} is registered`, id, requiredSet.has(id) ? "error" : "warning");
+      }
+
+      if (mode !== "plan") {
+        const severity = requiredSet.has(id) ? "error" : "warning";
+        if (definition.certification.state === "planned") {
+          add("CAPABILITY_NOT_IMPLEMENTED", `${id} is planned and cannot be executed`, id, severity);
+        }
+        if (!definition.runtimeBindings.some((binding) => binding.status === "implemented")) {
+          add("RUNTIME_BINDING_UNAVAILABLE", `${id} has no implemented runtime binding`, id, severity);
+        }
+        for (const requirement of definition.requirements) {
+          if (requirement.kind !== "capability" && !satisfiedRequirements.has(requirement.key)) {
+            add("UNSATISFIED_REQUIREMENT", `${id} requires ${requirement.kind}:${requirement.key}: ${requirement.reason}`, id, severity);
+          }
+        }
+      }
+      if (mode === "production" && (definition.status !== "production" || definition.certification.state !== "certified")) {
+        add("CAPABILITY_NOT_CERTIFIED", `${id} is not certified for production execution`, id, requiredSet.has(id) ? "error" : "warning");
       }
     }
-    for (const id of requested) {
-      if (!selected.has(id)) diagnostics.push(`could not resolve capability ${id}`);
-    }
+
+    const uniqueIssues = [...new Map(issues.map((issue) => [`${issue.code}:${issue.capability ?? "registry"}:${issue.message}`, issue])).values()];
+    const versionRequirements = Object.fromEntries(
+      resolution.ordered
+        .filter((id) => request.versionRequirements?.[id] !== undefined)
+        .map((id) => [id, request.versionRequirements![id]]),
+    ) as Readonly<Partial<Record<CapabilityId, string>>>;
     return {
-      requested, resolved: resolution.ordered,
-      required: required.filter((id) => selected.has(id)),
-      optional: optional.filter((id) => selected.has(id)),
-      diagnostics: [...new Set(diagnostics)],
-      executable: diagnostics.length === 0,
+      mode,
+      requested,
+      versionRequirements,
+      resolved: resolution.ordered,
+      required: resolution.ordered.filter((id) => requiredSet.has(id)),
+      optional: resolution.ordered.filter((id) => optionalSet.has(id)),
+      issues: uniqueIssues,
+      diagnostics: uniqueIssues.map((issue) => issue.message),
+      executable: !uniqueIssues.some((issue) => issue.severity === "error"),
+    };
+  }
+
+  compileManifest(input: {
+    workflowId: string;
+    workflowVersion?: number;
+    composition: CapabilityComposition;
+  }): CapabilityManifest {
+    if (!input.composition.executable) throw new Error(input.composition.diagnostics.join("\n"));
+    const capabilities = Object.fromEntries(input.composition.resolved.map((id) => {
+      const definition = this.definitions[id];
+      return [id, {
+        id,
+        version: definition.version,
+        status: definition.status,
+        inputSchema: definition.inputSchema,
+        outputSchema: definition.outputSchema,
+        requirements: definition.requirements,
+        dependencies: this.dependencies(id),
+        security: definition.security,
+        applicability: definition.applicability,
+        failureModes: definition.failureModes,
+        fixtures: definition.fixtures,
+        certification: definition.certification,
+        bindings: definition.runtimeBindings,
+        sources: definition.sources,
+      } satisfies CapabilityManifestEntry];
+    })) as Readonly<Partial<Record<CapabilityId, CapabilityManifestEntry>>>;
+    const bindings = Object.fromEntries(input.composition.resolved.map((id) => [id, this.definitions[id].runtimeBindings])) as Readonly<Partial<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>>;
+    return {
+      schemaVersion: "mailmypdf.capabilities/v2",
+      registryVersion: CAPABILITY_REGISTRY_VERSION,
+      mode: input.composition.mode,
+      workflow: { id: input.workflowId, version: input.workflowVersion ?? 1 },
+      requested: input.composition.requested,
+      versionRequirements: input.composition.versionRequirements,
+      required: input.composition.required,
+      optional: input.composition.optional,
+      resolved: input.composition.resolved,
+      capabilities,
+      bindings,
     };
   }
 }
 
 export const capabilityRegistry = new CapabilityRegistry();
+/** Explicit name for compiler and connector consumers. This is an alias, not
+ * a second registry or architecture. */
+export const masterCapabilityRegistry = capabilityRegistry;
+
+export function hasCapability(id: string): id is CapabilityId {
+  return capabilityRegistry.has(id);
+}
+
+export function capabilityDependencies(id: CapabilityId): readonly CapabilityId[] {
+  return capabilityRegistry.dependencies(id);
+}
+
+export function isConsequentialCapability(id: CapabilityId): boolean {
+  return capabilityRegistry.getOrThrow(id).consequential === true;
+}
+
+export function assertCapabilityDependencies(ids: readonly CapabilityId[]): string[] {
+  return [...capabilityRegistry.validateSelection(ids)];
+}
+
+export function resolveCapabilityDependencies(ids: readonly CapabilityId[]): CapabilityDependencyResolution {
+  return capabilityRegistry.resolve(ids);
+}
+
+/** CI-safe compatibility API. Use auditCapabilityRegistry() when warnings and
+ * structured codes are needed. */
+export function validateCapabilityRegistry(): string[] {
+  return capabilityRegistry.audit().filter((issue) => issue.severity === "error").map((issue) => issue.message);
+}
+
+export function auditCapabilityRegistry(): readonly CapabilityRegistryIssue[] {
+  return capabilityRegistry.audit();
+}
+
+export type CapabilityManifestEntry = {
+  id: CapabilityId;
+  version: string;
+  status: CapabilityStatus;
+  inputSchema: CapabilitySchema;
+  outputSchema: CapabilitySchema;
+  requirements: readonly CapabilityRequirement[];
+  dependencies: readonly CapabilityId[];
+  security: CapabilitySecurityPosture;
+  applicability: CapabilityApplicability;
+  failureModes: readonly CapabilityFailureMode[];
+  fixtures: readonly CapabilityFixture[];
+  certification: CapabilityCertification;
+  bindings: readonly CapabilityRuntimeBinding[];
+  sources: readonly CapabilityImplementationSource[];
+};
 
 export type CapabilityManifest = {
-  schemaVersion: "mailmypdf.capabilities/v1";
+  schemaVersion: "mailmypdf.capabilities/v2";
+  registryVersion: string;
+  mode: CapabilityCompositionMode;
   workflow: { id: string; version: number };
+  requested: readonly CapabilityId[];
+  versionRequirements: Readonly<Partial<Record<CapabilityId, string>>>;
   required: readonly CapabilityId[];
   optional: readonly CapabilityId[];
   resolved: readonly CapabilityId[];
-  bindings: Readonly<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>;
+  capabilities: Readonly<Partial<Record<CapabilityId, CapabilityManifestEntry>>>;
+  /** Compatibility projection for existing hosts. New compilers should read
+   * the binding data from capabilities. */
+  bindings: Readonly<Partial<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>>;
 };
 
 /** Compiles a validated registry composition into the factory's stable input.
@@ -524,16 +882,5 @@ export function compileCapabilityManifest(input: {
   workflowVersion?: number;
   composition: CapabilityComposition;
 }): CapabilityManifest {
-  if (!input.composition.executable) {
-    throw new Error(input.composition.diagnostics.join("\n"));
-  }
-  const bindings = Object.fromEntries(input.composition.resolved.map((id) => [id, CAPABILITIES[id].runtimeBindings])) as Readonly<Record<CapabilityId, readonly CapabilityRuntimeBinding[]>>;
-  return {
-    schemaVersion: "mailmypdf.capabilities/v1",
-    workflow: { id: input.workflowId, version: input.workflowVersion ?? 1 },
-    required: input.composition.required,
-    optional: input.composition.optional,
-    resolved: input.composition.resolved,
-    bindings,
-  };
+  return capabilityRegistry.compileManifest(input);
 }
