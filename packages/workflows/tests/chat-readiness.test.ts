@@ -4,6 +4,8 @@ import test from "node:test";
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
 import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
+import { createInsuranceAppealManifestForWorkflow } from "../src/domain-packs/appeal/insurance-manifest.js";
+import { createInsuranceAppealRuntimePolicy } from "../src/domain-packs/appeal/insurance-runtime-policy.js";
 import {
   createNoticeResponseRuntimePolicy,
 } from "../src/domain-packs/notice-response/runtime-policy.js";
@@ -148,4 +150,26 @@ test("workflow factory exposes chatExecutable only when chat certification passe
   assert.equal(blocked.executable, true);
   assert.equal(blocked.chatExecutable, false);
   assert.equal(blocked.chatReadiness.certified, false);
+});
+
+
+test("insurance appeal passes evidence-heavy chat readiness", () => {
+  const defined = createInsuranceAppealManifestForWorkflow(
+    "appeal-insurance-claim-denial",
+  );
+  assert.ok(defined);
+
+  const result = certifyWorkflowChatReadiness({
+    manifest: defined.manifest,
+    runtimePolicy: createInsuranceAppealRuntimePolicy(
+      "appeal-insurance-claim-denial",
+    ),
+    availableTools: AVAILABLE_TOOLS,
+  });
+
+  assert.equal(result.certified, true);
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.requiredTools.includes("ingest_document"));
+  assert.ok(result.requiredTools.includes("analyze_matter"));
+  assert.ok(result.requiredTools.includes("preview_packet"));
 });
