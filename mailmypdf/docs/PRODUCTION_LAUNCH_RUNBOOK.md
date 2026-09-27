@@ -165,6 +165,16 @@ Also test:
 
 ## 10. Live canary
 
+After each controlled canary order, run the read-only cross-provider verifier:
+
+```sh
+pnpm --filter ./mailmypdf verify:canary -- --order <ORDER_UUID>
+pnpm --filter ./mailmypdf verify:canary -- --order <ORDER_UUID> --expect mailed
+pnpm --filter ./mailmypdf verify:canary -- --order <ORDER_UUID> --expect delivered
+```
+
+It reads the existing Supabase order, Stripe Checkout Session, Lob Letter, document SHA-256, tracking fields, and event history. It does **not** create a charge or mailpiece.
+
 After sandbox passes:
 
 1. Apply/verify production database migrations.
