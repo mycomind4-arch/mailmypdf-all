@@ -25,7 +25,7 @@
  * - Frames from Stripe (for embedded checkout)
  */
 export function buildCspHeader(): string {
-  const isDev = process.env.NODE_ENV !== "production";
+  const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
   const connectSources = [
     "'self'",
@@ -70,7 +70,7 @@ export function buildCspHeader(): string {
  * Security headers to apply to all responses.
  */
 export function getSecurityHeaders(): Record<string, string> {
-  const isDev = process.env.NODE_ENV !== "production";
+  const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
 
   return {
     "Content-Security-Policy": buildCspHeader(),
