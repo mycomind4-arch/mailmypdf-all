@@ -692,8 +692,8 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
             delivered_at?: string;
           } = {
         status: nextStatus,
-        tracking_number: letter?.tracking_number ?? null,
-        expected_delivery_date: letter?.expected_delivery_date ?? null,
+        tracking_number: letter?.tracking_number ?? order.tracking_number ?? null,
+        expected_delivery_date: letter?.expected_delivery_date ?? order.expected_delivery_date ?? null,
         last_tracking_event: {
           provider: "lob",
           event_type: "reconciliation",
@@ -716,8 +716,8 @@ export async function reconcileOrderWithLob(orderId: string): Promise<Reconcilia
           previous_status: currentStatus,
           new_status: nextStatus,
           source: "reconciliation",
-          tracking_number: letter?.tracking_number ?? null,
-          expected_delivery_date: letter?.expected_delivery_date ?? null,
+          tracking_number: letter?.tracking_number ?? order.tracking_number ?? null,
+          expected_delivery_date: letter?.expected_delivery_date ?? order.expected_delivery_date ?? null,
         },
       });
       eventsInserted = 1;
