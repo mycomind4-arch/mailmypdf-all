@@ -1,5 +1,5 @@
 import {
-  certifyWorkflowChatReadiness,
+  composeWorkflowForChat,
   createNoticeResponseManifest,
   createRecordsRequestManifest,
   getNoticeResponseRuntimePolicy,
@@ -61,15 +61,16 @@ export function getMcpWorkflowProtocolRegistration(
   const resolved = manifestAndPolicy(workflowId);
   if (!resolved) return null;
 
-  const certification = certifyWorkflowChatReadiness({
+  const factory = composeWorkflowForChat({
     manifest: resolved.manifest,
     runtimePolicy: resolved.policy,
     availableTools: MAILMYPDF_MCP_TOOLS.map((tool) => tool.name),
   });
+  const certification = factory.chatReadiness;
 
   return Object.freeze({
     certification,
-    definition: certification.certified && resolved.policy?.chatContract
+    definition: factory.chatExecutable && resolved.policy?.chatContract
       ? workflowProtocolDefinitionFromManifest(
           resolved.manifest,
           resolved.policy.chatContract,
