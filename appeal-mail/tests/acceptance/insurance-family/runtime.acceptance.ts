@@ -101,6 +101,7 @@ describe("Insurance appeal shared matter runtime", () => {
           "The decision does not address the supporting record included with this appeal.",
         requestedOutcome: "Reconsider the decision using the complete claim record.",
         additionalFacts: "All statements in this acceptance fixture are synthetic.",
+        factsConfirmed: true,
       };
 
       response = await harness.handle(
