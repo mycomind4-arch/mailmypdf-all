@@ -33,7 +33,7 @@ import {
   parsePacketPreviewResourceUri,
 } from "../src/lib/mcp/packet-preview-resource";
 import { PACKET_REVIEW_RESOURCE_URI } from "../src/lib/mcp/ui-resource-ids";
-import { getMcpWorkflowProtocolDefinition } from "../src/lib/mcp/workflow-protocol.server";
+import { getMcpWorkflowProtocolDefinition, getMcpWorkflowProtocolRegistration } from "../src/lib/mcp/workflow-protocol.server";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
@@ -69,12 +69,23 @@ test("workflow state tool advertises the universal chat protocol", () => {
   assert.ok(stateTool.capabilityRequirements.some((item) => item.id === "matterState"));
 });
 
-test("CP14 is registered for chat-guided workflow execution", () => {
-  const definition = getMcpWorkflowProtocolDefinition("cp14-response");
-  assert.ok(definition);
-  assert.equal(definition.workflowId, "cp14-response");
-  assert.equal(definition.primaryDocument?.label, "IRS CP14 notice");
-  assert.ok(definition.inputFields.some((field) => field.id === "responseMode"));
+test("CP14 and Records Request are registered only after chat-readiness certification", () => {
+  const cp14 = getMcpWorkflowProtocolRegistration("cp14-response");
+  assert.ok(cp14);
+  assert.equal(cp14.certification.certified, true);
+  assert.ok(cp14.definition);
+  assert.equal(cp14.definition.workflowId, "cp14-response");
+  assert.equal(cp14.definition.primaryDocument?.label, "IRS CP14 notice");
+  assert.ok(cp14.definition.inputFields.some((field) => field.id === "responseMode"));
+  assert.equal(cp14.definition.packetRecipientField?.id, "recipientAddress");
+
+  const records = getMcpWorkflowProtocolRegistration("public-records-request");
+  assert.ok(records);
+  assert.equal(records.certification.certified, true);
+  assert.ok(records.definition);
+  assert.equal(records.definition.analysisRequired, false);
+  assert.ok(records.definition.inputFields.some((field) => field.id === "records-sought"));
+  assert.equal(records.definition.packetRecipientField?.id, "agency-address");
 
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
