@@ -66,6 +66,48 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verification ledger
 
+### 2026-09-26 — MCP branch integration and installation blockers
+
+- Checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, `main`; no history rewritten
+  and no local work discarded. Integrated PRs #123, #120, #108, #118, #109, #98
+  using merge commits. Preserved newer durable connector operations, exact-PDF
+  review, security middleware, and server-only packet resource permissions.
+- Connector v0.5 advertises 21 tools. Fixed first-approval deadlock, canonical
+  comparison of JSONB mailing snapshots, checkout session race, retry-key
+  argument binding, and atomic approval/event persistence. Added a unique
+  owner/retry-key preparation index and an immutable direct-mail details trigger.
+  A racing preparation can leave an inaccessible unpaid draft for normal cleanup;
+  only the ownership-event winner can be exposed through the connector.
+- Hardened protocol negotiation, request body limits, Origin checks, OAuth
+  response ids, and error privacy; retained 2025 client compatibility. Fixed a
+  real embedded-script syntax error and false-success approval UI. Browser
+  fixture confirmed rendering and visible unconfirmed-approval rejection; the
+  executable UI regression suite also covers successful and failed tool results.
+- Local checks: app JavaScript tests 624/624; app TypeScript tests 241/241;
+  workflows 215/215; focused MCP tests 50/50; submission metadata validator passes
+  with 21 annotation justifications. Built Worker public MCP smoke passes locally
+  (local installed workerd requires compatibility-date override 2026-09-04).
+  These are not evidence of live account linking, payment, or mailing.
+- App-wide `tsc --noEmit` still reports unrelated baseline module-resolution,
+  stale auth-link, admin-user typing, and two typed-array errors. MCP typed-array
+  and new direct-mail quote errors were repaired. Docker is not running, so new
+  SQL migrations have been reviewed but not executed locally or in production.
+- Confirmed actual production origin from the user:
+  `https://mailmypdf.mycomind4.workers.dev`. The currently deployed old Worker
+  returns HTML rather than MCP at `/api/mcp`. Public auth configuration identifies
+  project `akpjuhrzypmcbivgsegt`; its OAuth discovery returns 404 feature_disabled.
+  Neither connected Supabase credentials nor the local CLI account owns it.
+  Do not apply migrations to the unrelated Private Office database.
+- Installation remains environment-blocked: obtain access to the actual project,
+  verify/apply forward migrations, enable OAuth and dynamic registration with
+  `/oauth/consent`, supply missing scanner/webhook/email configuration, pass
+  production preflight, then deploy and verify client OAuth. No deployment,
+  live payment, or mail submission was performed as a test. The updated launch
+  diagnostic detects the disabled OAuth server rather than reporting readiness.
+- PR #99 remains unmerged (failing checks and stale sitemap/canonical assumptions);
+  unfinished draft PRs #85, #86, #88, #89, #90, #91 remain untouched. See
+  `docs/integrations/mailmypdf-installation.md` for installation steps and blockers.
+
 ### 2026-09-25 — canonical workflow registry continuation
 
 - Working checkout: `/Users/macdizzle/dev/mailmypdf-all-main`, branch
