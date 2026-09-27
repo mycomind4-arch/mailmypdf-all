@@ -24,6 +24,7 @@ export * from "./connector-readiness.js";
 export * from "./connector-operation.js";
 export * from "./connector-operation-reconciliation.js";
 export * from "./connector-binding-health.js";
+export * from "./workflow-protocol.js";
 
 export * from "./execution-reliability.js";
 export * from "./workflow-observability.js";
