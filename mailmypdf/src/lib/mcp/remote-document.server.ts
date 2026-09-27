@@ -404,7 +404,7 @@ export async function downloadAssistantFile(
   }
 
   return {
-    file: new File([bytes], filename, { type: mimeType }),
+    file: new File([new Uint8Array(bytes)], filename, { type: mimeType }),
     sourceFileId: remote.file_id,
     sourceHost: url.hostname.toLowerCase(),
     sourceMimeType: hintedMime,

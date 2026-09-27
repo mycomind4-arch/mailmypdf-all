@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -47,7 +49,7 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("get_connector_readiness"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
-  assert.ok(names.length <= 17);
+  assert.equal(names.length, 21);
 });
 
 test("every connector tool has a valid capability contract", () => {
@@ -280,6 +282,43 @@ test("ingest_document exposes the exact ChatGPT file-parameter shape", () => {
   assert.deepEqual([...(file.required ?? [])].sort(), ["download_url", "file_id"]);
 });
 
+test("direct PDF ingestion uses the same assistant file parameter contract", () => {
+  const ingest = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "ingest_direct_pdf");
+  assert.ok(ingest);
+  assert.deepEqual(ingest._meta?.["openai/fileParams"], ["file"]);
+
+  const schema = ingest.inputSchema as {
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+  assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["file", "processing_consent"]);
+  assert.deepEqual([...(schema.required ?? [])].sort(), ["file", "processing_consent"]);
+});
+
+test("direct PDF mailing keeps preparation, approval, and checkout as separate tools", () => {
+  const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_mail");
+  const approve = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "approve_direct_pdf_mail");
+  const checkout = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_checkout");
+  assert.ok(prepare);
+  assert.ok(approve);
+  assert.ok(checkout);
+
+  const approveRequired = (approve.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...approveRequired].sort(), [
+    "expected_color",
+    "expected_mail_class",
+    "expected_packet_sha256",
+    "expected_recipient",
+    "expected_sender",
+    "expected_total_cents",
+    "order_id",
+  ]);
+  assert.equal(prepare.annotations.destructiveHint, false);
+  assert.equal(approve.annotations.destructiveHint, false);
+  assert.equal(checkout.annotations.destructiveHint, false);
+  assert.equal(checkout.annotations.openWorldHint, true);
+});
+
 test("remote attachment URLs reject local/private/nonstandard targets", () => {
   assert.throws(() => validateRemoteDocumentUrl("http://files.example.com/file.pdf"), /public HTTPS/i);
   assert.throws(() => validateRemoteDocumentUrl("https://127.0.0.1/file.pdf"), /public HTTPS|public DNS/i);
@@ -345,7 +384,7 @@ test("assistant file redirects are revalidated before following", async () => {
 });
 
 
-test("get_document_status is read-only and requires matter plus document identity", () => {
+test("get_document_status is read-only and supports workflow or standalone secure documents", () => {
   const statusTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_document_status");
   assert.ok(statusTool);
   assert.equal(statusTool.annotations.readOnlyHint, true);
@@ -357,7 +396,7 @@ test("get_document_status is read-only and requires matter plus document identit
     required?: string[];
   };
   assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["document_id", "matter_id"]);
-  assert.deepEqual([...(schema.required ?? [])].sort(), ["document_id", "matter_id"]);
+  assert.deepEqual([...(schema.required ?? [])].sort(), ["document_id"]);
   assert.equal(MCP_PROTECTED_TOOL_NAMES.has("get_document_status"), true);
 });
 
@@ -515,7 +554,7 @@ function modernMcpRequest(
       jsonrpc: "2.0",
       id: options.id ?? 1,
       method,
-      ...(params ? { params } : {}),
+      params: { ...params, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } },
     }),
   });
 }
@@ -583,7 +622,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 17);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 21);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -627,7 +666,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 17);
+  assert.equal(payload.result.tools.length, 21);
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_operation_status"));
@@ -636,6 +675,9 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   const ingest = payload.result.tools.find((tool) => tool.name === "ingest_document");
   assert.ok(ingest?._meta?.["mailmypdf/requiredCapabilities"]?.includes("secureUpload"));
   assert.equal(ingest?.capabilityRequirements, undefined);
+  assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_mail"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "approve_direct_pdf_mail"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_checkout"));
 });
 
 test("preview_packet binds the review UI and recipient identity", () => {
@@ -791,4 +833,76 @@ test("modern tools/call requires matching Mcp-Name and advertises OAuth metadata
   assert.match(challenge, /^Bearer /);
   assert.match(challenge, /resource_metadata="https:\/\/mailmypdf\.ai\/\.well-known\/oauth-protected-resource"/);
   assert.match(challenge, /scope="email profile"/);
+});
+
+
+test("direct-mail payment and fulfillment keep immutable approval checks downstream", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const paymentWebhook = fs.readFileSync(
+    path.join(root, "src/routes/api/public/payments/webhook.ts"),
+    "utf8",
+  );
+  const lob = fs.readFileSync(path.join(root, "src/lib/lob.server.ts"), "utf8");
+  const directMail = fs.readFileSync(path.join(root, "src/lib/mcp/direct-mail.server.ts"), "utf8");
+
+  assert.match(paymentWebhook, /order\.approved_price_cents !== null/);
+  assert.match(paymentWebhook, /session\.amount_total !== expectedAmount/);
+
+  assert.match(lob, /assertApprovedOrderIntegrity\(order, supabaseAdmin\)/);
+  assert.match(lob, /fulfillment\.packet_hash_mismatch/);
+  assert.match(lob, /Approved mailing PDF changed after approval/);
+  assert.match(lob, /fulfillment\.approval_snapshot_mismatch/);
+  assert.match(lob, /Direct-mail details changed after approval/);
+
+  assert.match(directMail, /rpc\("approve_mcp_direct_mail"/);
+  assert.match(directMail, /p_packet_sha256: currentHash/);
+  assert.match(directMail, /p_total_cents: totalCents/);
+  assert.match(directMail, /p_mailing_snapshot: reviewedMailing/);
+  assert.match(
+    directMail,
+    /canonicalJSON\(reviewedMailing\) !== canonicalJSON\(mailingSnapshot\(order\)\)/,
+  );
+  assert.match(directMail, /idempotency_key/);
+  assert.match(directMail, /mcp\.direct_mail\.prepared/);
+});
+
+
+test("interactive MCP ingestion uses the trusted scanner with scheduled fallback semantics", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const directMail = fs.readFileSync(
+    path.join(root, "src/lib/mcp/direct-mail.server.ts"),
+    "utf8",
+  );
+  const workflowTools = fs.readFileSync(
+    path.join(root, "src/lib/mcp/workflow-tools.server.ts"),
+    "utf8",
+  );
+  const scanner = fs.readFileSync(
+    path.join(root, "src/lib/secure-core/scanner.server.ts"),
+    "utf8",
+  );
+  const migration = fs.readFileSync(
+    path.join(
+      root,
+      "supabase/migrations/20260925171500_claim_single_secure_document_for_scan.sql",
+    ),
+    "utf8",
+  );
+
+  assert.match(directMail, /scanQuarantinedDocumentNow\(registered\.id, context\.user\.id\)/);
+  assert.match(workflowTools, /scanQuarantinedDocumentNow\(document\.id, context\.user\.id\)/);
+  assert.match(scanner, /claim_secure_document_for_scan/);
+  assert.match(scanner, /security_status:\s*document\.deletion_requested_at[\s\S]*?quarantined/);
+
+  assert.match(migration, /d\.id = p_document_id/);
+  assert.match(migration, /d\.owner_id = p_owner_id/);
+  assert.match(migration, /d\.security_status = 'quarantined'/);
+  assert.match(
+    migration,
+    /revoke all on function public\.claim_secure_document_for_scan\(uuid, uuid\)[\s\S]*?from public, anon, authenticated/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.claim_secure_document_for_scan\(uuid, uuid\)[\s\S]*?to service_role/,
+  );
 });

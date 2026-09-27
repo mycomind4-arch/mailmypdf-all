@@ -7,7 +7,7 @@ export const PACKET_REVIEW_RESOURCE = {
   description:
     "Review the exact packet identity, recipient, mail class, page count, and quoted price before approval.",
   mimeType: "text/html;profile=mcp-app",
-  text: `<!doctype html>
+  text: String.raw`<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -392,9 +392,10 @@ button:disabled {
       });
       const approved = result && result.structuredContent ? result.structuredContent : result;
       const approvalId = approved && approved.approvalId ? approved.approvalId : null;
-      status.textContent = approvalId
-        ? "Approved for secure checkout. No payment has been taken and nothing has been mailed."
-        : "Packet approved. Continue in chat to secure checkout.";
+      if (!result || result.isError || !approvalId) {
+        throw new Error(approved && approved.error || "MailMyPDF did not confirm this approval. Please retry after reviewing the packet.");
+      }
+      status.textContent = "Approved for secure checkout. No payment has been taken and nothing has been mailed.";
       button.textContent = "Approved";
       button.disabled = true;
     } catch (error) {

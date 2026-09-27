@@ -4,6 +4,11 @@ MailMyPDF exposes a vendor-neutral MCP surface so ChatGPT, Claude, Grok, Codex, 
 
 ## Endpoint
 
+Until the custom domain is purchased and configured, the intended live connector
+URL is `https://mailmypdf.mycomind4.workers.dev/api/mcp`. Do not use the `.ai`
+plugin manifest to install that temporary deployment. See
+[installation and environment checklist](mailmypdf-installation.md).
+
 The host app mounts the connector at:
 
 ```
@@ -18,7 +23,7 @@ The HTTP endpoint serves the modern MCP `2026-07-28` stateless shape and keeps t
 
 For modern requests:
 
-- `MCP-Protocol-Version: 2026-07-28` identifies the modern protocol;
+- `MCP-Protocol-Version: 2026-07-28` must match `params._meta["io.modelcontextprotocol/protocolVersion"]`;
 - `Mcp-Method` must agree with the JSON-RPC method;
 - `Mcp-Name` must agree with `params.name` for tool calls;
 - `server/discover` advertises tool and resource capabilities without creating a session;
@@ -28,7 +33,11 @@ For modern requests:
 
 MailMyPDF does not mint or require MCP session ids for modern requests. Application state is explicit through matter, document, approval, and order identifiers.
 
-## v0.4 / connector-v2 tool boundary
+Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
+Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
+browser origins are validated and account responses are never HTTP-cacheable.
+
+## v0.5 / connector-v2 tool boundary (21 tools)
 
 Public discovery:
 
@@ -44,6 +53,10 @@ Authenticated matter execution:
 - `get_document_status`
 - `get_operation_status`
 - `get_connector_readiness`
+- `ingest_direct_pdf`
+- `prepare_direct_pdf_mail`
+- `approve_direct_pdf_mail`
+- `prepare_direct_pdf_checkout`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -155,7 +168,41 @@ The readiness result is deliberately small:
 - `rejected` when security validation fails;
 - `unavailable` when deletion has started or completed.
 
-The tool reads only the owner-scoped matter snapshot. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
+Interactive MCP ingestion makes a best-effort immediate claim of the just-uploaded, owner-scoped document and runs the exact same structural + malware scanner pipeline used by the scheduled job. This normally lets a chat continue without waiting for the GitHub Actions scan interval. If the scanner service is unavailable or the immediate pass fails, the scanner code returns the record to `quarantined`; the scheduled secure-core scan remains the durable retry path. A scan failure never makes the document usable.
+
+The tool reads only owner-scoped document/matter metadata. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
+
+## Direct PDF mailing from chat
+
+The connector now supports the core MailMyPDF use case without forcing a finished PDF through a specialized workflow.
+
+The expected sequence is:
+
+1. `ingest_direct_pdf` copies the assistant attachment into the same secure quarantine vault used by workflow evidence.
+2. `get_document_status(document_id)` waits for a clean, usable PDF. A workflow matter id is not required for standalone direct mailing.
+3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
+4. The assistant shows the user the PDF identity, recipient, mail class, and price.
+5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them and then records the immutable approval snapshot.
+6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
+7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
+8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
+
+Direct-mail preparation requires a client-supplied `idempotency_key`. Retries of the same mailing intent reuse the existing order; intentionally mailing the same PDF again requires a new key.
+
+The direct-mail tools never return the legacy order lookup token and never accept raw card data.
+
+### Direct-mail integrity boundary
+
+Approval is not merely a UI flag.
+
+- `approved_packet_sha256` and `approved_price_cents` are written only after the client echoes the exact reviewed mailing details and the server confirms they still match the prepared order.
+- Approval values and the immutable mailing snapshot event are saved in one database transaction. Approved sender, recipient, PDF reference, service, and color settings cannot subsequently change.
+- The existing database trigger makes non-null approved hash/price values immutable.
+- The Stripe webhook rejects a completed payment whose amount differs from any stored approved price.
+- Immediately before Lob receives a signed PDF URL, MailMyPDF downloads the stored order PDF and recomputes SHA-256.
+- A hash mismatch records `fulfillment.packet_hash_mismatch` and blocks provider submission.
+
+This means a successful checkout cannot silently authorize changed PDF bytes.
 
 ## Order and mailing status
 

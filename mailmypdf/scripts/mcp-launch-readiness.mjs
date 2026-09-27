@@ -23,6 +23,10 @@ const requiredTools=[
   "get_document_status",
   "get_operation_status",
   "get_connector_readiness",
+  "ingest_direct_pdf",
+  "prepare_direct_pdf_mail",
+  "approve_direct_pdf_mail",
+  "prepare_direct_pdf_checkout",
   "ingest_document",
   "save_matter_input",
   "analyze_matter",
@@ -60,16 +64,21 @@ async function rpc(method,params,options={}){
   });
   if(options.name) headers.set("mcp-name",options.name);
   if(options.token) headers.set("authorization",`Bearer ${options.token}`);
-  const response=await fetch(endpoint,{
+  let response;
+  try { response=await fetch(endpoint,{
     method:"POST",
     headers,
     body:JSON.stringify({
       jsonrpc:"2.0",
       id:nextId++,
       method,
-      ...(params?{params}:{}),
+      params: {...params, _meta: {"io.modelcontextprotocol/protocolVersion": protocolVersion}},
     }),
-  });
+    signal: AbortSignal.timeout(15_000),
+  }); } catch {
+    fail(`${method} could not reach the MCP endpoint`);
+    return { response: new Response(null, {status: 503}), body: null };
+  }
   return {response,body:await parseJson(response,method)};
 }
 async function callTool(name,args,options={}){
@@ -112,7 +121,24 @@ if(!isLocalHost(parsedBase.hostname)&&parsedBase.protocol!=="https:"){
       if(servers.length<1) fail("OAuth metadata advertises no authorization server");
       else if(!servers.every(value=>typeof value==="string"&&value.startsWith("https://"))&&!isLocalHost(parsedBase.hostname)){
         fail("OAuth authorization server must use HTTPS",servers);
-      }else pass("OAuth authorization server is advertised");
+      }else {
+        pass("OAuth authorization server is advertised");
+        for (const server of servers) {
+          const issuer = new URL(server);
+          const metadataUrl = new URL(`/.well-known/oauth-authorization-server${issuer.pathname.replace(/\/$/, "")}`, issuer.origin);
+          // Supabase also publishes discovery at the OIDC-compatible path.
+          let discovery = await fetch(metadataUrl, {signal: AbortSignal.timeout(15_000)});
+          if (!discovery.ok) discovery = await fetch(`${server.replace(/\/$/, "")}/.well-known/oauth-authorization-server`, {signal: AbortSignal.timeout(15_000)});
+          const authorization = await parseJson(discovery, "authorization-server metadata");
+          if (!discovery.ok || !authorization?.authorization_endpoint || !authorization?.token_endpoint) {
+            fail("OAuth server is unavailable or disabled; enable it in the actual production Supabase project", {status: discovery.status});
+          } else if (!authorization.registration_endpoint) {
+            fail("OAuth dynamic client registration is unavailable");
+          } else if (!authorization.code_challenge_methods_supported?.includes("S256")) {
+            fail("OAuth server must support PKCE S256");
+          } else pass("OAuth authorization, token, dynamic registration, and PKCE discovery are live");
+        }
+      }
 
       const scopes=Array.isArray(body.scopes_supported)?body.scopes_supported:[];
       for(const scope of ["email","profile"]){
@@ -247,6 +273,7 @@ if(expectedChallenge){
         fail("portable plugin install metadata is incomplete",openai);
       }else pass("portable plugin install metadata is complete");
       if(mcp?.mcpServers?.mailmypdf?.url!=="https://mailmypdf.ai/api/mcp") fail("portable plugin points at the wrong MCP endpoint",mcp);
+      else if (endpoint !== mcp.mcpServers.mailmypdf.url) warn(`portable plugin targets the future canonical domain; install this deployment using ${endpoint}`);
       else pass("portable plugin points at canonical production MCP endpoint");
     }catch(error){fail("portable plugin package could not be validated",error instanceof Error?error.message:String(error));}
   }else warn("portable plugin files were not found from this script location");

@@ -1937,6 +1937,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_mcp_direct_mail: {
+        Args: {
+          p_order_id: string
+          p_owner_id: string
+          p_packet_sha256: string
+          p_total_cents: number
+          p_mailing_snapshot: Json
+        }
+        Returns: boolean
+      }
+      claim_secure_document_for_scan: {
+        Args: { p_document_id: string; p_owner_id: string }
+        Returns: Database["public"]["Tables"]["secure_documents"]["Row"][]
+      }
       claim_notification_delivery: {
         Args: {
           p_idempotency_key: string

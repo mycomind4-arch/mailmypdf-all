@@ -5,6 +5,26 @@
     "US"
   ],
   "annotationJustifications": {
+    "ingest_direct_pdf": {
+      "readOnlyHint": "False because it stores a user-authorized PDF in the secure quarantine vault.",
+      "destructiveHint": "False because uploading and scanning do not approve, charge for, or mail a PDF.",
+      "openWorldHint": "True because it downloads an assistant-provided HTTPS file and may contact the malware scanner."
+    },
+    "prepare_direct_pdf_mail": {
+      "readOnlyHint": "False because it creates an unpaid mailing order from an owner-scoped clean PDF.",
+      "destructiveHint": "False because an unpaid draft order does not approve the PDF or send mail.",
+      "openWorldHint": "True because pricing may query the external payment provider for account entitlements."
+    },
+    "approve_direct_pdf_mail": {
+      "readOnlyHint": "False because it records the user's explicit approval of exact PDF, price, and mailing details.",
+      "destructiveHint": "False because approval alone does not charge a payment method or submit physical mail.",
+      "openWorldHint": "True because current-price validation may query the payment provider for entitlements."
+    },
+    "prepare_direct_pdf_checkout": {
+      "readOnlyHint": "False because it creates or reuses hosted checkout for the previously approved mailing.",
+      "destructiveHint": "False because the user must complete payment separately on hosted checkout.",
+      "openWorldHint": "True because it contacts Stripe to create or retrieve a hosted checkout session."
+    },
     "get_operation_status": {
       "readOnlyHint": "True because it only reads the authenticated owner's persisted operation status.",
       "destructiveHint": "False because polling cannot replay, approve, pay for, or mail an operation.",

@@ -188,7 +188,7 @@ export async function serveMailingRecord(
     }
     if (input.data.artifact === "evidence") {
       const bytes = await buildMailingEvidencePdf(buildMailingRecord(record));
-      return new Response(bytes, {
+      return new Response(new Uint8Array(bytes), {
         headers: {
           ...privateHeaders,
           "Content-Type": "application/pdf",

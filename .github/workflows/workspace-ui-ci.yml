@@ -154,7 +154,9 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
       - name: Build MCP document-ingress and canonical registry dependencies
-        run: pnpm --filter @mailmypdf/documents... --filter @mailmypdf/workflows... --workspace-concurrency=2 run build
+        run: pnpm --filter ./mailmypdf run prebuild
+      - name: Verify direct PDF approval and checkout behavior
+        run: pnpm --filter ./mailmypdf exec node --experimental-test-module-mocks --import tsx --test tests/mcp-direct-mail.test.ts
       - name: Test Authority Gate and catalog topology invariants
         run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
       - name: Validate MailMyPDF plugin submission bundle

@@ -58,7 +58,7 @@ describe("Supabase schema sync", () => {
   });
 
   test("columns added by ALTER TABLE are described", () => {
-    const added = [...sql.matchAll(/alter table\s+(?:if exists\s+)?(?:public\.)?([a-z_]+)\s+add column(?: if not exists)?\s+([a-z_]+)/gi)]
+    const added = [...sql.matchAll(/alter table\s+(?:if exists\s+)?(?:public\.)?([a-z_][a-z_0-9]*)\s+add column(?: if not exists)?\s+([a-z_][a-z_0-9]*)/gi)]
       .map((m) => ({ table: m[1], column: m[2] }));
     assert.ok(added.length > 0, "expected at least one ALTER TABLE ADD COLUMN in the migrations");
 
@@ -76,6 +76,8 @@ describe("Supabase schema sync", () => {
     const functionsBlock = types.slice(types.indexOf("    Functions: {"), types.indexOf("    Enums: {"));
     for (const fn of [
       "claim_secure_documents_for_scan",
+      "claim_secure_document_for_scan",
+      "approve_mcp_direct_mail",
       "claim_secure_documents_for_deletion",
       "request_secure_document_deletion",
     ]) {

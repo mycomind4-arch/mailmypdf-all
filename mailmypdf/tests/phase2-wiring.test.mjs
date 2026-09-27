@@ -64,10 +64,10 @@ describe("Lob Webhook — TrackingService Availability", () => {
     assert.match(webhookSection, /TrackingService/);
   });
 
-  it("existing Lob webhook logic still works (canTransition + mapLobStatusToOrderStatus)", async () => {
+  it("Lob webhook retains the lifecycle transition gate and status mapper", async () => {
     const lob = await source("src/lib/lob.server.ts");
     const webhookSection = lob.slice(lob.indexOf("processLobWebhook"));
-    assert.match(webhookSection, /canTransition/);
+    assert.match(webhookSection, /canApplyLobLifecycleTransition/);
     assert.match(webhookSection, /mapLobStatusToOrderStatus/);
     assert.match(webhookSection, /getFulfillmentProgress/);
   });

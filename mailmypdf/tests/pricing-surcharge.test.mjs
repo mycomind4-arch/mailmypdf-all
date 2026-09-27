@@ -150,6 +150,9 @@ test("no source file claims certified mail is 'not included' or 'not offered'", 
     const content = await readFile(f, "utf8");
     // Check for phrases that say certified mail is not available
     const lower = content.toLowerCase();
+    // Do not combine unrelated sentences (e.g. certified tracking plus a
+    // payment receipt that is "not included" in the evidence export).
+    if (!/certified[^\n.!?]{0,100}(?:not included|not currently|not offered)|(?:not included|not currently|not offered)[^\n.!?]{0,100}certified/i.test(content)) continue;
     if (
       (lower.includes("certified") && (lower.includes("not included") || lower.includes("not currently") || lower.includes("not offered"))) ||
       (lower.includes("not included") && lower.includes("certified"))

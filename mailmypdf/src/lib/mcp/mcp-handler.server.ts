@@ -12,6 +12,7 @@ import {
 } from "./tool-catalog";
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
 import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
+import { isAllowedMcpOrigin, readMcpMessage, SUPPORTED_MCP_VERSIONS } from "./transport";
 
 type JsonRpcRequest = {
   jsonrpc?: unknown;
@@ -25,6 +26,7 @@ function json(value: unknown, status = 200, extraHeaders: Record<string, string>
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
       ...extraHeaders,
     },
   });
@@ -64,7 +66,18 @@ function toolScopes(name: string): string[] {
 
 function validateModernHeaders(request: Request, message: JsonRpcRequest): Response | null {
   const protocol = request.headers.get("mcp-protocol-version");
+  if (protocol && !SUPPORTED_MCP_VERSIONS.some((version) => version === protocol)) {
+    return json(rpcError(message.id, -32022, "Unsupported protocol version", {
+      supported: [...SUPPORTED_MCP_VERSIONS], requested: protocol,
+    }), 400);
+  }
   if (protocol !== MCP_PROTOCOL_VERSION) return null;
+
+  const params = message.params as Record<string, unknown> | undefined;
+  const meta = params?._meta as Record<string, unknown> | undefined;
+  if (meta?.["io.modelcontextprotocol/protocolVersion"] !== protocol) {
+    return json(rpcError(message.id, -32020, "MCP protocol header does not match request metadata"), 400);
+  }
 
   const method = typeof message.method === "string" ? message.method : "";
   const headerMethod = request.headers.get("mcp-method");
@@ -90,7 +103,7 @@ function validateModernHeaders(request: Request, message: JsonRpcRequest): Respo
   return null;
 }
 
-async function requireToolAuth(request: Request, toolName: string): Promise<Response | null> {
+async function requireToolAuth(request: Request, toolName: string, id: unknown): Promise<Response | null> {
   if (!MCP_PROTECTED_TOOL_NAMES.has(toolName)) return null;
   const scopes = toolScopes(toolName);
 
@@ -100,7 +113,7 @@ async function requireToolAuth(request: Request, toolName: string): Promise<Resp
   } catch (error) {
     if (!(error instanceof AuthenticationError)) throw error;
     return json(
-      rpcError(null, -32001, "MailMyPDF account connection required"),
+      rpcError(id, -32001, "MailMyPDF account connection required"),
       401,
       { "www-authenticate": authChallenge(request, scopes) },
     );
@@ -142,6 +155,9 @@ function failedToolResult(message: string, details?: unknown) {
 }
 
 export async function handleMailMyPdfMcpRequest(request: Request): Promise<Response> {
+  if (!isAllowedMcpOrigin(request, requestOrigin(request))) {
+    return json(rpcError(null, -32600, "Origin is not allowed"), 403);
+  }
   if (request.method === "GET") {
     return json(
       {
@@ -161,21 +177,32 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
 
   let message: JsonRpcRequest;
   try {
-    message = await request.json() as JsonRpcRequest;
-  } catch {
+    const parsed = await readMcpMessage(request);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return json(rpcError(null, -32600, "Expected a single JSON-RPC request"), 400);
+    }
+    message = parsed as JsonRpcRequest;
+  } catch (error) {
+    if (error instanceof RangeError) return json(rpcError(null, -32600, "Request body too large"), 413);
     return json(rpcError(null, -32700, "Parse error"), 400);
   }
 
   if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {
     return json(rpcError(message.id, -32600, "Invalid JSON-RPC request"), 400);
   }
+  if ((message.id !== undefined && typeof message.id !== "string" && typeof message.id !== "number") ||
+      (message.params !== undefined && (!message.params || typeof message.params !== "object" || Array.isArray(message.params)))) {
+    return json(rpcError(null, -32600, "Invalid request id or params"), 400);
+  }
 
   const headerError = validateModernHeaders(request, message);
   if (headerError) return headerError;
 
-  if (message.method === "notifications/initialized") {
+  if (message.id === undefined && message.method.startsWith("notifications/")) {
     return new Response(null, { status: 202 });
   }
+  // Never execute a mutation disguised as a fire-and-forget notification.
+  if (message.id === undefined) return json(rpcError(null, -32600, "Request id is required"), 400);
 
   if (message.method === "initialize") {
     const params =
@@ -185,7 +212,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     const requested = typeof params.protocolVersion === "string" ? params.protocolVersion : "2025-11-25";
 
     return json(rpcResult(message.id, {
-      protocolVersion: requested === MCP_PROTOCOL_VERSION ? MCP_PROTOCOL_VERSION : requested,
+      protocolVersion: SUPPORTED_MCP_VERSIONS.some((version) => version === requested) ? requested : "2025-11-25",
       capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
       serverInfo: { name: "MailMyPDF", version: MCP_CONNECTOR_VERSION },
       instructions:
@@ -197,7 +224,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     const connectorContract = getMcpConnectorContract();
     return json(rpcResult(message.id, {
       resultType: "complete",
-      supportedVersions: [MCP_PROTOCOL_VERSION],
+      supportedVersions: [...SUPPORTED_MCP_VERSIONS],
       capabilities: {
         tools: { listChanged: false },
         resources: { listChanged: false },
@@ -263,7 +290,10 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
           uri: PACKET_REVIEW_RESOURCE.uri,
           mimeType: PACKET_REVIEW_RESOURCE.mimeType,
           text: PACKET_REVIEW_RESOURCE.text,
-          _meta: PACKET_REVIEW_RESOURCE._meta,
+          _meta: {
+            ...PACKET_REVIEW_RESOURCE._meta,
+            ui: { ...PACKET_REVIEW_RESOURCE._meta.ui, domain: requestOrigin(request) },
+          },
         }],
         ttlMs: 300_000,
         cacheScope: "public",
@@ -327,7 +357,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
       return json(rpcError(message.id, -32602, `Unknown tool: ${toolName}`), 400);
     }
 
-    const authResponse = await requireToolAuth(request, toolName);
+    const authResponse = await requireToolAuth(request, toolName, message.id);
     if (authResponse) return authResponse;
 
     const workflowTools = await import("./workflow-tools.server");
@@ -353,8 +383,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
           { "www-authenticate": authChallenge(request, toolScopes(toolName)) },
         );
       }
-      const messageText = error instanceof Error ? error.message : "MailMyPDF MCP tool failed";
-      return json(rpcResult(message.id, failedToolResult(messageText)));
+      return json(rpcResult(message.id, failedToolResult("MailMyPDF could not complete this request. Please retry or contact support.")));
     }
   }
 

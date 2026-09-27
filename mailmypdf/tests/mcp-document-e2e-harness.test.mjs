@@ -12,7 +12,7 @@ test("document E2E harness requires explicit write opt-in",()=>{
 });
 
 test("document E2E harness has a separate production interlock",()=>{
-  assert.match(source,/https:\/\/mailmypdf\.ai/);
+  assert.match(source,/!\["localhost","127\.0\.0\.1","\[::1\]"\]\.includes\(new URL\(baseUrl\)\.hostname\)/);
   assert.match(source,/MCP_E2E_ALLOW_PRODUCTION/);
   assert.match(source,/Refusing to write test data to production/);
 });

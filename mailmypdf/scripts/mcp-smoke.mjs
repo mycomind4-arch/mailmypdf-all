@@ -45,7 +45,7 @@ async function rpc(method, params, options = {}) {
       jsonrpc: "2.0",
       id: nextId++,
       method,
-      ...(params ? { params } : {}),
+      params: { ...params, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28" } },
     }),
   });
 
@@ -99,6 +99,10 @@ let tools = [];
   for (const required of [
     "find_workflow",
     "get_workflow",
+    "ingest_direct_pdf",
+    "prepare_direct_pdf_mail",
+    "approve_direct_pdf_mail",
+    "prepare_direct_pdf_checkout",
     "create_matter",
     "ingest_document",
     "get_document_status",
@@ -114,11 +118,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 17) {
-    fail(`expected 17 MCP tools, found ${tools.length}`);
+  if (tools.length !== 21) {
+    fail(`expected 21 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 17-tool surface");
+  ok("tools/list exposes the expected 21-tool surface");
 }
 
 {

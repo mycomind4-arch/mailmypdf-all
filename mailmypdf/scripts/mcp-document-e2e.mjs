@@ -25,7 +25,7 @@ if(!fileUrl){
   console.error("❌ MCP_TEST_FILE_URL is required and must point to a public HTTPS test document.");
   process.exit(1);
 }
-if(baseUrl==="https://mailmypdf.ai"&&process.env.MCP_E2E_ALLOW_PRODUCTION!=="true"){
+if(!["localhost","127.0.0.1","[::1]"].includes(new URL(baseUrl).hostname)&&process.env.MCP_E2E_ALLOW_PRODUCTION!=="true"){
   console.error("❌ Refusing to write test data to production. Set MCP_E2E_ALLOW_PRODUCTION=true only when intentionally running against production.");
   process.exit(1);
 }
@@ -59,7 +59,7 @@ async function rpc(name,args){
       jsonrpc:"2.0",
       id:nextId++,
       method:"tools/call",
-      params:{name,arguments:args},
+      params:{name,arguments:args,_meta:{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}},
     }),
   });
   const text=await response.text();
