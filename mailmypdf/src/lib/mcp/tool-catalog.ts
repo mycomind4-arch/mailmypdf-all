@@ -131,7 +131,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "get_workflow",
     title: "Get workflow details",
     description:
-      "Get the canonical MailMyPDF section, public URL, and authenticated workspace URL for one workflow id.",
+      "Get the canonical MailMyPDF section, URLs, and chat-execution certification for one workflow id. Create an MCP matter only when chatExecution.certified is true.",
     inputSchema: objectSchema({ workflow_id: string("Canonical workflow id/slug.") }, ["workflow_id"]),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: noauth,
@@ -160,7 +160,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "create_matter",
     title: "Create a MailMyPDF matter",
     description:
-      "Create an owner-scoped matter for a specific MailMyPDF workflow. This creates workspace state but does not generate, approve, pay for, or mail anything.",
+      "Create an owner-scoped matter for a workflow that get_workflow reports as chatExecution.certified. The server rechecks certification before creation. This does not generate, approve, pay for, or mail anything.",
     inputSchema: objectSchema(
       {
         workflow_id: string("Canonical workflow id returned by find_workflow/get_workflow."),
