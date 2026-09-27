@@ -47,6 +47,7 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("prepare_checkout"));
   assert.ok(names.includes("get_operation_status"));
   assert.ok(names.includes("get_connector_readiness"));
+  assert.ok(names.includes("get_workflow_state"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
   assert.ok(names.includes("review_direct_pdf_mail"));
@@ -54,7 +55,17 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
-  assert.equal(names.length, 26);
+  assert.equal(names.length, 27);
+});
+
+test("workflow state tool advertises the universal chat protocol", () => {
+  const stateTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_workflow_state");
+  assert.ok(stateTool);
+  assert.equal(stateTool.annotations.readOnlyHint, true);
+  assert.equal(stateTool.annotations.destructiveHint, false);
+  assert.equal(stateTool.annotations.idempotentHint, true);
+  assert.equal(stateTool._meta?.["mailmypdf/workflowProtocol"], "mailmypdf.workflow/v1");
+  assert.ok(stateTool.capabilityRequirements.some((item) => item.id === "matterState"));
 });
 
 test("every connector tool has a valid capability contract", () => {
