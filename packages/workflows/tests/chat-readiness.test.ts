@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
+import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
 import {
   createNoticeResponseRuntimePolicy,
@@ -121,4 +122,30 @@ test("chat readiness fails closed when a required connector operation is unavail
         diagnostic.toolName === "approve_packet",
     ),
   );
+});
+
+
+test("workflow factory exposes chatExecutable only when chat certification passes", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const policy = createNoticeResponseRuntimePolicy("cp14-response");
+
+  const ready = composeWorkflowForChat({
+    manifest,
+    runtimePolicy: policy,
+    availableTools: AVAILABLE_TOOLS,
+  });
+  assert.equal(ready.executable, true);
+  assert.equal(ready.chatExecutable, true);
+  assert.equal(ready.chatReadiness.certified, true);
+
+  const missingTool = new Set(AVAILABLE_TOOLS);
+  missingTool.delete("preview_packet");
+  const blocked = composeWorkflowForChat({
+    manifest,
+    runtimePolicy: policy,
+    availableTools: missingTool,
+  });
+  assert.equal(blocked.executable, true);
+  assert.equal(blocked.chatExecutable, false);
+  assert.equal(blocked.chatReadiness.certified, false);
 });
