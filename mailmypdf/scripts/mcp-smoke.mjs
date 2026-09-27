@@ -118,11 +118,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 26) {
-    fail(`expected 26 MCP tools, found ${tools.length}`);
+  if (tools.length !== 27) {
+    fail(`expected 27 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 26-tool surface");
+  ok("tools/list exposes the expected 27-tool surface");
 }
 
 {
