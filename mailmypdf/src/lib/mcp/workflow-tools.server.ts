@@ -256,7 +256,16 @@ export async function executeMcpTool(
     const workflowId = requiredString(args.workflow_id, "workflow_id");
     const workflow = getWorkflowDescriptor(workflowId);
     if (!workflow) throw new McpToolExecutionError(404, "Workflow not found");
-    return { workflow };
+    const registration = getMcpWorkflowProtocolRegistration(workflow.workflowId);
+    return {
+      workflow: {
+        ...workflow,
+        chatExecution: {
+          protocol: "mailmypdf.workflow/v1",
+          certified: registration?.certification.certified === true,
+        },
+      },
+    };
   }
 
   if (name === "get_profile") {
