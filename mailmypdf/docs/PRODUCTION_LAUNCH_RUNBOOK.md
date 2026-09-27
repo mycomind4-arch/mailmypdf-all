@@ -139,7 +139,17 @@ Then run the full application launch gate:
 pnpm --filter ./mailmypdf verify:launch
 ```
 
-## 9. Stripe -> Lob sandbox canary
+## 9. Post-deploy smoke check
+
+After the production domain is attached and the Worker is deployed, run:
+
+```sh
+pnpm --filter ./mailmypdf verify:deployment
+```
+
+This checks the canonical HTTPS origin, core public routes, robots/sitemap, the security headers applied by the Worker boundary, basic dependency health, and authenticated detailed health when `MAILMYPDF_CLEANUP_SECRET` is present locally.
+
+## 10. Stripe -> Lob sandbox canary
 
 Keep `PAYMENTS_ENV=sandbox` and `AUTO_SUBMIT_TO_LOB=false`.
 
@@ -163,7 +173,7 @@ Also test:
 - simulated provider timeout / 429 / 5xx => retry or recoverable failure
 - missed Lob webhook => reconciliation path does not corrupt order state
 
-## 10. Live canary
+## 11. Live canary
 
 After each controlled canary order, run the read-only cross-provider verifier:
 
@@ -188,7 +198,7 @@ After sandbox passes:
 
 Only then enable public `AUTO_SUBMIT_TO_LOB=true`.
 
-## 11. Evidence to preserve for launch
+## 12. Evidence to preserve for launch
 
 For each canary retain:
 
@@ -204,7 +214,7 @@ For each canary retain:
 - downloaded mailing evidence JSON
 - exact deployed Git commit/tag
 
-## 12. Release controls
+## 13. Release controls
 
 Before public launch:
 
