@@ -15,7 +15,7 @@
  */
 
 const EXPECTED_SUPABASE_PROJECT_REF =
-  process.env.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF || "ntbnqkbhabjdbiqzoefk";
+  process.env.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF?.trim() || null;
 const live = process.argv.includes("--live");
 
 const results = [];
@@ -60,13 +60,20 @@ const serverKey = value("SUPABASE_SECRET_KEY") || value("SUPABASE_SERVICE_ROLE_K
 if (serverKey) pass("Supabase server secret", "configured");
 else fail("Supabase server secret", "set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY");
 
+if (!EXPECTED_SUPABASE_PROJECT_REF) {
+  fail(
+    "MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF",
+    "missing — set this to the intended production Supabase project ref",
+  );
+}
+
 if (supabaseUrl) {
   try {
     const host = new URL(supabaseUrl).hostname;
     const ref = host.endsWith(".supabase.co") ? host.slice(0, -".supabase.co".length) : null;
-    if (ref === EXPECTED_SUPABASE_PROJECT_REF) {
+    if (EXPECTED_SUPABASE_PROJECT_REF && ref === EXPECTED_SUPABASE_PROJECT_REF) {
       pass("Canonical Supabase project", ref);
-    } else {
+    } else if (EXPECTED_SUPABASE_PROJECT_REF) {
       fail("Canonical Supabase project", `expected ${EXPECTED_SUPABASE_PROJECT_REF}; configured URL points to ${ref || host}`);
     }
   } catch {
