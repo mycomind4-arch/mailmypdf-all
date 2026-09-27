@@ -2,6 +2,8 @@ import { getAdapter, type AdapterId } from "./adapter-registry.js";
 import { invalidAdapterPairings } from "./pipeline-adapter-matrix.js";
 import { getPipeline } from "./pipeline-registry.js";
 import { type WorkflowCapability, type WorkflowManifest, validateManifestShape } from "./workflow-manifest.js";
+import { certifyWorkflowChatReadiness, type WorkflowChatReadinessCertification } from "./chat-readiness.js";
+import type { WorkflowRuntimePolicy } from "./matter-runtime-server.js";
 
 export type FactoryDiagnosticSeverity = "error" | "warning";
 export type FactoryDiagnostic = { severity: FactoryDiagnosticSeverity; code: string; message: string };
@@ -54,3 +56,35 @@ export function composeWorkflowOrThrow(manifest: WorkflowManifest): WorkflowFact
 }
 
 export function adapterIdsForComposition(manifest: WorkflowManifest): readonly AdapterId[] { return manifest.adapters; }
+
+
+export type ChatWorkflowFactoryResult = WorkflowFactoryResult & {
+  chatExecutable: boolean;
+  chatReadiness: WorkflowChatReadinessCertification;
+};
+
+/**
+ * Factory-level chat execution gate.
+ *
+ * Static workflow composition is necessary but not sufficient: a workflow is
+ * chat-executable only when its manifest, runtime policy contract, required
+ * gates/fields/documents, and actual connector tool surface all agree.
+ */
+export function composeWorkflowForChat(input: {
+  manifest: WorkflowManifest;
+  runtimePolicy: WorkflowRuntimePolicy | null;
+  availableTools: ReadonlySet<string> | readonly string[];
+}): ChatWorkflowFactoryResult {
+  const composed = composeWorkflow(input.manifest);
+  const chatReadiness = certifyWorkflowChatReadiness({
+    manifest: input.manifest,
+    runtimePolicy: input.runtimePolicy,
+    availableTools: input.availableTools,
+  });
+
+  return {
+    ...composed,
+    chatExecutable: composed.executable && chatReadiness.certified,
+    chatReadiness,
+  };
+}
