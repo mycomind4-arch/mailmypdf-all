@@ -61,6 +61,53 @@ existing MailMyPDF MCP contract:
   minutes. Operations without a receipt-backed resolver move to
   `waiting_for_user` with explicit review instructions.
 
+
+## Chat-guided workflow protocol — 2026-09-27
+
+MailMyPDF now has a protocol layer above the existing MCP execution primitives.
+The runtime remains authoritative; the model receives typed next actions instead
+of inferring workflow order.
+
+- `@mailmypdf/workflows` exports `mailmypdf.workflow/v1`, a deterministic,
+  side-effect-free state reducer with progress, blockers, and typed next actions.
+- The reducer distinguishes document-first workflows from request/fact-first
+  workflows. A request-first manifest is not forced through source-document
+  analysis.
+- MCP v0.8 exposes `get_workflow_state` as a read-only, owner-scoped 27th
+  connector tool. It reads canonical matter/document/analysis/input/draft/
+  approval/order state and recommends existing tools; it never approves,
+  checks out, charges, or mails.
+- The first registered chat adapter is the shared Notice Respond domain pack, so
+  CP14, CP2000, CP504, generic IRS balance-due, and IRS penalty response
+  profiles use the same protocol instead of bespoke chat logic.
+- Workflows without an explicit protocol adapter fail closed with
+  `WORKFLOW_PROTOCOL_NOT_REGISTERED`. The LLM must not invent a step order.
+- The plugin submission bundle has explicit annotation justifications for all
+  27 tools. Launch-readiness and smoke checks use the same 27-tool surface, and
+  Workspace UI CI now runs when `plugins/mailmypdf/**` or the plugin
+  submission validator changes.
+
+Verification for commit `ef4c96c5e89f0b4f74f82b480a9ddeee11380783`:
+the full Workspace UI verification run `36316852480` completed successfully
+with all 20 jobs green, including the MCP transport/catalog suites, plugin
+submission validator, launch-readiness checks, executable notice runtime tests,
+production core build, and every section build.
+
+### Chat-protocol gaps intentionally left open
+
+- Chat-guided adapters are not yet certified for every executable workflow.
+  Records Request is intentionally not registered yet because its manifest field
+  IDs and runtime input keys are not currently one canonical contract.
+- Generated-but-not-saved drafts and previewed-but-not-approved packets are
+  recoverable through durable connector operations, but `get_workflow_state`
+  does not yet surface the latest operation receipt. A resumed chat can therefore
+  safely regenerate/re-preview rather than recover that intermediate artifact.
+- Optional source/evidence collection is not yet modeled as a parallel
+  `nextActions` branch for request-first workflows.
+- Production OAuth/client acceptance and live deployment remain separate
+  operational gates; this repository verification does not claim a live
+  ChatGPT/Claude round trip.
+
 ## Known gaps
 
 - The migration is implemented and statically verified but has not been applied
