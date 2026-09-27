@@ -1,5 +1,14 @@
 # Install MailMyPDF in ChatGPT or Claude
 
+## Saved-address rollout addition (2026-09-27)
+
+The additive `20260928010000_saved_mailing_addresses.sql` migration is not part
+of the earlier 25-migration batch and has **not been applied to production**.
+Apply only this new migration after backup/review; never replay historical files.
+It adds private sender/recipient records with server-only writes. Run its isolated
+synthetic database tests with `node mailmypdf/scripts/test-saved-addresses-db.mjs`
+from the repository root (Docker and the local Supabase Postgres image required).
+
 ## Current target and blockers (2026-09-26)
 
 Use `https://mailmypdf.mycomind4.workers.dev/api/mcp` until `mailmypdf.ai`
@@ -70,7 +79,7 @@ real client OAuth flow has been completed; the old Worker remains live.
 
    Public checks do not prove account linking. Complete OAuth through the client
    and call `get_profile` with the resulting user-scoped access token. Verify
-   the 23-tool catalog, owner isolation, exact PDF review, and negative approval
+   the 26-tool catalog, owner isolation, exact PDF review, and negative approval
    cases. Never use a real payment or mail submission as an automated smoke test.
 
 ## ChatGPT custom connection

@@ -5,6 +5,21 @@
     "US"
   ],
   "annotationJustifications": {
+    "list_saved_addresses": {
+      "readOnlyHint": "True because it reads only the connected owner's saved addresses.",
+      "destructiveHint": "False because selection never changes data or approves mail.",
+      "openWorldHint": "False because it accesses a private bounded address book, not public search."
+    },
+    "save_mailing_address": {
+      "readOnlyHint": "False because it persists a user-confirmed address from a verified mailing.",
+      "destructiveHint": "True because it may replace an existing address or change the default sender.",
+      "openWorldHint": "False because it reads existing verification and writes only private account data."
+    },
+    "archive_mailing_address": {
+      "readOnlyHint": "False because it archives an owned saved address.",
+      "destructiveHint": "True because it removes an address from active selection and may clear the default.",
+      "openWorldHint": "False because it only updates a private owned record; historical mailings are unchanged."
+    },
     "get_mailing_context": {
       "readOnlyHint": "True because it reads only recent direct-mail orders belonging to the connected account.",
       "destructiveHint": "False because it cannot change addresses, approvals, payment, or mailing state.",

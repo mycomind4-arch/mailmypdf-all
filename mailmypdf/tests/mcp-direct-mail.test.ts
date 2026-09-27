@@ -214,3 +214,17 @@ test("recent mailing context is owner-scoped and excludes private storage and ch
   owned = false;
   await assert.rejects(getMailingContext(request), /Order not found/);
 });
+
+test("saving an address requires owned, fresh, exact verification", async () => {
+  const { verifiedAddressForSaving } = await import("../src/lib/mcp/direct-mail.server.ts");
+  reset();
+  const saved = await verifiedAddressForSaving(request, order.id, "sender");
+  assert.deepEqual(saved.address, address);
+  assert.equal(saved.verification.status, "verified");
+  verificationEvent.expires_at = "2000-01-01T00:00:00Z";
+  await assert.rejects(verifiedAddressForSaving(request, order.id, "sender"), /Review this exact/);
+  reset(); order.sender_postal = "10001";
+  await assert.rejects(verifiedAddressForSaving(request, order.id, "sender"), /Review this exact/);
+  reset(); owned = false;
+  await assert.rejects(verifiedAddressForSaving(request, order.id, "recipient"), /Order not found/);
+});

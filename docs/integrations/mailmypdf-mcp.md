@@ -37,7 +37,7 @@ Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
 Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
 browser origins are validated and account responses are never HTTP-cacheable.
 
-## v0.6 / connector-v2 tool boundary (23 tools)
+## v0.7 / connector-v2 tool boundary (26 tools)
 
 Public discovery:
 
@@ -56,6 +56,9 @@ Authenticated matter execution:
 - `ingest_direct_pdf`
 - `prepare_direct_pdf_mail`
 - `get_mailing_context`
+- `list_saved_addresses`
+- `save_mailing_address`
+- `archive_mailing_address`
 - `review_direct_pdf_mail`
 - `approve_direct_pdf_mail`
 - `prepare_direct_pdf_checkout`
@@ -69,6 +72,18 @@ Authenticated matter execution:
 - `prepare_checkout`
 
 The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
+
+Saved senders and recipients are private and separate by kind. Saving requires
+explicit consent and an owned order with fresh successful postal review; clients
+cannot supply verification. Use a stable UUID and revision 0 to create, or the
+listed id/revision to edit. Only senders can be defaults; defaults still require
+confirmation. Preparation accepts optional `sender_profile` / `recipient_entry`
+id/revision references alongside explicit addresses. The server checks the exact
+selected snapshot and records provenance; fulfillment never follows a mutable
+saved-address reference. Every new mailing still requires review. Archiving does
+not change old orders. Requires `20260928010000_saved_mailing_addresses.sql`,
+not yet applied to production. Manual address entry remains independent of this
+table. Public autocomplete and address overrides are not implemented.
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
 

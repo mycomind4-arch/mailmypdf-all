@@ -6,6 +6,12 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+type SavedMailingAddressRow = {
+  id: string; owner_id: string; kind: string; label: string; address: Json;
+  country: string; verification: Json; revision: number; is_default: boolean;
+  archived_at: string | null; created_at: string; updated_at: string;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -14,6 +20,15 @@ export type Database = {
   }
   public: {
     Tables: {
+      saved_mailing_addresses: {
+        Row: SavedMailingAddressRow
+        Insert: { id: string; owner_id: string; kind: string; label: string; address: Json;
+          verification: Json; country?: string; revision?: number; is_default?: boolean;
+          archived_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { label?: string; address?: Json; verification?: Json; revision?: number;
+          is_default?: boolean; archived_at?: string | null; updated_at?: string }
+        Relationships: []
+      }
       pricing_quotes: {
         Row: {
           accepted_at: string | null
@@ -1937,6 +1952,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      write_saved_mailing_address: {
+        Args: { p_owner: string; p_id: string; p_revision: number; p_kind: string; p_label: string;
+          p_address: Json; p_verification: Json; p_default: boolean; p_archive: boolean }
+        Returns: SavedMailingAddressRow[]
+      }
       approve_mcp_direct_mail: {
         Args: {
           p_order_id: string

@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.6.0";
+export const MCP_CONNECTOR_VERSION = "0.7.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -297,6 +297,8 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
         document_id: string("Clean secure document id returned by ingest_direct_pdf."),
         sender: addressSchema,
         recipient: addressSchema,
+        sender_profile: objectSchema({ id: string("Selected saved sender UUID."), revision: integer("Exact selected revision.") }, ["id", "revision"]),
+        recipient_entry: objectSchema({ id: string("Selected saved recipient UUID."), revision: integer("Exact selected revision.") }, ["id", "revision"]),
         mail_class: mailClassSchema,
         color: { type: "boolean", default: false, description: "Print in color when true." },
         idempotency_key: string("Stable 8-128 character key for retries of this one mailing intent. Use a new key for an intentional duplicate mailing."),
@@ -306,6 +308,40 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: capabilities("identity", "documentStorage", "documentScanning", "pricing", "addressVerification"),
+  },
+  {
+    name: "list_saved_addresses",
+    title: "List my saved senders or recipients",
+    description: "List up to 100 private saved sender profiles or recipient entries. Ask the user to select the exact address; a default is not send approval. Historical verification must be refreshed for a new mailing. Not public autocomplete or a business directory.",
+    inputSchema: objectSchema({ kind: { type: "string", enum: ["sender", "recipient"] } }, ["kind"]),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "save_mailing_address",
+    title: "Save a reviewed sender or recipient",
+    description: "Only after explicit user consent, save the chosen sender or recipient from an owned mailing with fresh successful address review. Never save billing or account metadata automatically. Use a stable UUID and expected_revision 0 for creation; use the listed id/revision for an edit. Retries keep the same id. A default is allowed only for senders. This never changes existing orders or sends mail.",
+    inputSchema: objectSchema({
+      id: string("Stable UUID for this saved address; reuse on retries."),
+      expected_revision: integer("0 for a new address, exact listed revision for an update."),
+      kind: { type: "string", enum: ["sender", "recipient"] },
+      label: string("User-chosen label, 1-80 characters, such as Business or Sarah."),
+      order_id: string("Owned order reviewed successfully with review_direct_pdf_mail."),
+      is_default: { type: "boolean" }, user_confirmed: { type: "boolean", const: true },
+    }, ["id", "expected_revision", "kind", "label", "order_id", "is_default", "user_confirmed"]),
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "archive_mailing_address",
+    title: "Archive a saved address",
+    description: "After explicit user confirmation, hide an owned sender profile or recipient from selection. Requires its exact current revision. Clears its default if set. Does not erase historical mailing snapshots or send mail.",
+    inputSchema: objectSchema({ id: string("Saved address UUID."), expected_revision: integer("Exact listed revision."), user_confirmed: { type: "boolean", const: true } }, ["id", "expected_revision", "user_confirmed"]),
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
   },
   {
     name: "get_mailing_context",

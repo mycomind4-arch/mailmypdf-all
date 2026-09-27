@@ -4,6 +4,7 @@ import { z } from "zod";
 import { validateOrderAddresses } from "@/lib/address-validation";
 import { distributedRateLimit } from "@/lib/distributed-rate-limit";
 import { directPdfPreviewUri, parseDirectPdfPreviewUri, reviewAddress } from "./conversational-mailing";
+import { requireSavedAddressSnapshot } from "./saved-addresses.server";
 
 import { getClientIp } from "@/lib/rate-limit";
 import {
@@ -297,6 +298,17 @@ function verifiedReviewMatches(order: DirectOrderRow, event: Record<string, unkn
     && canonicalJSON(event.mailing_snapshot) === canonicalJSON(mailingSnapshot(order));
 }
 
+export async function verifiedAddressForSaving(request: Request, orderId: string, kind: "sender" | "recipient") {
+  const context = await requireAccount(request);
+  const order = await requireDirectOrder(orderId, context);
+  const event = await addressReviewEvent(order.id, context.user.id);
+  if (!verifiedReviewMatches(order, event)) throw new McpDirectMailError(409, "Review this exact mailing and resolve address corrections before saving its address.");
+  return { address: mailingSnapshot(order)[kind], verification: {
+    status: "verified", provider: "lob", source_order_id: order.id,
+    expires_at: event!.expires_at as string,
+  } };
+}
+
 export async function reviewDirectPdfMail(request: Request, rawOrderId: unknown) {
   if (typeof rawOrderId !== "string" || !rawOrderId.trim()) throw new McpDirectMailError(400, "order_id is required");
   const context = await requireAccount(request);
@@ -569,6 +581,8 @@ export async function prepareDirectPdfMail(
     mailClass: unknown;
     color: unknown;
     idempotencyKey: unknown;
+    senderProfile?: unknown;
+    recipientEntry?: unknown;
   },
 ) {
   const context = await requireAccount(request);
@@ -601,6 +615,11 @@ export async function prepareDirectPdfMail(
 
   const existing = await preparedOrderForIdempotency(context.user.id, idempotencyKey);
   if (existing) return reusePrepared(existing);
+
+  // Copy selected revisions as provenance only. Fulfillment always uses order
+  // address columns; changing or archiving a saved record cannot alter an order.
+  const senderProfile = await requireSavedAddressSnapshot(context.user.id, "sender", input.senderProfile, sender);
+  const recipientEntry = await requireSavedAddressSnapshot(context.user.id, "recipient", input.recipientEntry, recipient);
 
   const { document, bytes } = await downloadVerifiedSecurePdf(context, documentId);
   const packetSha256 = computeSha256(bytes);
@@ -649,6 +668,8 @@ export async function prepareDirectPdfMail(
       secure_document_sha256: document.sha256,
       packet_sha256: packetSha256,
       idempotency_key: idempotencyKey,
+      sender_profile: senderProfile,
+      recipient_entry: recipientEntry,
     },
   });
 

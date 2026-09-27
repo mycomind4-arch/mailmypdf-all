@@ -13,6 +13,39 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — ECC saved sender profiles and recipient entries
+
+- MCP v0.7 adds three authenticated tools: list saved addresses by kind, save a
+  reviewed address with explicit consent, and archive an owned address. Senders
+  and recipients remain separate from billing/account metadata. The catalog and
+  plugin annotation bundle now expose 26 tools.
+- `saved-addresses.server.ts` reads owner-scoped records, accepts stable IDs and
+  expected revisions, and derives verification from freshly reviewed owned
+  orders, never client assertions. Optional preparation references bind the
+  selected id/revision to the exact supplied address and snapshot provenance in
+  the preparation event. Fulfillment continues using order address columns.
+  New mailings still require their own verification and explicit approval.
+- New additive migration `20260928010000_saved_mailing_addresses.sql`: RLS owner
+  reads, server-only writes, optimistic revisions, archival, unique sender
+  default, and serialized per-owner default changes. Cross-owner UUID collisions
+  cannot turn an upsert into an ownership leak. No production migration applied.
+- Verification: app TypeScript test suite 270/270; plugin validator passes with
+  26 tools; Vite production build passes, including final save/archive receipt
+  handling; SSR cycle check reports no cycles. The synthetic PostgreSQL runner
+  `node mailmypdf/scripts/test-saved-addresses-db.mjs` passed actual migration,
+  RLS, restricted writes, retries, stale revisions, archive, concurrent defaults,
+  and cross-owner collision tests. Test containers were removed; no user data,
+  production backup, external provider, payment, or mailing was used.
+- The initial full-project type check reproduced the existing design-system,
+  SSDI navigation, entitlements and PDF buffer diagnostics. Subsequent full
+  checks were stopped when they ran slowly alongside verification; a clean
+  final full-project type check is not claimed.
+- Scope/remaining: this is the chat tool/backend slice, not an account-settings
+  or onboarding UI. Public autocomplete, standalone profile verification, team
+  sharing, override policy, and live ChatGPT/Claude acceptance remain open.
+  The 100-result list explicitly reports truncation. Deployment and a reviewed
+  single-migration rollout remain required; do not replay the legacy ledger.
+
 ### 2026-09-27 — ECC conversational direct-mail review
 
 - Extended the existing MCP review resource and direct-mail pipeline (no new

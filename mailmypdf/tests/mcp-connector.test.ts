@@ -51,7 +51,10 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(!names.includes("submit_mail_order"));
   assert.ok(names.includes("review_direct_pdf_mail"));
   assert.ok(names.includes("get_mailing_context"));
-  assert.equal(names.length, 23);
+  assert.ok(names.includes("list_saved_addresses"));
+  assert.ok(names.includes("save_mailing_address"));
+  assert.ok(names.includes("archive_mailing_address"));
+  assert.equal(names.length, 26);
 });
 
 test("every connector tool has a valid capability contract", () => {
@@ -624,7 +627,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 23);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 26);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -668,7 +671,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 23);
+  assert.equal(payload.result.tools.length, 26);
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_operation_status"));

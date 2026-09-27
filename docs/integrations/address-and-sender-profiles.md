@@ -1,7 +1,30 @@
 # Address and sender-profile follow-up
 
-Status: design considered after the conversational mailing implementation;
-profiles, autocomplete, and manual override are **not implemented** by that pass.
+Status: private saved sender profiles and recipient entries are implemented in
+MCP v0.7, pending database rollout and deployment. Public autocomplete and manual
+override remain unimplemented.
+
+## Implemented first slice
+
+`saved_mailing_addresses` separates `sender` and `recipient` records by kind and
+owner. Users explicitly save an address from a freshly verified owned mailing
+using `save_mailing_address`, with a label, stable UUID, expected revision, and
+sender-only default. `list_saved_addresses` lists each kind separately;
+`archive_mailing_address` hides it without changing existing orders. RLS isolates
+reads, writes are server-only, and a unique partial index plus owner transaction
+lock serializes default changes. Zero defaults is allowed; multiple are not.
+
+Edits require a freshly reviewed source order. Clients cannot claim verification.
+Order creation checks selected id/revision/address and snapshots provenance;
+fulfillment uses immutable order addresses. Each new mailing is re-verified.
+No account-settings UI, onboarding, team sharing, public search, or address-only
+verification screen is added. First-time users enter addresses manually, review
+a draft, then optionally save addresses before payment.
+
+The new additive migration is not applied to production. Test it with
+`node mailmypdf/scripts/test-saved-addresses-db.mjs` from the repository root;
+this uses synthetic data and a network-isolated local Postgres container only.
+The broader design below is follow-up work, not a claim that every item ships.
 
 ## Keep the concepts separate
 

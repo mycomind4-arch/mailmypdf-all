@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
+import { SavedAddressError, listSavedAddresses, saveAddress, archiveAddress } from "./saved-addresses.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
 import {
@@ -372,6 +373,17 @@ export async function executeMcpTool(
     };
   }
 
+  if (["list_saved_addresses", "save_mailing_address", "archive_mailing_address"].includes(name)) {
+    try {
+      if (name === "list_saved_addresses") return await listSavedAddresses(request, args);
+      if (name === "save_mailing_address") return await saveAddress(request, args);
+      return await archiveAddress(request, args);
+    } catch (error) {
+      if (error instanceof SavedAddressError || error instanceof McpDirectMailError) throw new McpToolExecutionError(error.status, error.message);
+      throw error;
+    }
+  }
+
   if (name === "review_direct_pdf_mail" || name === "get_mailing_context") {
     try {
       return name === "review_direct_pdf_mail"
@@ -403,9 +415,11 @@ export async function executeMcpTool(
         mailClass: args.mail_class,
         color: args.color,
         idempotencyKey: args.idempotency_key,
+        senderProfile: args.sender_profile,
+        recipientEntry: args.recipient_entry,
       });
     } catch (error) {
-      if (error instanceof McpDirectMailError) {
+      if (error instanceof McpDirectMailError || error instanceof SavedAddressError) {
         throw new McpToolExecutionError(error.status, error.message, error.details);
       }
       throw error;
