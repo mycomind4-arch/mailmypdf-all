@@ -33,6 +33,7 @@ import {
   parsePacketPreviewResourceUri,
 } from "../src/lib/mcp/packet-preview-resource";
 import { PACKET_REVIEW_RESOURCE_URI } from "../src/lib/mcp/ui-resource-ids";
+import { getMcpWorkflowProtocolDefinition } from "../src/lib/mcp/workflow-protocol.server";
 
 test("MCP tool surface stays focused and separates approval from checkout", () => {
   const names = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
@@ -66,6 +67,16 @@ test("workflow state tool advertises the universal chat protocol", () => {
   assert.equal(stateTool.annotations.idempotentHint, true);
   assert.equal(stateTool._meta?.["mailmypdf/workflowProtocol"], "mailmypdf.workflow/v1");
   assert.ok(stateTool.capabilityRequirements.some((item) => item.id === "matterState"));
+});
+
+test("CP14 is registered for chat-guided workflow execution", () => {
+  const definition = getMcpWorkflowProtocolDefinition("cp14-response");
+  assert.ok(definition);
+  assert.equal(definition.workflowId, "cp14-response");
+  assert.equal(definition.primaryDocument?.label, "IRS CP14 notice");
+  assert.ok(definition.inputFields.some((field) => field.id === "responseMode"));
+
+  assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
 
 test("every connector tool has a valid capability contract", () => {
