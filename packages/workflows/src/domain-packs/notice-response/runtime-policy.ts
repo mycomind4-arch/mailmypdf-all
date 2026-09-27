@@ -9,6 +9,7 @@ import type {
 } from "../../matter-runtime-server.js";
 import { WorkflowRuntimeError } from "../../matter-runtime.js";
 import { assertStoredAnalysisReadyForDraft } from "../../runtime-safety.js";
+import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 import {
   NOTICE_RESPONSE_WORKFLOW_PROFILES,
   getNoticeResponseWorkflowProfile,
@@ -26,6 +27,8 @@ export interface NoticeResponseRuntimeInput extends Record<string, unknown> {
   requestedAction: string;
   additionalFacts: string;
   evidenceReviewComplete: boolean;
+  factsConfirmed: boolean;
+  mailingAppropriateConfirmed: boolean;
   evidenceReviewFingerprint: string;
 }
 
@@ -158,6 +161,34 @@ export function createNoticeResponseRuntimePolicy(
   const allowedModes = new Set(profile.responseModes.map((mode) => mode.value));
 
   return Object.freeze({
+    chatContract: defineWorkflowRuntimeChatContract({
+      sourceDocument: "required",
+      inputFields: [
+        { id: "taxpayerName", required: true },
+        { id: "taxpayerAddress", required: true },
+        { id: "noticeNumber", required: false },
+        { id: "evidenceReviewComplete", required: true },
+        { id: "responseMode", required: true },
+        { id: "responseExplanation", required: false },
+        { id: "requestedAction", required: true },
+        { id: "factsConfirmed", required: true },
+        { id: "mailingAppropriateConfirmed", required: true },
+      ],
+      connectorFields: [
+        {
+          id: "recipientAddress",
+          required: true,
+          toolName: "preview_packet",
+          argumentName: "recipient",
+        },
+      ],
+      enforcedGateIds: [
+        "review-approved",
+        "payment-authorized",
+        "mail-authorized",
+      ],
+    }),
+
     validateMatter(input: { workflowId: string; verticalId: string }) {
       if (
         input.workflowId !== workflowId ||
@@ -224,6 +255,11 @@ export function createNoticeResponseRuntimePolicy(
           input.evidenceReviewComplete,
           "Evidence review complete",
         ),
+        factsConfirmed: bool(input.factsConfirmed, "Facts confirmed"),
+        mailingAppropriateConfirmed: bool(
+          input.mailingAppropriateConfirmed,
+          "Mailing appropriate confirmed",
+        ),
         evidenceReviewFingerprint: "",
       };
 
@@ -248,6 +284,12 @@ export function createNoticeResponseRuntimePolicy(
       analysis: WorkflowMatterAnalysis;
     }) {
       assertEvidenceReviewCurrent(matter, caseInput);
+      if (caseInput.input.factsConfirmed !== true) {
+        throw new WorkflowRuntimeError(
+          "Confirm the material notice facts before drafting.",
+          "NOTICE_FACT_CONFIRMATION_REQUIRED",
+        );
+      }
     },
 
     validateDocumentsBeforePacket(
@@ -263,6 +305,18 @@ export function createNoticeResponseRuntimePolicy(
       analysis: WorkflowMatterAnalysis;
     }) {
       assertEvidenceReviewCurrent(matter, caseInput);
+      if (caseInput.input.factsConfirmed !== true) {
+        throw new WorkflowRuntimeError(
+          "Confirm the material notice facts before packet assembly.",
+          "NOTICE_FACT_CONFIRMATION_REQUIRED",
+        );
+      }
+      if (caseInput.input.mailingAppropriateConfirmed !== true) {
+        throw new WorkflowRuntimeError(
+          "Confirm that written correspondence and the mailing destination are appropriate before packet assembly.",
+          "NOTICE_MAILING_CONFIRMATION_REQUIRED",
+        );
+      }
     },
   });
 }
