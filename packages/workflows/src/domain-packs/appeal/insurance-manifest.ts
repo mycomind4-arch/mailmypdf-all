@@ -340,7 +340,13 @@ export function createInsuranceAppealManifest(
       { id: "matter-archive", kind: "archive", required: true },
     ],
     acceptanceScenarios: [
-      { id: "standard-insurance-appeal", description: "Decision document, user facts, evidence, grounded draft, exact packet, payment, mailing, and proof.", required: true },
+      {
+        id: options.workflowId === "appeal-denied-claim"
+          ? "standard-denied-claim"
+          : "standard-insurance-appeal",
+        description: "Decision document, user facts, evidence, grounded draft, exact packet, payment, mailing, and proof.",
+        required: true,
+      },
       { id: "quarantined-document", description: "Unscanned source or evidence blocks downstream use.", required: true },
       { id: "packet-tamper", description: "A packet changed after approval must fail closed.", required: true },
       { id: "payment-mail-idempotency", description: "Repeated payment/provider events must not create duplicate mail.", required: true },
