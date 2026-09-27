@@ -25,7 +25,7 @@ import {
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
-import { connectorOperationRequestSha256 } from "../src/lib/mcp/workflow-tools.server";
+import { connectorOperationRequestSha256, executeMcpTool } from "../src/lib/mcp/workflow-tools.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
 import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
 import {
@@ -88,6 +88,27 @@ test("CP14 and Records Request are registered only after chat-readiness certific
   assert.equal(records.definition.packetRecipientField?.id, "agency-address");
 
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
+});
+
+test("public workflow discovery reports certified chat execution separately", async () => {
+  const request = new Request("https://mailmypdf.ai/api/mcp");
+
+  const cp14 = await executeMcpTool(request, "get_workflow", {
+    workflow_id: "cp14-response",
+  }) as {
+    workflow: { chatExecution: { protocol: string; certified: boolean } };
+  };
+  assert.deepEqual(cp14.workflow.chatExecution, {
+    protocol: "mailmypdf.workflow/v1",
+    certified: true,
+  });
+
+  const catalogOnly = await executeMcpTool(request, "get_workflow", {
+    workflow_id: "police-records-request",
+  }) as {
+    workflow: { chatExecution: { protocol: string; certified: boolean } };
+  };
+  assert.equal(catalogOnly.workflow.chatExecution.certified, false);
 });
 
 test("every connector tool has a valid capability contract", () => {
