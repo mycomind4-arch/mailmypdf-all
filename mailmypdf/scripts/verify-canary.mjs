@@ -149,7 +149,7 @@ if (expectedStage !== "paid") {
       const providerOrderId =
         letter.metadata?.order_id ?? letter.metadata?.orderId ?? letter.metadata?.reference_id ?? null;
       if (providerOrderId === order.id) pass("Lob order linkage", order.id);
-      else warn("Lob order linkage", `provider metadata did not expose order ID; got ${providerOrderId ?? "none"}`);
+      else fail("Lob order linkage", `expected ${order.id}; got ${providerOrderId ?? "missing"}`);
 
       pass("Lob provider status", String(letter.status ?? "unknown"));
 
