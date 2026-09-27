@@ -8,6 +8,7 @@ import {
 } from "../src/workflow-protocol.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
 import { cp14NoticeResponseProfile } from "../src/domain-packs/notice-response/profiles.js";
+import { createRecordsRequestManifest } from "../src/domain-packs/records-request/manifest.js";
 import type {
   WorkflowMatterDocument,
   WorkflowMatterRecord,
@@ -60,6 +61,7 @@ function state(
 test("workflow protocol is derived from the canonical CP14 manifest", () => {
   assert.equal(definition.workflowId, "cp14-response");
   assert.equal(definition.primaryDocument?.label, "IRS CP14 notice");
+  assert.equal(definition.analysisRequired, true);
   assert.equal(definition.inputRequired, true);
   assert.ok(definition.inputFields.some((field) => field.id === "responseMode"));
   assert.ok(definition.inputFields.some((field) => field.id === "recipientAddress"));
@@ -103,4 +105,35 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state({ approvalPresent: false }).nextActions[0]?.toolName, "preview_packet");
   assert.equal(state({ orderPresent: false }).nextActions[0]?.toolName, "prepare_checkout");
   assert.equal(state().nextActions[0]?.toolName, "get_order_status");
+});
+
+
+test("fact-first workflows collect input before generating a draft", () => {
+  const recordsDefinition = workflowProtocolDefinitionFromManifest(
+    createRecordsRequestManifest({
+      workflowId: "public-records-request",
+      title: "Public Records Request",
+    }).manifest,
+  );
+
+  assert.equal(recordsDefinition.analysisRequired, false);
+  assert.equal(recordsDefinition.primaryDocument?.required ?? false, false);
+
+  const result = deriveWorkflowProtocolState({
+    matter: {
+      ...matter,
+      workflowId: "public-records-request",
+      verticalId: "records-request",
+    },
+    documents: [],
+    definition: recordsDefinition,
+    analysisPresent: false,
+    inputPresent: false,
+    draftPresent: false,
+    approvalPresent: false,
+    orderPresent: false,
+  });
+
+  assert.equal(result.progress.analysisReady, true);
+  assert.equal(result.nextActions[0]?.toolName, "save_matter_input");
 });
