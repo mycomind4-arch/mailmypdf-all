@@ -19,6 +19,7 @@ const requiredTools=[
   "get_profile",
   "create_matter",
   "get_matter",
+  "get_workflow_state",
   "get_order_status",
   "get_document_status",
   "get_operation_status",
