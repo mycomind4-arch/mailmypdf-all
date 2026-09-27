@@ -222,10 +222,10 @@ export function createRecordsRequestRuntimePolicy(
     },
 
     validateBeforeDraft({ caseInput }) {
-      if (caseInput.inputValue(input, "context-reviewed", "contextReviewed") !== true) {
+      if (caseInput.input.contextReviewed !== true) {
         throw new Error("Complete the context review before drafting.");
       }
-      if (caseInput.inputValue(input, "authority-reviewed", "authorityReviewed") !== true) {
+      if (caseInput.input.authorityReviewed !== true) {
         throw new Error("Complete the authority review before drafting.");
       }
     },
@@ -235,10 +235,10 @@ export function createRecordsRequestRuntimePolicy(
     },
 
     validateBeforePacket({ caseInput }) {
-      if (caseInput.inputValue(input, "context-reviewed", "contextReviewed") !== true) {
+      if (caseInput.input.contextReviewed !== true) {
         throw new Error("Complete the context review before packet assembly.");
       }
-      if (caseInput.inputValue(input, "authority-reviewed", "authorityReviewed") !== true) {
+      if (caseInput.input.authorityReviewed !== true) {
         throw new Error("Complete the authority review before packet assembly.");
       }
     },
