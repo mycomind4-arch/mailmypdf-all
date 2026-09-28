@@ -780,6 +780,57 @@ test("direct order status derives safe conversational-mail resume state", () => 
     "prepare_direct_pdf_checkout",
   );
 
+  const scheduled = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+    {
+      id: "schedule-1",
+      status: "scheduled",
+      send_at: "2026-10-15T16:00:00.000Z",
+      timezone: "America/Los_Angeles",
+      approved_max_total_cents: 899,
+      payment_authorized_at: "2026-09-27T10:03:00.000Z",
+      payment_amount_cents: null,
+      payment_status: null,
+      blocked_reason: null,
+      released_at: null,
+      cancelled_at: null,
+    },
+  );
+
+  assert.equal(scheduled.directMail?.approval.status, "current");
+  assert.equal(scheduled.directMail?.nextAction, null);
+  assert.equal(scheduled.scheduledMailing?.status, "scheduled");
+  assert.equal(scheduled.scheduledMailing?.paymentAuthorizedAt, "2026-09-27T10:03:00.000Z");
+  assert.equal(scheduled.scheduledMailing?.nextAction?.toolName, "get_order_status");
+  assert.equal(JSON.stringify(scheduled).includes("stripe_payment_intent_id"), false);
+
   const changed = normalizeOrderStatus(
     {
       ...baseOrder,
