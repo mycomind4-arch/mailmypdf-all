@@ -1,4 +1,4 @@
-export type ScheduledMailingStatus = "scheduled" | "cancelled" | "released" | "blocked";
+export type ScheduledMailingStatus = "scheduled" | "processing" | "cancelled" | "released" | "blocked";
 
 export interface ScheduledMailingApprovalBinding {
   orderId: string;
@@ -124,7 +124,7 @@ export function assessScheduledMailingRelease(input: {
   const currentPacketSha256 = requireSha256(input.currentPacketSha256);
   const currentTotalCents = requireCents(input.currentTotalCents, "currentTotalCents");
 
-  if (input.schedule.status !== "scheduled") {
+  if (input.schedule.status !== "scheduled" && input.schedule.status !== "processing") {
     return { ready: false, code: "SCHEDULE_NOT_ACTIVE", message: "The scheduled mailing is no longer active." };
   }
   if (Date.parse(now) < Date.parse(input.schedule.sendAt)) {
