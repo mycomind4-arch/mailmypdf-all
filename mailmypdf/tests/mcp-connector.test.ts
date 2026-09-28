@@ -52,12 +52,13 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("get_workflow_state"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
+  assert.ok(names.includes("prepare_conversational_letter"));
   assert.ok(names.includes("review_direct_pdf_mail"));
   assert.ok(names.includes("get_mailing_context"));
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
-  assert.equal(names.length, 28);
+  assert.equal(names.length, 29);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -379,6 +380,26 @@ test("direct PDF ingestion uses the same assistant file parameter contract", () 
   };
   assert.deepEqual(Object.keys(schema.properties ?? {}).sort(), ["file", "processing_consent"]);
   assert.deepEqual([...(schema.required ?? [])].sort(), ["file", "processing_consent"]);
+});
+
+test("conversational letter preparation is review-only and requires exact text plus addresses", () => {
+  const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_conversational_letter");
+  assert.ok(prepare);
+  const required = (prepare.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...required].sort(), [
+    "idempotency_key",
+    "letter_text",
+    "mail_class",
+    "recipient",
+    "sender",
+  ]);
+  assert.equal(prepare.annotations.readOnlyHint, false);
+  assert.equal(prepare.annotations.destructiveHint, false);
+  assert.equal(prepare.annotations.openWorldHint, true);
+  assert.ok(prepare.capabilityRequirements.some((item) => item.id === "documentStorage"));
+  assert.ok(prepare.capabilityRequirements.some((item) => item.id === "pricing"));
+  assert.ok(!prepare.capabilityRequirements.some((item) => item.id === "payment"));
+  assert.ok(!prepare.capabilityRequirements.some((item) => item.id === "approval"));
 });
 
 test("direct PDF mailing keeps preparation, approval, and checkout as separate tools", () => {
