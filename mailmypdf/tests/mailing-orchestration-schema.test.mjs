@@ -77,3 +77,13 @@ test("scheduled mail stores durable Stripe retry state without card data", () =>
   assert.match(sql, /scheduled_mailings_payment_intent_uidx/i);
   assert.doesNotMatch(sql, /\b(card_number|pan|cvc|cvv)\b/i);
 });
+
+test("scheduled authorization identity is timestamped and immutable", () => {
+  assert.match(sql, /payment_authorized_at timestamptz not null/i);
+  assert.match(sql, /freeze_scheduled_mailing_authorization/i);
+  assert.match(
+    sql,
+    /row\(new\.owner_id, new\.idempotency_key, new\.order_id, new\.batch_id,[\s\S]*new\.send_at, new\.timezone, new\.approval_sha256,[\s\S]*new\.approved_max_total_cents, new\.payment_authorized_at\)/i,
+  );
+  assert.match(sql, /Scheduled mailing authorization fields are immutable/i);
+});
