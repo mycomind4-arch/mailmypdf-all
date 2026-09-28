@@ -106,6 +106,19 @@ test("release blocks before due time and when payment/address/approval gates are
   }).code, "APPROVAL_STALE");
 });
 
+test("processing status remains eligible for idempotent retry assessment", () => {
+  const schedule = { ...base(), status: "processing" as const };
+  assert.deepEqual(assessScheduledMailingRelease({
+    schedule,
+    now: "2026-10-15T16:00:01.000Z",
+    currentPacketSha256: hash,
+    currentTotalCents: 1100,
+    approvalCurrent: true,
+    paymentReady: true,
+    addressesVerified: true,
+  }), { ready: true, code: "READY", amountCents: 1100 });
+});
+
 test("cancel is explicit and prevents later release", () => {
   const cancelled = cancelScheduledMailing(base(), "2026-10-01T00:00:00.000Z");
   assert.equal(cancelled.status, "cancelled");
