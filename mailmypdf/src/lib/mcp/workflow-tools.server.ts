@@ -46,6 +46,7 @@ import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlatio
 import { listRecentCases } from "@/lib/secure-core/case.server";
 import { deriveMatterGuidance } from "./matter-guidance";
 import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
+import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -773,6 +774,26 @@ export async function executeMcpTool(
       throw new McpToolExecutionError(400, "position must be a non-negative integer");
     }
 
+    const rawSourceKind =
+      args.source_kind === undefined ? "conversation_attachment" : requiredString(args.source_kind, "source_kind");
+    const allowedSourceKinds = new Set([
+      "local_upload",
+      "conversation_attachment",
+      "google_drive",
+      "mailmypdf_library",
+      "external_provider",
+    ]);
+    if (!allowedSourceKinds.has(rawSourceKind)) {
+      throw new McpToolExecutionError(400, "source_kind is not supported");
+    }
+    const sourceProvider =
+      args.source_provider === null || args.source_provider === undefined
+        ? null
+        : requiredString(args.source_provider, "source_provider");
+    if (sourceProvider && sourceProvider.length > 80) {
+      throw new McpToolExecutionError(400, "source_provider is too long");
+    }
+
     return runOperation("ingest_document", async () => {
       // The durable operation repository verifies matter ownership before this
       // callback runs. Load again through the runtime to derive workflow id;
@@ -810,9 +831,58 @@ export async function executeMcpTool(
         ...(typeof position === "number" ? { position } : {}),
       });
 
+      const context = await requireAuthenticatedUser(request);
+      let provenance;
+      try {
+        provenance = normalizeDocumentSource({
+          kind: rawSourceKind as
+            | "local_upload"
+            | "conversation_attachment"
+            | "google_drive"
+            | "mailmypdf_library"
+            | "external_provider",
+          role: role === "subject_notice" ? "primary" : "supporting",
+          sourceId: downloaded.sourceFileId,
+          provider:
+            rawSourceKind === "google_drive"
+              ? "google"
+              : rawSourceKind === "mailmypdf_library"
+                ? "mailmypdf"
+                : sourceProvider,
+          fileName: downloaded.file.name,
+          mimeType: downloaded.file.type || downloaded.sourceMimeType,
+        });
+      } catch (error) {
+        throw new McpToolExecutionError(
+          400,
+          error instanceof Error ? error.message : "Document source provenance is invalid",
+        );
+      }
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: provenanceError } = await supabaseAdmin
+        .from("document_source_provenance")
+        .upsert(
+          {
+            document_id: document.id,
+            owner_id: context.user.id,
+            source_kind: provenance.kind,
+            use_role: provenance.role,
+            source_provider: provenance.provider,
+            source_id: provenance.sourceId,
+            imported_at: provenance.importedAt,
+          },
+          { onConflict: "document_id" },
+        );
+      if (provenanceError) {
+        throw new McpToolExecutionError(
+          500,
+          "The document was secured but its source provenance could not be recorded",
+        );
+      }
+
       if (document.securityStatus === "quarantined") {
         try {
-          const context = await requireAuthenticatedUser(request);
           const { scanQuarantinedDocumentNow } = await import("@/lib/secure-core/scanner.server");
           await scanQuarantinedDocumentNow(document.id, context.user.id);
         } catch {
@@ -833,6 +903,9 @@ export async function executeMcpTool(
           sourceFileId: downloaded.sourceFileId,
           sourceHost: downloaded.sourceHost,
           sourceMimeType: downloaded.sourceMimeType,
+          sourceKind: provenance.kind,
+          sourceProvider: provenance.provider,
+          sourceRole: provenance.role,
         },
         attached: attachedPayload,
         nextAction:
