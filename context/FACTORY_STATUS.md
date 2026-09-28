@@ -13,6 +13,14 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-28 — Canonical chat factory queue
+
+- Added `canonicalChatFactoryReport()` to the shared chat execution registry. It joins each canonical identity to its explicit platform binding, runs ordinary composition and chat certification against the supplied connector tool names, and reports actionable diagnostics without promoting catalog pages to execution.
+- The read-only `GET /api/studio/workflows/readiness` endpoint exposes the queue behind Studio's existing local-host, same-origin, authenticated-admin guard. It uses the actual MCP tool catalog and never starts agents, creates matters, publishes, or mails.
+- Added a side-effect-free private reuse planner at `POST /api/studio/workflows/plan`. It ranks canonical workflows from problem terms, uses live connector-tool certification, and returns a review-needed decision if the match is absent or uncertified; it does not retain the problem or generate executable code.
+- Focused local protocol and readiness tests: 15/15 passed, including the complete registry partition (21 chat-executable, three platform policies awaiting chat contracts). Product topology previously passed for all 15 sections. The package's full TypeScript test configuration still reports existing missing Node/Vitest type declarations in this checkout; the emitted focused tests ran successfully.
+- Remaining to make the requested problem-led factory operational end to end: reviewer-confirmed problem matching, reviewed template persistence, synthetic acceptance and privacy checks, and an authorized publication path. Studio's existing agent launcher is deliberately local-only, while its workflow publication is browser-local storage; neither is a production factory deployment.
+
 ### 2026-09-27 — Current Worker deployment path and production saved-address schema
 
 - User confirmed the current MailMyPDF deployment target is `https://mailmypdf.mycomind4.workers.dev`. The portable plugin still targets the future canonical `mailmypdf.ai` domain; no claim is made that the current Worker has been redeployed with this connector yet.

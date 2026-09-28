@@ -8,6 +8,8 @@ import { createRecordsRequestManifest } from "./domain-packs/records-request/man
 import { getRecordsRequestRuntimePolicy } from "./domain-packs/records-request/runtime-policy.js";
 import type { WorkflowManifest } from "./workflow-manifest.js";
 import type { WorkflowRuntimePolicy } from "./matter-runtime-server.js";
+import { WORKFLOW_REGISTRY } from "./canonical-workflow-registry.js";
+import { composeWorkflowForChat } from "./workflow-factory.js";
 
 export type ChatExecutionBinding = Readonly<{
   manifest: WorkflowManifest;
@@ -49,4 +51,31 @@ export function chatExecutionBindingFor(workflowId: string): ChatExecutionBindin
   }
 
   return null;
+}
+
+/** Build a complete, reproducible factory queue from canonical identity and live tool names. */
+export function canonicalChatFactoryReport(availableTools: ReadonlySet<string> | readonly string[]) {
+  return Object.freeze(WORKFLOW_REGISTRY.map((workflow) => {
+    const binding = chatExecutionBindingFor(workflow.slug);
+    const result = binding
+      ? composeWorkflowForChat({
+          manifest: binding.manifest,
+          runtimePolicy: binding.policy,
+          availableTools,
+        })
+      : null;
+    return Object.freeze({
+      id: workflow.id,
+      maturity: workflow.maturity,
+      policyFamily: workflow.execution?.kind === "platform" ? workflow.execution.policyFamily : null,
+      chatExecutable: result?.chatExecutable === true,
+      reason: result
+        ? result.chatExecutable ? "certified" : "certification-failed"
+        : workflow.execution?.kind === "platform" ? "chat-contract-not-registered" : "platform-runtime-not-registered",
+      diagnostics: Object.freeze([
+        ...(result?.diagnostics ?? []),
+        ...(result?.chatReadiness.diagnostics ?? []),
+      ]),
+    });
+  }));
 }

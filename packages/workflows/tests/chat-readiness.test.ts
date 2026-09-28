@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
-import { chatExecutionBindingFor } from "../src/chat-execution-registry.js";
+import { canonicalChatFactoryReport, chatExecutionBindingFor } from "../src/chat-execution-registry.js";
 import { WORKFLOW_REGISTRY } from "../src/canonical-workflow-registry.js";
 import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
@@ -49,6 +49,22 @@ test("canonical chat registry certifies supported platform families and excludes
     }
   }
   assert.equal(chatExecutionBindingFor("unknown-workflow"), null);
+});
+
+test("factory report separates catalog identity, missing contracts, and failing certification", () => {
+  const report = canonicalChatFactoryReport(AVAILABLE_TOOLS);
+  assert.equal(report.length, WORKFLOW_REGISTRY.length);
+  assert.equal(report.filter((item) => item.chatExecutable).length, 21);
+  assert.equal(report.filter((item) => item.reason === "chat-contract-not-registered").length, 3);
+  assert.equal(report.find((item) => item.id === "notice-respond/cp14-response")?.reason, "certified");
+  assert.equal(report.find((item) => item.id === "appeal-mail/appeal-ssdi-denial")?.reason, "chat-contract-not-registered");
+  assert.equal(report.find((item) => item.id === "secured-transactions/secured-transaction-eligibility")?.reason, "platform-runtime-not-registered");
+
+  const reduced = new Set(AVAILABLE_TOOLS);
+  reduced.delete("preview_packet");
+  const blocked = canonicalChatFactoryReport(reduced).find((item) => item.id === "notice-respond/cp14-response");
+  assert.equal(blocked?.reason, "certification-failed");
+  assert.ok(blocked?.diagnostics.some((item) => item.code === "CONNECTOR_TOOL_MISSING"));
 });
 
 test("CP14 passes chat readiness only when manifest, runtime, gates, and tools align", () => {
