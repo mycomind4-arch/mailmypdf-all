@@ -29,6 +29,14 @@ Do not invoke MailMyPDF merely because the conversation mentions one of these to
 
 Use the generic conversational-letter path when the user wants to write, revise, preview, and mail an ordinary letter and no specialized certified workflow is required.
 
+When the user asks to continue or resume an ordinary/direct mailing and the order id is not already known:
+1. Call `get_mailing_context`.
+2. Confirm the matching recent mailing if more than one is plausible.
+3. Call `get_order_status(order_id)`.
+4. If `order.directMail.nextAction` is present, follow that tool name as navigation only. Never turn recovered state into approval.
+5. If the order has left draft state, report its persisted payment/mailing status instead of recreating it.
+
+For a new conversational letter:
 1. Draft and revise the letter wording in chat until the intended content is clear.
 2. Collect the exact recipient and return mailing addresses. Reuse saved/recent addresses only after the user selects and confirms them.
 3. Collect the mailing class and color choice when they are not already clear.
