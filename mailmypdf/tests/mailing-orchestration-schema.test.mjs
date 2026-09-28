@@ -87,3 +87,8 @@ test("scheduled authorization identity is timestamped and immutable", () => {
   );
   assert.match(sql, /Scheduled mailing authorization fields are immutable/i);
 });
+
+test("each mailing target can have at most one active schedule", () => {
+  assert.match(sql, /scheduled_mailings_active_order_uidx[\s\S]*where order_id is not null and status in \('scheduled', 'processing'\)/i);
+  assert.match(sql, /scheduled_mailings_active_batch_uidx[\s\S]*where batch_id is not null and status in \('scheduled', 'processing'\)/i);
+});
