@@ -38,6 +38,7 @@ const MAIL_CAPABILITIES: readonly CapabilityId[] = [
   "tracking",
 ];
 const PAYMENT_CAPABILITIES: readonly CapabilityId[] = ["payment", "savedPayment"];
+const ORCHESTRATED_MAIL_CAPABILITIES: readonly CapabilityId[] = ["scheduledMailing", "batchMailing"];
 const NOTIFICATION_CAPABILITIES: readonly CapabilityId[] = ["notifications"];
 const IN_PROCESS_CAPABILITIES: readonly CapabilityId[] = [
   "security",
@@ -143,6 +144,32 @@ function buildProbes(
             : { health: "unavailable", message: "Payment provider is not configured." };
         }
         return providerOutcome(await provider.checkHealth());
+      },
+    },
+    {
+      id: "scheduled-mail-provider-health",
+      capabilities: ORCHESTRATED_MAIL_CAPABILITIES,
+      async check() {
+        const payment = providers.payment();
+        const mail = providers.mail();
+        const paymentHealth = payment.checkHealth
+          ? providerOutcome(await payment.checkHealth())
+          : payment.isConfigured()
+            ? { health: "unknown" as const, message: "Payment provider has no live health probe." }
+            : { health: "unavailable" as const, message: "Payment provider is not configured." };
+        const mailHealth = mail.checkHealth
+          ? providerOutcome(await mail.checkHealth())
+          : mail.isConfigured()
+            ? { health: "unknown" as const, message: "Mail provider has no live health probe." }
+            : { health: "unavailable" as const, message: "Mail provider is not configured." };
+
+        if (paymentHealth.health === "unavailable" || mailHealth.health === "unavailable") {
+          return { health: "unavailable" as const, message: "Scheduled mailing requires both payment and mail providers." };
+        }
+        if (paymentHealth.health !== "healthy" || mailHealth.health !== "healthy") {
+          return { health: "unknown" as const, message: "Scheduled mailing providers are configured but not both confirmed healthy." };
+        }
+        return { health: "healthy" as const };
       },
     },
     {
