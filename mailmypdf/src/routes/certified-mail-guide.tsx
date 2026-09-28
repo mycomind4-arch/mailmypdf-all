@@ -41,7 +41,7 @@ const RELATED_LINKS = [
 const STEPS = [
   { n: "01", t: "Upload your PDF", d: "Drag in your PDF. Up to 10 pages, under 10MB." },
   { n: "02", t: "Enter the mailing address", d: "U.S. domestic addresses only in this release." },
-  { n: "03", t: "Review the price and pay online", d: "Secure Stripe checkout. Starts at $4.99." },
+  { n: "03", t: "Review the price and pay online", d: "Secure Stripe checkout. Standard starts at $2.99; Certified starts at $10.99." },
   { n: "04", t: "We print and mail your letter", d: "Printed and dropped in the mail through our print partner." },
 ];
 
@@ -71,7 +71,7 @@ function PrimaryCta() {
       >
         Upload PDF <ArrowRight />
       </Link>
-      <span className="font-mono text-xs uppercase tracking-widest text-cobalt">Starting at $4.99</span>
+      <span className="font-mono text-xs uppercase tracking-widest text-cobalt">Standard from $2.99 · Certified from $10.99</span>
     </div>
   );
 }
