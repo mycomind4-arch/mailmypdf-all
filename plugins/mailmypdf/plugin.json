@@ -31,7 +31,7 @@
         "termsOfServiceURL": "https://mailmypdf.ai/terms",
         "defaultPrompt": [
           "Help me respond to this attached notice and prepare a reviewable mailing packet.",
-          "Write a professional letter from these facts, show me the exact PDF and envelope, and let me confirm both addresses before mailing.",
+          "Write a letter from these facts, show the exact PDF and envelope, and let me confirm both mailing addresses.",
           "Check whether my MailMyPDF order was mailed and show any available tracking."
         ],
         "brandColor": "#1D4ED8",
