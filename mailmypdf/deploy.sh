@@ -21,6 +21,8 @@
 
 set -euo pipefail
 
+APP_DIR="$(pwd)"
+
 if ! grep -q 'preset: "cloudflare_module"' vite.config.ts; then
   echo "❌ vite.config.ts is not on the Cloudflare Workers preset." >&2
   echo "   This script deploys a Worker with cron triggers. On the Pages" >&2
@@ -65,4 +67,9 @@ else
 fi
 
 echo ""
-echo "✅ Deployed! Cron: */5 * * * * → /api/internal/proof-processor"
+echo "🔎 Verifying deployed website + MCP connector..."
+cd "$APP_DIR"
+pnpm verify:deployment
+
+echo ""
+echo "✅ Deployed and verified! Cron: */5 * * * * → /api/internal/proof-processor"
