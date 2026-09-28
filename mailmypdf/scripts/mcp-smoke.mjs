@@ -100,6 +100,7 @@ let tools = [];
     "find_workflow",
     "get_workflow",
     "ingest_direct_pdf",
+    "prepare_conversational_letter",
     "prepare_direct_pdf_mail",
     "approve_direct_pdf_mail",
     "prepare_direct_pdf_checkout",
@@ -119,11 +120,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 27) {
-    fail(`expected 27 MCP tools, found ${tools.length}`);
+  if (tools.length !== 29) {
+    fail(`expected 29 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 27-tool surface");
+  ok("tools/list exposes the expected 29-tool surface");
 }
 
 {
