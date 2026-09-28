@@ -1905,6 +1905,7 @@ export function StudioPage() {
                 )}
               </div>
               <div className="flex items-center gap-1">
+                <a href="/studio/factory" className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-medium text-brass hover:bg-white/10 hover:text-paper" aria-label="Open workflow factory" title="Open workflow factory"><WandSparkles size={14} /><span className="hidden sm:inline">Factory</span></a>
                 <button onClick={syncWithGithub} disabled={syncStatus !== "idle"} className="rounded p-1.5 text-white/65 hover:bg-white/10 hover:text-paper disabled:opacity-40" aria-label="Sync with GitHub" title={syncStatus === "syncing" ? "Pushing to GitHub…" : "Sync with GitHub"}><Github size={15} /></button>
                 <button onClick={publishToCloudflare} disabled={publishStatus !== "idle"} className="rounded p-1.5 text-white/65 hover:bg-white/10 hover:text-paper disabled:opacity-40" aria-label="Publish to Cloudflare" title={publishStatus === "publishing" ? "Publishing to Cloudflare…" : "Publish to Cloudflare"}><Rocket size={15} /></button>
                 <button onClick={undo} disabled={!history.past.length} className="rounded p-1.5 text-white/65 hover:bg-white/10 hover:text-paper disabled:opacity-40" aria-label="Undo" title="Undo"><Undo2 size={15} /></button>

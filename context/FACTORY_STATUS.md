@@ -13,6 +13,11 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-28 — Studio factory interface
+
+- Added the admin-only `/studio/factory` page and a Factory entry in Studio's header. The page calls the existing authenticated readiness and private problem-planning endpoints, displays the 441/21/3 queue summary, offers filtering and per-workflow diagnostics, and proposes a certified workflow for review without creating a case or publishing a template. Loading, empty, and failure states are explicit.
+- Browser QA fixture at `mailmypdf/tests/fixtures/workflow-factory/` renders the real page component with synthetic responses; Vite served the fixture module. TanStack route generation included `/studio/factory` and both factory API routes. No diagnostics named the new UI/routes in app-wide typecheck; unrelated existing errors remain. The cloud browser could not reach the sandbox loopback preview (`ERR_BLOCKED_BY_CLIENT`), so responsive visual inspection and authenticated production UI acceptance remain unverified.
+
 ### 2026-09-28 — Canonical chat factory queue
 
 - Added `canonicalChatFactoryReport()` to the shared chat execution registry. It joins each canonical identity to its explicit platform binding, runs ordinary composition and chat certification against the supplied connector tool names, and reports actionable diagnostics without promoting catalog pages to execution.
