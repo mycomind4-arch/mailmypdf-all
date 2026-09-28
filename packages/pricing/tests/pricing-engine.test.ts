@@ -112,7 +112,7 @@ describe("ESSENTIAL band", () => {
       mailClass: "standard",
     });
     assert.equal(quote.basePriceCents, 399);
-    assert.equal(quote.mailServiceCost, 299);
+    assert.equal(quote.mailServiceCost, 0);
     assert.equal(quote.totalCents, 399);
   });
 
@@ -132,7 +132,7 @@ describe("ESSENTIAL band", () => {
 // ── STANDARD Band ────────────────────────────────────────────────────────
 
 describe("STANDARD band", () => {
-  it("charges base + mail with no included pages", () => {
+  it("standard workflow includes standard mail in its launch price", () => {
     const quote = calculateQuote({
       workflowId: "debt-collection-dispute",
       verticalId: "dispute-mail",
@@ -141,7 +141,7 @@ describe("STANDARD band", () => {
     });
     assert.equal(quote.basePriceCents, 499);
     assert.equal(quote.includedPages, 3);
-    assert.equal(quote.mailServiceCost, 299);
+    assert.equal(quote.mailServiceCost, 0);
     assert.equal(quote.totalCents, 499);
   });
 });
