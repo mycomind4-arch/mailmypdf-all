@@ -74,6 +74,7 @@ function publicSchedule(row: ScheduledMailingRow) {
     timezone: row.timezone,
     status: row.status,
     approvedMaxTotalCents: row.approved_max_total_cents,
+    paymentAuthorizedAt: row.payment_authorized_at,
     paymentAmountCents: row.payment_amount_cents,
     paymentStatus: row.payment_status,
     blockedReason: row.blocked_reason,
@@ -409,6 +410,7 @@ export async function createScheduledDirectMail(
       timezone,
       approval_sha256: state.packetSha256,
       approved_max_total_cents: state.approvedMaxTotalCents,
+      payment_authorized_at: new Date().toISOString(),
       status: "scheduled",
     })
     .select("*")
