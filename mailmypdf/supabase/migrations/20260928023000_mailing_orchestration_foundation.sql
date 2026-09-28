@@ -225,7 +225,7 @@ create or replace function public.claim_scheduled_mailing_payment(
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $claim$
 declare
   s public.scheduled_mailings%rowtype;
   o public.orders%rowtype;
@@ -275,7 +275,7 @@ begin
 
   return true;
 end;
-$;
+$claim$;
 
 revoke all on function public.claim_scheduled_mailing_payment(uuid, uuid)
   from public, anon, authenticated;
