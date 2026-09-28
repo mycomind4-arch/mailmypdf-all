@@ -36,6 +36,8 @@ const requiredTools=[
   "archive_mailing_address",
   "approve_direct_pdf_mail",
   "prepare_direct_pdf_checkout",
+  "schedule_direct_pdf_mail",
+  "cancel_scheduled_mail",
   "ingest_document",
   "save_matter_input",
   "analyze_matter",
