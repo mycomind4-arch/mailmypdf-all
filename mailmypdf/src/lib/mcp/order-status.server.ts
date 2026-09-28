@@ -125,7 +125,7 @@ function canonicalJSON(value: unknown): string {
     const object = value as Record<string, unknown>;
     return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJSON(object[key])}`).join(",")}}`;
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? "null";
 }
 
 function directMailSnapshot(order: OrderRow) {
