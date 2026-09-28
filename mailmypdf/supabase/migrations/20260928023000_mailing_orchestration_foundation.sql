@@ -144,6 +144,7 @@ create table public.scheduled_mailings (
   timezone text,
   approval_sha256 text not null check (approval_sha256 ~ '^[0-9a-f]{64}$'),
   approved_max_total_cents integer not null check (approved_max_total_cents >= 0),
+  payment_authorized_at timestamptz not null,
   payment_amount_cents integer check (payment_amount_cents is null or payment_amount_cents >= 0),
   stripe_payment_intent_id text,
   payment_status text,
@@ -176,6 +177,32 @@ grant select on public.scheduled_mailings to authenticated;
 grant all on public.scheduled_mailings to service_role;
 create policy scheduled_mailings_read_owned on public.scheduled_mailings
   for select to authenticated using (owner_id = auth.uid());
+
+create or replace function public.freeze_scheduled_mailing_authorization()
+returns trigger
+language plpgsql security invoker set search_path = public as $schedule$
+begin
+  if row(new.owner_id, new.idempotency_key, new.order_id, new.batch_id,
+         new.send_at, new.timezone, new.approval_sha256,
+         new.approved_max_total_cents, new.payment_authorized_at)
+     is distinct from
+     row(old.owner_id, old.idempotency_key, old.order_id, old.batch_id,
+         old.send_at, old.timezone, old.approval_sha256,
+         old.approved_max_total_cents, old.payment_authorized_at) then
+    raise exception 'Scheduled mailing authorization fields are immutable';
+  end if;
+  return new;
+end;
+$schedule$;
+
+create trigger scheduled_mailings_authorization_immutable
+  before update on public.scheduled_mailings
+  for each row execute function public.freeze_scheduled_mailing_authorization();
+
+revoke all on function public.freeze_scheduled_mailing_authorization()
+  from public, anon, authenticated;
+grant execute on function public.freeze_scheduled_mailing_authorization()
+  to service_role;
 
 -- Once a batch is approved, its recipient/content/pricing identity is frozen.
 -- Fulfillment may still attach an order id and advance per-piece status.
