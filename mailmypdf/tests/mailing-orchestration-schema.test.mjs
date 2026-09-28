@@ -59,8 +59,8 @@ test("scheduled payment claim is valid server-only SQL and blocks competing chec
   const claimStart = sql.indexOf("create or replace function public.claim_scheduled_mailing_payment");
   assert.ok(claimStart >= 0);
   const claim = sql.slice(claimStart);
-  assert.match(claim, /set search_path = public, pg_temp\nas \$\$\ndeclare/i);
-  assert.match(claim, /end;\n\$\$;/i);
+  assert.match(claim, /set search_path = public, pg_temp\nas \$claim\$\ndeclare/i);
+  assert.match(claim, /end;\n\$claim\$;/i);
   assert.match(claim, /o\.stripe_session_id is not null/i);
   assert.match(claim, /payment_execution_key/i);
   assert.match(claim, /grant execute on function public\.claim_scheduled_mailing_payment\(uuid, uuid\)[\s\S]*to service_role/i);
