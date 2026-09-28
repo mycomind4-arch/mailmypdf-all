@@ -159,7 +159,7 @@ export function applyProPricing(args: {
   } else if (subStatus.isActive) {
     baseChargeCents = PRO_MEMBER_RATE_CENTS;
     isMemberRate = true;
-    breakdown = `Pro member rate (${(PRO_MEMBER_RATE_CENTS / 100).toFixed(2)}/letter)`;
+    breakdown = "Pro member rate ($" + (PRO_MEMBER_RATE_CENTS / 100).toFixed(2) + "/letter)";
   }
 
   const totalCents = baseChargeCents + addOnCents;
