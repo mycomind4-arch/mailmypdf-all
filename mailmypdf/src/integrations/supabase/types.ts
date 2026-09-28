@@ -1847,6 +1847,7 @@ export type Database = {
           case_approval_id: string | null
           approved_packet_sha256: string | null
           approved_price_cents: number | null
+          payment_execution_key: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -1892,6 +1893,7 @@ export type Database = {
           case_approval_id?: string | null
           approved_packet_sha256?: string | null
           approved_price_cents?: number | null
+          payment_execution_key?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -1937,6 +1939,7 @@ export type Database = {
           case_approval_id?: string | null
           approved_packet_sha256?: string | null
           approved_price_cents?: number | null
+          payment_execution_key?: string | null
         }
         Relationships: []
       }
