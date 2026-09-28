@@ -397,6 +397,23 @@ export async function createScheduledDirectMail(
     return { schedule: publicSchedule(existing), reused: true };
   }
 
+  const { data: activeSchedule, error: activeScheduleError } = await supabaseAdmin
+    .from("scheduled_mailings")
+    .select("id,send_at,status")
+    .eq("owner_id", context.user.id)
+    .eq("order_id", orderId)
+    .in("status", ["scheduled", "processing"])
+    .limit(1)
+    .maybeSingle();
+  if (activeScheduleError) throw new ScheduledMailError(500, "Unable to check active scheduled mail");
+  if (activeSchedule) {
+    throw new ScheduledMailError(
+      409,
+      `This approved mailing already has an active schedule for ${activeSchedule.send_at}.`,
+      "SCHEDULE_ALREADY_ACTIVE",
+    );
+  }
+
   const id = crypto.randomUUID();
   const { data: inserted, error } = await supabaseAdmin
     .from("scheduled_mailings")
