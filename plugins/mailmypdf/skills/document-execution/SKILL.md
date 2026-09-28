@@ -25,6 +25,21 @@ Do not invoke MailMyPDF merely because the conversation mentions one of these to
 3. Do not invent a workflow id or section id.
 4. If no suitable workflow is returned, explain that rather than forcing the request into an unrelated workflow.
 
+## Conversational letters
+
+Use the generic conversational-letter path when the user wants to write, revise, preview, and mail an ordinary letter and no specialized certified workflow is required.
+
+1. Draft and revise the letter wording in chat until the intended content is clear.
+2. Collect the exact recipient and return mailing addresses. Reuse saved/recent addresses only after the user selects and confirms them.
+3. Collect the mailing class and color choice when they are not already clear.
+4. Call `prepare_conversational_letter` with the exact finalized body text, addresses, options, and a stable retry key for that exact version.
+5. Call `review_direct_pdf_mail` and present the exact PDF resource, envelope layout, recipient, return address, postal-verification result, service, color, and total.
+6. If the text, recipient, return address, service, or color changes, use a new retry key and prepare a fresh draft/review. Never carry an old approval forward.
+7. Call `approve_direct_pdf_mail` only after the user explicitly approves the exact reviewed details. Then `prepare_direct_pdf_checkout`; checkout is still not payment or mailing.
+8. Use `get_order_status` for payment, provider submission, mailing, tracking, and delivery facts.
+
+Do not manufacture an attachment merely to use the direct-PDF path. MailMyPDF renders conversational letter text server-side into the exact reviewable PDF.
+
 ## Matter creation
 
 Create a matter only after the user is actually asking MailMyPDF to perform or preserve work for that matter.
