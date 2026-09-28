@@ -5,7 +5,7 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 ## Contents
 
 - `plugin.json` — portable plugin metadata.
-- `mcp.json` — remote streamable-HTTP MCP endpoint at `https://mailmypdf.ai/api/mcp`.
+- `mcp.json` — future canonical submission endpoint at `https://mailmypdf.ai/api/mcp`. Until that custom domain is live, the current deployed Worker/preview target is `https://mailmypdf.mycomind4.workers.dev/api/mcp`; do not confuse the submission manifest with the temporary deployment target.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
 - `review-cases.json` — exactly five positive and three negative reviewer cases for connector behavior.
 - `submission-materials.json` — release notes, availability intent, all 29 tool-annotation justifications, and the remaining manual portal/deployment requirements.
@@ -50,7 +50,7 @@ This validates the listing limits, HTTPS policy/support URLs, starter prompts, e
 
 The production deployment should have all of the following verified:
 
-1. `https://mailmypdf.ai/api/mcp` is publicly reachable over HTTPS and passes `mcp:smoke`.
+1. The currently deployed connector origin passes `verify:deployment` and `mcp:readiness`. While the Worker URL is current, that means `https://mailmypdf.mycomind4.workers.dev/api/mcp`; before public submission, switch/verify the canonical `https://mailmypdf.ai/api/mcp`.
 2. Hosted Supabase OAuth 2.1 Server is enabled with authorization path `/oauth/consent`.
 3. Dynamic client registration/account linking has been exercised with a real external MCP client.
 4. Public privacy policy, terms, and support pages are current.
