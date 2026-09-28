@@ -434,7 +434,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
   {
     name: "get_mailing_context",
     title: "Find my recent mailing addresses",
-    description: "Return up to ten recent direct-mail orders belonging to the connected account, including recipient and return addresses. Use for 'same recipient as last time' or a previous business return address. Never guess between candidates; ask the user to select. This is not public address search or a saved-profile directory.",
+    description: "Return up to ten recent direct-mail orders belonging to the connected account, including source type, recipient and return addresses, and the read-only tool to use for resume. Use for 'continue my letter', 'same recipient as last time', or a previous return address. Never guess between candidates; ask the user to select, then call get_order_status for exact review/approval continuity. This is not public address search or a saved-profile directory.",
     inputSchema: objectSchema({}),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
