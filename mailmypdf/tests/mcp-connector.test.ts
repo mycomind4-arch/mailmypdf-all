@@ -53,12 +53,13 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
   assert.ok(names.includes("prepare_conversational_letter"));
+  assert.ok(names.includes("get_payment_readiness"));
   assert.ok(names.includes("review_direct_pdf_mail"));
   assert.ok(names.includes("get_mailing_context"));
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
-  assert.equal(names.length, 29);
+  assert.equal(names.length, 30);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -223,6 +224,21 @@ test("connector tool dry run never performs the requested external effect", () =
   assert.equal(dryRun.sideEffectsPerformed, false);
   assert.equal(dryRun.toolName, "prepare_checkout");
   assert.ok(dryRun.resolvedCapabilities.includes("pricing"));
+});
+
+test("saved-payment readiness is read-only and never authorizes charging", () => {
+  const tool = MAILMYPDF_MCP_TOOLS.find((candidate) => candidate.name === "get_payment_readiness");
+  assert.ok(tool);
+  assert.equal(tool.annotations.readOnlyHint, true);
+  assert.equal(tool.annotations.destructiveHint, false);
+  assert.equal(tool.annotations.idempotentHint, true);
+  assert.ok(tool.capabilityRequirements.some((item) => item.id === "savedPayment"));
+  const schema = tool.outputSchema as {
+    properties?: Record<string, unknown>;
+  };
+  assert.ok(schema.properties?.payment);
+  assert.equal("stripe_customer_id" in (schema.properties ?? {}), false);
+  assert.equal("default_payment_method_id" in (schema.properties ?? {}), false);
 });
 
 test("profile tool declares the current OpenAI account-recognition contract", () => {
@@ -911,7 +927,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 29);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 30);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -955,7 +971,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 29);
+  assert.equal(payload.result.tools.length, 30);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
