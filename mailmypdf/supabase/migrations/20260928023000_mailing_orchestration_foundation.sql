@@ -170,6 +170,12 @@ create index scheduled_mailings_owner_idx
 create unique index scheduled_mailings_payment_intent_uidx
   on public.scheduled_mailings(stripe_payment_intent_id)
   where stripe_payment_intent_id is not null;
+create unique index scheduled_mailings_active_order_uidx
+  on public.scheduled_mailings(order_id)
+  where order_id is not null and status in ('scheduled', 'processing');
+create unique index scheduled_mailings_active_batch_uidx
+  on public.scheduled_mailings(batch_id)
+  where batch_id is not null and status in ('scheduled', 'processing');
 
 alter table public.scheduled_mailings enable row level security;
 revoke all on public.scheduled_mailings from public, anon, authenticated;
