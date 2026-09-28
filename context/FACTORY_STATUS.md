@@ -13,6 +13,15 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — Conversational letter creation through MCP
+
+- Added the generic `prepare_conversational_letter` MCP primitive for ordinary letters that do not require a specialized certified workflow. Chat remains the conversational composer: it sends the exact finalized body text plus confirmed sender/recipient, service, color, and retry key. The server reuses the existing production `MailService.createOrderFromLetter()` path to render, validate, fingerprint, price, and store the exact PDF as an unpaid draft.
+- No parallel fulfillment or approval subsystem was added. The generated letter flows directly into the existing `review_direct_pdf_mail` card, which provides the owner/hash-bound exact PDF resource, illustrative envelope layout, fresh verification for both recipient and return address, service/color/price, then the existing immutable `approve_direct_pdf_mail` → Stripe-hosted checkout → payment/Lob fulfillment path.
+- Retry identity binds the exact letter-text SHA-256 and mailing snapshot. Reusing a retry key after changing text, sender, recipient, service, or color fails closed. Preparation does not create checkout or submit mail. Existing exact-PDF hash, address-review expiry, price, approval, payment, and provider-status boundaries remain unchanged.
+- Connector catalog is now v0.9.0 with 29 tools. Launch/smoke contracts, plugin annotation justifications, plugin skill/instructions, metadata, and reviewer cases include the conversational-letter path. A stale 27-tool launch-regression expectation and smoke count were corrected to the canonical 29-tool surface.
+- Added focused regression coverage for draft-only behavior, exact retry reuse, changed-text rejection, and the new tool's capability/annotation contract. Static repository consistency check confirms 29 catalog tools, 29 launch-required tools, and 29 annotation-justification entries with no missing names.
+- Verification at edit time: GitHub Workspace UI verification was queued against the final head; do not treat this entry itself as a CI pass. No live payment, Lob submission, production deployment, provider mutation, or hosted ChatGPT/Claude acceptance was performed. Production deployment/OAuth/provider-secret/migration blockers recorded elsewhere in this file remain unchanged.
+
 ### 2026-09-27 — Chat-readiness certification and three certified archetypes
 
 - Added `mailmypdf.chat-readiness/v1` and a declarative
