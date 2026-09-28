@@ -21,11 +21,12 @@ let validationCalls = 0;
 let preparedMetadata: any;
 let letterCreates = 0;
 let lastLetterParams: any;
+let stripeCreateStatuses: string[];
 
 function reset() {
   order = { id: "order-1", lookup_token: "private", status: "draft", email: "test@example.com",
     page_count: 1, price_cents: 799, file_name: "test.pdf", pdf_storage_path: "owned.pdf",
-    stripe_session_id: null, color: false, mail_class: "standard",
+    stripe_session_id: null, payment_execution_key: null, color: false, mail_class: "standard",
     approved_packet_sha256: null, approved_price_cents: null };
   for (const prefix of ["sender", "recipient"]) {
     for (const [key, value] of Object.entries(address)) order[`${prefix}_${key}`] = value;
@@ -37,6 +38,7 @@ function reset() {
   preparedMetadata = { secure_document_id: "doc-1" };
   letterCreates = 0;
   lastLetterParams = null;
+  stripeCreateStatuses = [];
 }
 
 const admin = {
@@ -138,8 +140,12 @@ mock.module("../src/services/index.ts", { namedExports: {
 mock.module("../src/lib/stripe.server.ts", { namedExports: {
   getMailMyPdfBaseUrl: () => "https://mailmypdf.example",
   createStripeClient: () => ({ checkout: { sessions: {
-    create: async () => { created++; return { id: "cs_same", url: "https://checkout.stripe.com/test" }; },
-    retrieve: async () => ({ id: "cs_same", status: "open", url: "https://checkout.stripe.com/test" }),
+    create: async () => {
+      created++;
+      const status = stripeCreateStatuses.shift() ?? "open";
+      return { id: `cs_${created}`, status, url: "https://checkout.stripe.com/test" };
+    },
+    retrieve: async (id: string) => ({ id, status: "open", url: "https://checkout.stripe.com/test" }),
     expire: async () => { expired++; },
   } } }),
 } });
@@ -189,6 +195,27 @@ test("a racing checkout never expires the identical session saved by its winner"
   const result = await prepareDirectPdfCheckout(request, order.id);
   assert.equal(result.reused, true);
   assert.equal(expired, 0);
+});
+
+test("scheduled payment claim blocks hosted checkout before Stripe is contacted", async () => {
+  reset();
+  await approveDirectPdfMail(request, review);
+  order.payment_execution_key = "scheduled:schedule-1";
+  await assert.rejects(
+    prepareDirectPdfCheckout(request, order.id),
+    /reserved for scheduled payment execution/,
+  );
+  assert.equal(created, 0);
+});
+
+test("expired race-loser checkout deterministically advances to one open successor", async () => {
+  reset();
+  await approveDirectPdfMail(request, review);
+  stripeCreateStatuses = ["expired", "open"];
+  const result = await prepareDirectPdfCheckout(request, order.id);
+  assert.equal(result.checkoutUrl, "https://checkout.stripe.com/test");
+  assert.equal(created, 2);
+  assert.equal(order.stripe_session_id, "cs_2");
 });
 
 test("reusing a direct-mail retry key with another document is rejected before creating an order", async () => {
