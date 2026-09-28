@@ -9,6 +9,7 @@ import {
   ingestDirectPdf,
   prepareDirectPdfCheckout,
   prepareDirectPdfMail,
+  prepareConversationalLetterMail,
   reviewDirectPdfMail,
   getMailingContext,
 } from "./direct-mail.server";
@@ -462,6 +463,26 @@ export async function executeMcpTool(
       return await ingestDirectPdf(request, args.file, args.processing_consent);
     } catch (error) {
       if (error instanceof McpDirectMailError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "prepare_conversational_letter") {
+    try {
+      return await prepareConversationalLetterMail(request, {
+        letterText: args.letter_text,
+        sender: args.sender,
+        recipient: args.recipient,
+        mailClass: args.mail_class,
+        color: args.color,
+        idempotencyKey: args.idempotency_key,
+        senderProfile: args.sender_profile,
+        recipientEntry: args.recipient_entry,
+      });
+    } catch (error) {
+      if (error instanceof McpDirectMailError || error instanceof SavedAddressError) {
         throw new McpToolExecutionError(error.status, error.message, error.details);
       }
       throw error;
