@@ -27,6 +27,7 @@ const requiredTools=[
   "get_connector_readiness",
   "ingest_direct_pdf",
   "prepare_conversational_letter",
+  "get_payment_readiness",
   "prepare_direct_pdf_mail",
   "get_mailing_context",
   "review_direct_pdf_mail",
