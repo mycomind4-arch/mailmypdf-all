@@ -37,6 +37,7 @@ import {
 } from "@mailmypdf/workflows/connector-operation";
 import {
   deriveWorkflowProtocolState,
+  generatedDraftReviewAction,
   platformWorkflowRuntimePolicyFor,
   type WorkflowMatterDocument,
   type WorkflowMatterRecord,
@@ -966,7 +967,10 @@ export async function executeMcpTool(
   if (name === "generate_draft") {
     return runOperation(
       "generate_draft",
-      () => callRuntime(request, `${base}/draft/generate`, "POST", {}),
+      async () => ({
+        ...object(await callRuntime(request, `${base}/draft/generate`, "POST", {}), "generated draft"),
+        nextAction: generatedDraftReviewAction(matterId),
+      }),
     );
   }
 
