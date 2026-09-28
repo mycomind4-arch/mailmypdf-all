@@ -472,14 +472,17 @@ export async function cancelScheduledDirectMail(request: Request, rawScheduleId:
   if (!data) {
     const existing = await supabaseAdmin
       .from("scheduled_mailings")
-      .select("status")
+      .select("*")
       .eq("id", scheduleId)
       .eq("owner_id", context.user.id)
       .maybeSingle();
     if (!existing.data) throw new ScheduledMailError(404, "Scheduled mailing not found");
+    if (existing.data.status === "cancelled") {
+      return { schedule: publicSchedule(existing.data), reused: true };
+    }
     throw new ScheduledMailError(409, "Only a scheduled mailing that has not begun processing can be cancelled");
   }
-  return { schedule: publicSchedule(data) };
+  return { schedule: publicSchedule(data), reused: false };
 }
 
 export async function processScheduledMailing(scheduleId: string): Promise<ScheduledMailExecutionResult> {
