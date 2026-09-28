@@ -238,7 +238,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "get_order_status",
     title: "Get mailing order status",
     description:
-      "Read the connected user's MailMyPDF payment and mailing status, sanitized event history, provider reference, and recorded tracking details. Supply an order_id or matter_id. This tool is read-only and never polls or mutates the mail provider.",
+      "Read persisted state for the connected user's MailMyPDF order. For direct or conversational mail drafts, the response also derives review/approval continuity and the safest existing next tool from immutable order events. For paid or submitted orders, it returns payment, mailing, provider reference, tracking, and sanitized event history. Supply an order_id or matter_id. This tool is read-only and never polls or mutates the mail provider.",
     inputSchema: objectSchema({
       order_id: {
         type: "string",
