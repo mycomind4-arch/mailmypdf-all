@@ -364,8 +364,8 @@ export function normalizeOrderStatus(
           nextAction:
             schedule.status === "scheduled"
               ? {
-                  toolName: "cancel_scheduled_mail",
-                  reason: "The approved mailing is scheduled for future saved-payment execution. Cancel it before choosing a different payment path.",
+                  toolName: "get_order_status",
+                  reason: "The approved mailing is scheduled for future saved-payment execution. Do not start another payment path while the schedule is active.",
                 }
               : schedule.status === "processing"
                 ? {
