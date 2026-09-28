@@ -1,0 +1,139 @@
+name: Deploy MailMyPDF Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      payments_env:
+        description: Stripe environment for this deployment
+        required: true
+        default: sandbox
+        type: choice
+        options:
+          - sandbox
+          - live
+      deployment_url:
+        description: Public HTTPS origin to verify after deploy
+        required: true
+        default: https://mailmypdf.mycomind4.workers.dev
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-mailmypdf-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy and verify MailMyPDF
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      MAILMYPDF_BASE_URL: ${{ inputs.deployment_url }}
+      MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF }}
+
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+
+      PAYMENTS_ENV: ${{ inputs.payments_env }}
+      STRIPE_SANDBOX_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
+      STRIPE_LIVE_API_KEY: ${{ secrets.STRIPE_LIVE_API_KEY }}
+      VITE_PAYMENTS_CLIENT_TOKEN: ${{ secrets.VITE_PAYMENTS_CLIENT_TOKEN }}
+      PAYMENTS_SANDBOX_WEBHOOK_SECRET: ${{ secrets.PAYMENTS_SANDBOX_WEBHOOK_SECRET }}
+      PAYMENTS_LIVE_WEBHOOK_SECRET: ${{ secrets.PAYMENTS_LIVE_WEBHOOK_SECRET }}
+
+      LOB_API_KEY: ${{ secrets.LOB_API_KEY }}
+      LOB_WEBHOOK_SECRET: ${{ secrets.LOB_WEBHOOK_SECRET }}
+      AUTO_SUBMIT_TO_LOB: "false"
+
+      MAILMYPDF_CLEANUP_SECRET: ${{ secrets.MAILMYPDF_CLEANUP_SECRET }}
+      MAILMYPDF_SCANNER_JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
+      MAILMYPDF_MALWARE_SCANNER_URL: ${{ secrets.MAILMYPDF_MALWARE_SCANNER_URL }}
+      MAILMYPDF_MALWARE_SCANNER_KEY: ${{ secrets.MAILMYPDF_MALWARE_SCANNER_KEY }}
+      MAILMYPDF_RETENTION_JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
+      MAILMYPDF_CONNECTOR_JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
+
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
+
+      MCP_AUTHORIZATION_SERVER: ${{ secrets.MCP_AUTHORIZATION_SERVER }}
+      OPENAI_APPS_CHALLENGE_TOKEN: ${{ secrets.OPENAI_APPS_CHALLENGE_TOKEN }}
+      OPENAI_CHALLENGE_EXPECTED_TOKEN: ${{ secrets.OPENAI_APPS_CHALLENGE_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify required deployment credentials are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            CLOUDFLARE_ACCOUNT_ID
+            CLOUDFLARE_API_TOKEN
+            MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF
+            SUPABASE_URL
+            SUPABASE_PUBLISHABLE_KEY
+            SUPABASE_SECRET_KEY
+            LOB_API_KEY
+            LOB_WEBHOOK_SECRET
+            MAILMYPDF_CLEANUP_SECRET
+            MAILMYPDF_SCANNER_JOB_SECRET
+            MAILMYPDF_MALWARE_SCANNER_URL
+            MAILMYPDF_MALWARE_SCANNER_KEY
+            MAILMYPDF_RETENTION_JOB_SECRET
+            MAILMYPDF_CONNECTOR_JOB_SECRET
+            RESEND_API_KEY
+            RESEND_FROM_ADDRESS
+          )
+          if [ "$PAYMENTS_ENV" = "live" ]; then
+            required+=(STRIPE_LIVE_API_KEY PAYMENTS_LIVE_WEBHOOK_SECRET VITE_PAYMENTS_CLIENT_TOKEN)
+          else
+            required+=(STRIPE_SANDBOX_API_KEY PAYMENTS_SANDBOX_WEBHOOK_SECRET VITE_PAYMENTS_CLIENT_TOKEN)
+          fi
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required deployment secrets:\n' >&2
+            printf '  - %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+      - name: Deploy current main and verify public connector
+        working-directory: mailmypdf
+        run: ./deploy.sh
+
+      - name: Record deployment target
+        if: success()
+        run: |
+          {
+            echo "### MailMyPDF deployment"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Origin: \`${MAILMYPDF_BASE_URL}\`"
+            echo "- Payment mode: \`${PAYMENTS_ENV}\`"
+            echo "- AUTO_SUBMIT_TO_LOB: \`false\`"
+            echo "- Website smoke: passed"
+            echo "- MCP launch-readiness: passed"
+          } >> "$GITHUB_STEP_SUMMARY"
