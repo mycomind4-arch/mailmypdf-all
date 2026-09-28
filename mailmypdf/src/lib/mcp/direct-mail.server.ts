@@ -1141,36 +1141,53 @@ export async function prepareDirectPdfCheckout(
   const cancelUrl = new URL(`/orders/${order.id}`, `${baseUrl}/`);
   cancelUrl.searchParams.set("token", order.lookup_token);
 
-  const session = await stripe.checkout.sessions.create(
-    {
-      mode: "payment",
-      customer_email: order.email,
-      success_url: successUrl.toString(),
-      cancel_url: cancelUrl.toString(),
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Mail ${order.page_count}-page PDF · ${order.mail_class ?? "standard"}`,
-            },
-            unit_amount: order.approved_price_cents,
+  const checkoutParams = {
+    mode: "payment" as const,
+    customer_email: order.email,
+    success_url: successUrl.toString(),
+    cancel_url: cancelUrl.toString(),
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Mail ${order.page_count}-page PDF · ${order.mail_class ?? "standard"}`,
           },
-          quantity: 1,
+          unit_amount: order.approved_price_cents,
         },
-      ],
-      metadata: { orderId: order.id, source: "mcp_direct_pdf" },
-      payment_intent_data: {
-        description: `MailMyPDF direct PDF mailing · ${order.file_name}`,
+        quantity: 1,
       },
+    ],
+    metadata: { orderId: order.id, source: "mcp_direct_pdf" },
+    payment_intent_data: {
+      description: `MailMyPDF direct PDF mailing · ${order.file_name}`,
     },
-    {
-      idempotencyKey: `mcp_direct_checkout_${order.id}_${order.approved_packet_sha256.slice(0, 16)}_${order.approved_price_cents}`,
-    },
-  );
+  };
 
-  if (!session.url) {
-    throw new McpDirectMailError(502, "Stripe did not return a hosted checkout URL");
+  const checkoutKey =
+    `mcp_direct_checkout_${order.id}_${order.approved_packet_sha256.slice(0, 16)}_${order.approved_price_cents}`;
+  let session = await stripe.checkout.sessions.create(checkoutParams, {
+    idempotencyKey: checkoutKey,
+  });
+
+  // If an earlier race loser was deliberately expired, follow a deterministic
+  // successor key. Replays walk the same chain and never create parallel open
+  // sessions. A completed session is never replaced because it may represent
+  // money already collected and requires reconciliation instead.
+  for (let generation = 0; session.status === "expired" && generation < 3; generation += 1) {
+    session = await stripe.checkout.sessions.create(checkoutParams, {
+      idempotencyKey: `${checkoutKey}_after_${session.id}`,
+    });
+  }
+
+  if (session.status === "complete") {
+    throw new McpDirectMailError(
+      409,
+      "A prior checkout completed but is not yet reconciled to this draft. Check order status before creating another checkout.",
+    );
+  }
+  if (session.status !== "open" || !session.url) {
+    throw new McpDirectMailError(409, "Stripe checkout is not open; retry after the prior payment path is reconciled");
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
