@@ -585,7 +585,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
-    capabilityRequirements: capabilities("security", "secureUpload", "documentStorage", "documentScanning"),
+    capabilityRequirements: capabilities("security", "secureUpload", "documentSourceImport", "documentStorage", "documentScanning"),
     _meta: {
       "openai/fileParams": ["file"],
       "openai/toolInvocation/invoking": "Securing attachment…",
