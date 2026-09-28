@@ -144,6 +144,10 @@ create table public.scheduled_mailings (
   timezone text,
   approval_sha256 text not null check (approval_sha256 ~ '^[0-9a-f]{64}$'),
   approved_max_total_cents integer not null check (approved_max_total_cents >= 0),
+  payment_amount_cents integer check (payment_amount_cents is null or payment_amount_cents >= 0),
+  stripe_payment_intent_id text,
+  payment_status text,
+  last_attempt_at timestamptz,
   status text not null default 'scheduled'
     check (status in ('scheduled', 'processing', 'blocked', 'released', 'cancelled')),
   blocked_reason text,
@@ -162,6 +166,9 @@ create index scheduled_mailings_due_idx
   where status = 'scheduled';
 create index scheduled_mailings_owner_idx
   on public.scheduled_mailings(owner_id, created_at desc);
+create unique index scheduled_mailings_payment_intent_uidx
+  on public.scheduled_mailings(stripe_payment_intent_id)
+  where stripe_payment_intent_id is not null;
 
 alter table public.scheduled_mailings enable row level security;
 revoke all on public.scheduled_mailings from public, anon, authenticated;
@@ -220,8 +227,9 @@ grant execute on function public.freeze_approved_mailing_batch_items() to servic
 
 create or replace function public.claim_scheduled_mailing_payment(
   p_schedule_id uuid,
-  p_owner_id uuid
-) returns boolean
+  p_owner_id uuid,
+  p_amount_cents integer
+) returns integer
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -242,6 +250,13 @@ begin
 
   if s.status not in ('scheduled', 'processing') then
     raise exception 'Scheduled mailing is not active' using errcode = '40001';
+  end if;
+  if p_amount_cents is null or p_amount_cents < 0
+     or p_amount_cents > s.approved_max_total_cents then
+    raise exception 'Scheduled payment amount is invalid' using errcode = '22023';
+  end if;
+  if s.payment_amount_cents is not null and s.payment_amount_cents <> p_amount_cents then
+    raise exception 'Scheduled payment amount is already locked' using errcode = '40001';
   end if;
   if s.send_at > now() then
     raise exception 'Scheduled mailing is not due' using errcode = '40001';
@@ -270,16 +285,20 @@ begin
     where id = o.id;
 
   update public.scheduled_mailings
-    set status = 'processing', blocked_reason = null, updated_at = now()
+    set status = 'processing',
+        payment_amount_cents = coalesce(payment_amount_cents, p_amount_cents),
+        blocked_reason = null,
+        last_attempt_at = now(),
+        updated_at = now()
     where id = s.id;
 
-  return true;
+  return coalesce(s.payment_amount_cents, p_amount_cents);
 end;
 $claim$;
 
-revoke all on function public.claim_scheduled_mailing_payment(uuid, uuid)
+revoke all on function public.claim_scheduled_mailing_payment(uuid, uuid, integer)
   from public, anon, authenticated;
-grant execute on function public.claim_scheduled_mailing_payment(uuid, uuid)
+grant execute on function public.claim_scheduled_mailing_payment(uuid, uuid, integer)
   to service_role;
 
 commit;
