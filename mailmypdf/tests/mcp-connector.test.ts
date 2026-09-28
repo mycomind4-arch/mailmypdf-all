@@ -100,6 +100,22 @@ test("CP14 and Records Request are registered only after chat-readiness certific
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
 
+test("SSDI and SSI reconsideration are registered for chat/MCP execution", () => {
+  const ssdi = getMcpWorkflowProtocolRegistration("appeal-ssdi-denial");
+  assert.ok(ssdi);
+  assert.equal(ssdi.certification.certified, true, JSON.stringify(ssdi.certification.diagnostics));
+  assert.ok(ssdi.definition);
+  assert.equal(ssdi.definition.analysisRequired, true);
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "reasons-for-disagreement"));
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "confirmed-reconsideration"));
+
+  const ssi = getMcpWorkflowProtocolRegistration("appeal-ssi-denial");
+  assert.ok(ssi);
+  assert.equal(ssi.certification.certified, true, JSON.stringify(ssi.certification.diagnostics));
+  assert.ok(ssi.definition);
+  assert.ok(ssi.definition.inputFields.some((field) => field.id === "income-facts"));
+});
+
 test("public workflow discovery reports certified chat execution separately", async () => {
   const request = new Request("https://mailmypdf.ai/api/mcp");
 

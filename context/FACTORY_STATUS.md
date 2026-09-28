@@ -13,6 +13,113 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-28 — SSA/benefits (SSDI/SSI reconsideration) chat-readiness certification
+
+- User goal: install MailMyPDF as an MCP connector into Claude and run the SSDI
+  denial (reconsideration) workflow end to end from a chat window, including
+  mailing. A separate ChatGPT-driven session had claimed a "canonical
+  control-plane" commit (`7d346867`, message "Centralize chat workflow
+  control-plane registration") in a different local checkout
+  (`/Users/macdizzle/dev/mailmypdf-all-main`). Verified first: that commit does
+  not exist anywhere in this repo's reachable history (local or `origin`,
+  checked via `git log --all`), so it was treated as not recoverable here, not
+  assumed lost or duplicated.
+- Confirmed via direct reading (not the prior chat's narration) that the
+  control-plane/chat-certification machinery this repo's own
+  `docs/CONNECTOR_CONTROL_PLANE_TDD.md` describes is real and already covers
+  Notice Respond, Records Request, and all 11 Insurance Appeal workflows. Its
+  own "Remaining factory work" explicitly named "SSA/benefits" as not yet
+  certified — this is the gap that blocks SSDI specifically, confirmed by
+  reading `mailmypdf/src/lib/mcp/workflow-protocol.server.ts`'s
+  `manifestAndPolicy()`, which had no branch for the existing
+  `ssa-reconsideration` policy family (SSDI/SSI), so `create_matter` and
+  `get_workflow_state` failed closed with `WORKFLOW_PROTOCOL_NOT_REGISTERED`
+  for `appeal-ssdi-denial`/`appeal-ssi-denial` even though their manifests,
+  runtime policy, real bundled SSA-561/3441/827 forms, and browser execution
+  UI already exist and work.
+- Closed that specific gap, following the exact pattern already established
+  for Insurance Appeal:
+  - Added `packages/workflows/src/domain-packs/appeal/ssa-reconsideration-manifest.ts`
+    (`createSsaReconsiderationManifestForWorkflow()`), the canonical manifest
+    factory for both SSDI and SSI, reproducing the existing hand-authored
+    manifests field-for-field plus one addition (below). `appeal-mail/workflows/
+    appeal-ssdi-denial/manifest.ts` and `.../appeal-ssi-denial/manifest.ts` are
+    now thin wrappers over it, matching the existing `appeal-denied-claim/manifest.ts`
+    precedent — not a new pattern.
+  - Added a declarative `chatContract` to the existing
+    `ssa-reconsideration-runtime-policy.ts` (`createSsaReconsiderationRuntimePolicy`),
+    parameterized per program (SSDI vs SSI have different optional fact fields).
+  - Found and fixed a real, pre-existing manifest/runtime contract mismatch
+    while wiring this: the manifest declared kebab-case field ids
+    (`claimant-name`, …) while the runtime policy's `validateInput` only read
+    camelCase keys (`input.claimantName`). Chat/MCP calls would have silently
+    saved empty facts. Fixed with the same normalize-on-input, keep-existing-
+    stored-shape approach already used for Records Request (`inputValue()`
+    checks the manifest's kebab-case id first, falls back to the legacy
+    camelCase key the browser UI has always sent); the stored/output shape
+    stays camelCase so restoring a matter in the browser is unaffected.
+  - Found the manifest was also missing a field for `confirmedReconsideration`,
+    a boolean the runtime has always required (test-covered: passing `false`
+    throws "must explicitly confirm reconsideration"). The browser UI has
+    always hardcoded this to `true` rather than exposing a real checkbox — a
+    pre-existing gap, not introduced here, left unfixed (out of this pass's
+    bounded scope; flagged for whoever next touches this workflow's UI).
+    Added the field to the manifest (`confirmed-reconsideration`, required
+    checkbox) and the chat contract so a chat/MCP client can supply it
+    explicitly, preserving the exact existing throw behavior — did not weaken
+    or remove the check. Simplified `responseMode`, which has exactly one
+    legal value in this policy family and was never actually branched on, from
+    a required client input to a derived constant (verified no test or other
+    caller depended on it being client-supplied).
+  - Wired `mailmypdf/src/lib/mcp/workflow-protocol.server.ts`'s
+    `manifestAndPolicy()` with an `ssa-reconsideration` branch, guarded by the
+    same `canonical.sectionId`/`execution.kind`/`policyFamily` check the
+    insurance branch uses, reading `canonical-workflows.json`'s existing
+    `"ssa-reconsideration"` policyFamily entries (already correct, unchanged).
+  - Fixed an unrelated, adjacent, confirmed one-line bug found while reading
+    this surface: `mailmypdf/scripts/mcp-smoke.mjs` asserted 27 MCP tools;
+    the actual, tested catalog (`mailmypdf/tests/mcp-connector.test.ts`) has
+    asserted 28 since `get_workflow_state` was added. Corrected to 28.
+- Tests added: `packages/workflows/tests/ssa-reconsideration-manifest.test.ts`
+  (new), extended `chat-readiness.test.ts`, `ssa-reconsideration-runtime-policy.test.ts`
+  (dual-key kebab/camelCase input acceptance, chat contract shape), and
+  `mailmypdf/tests/mcp-connector.test.ts` (SSDI/SSI registration parity with
+  the existing CP14/Records/Insurance assertions).
+- Verification: `packages/workflows` full suite via `npx tsx --test tests/*.test.ts`
+  — **240/240 passing**, zero regressions (confirmed identical baseline error
+  set via `git stash`/`tsc --noEmit` before and after: 3 pre-existing
+  vitest/`@types/node` config errors in this sandbox, none in touched files).
+  `node scripts/check-step-workflow-execution.mjs` — PASS, 0 new violations
+  (no `start/` execution UI was touched). The MCP-host glue in
+  `workflow-protocol.server.ts` and the two new `mcp-connector.test.ts`
+  assertions could not be executed in this sandbox: this repo's root has no
+  `node_modules` at all, and `pnpm install` fails closed on an unrelated root
+  devDependency (`ERR_PNPM_FETCH_403` fetching a GitHub tarball) — a
+  pre-existing environment gap, reproduced identically with this session's
+  changes stashed out, not something this change caused or can fix. The new
+  MCP branch was instead verified by manual code review against the
+  structurally identical, already-tested, already-passing insurance branch
+  (same helper signatures, same canonical-registry guard shape), and the
+  chat-certification logic it calls is the same code already covered 240/240
+  above. No live payment, mailing, deployment, or OAuth round trip was
+  performed or claimed.
+- Separately confirmed, reading `docs/integrations/mailmypdf-installation.md`
+  (dated 2026-09-27) and the deployed Worker directly: there is still no
+  reachable production MCP endpoint. `https://mailmypdf.mycomind4.workers.dev/api/mcp`
+  serves the old HTML app, not MCP, blocked on missing Cloudflare secrets
+  (scanner, job, webhook, Resend); `mailmypdf.ai` is not purchased. This chat-
+  certification fix makes SSDI/SSI *correct to serve* once deployed — it does
+  not deploy anything, and "install MailMyPDF into Claude" is not achievable
+  by either the user or this session until that deployment blocker (separate,
+  pre-existing, requires credentials/billing this session does not have) is
+  cleared.
+- Next: apply the same `ssa-reconsideration`-style certification pass to the
+  remaining named-but-uncertified families (immigration, disputes, code
+  enforcement) per the TDD doc's own list; separately, someone with the
+  missing Cloudflare/Supabase/Resend credentials needs to actually deploy a
+  reachable `/api/mcp` before any live Claude/ChatGPT connector install is
+  possible at all.
+
 ### 2026-09-27 — Chat-readiness certification and three certified archetypes
 
 - Added `mailmypdf.chat-readiness/v1` and a declarative
