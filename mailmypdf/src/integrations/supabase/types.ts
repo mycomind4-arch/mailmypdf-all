@@ -12,6 +12,39 @@ type SavedMailingAddressRow = {
   archived_at: string | null; created_at: string; updated_at: string;
 }
 
+type AccountBillingProfileRow = {
+  owner_id: string; provider: string; stripe_customer_id: string | null;
+  default_payment_method_id: string | null; payment_brand: string | null;
+  payment_last4: string | null; payment_ready: boolean; revision: number;
+  created_at: string; updated_at: string;
+}
+
+type DocumentSourceProvenanceRow = {
+  document_id: string; owner_id: string; source_kind: string; use_role: string;
+  source_provider: string | null; source_id: string; imported_at: string; created_at: string;
+}
+
+type MailingBatchRow = {
+  id: string; owner_id: string; idempotency_key: string; mode: string; sender: Json;
+  mail_class: string; color: boolean; quantity: number; pricing: Json;
+  manifest_sha256: string; status: string; approved_manifest_sha256: string | null;
+  approved_total_cents: number | null; approved_at: string | null;
+  created_at: string; updated_at: string;
+}
+
+type MailingBatchItemRow = {
+  id: string; batch_id: string; owner_id: string; recipient_key: string; recipient: Json;
+  packet_sha256: string; page_count: number; unit_price_cents: number;
+  order_id: string | null; status: string; created_at: string; updated_at: string;
+}
+
+type ScheduledMailingRow = {
+  id: string; owner_id: string; idempotency_key: string; order_id: string | null;
+  batch_id: string | null; send_at: string; timezone: string | null; approval_sha256: string;
+  approved_max_total_cents: number; status: string; blocked_reason: string | null;
+  released_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -20,6 +53,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_billing_profiles: {
+        Row: AccountBillingProfileRow
+        Insert: { owner_id: string; provider?: string; stripe_customer_id?: string | null;
+          default_payment_method_id?: string | null; payment_brand?: string | null;
+          payment_last4?: string | null; payment_ready?: boolean; revision?: number;
+          created_at?: string; updated_at?: string }
+        Update: { provider?: string; stripe_customer_id?: string | null;
+          default_payment_method_id?: string | null; payment_brand?: string | null;
+          payment_last4?: string | null; payment_ready?: boolean; revision?: number;
+          updated_at?: string }
+        Relationships: []
+      }
+      document_source_provenance: {
+        Row: DocumentSourceProvenanceRow
+        Insert: { document_id: string; owner_id: string; source_kind: string; use_role: string;
+          source_provider?: string | null; source_id: string; imported_at?: string; created_at?: string }
+        Update: { source_kind?: string; use_role?: string; source_provider?: string | null;
+          source_id?: string; imported_at?: string }
+        Relationships: []
+      }
+      mailing_batches: {
+        Row: MailingBatchRow
+        Insert: { id: string; owner_id: string; idempotency_key: string; mode: string; sender: Json;
+          mail_class: string; color?: boolean; quantity: number; pricing: Json; manifest_sha256: string;
+          status?: string; approved_manifest_sha256?: string | null; approved_total_cents?: number | null;
+          approved_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { status?: string; approved_manifest_sha256?: string | null;
+          approved_total_cents?: number | null; approved_at?: string | null; updated_at?: string }
+        Relationships: []
+      }
+      mailing_batch_items: {
+        Row: MailingBatchItemRow
+        Insert: { id: string; batch_id: string; owner_id: string; recipient_key: string; recipient: Json;
+          packet_sha256: string; page_count: number; unit_price_cents: number; order_id?: string | null;
+          status?: string; created_at?: string; updated_at?: string }
+        Update: { order_id?: string | null; status?: string; updated_at?: string }
+        Relationships: []
+      }
+      scheduled_mailings: {
+        Row: ScheduledMailingRow
+        Insert: { id: string; owner_id: string; idempotency_key: string; order_id?: string | null;
+          batch_id?: string | null; send_at: string; timezone?: string | null; approval_sha256: string;
+          approved_max_total_cents: number; status?: string; blocked_reason?: string | null;
+          released_at?: string | null; cancelled_at?: string | null; created_at?: string; updated_at?: string }
+        Update: { send_at?: string; timezone?: string | null; status?: string; blocked_reason?: string | null;
+          released_at?: string | null; cancelled_at?: string | null; updated_at?: string }
+        Relationships: []
+      }
       saved_mailing_addresses: {
         Row: SavedMailingAddressRow
         Insert: { id: string; owner_id: string; kind: string; label: string; address: Json;
