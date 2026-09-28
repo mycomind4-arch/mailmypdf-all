@@ -548,6 +548,19 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
         matter_id: string("MailMyPDF matter id that should own the document."),
         idempotency_key: idempotencyKeySchema,
         file: assistantFileSchema,
+        source_kind: {
+          type: "string",
+          enum: ["local_upload", "conversation_attachment", "google_drive", "mailmypdf_library", "external_provider"],
+          default: "conversation_attachment",
+          description:
+            "Optional origin classification for provenance only. The actual file bytes still arrive through the secure file parameter; never place provider credentials or download URLs here.",
+        },
+        source_provider: {
+          type: ["string", "null"],
+          maxLength: 80,
+          description:
+            "Optional provider label for provenance (for example google). Google Drive and MailMyPDF library origins are normalized server-side.",
+        },
         role: {
           type: "string",
           enum: ["subject_notice", "evidence"],
