@@ -10,6 +10,7 @@ const sql = readFileSync(
 test("mailing orchestration migration creates server-authoritative shared tables", () => {
   for (const table of [
     "account_billing_profiles",
+    "document_source_provenance",
     "mailing_batches",
     "mailing_batch_items",
     "scheduled_mailings",
@@ -44,4 +45,12 @@ test("approved batch recipient identity is immutable", () => {
   assert.match(sql, /Approved mailing batch recipient details are immutable/i);
   assert.match(sql, /Cannot add recipients to an approved mailing batch/i);
   assert.match(sql, /Cannot remove recipients from an approved mailing batch/i);
+});
+
+test("document source provenance stores opaque origin metadata, not credentials or URLs", () => {
+  assert.match(sql, /create table public\.document_source_provenance/i);
+  assert.match(sql, /source_kind in \('local_upload', 'conversation_attachment', 'google_drive', 'mailmypdf_library', 'external_provider'\)/i);
+  assert.match(sql, /use_role in \('primary', 'supporting'\)/i);
+  assert.match(sql, /Provider credentials and fetch URLs are forbidden/i);
+  assert.doesNotMatch(sql, /document_source_provenance[\s\S]{0,1200}(access_token|refresh_token|download_url)/i);
 });
