@@ -418,7 +418,7 @@ function Hero() {
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs uppercase tracking-widest text-muted-foreground">
-            <span>Mail from $4.99</span>
+            <span>Mail from $2.99</span>
             <span>U.S. domestic mail</span>
             <span>No printer required</span>
           </div>
@@ -585,7 +585,7 @@ function CoreMailingSection() {
         <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-cobalt">MailMyPDF Core</div>
-            <h2 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">Mail a document from $4.99.</h2>
+            <h2 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">Mail a document from $2.99.</h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
               The simple way to print and mail a PDF online without a printer. Choose the mailing service you need and approve the exact order before it is sent.
             </p>
@@ -855,7 +855,7 @@ function Pricing() {
         <SectionHeader
           align="center"
           eyebrow="Straightforward core mailing pricing"
-          title="Mail a short document from $4.99."
+          title="Mail a short document from $2.99."
           subtitle="Core mailing pricing is separate from specialized workflow preparation. Choose the mailing service and options you need during checkout; the price is shown before you approve the order."
         />
         <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
