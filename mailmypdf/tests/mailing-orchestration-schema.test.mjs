@@ -63,6 +63,17 @@ test("scheduled payment claim is valid server-only SQL and blocks competing chec
   assert.match(claim, /end;\n\$claim\$;/i);
   assert.match(claim, /o\.stripe_session_id is not null/i);
   assert.match(claim, /payment_execution_key/i);
-  assert.match(claim, /grant execute on function public\.claim_scheduled_mailing_payment\(uuid, uuid\)[\s\S]*to service_role/i);
+  assert.match(claim, /p_amount_cents integer/i);
+  assert.match(claim, /payment_amount_cents = coalesce\(payment_amount_cents, p_amount_cents\)/i);
+  assert.match(claim, /grant execute on function public\.claim_scheduled_mailing_payment\(uuid, uuid, integer\)[\s\S]*to service_role/i);
   assert.doesNotMatch(claim, /grant execute[^;]*to (anon|authenticated)/i);
+});
+
+test("scheduled mail stores durable Stripe retry state without card data", () => {
+  assert.match(sql, /payment_amount_cents integer/i);
+  assert.match(sql, /stripe_payment_intent_id text/i);
+  assert.match(sql, /payment_status text/i);
+  assert.match(sql, /last_attempt_at timestamptz/i);
+  assert.match(sql, /scheduled_mailings_payment_intent_uidx/i);
+  assert.doesNotMatch(sql, /\b(card_number|pan|cvc|cvv)\b/i);
 });
