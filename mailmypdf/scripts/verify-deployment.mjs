@@ -181,6 +181,7 @@ if (!listed.response) {
   const names = new Set(tools.map((tool) => tool?.name).filter(Boolean));
   const required = [
     "prepare_conversational_letter",
+  "get_payment_readiness",
     "get_mailing_context",
     "review_direct_pdf_mail",
     "approve_direct_pdf_mail",
