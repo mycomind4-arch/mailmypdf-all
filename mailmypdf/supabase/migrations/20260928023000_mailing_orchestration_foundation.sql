@@ -147,14 +147,23 @@ create policy scheduled_mailings_read_owned on public.scheduled_mailings
 create or replace function public.freeze_approved_mailing_batch_items()
 returns trigger
 language plpgsql security invoker set search_path = public as $$
-declare approved timestamptz;
+declare
+  approved timestamptz;
+  target_batch_id uuid;
 begin
+  if tg_op = 'DELETE' then
+    target_batch_id := old.batch_id;
+  else
+    target_batch_id := new.batch_id;
+  end if;
+
   select approved_at into approved
     from public.mailing_batches
-    where id = coalesce(new.batch_id, old.batch_id);
+    where id = target_batch_id;
 
   if approved is null then
-    return case when tg_op = 'DELETE' then old else new end;
+    if tg_op = 'DELETE' then return old; end if;
+    return new;
   end if;
 
   if tg_op = 'INSERT' then
