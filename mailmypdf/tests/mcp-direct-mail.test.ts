@@ -76,7 +76,14 @@ const admin = {
       then(resolve: any, reject: any) {
         if (table === "order_events" && filters.type === "mcp.direct_mail.prepared") {
           assert.equal(filters.owner_id, "owner-1");
-          return Promise.resolve({ data: [{ order_id: order.id }], error: null }).then(resolve, reject);
+          return Promise.resolve({
+            data: [{
+              order_id: order.id,
+              created_at: "2026-09-27T10:00:00.000Z",
+              metadata: preparedMetadata,
+            }],
+            error: null,
+          }).then(resolve, reject);
         }
         if (update) Object.assign(order, update);
         return Promise.resolve({ data: race ? [] : [{ id: order.id }], error: null }).then(resolve, reject);
