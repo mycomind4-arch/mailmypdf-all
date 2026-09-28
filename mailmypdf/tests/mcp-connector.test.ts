@@ -729,7 +729,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 28);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 29);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -773,7 +773,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 28);
+  assert.equal(payload.result.tools.length, 29);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
