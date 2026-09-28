@@ -1,3 +1,4 @@
+import { canonicalJSON } from "@/lib/proof-of-service/hashing";
 import {
   isFailedStatus,
   isPaidStatus,
@@ -117,15 +118,6 @@ function latestEvent(
     if (events[index]?.type === type) return events[index] ?? null;
   }
   return null;
-}
-
-function canonicalJSON(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJSON).join(",")}]`;
-  if (value && typeof value === "object") {
-    const object = value as Record<string, unknown>;
-    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJSON(object[key])}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
 }
 
 function directMailSnapshot(order: OrderRow) {
