@@ -20,11 +20,13 @@
       ]
     },
     {
-      "name": "Document readiness check",
-      "prompt": "Is the document I just uploaded to my MailMyPDF matter safe to analyze yet?",
+      "name": "Conversational letter mailing",
+      "prompt": "Write a firm but professional letter asking a contractor to refund $1,850 within 14 days, then show me what will be mailed.",
       "expected": [
-        "Use get_document_status for the known matter/document.",
-        "Do not analyze while readiness is pending_scan."
+        "Draft and revise the wording conversationally instead of inventing a specialized workflow.",
+        "Collect and confirm the exact recipient and return mailing addresses before preparation.",
+        "Use prepare_conversational_letter with the exact finalized text, then review_direct_pdf_mail.",
+        "Show the exact PDF, envelope layout, address verification, service, and total before explicit approval; do not pay or mail from preparation or review."
       ]
     },
     {
