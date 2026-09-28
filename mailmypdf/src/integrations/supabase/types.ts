@@ -2057,6 +2057,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_scheduled_mailing_payment: {
+        Args: {
+          p_schedule_id: string
+          p_owner_id: string
+          p_amount_cents: number
+        }
+        Returns: number
+      }
       claim_secure_document_for_scan: {
         Args: { p_document_id: string; p_owner_id: string }
         Returns: Database["public"]["Tables"]["secure_documents"]["Row"][]
