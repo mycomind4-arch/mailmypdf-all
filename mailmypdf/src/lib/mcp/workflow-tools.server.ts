@@ -45,6 +45,7 @@ import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
 import { listRecentCases } from "@/lib/secure-core/case.server";
 import { deriveMatterGuidance } from "./matter-guidance";
+import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -296,6 +297,17 @@ export async function executeMcpTool(
       name: fullName,
       email: context.user.email ?? null,
     };
+  }
+
+  if (name === "get_payment_readiness") {
+    try {
+      return await getPaymentReadiness(request);
+    } catch (error) {
+      if (error instanceof BillingProfileError) {
+        throw new McpToolExecutionError(error.status, error.message);
+      }
+      throw error;
+    }
   }
 
   if (name === "create_matter") {
