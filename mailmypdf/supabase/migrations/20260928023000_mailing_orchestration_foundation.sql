@@ -8,6 +8,12 @@
 
 begin;
 
+alter table public.orders
+  add column if not exists payment_execution_key text;
+
+comment on column public.orders.payment_execution_key is
+  'Server-only compare-and-set claim preventing hosted checkout and scheduled saved-payment execution from charging the same draft concurrently.';
+
 create table public.account_billing_profiles (
   owner_id uuid primary key references auth.users(id) on delete cascade,
   provider text not null default 'stripe' check (provider = 'stripe'),
@@ -139,7 +145,7 @@ create table public.scheduled_mailings (
   approval_sha256 text not null check (approval_sha256 ~ '^[0-9a-f]{64}$'),
   approved_max_total_cents integer not null check (approved_max_total_cents >= 0),
   status text not null default 'scheduled'
-    check (status in ('scheduled', 'blocked', 'released', 'cancelled')),
+    check (status in ('scheduled', 'processing', 'blocked', 'released', 'cancelled')),
   blocked_reason text,
   released_at timestamptz,
   cancelled_at timestamptz,
@@ -211,5 +217,69 @@ create trigger mailing_batch_items_freeze_approved
 
 revoke all on function public.freeze_approved_mailing_batch_items() from public, anon, authenticated;
 grant execute on function public.freeze_approved_mailing_batch_items() to service_role;
+
+create or replace function public.claim_scheduled_mailing_payment(
+  p_schedule_id uuid,
+  p_owner_id uuid
+) returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  s public.scheduled_mailings%rowtype;
+  o public.orders%rowtype;
+  claim_key text;
+begin
+  select * into s
+    from public.scheduled_mailings
+    where id = p_schedule_id and owner_id = p_owner_id
+    for update;
+
+  if not found or s.order_id is null or s.batch_id is not null then
+    raise exception 'Scheduled mailing not available' using errcode = '42501';
+  end if;
+
+  if s.status not in ('scheduled', 'processing') then
+    raise exception 'Scheduled mailing is not active' using errcode = '40001';
+  end if;
+  if s.send_at > now() then
+    raise exception 'Scheduled mailing is not due' using errcode = '40001';
+  end if;
+
+  claim_key := 'scheduled:' || s.id::text;
+
+  select * into o from public.orders where id = s.order_id for update;
+  if not found or o.status <> 'draft' then
+    raise exception 'Order is no longer an unpaid draft' using errcode = '40001';
+  end if;
+  if o.stripe_session_id is not null then
+    raise exception 'Hosted checkout already owns the payment path' using errcode = '40001';
+  end if;
+  if o.payment_execution_key is not null and o.payment_execution_key <> claim_key then
+    raise exception 'Another payment execution owns this draft' using errcode = '40001';
+  end if;
+  if o.approved_packet_sha256 is distinct from s.approval_sha256
+     or o.approved_price_cents is null
+     or o.approved_price_cents > s.approved_max_total_cents then
+    raise exception 'Scheduled approval no longer matches the order' using errcode = '40001';
+  end if;
+
+  update public.orders
+    set payment_execution_key = claim_key
+    where id = o.id;
+
+  update public.scheduled_mailings
+    set status = 'processing', blocked_reason = null, updated_at = now()
+    where id = s.id;
+
+  return true;
+end;
+$;
+
+revoke all on function public.claim_scheduled_mailing_payment(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.claim_scheduled_mailing_payment(uuid, uuid)
+  to service_role;
 
 commit;
