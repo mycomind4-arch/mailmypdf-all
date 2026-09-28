@@ -37,6 +37,28 @@ alter table public.account_billing_profiles enable row level security;
 revoke all on public.account_billing_profiles from public, anon, authenticated;
 grant all on public.account_billing_profiles to service_role;
 
+create table public.document_source_provenance (
+  document_id uuid primary key references public.secure_documents(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  source_kind text not null
+    check (source_kind in ('local_upload', 'conversation_attachment', 'google_drive', 'mailmypdf_library', 'external_provider')),
+  use_role text not null check (use_role in ('primary', 'supporting')),
+  source_provider text,
+  source_id text not null check (length(btrim(source_id)) between 1 and 512),
+  imported_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+comment on table public.document_source_provenance is
+  'Opaque document origin metadata only. Provider credentials and fetch URLs are forbidden by the application contract.';
+
+alter table public.document_source_provenance enable row level security;
+revoke all on public.document_source_provenance from public, anon, authenticated;
+grant select on public.document_source_provenance to authenticated;
+grant all on public.document_source_provenance to service_role;
+create policy document_source_provenance_read_owned on public.document_source_provenance
+  for select to authenticated using (owner_id = auth.uid());
+
 create table public.mailing_batches (
   id uuid primary key,
   owner_id uuid not null references auth.users(id) on delete cascade,
