@@ -16,7 +16,7 @@ test("legacy ChatGPT/Claude handshake negotiates supported revisions only", asyn
 });
 test("legacy discovery returns the full catalog and OAuth errors preserve request id", async () => {
   const response = await handle(request({ jsonrpc: "2.0", id: 9, method: "tools/list" }));
-  assert.equal((await response.json()).result.tools.length, 27);
+  assert.equal((await response.json()).result.tools.length, 29);
   const protectedCall = await handle(request({ jsonrpc: "2.0", id: 42, method: "tools/call", params: { name: "get_profile", arguments: {} } }));
   assert.equal(protectedCall.status, 401);
   assert.equal((await protectedCall.json()).id, 42);
