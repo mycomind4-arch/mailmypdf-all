@@ -4,9 +4,11 @@ import {
   createInsuranceAppealManifestForWorkflow,
   createNoticeResponseManifest,
   createRecordsRequestManifest,
+  createSsaReconsiderationManifestForWorkflow,
   getNoticeResponseRuntimePolicy,
   getNoticeResponseWorkflowProfile,
   getRecordsRequestRuntimePolicy,
+  getSsaReconsiderationRuntimePolicy,
   workflowProtocolDefinitionFromManifest,
   type WorkflowChatReadinessCertification,
   type WorkflowManifest,
@@ -62,6 +64,25 @@ function manifestAndPolicy(workflowId: string): {
         title: canonical.label,
       }).manifest,
       policy: recordsPolicy,
+    };
+  }
+
+  const ssaPolicy = getSsaReconsiderationRuntimePolicy(workflowId);
+  if (ssaPolicy) {
+    const canonical = workflowByRuntimeId(workflowId);
+    const manifest = createSsaReconsiderationManifestForWorkflow(workflowId);
+    if (
+      !canonical ||
+      canonical.sectionId !== "appeal-mail" ||
+      canonical.execution?.kind !== "platform" ||
+      canonical.execution.policyFamily !== "ssa-reconsideration" ||
+      !manifest
+    ) {
+      return null;
+    }
+    return {
+      manifest: manifest.manifest,
+      policy: ssaPolicy,
     };
   }
 

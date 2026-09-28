@@ -14,6 +14,8 @@ import { createRecordsRequestManifest } from "../src/domain-packs/records-reques
 import {
   createRecordsRequestRuntimePolicy,
 } from "../src/domain-packs/records-request/runtime-policy.js";
+import { createSsaReconsiderationManifestForWorkflow } from "../src/domain-packs/appeal/ssa-reconsideration-manifest.js";
+import { getSsaReconsiderationRuntimePolicy } from "../src/domain-packs/appeal/ssa-reconsideration-runtime-policy.js";
 import type { WorkflowManifest } from "../src/workflow-manifest.js";
 
 const AVAILABLE_TOOLS = new Set([
@@ -172,4 +174,24 @@ test("insurance appeal passes evidence-heavy chat readiness", () => {
   assert.ok(result.requiredTools.includes("ingest_document"));
   assert.ok(result.requiredTools.includes("analyze_matter"));
   assert.ok(result.requiredTools.includes("preview_packet"));
+});
+
+test("SSDI and SSI reconsideration pass chat readiness for the SSA/benefits family", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const defined = createSsaReconsiderationManifestForWorkflow(workflowId);
+    assert.ok(defined, workflowId);
+
+    const result = certifyWorkflowChatReadiness({
+      manifest: defined.manifest,
+      runtimePolicy: getSsaReconsiderationRuntimePolicy(workflowId),
+      availableTools: AVAILABLE_TOOLS,
+    });
+
+    assert.equal(result.certified, true, JSON.stringify(result.diagnostics));
+    assert.deepEqual(result.diagnostics, []);
+    assert.ok(result.requiredTools.includes("ingest_document"));
+    assert.ok(result.requiredTools.includes("analyze_matter"));
+    assert.ok(result.requiredTools.includes("preview_packet"));
+    assert.ok(result.requiredTools.includes("prepare_checkout"));
+  }
 });

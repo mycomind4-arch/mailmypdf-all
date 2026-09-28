@@ -83,3 +83,45 @@ test("claimant facts are validated per program", () => {
   assert.equal(saved.incomeFacts, "No income since May.");
   assert.equal("workChanges" in saved, false);
 });
+
+test("both programs declare a chat-execution contract matching their manifest field ids", () => {
+  const ssdi = getSsaReconsiderationRuntimePolicy("appeal-ssdi-denial")!;
+  const ssi = getSsaReconsiderationRuntimePolicy("appeal-ssi-denial")!;
+
+  assert.ok(ssdi.chatContract);
+  assert.equal(ssdi.chatContract!.sourceDocument, "required");
+  assert.ok(ssdi.chatContract!.inputFields.some((field) => field.id === "confirmed-reconsideration" && field.required));
+  assert.ok(ssdi.chatContract!.inputFields.some((field) => field.id === "work-changes" && !field.required));
+  assert.equal(ssdi.chatContract!.inputFields.some((field) => field.id === "income-facts"), false);
+
+  assert.ok(ssi.chatContract);
+  assert.ok(ssi.chatContract!.inputFields.some((field) => field.id === "income-facts" && !field.required));
+  assert.equal(ssi.chatContract!.inputFields.some((field) => field.id === "work-changes"), false);
+});
+
+test("chat/MCP callers may supply the manifest's kebab-case field ids instead of the legacy camelCase browser keys", () => {
+  const ssdi = getSsaReconsiderationRuntimePolicy("appeal-ssdi-denial")!;
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  const matter = {} as never;
+
+  const chatInput = {
+    "claimant-name": "Pat Doe",
+    "claimant-address": "1 Main St",
+    phone: "555-0100",
+    "confirmed-reconsideration": true,
+    "reasons-for-disagreement": "My condition worsened.",
+    "work-changes": "Stopped working in May.",
+  };
+
+  const saved = ssdi.validateInput(chatInput, nonmedical, matter);
+  assert.equal(saved.claimantName, "Pat Doe");
+  assert.equal(saved.claimantAddress, "1 Main St");
+  assert.equal(saved.reasonsForDisagreement, "My condition worsened.");
+  assert.equal(saved.workChanges, "Stopped working in May.");
+  assert.equal(saved.confirmedReconsideration, true);
+
+  assert.throws(
+    () => ssdi.validateInput({ ...chatInput, "confirmed-reconsideration": false }, nonmedical, matter),
+    /confirm reconsideration/,
+  );
+});
