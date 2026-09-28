@@ -13,6 +13,15 @@ and reviewed reusable registry templates generated from real customer needs.
 
 ## Verified recovery observations
 
+### 2026-09-27 — Resumable conversational/direct mail and guarded acceptance harness
+
+- Extended the existing read-only `get_order_status` response instead of creating another connector tool. Direct-mail orders now derive a `directMail` continuation state from owner-scoped persisted events: source (`conversational_letter` / `uploaded_pdf`), prepared packet/text fingerprints, postal-review state (current/expired/stale/missing), immutable approval state (current/stale/missing), and the safest existing next tool. Drafts with no current approval route back to `review_direct_pdf_mail`; approval-bound drafts route to `prepare_direct_pdf_checkout`. Orders that have left draft state do not invent a restart action.
+- `get_mailing_context` now identifies recent direct mailings by source and returns `resumeWith: get_order_status`, so a client can handle “continue my letter” without asking the user for an internal order id or inferring approval from chat history. The connector skill documents this resume sequence explicitly.
+- Resume comparisons reuse the same shared canonical JSON function as the direct-mail approval path, preventing drift between status derivation and immutable approval checks. A changed address makes saved review/approval state stale and sends the flow back to review.
+- Added `mailmypdf/scripts/mcp-conversational-letter-e2e.mjs` and package command `mcp:e2e:letter`. The harness requires explicit write opt-in and a separate production opt-in; postal verification and approval each have their own additional opt-in. It verifies prepare → recent-mail discovery → order-state resume → optional postal review → exact owner-scoped PDF resource → optional approval continuity. It intentionally contains no checkout, charge, payment, or mail-submission call.
+- Added CI-enforced static interlock tests for that harness. Workspace UI run `36366574051` passed on code commit `4c1b0a6986bcd6b54c5a8b112f88f401663b6f2c`: **74/74 MCP tests**, **55/55 authority/topology tests**, **7/7 combined MCP E2E safety-interlock tests** (including all four conversational-letter harness checks), plugin submission validation, every section/build job, and the final MailMyPDF core build all green.
+- No live disposable-account harness run was performed because this session did not have an MCP bearer token plus explicitly supplied test sender/recipient addresses and provider opt-ins. No Stripe checkout, payment, Lob mailing, production migration, deployment, or provider mutation was executed.
+
 ### 2026-09-27 — Conversational letter creation through MCP
 
 - Added the generic `prepare_conversational_letter` MCP primitive for ordinary letters that do not require a specialized certified workflow. Chat remains the conversational composer: it sends the exact finalized body text plus confirmed sender/recipient, service, color, and retry key. The server reuses the existing production `MailService.createOrderFromLetter()` path to render, validate, fingerprint, price, and store the exact PDF as an unpaid draft.
