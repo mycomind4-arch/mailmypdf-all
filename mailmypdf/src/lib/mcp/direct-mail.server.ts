@@ -82,6 +82,7 @@ type DirectOrderRow = {
   file_name: string;
   pdf_storage_path: string;
   stripe_session_id: string | null;
+  payment_execution_key: string | null;
   color: boolean | null;
   mail_class: string | null;
   approved_packet_sha256: string | null;
@@ -230,7 +231,7 @@ async function orderById(orderId: string): Promise<DirectOrderRow | null> {
   const { data, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,color,mail_class,approved_packet_sha256,approved_price_cents,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal",
+      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,payment_execution_key,color,mail_class,approved_packet_sha256,approved_price_cents,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -1111,6 +1112,12 @@ export async function prepareDirectPdfCheckout(
   if (order.status !== "draft") {
     throw new McpDirectMailError(409, "This order is no longer awaiting checkout");
   }
+  if (order.payment_execution_key) {
+    throw new McpDirectMailError(
+      409,
+      "This approved draft is already reserved for scheduled payment execution",
+    );
+  }
 
   const stripe = createStripeClient();
   if (order.stripe_session_id) {
@@ -1173,6 +1180,7 @@ export async function prepareDirectPdfCheckout(
     .eq("id", order.id)
     .eq("status", "draft")
     .is("stripe_session_id", null)
+    .is("payment_execution_key", null)
     .select("id");
 
   if (claimError || !claimed || claimed.length !== 1) {
