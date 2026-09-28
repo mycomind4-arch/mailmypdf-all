@@ -19,6 +19,7 @@ const DATABASE_CAPABILITIES: readonly CapabilityId[] = [
 ];
 const STORAGE_CAPABILITIES: readonly CapabilityId[] = [
   "secureUpload",
+  "documentSourceImport",
   "documentStorage",
   "archive",
 ];
@@ -36,7 +37,7 @@ const MAIL_CAPABILITIES: readonly CapabilityId[] = [
   "mailing",
   "tracking",
 ];
-const PAYMENT_CAPABILITIES: readonly CapabilityId[] = ["payment"];
+const PAYMENT_CAPABILITIES: readonly CapabilityId[] = ["payment", "savedPayment"];
 const NOTIFICATION_CAPABILITIES: readonly CapabilityId[] = ["notifications"];
 const IN_PROCESS_CAPABILITIES: readonly CapabilityId[] = [
   "security",
