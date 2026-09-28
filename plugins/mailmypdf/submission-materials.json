@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "releaseNotes": "Initial MailMyPDF plugin submission: secure document workflow discovery and execution, owner-scoped matters, quarantined attachment intake, analysis and drafting, exact PDF/recipient/price review, explicit packet approval, Stripe-hosted checkout preparation, and mailing status/tracking.",
+  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, explicit immutable approval, Stripe-hosted checkout preparation, physical mailing status, and tracking.",
   "availability": [
     "US"
   ],
@@ -34,6 +34,11 @@
       "readOnlyHint": "False because it stores a user-authorized PDF in the secure quarantine vault.",
       "destructiveHint": "False because uploading and scanning do not approve, charge for, or mail a PDF.",
       "openWorldHint": "True because it downloads an assistant-provided HTTPS file and may contact the malware scanner."
+    },
+    "prepare_conversational_letter": {
+      "readOnlyHint": "False because it renders exact user-reviewed letter text and creates an unpaid owner-scoped mailing draft.",
+      "destructiveHint": "False because draft creation does not approve the letter, charge a payment method, or submit physical mail.",
+      "openWorldHint": "True because current pricing may query external account-entitlement or pricing services."
     },
     "prepare_direct_pdf_mail": {
       "readOnlyHint": "False because it creates an unpaid mailing order from an owner-scoped clean PDF.",
