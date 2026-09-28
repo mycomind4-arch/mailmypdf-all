@@ -37,7 +37,7 @@ Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
 Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
 browser origins are validated and account responses are never HTTP-cacheable.
 
-## v0.8 / connector-v2 tool boundary (27 tools)
+## v0.9 / connector-v2 tool boundary (29 tools)
 
 Public discovery:
 
@@ -50,11 +50,13 @@ Authenticated matter execution:
 - `create_matter`
 - `list_recent_matters`
 - `get_matter`
+- `get_workflow_state`
 - `get_order_status`
 - `get_document_status`
 - `get_operation_status`
 - `get_connector_readiness`
 - `ingest_direct_pdf`
+- `prepare_conversational_letter`
 - `prepare_direct_pdf_mail`
 - `get_mailing_context`
 - `list_saved_addresses`
@@ -88,9 +90,11 @@ confirmation. Preparation accepts optional `sender_profile` / `recipient_entry`
 id/revision references alongside explicit addresses. The server checks the exact
 selected snapshot and records provenance; fulfillment never follows a mutable
 saved-address reference. Every new mailing still requires review. Archiving does
-not change old orders. Requires `20260928010000_saved_mailing_addresses.sql`,
-not yet applied to production. Manual address entry remains independent of this
-table. Public autocomplete and address overrides are not implemented.
+not change old orders. Production migration `20260928010000_saved_mailing_addresses.sql` is applied
+to the MailMyPDF Supabase project as remote migration
+`20260928014545_saved_mailing_addresses_20260928`. Manual address entry remains
+independent of this table. Public autocomplete and address overrides are not
+implemented.
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
 
@@ -202,9 +206,15 @@ Interactive MCP ingestion makes a best-effort immediate claim of the just-upload
 
 The tool reads only owner-scoped document/matter metadata. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
 
-## Direct PDF mailing from chat
+## Conversational letters and direct PDF mailing from chat
 
-The connector now supports the core MailMyPDF use case without forcing a finished PDF through a specialized workflow.
+The connector supports both ordinary letters composed in chat and already-prepared PDFs without forcing either through an unrelated specialized workflow.
+
+For an ordinary letter, the assistant drafts/revises the text conversationally, confirms the exact sender and recipient, then calls `prepare_conversational_letter`. MailMyPDF renders the exact finalized text through the production letter-to-PDF path and returns an unpaid draft order. The rest of the flow reuses the same exact-PDF review, postal verification, immutable approval, Stripe checkout, Lob fulfillment, and status pipeline described below.
+
+`get_mailing_context` plus `get_order_status` make these direct/conversational mailings resumable. The read-only order status response reports whether postal review is current/expired/stale/missing, whether approval is current/stale/missing, and the safest existing next tool. Recovered state never substitutes for explicit approval.
+
+The connector also supports the core direct-PDF use case without forcing a finished PDF through a specialized workflow.
 
 The expected sequence is:
 
@@ -343,16 +353,16 @@ identity, owner/matter binding, and one row per owner/tool/idempotency key.
 Use the stricter read-only diagnostic after deploying staging or production:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
 
-It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 27-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata. With a bearer token it also verifies the owner-scoped recent-matter resume path without creating data.
+It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 29-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata. With a bearer token it also verifies the owner-scoped recent-matter resume path without creating data.
 
 To additionally verify a real connected account without creating any matter or document:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 MCP_BEARER_TOKEN="<temporary-user-access-token>" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
@@ -360,7 +370,7 @@ pnpm --filter ./mailmypdf mcp:readiness
 During OpenAI directory submission, the portal provides a domain-verification token. Verify that exact deployed token with:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 OPENAI_CHALLENGE_EXPECTED_TOKEN="<portal-provided-token>" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
