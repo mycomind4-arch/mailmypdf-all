@@ -41,7 +41,7 @@ type MailingBatchItemRow = {
 type ScheduledMailingRow = {
   id: string; owner_id: string; idempotency_key: string; order_id: string | null;
   batch_id: string | null; send_at: string; timezone: string | null; approval_sha256: string;
-  approved_max_total_cents: number; payment_amount_cents: number | null;
+  approved_max_total_cents: number; payment_authorized_at: string; payment_amount_cents: number | null;
   stripe_payment_intent_id: string | null; payment_status: string | null;
   last_attempt_at: string | null; status: string; blocked_reason: string | null;
   released_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string;
@@ -97,7 +97,7 @@ export type Database = {
         Row: ScheduledMailingRow
         Insert: { id: string; owner_id: string; idempotency_key: string; order_id?: string | null;
           batch_id?: string | null; send_at: string; timezone?: string | null; approval_sha256: string;
-          approved_max_total_cents: number; payment_amount_cents?: number | null;
+          approved_max_total_cents: number; payment_authorized_at: string; payment_amount_cents?: number | null;
           stripe_payment_intent_id?: string | null; payment_status?: string | null;
           last_attempt_at?: string | null; status?: string; blocked_reason?: string | null;
           released_at?: string | null; cancelled_at?: string | null; created_at?: string; updated_at?: string }
