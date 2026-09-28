@@ -45,6 +45,11 @@ import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
 import { listRecentCases } from "@/lib/secure-core/case.server";
 import { deriveMatterGuidance } from "./matter-guidance";
+import {
+  cancelScheduledDirectMail,
+  createScheduledDirectMail,
+  ScheduledMailError,
+} from "@/lib/scheduled-mail.server";
 import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
 import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
 
@@ -747,6 +752,34 @@ export async function executeMcpTool(
       approvalId,
     });
     return { ...snapshot, ...guidance };
+  }
+
+  if (name === "schedule_direct_pdf_mail" || name === "cancel_scheduled_mail") {
+    try {
+      if (name === "schedule_direct_pdf_mail") {
+        return await createScheduledDirectMail(request, {
+          orderId: args.order_id,
+          sendAt: args.send_at,
+          timezone: args.timezone,
+          idempotencyKey: args.idempotency_key,
+          authorizeSavedPayment: args.authorize_saved_payment,
+        });
+      }
+      if (args.user_confirmed !== true) {
+        throw new McpToolExecutionError(
+          400,
+          "user_confirmed must be true after the user explicitly asks to cancel this scheduled mailing",
+        );
+      }
+      return await cancelScheduledDirectMail(request, args.schedule_id);
+    } catch (error) {
+      if (error instanceof ScheduledMailError) {
+        throw new McpToolExecutionError(error.status, error.message, {
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
+      throw error;
+    }
   }
 
   if (name === "ingest_document") {
