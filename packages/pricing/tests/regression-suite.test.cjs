@@ -79,9 +79,9 @@ describe('Universal Pricing Regression Suite', () => {
 
   describe('Legacy drift detection', () => {
     it('canonical PRICES match known mailing values', () => {
-      assert.equal(PRICES.standard, 499);
-      assert.equal(PRICES.certified, 1494);
-      assert.equal(PRICES.registered, 3249);
+      assert.equal(PRICES.standard, 299);
+      assert.equal(PRICES.certified, 1099);
+      assert.equal(PRICES.registered, 2999);
     });
 
     it('no workflow-vertical profile charges ONLY the mailing price (legacy model)', () => {
@@ -434,7 +434,7 @@ describe('Pricing Quality', () => {
       const overlaps = [...mailingPrices].filter(cents => 
         cents > 0 && workflowPrices.has(cents)
       );
-      // $4.99 is an ESSENTIAL send-a-letter price AND the standard mailing price — that's OK
+      // $2.99 is the core send-a-letter price AND the standard mailing price — that's OK
       // since send-a-letter IS a mailing-only product
       assert.ok(overlaps.length <= 1, `Mailing prices overlapping with workflow prices: ${overlaps.map(c => '$' + (c/100).toFixed(2)).join(', ')}`);
     });
