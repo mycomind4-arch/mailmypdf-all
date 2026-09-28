@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { planWorkflowFromProblem } from "@mailmypdf/workflows";
-import { studioAccessError } from "@/studio/access";
+import { adminFactoryAccessError } from "@/studio/access";
 import { MAILMYPDF_MCP_TOOLS } from "@/lib/mcp/tool-catalog";
 
 export const Route = createFileRoute("/api/studio/workflows/plan")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const accessError = await studioAccessError(request);
+        const accessError = await adminFactoryAccessError(request);
         if (accessError) return accessError;
         const body = await request.json().catch(() => null);
         const problem = body && typeof body === "object" && !Array.isArray(body)

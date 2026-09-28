@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { canonicalChatFactoryReport } from "@mailmypdf/workflows";
-import { studioAccessError } from "@/studio/access";
+import { adminFactoryAccessError } from "@/studio/access";
 import { MAILMYPDF_MCP_TOOLS } from "@/lib/mcp/tool-catalog";
 
 /** Admin-only, read-only queue for the supervised workflow factory. */
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/studio/workflows/readiness")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const accessError = await studioAccessError(request);
+        const accessError = await adminFactoryAccessError(request);
         if (accessError) return accessError;
 
         const workflows = canonicalChatFactoryReport(MAILMYPDF_MCP_TOOLS.map((tool) => tool.name));

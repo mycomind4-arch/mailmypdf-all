@@ -19,6 +19,15 @@ export async function studioAccessError(request: Request): Promise<Response | nu
     return Response.json({ error: "Studio tools are available only on the local development server." }, { status: 403 });
   }
 
+  return adminFactoryAccessError(request, { allowQueryToken: true });
+}
+
+/** Read-only factory inspection can run remotely; machine tools remain local-only. */
+export async function adminFactoryAccessError(
+  request: Request,
+  options: { allowQueryToken?: boolean } = {},
+): Promise<Response | null> {
+  const url = new URL(request.url);
   const origin = request.headers.get("origin");
   if ((origin && origin !== url.origin) || request.headers.get("sec-fetch-site") === "cross-site") {
     return Response.json({ error: "Studio requires a same-origin request." }, { status: 403 });
@@ -27,7 +36,7 @@ export async function studioAccessError(request: Request): Promise<Response | nu
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ")
     ? authorization.slice(7)
-    : url.searchParams.get("access_token") ?? "";
+    : options.allowQueryToken ? url.searchParams.get("access_token") ?? "" : "";
   const supabaseUrl = process.env.SUPABASE_URL;
   const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!token || !supabaseUrl || !publishableKey) {
