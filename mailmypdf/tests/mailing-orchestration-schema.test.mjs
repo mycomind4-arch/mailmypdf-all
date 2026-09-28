@@ -54,3 +54,15 @@ test("document source provenance stores opaque origin metadata, not credentials 
   assert.match(sql, /Provider credentials and fetch URLs are forbidden/i);
   assert.doesNotMatch(sql, /document_source_provenance[\s\S]{0,1200}(access_token|refresh_token|download_url)/i);
 });
+
+test("scheduled payment claim is valid server-only SQL and blocks competing checkout", () => {
+  const claimStart = sql.indexOf("create or replace function public.claim_scheduled_mailing_payment");
+  assert.ok(claimStart >= 0);
+  const claim = sql.slice(claimStart);
+  assert.match(claim, /set search_path = public, pg_temp\nas \$\$\ndeclare/i);
+  assert.match(claim, /end;\n\$\$;/i);
+  assert.match(claim, /o\.stripe_session_id is not null/i);
+  assert.match(claim, /payment_execution_key/i);
+  assert.match(claim, /grant execute on function public\.claim_scheduled_mailing_payment\(uuid, uuid\)[\s\S]*to service_role/i);
+  assert.doesNotMatch(claim, /grant execute[^;]*to (anon|authenticated)/i);
+});
