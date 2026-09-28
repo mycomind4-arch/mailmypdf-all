@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.8.0";
+export const MCP_CONNECTOR_VERSION = "0.9.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -340,6 +340,42 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: accountCapabilities("identity", "secureUpload", "documentStorage", "documentScanning"),
   },
   {
+    name: "prepare_conversational_letter",
+    title: "Prepare a conversational letter",
+    description:
+      "Render the exact finalized letter text from chat into a MailMyPDF PDF and create or reuse an unpaid draft order with the confirmed sender, recipient, mail class, and color choice. Use for ordinary letters that do not require a specialized certified workflow. Call review_direct_pdf_mail next to verify addresses and show the exact PDF and envelope. This does not approve, charge, or mail.",
+    inputSchema: objectSchema(
+      {
+        letter_text: {
+          type: "string",
+          minLength: 1,
+          maxLength: 30000,
+          description:
+            "Exact finalized letter body text the user has reviewed in chat. Preserve wording and line breaks; any change requires a new preparation/review.",
+        },
+        sender: addressSchema,
+        recipient: addressSchema,
+        sender_profile: objectSchema(
+          { id: string("Selected saved sender UUID."), revision: integer("Exact selected revision.") },
+          ["id", "revision"],
+        ),
+        recipient_entry: objectSchema(
+          { id: string("Selected saved recipient UUID."), revision: integer("Exact selected revision.") },
+          ["id", "revision"],
+        ),
+        mail_class: mailClassSchema,
+        color: { type: "boolean", default: false, description: "Print in color when true." },
+        idempotency_key: string(
+          "Stable 8-128 character key for retries of this exact letter and mailing intent. Use a new key after changing the text, addresses, service, or color.",
+        ),
+      },
+      ["letter_text", "sender", "recipient", "mail_class", "idempotency_key"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "documentStorage", "pricing"),
+  },
+  {
     name: "prepare_direct_pdf_mail",
     title: "Prepare a direct PDF mailing",
     description:
@@ -418,11 +454,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "approve_direct_pdf_mail",
     title: "Approve exact direct PDF mailing",
     description:
-      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings. Call only after review_direct_pdf_mail verifies both addresses and the user explicitly approves the displayed details. Expired verification requires a fresh review. This does not pay or send mail.",
+      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings. The PDF may come from an uploaded document or prepare_conversational_letter. Call only after review_direct_pdf_mail verifies both addresses and the user explicitly approves the displayed details. Expired verification requires a fresh review. This does not pay or send mail.",
     inputSchema: objectSchema(
       {
         order_id: string("MailMyPDF direct-mail order id."),
-        expected_packet_sha256: string("Exact PDF SHA-256 returned by prepare_direct_pdf_mail."),
+        expected_packet_sha256: string("Exact PDF SHA-256 returned by prepare_direct_pdf_mail or prepare_conversational_letter."),
         expected_total_cents: integer("Exact total price in cents returned by prepare_direct_pdf_mail."),
         expected_sender: addressSchema,
         expected_recipient: addressSchema,
