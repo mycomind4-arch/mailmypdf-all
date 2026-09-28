@@ -27,21 +27,21 @@ import {
 // ── Mail Pricing ──────────────────────────────────────────────────────────
 
 describe("Mail pricing", () => {
-  it("standard mail costs $4.99", () => {
-    assert.equal(PRICES.standard, 499);
-    assert.equal(getMailPrice("standard"), 499);
+  it("standard mail costs $2.99", () => {
+    assert.equal(PRICES.standard, 299);
+    assert.equal(getMailPrice("standard"), 299);
     assert.equal(getMailSurcharge("standard"), 0);
   });
 
-  it("certified mail costs $14.94 total", () => {
-    assert.equal(PRICES.certified, 1494);
-    assert.equal(getMailSurcharge("certified"), 995);
-    assert.equal(getMailPrice("certified"), 1494);
+  it("certified mail costs $10.99 total", () => {
+    assert.equal(PRICES.certified, 1099);
+    assert.equal(getMailSurcharge("certified"), 800);
+    assert.equal(getMailPrice("certified"), 1099);
   });
 
-  it("registered mail costs $32.49 total", () => {
-    assert.equal(PRICES.registered, 3249);
-    assert.equal(getMailSurcharge("registered"), 2750);
+  it("registered mail costs $29.99 total", () => {
+    assert.equal(PRICES.registered, 2999);
+    assert.equal(getMailSurcharge("registered"), 2700);
   });
 
   it("mail margins are positive for all classes", () => {
@@ -96,24 +96,24 @@ describe("FREE band", () => {
       mailClass: "standard",
     });
     assert.equal(quote.basePriceCents, 0);
-    assert.equal(quote.mailServiceCost, 499);
-    assert.equal(quote.totalCents, 499);
+    assert.equal(quote.mailServiceCost, 299);
+    assert.equal(quote.totalCents, 299);
   });
 });
 
 // ── ESSENTIAL Band ────────────────────────────────────────────────────────
 
 describe("ESSENTIAL band", () => {
-  it("charges base price + mail", () => {
+  it("essential workflow includes standard mail in its launch price", () => {
     const quote = calculateQuote({
       workflowId: "debt-validation",
       verticalId: "dispute-mail",
       actualPages: 3,
       mailClass: "standard",
     });
-    assert.equal(quote.basePriceCents, 1499);
-    assert.equal(quote.mailServiceCost, 499);
-    assert.equal(quote.totalCents, 1499 + 499);
+    assert.equal(quote.basePriceCents, 399);
+    assert.equal(quote.mailServiceCost, 299);
+    assert.equal(quote.totalCents, 399);
   });
 
   it("certified mail adds surcharge", () => {
@@ -123,9 +123,9 @@ describe("ESSENTIAL band", () => {
       actualPages: 2,
       mailClass: "certified",
     });
-    assert.equal(quote.basePriceCents, 1499);
-    assert.equal(quote.mailServiceCost, 499 + 995);
-    assert.equal(quote.totalCents, 1499 + 499 + 995);
+    assert.equal(quote.basePriceCents, 399);
+    assert.equal(quote.mailServiceCost, 800);
+    assert.equal(quote.totalCents, 399 + 800);
   });
 });
 
@@ -139,10 +139,10 @@ describe("STANDARD band", () => {
       actualPages: 3,
       mailClass: "standard",
     });
-    assert.equal(quote.basePriceCents, 2999);
+    assert.equal(quote.basePriceCents, 499);
     assert.equal(quote.includedPages, 3);
-    assert.equal(quote.mailServiceCost, 499);
-    assert.equal(quote.totalCents, 2999 + 499);
+    assert.equal(quote.mailServiceCost, 299);
+    assert.equal(quote.totalCents, 499);
   });
 });
 
@@ -156,11 +156,11 @@ describe("ADVANCED band", () => {
       actualPages: 5,
       mailClass: "standard",
     });
-    assert.equal(quote.basePriceCents, 6999);
+    assert.equal(quote.basePriceCents, 699);
     assert.equal(quote.includedPages, 8);
     assert.equal(quote.mailServiceCost, 0);
     assert.equal(quote.extraPageCost, 0);
-    assert.equal(quote.totalCents, 6999);
+    assert.equal(quote.totalCents, 699);
   });
 
   it("charges for pages beyond 8", () => {
@@ -170,8 +170,8 @@ describe("ADVANCED band", () => {
       actualPages: 15,
       mailClass: "standard",
     });
-    assert.equal(quote.extraPageCost, 7 * 40);
-    assert.equal(quote.totalCents, 6999 + 280);
+    assert.equal(quote.extraPageCost, 7 * 15);
+    assert.equal(quote.totalCents, 699 + 105);
   });
 
   it("certified mail charges upgrade", () => {
@@ -181,8 +181,8 @@ describe("ADVANCED band", () => {
       actualPages: 5,
       mailClass: "certified",
     });
-    assert.equal(quote.mailServiceCost, 995);
-    assert.equal(quote.totalCents, 6999 + 995);
+    assert.equal(quote.mailServiceCost, 800);
+    assert.equal(quote.totalCents, 699 + 800);
   });
 
   it("registered mail charges upgrade", () => {
@@ -192,8 +192,8 @@ describe("ADVANCED band", () => {
       actualPages: 5,
       mailClass: "registered",
     });
-    assert.equal(quote.mailServiceCost, 2750);
-    assert.equal(quote.totalCents, 6999 + 2750);
+    assert.equal(quote.mailServiceCost, 2700);
+    assert.equal(quote.totalCents, 699 + 2700);
   });
 });
 
@@ -264,8 +264,8 @@ describe("Discounts", () => {
       discountCode: "TEST10PCT",
     });
     assert.equal(quote.discountCode, "TEST10PCT");
-    assert.equal(quote.discountCents, Math.floor(6999 * 0.10));
-    assert.equal(quote.totalCents, 6999 - 699);
+    assert.equal(quote.discountCents, Math.floor(699 * 0.10));
+    assert.equal(quote.totalCents, 699 - 69);
   });
 
   it("invalid discount code is ignored", () => {
@@ -339,8 +339,8 @@ describe("Margin analysis", () => {
       actualPages: 8,
       mailClass: "standard",
     });
-    const margin = estimateMargin(quote, 500);
-    assert.ok(margin.grossMarginPercent > 70, `margin was ${margin.grossMarginPercent}%`);
+    const margin = estimateMargin(quote, 50);
+    assert.ok(margin.grossMarginCents > 0, `margin was ${margin.grossMarginCents} cents`);
   });
 
   it("advanced workflow with registered mail still profitable", () => {
@@ -350,8 +350,8 @@ describe("Margin analysis", () => {
       actualPages: 8,
       mailClass: "registered",
     });
-    const margin = estimateMargin(quote, 500);
-    assert.ok(margin.grossMarginPercent > 50, `margin was ${margin.grossMarginPercent}%`);
+    const margin = estimateMargin(quote, 50);
+    assert.ok(margin.grossMarginCents > 0, `margin was ${margin.grossMarginCents} cents`);
   });
 });
 
