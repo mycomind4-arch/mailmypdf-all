@@ -266,10 +266,17 @@ async function loadOrCreatePaymentIntent(
         { idempotencyKey: `scheduled_pi_create_${schedule.id}` },
       );
 
+  const paymentCustomerId =
+    typeof paymentIntent.customer === "string"
+      ? paymentIntent.customer
+      : paymentIntent.customer && typeof paymentIntent.customer === "object" && "id" in paymentIntent.customer
+        ? String(paymentIntent.customer.id)
+        : null;
+
   if (
     paymentIntent.amount !== amountCents ||
     paymentIntent.currency !== "usd" ||
-    (typeof paymentIntent.customer === "string" && paymentIntent.customer !== profile.stripe_customer_id)
+    paymentCustomerId !== profile.stripe_customer_id
   ) {
     throw new ScheduledMailError(409, "Scheduled PaymentIntent identity does not match the locked mailing");
   }
@@ -379,7 +386,7 @@ export async function createScheduledDirectMail(
   if (existing) {
     if (
       existing.order_id !== orderId ||
-      existing.send_at !== sendAt ||
+      Date.parse(existing.send_at) !== Date.parse(sendAt) ||
       existing.timezone !== timezone ||
       existing.approval_sha256 !== state.packetSha256 ||
       existing.approved_max_total_cents !== state.approvedMaxTotalCents
