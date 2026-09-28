@@ -62,6 +62,20 @@ type OrderEventRow = {
   metadata: unknown;
 };
 
+type ScheduledMailingStatusRow = {
+  id: string;
+  status: string;
+  send_at: string;
+  timezone: string | null;
+  approved_max_total_cents: number;
+  payment_authorized_at: string;
+  payment_amount_cents: number | null;
+  payment_status: string | null;
+  blocked_reason: string | null;
+  released_at: string | null;
+  cancelled_at: string | null;
+};
+
 function statusMessage(status: OrderStatus): string {
   switch (status) {
     case "draft":
@@ -146,6 +160,7 @@ function directMailSnapshot(order: OrderRow) {
 function directMailResumeState(
   order: OrderRow,
   events: readonly OrderEventRow[],
+  schedule: ScheduledMailingStatusRow | null = null,
 ) {
   const preparedEvent = latestEvent(events, "mcp.direct_mail.prepared");
   const prepared = metadataObject(preparedEvent?.metadata);
@@ -184,7 +199,9 @@ function directMailResumeState(
         : "direct_mail";
 
   let nextAction: { toolName: string; reason: string } | null = null;
-  if (order.status === "draft") {
+  const scheduleActive =
+    schedule?.status === "scheduled" || schedule?.status === "processing";
+  if (order.status === "draft" && !scheduleActive) {
     nextAction = approvalCurrent
       ? {
           toolName: "prepare_direct_pdf_checkout",
@@ -283,6 +300,7 @@ async function directMcpOrderBelongsToUser(
 export function normalizeOrderStatus(
   order: OrderRow,
   events: readonly OrderEventRow[],
+  schedule: ScheduledMailingStatusRow | null = null,
 ) {
   const trackingNumber = firstMetadataString(events, [
     "tracking_number",
@@ -329,7 +347,34 @@ export function normalizeOrderStatus(
       providerReference: order.lob_letter_id,
       trackingNumber,
     },
-    directMail: directMailResumeState(order, events),
+    directMail: directMailResumeState(order, events, schedule),
+    scheduledMailing: schedule
+      ? {
+          scheduleId: schedule.id,
+          status: schedule.status,
+          sendAt: schedule.send_at,
+          timezone: schedule.timezone,
+          approvedMaxTotalCents: schedule.approved_max_total_cents,
+          paymentAuthorizedAt: schedule.payment_authorized_at,
+          paymentAmountCents: schedule.payment_amount_cents,
+          paymentStatus: schedule.payment_status,
+          blockedReason: schedule.blocked_reason,
+          releasedAt: schedule.released_at,
+          cancelledAt: schedule.cancelled_at,
+          nextAction:
+            schedule.status === "scheduled"
+              ? {
+                  toolName: "cancel_scheduled_mail",
+                  reason: "The approved mailing is scheduled for future saved-payment execution. Cancel it before choosing a different payment path.",
+                }
+              : schedule.status === "processing"
+                ? {
+                    toolName: "get_order_status",
+                    reason: "Scheduled payment or fulfillment is processing. Recheck persisted order state; do not start another payment path.",
+                  }
+                : null,
+        }
+      : null,
     history: events.map((event) => ({
       type: /^(order|payment|lob|fulfillment|workflow)\.[a-z0-9_.-]+$/i.test(event.type)
         ? event.type
@@ -391,5 +436,21 @@ export async function getOwnedOrderStatus(
   if (eventError) throw new Error(eventError.message);
   const events = (eventRows ?? []) as OrderEventRow[];
 
-  return normalizeOrderStatus(order, events);
+  const { data: scheduleRow, error: scheduleError } = await supabaseAdmin
+    .from("scheduled_mailings")
+    .select(
+      "id,status,send_at,timezone,approved_max_total_cents,payment_authorized_at,payment_amount_cents,payment_status,blocked_reason,released_at,cancelled_at",
+    )
+    .eq("order_id", order.id)
+    .eq("owner_id", context.user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (scheduleError) throw new Error(scheduleError.message);
+
+  return normalizeOrderStatus(
+    order,
+    events,
+    (scheduleRow as ScheduledMailingStatusRow | null) ?? null,
+  );
 }
