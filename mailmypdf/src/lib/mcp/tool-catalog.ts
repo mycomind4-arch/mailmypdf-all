@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.9.0";
+export const MCP_CONNECTOR_VERSION = "0.10.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -155,6 +155,44 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
     _meta: { "openai/profile": true },
+  },
+  {
+    name: "get_payment_readiness",
+    title: "Get saved-payment readiness",
+    description:
+      "Read whether the connected MailMyPDF account has a tokenized payment method ready for a future explicitly approved mailing. Returns only a safe card display summary and MailMyPDF setup URL; it never returns Stripe customer/payment-method identifiers and never charges anything.",
+    inputSchema: objectSchema({}),
+    outputSchema: objectSchema(
+      {
+        accountReady: { type: "boolean", description: "Whether the MailMyPDF account is authenticated and usable." },
+        payment: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            ready: { type: "boolean" },
+            display: { type: ["string", "null"] },
+            brand: { type: ["string", "null"] },
+            last4: { type: ["string", "null"] },
+          },
+          required: ["ready", "display", "brand", "last4"],
+        },
+        setupUrl: string("MailMyPDF account page for optional one-time saved-payment setup."),
+        chargingAuthorized: { type: "boolean", const: false },
+        note: string("Safety guidance explaining that saved payment does not authorize a charge."),
+      },
+      ["accountReady", "payment", "setupUrl", "chargingAuthorized", "note"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...accountCapabilities("identity"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
+    ],
   },
   {
     name: "create_matter",
