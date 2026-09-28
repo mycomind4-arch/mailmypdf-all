@@ -8,7 +8,7 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 - `mcp.json` — remote streamable-HTTP MCP endpoint at `https://mailmypdf.ai/api/mcp`.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
 - `review-cases.json` — exactly five positive and three negative reviewer cases for connector behavior.
-- `submission-materials.json` — release notes, availability intent, all 27 tool-annotation justifications, and the remaining manual portal/deployment requirements.
+- `submission-materials.json` — release notes, availability intent, all 29 tool-annotation justifications, and the remaining manual portal/deployment requirements.
 
 The plugin does not duplicate workflow logic. MailMyPDF remains authoritative for authentication, matter ownership, secure document intake, malware scanning, analysis, drafting, packet construction, recipient/packet fingerprints, pricing, approval, Stripe checkout, Lob fulfillment, and mailing status.
 
@@ -17,6 +17,8 @@ The plugin does not duplicate workflow logic. MailMyPDF remains authoritative fo
 The skill directs compatible assistants through:
 
 ```
+ordinary letter: draft/revise in chat → prepare_conversational_letter → exact PDF + envelope review
+or specialized workflow:
 discover workflow
 → create owner-scoped matter
 → list/resume recent matters
@@ -42,7 +44,7 @@ Run:
 pnpm plugin:mailmypdf:submission:validate
 ```
 
-This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, 27-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
+This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, 29-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
 
 ## Before public submission
 
