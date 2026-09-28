@@ -18,6 +18,9 @@ let providerLevel = "deliverable";
 let verificationWriteError = false;
 let owned = true;
 let validationCalls = 0;
+let preparedMetadata: any;
+let letterCreates = 0;
+let lastLetterParams: any;
 
 function reset() {
   order = { id: "order-1", lookup_token: "private", status: "draft", email: "test@example.com",
@@ -31,6 +34,9 @@ function reset() {
   verificationEvent = { verified: true, mailing_snapshot: mailing, expires_at: new Date(Date.now() + 60_000).toISOString(),
     verification: { sender: { ready: true, status: "verified" }, recipient: { ready: true, status: "verified" } } };
   providerLevel = "deliverable"; verificationWriteError = false; owned = true; validationCalls = 0;
+  preparedMetadata = { secure_document_id: "doc-1" };
+  letterCreates = 0;
+  lastLetterParams = null;
 }
 
 const admin = {
@@ -47,14 +53,25 @@ const admin = {
           if (verificationWriteError) return Promise.resolve({ error: { message: "offline" } });
           verificationEvent = value.metadata;
         }
+        if (value.type === "mcp.direct_mail.prepared") {
+          preparedMetadata = value.metadata;
+        }
         return Promise.resolve({ error: null });
       },
       async maybeSingle() {
         if (table === "orders") return { data: { ...order }, error: null };
         if (filters.type === "mcp.direct_mail.addresses_reviewed") return { data: verificationEvent ? { metadata: verificationEvent } : null, error: null };
         if (filters.type === "mcp.direct_mail.approved") return { data: approval ? { metadata: approval } : null, error: null };
+        if (filters.type === "mcp.direct_mail.prepared" && filters.idempotency_key) {
+          return {
+            data: preparedMetadata
+              ? { id: "prepared-event", order_id: order.id, metadata: preparedMetadata }
+              : null,
+            error: null,
+          };
+        }
         assert.equal(filters.owner_id, "owner-1");
-        return { data: owned ? { id: "owner-event", order_id: order.id, metadata: { secure_document_id: "doc-1" } } : null, error: null };
+        return { data: owned ? { id: "owner-event", order_id: order.id, metadata: preparedMetadata ?? { secure_document_id: "doc-1" } } : null, error: null };
       },
       then(resolve: any, reject: any) {
         if (table === "order_events" && filters.type === "mcp.direct_mail.prepared") {
@@ -89,6 +106,28 @@ mock.module("../src/lib/address-validation.ts", { namedExports: { validateOrderA
   const result = { level: providerLevel, providerSucceeded: providerLevel !== "provider_unavailable", isDeliverable: providerLevel === "deliverable", warnings: [] };
   return { to: result, from: result };
 } } });
+mock.module("../src/services/index.ts", { namedExports: {
+  getMailService: () => ({
+    createOrderFromLetter: async (params: any) => {
+      letterCreates++;
+      lastLetterParams = params;
+      order.email = params.email;
+      order.file_name = "typed-letter.pdf";
+      order.page_count = 1;
+      order.color = params.color;
+      order.mail_class = params.mailClass;
+      for (const [prefix, value] of [["sender", params.sender], ["recipient", params.recipient]] as const) {
+        order[`${prefix}_name`] = value.name;
+        order[`${prefix}_line1`] = value.line1;
+        order[`${prefix}_line2`] = value.line2 ?? null;
+        order[`${prefix}_city`] = value.city;
+        order[`${prefix}_state`] = value.state;
+        order[`${prefix}_postal`] = value.postalCode;
+      }
+      return { orderId: order.id, token: "private", pageCount: 1, priceCents: 799 };
+    },
+  }),
+} });
 mock.module("../src/lib/stripe.server.ts", { namedExports: {
   getMailMyPdfBaseUrl: () => "https://mailmypdf.example",
   createStripeClient: () => ({ checkout: { sessions: {
@@ -98,7 +137,7 @@ mock.module("../src/lib/stripe.server.ts", { namedExports: {
   } } }),
 } });
 
-const { approveDirectPdfMail, prepareDirectPdfCheckout, prepareDirectPdfMail, reviewDirectPdfMail, readDirectPdfPreview, getMailingContext } = await import("../src/lib/mcp/direct-mail.server");
+const { approveDirectPdfMail, prepareDirectPdfCheckout, prepareDirectPdfMail, prepareConversationalLetterMail, reviewDirectPdfMail, readDirectPdfPreview, getMailingContext } = await import("../src/lib/mcp/direct-mail.server");
 const request = new Request("https://mailmypdf.example/api/mcp");
 const review = { orderId: "order-1", expectedPacketSha256: sha, expectedTotalCents: 799,
   expectedSender: address, expectedRecipient: address, expectedMailClass: "standard", expectedColor: false };
@@ -149,6 +188,42 @@ test("reusing a direct-mail retry key with another document is rejected before c
   reset();
   await assert.rejects(prepareDirectPdfMail(request, { documentId: "doc-2", ...mailing, idempotencyKey: "retry-key-1" }), /different mailing details/);
   assert.equal(rpcCalls.length, 0);
+});
+
+test("conversational letters create only a reviewable unpaid draft and reuse an exact retry", async () => {
+  reset();
+  preparedMetadata = null;
+  const input = {
+    letterText: "Dear Recipient,\n\nPlease respond within 14 days.\n\nSincerely,\nCustomer",
+    ...mailing,
+    idempotencyKey: "letter-retry-1",
+  };
+
+  const prepared = await prepareConversationalLetterMail(request, input);
+  assert.equal(prepared.reused, false);
+  assert.equal(prepared.order.fileName, "typed-letter.pdf");
+  assert.equal(prepared.order.packetSha256, sha);
+  assert.match(prepared.letter.textSha256, /^[0-9a-f]{64}$/);
+  assert.equal(letterCreates, 1);
+  assert.equal(lastLetterParams.letterText, input.letterText);
+  assert.equal(lastLetterParams.sender.postalCode, "78701");
+  assert.equal(lastLetterParams.recipient.postalCode, "78701");
+  assert.equal(order.status, "draft");
+  assert.equal(created, 0, "preparing a letter must not create Stripe checkout");
+
+  const replayed = await prepareConversationalLetterMail(request, input);
+  assert.equal(replayed.reused, true);
+  assert.equal(letterCreates, 1);
+
+  await assert.rejects(
+    prepareConversationalLetterMail(request, {
+      ...input,
+      letterText: input.letterText + "\nChanged after review.",
+    }),
+    /retry key belongs to different letter text or mailing details/,
+  );
+  assert.equal(letterCreates, 1);
+  assert.equal(created, 0);
 });
 
 test("review produces a verified structured draft and private exact PDF without paying", async () => {
