@@ -383,6 +383,20 @@ test("ingest_document exposes the exact ChatGPT file-parameter shape", () => {
     ["download_url", "file_id", "file_name", "mime_type"],
   );
   assert.deepEqual([...(file.required ?? [])].sort(), ["download_url", "file_id"]);
+
+  const sourceKind = input.properties.source_kind as unknown as {
+    enum?: string[];
+    default?: string;
+  };
+  assert.deepEqual(sourceKind.enum, [
+    "local_upload",
+    "conversation_attachment",
+    "google_drive",
+    "mailmypdf_library",
+    "external_provider",
+  ]);
+  assert.equal(sourceKind.default, "conversation_attachment");
+  assert.ok(input.properties.source_provider);
 });
 
 test("direct PDF ingestion uses the same assistant file parameter contract", () => {
@@ -457,6 +471,18 @@ test("remote attachment URLs reject local/private/nonstandard targets", () => {
     ["files.example.com"],
   );
   assert.equal(accepted.hostname, "files.example.com");
+});
+
+test("document source metadata is provenance-only and does not accept credentials or source URLs", () => {
+  const ingest = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "ingest_document");
+  assert.ok(ingest);
+  const schema = ingest.inputSchema as { properties?: Record<string, unknown> };
+  const keys = Object.keys(schema.properties ?? {});
+  for (const forbidden of ["access_token", "refresh_token", "authorization", "download_url", "source_url"]) {
+    assert.equal(keys.includes(forbidden), false);
+  }
+  assert.ok(keys.includes("source_kind"));
+  assert.ok(keys.includes("source_provider"));
 });
 
 test("assistant PDF download preserves provider provenance without trusting MIME alone", async () => {
