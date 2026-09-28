@@ -544,6 +544,16 @@ test("order status normalization exposes tracking facts without raw event metada
       approved_price_cents: 1299,
       price_cents: 1399,
       mail_class: "certified",
+      color: false,
+      sender_name: "Example Sender",
+      sender_line1: "1 Sender St",
+      sender_line2: null,
+      sender_city: "Oakland",
+      sender_state: "CA",
+      sender_postal: "94607",
+      recipient_line1: "2 Recipient St",
+      recipient_line2: null,
+      recipient_postal: "95814",
       lob_letter_id: "ltr_123",
       mailed_at: "2026-09-25T12:00:00.000Z",
       paid_at: "2026-09-25T11:00:00.000Z",
@@ -591,6 +601,178 @@ test("order status normalization exposes tracking facts without raw event metada
   assert.equal(JSON.stringify(normalized).includes("evt_private"), false);
 });
 
+
+test("direct order status derives safe conversational-mail resume state", () => {
+  const sender = {
+    name: "Sender",
+    line1: "1 Main St",
+    line2: null,
+    city: "Eureka",
+    state: "CA",
+    postal: "95501",
+  };
+  const recipient = {
+    name: "Recipient",
+    line1: "2 Main St",
+    line2: null,
+    city: "Arcata",
+    state: "CA",
+    postal: "95521",
+  };
+  const mailing = { sender, recipient, mailClass: "standard", color: false };
+  const packetSha256 = "b".repeat(64);
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+
+  const baseOrder = {
+    id: "direct-1",
+    status: "draft" as const,
+    workflow_case_id: null,
+    case_approval_id: null,
+    approved_packet_sha256: null,
+    approved_price_cents: null,
+    price_cents: 899,
+    mail_class: "standard",
+    color: false,
+    sender_name: sender.name,
+    sender_line1: sender.line1,
+    sender_line2: sender.line2,
+    sender_city: sender.city,
+    sender_state: sender.state,
+    sender_postal: sender.postal,
+    recipient_name: recipient.name,
+    recipient_line1: recipient.line1,
+    recipient_line2: recipient.line2,
+    recipient_city: recipient.city,
+    recipient_state: recipient.state,
+    recipient_postal: recipient.postal,
+    lob_letter_id: null,
+    mailed_at: null,
+    paid_at: null,
+    created_at: "2026-09-27T10:00:00.000Z",
+    updated_at: "2026-09-27T10:00:00.000Z",
+    scheduled_delivery_date: null,
+    file_name: "typed-letter.pdf",
+    page_count: 1,
+    vertical_slug: null,
+    email: "owner@example.com",
+  };
+
+  const reviewed = normalizeOrderStatus(baseOrder, [
+    {
+      type: "mcp.direct_mail.prepared",
+      label: "Prepared",
+      created_at: "2026-09-27T10:00:00.000Z",
+      metadata: {
+        owner_id: "owner-1",
+        source: "conversational-letter",
+        packet_sha256: packetSha256,
+        letter_text_sha256: "c".repeat(64),
+      },
+    },
+    {
+      type: "mcp.direct_mail.addresses_reviewed",
+      label: "Reviewed",
+      created_at: "2026-09-27T10:01:00.000Z",
+      metadata: {
+        owner_id: "owner-1",
+        verified: true,
+        mailing_snapshot: mailing,
+        expires_at: expiresAt,
+      },
+    },
+  ]);
+
+  assert.equal(reviewed.directMail?.source, "conversational_letter");
+  assert.equal(reviewed.directMail?.preparedPacketSha256, packetSha256);
+  assert.equal(reviewed.directMail?.review.status, "current");
+  assert.equal(reviewed.directMail?.approval.status, "missing");
+  assert.equal(reviewed.directMail?.nextAction?.toolName, "review_direct_pdf_mail");
+
+  const approved = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+    },
+    [
+      ...(reviewed.history.length ? [] : []),
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+          letter_text_sha256: "c".repeat(64),
+        },
+      },
+      {
+        type: "mcp.direct_mail.addresses_reviewed",
+        label: "Reviewed",
+        created_at: "2026-09-27T10:01:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          verified: true,
+          mailing_snapshot: mailing,
+          expires_at: expiresAt,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+
+  assert.equal(approved.directMail?.approval.status, "current");
+  assert.equal(
+    approved.directMail?.nextAction?.toolName,
+    "prepare_direct_pdf_checkout",
+  );
+
+  const changed = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+      recipient_postal: "95522",
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+
+  assert.equal(changed.directMail?.approval.status, "stale");
+  assert.equal(changed.directMail?.nextAction?.toolName, "review_direct_pdf_mail");
+});
 
 test("exact packet PDF resource URI is hash-bound and round-trips safely", () => {
   const packetSha256 = "a".repeat(64);
