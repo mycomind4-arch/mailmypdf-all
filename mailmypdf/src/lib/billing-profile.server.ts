@@ -1,10 +1,29 @@
 import { requireAuthenticatedUser, AuthenticationError } from "@/lib/secure-core/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { createStripeClient, getMailMyPdfBaseUrl } from "@/lib/stripe.server";
-import {
-  toPublicSavedPaymentSummary,
-  type SavedPaymentMethod,
-} from "@mailmypdf/payment-fulfillment/saved-payment";
+type SavedPaymentMethod = {
+  provider: "stripe";
+  customerRef: string;
+  paymentMethodRef: string;
+  brand: string;
+  last4: string;
+  ready: boolean;
+  updatedAt: string;
+};
+
+function toPublicSavedPaymentSummary(method: SavedPaymentMethod | null) {
+  if (!method?.ready) {
+    return { ready: false, display: null, brand: null, last4: null };
+  }
+  const brand = method.brand.trim() || "Card";
+  const last4 = /^\d{4}$/.test(method.last4) ? method.last4 : null;
+  return {
+    ready: Boolean(last4),
+    display: last4 ? `${brand} •••• ${last4}` : null,
+    brand: last4 ? brand : null,
+    last4,
+  };
+}
 
 export class BillingProfileError extends Error {
   constructor(readonly status: number, message: string) {
