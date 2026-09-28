@@ -22,6 +22,8 @@
 set -euo pipefail
 
 APP_DIR="$(pwd)"
+CURRENT_DEPLOYMENT_URL="https://mailmypdf.mycomind4.workers.dev"
+export MAILMYPDF_BASE_URL="${MAILMYPDF_BASE_URL:-$CURRENT_DEPLOYMENT_URL}"
 
 if ! grep -q 'preset: "cloudflare_module"' vite.config.ts; then
   echo "❌ vite.config.ts is not on the Cloudflare Workers preset." >&2
@@ -72,4 +74,8 @@ cd "$APP_DIR"
 pnpm verify:deployment
 
 echo ""
-echo "✅ Deployed and verified! Cron: */5 * * * * → /api/internal/proof-processor"
+echo "🔎 Running MCP launch-readiness against $MAILMYPDF_BASE_URL..."
+MCP_BASE_URL="$MAILMYPDF_BASE_URL" pnpm mcp:readiness
+
+echo ""
+echo "✅ Deployed and verified at $MAILMYPDF_BASE_URL! Cron: */5 * * * * → /api/internal/proof-processor"
