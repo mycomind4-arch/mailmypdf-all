@@ -86,3 +86,4 @@ export * from "./browser-access-token.js";
 
 export * from "./workflow-chat-contract.js";
 export * from "./chat-readiness.js";
+export * from "./chat-execution-registry.js";

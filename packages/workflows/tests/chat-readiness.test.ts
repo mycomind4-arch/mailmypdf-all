@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
+import { chatExecutionBindingFor } from "../src/chat-execution-registry.js";
+import { WORKFLOW_REGISTRY } from "../src/canonical-workflow-registry.js";
 import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
 import { createInsuranceAppealManifestForWorkflow } from "../src/domain-packs/appeal/insurance-manifest.js";
@@ -30,6 +32,24 @@ const AVAILABLE_TOOLS = new Set([
   "prepare_checkout",
   "get_order_status",
 ]);
+
+test("canonical chat registry certifies supported platform families and excludes all others", () => {
+  for (const workflow of WORKFLOW_REGISTRY) {
+    const binding = chatExecutionBindingFor(workflow.slug);
+    const supported = workflow.execution?.kind === "platform" &&
+      ["notice-response", "records-request", "insurance-appeal"].includes(workflow.execution.policyFamily);
+    assert.equal(Boolean(binding), supported, workflow.id);
+    if (binding) {
+      assert.equal(binding.manifest.id, workflow.slug, workflow.id);
+      assert.equal(certifyWorkflowChatReadiness({
+        manifest: binding.manifest,
+        runtimePolicy: binding.policy,
+        availableTools: AVAILABLE_TOOLS,
+      }).certified, true, workflow.id);
+    }
+  }
+  assert.equal(chatExecutionBindingFor("unknown-workflow"), null);
+});
 
 test("CP14 passes chat readiness only when manifest, runtime, gates, and tools align", () => {
   const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });

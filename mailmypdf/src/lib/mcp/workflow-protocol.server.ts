@@ -1,72 +1,16 @@
 import {
+  chatExecutionBindingFor,
   composeWorkflowForChat,
-  getInsuranceAppealRuntimePolicy,
-  createInsuranceAppealManifestForWorkflow,
-  createNoticeResponseManifest,
-  createRecordsRequestManifest,
-  getNoticeResponseRuntimePolicy,
-  getNoticeResponseWorkflowProfile,
-  getRecordsRequestRuntimePolicy,
   workflowProtocolDefinitionFromManifest,
   type WorkflowChatReadinessCertification,
-  type WorkflowManifest,
   type WorkflowProtocolDefinition,
-  type WorkflowRuntimePolicy,
 } from "@mailmypdf/workflows";
-import { workflowByRuntimeId } from "@mailmypdf/workflows/canonical-registry";
 import { MAILMYPDF_MCP_TOOLS } from "./tool-catalog";
 
 export type McpWorkflowProtocolRegistration = Readonly<{
   definition: WorkflowProtocolDefinition | null;
   certification: WorkflowChatReadinessCertification;
 }>;
-
-function manifestAndPolicy(workflowId: string): {
-  manifest: WorkflowManifest;
-  policy: WorkflowRuntimePolicy | null;
-} | null {
-  const noticeProfile = getNoticeResponseWorkflowProfile(workflowId);
-  if (noticeProfile) {
-    return {
-      manifest: createNoticeResponseManifest({ profile: noticeProfile }),
-      policy: getNoticeResponseRuntimePolicy(workflowId),
-    };
-  }
-
-  const insurancePolicy = getInsuranceAppealRuntimePolicy(workflowId);
-  if (insurancePolicy) {
-    const canonical = workflowByRuntimeId(workflowId);
-    const manifest = createInsuranceAppealManifestForWorkflow(workflowId);
-    if (
-      !canonical ||
-      canonical.sectionId !== "appeal-mail" ||
-      canonical.execution?.kind !== "platform" ||
-      canonical.execution.policyFamily !== "insurance-appeal" ||
-      !manifest
-    ) {
-      return null;
-    }
-    return {
-      manifest: manifest.manifest,
-      policy: insurancePolicy,
-    };
-  }
-
-  const recordsPolicy = getRecordsRequestRuntimePolicy(workflowId);
-  if (recordsPolicy) {
-    const canonical = workflowByRuntimeId(workflowId);
-    if (!canonical || canonical.sectionId !== "records-request") return null;
-    return {
-      manifest: createRecordsRequestManifest({
-        workflowId: workflowId as Parameters<typeof createRecordsRequestManifest>[0]["workflowId"],
-        title: canonical.label,
-      }).manifest,
-      policy: recordsPolicy,
-    };
-  }
-
-  return null;
-}
 
 /**
  * Certify a workflow before exposing it to chat-guided execution.
@@ -79,7 +23,7 @@ function manifestAndPolicy(workflowId: string): {
 export function getMcpWorkflowProtocolRegistration(
   workflowId: string,
 ): McpWorkflowProtocolRegistration | null {
-  const resolved = manifestAndPolicy(workflowId);
+  const resolved = chatExecutionBindingFor(workflowId);
   if (!resolved) return null;
 
   const factory = composeWorkflowForChat({
