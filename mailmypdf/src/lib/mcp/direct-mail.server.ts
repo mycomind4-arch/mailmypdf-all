@@ -289,15 +289,42 @@ export async function getMailingContext(request: Request) {
   const context = await requireAccount(request);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.from("order_events")
-    .select("order_id").eq("type", DIRECT_PREPARED_EVENT)
+    .select("order_id,created_at,metadata").eq("type", DIRECT_PREPARED_EVENT)
     .contains("metadata", { owner_id: context.user.id })
     .order("created_at", { ascending: false }).limit(10);
   if (error) throw new McpDirectMailError(500, "Unable to load your mailing history");
-  const ids = [...new Set((data ?? []).map((event) => event.order_id))];
+  const events = data ?? [];
+  const ids = [...new Set(events.map((event) => event.order_id))];
   const orders = await Promise.all(ids.map((id) => requireDirectOrder(id, context)));
+  const preparationByOrder = new Map<string, { createdAt: string | null; metadata: Record<string, unknown> | null }>();
+  for (const event of events) {
+    if (preparationByOrder.has(event.order_id)) continue;
+    preparationByOrder.set(event.order_id, {
+      createdAt: typeof event.created_at === "string" ? event.created_at : null,
+      metadata: metadataObject(event.metadata),
+    });
+  }
   return {
-    recentMailings: orders.map((order) => ({ orderId: order.id, status: order.status, fileName: order.file_name, ...mailingSnapshot(order) })),
-    nextAction: "These are this account's recent direct-mail addresses, not verified business profiles. Ask the user which recipient and return address to reuse; if none match, ask for the complete addresses. Re-verify before approval.",
+    recentMailings: orders.map((order) => {
+      const prepared = preparationByOrder.get(order.id);
+      const metadata = prepared?.metadata;
+      const source =
+        metadata?.source === CONVERSATIONAL_LETTER_SOURCE
+          ? "conversational_letter"
+          : typeof metadata?.secure_document_id === "string"
+            ? "uploaded_pdf"
+            : "direct_mail";
+      return {
+        orderId: order.id,
+        status: order.status,
+        fileName: order.file_name,
+        source,
+        preparedAt: prepared?.createdAt ?? null,
+        ...mailingSnapshot(order),
+        resumeWith: "get_order_status",
+      };
+    }),
+    nextAction: "Choose the matching mailing with the user, then call get_order_status with its order_id. For draft direct mail, follow order.directMail.nextAction; never infer approval from a prior conversation. If the user only wants to reuse an address, confirm the exact recipient and return address and re-verify them for the new mailing.",
   };
 }
 
