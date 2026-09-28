@@ -285,6 +285,9 @@ test("recent mailing context is owner-scoped and excludes private storage and ch
   const result = await getMailingContext(request);
   assert.deepEqual(result.recentMailings[0].sender, address);
   assert.deepEqual(result.recentMailings[0].recipient, address);
+  assert.equal(result.recentMailings[0].source, "uploaded_pdf");
+  assert.equal(result.recentMailings[0].resumeWith, "get_order_status");
+  assert.match(result.nextAction, /get_order_status/);
   assert.doesNotMatch(JSON.stringify(result), /lookup_token|pdf_storage_path|stripe_session_id|test@example/);
   owned = false;
   await assert.rejects(getMailingContext(request), /Order not found/);
