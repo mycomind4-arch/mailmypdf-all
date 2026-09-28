@@ -519,6 +519,86 @@ function approvalSnapshotMatches(
   );
 }
 
+export type ApprovedDirectMailExecutionState = {
+  orderId: string;
+  ownerId: string;
+  status: string;
+  email: string;
+  packetSha256: string;
+  approvedMaxTotalCents: number;
+  currentTotalCents: number;
+  sender: DirectMailAddress;
+  recipient: DirectMailAddress;
+  mailClass: DirectMailClass;
+  color: boolean;
+};
+
+/**
+ * Server-only execution snapshot for scheduled/direct fulfillment.
+ * This does not approve, charge, or submit mail. It re-verifies ownership and
+ * the immutable direct-mail approval before returning the current quote.
+ */
+export async function loadApprovedDirectMailExecutionState(
+  orderId: string,
+  ownerId: string,
+): Promise<ApprovedDirectMailExecutionState> {
+  const normalizedOrderId = orderId.trim();
+  const normalizedOwnerId = ownerId.trim();
+  if (!normalizedOrderId || !normalizedOwnerId) {
+    throw new McpDirectMailError(400, "orderId and ownerId are required");
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: ownership, error: ownershipError } = await supabaseAdmin
+    .from("order_events")
+    .select("id")
+    .eq("order_id", normalizedOrderId)
+    .eq("type", DIRECT_PREPARED_EVENT)
+    .contains("metadata", { owner_id: normalizedOwnerId })
+    .limit(1)
+    .maybeSingle();
+
+  if (ownershipError) {
+    throw new McpDirectMailError(500, "Unable to verify direct-mail order ownership");
+  }
+  if (!ownership) throw new McpDirectMailError(404, "Order not found");
+
+  const order = await orderById(normalizedOrderId);
+  if (!order) throw new McpDirectMailError(404, "Order not found");
+  if (!order.approved_packet_sha256 || order.approved_price_cents === null) {
+    throw new McpDirectMailError(409, "The direct-mail order has not been approved");
+  }
+
+  const approval = await directApprovalEvent(normalizedOrderId, normalizedOwnerId);
+  if (!approvalSnapshotMatches(order, approval)) {
+    throw new McpDirectMailError(
+      409,
+      "The current mailing details do not match the immutable direct-mail approval",
+    );
+  }
+
+  const packetSha256 = await orderPdfSha256(order);
+  if (packetSha256 !== order.approved_packet_sha256) {
+    throw new McpDirectMailError(409, "The prepared PDF no longer matches the approved hash");
+  }
+
+  const currentTotalCents = await currentQuote(order);
+  const snapshot = mailingSnapshot(order);
+  return {
+    orderId: order.id,
+    ownerId: normalizedOwnerId,
+    status: order.status,
+    email: order.email,
+    packetSha256,
+    approvedMaxTotalCents: order.approved_price_cents,
+    currentTotalCents,
+    sender: snapshot.sender,
+    recipient: snapshot.recipient,
+    mailClass: snapshot.mailClass as DirectMailClass,
+    color: snapshot.color,
+  };
+}
+
 export async function ingestDirectPdf(
   request: Request,
   rawFile: unknown,
