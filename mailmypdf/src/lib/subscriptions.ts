@@ -1,5 +1,5 @@
 // Subscription logic for MailMyPDF Pro.
-// Pro members get 5 free standard letters/month, then $3.99/letter.
+// Pro members get 5 free standard letters/month, then $1.99/letter.
 // Add-ons (color, certified, registered) are always charged at normal rates.
 
 import type Stripe from "stripe";
@@ -10,7 +10,7 @@ import { logger } from "@/lib/logger";
 
 export const PRO_PLAN_NAME = "MailMyPDF Pro";
 export const PRO_FREE_LETTERS_PER_MONTH = 5;
-export const PRO_MEMBER_RATE_CENTS = 399; // $3.99 per letter after free tier
+export const PRO_MEMBER_RATE_CENTS = 199; // $1.99 per letter after free tier
 export const PRO_MONTHLY_PRICE_CENTS = 999; // $9.99/month
 
 export function getProPriceId(): string {
@@ -159,7 +159,7 @@ export function applyProPricing(args: {
   } else if (subStatus.isActive) {
     baseChargeCents = PRO_MEMBER_RATE_CENTS;
     isMemberRate = true;
-    breakdown = `Pro member rate ($3.99/letter)`;
+    breakdown = `Pro member rate (${(PRO_MEMBER_RATE_CENTS / 100).toFixed(2)}/letter)`;
   }
 
   const totalCents = baseChargeCents + addOnCents;
