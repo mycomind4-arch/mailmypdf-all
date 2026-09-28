@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.10.0";
+export const MCP_CONNECTOR_VERSION = "0.11.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -536,6 +536,70 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: [
       ...capabilities("pricing", "approval"),
       capabilityRequirement("payment", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "schedule_direct_pdf_mail",
+    title: "Schedule an approved mailing",
+    description:
+      "Schedule an already-approved direct or conversational-letter mailing for future execution using the connected account's saved payment method. The server re-verifies the immutable approved PDF, price ceiling, account ownership, and payment readiness. This records explicit authorization for a future charge and physical mailing, but it does not charge or mail during this call. Use only after the user explicitly confirms the send time and authorizes saved-payment use.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+        send_at: string("Future ISO 8601 date-time for mailing execution."),
+        timezone: {
+          type: ["string", "null"],
+          description: "Optional IANA timezone used as display provenance, such as America/Los_Angeles.",
+        },
+        idempotency_key: idempotencyKeySchema,
+        authorize_saved_payment: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly authorizes this exact approved mailing to use their saved payment method at the scheduled time.",
+        },
+      },
+      ["order_id", "send_at", "idempotency_key", "authorize_saved_payment"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
+      capabilityRequirement("scheduledMailing", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "cancel_scheduled_mail",
+    title: "Cancel a scheduled mailing",
+    description:
+      "Cancel an owned scheduled mailing only before payment processing begins. Repeating the same cancellation is safe. This cannot interrupt an in-progress or completed charge/mailing and never creates a new payment or mailing.",
+    inputSchema: objectSchema(
+      {
+        schedule_id: string("MailMyPDF scheduled mailing id returned when the mailing was scheduled."),
+        user_confirmed: {
+          type: "boolean",
+          const: true,
+          description: "Must be true after the user explicitly asks to cancel this scheduled mailing.",
+        },
+      },
+      ["schedule_id", "user_confirmed"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...accountCapabilities("identity"),
+      capabilityRequirement("scheduledMailing", { requiresApproval: false }),
     ],
   },
   {
