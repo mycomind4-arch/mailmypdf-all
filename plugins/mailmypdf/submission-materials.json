@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, explicit immutable approval, Stripe-hosted checkout preparation, physical mailing status, and tracking.",
+  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, optional tokenized saved-payment readiness, explicit immutable approval, Stripe-hosted checkout/setup, physical mailing status, and tracking.",
   "availability": [
     "US"
   ],
@@ -149,6 +149,11 @@
       "readOnlyHint": "True because it only reads owner-scoped matter, workflow, document, draft, approval, and order state to derive safe next actions.",
       "destructiveHint": "False because it cannot change workflow state, approve a packet, create checkout, charge payment, or submit mail.",
       "openWorldHint": "False because it derives guidance only from bounded MailMyPDF records and registered workflow contracts without contacting external providers."
+    },
+    "get_payment_readiness": {
+      "readOnlyHint": "True because it only reads the connected account's sanitized saved-payment readiness and setup URL.",
+      "destructiveHint": "False because it cannot create a charge, approve a mailing, change a payment method, or submit mail.",
+      "openWorldHint": "False because it reads bounded MailMyPDF account state and does not contact Stripe during the tool call."
     }
   },
   "manualSubmissionRequirements": [
