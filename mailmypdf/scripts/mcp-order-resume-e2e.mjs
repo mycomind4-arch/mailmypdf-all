@@ -20,8 +20,8 @@ const progress={
   mailed:3,
   in_transit:3,
   delivered:4,
-  returned:4,
-  refunded:4,
+  returned:3,
+  refunded:1,
 };
 const expectedProgress={draft:0,paid:1,submitted:2,mailed:3,delivered:4};
 
@@ -83,7 +83,7 @@ console.log(`Order: ${orderId}; expected stage: ${expectedStage}`);
 
 const status=await callTool("get_order_status",{order_id:orderId});
 const order=status?.order;
-if(!order||order.id!==orderId) fail("get_order_status returned the wrong order",status);
+if(!order||order.orderId!==orderId) fail("get_order_status returned the wrong order",status);
 if(order?.directMail?.source!=="conversational_letter"){
   fail("order is not a conversational-letter mailing",order?.directMail);
 }
@@ -106,8 +106,8 @@ console.log(JSON.stringify({
   expectedStage,
   providerReference:order?.tracking?.providerReference??null,
   trackingNumber:order?.tracking?.trackingNumber??null,
-  paidAt:order?.timeline?.paidAt??null,
-  mailedAt:order?.timeline?.mailedAt??null,
-  expectedDeliveryDate:order?.timeline?.expectedDeliveryDate??null,
+  paidAt:order?.timing?.paidAt??null,
+  mailedAt:order?.timing?.mailedAt??null,
+  expectedDeliveryDate:order?.timing?.expectedDeliveryDate??null,
 },null,2));
 console.log("\n✅ Read-only MCP order resume verification passed");
