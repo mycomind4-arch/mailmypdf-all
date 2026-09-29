@@ -6,6 +6,7 @@ const token=process.env.MCP_BEARER_TOKEN?.trim();
 const runId=crypto.randomUUID();
 const allowAddressReview=process.env.MCP_E2E_ALLOW_ADDRESS_REVIEW==="true";
 const allowApproval=process.env.MCP_E2E_ALLOW_APPROVAL==="true";
+const allowCheckout=process.env.MCP_E2E_ALLOW_CHECKOUT==="true";
 const mailClass=(process.env.MCP_E2E_MAIL_CLASS||"standard").trim();
 const color=process.env.MCP_E2E_COLOR==="true";
 const letterText=(process.env.MCP_E2E_LETTER_TEXT||`MailMyPDF conversational-letter acceptance test ${runId}.\n\nThis disposable draft verifies chat-to-PDF review continuity. Do not treat it as real correspondence.`).trim();
@@ -28,6 +29,10 @@ if(!["localhost","127.0.0.1","[::1]"].includes(new URL(baseUrl).hostname)&&proce
 }
 if(allowApproval&&!allowAddressReview){
   console.error("❌ MCP_E2E_ALLOW_APPROVAL=true requires MCP_E2E_ALLOW_ADDRESS_REVIEW=true.");
+  process.exit(1);
+}
+if(allowCheckout&&!allowApproval){
+  console.error("❌ MCP_E2E_ALLOW_CHECKOUT=true requires MCP_E2E_ALLOW_APPROVAL=true.");
   process.exit(1);
 }
 
@@ -102,7 +107,7 @@ async function callTool(name,args){
 }
 
 console.log(`MailMyPDF conversational-letter E2E harness: ${endpoint}`);
-console.log(`Mail class: ${mailClass}; color: ${color}; address review: ${allowAddressReview}; approval: ${allowApproval}`);
+console.log(`Mail class: ${mailClass}; color: ${color}; address review: ${allowAddressReview}; approval: ${allowApproval}; checkout: ${allowCheckout}`);
 
 const prepared=await callTool("prepare_conversational_letter",{
   letter_text:letterText,
@@ -198,14 +203,43 @@ if(status?.order?.directMail?.nextAction?.toolName!=="prepare_direct_pdf_checkou
 }
 ok("approved draft resumes at checkout preparation without creating checkout");
 
+if(!allowCheckout){
+  console.log("\nResult");
+  console.log(JSON.stringify({
+    orderId,
+    packetSha256:approval.approval.packetSha256,
+    totalCents:approval.approval.totalCents,
+    reviewStatus:status.order.directMail.review.status,
+    approvalStatus:status.order.directMail.approval.status,
+    nextTool:status.order.directMail.nextAction.toolName,
+  },null,2));
+  console.log("\n✅ Conversational-letter approval-continuity path passed");
+  console.log("ℹ️ Checkout was intentionally skipped. Set MCP_E2E_ALLOW_CHECKOUT=true to create an idempotent hosted checkout. The harness never enters payment credentials, charges a card, or submits mail.");
+  process.exit(0);
+}
+
+const checkout=await callTool("prepare_direct_pdf_checkout",{order_id:orderId});
+if(checkout?.orderId!==orderId) fail("checkout returned the wrong order",checkout);
+if(checkout?.packetSha256!==approval.approval.packetSha256) fail("checkout packet hash does not match approval",checkout);
+if(checkout?.totalCents!==approval.approval.totalCents) fail("checkout total does not match approval",checkout);
+let checkoutUrl;
+try{checkoutUrl=new URL(checkout.checkoutUrl);}catch{fail("checkout did not return a valid URL",checkout);}
+if(checkoutUrl.protocol!=="https:") fail("checkout URL is not HTTPS",checkout);
+ok("idempotent hosted checkout was created for the exact approved mailing");
+
+status=await callTool("get_order_status",{order_id:orderId});
+if(status?.order?.directMail?.approval?.status!=="current") fail("checkout invalidated the recorded approval",status);
+
 console.log("\nResult");
 console.log(JSON.stringify({
   orderId,
-  packetSha256:approval.approval.packetSha256,
-  totalCents:approval.approval.totalCents,
-  reviewStatus:status.order.directMail.review.status,
-  approvalStatus:status.order.directMail.approval.status,
-  nextTool:status.order.directMail.nextAction.toolName,
+  packetSha256:checkout.packetSha256,
+  totalCents:checkout.totalCents,
+  checkoutUrl:checkout.checkoutUrl,
+  checkoutReused:checkout.reused===true,
+  orderStatus:status?.order?.status??null,
+  reviewStatus:status?.order?.directMail?.review?.status??null,
+  approvalStatus:status?.order?.directMail?.approval?.status??null,
 },null,2));
-console.log("\n✅ Conversational-letter approval-continuity path passed");
-console.log("ℹ️ The harness stops before prepare_direct_pdf_checkout. It never creates checkout, charges, or submits mail.");
+console.log("\n✅ Conversational-letter checkout-continuity path passed");
+console.log("ℹ️ No payment credentials were entered and no charge or Lob submission was performed by this harness. Complete the hosted checkout separately, then verify the order with the read-only MCP resume verifier and verify:canary.");

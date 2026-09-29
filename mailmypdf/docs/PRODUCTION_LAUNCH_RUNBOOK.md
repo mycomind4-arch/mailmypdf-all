@@ -166,6 +166,30 @@ For one new order:
 
 Then enable `AUTO_SUBMIT_TO_LOB=true` in sandbox for a new order and repeat. Verify exactly one provider submission.
 
+For the ChatGPT/MCP conversational-letter path, run the same sandbox canary through the connector:
+
+```sh
+MCP_E2E_ALLOW_WRITES=true \
+MCP_E2E_ALLOW_ADDRESS_REVIEW=true \
+MCP_E2E_ALLOW_APPROVAL=true \
+MCP_E2E_ALLOW_CHECKOUT=true \
+MCP_BEARER_TOKEN=<TOKEN> \
+MCP_E2E_SENDER_JSON='<JSON>' \
+MCP_E2E_RECIPIENT_JSON='<JSON>' \
+pnpm --filter ./mailmypdf mcp:e2e:letter
+```
+
+The harness may create an idempotent hosted Stripe Checkout only when the explicit checkout opt-in is set. It does not enter payment credentials, charge a card, or submit mail. Complete the sandbox Checkout separately, then verify that the same conversational order is resumable through MCP:
+
+```sh
+MCP_BEARER_TOKEN=<TOKEN> \
+MCP_E2E_ORDER_ID=<ORDER_UUID> \
+MCP_E2E_EXPECT_STAGE=submitted \
+pnpm --filter ./mailmypdf mcp:e2e:resume
+```
+
+Finally run `verify:canary` for the same order so the MCP-visible state is checked against Supabase, Stripe, and Lob provider state.
+
 Also test:
 
 - failed payment => no Lob submission

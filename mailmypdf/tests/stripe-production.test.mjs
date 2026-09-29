@@ -101,6 +101,16 @@ describe("Stripe Production — Metadata Integrity", () => {
     const markOrderPaidSection = webhook.slice(webhook.indexOf("async function markOrderPaid"));
     assert.match(markOrderPaidSection, /\.eq\("status", "draft"\)/);
   });
+
+  it("never marks checkout paid until Stripe reports settled funds", async () => {
+    const webhook = await source("src/routes/api/public/payments/webhook.ts");
+    const start = webhook.indexOf("async function markOrderPaid");
+    const markOrderPaidSection = webhook.slice(start, webhook.indexOf("async function markOrderFailed", start));
+    const settlementGuard = markOrderPaidSection.indexOf('session.payment_status !== "paid"');
+    const bulkPaidUpdate = markOrderPaidSection.indexOf('status: "paid_pending_manual_fulfillment"');
+    assert.ok(settlementGuard >= 0, "markOrderPaid must fail closed on unsettled Checkout sessions");
+    assert.ok(bulkPaidUpdate > settlementGuard, "settlement guard must run before any paid transition, including bulk orders");
+  });
 });
 
 // ── Source-Level Tests: Refund Flow ────────────────────────────────────────────

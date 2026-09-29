@@ -168,7 +168,7 @@ jobs:
       - name: Validate MailMyPDF plugin submission bundle
         run: pnpm plugin:mailmypdf:submission:validate
       - name: Verify MCP E2E safety interlocks
-        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs mailmypdf/tests/mcp-conversational-letter-e2e-harness.test.mjs
+        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs mailmypdf/tests/mcp-conversational-letter-e2e-harness.test.mjs mailmypdf/tests/mcp-order-resume-e2e-harness.test.mjs
       - name: Verify MCP launch diagnostics stay read-only
         run: node --test mailmypdf/tests/mcp-launch-readiness.test.mjs
       - name: Verify portable MailMyPDF plugin package
