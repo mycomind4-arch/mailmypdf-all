@@ -42,6 +42,7 @@ interface StripeCheckoutSession {
   id: string;
   metadata: CheckoutSessionMetadata | null;
   amount_total: number | null;
+  payment_status?: string | null;
   payment_intent?: string | null;
   last_payment_error?: { message?: string } | null;
 }
@@ -165,6 +166,20 @@ async function markOrderPaid(
   log: ReturnType<typeof createRequestLogger>,
   eventId: string,
 ): Promise<void> {
+  // Checkout completion does not always mean funds have settled. Delayed
+  // payment methods can emit checkout.session.completed while payment_status
+  // is still unpaid. Only a settled Session may advance an order toward
+  // fulfillment; checkout.session.async_payment_succeeded will retry this path
+  // after Stripe reports payment_status=paid.
+  if (session.payment_status !== "paid") {
+    log.info("checkout session payment is not settled — deferring paid transition", {
+      sessionId: session.id,
+      eventId,
+      paymentStatus: session.payment_status ?? "missing",
+    });
+    return;
+  }
+
   // ── Check for bulk order ────────────────────────────────────────────────
   const metadata = session.metadata ?? {};
   if (metadata.isBulk === "true" && metadata.orderIds) {
