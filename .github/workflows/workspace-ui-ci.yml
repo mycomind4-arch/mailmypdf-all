@@ -221,11 +221,8 @@ jobs:
         run: |
           node --check mailmypdf/scripts/verify-canary.mjs
           node --check mailmypdf/scripts/verify-deployment.mjs
-          pnpm --filter @mailmypdf/core build
+          pnpm --filter ./mailmypdf run prebuild
           pnpm --filter @mailmypdf/mailing-client build
-          pnpm --filter @mailmypdf/documents build
-          pnpm --filter @mailmypdf/pricing build
-          pnpm --filter @mailmypdf/fulfillment build
           pnpm --filter @mailmypdf/fulfillment test
           pnpm --filter @mailmypdf/payment-fulfillment test
           node --test mailmypdf/tests/lob-hardening.test.mjs mailmypdf/tests/stripe-production.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/webhook-security.test.mjs mailmypdf/tests/security-headers-wiring.test.mjs mailmypdf/tests/mailing-orchestration-schema.test.mjs
