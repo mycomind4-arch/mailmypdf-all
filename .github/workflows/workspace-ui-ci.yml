@@ -221,7 +221,7 @@ jobs:
         run: |
           node --check mailmypdf/scripts/verify-canary.mjs
           node --check mailmypdf/scripts/verify-deployment.mjs
-          pnpm --filter @mailmypdf/core build
+          pnpm --filter ./mailmypdf run prebuild
           pnpm --filter @mailmypdf/mailing-client build
           pnpm --filter @mailmypdf/fulfillment test
           pnpm --filter @mailmypdf/payment-fulfillment test

@@ -59,7 +59,9 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
-  assert.equal(names.length, 30);
+  assert.ok(names.includes("schedule_direct_pdf_mail"));
+  assert.ok(names.includes("cancel_scheduled_mail"));
+  assert.equal(names.length, 32);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -828,7 +830,7 @@ test("direct order status derives safe conversational-mail resume state", () => 
   assert.equal(scheduled.directMail?.nextAction, null);
   assert.equal(scheduled.scheduledMailing?.status, "scheduled");
   assert.equal(scheduled.scheduledMailing?.paymentAuthorizedAt, "2026-09-27T10:03:00.000Z");
-  assert.equal(scheduled.scheduledMailing?.nextAction?.toolName, "get_order_status");
+  assert.equal(scheduled.scheduledMailing?.nextAction?.toolName, "cancel_scheduled_mail");
   assert.equal(JSON.stringify(scheduled).includes("stripe_payment_intent_id"), false);
 
   const changed = normalizeOrderStatus(
@@ -1004,7 +1006,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 30);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 32);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -1048,7 +1050,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 30);
+  assert.equal(payload.result.tools.length, 32);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));

@@ -154,6 +154,16 @@
       "readOnlyHint": "True because it only reads the connected account's sanitized saved-payment readiness and setup URL.",
       "destructiveHint": "False because it cannot create a charge, approve a mailing, change a payment method, or submit mail.",
       "openWorldHint": "False because it reads bounded MailMyPDF account state and does not contact Stripe during the tool call."
+    },
+    "schedule_direct_pdf_mail": {
+      "readOnlyHint": "False because it persists an owned future mailing schedule and the user's explicit saved-payment authorization for that exact approved mailing.",
+      "destructiveHint": "True because scheduling authorizes a future charge and physical mailing at the confirmed time, even though neither occurs during this tool call.",
+      "openWorldHint": "True because readiness checks may consult configured payment or mailing-provider state before the future schedule is accepted."
+    },
+    "cancel_scheduled_mail": {
+      "readOnlyHint": "False because it changes an owned scheduled mailing from an active future action to a cancelled state.",
+      "destructiveHint": "False because cancellation prevents a future charge or mailing and cannot interrupt or alter payment or fulfillment once processing has begun.",
+      "openWorldHint": "False because it only updates bounded MailMyPDF schedule state and does not contact a payment or mailing provider."
     }
   },
   "manualSubmissionRequirements": [
