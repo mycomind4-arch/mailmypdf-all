@@ -1115,7 +1115,9 @@ export async function prepareDirectPdfCheckout(
   if (order.payment_execution_key) {
     throw new McpDirectMailError(
       409,
-      "This approved draft is already reserved for another saved-payment execution",
+      order.payment_execution_key.startsWith("scheduled:")
+        ? "This approved draft is already reserved for scheduled payment execution"
+        : "This approved draft is already reserved for another saved-payment execution",
     );
   }
 
