@@ -170,8 +170,11 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
   }
 
   async getCommitStatus(repository: string, ref: string): Promise<{ state: string; checks: StatusCheck[] }> {
+    const refFilter = /^[0-9a-f]{40}$/i.test(ref)
+      ? `head_sha=${encodeURIComponent(ref)}`
+      : `branch=${encodeURIComponent(ref)}`
     const runsData = await this.apiJson<{ workflow_runs: Array<{ status: string; conclusion: string | null; name: string; html_url: string }> }>(
-      `/repos/${repository}/actions/runs?branch=${ref}&per_page=20`
+      `/repos/${repository}/actions/runs?${refFilter}&per_page=50`
     ).catch(() => ({ workflow_runs: [] }))
 
     const checks: StatusCheck[] = runsData.workflow_runs.map((run) => ({
