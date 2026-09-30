@@ -37,7 +37,7 @@ test("canonical chat registry certifies supported platform families and excludes
   for (const workflow of WORKFLOW_REGISTRY) {
     const binding = chatExecutionBindingFor(workflow.slug);
     const supported = workflow.execution?.kind === "platform" &&
-      ["notice-response", "records-request", "insurance-appeal"].includes(workflow.execution.policyFamily);
+      ["notice-response", "records-request", "insurance-appeal", "ssa-reconsideration"].includes(workflow.execution.policyFamily);
     assert.equal(Boolean(binding), supported, workflow.id);
     if (binding) {
       assert.equal(binding.manifest.id, workflow.slug, workflow.id);
@@ -54,10 +54,10 @@ test("canonical chat registry certifies supported platform families and excludes
 test("factory report separates catalog identity, missing contracts, and failing certification", () => {
   const report = canonicalChatFactoryReport(AVAILABLE_TOOLS);
   assert.equal(report.length, WORKFLOW_REGISTRY.length);
-  assert.equal(report.filter((item) => item.chatExecutable).length, 21);
-  assert.equal(report.filter((item) => item.reason === "chat-contract-not-registered").length, 3);
+  assert.equal(report.filter((item) => item.chatExecutable).length, 23);
+  assert.equal(report.filter((item) => item.reason === "chat-contract-not-registered").length, 1);
   assert.equal(report.find((item) => item.id === "notice-respond/cp14-response")?.reason, "certified");
-  assert.equal(report.find((item) => item.id === "appeal-mail/appeal-ssdi-denial")?.reason, "chat-contract-not-registered");
+  assert.equal(report.find((item) => item.id === "appeal-mail/appeal-ssdi-denial")?.reason, "certified");
   assert.equal(report.find((item) => item.id === "secured-transactions/secured-transaction-eligibility")?.reason, "platform-runtime-not-registered");
 
   const reduced = new Set(AVAILABLE_TOOLS);
