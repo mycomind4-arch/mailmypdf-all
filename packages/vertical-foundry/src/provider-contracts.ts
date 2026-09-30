@@ -64,6 +64,8 @@ export interface RepositoryProvider {
   createTree(repository: string, branch: string, files: readonly FileCommit[], message: string): Promise<CommitResult>
   /** Create a pull request. */
   createPullRequest(repository: string, head: string, base: string, title: string, body: string): Promise<PullRequestResult>
+  /** Find an existing open pull request for a branch. */
+  findOpenPullRequestByHead(repository: string, head: string, base?: string): Promise<PullRequestResult | null>
   /** Get CI/commit status checks for a ref. */
   getCommitStatus(repository: string, ref: string): Promise<{ state: string; checks: StatusCheck[] }>
   /** Check if the repository provider is healthy/accessible. */
