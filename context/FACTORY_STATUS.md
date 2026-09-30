@@ -1,5 +1,17 @@
 # MailMyPDF factory status
 
+## 2026-09-29 — CP14 factory gold slice and host parity
+
+- Added `mailmypdf.workflow-artifacts/v1`: a side-effect-free factory artifact plan that projects canonical identity, public/start/workspace paths, expected landing/start files, manifest documents/steps/gates/outputs/acceptance scenarios, host start-registry key, and chat certification from the existing canonical workflow + runtime policy.
+- `canonicalWorkflowArtifactPlan()` now exposes that plan for a registered platform workflow, and `canonicalChatFactoryReport()` includes the artifact plan for certified bindings. Studio/readiness consumers can inspect what a workflow should have without publishing or creating files.
+- CP14 is the first enforced gold slice. Tests pin its canonical id, public landing/start paths, authenticated workspace start path, official-response pipeline, source/supporting-document requirements, approval/payment/mailing gates, acceptance scenarios, and required connector tools.
+- Repaired a real drift defect: CP14 was canonical-executable but absent from the authenticated start host. The audit also found Equifax, Experian, and TransUnion disputes in the same state; those workspace starts are now mounted too.
+- Replaced five hand-maintained Notice Respond start imports with a factory-family renderer keyed from canonical `policyFamily === "notice-response"`. New certified Notice Respond workflows can use the shared profile-driven `NoticeResponseWorkflow` in the authenticated host without adding another host import/mapping.
+- Authenticated workflow detail now sends every executable workflow to its dashboard `/start` bridge instead of leaking a `public-start` canonical entry out of the authenticated shell. Public CP14 landing behavior remains unchanged.
+- Added host parity CI: all 30 canonical executable workflows must be covered either by an exact static renderer or the verified Notice Respond family renderer. CP14's checked-in landing/config/SEO/schema/start files must match the factory topology and remain free of retired architecture paths.
+- Added `@mailmypdf/dispute-mail-section` as an explicit MailMyPDF workspace dependency so the three already-implemented credit-bureau dispute starts can be mounted by the authenticated host.
+- This slice does **not** claim that the factory generates editorial copy or publishes files automatically yet. It establishes the deterministic artifact contract and family-renderer pattern that the next workflow/family can reuse.
+
 Updated: 2026-09-27. This is the active repair queue, not a readiness certification.
 
 ## Objective and current focus
