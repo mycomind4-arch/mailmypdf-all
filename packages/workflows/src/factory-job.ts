@@ -210,7 +210,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   const source = record(value, "Factory job build");
   const request = record(source.request, "Factory job build request");
   const startTemplate = request.startTemplate;
-  if (startTemplate !== "records-request") {
+  if (startTemplate !== "records-request" && startTemplate !== "notice-response") {
     throw new Error("Factory job build start template is invalid.");
   }
   if (!Array.isArray(source.filePaths) || source.filePaths.some((path) => typeof path !== "string")) {
@@ -227,12 +227,17 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   });
   const rebuilt = buildReviewedFactoryTemplatePlan(reviewedRequest);
   const filePaths = source.filePaths as string[];
+  const legacyFilePaths = rebuilt.filePaths.filter(
+    (path) => !path.endsWith("/workflow.spec.json") && !path.endsWith("/config.ts"),
+  );
+  const matches = (expected: readonly string[]) =>
+    filePaths.length === expected.length &&
+    filePaths.every((path, index) => path === expected[index]);
   if (
     source.canonicalId !== rebuilt.canonicalId ||
     source.sectionId !== rebuilt.sectionId ||
     source.slug !== rebuilt.slug ||
-    filePaths.length !== rebuilt.filePaths.length ||
-    filePaths.some((path, index) => path !== rebuilt.filePaths[index])
+    (!matches(rebuilt.filePaths) && !matches(legacyFilePaths))
   ) {
     throw new Error("Factory job build snapshot does not match deterministic materialization.");
   }
@@ -263,7 +268,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     canonicalId: rebuilt.canonicalId,
     sectionId: rebuilt.sectionId,
     slug: rebuilt.slug,
-    filePaths: Object.freeze([...rebuilt.filePaths]),
+    filePaths: Object.freeze([...filePaths]),
     artifact,
   });
 }
