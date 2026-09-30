@@ -47,6 +47,7 @@ export type FactoryJobPlanSnapshot = Readonly<{
 export type FactoryJobBuildArtifact = Readonly<{
   repository: string;
   branch: string;
+  baseCommitSha: string;
   commitSha: string;
   pullRequestNumber: number;
   pullRequestUrl: string;
@@ -250,6 +251,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     artifact = Object.freeze({
       repository: requiredSnapshotString(rawArtifact.repository, "Factory build repository", 300),
       branch: requiredSnapshotString(rawArtifact.branch, "Factory build branch", 300),
+      baseCommitSha: requiredSnapshotString(rawArtifact.baseCommitSha, "Factory build base commit", 100),
       commitSha: requiredSnapshotString(rawArtifact.commitSha, "Factory build commit", 100),
       pullRequestNumber,
       pullRequestUrl: requiredSnapshotString(rawArtifact.pullRequestUrl, "Factory build pull request URL", 2000),
@@ -624,10 +626,13 @@ export function approveFactoryJobReview(
   }
 
   if (job.stage === "publication_review") {
+    const generated = Boolean(job.build?.artifact);
     return transition(job, {
       status: "completed",
       stage: "complete",
-      eventType: "factory.existing_workflow.approved",
+      eventType: generated
+        ? "factory.generated_workflow.approved_for_publication"
+        : "factory.existing_workflow.approved",
       review: {
         required: false,
         reason: null,
@@ -709,6 +714,7 @@ export function recordFactoryBuildArtifact(
     data: {
       repository: artifact.repository,
       branch: artifact.branch,
+      baseCommitSha: artifact.baseCommitSha,
       commitSha: artifact.commitSha,
       pullRequestNumber: artifact.pullRequestNumber,
       pullRequestUrl: artifact.pullRequestUrl,
