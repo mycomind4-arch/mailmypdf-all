@@ -266,3 +266,18 @@ test("failed supervised acceptance fails the durable Factory Job", () => {
   assert.equal(job.stage, "acceptance");
   assert.ok(job.diagnostics.some((item) => item.code === "FACTORY_ACCEPTANCE_FAILED"));
 });
+
+
+test("pre-executor v1 Factory Job snapshots restore with no build artifact", () => {
+  const original = createFactoryJob({
+    id: "job-legacy-v1",
+    problem: "public records request",
+    now: "2026-09-30T21:00:00.000Z",
+  });
+  const serialized = JSON.parse(JSON.stringify(original)) as Record<string, unknown>;
+  delete serialized.buildArtifact;
+
+  const restored = restoreFactoryJobSnapshot(serialized);
+  assert.equal(restored.buildArtifact, null);
+  assert.equal(restored.schemaVersion, "mailmypdf.factory-job/v1");
+});
