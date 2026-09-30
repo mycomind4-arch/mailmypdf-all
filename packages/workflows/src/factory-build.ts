@@ -8,9 +8,10 @@ import {
   buildWorkflowMaterializationPlan,
   WORKFLOW_MATERIALIZATION_SPEC_VERSION,
   type WorkflowMaterializationSpec,
+  type WorkflowStartTemplate,
 } from "./workflow-materialization.js";
 
-export type ReviewedFactoryTemplateFamily = "records-request";
+export type ReviewedFactoryTemplateFamily = WorkflowStartTemplate;
 
 export type ReviewedFactoryTemplateRequest = Readonly<{
   id: string;
@@ -62,13 +63,12 @@ export default workflowConfig
 export function buildReviewedFactoryTemplatePlan(
   request: ReviewedFactoryTemplateRequest,
 ): ReviewedFactoryBuildPlan {
-  if (request.startTemplate !== "records-request") {
-    throw new Error("Autonomous new-template builds currently support records-request only.");
-  }
-
   const id = request.id.trim();
   const label = request.label.trim();
-  if (!/^records-request\/[a-z0-9]+(?:-[a-z0-9]+)*-records-request$/.test(id)) {
+  if (
+    request.startTemplate === "records-request" &&
+    !/^records-request\/[a-z0-9]+(?:-[a-z0-9]+)*-records-request$/.test(id)
+  ) {
     throw new Error(
       "Autonomous Records Request workflow IDs must use records-request/<slug>-records-request.",
     );
@@ -81,31 +81,33 @@ export function buildReviewedFactoryTemplatePlan(
     execution: Object.freeze({
       kind: "platform",
       entry: "workspace-start",
-      policyFamily: "records-request",
+      policyFamily: request.startTemplate,
     }),
     ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
     ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
-    startTemplate: "records-request",
+    startTemplate: request.startTemplate,
   });
 
   const materialization = buildWorkflowMaterializationPlan(spec);
   const workflowRoot = `${materialization.sectionId}/workflows/${materialization.slug}`;
-  const bootstrapFiles = Object.freeze([
-    Object.freeze({
-      path: `${workflowRoot}/workflow.spec.json`,
-      content: JSON.stringify(spec, null, 2) + "\n",
-    }),
-    Object.freeze({
-      path: `${workflowRoot}/config.ts`,
-      content: renderRecordsRequestConfig(materialization.slug, label),
-    }),
-  ]);
+  const bootstrapFiles = request.startTemplate === "records-request"
+    ? Object.freeze([
+        Object.freeze({
+          path: `${workflowRoot}/workflow.spec.json`,
+          content: JSON.stringify(spec, null, 2) + "\n",
+        }),
+        Object.freeze({
+          path: `${workflowRoot}/config.ts`,
+          content: renderRecordsRequestConfig(materialization.slug, label),
+        }),
+      ])
+    : Object.freeze([]);
 
   return Object.freeze({
     request: Object.freeze({
       id: spec.id,
       label: spec.label,
-      startTemplate: "records-request",
+      startTemplate: request.startTemplate,
       ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
       ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
     }),
@@ -166,6 +168,11 @@ export function buildReviewedFactoryRepositoryPlan(
   baseSeeds: readonly WorkflowSeed[] = canonicalSeeds as readonly WorkflowSeed[],
 ): ReviewedFactoryRepositoryPlan {
   const build = buildReviewedFactoryTemplatePlan(request);
+  if (build.request.startTemplate !== "records-request") {
+    throw new Error(
+      "Autonomous repository materialization currently supports records-request only.",
+    );
+  }
   const seeds = [...baseSeeds];
 
   if (seeds.some((seed) => seed.id === build.canonicalId)) {
