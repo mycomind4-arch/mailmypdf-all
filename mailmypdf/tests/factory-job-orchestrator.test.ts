@@ -84,6 +84,8 @@ test("factory GitHub executor is isolated, non-destructive, and CI-gated", () =>
   assert.match(source, /createBranch/);
   assert.match(source, /createTree/);
   assert.match(source, /createPullRequest/);
+  assert.match(source, /findOpenPullRequestByHead/);
+  assert.match(source, /does not exactly match the reviewed build plan/);
   assert.match(source, /Factory generated workflow verification/);
   assert.match(source, /Shared capability verification/);
   assert.match(source, /Records Request verification/);
