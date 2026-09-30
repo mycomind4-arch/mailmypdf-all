@@ -13,7 +13,7 @@ export const RECORDS_REQUEST_REQUIRED_CAPABILITIES = [
 ] as const;
 
 export interface RecordsRequestManifestOptions {
-  workflowId: `${string}-records-request` | "public-records-request" | "foia-request" | "open-records-request" | "government-documents-request" | "public-information-request";
+  workflowId: string;
   title: string;
   contextDocumentLabel?: string;
   supportingContextLabel?: string;
@@ -24,17 +24,20 @@ export interface RecordsRequestManifestOptions {
 export function createRecordsRequestManifest(
   options: RecordsRequestManifestOptions,
 ): DefinedWorkflow<WorkflowManifest> {
-  if (!options.workflowId.trim()) throw new Error("Records Request workflow id is required");
+  const workflowId = options.workflowId.trim();
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(workflowId)) {
+    throw new Error("Records Request workflow id must be a canonical kebab-case slug");
+  }
   if (!options.title.trim()) throw new Error("Records Request workflow title is required");
 
   const contextDocumentLabel = options.contextDocumentLabel ?? "Optional source or context document";
   const supportingContextLabel = options.supportingContextLabel ?? "Supporting context documents";
 
   return defineWorkflow({
-    id: options.workflowId,
+    id: workflowId,
     vertical: "records-request",
     title: options.title,
-    route: options.route ?? `/records-request/workflows/${options.workflowId}/start`,
+    route: options.route ?? `/records-request/workflows/${workflowId}/start`,
     pipeline: "P08_RECORDS",
     adapters: ["government", "records"],
     requiredCapabilities: RECORDS_REQUEST_REQUIRED_CAPABILITIES,
