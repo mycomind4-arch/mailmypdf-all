@@ -15,6 +15,7 @@ test("CP14 factory gold slice is mounted through the generic Notice Respond fami
   assert.match(registry, /NoticeResponseWorkflow/);
   assert.match(registry, /workflowById/);
   assert.match(registry, /canonical\.execution\.policyFamily === "notice-response"/);
+  assert.match(registry, /getNoticeResponseWorkflowProfile\(workflowId\)/);
   assert.match(registry, /noticeResponseStartComponent\(workflowId\)/);
   assert.equal(registry.includes("Cp14ResponseStart"), false);
 });
