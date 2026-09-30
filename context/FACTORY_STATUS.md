@@ -1,5 +1,13 @@
 # MailMyPDF factory status
 
+## 2026-09-29 — Records Request becomes the second factory-artifact family
+
+- Added one shared Records Request profile registry for the five currently executable request workflows. Workflow title, records-sought guidance, and optional context-document labels no longer need to be repeated independently by web start wrappers and chat binding.
+- Added a Records Request factory artifact joining canonical identity, shared profile, generated manifest, runtime policy/chat contract, and web start configuration. The canonical chat-execution registry now resolves Records Request through that artifact rather than separately rebuilding a manifest and policy.
+- Extended the workflow materializer with a family-level `records-request` start template. Public Records Request is the second-family proof: its colocated spec owns canonical enrollment plus six generated landing/SEO/schema/start wrappers, and its local `manifest.ts` projects the same factory artifact.
+- Added shared artifact/chat-certification tests, Public Records Request parity tests, and cross-family materializer tests. Request-first behavior remains explicit: a source document is optional and analysis can be created deterministically from confirmed request facts.
+- Cross-family inspection also identified the next true factory blocker: SSDI/SSI reconsideration still has large workflow-specific start UIs and a hand-authored manifest/runtime field contract that is not chat-certified. The next step is to unify SSA reconsideration behind a shared profile/manifest/artifact/chat contract before giving it a materializer start template; the route generator should not encode an SSDI exception.
+
 ## 2026-09-29 — Reviewed workflow-spec materializer
 
 - Added a generic workflow materialization plan in `@mailmypdf/workflows`. One colocated `workflow.spec.json` now deterministically projects canonical registry metadata plus materializer-owned TanStack/SEO/schema/start wrappers while leaving substantive `config.ts` copy outside generation.
