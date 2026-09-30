@@ -256,3 +256,17 @@ The administrator Studio surface now has two explicit responsibilities instead o
 - Consequential actions remain in dedicated tools with their existing review and authorization boundaries; the command center does not introduce new send, charge, publish, role-change, or deployment side effects.
 
 Evidence: `mailmypdf/src/lib/studio-command-center.functions.ts`, `mailmypdf/src/components/studio-command-center.tsx`, `mailmypdf/src/routes/_authenticated/studio.tsx`, `mailmypdf/src/routes/_authenticated/studio/index.tsx`, `mailmypdf/src/routes/_authenticated/studio/builder.tsx`, `mailmypdf/src/lib/admin-users.functions.ts`, `mailmypdf/src/routes/_authenticated/admin/users.tsx`.
+
+
+## 12. 2026-09-29 Cloudflare Worker deployment wiring
+
+Studio deployment metadata now reflects the current canonical architecture rather than the retired Pages/vertical layout:
+
+- MailMyPDF deploys as a **Cloudflare Worker** named `mailmypdf`, not a Cloudflare Pages project.
+- The canonical application directory is `mailmypdf/`; Studio deploy code must not use `apps/mailmypdf` or `apps/verticals/*`.
+- `mailmypdf/deploy.sh` remains the single deployment implementation. It runs live production configuration preflight, builds the TanStack/Nitro Worker, injects the proof-processor cron into the generated Wrangler config, deploys with Wrangler, verifies the deployed website, and runs MCP launch-readiness.
+- Studio's publish helper is a local-development machine action protected by `studioFileScanAuthMiddleware`. It invokes the canonical deploy script only after explicit confirmation and requires `CLOUDFLARE_API_TOKEN` in the local Studio server environment. Production Studio does not receive a remote shell/deploy primitive.
+- The command center may expose Worker name/deploy-mode metadata, but never Cloudflare credentials.
+- `resolveProjectRoot` discovers the workspace root instead of assuming the retired three-level `apps/verticals` directory depth.
+
+Evidence: `mailmypdf/src/studio/domain/studio-project.ts`, `mailmypdf/src/studio/lib/fns/publish-project-to-cloudflare.ts`, `mailmypdf/deploy.sh`, `mailmypdf/src/lib/studio-command-center.functions.ts`.
