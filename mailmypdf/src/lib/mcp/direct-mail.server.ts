@@ -1069,7 +1069,7 @@ export async function approveDirectPdfMail(
       approved: true,
     },
     reused,
-    nextAction: "The exact PDF, price, and mailing details are approved. Prepare secure checkout.",
+    nextAction: "The exact PDF, price, and mailing details are approved. Call get_payment_readiness. If a saved payment method is ready, show its safe display plus the exact total and ask for a separate explicit charge-and-send-now confirmation before charge_and_send_direct_pdf_mail. Otherwise use hosted checkout.",
   };
 }
 
@@ -1115,7 +1115,7 @@ export async function prepareDirectPdfCheckout(
   if (order.payment_execution_key) {
     throw new McpDirectMailError(
       409,
-      "This approved draft is already reserved for scheduled payment execution",
+      "This approved draft is already reserved for another saved-payment execution",
     );
   }
 
