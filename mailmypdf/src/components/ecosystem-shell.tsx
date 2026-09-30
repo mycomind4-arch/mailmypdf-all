@@ -180,6 +180,9 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
               <NavLink to={config.workflowsUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 Workflows
               </NavLink>
+              <NavLink to="/chatgpt" className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
+                ChatGPT
+              </NavLink>
               <NavLink to={config.howItWorksUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 How It Works
               </NavLink>
@@ -545,6 +548,9 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
 
         <NavLink to={config.workflowsUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           Workflows
+        </NavLink>
+        <NavLink to="/chatgpt" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
+          Use with ChatGPT
         </NavLink>
         <NavLink to={config.howItWorksUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           How It Works
