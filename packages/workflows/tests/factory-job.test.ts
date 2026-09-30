@@ -6,7 +6,10 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  recordFactoryJobAcceptance,
+  recordFactoryJobBuildMaterialized,
   restoreFactoryJobSnapshot,
+  startFactoryJobBuild,
 } from "../src/factory-job.js";
 
 const TOOLS = [
@@ -55,10 +58,10 @@ test("factory job persists deterministic stage-by-stage progress for an existing
   assert.equal(job.stage, "complete");
 });
 
-test("factory job stops at a reviewed template boundary instead of inventing a build", () => {
+test("factory job requires a reviewed build request before entering build", () => {
   let job = createFactoryJob({
     id: "job-2",
-    problem: "Create a completely novel mars colony easement workflow.",
+    problem: "Create a completely novel records request workflow.",
     now: "2026-09-30T20:00:00.000Z",
   });
 
@@ -67,12 +70,28 @@ test("factory job stops at a reviewed template boundary instead of inventing a b
 
   assert.equal(job.status, "awaiting_review");
   assert.equal(job.stage, "template_review");
-  assert.ok(job.diagnostics.some((item) => item.code === "TEMPLATE_REVIEW_REQUIRED"));
+  assert.throws(
+    () => approveFactoryJobReview(job, "2026-09-30T20:03:00.000Z"),
+    /reviewed build request/i,
+  );
 
-  job = approveFactoryJobReview(job, "2026-09-30T20:03:00.000Z").job;
+  job = approveFactoryJobReview(
+    job,
+    "2026-09-30T20:03:00.000Z",
+    {
+      family: "records-request",
+      sectionId: "records-request",
+      workflowId: "police-incident-records-request",
+      label: "Police Incident Records Request",
+      startTemplate: "records-request",
+    },
+  ).job;
+
   assert.equal(job.status, "queued");
   assert.equal(job.stage, "build");
-  assert.ok(job.diagnostics.some((item) => item.code === "BUILD_EXECUTOR_REQUIRED"));
+  assert.equal(job.selectedWorkflowId, "records-request/police-incident-records-request");
+  assert.equal(job.buildRequest?.workflowId, "police-incident-records-request");
+  assert.ok(job.diagnostics.some((item) => item.code === "BUILD_READY"));
   assert.throws(
     () => advanceFactoryJob(job, TOOLS, "2026-09-30T20:04:00.000Z"),
     /build executor/i,
@@ -125,4 +144,109 @@ test("durable factory snapshots round-trip and corrupted state fails closed", ()
     () => restoreFactoryJobSnapshot({ ...original, schemaVersion: "future-version" }),
     /schema version is unsupported/i,
   );
+});
+
+
+test("supervised build transitions materialization through acceptance to publication review", () => {
+  let job = createFactoryJob({
+    id: "job-build",
+    problem: "Create a new police incident records request workflow.",
+    now: "2026-09-30T20:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:02:00.000Z").job;
+  job = approveFactoryJobReview(
+    job,
+    "2026-09-30T20:03:00.000Z",
+    {
+      family: "records-request",
+      sectionId: "records-request",
+      workflowId: "police-incident-records-request",
+      label: "Police Incident Records Request",
+      startTemplate: "records-request",
+    },
+  ).job;
+
+  job = startFactoryJobBuild(job, "2026-09-30T20:04:00.000Z").job;
+  assert.equal(job.status, "running");
+  assert.equal(job.stage, "build");
+
+  job = recordFactoryJobBuildMaterialized(
+    job,
+    {
+      branch: "factory/job-12345678-police-incident-records-request",
+      baseSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      specPath: "records-request/workflows/police-incident-records-request/workflow.spec.json",
+      profileRegistryPath: "packages/workflows/src/domain-packs/records-request/generated-profile-specs.json",
+      configPath: "records-request/workflows/police-incident-records-request/config.ts",
+      changedFiles: [
+        "records-request/workflows/police-incident-records-request/config.ts",
+      ],
+      checks: [],
+      builtAt: "2026-09-30T20:05:00.000Z",
+    },
+    "2026-09-30T20:05:00.000Z",
+  ).job;
+  assert.equal(job.stage, "acceptance");
+
+  job = recordFactoryJobAcceptance(job, {
+    checks: [
+      { id: "factory", command: "pnpm --filter @mailmypdf/workflows test", ok: true, summary: "passed" },
+      { id: "acceptance", command: "pnpm --filter @mailmypdf/records-request test:acceptance", ok: true, summary: "passed" },
+    ],
+    now: "2026-09-30T20:06:00.000Z",
+  }).job;
+
+  assert.equal(job.status, "awaiting_review");
+  assert.equal(job.stage, "publication_review");
+  assert.equal(job.review.reason, "generated-workflow-publication");
+  assert.equal(job.buildArtifact?.checks.length, 2);
+  assert.throws(
+    () => approveFactoryJobReview(job, "2026-09-30T20:07:00.000Z"),
+    /publication executor/i,
+  );
+});
+
+test("failed supervised acceptance is durable and blocks publication review", () => {
+  let job = createFactoryJob({
+    id: "job-build-fail",
+    problem: "Create a new police incident records request workflow.",
+    now: "2026-09-30T20:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:02:00.000Z").job;
+  job = approveFactoryJobReview(job, "2026-09-30T20:03:00.000Z", {
+    family: "records-request",
+    sectionId: "records-request",
+    workflowId: "police-incident-records-request",
+    label: "Police Incident Records Request",
+    startTemplate: "records-request",
+  }).job;
+  job = startFactoryJobBuild(job, "2026-09-30T20:04:00.000Z").job;
+  job = recordFactoryJobBuildMaterialized(
+    job,
+    {
+      branch: "factory/job-87654321-police-incident-records-request",
+      baseSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      specPath: "spec.json",
+      profileRegistryPath: "profiles.json",
+      configPath: "config.ts",
+      changedFiles: ["config.ts"],
+      checks: [],
+      builtAt: "2026-09-30T20:05:00.000Z",
+    },
+    "2026-09-30T20:05:00.000Z",
+  ).job;
+  job = recordFactoryJobAcceptance(job, {
+    checks: [
+      { id: "acceptance", command: "test", ok: false, summary: "failed scenario" },
+    ],
+    now: "2026-09-30T20:06:00.000Z",
+  }).job;
+
+  assert.equal(job.status, "failed");
+  assert.equal(job.stage, "acceptance");
+  assert.ok(job.diagnostics.some((item) => item.code === "FACTORY_ACCEPTANCE_FAILED"));
 });
