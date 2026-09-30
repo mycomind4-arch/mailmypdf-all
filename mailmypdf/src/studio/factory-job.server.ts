@@ -6,12 +6,14 @@ import {
   failFactoryJobAcceptance,
   recordFactoryJobAcceptance,
   recordFactoryJobBuildArtifact,
+  recordFactoryJobPublication,
   restoreFactoryJobSnapshot,
   startFactoryJobAcceptance,
   type FactoryBuildArtifact,
   type FactoryBuildCheck,
   type FactoryJob,
   type FactoryJobTransition,
+  type FactoryPublicationArtifact,
   type ReviewedFactoryTemplateRequest,
 } from "@mailmypdf/workflows";
 import type { Json } from "@/integrations/supabase/types";
@@ -285,6 +287,25 @@ export async function recordPersistentFactoryAcceptance(input: {
       checks: input.checks,
       now: input.now ?? new Date().toISOString(),
     }),
+    input.actorId,
+  );
+}
+
+export async function recordPersistentFactoryPublication(input: {
+  jobId: string;
+  actorId: string;
+  artifact: FactoryPublicationArtifact;
+  now?: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  return persistTransition(
+    current,
+    recordFactoryJobPublication(
+      current,
+      input.artifact,
+      input.now ?? new Date().toISOString(),
+    ),
     input.actorId,
   );
 }
