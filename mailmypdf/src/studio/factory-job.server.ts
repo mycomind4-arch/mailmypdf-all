@@ -3,6 +3,8 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  recordFactoryAcceptanceResult,
+  recordFactoryBuildArtifact,
   restoreFactoryJobSnapshot,
   type FactoryJob,
   type FactoryJobTransition,
@@ -10,6 +12,10 @@ import {
 } from "@mailmypdf/workflows";
 import type { Json } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  checkFactoryAcceptance,
+  createFactoryAcceptanceArtifact,
+} from "@/studio/factory-github.server";
 
 export type PersistentFactoryJobEvent = Readonly<{
   id: string;
@@ -170,7 +176,11 @@ async function persistTransition(
 function autoRunnable(job: FactoryJob): boolean {
   return (
     (job.status === "queued" || job.status === "running") &&
-    (job.stage === "intake" || job.stage === "match" || job.stage === "certify" || job.stage === "build")
+    (job.stage === "intake" ||
+      job.stage === "match" ||
+      job.stage === "certify" ||
+      job.stage === "build" ||
+      job.stage === "acceptance")
   );
 }
 
@@ -189,6 +199,29 @@ export async function runPersistentFactoryJobToBoundary(input: {
   const now = input.now ?? (() => new Date().toISOString());
 
   for (let pass = 0; pass < 8 && autoRunnable(job); pass += 1) {
+    if (job.stage === "acceptance") {
+      if (!job.build?.artifact) {
+        const artifact = await createFactoryAcceptanceArtifact(job);
+        const transition = recordFactoryBuildArtifact(job, artifact, now());
+        job = await persistTransition(job, transition, input.actorId);
+        continue;
+      }
+
+      const acceptance = await checkFactoryAcceptance(job);
+      if (acceptance.state === "pending") break;
+
+      const transition = recordFactoryAcceptanceResult(
+        job,
+        {
+          state: acceptance.state,
+          checks: acceptance.checks,
+        },
+        now(),
+      );
+      job = await persistTransition(job, transition, input.actorId);
+      continue;
+    }
+
     const next = advanceFactoryJob(job, input.availableTools, now());
     job = await persistTransition(job, next, input.actorId);
   }
