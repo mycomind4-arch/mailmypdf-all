@@ -1,7 +1,5 @@
 import { workflowByRuntimeId } from "./canonical-workflow-registry.js";
-import { createNoticeResponseManifest } from "./domain-packs/notice-response/manifest.js";
-import { getNoticeResponseWorkflowProfile } from "./domain-packs/notice-response/profiles.js";
-import { getNoticeResponseRuntimePolicy } from "./domain-packs/notice-response/runtime-policy.js";
+import { getNoticeResponseFactoryArtifact } from "./domain-packs/notice-response/factory-artifact.js";
 import { createInsuranceAppealManifestForWorkflow } from "./domain-packs/appeal/insurance-manifest.js";
 import { getInsuranceAppealRuntimePolicy } from "./domain-packs/appeal/insurance-runtime-policy.js";
 import { createRecordsRequestManifest } from "./domain-packs/records-request/manifest.js";
@@ -22,10 +20,9 @@ export function chatExecutionBindingFor(workflowId: string): ChatExecutionBindin
   if (!canonical || canonical.execution?.kind !== "platform") return null;
 
   if (canonical.execution.policyFamily === "notice-response") {
-    const profile = getNoticeResponseWorkflowProfile(workflowId);
-    const policy = getNoticeResponseRuntimePolicy(workflowId);
-    return profile && policy && canonical.sectionId === "notice-respond"
-      ? { manifest: createNoticeResponseManifest({ profile }), policy }
+    const artifact = getNoticeResponseFactoryArtifact(workflowId);
+    return artifact?.factoryReady && canonical.sectionId === "notice-respond"
+      ? { manifest: artifact.manifest, policy: artifact.runtimePolicy }
       : null;
   }
 
