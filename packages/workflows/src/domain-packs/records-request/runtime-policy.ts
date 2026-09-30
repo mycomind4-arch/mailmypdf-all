@@ -8,6 +8,7 @@ import type {
 } from "../../matter-runtime-server.js";
 import { recordRecordsResponse } from "./tracking.js";
 import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
+import { workflowById } from "../../canonical-workflow-registry.js";
 
 export const RECORDS_REQUEST_VERTICAL_ID = "records-request";
 
@@ -19,8 +20,7 @@ export const RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS = [
   "public-information-request",
 ] as const;
 
-export type RecordsRequestRuntimeWorkflowId =
-  (typeof RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS)[number];
+export type RecordsRequestRuntimeWorkflowId = string;
 
 function text(value: unknown, label: string, max: number, required = false): string {
   if (value === undefined || value === null) {
@@ -294,5 +294,19 @@ const policies = new Map<string, WorkflowRuntimePolicy>(
 export function getRecordsRequestRuntimePolicy(
   workflowId: string,
 ): WorkflowRuntimePolicy | null {
-  return policies.get(workflowId) ?? null;
+  const existing = policies.get(workflowId);
+  if (existing) return existing;
+
+  const canonical = workflowById(`records-request/${workflowId}`);
+  if (
+    !canonical ||
+    canonical.execution?.kind !== "platform" ||
+    canonical.execution.policyFamily !== "records-request"
+  ) {
+    return null;
+  }
+
+  const policy = createRecordsRequestRuntimePolicy(workflowId);
+  policies.set(workflowId, policy);
+  return policy;
 }
