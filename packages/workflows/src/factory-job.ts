@@ -44,12 +44,27 @@ export type FactoryJobPlanSnapshot = Readonly<{
   }>[];
 }>;
 
+export type FactoryJobBuildArtifact = Readonly<{
+  repository: string;
+  branch: string;
+  commitSha: string;
+  pullRequestNumber: number;
+  pullRequestUrl: string;
+}>;
+
+export type FactoryAcceptanceCheck = Readonly<{
+  context: string;
+  state: "success" | "failure" | "pending" | "error";
+  description?: string;
+}>;
+
 export type FactoryJobBuildSnapshot = Readonly<{
   request: ReviewedFactoryTemplateRequest;
   canonicalId: string;
   sectionId: string;
   slug: string;
   filePaths: readonly string[];
+  artifact: FactoryJobBuildArtifact | null;
 }>;
 
 export type FactoryJob = Readonly<{
@@ -221,12 +236,33 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     throw new Error("Factory job build snapshot does not match deterministic materialization.");
   }
 
+  let artifact: FactoryJobBuildArtifact | null = null;
+  if (source.artifact !== null && source.artifact !== undefined) {
+    const rawArtifact = record(source.artifact, "Factory job build artifact");
+    const pullRequestNumber = rawArtifact.pullRequestNumber;
+    if (
+      typeof pullRequestNumber !== "number" ||
+      !Number.isSafeInteger(pullRequestNumber) ||
+      pullRequestNumber < 1
+    ) {
+      throw new Error("Factory job build pull request number is invalid.");
+    }
+    artifact = Object.freeze({
+      repository: requiredSnapshotString(rawArtifact.repository, "Factory build repository", 300),
+      branch: requiredSnapshotString(rawArtifact.branch, "Factory build branch", 300),
+      commitSha: requiredSnapshotString(rawArtifact.commitSha, "Factory build commit", 100),
+      pullRequestNumber,
+      pullRequestUrl: requiredSnapshotString(rawArtifact.pullRequestUrl, "Factory build pull request URL", 2000),
+    });
+  }
+
   return Object.freeze({
     request: reviewedRequest,
     canonicalId: rebuilt.canonicalId,
     sectionId: rebuilt.sectionId,
     slug: rebuilt.slug,
     filePaths: Object.freeze([...rebuilt.filePaths]),
+    artifact,
   });
 }
 
@@ -547,6 +583,7 @@ export function advanceFactoryJob(
         sectionId: rebuilt.sectionId,
         slug: rebuilt.slug,
         filePaths: Object.freeze([...rebuilt.filePaths]),
+        artifact: null,
       }),
       selectedWorkflowId: rebuilt.canonicalId,
       diagnostics: [
@@ -617,6 +654,7 @@ export function approveFactoryJobReview(
         sectionId: build.sectionId,
         slug: build.slug,
         filePaths: Object.freeze([...build.filePaths]),
+        artifact: null,
       }),
       review: {
         required: false,
@@ -640,6 +678,101 @@ export function approveFactoryJobReview(
   }
 
   throw new Error(`Factory review is not supported at stage ${job.stage}.`);
+}
+
+export function recordFactoryBuildArtifact(
+  job: FactoryJob,
+  artifact: FactoryJobBuildArtifact,
+  now: string,
+): FactoryJobTransition {
+  if (job.stage !== "acceptance" || !job.build) {
+    throw new Error(`Factory job ${job.id} is not ready for an isolated build artifact.`);
+  }
+  if (job.build.artifact) {
+    throw new Error(`Factory job ${job.id} already has a build artifact.`);
+  }
+  return transition(job, {
+    status: "running",
+    stage: "acceptance",
+    eventType: "factory.acceptance.branch_created",
+    build: Object.freeze({
+      ...job.build,
+      artifact: Object.freeze({ ...artifact }),
+    }),
+    diagnostics: [
+      diagnostic(
+        "ACCEPTANCE_PENDING",
+        "Isolated factory branch and draft pull request created. CI acceptance is pending.",
+        "info",
+      ),
+    ],
+    data: {
+      repository: artifact.repository,
+      branch: artifact.branch,
+      commitSha: artifact.commitSha,
+      pullRequestNumber: artifact.pullRequestNumber,
+      pullRequestUrl: artifact.pullRequestUrl,
+    },
+    now,
+  });
+}
+
+export function recordFactoryAcceptanceResult(
+  job: FactoryJob,
+  input: {
+    state: "success" | "failure";
+    checks: readonly FactoryAcceptanceCheck[];
+  },
+  now: string,
+): FactoryJobTransition {
+  if (job.stage !== "acceptance" || !job.build?.artifact) {
+    throw new Error(`Factory job ${job.id} has no isolated build awaiting acceptance.`);
+  }
+
+  if (input.state === "failure") {
+    const failed = input.checks.filter(
+      (check) => check.state === "failure" || check.state === "error",
+    );
+    return transition(job, {
+      status: "failed",
+      stage: "acceptance",
+      eventType: "factory.acceptance.failed",
+      diagnostics: failed.length > 0
+        ? failed.map((check) =>
+            diagnostic(
+              "ACCEPTANCE_CHECK_FAILED",
+              `${check.context}: ${check.description ?? check.state}`,
+            ),
+          )
+        : [diagnostic("ACCEPTANCE_CHECK_FAILED", "Factory branch acceptance checks failed.")],
+      data: { checks: input.checks.map((check) => ({ ...check })) },
+      now,
+    });
+  }
+
+  return transition(job, {
+    status: "awaiting_review",
+    stage: "publication_review",
+    eventType: "factory.acceptance.passed",
+    diagnostics: [
+      diagnostic(
+        "ACCEPTANCE_PASSED",
+        "All observed factory branch checks passed. Publication still requires explicit administrator review.",
+        "info",
+      ),
+    ],
+    review: {
+      required: true,
+      reason: "generated-workflow-publication",
+      approvedAt: null,
+    },
+    data: {
+      pullRequestNumber: job.build.artifact.pullRequestNumber,
+      pullRequestUrl: job.build.artifact.pullRequestUrl,
+      checks: input.checks.map((check) => ({ ...check })),
+    },
+    now,
+  });
 }
 
 export function cancelFactoryJob(
