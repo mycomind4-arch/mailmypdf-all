@@ -1,5 +1,6 @@
 import { workflowByRuntimeId } from "./canonical-workflow-registry.js";
 import { getNoticeResponseFactoryArtifact } from "./domain-packs/notice-response/factory-artifact.js";
+import { getSsaReconsiderationFactoryArtifact } from "./domain-packs/appeal/ssa-reconsideration-factory-artifact.js";
 import { createInsuranceAppealManifestForWorkflow } from "./domain-packs/appeal/insurance-manifest.js";
 import { getInsuranceAppealRuntimePolicy } from "./domain-packs/appeal/insurance-runtime-policy.js";
 import { getRecordsRequestFactoryArtifact } from "./domain-packs/records-request/factory-artifact.js";
@@ -21,6 +22,13 @@ export function chatExecutionBindingFor(workflowId: string): ChatExecutionBindin
   if (canonical.execution.policyFamily === "notice-response") {
     const artifact = getNoticeResponseFactoryArtifact(workflowId);
     return artifact?.factoryReady && canonical.sectionId === "notice-respond"
+      ? { manifest: artifact.manifest, policy: artifact.runtimePolicy }
+      : null;
+  }
+
+  if (canonical.execution.policyFamily === "ssa-reconsideration") {
+    const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
+    return artifact?.factoryReady && canonical.sectionId === "appeal-mail"
       ? { manifest: artifact.manifest, policy: artifact.runtimePolicy }
       : null;
   }
