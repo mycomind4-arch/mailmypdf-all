@@ -53,6 +53,7 @@ type OrderRow = {
   page_count: number;
   vertical_slug: string | null;
   email: string;
+  payment_execution_key: string | null;
 };
 
 type OrderEventRow = {
@@ -201,19 +202,28 @@ function directMailResumeState(
   let nextAction: { toolName: string; reason: string } | null = null;
   const scheduleActive =
     schedule?.status === "scheduled" || schedule?.status === "processing";
+  const immediatePaymentActive =
+    typeof order.payment_execution_key === "string" &&
+    order.payment_execution_key.startsWith("immediate:");
   if (order.status === "draft" && !scheduleActive) {
-    nextAction = approvalCurrent
+    nextAction = immediatePaymentActive
       ? {
-          toolName: "prepare_direct_pdf_checkout",
+          toolName: "charge_and_send_direct_pdf_mail",
           reason:
-            "The exact direct-mail PDF, mailing snapshot, and approved price still match the recorded approval.",
+            "A previously authorized immediate saved-payment execution owns this order's payment path. Retry that idempotent action to reconcile Stripe or fulfillment; do not create hosted checkout or schedule another payment path.",
         }
-      : {
-          toolName: "review_direct_pdf_mail",
-          reason: reviewCurrent
-            ? "Reopen the exact current PDF/envelope review before asking for approval; the saved postal verification is still current."
-            : "Build or refresh the exact PDF/envelope review and postal verification before approval.",
-        };
+      : approvalCurrent
+        ? {
+            toolName: "get_payment_readiness",
+            reason:
+              "The exact mailing is approved. Check whether a saved payment method is ready before choosing immediate saved-payment send or hosted checkout.",
+          }
+        : {
+            toolName: "review_direct_pdf_mail",
+            reason: reviewCurrent
+              ? "Reopen the exact current PDF/envelope review before asking for approval; the saved postal verification is still current."
+              : "Build or refresh the exact PDF/envelope review and postal verification before approval.",
+          };
   }
 
   return {
@@ -242,6 +252,9 @@ function directMailResumeState(
       packetSha256: order.approved_packet_sha256,
       totalCents: order.approved_price_cents,
     },
+    paymentExecution: immediatePaymentActive
+      ? { kind: "immediate_saved_payment", status: "processing" }
+      : null,
     nextAction,
   };
 }
@@ -403,7 +416,7 @@ export async function getOwnedOrderStatus(
   let query = supabaseAdmin
     .from("orders")
     .select(
-      "id,status,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents,price_cents,mail_class,color,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal,lob_letter_id,mailed_at,paid_at,created_at,updated_at,scheduled_delivery_date,file_name,page_count,vertical_slug,email",
+      "id,status,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents,price_cents,mail_class,color,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal,lob_letter_id,mailed_at,paid_at,created_at,updated_at,scheduled_delivery_date,file_name,page_count,vertical_slug,email,payment_execution_key",
     )
     .order("created_at", { ascending: false })
     .limit(1);
