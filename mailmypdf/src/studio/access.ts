@@ -75,7 +75,7 @@ export async function adminFactoryAccess(
   return { actor: Object.freeze({ userId }), error: null };
 }
 
-/** Read-only factory inspection can run remotely; machine tools remain local-only. */
+/** Authenticated factory control-plane requests can run remotely; shell/machine tools remain local-only. */
 export async function adminFactoryAccessError(
   request: Request,
   options: { allowQueryToken?: boolean } = {},
