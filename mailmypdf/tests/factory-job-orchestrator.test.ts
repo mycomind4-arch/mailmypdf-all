@@ -35,6 +35,9 @@ test("factory runner persists every transition through the atomic RPC", () => {
   assert.match(server, /job\.stage === "match"/);
   assert.match(server, /job\.stage === "certify"/);
   assert.match(server, /job\.stage === "build"/);
+  assert.match(server, /job\.stage === "acceptance"/);
+  assert.match(server, /createFactoryAcceptanceArtifact/);
+  assert.match(server, /checkFactoryAcceptance/);
   assert.doesNotMatch(server, /prepare_checkout|charge|submit.*mail|lob/i);
 });
 
@@ -65,5 +68,25 @@ test("Studio factory UI creates durable jobs and keeps review explicit", () => {
   assert.match(page, /Factory family/);
   assert.match(page, /No code is published automatically/);
   assert.match(page, /Factory job queue/);
+  assert.match(page, /Check acceptance/);
+  assert.match(page, /Factory pull request/);
   assert.doesNotMatch(page, /prepare_checkout|submit_mail_order|charge_card/);
+});
+
+
+test("factory GitHub executor is isolated, non-destructive, and CI-gated", () => {
+  const source = read("src/studio/factory-github.server.ts");
+
+  assert.match(source, /getBranchSha/);
+  assert.match(source, /canonical-workflows\.json/);
+  assert.match(source, /buildReviewedFactoryRepositoryPlan/);
+  assert.match(source, /refuses? to overwrite|refuse.*overwrite/i);
+  assert.match(source, /createBranch/);
+  assert.match(source, /createTree/);
+  assert.match(source, /createPullRequest/);
+  assert.match(source, /Shared capability verification/);
+  assert.match(source, /Records Request verification/);
+  assert.match(source, /Public workflow landing gate/);
+  assert.match(source, /Workspace UI verification/);
+  assert.doesNotMatch(source, /mergePullRequest|deployProduction|prepare_checkout|submit.*mail|charge/i);
 });
