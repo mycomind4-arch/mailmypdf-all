@@ -1,0 +1,44 @@
+name: Factory generated workflow verification
+
+on:
+  pull_request:
+    paths:
+      - 'records-request/workflows/**'
+      - 'mailmypdf/src/routes/records-request/workflows/**'
+      - 'packages/workflows/src/canonical-workflows.json'
+      - 'packages/workflows/src/domain-packs/records-request/**'
+      - 'mailmypdf/WORKFLOW_INVENTORY.json'
+      - 'scripts/verify-factory-workflow.ts'
+      - '.github/workflows/factory-generated-workflow-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'records-request/workflows/**'
+      - 'mailmypdf/src/routes/records-request/workflows/**'
+      - 'packages/workflows/src/canonical-workflows.json'
+      - 'packages/workflows/src/domain-packs/records-request/**'
+      - 'mailmypdf/WORKFLOW_INVENTORY.json'
+      - 'scripts/verify-factory-workflow.ts'
+      - '.github/workflows/factory-generated-workflow-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify-generated-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Certify canonical Records Request workflows for ChatGPT execution
+        run: pnpm --filter ./mailmypdf exec tsx ../scripts/verify-factory-workflow.ts
