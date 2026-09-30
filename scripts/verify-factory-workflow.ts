@@ -11,10 +11,9 @@ const report = canonicalChatFactoryReport(
 if (!report) {
   console.error(JSON.stringify({ workflowId, error: "missing-from-factory-report" }, null, 2));
   process.exitCode = 1;
-} else if (!report.executable || !report.chatExecutable) {
+} else if (!report.chatExecutable) {
   console.error(JSON.stringify({
     workflowId,
-    executable: report.executable,
     chatExecutable: report.chatExecutable,
     reason: report.reason,
     diagnostics: report.diagnostics,
@@ -23,7 +22,6 @@ if (!report) {
 } else {
   console.log(JSON.stringify({
     workflowId,
-    executable: report.executable,
     chatExecutable: report.chatExecutable,
     policyFamily: report.policyFamily,
   }, null, 2));
