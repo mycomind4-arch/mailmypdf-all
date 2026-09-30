@@ -32,7 +32,7 @@ function form(kind: string, overrides: Partial<WorkflowMatterDocument> = {}): Wo
 
 const claimant = {
   claimantName: "Pat Doe", claimantAddress: "1 Main St", phone: "555-0100",
-  responseMode: "reconsideration", confirmedReconsideration: true, reasonsForDisagreement: "My condition worsened.",
+  responseMode: "reconsideration", confirmedReconsideration: true, factsConfirmed: true, reasonsForDisagreement: "My condition worsened.",
 };
 
 test("SSDI and SSI reconsideration are registered in the platform policy registry", () => {
@@ -75,6 +75,7 @@ test("claimant facts are validated per program", () => {
   const matter = {} as never;
 
   assert.throws(() => ssdi.validateInput({ ...claimant, confirmedReconsideration: false }, nonmedical, matter), /confirm reconsideration/);
+  assert.throws(() => ssdi.validateInput({ ...claimant, factsConfirmed: false }, nonmedical, matter), /confirm the material facts/);
   assert.throws(() => ssdi.validateInput(claimant, null, matter), /Analyze the SSDI denial/);
   assert.equal(ssdi.validateInput({ ...claimant, workChanges: "Stopped working." }, nonmedical, matter).workChanges, "Stopped working.");
 
