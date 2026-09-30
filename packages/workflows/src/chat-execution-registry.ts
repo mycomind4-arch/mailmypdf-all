@@ -10,6 +10,7 @@ import type { WorkflowManifest } from "./workflow-manifest.js";
 import type { WorkflowRuntimePolicy } from "./matter-runtime-server.js";
 import { WORKFLOW_REGISTRY } from "./canonical-workflow-registry.js";
 import { composeWorkflowForChat } from "./workflow-factory.js";
+import { planWorkflowArtifacts, type WorkflowArtifactPlan } from "./workflow-artifact-plan.js";
 
 export type ChatExecutionBinding = Readonly<{
   manifest: WorkflowManifest;
@@ -78,4 +79,25 @@ export function canonicalChatFactoryReport(availableTools: ReadonlySet<string> |
       ]),
     });
   }));
+}
+
+
+/**
+ * Return the complete side-effect-free factory artifact plan for one canonical
+ * platform workflow. Null means the canonical workflow has no registered
+ * platform runtime binding yet; callers must not invent one.
+ */
+export function canonicalWorkflowArtifactPlan(
+  workflowId: string,
+  availableTools: ReadonlySet<string> | readonly string[],
+): WorkflowArtifactPlan | null {
+  const canonical = workflowByRuntimeId(workflowId);
+  const binding = chatExecutionBindingFor(workflowId);
+  if (!canonical || !binding) return null;
+  return planWorkflowArtifacts({
+    canonical,
+    manifest: binding.manifest,
+    runtimePolicy: binding.policy,
+    availableTools,
+  });
 }
