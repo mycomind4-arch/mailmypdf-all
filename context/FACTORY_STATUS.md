@@ -1,5 +1,14 @@
 # MailMyPDF factory status
 
+## 2026-09-29 — CP14 factory vertical slice
+
+- Added a family-level Notice Respond **factory artifact** that joins the canonical workflow registry record, authored notice profile, generated manifest, runtime policy, and generated start-UI configuration into one side-effect-free contract.
+- CP14's ChatGPT execution binding now consumes that factory artifact instead of independently rebuilding the notice manifest/runtime pair.
+- The CP14 top-level start component now consumes the same generated `startConfig`; its workflow id, back path, and subtitle are no longer separately authored there.
+- Factory validation fails closed on canonical section/id drift, public start-route drift, runtime-policy-family drift, primary-document/extraction-schema drift, missing chat contract, or ordinary capability-composition errors.
+- Added CP14 parity tests at both shared-workflow and host/runtime levels. They bind the public landing config's `id`, `sectionId`, `path`, and `startPath` to the same artifact and explicitly prove the canonical CP14 execution path does not depend on the older core `/notice/$` runtime.
+- This is not yet a claim that a new workflow is config-only. Remaining manual surfaces for a new Notice Respond workflow include canonical registry enrollment, public landing/authority copy, and filesystem route materialization. The next factory step is to make those materializable from one reviewed workflow spec while retaining static TanStack routes and SEO review.
+
 Updated: 2026-09-27. This is the active repair queue, not a readiness certification.
 
 ## Objective and current focus
