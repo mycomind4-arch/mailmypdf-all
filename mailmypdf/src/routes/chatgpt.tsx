@@ -138,11 +138,11 @@ function ChatGptConnectorPage() {
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
-                  ["Exact PDF", FileText],
-                  ["Explicit approval", CheckCircle2],
-                  ["Real mailing", Send],
-                ].map(([label, Icon]) => (
-                  <div key={String(label)} className="flex items-center gap-2 rounded-xl border border-rule bg-white px-3 py-3 text-xs font-semibold text-foreground">
+                  { label: "Exact PDF", icon: FileText },
+                  { label: "Explicit approval", icon: CheckCircle2 },
+                  { label: "Real mailing", icon: Send },
+                ].map(({ label, icon: Icon }) => (
+                  <div key={label} className="flex items-center gap-2 rounded-xl border border-rule bg-white px-3 py-3 text-xs font-semibold text-foreground">
                     <Icon className="h-4 w-4 text-cobalt" aria-hidden="true" />
                     {label}
                   </div>
