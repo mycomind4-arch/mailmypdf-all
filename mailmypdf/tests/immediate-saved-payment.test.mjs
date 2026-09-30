@@ -34,10 +34,11 @@ test("immediate send revalidates approval, postal addresses, exclusive payment p
 
 test("immediate send fails closed unless automatic Lob fulfillment is enabled before charging", async () => {
   const immediate = await source("src/lib/immediate-mail.server.ts");
-  const interlock = immediate.indexOf("!flags.isAutoSubmitEnabled() || !flags.isLobEnabled()");
-  const stripe = immediate.indexOf("await stripe.paymentIntents.create");
+  const main = immediate.slice(immediate.indexOf("export async function chargeAndSendDirectPdfMail"));
+  const interlock = main.indexOf("!flags.isAutoSubmitEnabled() || !flags.isLobEnabled()");
+  const execute = main.indexOf("await createOrResumePaymentIntent");
   assert.ok(interlock >= 0);
-  assert.ok(stripe > interlock);
+  assert.ok(execute > interlock);
 });
 
 test("immediate send uses card-independent creation idempotency and never accepts raw card data", async () => {
@@ -55,9 +56,10 @@ test("immediate send uses card-independent creation idempotency and never accept
 
 test("Lob submission occurs only after a succeeded saved-payment transition", async () => {
   const immediate = await source("src/lib/immediate-mail.server.ts");
-  const classify = immediate.indexOf("classifyScheduledPaymentIntentStatus(paymentIntent.status)");
-  const paidTransition = immediate.indexOf('"paid_pending_manual_fulfillment"');
-  const fulfillment = immediate.lastIndexOf("return resumeImmediateFulfillment(refreshed, paymentEvent)");
+  const main = immediate.slice(immediate.indexOf("export async function chargeAndSendDirectPdfMail"));
+  const classify = main.indexOf("classifyScheduledPaymentIntentStatus(paymentIntent.status)");
+  const paidTransition = main.indexOf('"paid_pending_manual_fulfillment"');
+  const fulfillment = main.indexOf("return resumeImmediateFulfillment(refreshed, paymentEvent)");
 
   assert.ok(classify >= 0);
   assert.ok(paidTransition > classify, "paid transition must follow provider payment classification");
@@ -66,15 +68,16 @@ test("Lob submission occurs only after a succeeded saved-payment transition", as
 
 test("successful payment is resumable without a second charge", async () => {
   const immediate = await source("src/lib/immediate-mail.server.ts");
-  const priorEvent = immediate.indexOf("const paidEvent = await immediatePaymentEvent");
-  const nonDraft = immediate.indexOf('if (state.status !== "draft")');
-  const resume = immediate.indexOf("return resumeImmediateFulfillment(state, paidEvent)");
-  const createIntent = immediate.indexOf("createOrResumePaymentIntent");
+  const main = immediate.slice(immediate.indexOf("export async function chargeAndSendDirectPdfMail"));
+  const priorEvent = main.indexOf("const paidEvent = await immediatePaymentEvent");
+  const nonDraft = main.indexOf('if (state.status !== "draft")');
+  const resume = main.indexOf("return resumeImmediateFulfillment(state, paidEvent)");
+  const execute = main.indexOf("await createOrResumePaymentIntent");
 
   assert.ok(priorEvent >= 0);
   assert.ok(nonDraft > priorEvent);
   assert.ok(resume > nonDraft);
-  assert.ok(createIntent > resume, "paid retries must resume fulfillment before any Stripe creation path");
+  assert.ok(execute > resume, "paid retries must resume fulfillment before any Stripe creation path");
 });
 
 test("blocked PaymentIntent is cancelled before its order payment claim can be released", async () => {
