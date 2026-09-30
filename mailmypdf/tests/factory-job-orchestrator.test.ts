@@ -78,7 +78,7 @@ test("factory machine executors are local-admin-only and separate from remote or
   assert.match(buildRoute, /executePersistentFactoryAcceptance/);
   assert.match(publishRoute, /localAdminFactoryAccess\(request\)/);
   assert.match(publishRoute, /publishPersistentFactoryProposal/);
-  assert.match(access, /Factory build execution is available only on the local development server/);
+  assert.match(access, /Factory machine execution is available only on the local development server/);
   assert.match(access, /return adminFactoryAccess\(request\)/);
 });
 
@@ -130,7 +130,7 @@ test("factory publication pushes only the accepted commit and never merges or de
   const executor = read("src/studio/factory-publication-executor.server.ts");
 
   assert.match(executor, /refs\/heads\/\$\{branch\}/);
-  assert.match(executor, /Local factory proposal branch moved after acceptance/);
+  assert.match(executor, /Local factory proposal branch moved after acceptance/);\n  assert.match(executor, /default branch moved after factory acceptance/);
   assert.match(executor, /ls-remote/);
   assert.match(executor, /"push"/);
   assert.match(executor, /findOpenPullRequestByHead/);
