@@ -661,6 +661,23 @@ export function startFactoryJobBuild(
   });
 }
 
+export function failFactoryJobBuild(
+  job: FactoryJob,
+  input: { code: string; message: string; now: string },
+): FactoryJobTransition {
+  if (job.stage !== "build" || job.status !== "running") {
+    throw new Error(`Factory job ${job.id} is not running a build.`);
+  }
+  return transition(job, {
+    status: "failed",
+    stage: "build",
+    eventType: "factory.build.failed",
+    diagnostics: [diagnostic(input.code, input.message)],
+    data: { code: input.code },
+    now: input.now,
+  });
+}
+
 export function recordFactoryJobBuildMaterialized(
   job: FactoryJob,
   artifact: FactoryBuildArtifact,
