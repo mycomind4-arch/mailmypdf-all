@@ -23,6 +23,7 @@ const routeTargets = [
   ["/dashboard/settings", "src/routes/_authenticated/dashboard/settings.tsx", "/_authenticated/dashboard/settings"],
   ["/dashboard/workflows", "src/routes/_authenticated/dashboard/workflows/index.tsx", "/_authenticated/dashboard/workflows/"],
   ["/send", "src/routes/send.tsx", "/send"],
+  ["/write", "src/routes/write.tsx", "/write"],
   ["/admin/orders/$id", "src/routes/_authenticated/admin/orders/$id.tsx", "/_authenticated/admin/orders/$id"],
   ["/admin/publications/$publicationId/$runId", "src/routes/_authenticated/admin/publications/$publicationId.$runId.tsx", "/_authenticated/admin/publications/$publicationId/$runId"],
 ];
@@ -47,6 +48,7 @@ test("authenticated sidebar uses operational workspace destinations, not the pub
   const primary = sidebar.slice(primaryStart, primaryEnd);
 
   assert.match(primary, /href: "\/send"/);
+  assert.match(primary, /href: "\/write"/);
   assert.match(primary, /href: "\/dashboard\/orders"/);
   assert.equal(primary.includes('href: "/mail-a-pdf"'), false);
   assert.equal((primary.match(/href: "\/dashboard",/g) ?? []).length, 1,
