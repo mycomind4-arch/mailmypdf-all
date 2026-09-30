@@ -1,5 +1,9 @@
 import { canonicalChatFactoryReport } from "./chat-execution-registry.js";
 import { planWorkflowFromProblem } from "./problem-workflow-plan.js";
+import {
+  buildReviewedFactoryTemplatePlan,
+  type ReviewedFactoryTemplateRequest,
+} from "./factory-build.js";
 
 export const FACTORY_JOB_SCHEMA_VERSION = "mailmypdf.factory-job/v1" as const;
 
@@ -40,6 +44,14 @@ export type FactoryJobPlanSnapshot = Readonly<{
   }>[];
 }>;
 
+export type FactoryJobBuildSnapshot = Readonly<{
+  request: ReviewedFactoryTemplateRequest;
+  canonicalId: string;
+  sectionId: string;
+  slug: string;
+  filePaths: readonly string[];
+}>;
+
 export type FactoryJob = Readonly<{
   schemaVersion: typeof FACTORY_JOB_SCHEMA_VERSION;
   id: string;
@@ -49,6 +61,7 @@ export type FactoryJob = Readonly<{
   problem: string;
   plan: FactoryJobPlanSnapshot | null;
   selectedWorkflowId: string | null;
+  build: FactoryJobBuildSnapshot | null;
   diagnostics: readonly FactoryJobDiagnostic[];
   review: Readonly<{
     required: boolean;
@@ -176,6 +189,47 @@ function restorePlan(value: unknown): FactoryJobPlanSnapshot | null {
   });
 }
 
+function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
+  if (value === null || value === undefined) return null;
+  const source = record(value, "Factory job build");
+  const request = record(source.request, "Factory job build request");
+  const startTemplate = request.startTemplate;
+  if (startTemplate !== "notice-response" && startTemplate !== "records-request") {
+    throw new Error("Factory job build start template is invalid.");
+  }
+  if (!Array.isArray(source.filePaths) || source.filePaths.some((path) => typeof path !== "string")) {
+    throw new Error("Factory job build file paths are invalid.");
+  }
+
+  const reviewedRequest: ReviewedFactoryTemplateRequest = Object.freeze({
+    id: requiredSnapshotString(request.id, "Factory build workflow id", 300),
+    label: requiredSnapshotString(request.label, "Factory build workflow label", 500),
+    startTemplate,
+    ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
+      ? { legacyGoldId: request.legacyGoldId }
+      : {}),
+  });
+  const rebuilt = buildReviewedFactoryTemplatePlan(reviewedRequest);
+  const filePaths = source.filePaths as string[];
+  if (
+    source.canonicalId !== rebuilt.canonicalId ||
+    source.sectionId !== rebuilt.sectionId ||
+    source.slug !== rebuilt.slug ||
+    filePaths.length !== rebuilt.filePaths.length ||
+    filePaths.some((path, index) => path !== rebuilt.filePaths[index])
+  ) {
+    throw new Error("Factory job build snapshot does not match deterministic materialization.");
+  }
+
+  return Object.freeze({
+    request: reviewedRequest,
+    canonicalId: rebuilt.canonicalId,
+    sectionId: rebuilt.sectionId,
+    slug: rebuilt.slug,
+    filePaths: Object.freeze([...rebuilt.filePaths]),
+  });
+}
+
 /** Restore one durable snapshot and reject drift/corruption before execution. */
 export function restoreFactoryJobSnapshot(value: unknown): FactoryJob {
   const source = record(value, "Factory job snapshot");
@@ -227,6 +281,7 @@ export function restoreFactoryJobSnapshot(value: unknown): FactoryJob {
       source.selectedWorkflowId,
       "Factory selected workflow id",
     ),
+    build: restoreBuild(source.build),
     diagnostics: restoreDiagnostics(source.diagnostics),
     review: Object.freeze({
       required: review.required,
@@ -265,6 +320,7 @@ function transition(
     data?: Record<string, unknown>;
     plan?: FactoryJobPlanSnapshot | null;
     selectedWorkflowId?: string | null;
+    build?: FactoryJobBuildSnapshot | null;
     diagnostics?: readonly FactoryJobDiagnostic[];
     review?: FactoryJob["review"];
     now: string;
@@ -279,6 +335,7 @@ function transition(
     ...(input.selectedWorkflowId !== undefined
       ? { selectedWorkflowId: input.selectedWorkflowId }
       : {}),
+    ...(input.build !== undefined ? { build: input.build } : {}),
     ...(input.diagnostics !== undefined
       ? { diagnostics: Object.freeze([...input.diagnostics]) }
       : {}),
@@ -313,6 +370,7 @@ export function createFactoryJob(input: {
     problem,
     plan: null,
     selectedWorkflowId: null,
+    build: null,
     diagnostics: Object.freeze([]),
     review: Object.freeze({
       required: false,
@@ -466,14 +524,53 @@ export function advanceFactoryJob(
     });
   }
 
+  if (job.stage === "build") {
+    if (!job.build) {
+      return transition(job, {
+        status: "failed",
+        stage: "build",
+        eventType: "factory.template_build.failed",
+        diagnostics: [
+          diagnostic("BUILD_RECIPE_MISSING", "Approved template build is missing its reviewed build recipe."),
+        ],
+        now,
+      });
+    }
+    const rebuilt = buildReviewedFactoryTemplatePlan(job.build.request);
+    return transition(job, {
+      status: "queued",
+      stage: "acceptance",
+      eventType: "factory.template_build.materialized",
+      build: Object.freeze({
+        request: rebuilt.request,
+        canonicalId: rebuilt.canonicalId,
+        sectionId: rebuilt.sectionId,
+        slug: rebuilt.slug,
+        filePaths: Object.freeze([...rebuilt.filePaths]),
+      }),
+      selectedWorkflowId: rebuilt.canonicalId,
+      diagnostics: [
+        diagnostic(
+          "ACCEPTANCE_EXECUTOR_REQUIRED",
+          "Reviewed workflow spec and deterministic materialization plan are ready. The next factory slice must run isolated branch materialization and acceptance checks.",
+          "info",
+        ),
+      ],
+      data: {
+        workflowId: rebuilt.canonicalId,
+        filePaths: [...rebuilt.filePaths],
+      },
+      now,
+    });
+  }
+
   if (
     job.stage === "template_review" ||
-    job.stage === "build" ||
     job.stage === "acceptance" ||
     job.stage === "publication_review"
   ) {
     throw new Error(
-      `Factory stage ${job.stage} requires an explicit reviewed transition or a build executor.`,
+      `Factory stage ${job.stage} requires an explicit reviewed transition or an acceptance executor.`,
     );
   }
 
@@ -483,6 +580,7 @@ export function advanceFactoryJob(
 export function approveFactoryJobReview(
   job: FactoryJob,
   now: string,
+  templateRequest?: ReviewedFactoryTemplateRequest,
 ): FactoryJobTransition {
   if (job.status !== "awaiting_review" || !job.review.required) {
     throw new Error(`Factory job ${job.id} is not awaiting review.`);
@@ -504,10 +602,22 @@ export function approveFactoryJobReview(
   }
 
   if (job.stage === "template_review") {
+    if (!templateRequest) {
+      throw new Error("Template review approval requires a reviewed workflow id, label, and supported family.");
+    }
+    const build = buildReviewedFactoryTemplatePlan(templateRequest);
     return transition(job, {
       status: "queued",
       stage: "build",
       eventType: "factory.template_build.approved",
+      selectedWorkflowId: build.canonicalId,
+      build: Object.freeze({
+        request: build.request,
+        canonicalId: build.canonicalId,
+        sectionId: build.sectionId,
+        slug: build.slug,
+        filePaths: Object.freeze([...build.filePaths]),
+      }),
       review: {
         required: false,
         reason: null,
@@ -515,11 +625,16 @@ export function approveFactoryJobReview(
       },
       diagnostics: [
         diagnostic(
-          "BUILD_EXECUTOR_REQUIRED",
-          "Template review is approved. The next factory slice must supply the reviewed spec/profile build executor before this job can continue.",
+          "BUILD_RECIPE_READY",
+          `Reviewed ${build.request.startTemplate} build recipe is ready for deterministic materialization.`,
           "info",
         ),
       ],
+      data: {
+        workflowId: build.canonicalId,
+        startTemplate: build.request.startTemplate,
+        filePaths: [...build.filePaths],
+      },
       now,
     });
   }
