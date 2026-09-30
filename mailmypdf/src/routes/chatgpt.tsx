@@ -82,6 +82,15 @@ const CHATGPT_STEPS = [
   },
 ] as const;
 
+const EXAMPLE_PROMPTS = [
+  "Write a professional letter requesting a meeting next week. Show me the exact MailMyPDF preview before anything is sent.",
+  "Mail this attached PDF by Certified Mail. Use my confirmed return address and show me the full price first.",
+  "I received an IRS CP14 notice. Find the right MailMyPDF workflow and walk me through the response.",
+  "Draft a public-records request for this incident, then show me the exact packet and recipient before approval.",
+  "Use the same recipient as my last MailMyPDF order, but let me verify the address before preparing a new mailing.",
+  "What is the current status of the letter I mailed through MailMyPDF? Show me the recorded mailing and tracking state.",
+] as const;
+
 function ChatGptConnectorPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -102,12 +111,12 @@ function ChatGptConnectorPage() {
                 pay securely, and send it—without leaving the conversation for the document work.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <Link
-                  to="/account/setup"
+                <a
+                  href="/account/setup?return_to=/chatgpt"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
                 >
                   Set up MailMyPDF <ArrowRight className="h-4 w-4" />
-                </Link>
+                </a>
                 <Link
                   to="/how-it-works"
                   className="inline-flex h-11 items-center justify-center rounded-full border border-rule bg-white px-6 text-sm font-semibold text-foreground transition hover:border-cobalt/30 hover:text-cobalt"
@@ -174,6 +183,27 @@ function ChatGptConnectorPage() {
           </div>
         </section>
 
+        <section className="border-y border-rule/60 bg-paper-deep/25">
+          <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-cobalt">What to say in ChatGPT</div>
+              <h2 className="mt-3 font-serif text-3xl sm:text-4xl">Start with the outcome, not the tool name.</h2>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                You do not need to memorize MailMyPDF commands or workflow IDs. Describe what you need,
+                attach the relevant document when useful, and let the conversation guide you through review and approval.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-3 md:grid-cols-2">
+              {EXAMPLE_PROMPTS.map((prompt) => (
+                <div key={prompt} className="flex gap-3 rounded-2xl border border-rule bg-card p-4 shadow-card">
+                  <MessageSquare className="mt-1 h-4 w-4 shrink-0 text-cobalt" aria-hidden="true" />
+                  <p className="text-sm leading-6 text-foreground">“{prompt}”</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-y border-rule/60 bg-navy text-white">
           <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
             <div>
@@ -215,7 +245,7 @@ function ChatGptConnectorPage() {
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
             >
               Set up my account <ArrowRight className="h-4 w-4" />
-            </Link>
+            </a>
             <Link
               to="/ecosystem"
               className="inline-flex h-11 items-center justify-center rounded-full border border-rule bg-card px-6 text-sm font-semibold text-foreground transition hover:border-cobalt/30 hover:text-cobalt"
