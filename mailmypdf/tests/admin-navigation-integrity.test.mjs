@@ -11,7 +11,7 @@ function source(relativePath) {
 }
 
 const routeTargets = [
-  ["/studio", "src/routes/_authenticated/studio.tsx", "/_authenticated/studio"],
+  ["/studio", "src/routes/_authenticated/studio/index.tsx", "/_authenticated/studio/"],
   ["/studio/builder", "src/routes/_authenticated/studio/builder.tsx", "/_authenticated/studio/builder"],
   ["/admin", "src/routes/_authenticated/admin/index.tsx", "/_authenticated/admin/"],
   ["/admin/analytics", "src/routes/_authenticated/admin/analytics.tsx", "/_authenticated/admin/analytics"],
@@ -120,10 +120,13 @@ test("Studio factory control is an in-Studio action rather than a dead route", (
 
 
 test("Studio root is the command center and builder stays separately addressable", () => {
-  const studioRoute = source("src/routes/_authenticated/studio.tsx");
+  const studioParent = source("src/routes/_authenticated/studio.tsx");
+  const studioRoute = source("src/routes/_authenticated/studio/index.tsx");
   const builderRoute = source("src/routes/_authenticated/studio/builder.tsx");
   const commandCenter = source("src/components/studio-command-center.tsx");
 
+  assert.match(studioParent, /<Outlet/);
+  assert.match(studioParent, /isCurrentUserAdmin/);
   assert.match(studioRoute, /StudioCommandCenter/);
   assert.match(builderRoute, /StudioPage/);
   assert.match(commandCenter, /Open Workflow Builder/);
