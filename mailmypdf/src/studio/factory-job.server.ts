@@ -3,6 +3,7 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  failFactoryJobBuild,
   recordFactoryJobAcceptance,
   recordFactoryJobBuildMaterialized,
   restoreFactoryJobSnapshot,
@@ -227,6 +228,26 @@ export async function startPersistentFactoryBuild(input: {
   return persistTransition(
     current,
     startFactoryJobBuild(current, input.now ?? new Date().toISOString()),
+    input.actorId,
+  );
+}
+
+export async function failPersistentFactoryBuild(input: {
+  jobId: string;
+  actorId: string;
+  code: string;
+  message: string;
+  now?: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  return persistTransition(
+    current,
+    failFactoryJobBuild(current, {
+      code: input.code,
+      message: input.message,
+      now: input.now ?? new Date().toISOString(),
+    }),
     input.actorId,
   );
 }
