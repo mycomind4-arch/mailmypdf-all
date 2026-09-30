@@ -14,6 +14,7 @@ import {
   type WorkflowMaterializationSpec,
 } from "../packages/workflows/src/workflow-materialization";
 
+async function main(): Promise<void> {
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const canonicalRegistryPath = join(
   repoRoot,
@@ -197,3 +198,10 @@ if (!write && drift.length > 0) {
     );
   }
 }
+
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
