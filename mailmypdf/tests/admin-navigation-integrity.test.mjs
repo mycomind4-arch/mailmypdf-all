@@ -197,3 +197,43 @@ test("Studio deploy confirmation targets the core project, not a selected workfl
   assert.equal(publishBlock.includes("verticalId"), false);
   assert.equal(publishBlock.includes("Choose a vertical workflow before publishing"), false);
 });
+
+
+test("Studio launch readiness is read-only and mirrors production launch gates", () => {
+  const readiness = source("src/lib/studio-launch-readiness.functions.ts");
+  const commandCenter = source("src/components/studio-command-center.tsx");
+
+  assert.match(readiness, /MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF/);
+  assert.match(readiness, /PAYMENTS_ENV|paymentEnv/);
+  assert.match(readiness, /LOB_WEBHOOK_SECRET/);
+  assert.match(readiness, /MAILMYPDF_SCANNER_JOB_SECRET/);
+  assert.match(readiness, /MAILMYPDF_RETENTION_JOB_SECRET/);
+  assert.match(readiness, /MAILMYPDF_CONNECTOR_JOB_SECRET/);
+  assert.match(readiness, /secure-documents/);
+  assert.match(readiness, /order-pdfs/);
+  assert.match(readiness, /server\/discover/);
+  assert.match(readiness, /tools\/list/);
+  assert.match(readiness, /End-to-end sandbox canary/);
+  assert.match(readiness, /Controlled live mailing canary/);
+
+  assert.equal(readiness.includes(".insert("), false);
+  assert.equal(readiness.includes(".update("), false);
+  assert.equal(readiness.includes(".delete("), false);
+  assert.equal(readiness.includes("paymentIntents.create"), false);
+  assert.equal(readiness.includes("lobClient"), false);
+
+  assert.match(commandCenter, /Launch readiness/);
+  assert.match(commandCenter, /Run readiness checks/);
+  assert.match(commandCenter, /Green automated checks do not replace the listed sandbox\/live canaries/);
+});
+
+test("Studio launch readiness never returns raw provider or job credentials", () => {
+  const readiness = source("src/lib/studio-launch-readiness.functions.ts");
+  const returned = readiness.slice(readiness.lastIndexOf("return {"));
+
+  assert.equal(returned.includes("stripeSecret"), false);
+  assert.equal(returned.includes("stripeWebhook"), false);
+  assert.equal(returned.includes("LOB_API_KEY"), false);
+  assert.equal(returned.includes("MAILMYPDF_CLEANUP_SECRET"), false);
+  assert.equal(returned.includes("MAILMYPDF_MALWARE_SCANNER_KEY"), false);
+});
