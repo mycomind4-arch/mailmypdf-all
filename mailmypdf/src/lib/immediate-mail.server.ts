@@ -100,10 +100,14 @@ function billingReady(profile: BillingProfileRow | null): profile is BillingProf
 }
 
 function publicPayment(profile: BillingProfileRow) {
+  const brand = profile.payment_brand?.trim() || null;
+  const last4 = profile.payment_last4 && /^\d{4}$/.test(profile.payment_last4)
+    ? profile.payment_last4
+    : null;
   return {
-    display: `${profile.payment_brand || "Card"} •••• ${profile.payment_last4}`,
-    brand: profile.payment_brand,
-    last4: profile.payment_last4,
+    display: brand && last4 ? `${brand} •••• ${last4}` : null,
+    brand,
+    last4,
     revision: profile.revision,
   };
 }
@@ -281,6 +285,7 @@ async function createOrResumePaymentIntent(args: {
   }
 
   const mayConfirmWithCurrentSavedMethod =
+    billingReady(args.profile) &&
     args.profile.revision === args.authorizedPaymentRevision;
   if (
     mayConfirmWithCurrentSavedMethod &&
@@ -476,14 +481,6 @@ export async function chargeAndSendDirectPdfMail(
     return resumeImmediateFulfillment(state, paidEvent);
   }
 
-  const profile = await loadBillingProfile(context.user.id);
-  if (!billingReady(profile)) {
-    throw new ImmediateMailError(
-      409,
-      "A verified saved payment method is required. Call get_payment_readiness before trying to send now.",
-      "SAVED_PAYMENT_REQUIRED",
-    );
-  }
   const addressCheck = await validateOrderAddresses(state.recipient, state.sender);
   if (!scheduledAddressVerificationReady(addressCheck)) {
     throw new ImmediateMailError(
@@ -495,12 +492,30 @@ export async function chargeAndSendDirectPdfMail(
 
   const executionKey = immediateExecutionKey(state, paymentRevision);
   const paymentClaim = await claimPaymentPath(state, executionKey);
-  if (!paymentClaim.reused && profile.revision !== paymentRevision) {
+  const profile = await loadBillingProfile(context.user.id);
+
+  if (!profile?.stripe_customer_id) {
+    if (!paymentClaim.reused) await clearPaymentClaim(state.orderId, executionKey);
+    throw new ImmediateMailError(
+      409,
+      "The connected account has no Stripe customer available for this saved-payment execution.",
+      "SAVED_PAYMENT_REQUIRED",
+    );
+  }
+
+  if (
+    !paymentClaim.reused &&
+    (!billingReady(profile) || profile.revision !== paymentRevision)
+  ) {
     await clearPaymentClaim(state.orderId, executionKey);
     throw new ImmediateMailError(
       409,
-      "The saved payment method changed after the user confirmed it. Show the current saved payment method and ask again before charging.",
-      "SAVED_PAYMENT_CHANGED",
+      profile.revision !== paymentRevision
+        ? "The saved payment method changed after the user confirmed it. Show the current saved payment method and ask again before charging."
+        : "A verified saved payment method is required. Call get_payment_readiness before trying to send now.",
+      profile.revision !== paymentRevision
+        ? "SAVED_PAYMENT_CHANGED"
+        : "SAVED_PAYMENT_REQUIRED",
       {
         currentPaymentRevision: profile.revision,
         payment: publicPayment(profile),
@@ -579,7 +594,7 @@ export async function chargeAndSendDirectPdfMail(
         owner_id: context.user.id,
         approval_sha256: state.packetSha256,
         amount_cents: state.currentTotalCents,
-        payment_revision: profile.revision,
+        payment_revision: paymentRevision,
       },
       extraUpdate: {
         paid_at: paidAt,
