@@ -61,7 +61,7 @@ test("factory job persists deterministic stage-by-stage progress for an existing
 test("factory job requires a reviewed build request before entering build", () => {
   let job = createFactoryJob({
     id: "job-2",
-    problem: "Create a completely novel records request workflow.",
+    problem: "Create a completely novel mars colony easement workflow.",
     now: "2026-09-30T20:00:00.000Z",
   });
 
@@ -150,7 +150,7 @@ test("durable factory snapshots round-trip and corrupted state fails closed", ()
 test("supervised build transitions materialization through acceptance to publication review", () => {
   let job = createFactoryJob({
     id: "job-build",
-    problem: "Create a new police incident records request workflow.",
+    problem: "Create a completely novel mars colony easement workflow.",
     now: "2026-09-30T20:00:00.000Z",
   });
   job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:01:00.000Z").job;
@@ -211,7 +211,7 @@ test("supervised build transitions materialization through acceptance to publica
 test("failed supervised acceptance is durable and blocks publication review", () => {
   let job = createFactoryJob({
     id: "job-build-fail",
-    problem: "Create a new police incident records request workflow.",
+    problem: "Create a completely novel mars colony easement workflow.",
     now: "2026-09-30T20:00:00.000Z",
   });
   job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:01:00.000Z").job;
