@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateOrderAddresses } from "@/lib/address-validation";
@@ -299,8 +300,8 @@ async function createOrResumePaymentIntent(args: {
 async function releaseBlockedPayment(
   orderId: string,
   executionKey: string,
-  stripe: ReturnType<typeof createStripeClient>,
-  paymentIntent: Awaited<ReturnType<ReturnType<typeof createStripeClient>["paymentIntents"]["retrieve"]>>,
+  stripe: Stripe,
+  paymentIntent: Stripe.PaymentIntent,
 ): Promise<boolean> {
   let current = paymentIntent;
   if (current.status !== "canceled") {
@@ -500,8 +501,8 @@ export async function chargeAndSendDirectPdfMail(
   const executionKey = immediateExecutionKey(state, profile);
   await claimPaymentPath(state, executionKey);
 
-  let stripe: ReturnType<typeof createStripeClient>;
-  let paymentIntent;
+  let stripe: Stripe;
+  let paymentIntent: Stripe.PaymentIntent;
   try {
     ({ stripe, paymentIntent } = await createOrResumePaymentIntent({
       state,
