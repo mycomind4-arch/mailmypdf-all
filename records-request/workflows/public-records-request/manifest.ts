@@ -1,10 +1,15 @@
 import { getRecordsRequestFactoryArtifact } from "@mailmypdf/workflows";
 
-const factoryArtifact = getRecordsRequestFactoryArtifact("public-records-request");
+const resolvedFactoryArtifact = getRecordsRequestFactoryArtifact("public-records-request");
 
-if (!factoryArtifact?.factoryReady) {
+if (!resolvedFactoryArtifact) {
+  throw new Error("Public Records Request factory artifact is missing");
+}
+if (!resolvedFactoryArtifact.factoryReady) {
   throw new Error("Public Records Request factory artifact is not ready");
 }
+
+const factoryArtifact = resolvedFactoryArtifact;
 
 export const publicRecordsRequestManifest = factoryArtifact.definition;
 
