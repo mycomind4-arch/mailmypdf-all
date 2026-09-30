@@ -270,3 +270,29 @@ Studio deployment metadata now reflects the current canonical architecture rathe
 - `resolveProjectRoot` discovers the workspace root instead of assuming the retired three-level `apps/verticals` directory depth.
 
 Evidence: `mailmypdf/src/studio/domain/studio-project.ts`, `mailmypdf/src/studio/lib/fns/publish-project-to-cloudflare.ts`, `mailmypdf/deploy.sh`, `mailmypdf/src/lib/studio-command-center.functions.ts`.
+
+
+## 13. 2026-09-29 Studio production launch readiness
+
+The Studio command center now contains a **read-only Launch Readiness** panel backed by a dedicated admin-authorized server probe.
+
+The checklist intentionally mirrors the production launch/runbook criteria rather than inventing a separate definition of ready:
+
+- canonical Supabase project identity
+- selected Stripe environment plus matching server/browser/webhook credential formats
+- Lob API + webhook configuration
+- Resend API + explicit sender configuration
+- cleanup, scanner, retention, and connector-reconciliation job secrets
+- malware-scanner URL/key and live `/health` reachability
+- required database tables and `secure-documents` / `order-pdfs` buckets
+- deployed HTTPS homepage and `/api/internal/health`
+- MCP OAuth metadata, `server/discover`, and exact deployed tool-count parity
+- OpenAI Apps challenge verification when an expected token is configured
+- current quarantined/scan-error/retention/connector/fulfillment/proof-webhook backlogs
+- explicit manual gates for sandbox E2E, one controlled live mailing, and Certified Mail canaries when sold
+
+The panel returns only statuses, counts, origin metadata, and human-readable details. It never returns Stripe/Lob/Supabase/job secrets and performs no writes, payments, fulfillment, publication, deployment, or account mutation.
+
+Two schedule checks remain deliberately **manual** rather than falsely green: the Worker proof-processor cron and the GitHub-hosted scanner/retention/reconcile schedules are configured in code, but the platform does not yet persist a last-success heartbeat that Studio can prove. That missing telemetry must be represented as an observability gap until a durable heartbeat is added.
+
+Evidence: `mailmypdf/src/lib/studio-launch-readiness.functions.ts`, `mailmypdf/src/components/studio-command-center.tsx`, `mailmypdf/tests/admin-navigation-integrity.test.mjs`.
