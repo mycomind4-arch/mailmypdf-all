@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
-import { canonicalChatFactoryReport, chatExecutionBindingFor } from "../src/chat-execution-registry.js";
+import { canonicalChatFactoryReport, canonicalWorkflowArtifactPlan, chatExecutionBindingFor } from "../src/chat-execution-registry.js";
 import { WORKFLOW_REGISTRY } from "../src/canonical-workflow-registry.js";
 import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
@@ -56,7 +56,10 @@ test("factory report separates catalog identity, missing contracts, and failing 
   assert.equal(report.length, WORKFLOW_REGISTRY.length);
   assert.equal(report.filter((item) => item.chatExecutable).length, 21);
   assert.equal(report.filter((item) => item.reason === "chat-contract-not-registered").length, 3);
-  assert.equal(report.find((item) => item.id === "notice-respond/cp14-response")?.reason, "certified");
+  const cp14 = report.find((item) => item.id === "notice-respond/cp14-response");
+  assert.equal(cp14?.reason, "certified");
+  assert.equal(cp14?.artifactPlan?.startRegistryKey, "notice-respond:cp14-response");
+  assert.equal(cp14?.artifactPlan?.public.startHref, "/notice-respond/workflows/cp14-response/start");
   assert.equal(report.find((item) => item.id === "appeal-mail/appeal-ssdi-denial")?.reason, "chat-contract-not-registered");
   assert.equal(report.find((item) => item.id === "secured-transactions/secured-transaction-eligibility")?.reason, "platform-runtime-not-registered");
 
@@ -65,6 +68,54 @@ test("factory report separates catalog identity, missing contracts, and failing 
   const blocked = canonicalChatFactoryReport(reduced).find((item) => item.id === "notice-respond/cp14-response");
   assert.equal(blocked?.reason, "certification-failed");
   assert.ok(blocked?.diagnostics.some((item) => item.code === "CONNECTOR_TOOL_MISSING"));
+});
+
+test("CP14 factory artifact plan matches the canonical public and authenticated topology", () => {
+  const plan = canonicalWorkflowArtifactPlan("cp14-response", AVAILABLE_TOOLS);
+  assert.ok(plan);
+  assert.equal(plan.schemaVersion, "mailmypdf.workflow-artifacts/v1");
+  assert.equal(plan.canonicalId, "notice-respond/cp14-response");
+  assert.equal(plan.sectionId, "notice-respond");
+  assert.equal(plan.workflowId, "cp14-response");
+  assert.equal(plan.startRegistryKey, "notice-respond:cp14-response");
+  assert.equal(plan.public.href, "/notice-respond/workflows/cp14-response");
+  assert.equal(plan.public.startHref, "/notice-respond/workflows/cp14-response/start");
+  assert.equal(plan.workspace.href, "/dashboard/workflows/notice-respond/cp14-response");
+  assert.equal(plan.workspace.startHref, "/dashboard/workflows/notice-respond/cp14-response/start");
+  assert.equal(plan.public.startFile, "notice-respond/workflows/cp14-response/start/index.tsx");
+  assert.deepEqual(plan.public.landingFiles, [
+    "notice-respond/workflows/cp14-response/index.tsx",
+    "notice-respond/workflows/cp14-response/config.ts",
+    "notice-respond/workflows/cp14-response/seo.ts",
+    "notice-respond/workflows/cp14-response/schema.ts",
+  ]);
+  assert.equal(plan.execution.kind, "platform");
+  assert.equal(plan.execution.entry, "public-start");
+  assert.equal(plan.execution.policyFamily, "notice-response");
+  assert.equal(plan.manifest.route, plan.public.startHref);
+  assert.equal(plan.manifest.pipeline, "P02_OFFICIAL_RESPONSE");
+  assert.deepEqual(plan.manifest.documentIds, ["cp14-notice", "supporting-records"]);
+  assert.ok(plan.manifest.stepIds.includes("documents"));
+  assert.ok(plan.manifest.stepIds.includes("review"));
+  assert.deepEqual(plan.manifest.gateIds, [
+    "review-approved",
+    "payment-authorized",
+    "mail-authorized",
+  ]);
+  for (const scenario of [
+    "correct-notice-source",
+    "quarantined-source-or-evidence",
+    "stale-evidence-review",
+    "exact-packet-tamper",
+    "payment-mail-idempotency",
+  ]) {
+    assert.ok(plan.manifest.acceptanceScenarioIds.includes(scenario), scenario);
+  }
+  assert.equal(plan.chat.executable, true);
+  assert.equal(plan.chat.certified, true);
+  assert.deepEqual(plan.chat.diagnostics, []);
+  assert.ok(plan.chat.requiredTools.includes("analyze_matter"));
+  assert.ok(plan.chat.requiredTools.includes("prepare_checkout"));
 });
 
 test("CP14 passes chat readiness only when manifest, runtime, gates, and tools align", () => {
