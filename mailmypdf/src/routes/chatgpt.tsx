@@ -240,8 +240,8 @@ function ChatGptConnectorPage() {
             send-now request much smoother when you use MailMyPDF from ChatGPT.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              to="/account/setup"
+            <a
+              href="/account/setup?return_to=/chatgpt"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
             >
               Set up my account <ArrowRight className="h-4 w-4" />
