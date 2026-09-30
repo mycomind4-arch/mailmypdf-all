@@ -16,19 +16,20 @@ test("immediate saved-payment send requires separate explicit charge and send co
   assert.match(immediate, /EXPLICIT_SEND_AUTHORIZATION_REQUIRED/);
 });
 
-test("immediate send revalidates approval, price, payment revision, and postal addresses before Stripe", async () => {
+test("immediate send revalidates approval, postal addresses, exclusive payment path, and payment revision before Stripe execution", async () => {
   const immediate = await source("src/lib/immediate-mail.server.ts");
-  const approval = immediate.indexOf("state.packetSha256 !== packetSha256");
-  const revision = immediate.indexOf("profile.revision !== paymentRevision");
-  const address = immediate.indexOf("validateOrderAddresses(state.recipient, state.sender)");
-  const claim = immediate.indexOf("await claimPaymentPath(state, executionKey)");
-  const stripe = immediate.indexOf("await stripe.paymentIntents.create");
+  const main = immediate.slice(immediate.indexOf("export async function chargeAndSendDirectPdfMail"));
+  const approval = main.indexOf("state.packetSha256 !== packetSha256");
+  const address = main.indexOf("validateOrderAddresses(state.recipient, state.sender)");
+  const claim = main.indexOf("await claimPaymentPath(state, executionKey)");
+  const revision = main.indexOf("profile.revision !== paymentRevision");
+  const execute = main.indexOf("await createOrResumePaymentIntent");
 
   assert.ok(approval >= 0, "approved hash/price comparison must exist");
-  assert.ok(revision > approval, "saved-payment revision must be checked after approval");
-  assert.ok(address > revision, "postal re-verification must happen before claiming payment");
+  assert.ok(address > approval, "postal re-verification must follow approval validation");
   assert.ok(claim > address, "exclusive payment path must be claimed after postal verification");
-  assert.ok(stripe > claim, "Stripe PaymentIntent must be created only after the payment path is claimed");
+  assert.ok(revision > claim, "newly claimed payment paths must recheck the displayed saved-payment revision");
+  assert.ok(execute > revision, "Stripe execution must follow the payment revision interlock");
 });
 
 test("immediate send fails closed unless automatic Lob fulfillment is enabled before charging", async () => {
@@ -39,10 +40,16 @@ test("immediate send fails closed unless automatic Lob fulfillment is enabled be
   assert.ok(stripe > interlock);
 });
 
-test("immediate send uses deterministic Stripe idempotency and never accepts raw card data", async () => {
+test("immediate send uses card-independent creation idempotency and never accepts raw card data", async () => {
   const immediate = await source("src/lib/immediate-mail.server.ts");
   assert.match(immediate, /idempotencyKey: `immediate_pi_create_\$\{args\.executionKey\}`/);
   assert.match(immediate, /idempotencyKey: `immediate_pi_confirm_\$\{args\.executionKey\}`/);
+  const createBlock = immediate.slice(
+    immediate.indexOf("paymentIntents.create"),
+    immediate.indexOf("const customerId"),
+  );
+  assert.equal(createBlock.includes("payment_method:"), false, "PaymentIntent creation must not bind a potentially changed saved card");
+  assert.match(immediate, /args\.profile\.revision === args\.authorizedPaymentRevision/);
   assert.doesNotMatch(immediate, /card_number|\bpan\b|\bcvc\b|\bcvv\b/i);
 });
 
