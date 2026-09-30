@@ -69,6 +69,9 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [problem, setProblem] = useState("");
   const [filter, setFilter] = useState<"ready" | "contracts" | "all">("ready");
   const [search, setSearch] = useState("");
+  const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
+  const [templateId, setTemplateId] = useState("");
+  const [templateLabel, setTemplateLabel] = useState("");
   const [pending, setPending] = useState<"report" | "job" | "review" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +129,18 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     try {
       const payload = await request(`/api/studio/workflows/jobs/${job.id}/review`, {
         method: "POST",
+        ...(job.stage === "template_review"
+          ? {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                templateRequest: {
+                  id: templateId.trim(),
+                  label: templateLabel.trim(),
+                  startTemplate: templateFamily,
+                },
+              }),
+            }
+          : {}),
       }) as { job: FactoryJob };
       upsertJob(payload.job);
     } catch (cause) {
@@ -218,7 +233,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               <div className="rounded-lg border border-rule bg-ivory p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-stone">Next boundary</div>
                 <div className="mt-1 text-sm text-navy">
-                  {activeJob.review.required ? "Administrator review" : activeJob.stage === "build" ? "Build executor" : terminal(activeJob) ? "None" : "Factory execution"}
+                  {activeJob.review.required ? "Administrator review" : activeJob.stage === "acceptance" ? "Acceptance executor" : activeJob.stage === "build" ? "Deterministic build" : terminal(activeJob) ? "None" : "Factory execution"}
                 </div>
               </div>
             </div>
@@ -234,9 +249,46 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               </div>
             )}
 
+            {activeJob.stage === "template_review" && activeJob.status === "awaiting_review" && (
+              <div className="mt-5 grid gap-4 rounded-lg border border-rule bg-ivory p-4 sm:grid-cols-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                  Factory family
+                  <select
+                    value={templateFamily}
+                    onChange={(event) => setTemplateFamily(event.target.value as "notice-response" | "records-request")}
+                    className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy"
+                  >
+                    <option value="notice-response">Notice response</option>
+                    <option value="records-request">Records request</option>
+                  </select>
+                </label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                  Workflow label
+                  <input
+                    value={templateLabel}
+                    onChange={(event) => setTemplateLabel(event.target.value)}
+                    placeholder="Example: State Tax Balance Notice Response"
+                    className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy"
+                  />
+                </label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-navy sm:col-span-2">
+                  Canonical workflow ID
+                  <input
+                    value={templateId}
+                    onChange={(event) => setTemplateId(event.target.value)}
+                    placeholder={templateFamily === "notice-response" ? "notice-respond/workflow-slug" : "records-request/workflow-slug"}
+                    className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 font-mono text-sm font-normal normal-case tracking-normal text-navy"
+                  />
+                  <span className="mt-1 block font-sans text-[11px] font-normal normal-case tracking-normal text-stone">
+                    The materializer validates that the section and runtime family agree before the build recipe is persisted.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div className="mt-5 flex flex-wrap gap-2">
               {activeJob.status === "awaiting_review" && activeJob.review.required && (
-                <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null || (activeJob.stage === "template_review" && (!templateId.trim() || !templateLabel.trim()))} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : "Approve next stage"}
                 </button>
               )}
