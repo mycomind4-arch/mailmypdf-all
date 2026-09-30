@@ -76,11 +76,10 @@ export async function publishPersistentFactoryProposal(input: {
 }): Promise<FactoryJob> {
   const current = await loadPersistentFactoryJob(input.jobId);
   if (!current) throw new Error("Factory job was not found.");
-  assertPublishable(current);
-
   if (current.publicationArtifact) {
     return current;
   }
+  assertPublishable(current);
 
   const project = findStudioProject("mailmypdf");
   if (!project) throw new Error("MailMyPDF Studio project is not configured.");
