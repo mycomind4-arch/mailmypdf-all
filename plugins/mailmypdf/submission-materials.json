@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, optional tokenized saved-payment readiness, explicit immutable approval, Stripe-hosted checkout/setup, physical mailing status, and tracking.",
+  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, tokenized saved-payment readiness, explicit immutable approval, separately confirmed idempotent saved-payment send-now, Stripe-hosted checkout/setup, scheduled mailing, physical mailing status, and tracking.",
   "availability": [
     "US"
   ],
