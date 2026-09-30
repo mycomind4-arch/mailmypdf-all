@@ -15,6 +15,7 @@ import {
   Mail,
   Menu,
   Newspaper,
+  PenLine,
   Search,
   Settings,
   Sparkles,
@@ -46,6 +47,7 @@ export const primaryItems: SidebarItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: Home, exact: true },
   { label: "Mailings", href: "/dashboard/orders", icon: FolderOpen },
   { label: "Send a PDF", href: "/send", icon: Mail },
+  { label: "Write a Letter", href: "/write", icon: PenLine },
 ]
 
 export const adminItems: SidebarItem[] = [
