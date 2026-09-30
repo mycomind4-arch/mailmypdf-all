@@ -2,7 +2,7 @@
 // new-architecture start component. This file only imports and renders --
 // all reusable workflow logic stays in the top-level workflow/shared
 // packages. A workflow only appears here once it genuinely has a real
-// start implementation; there is no fallback to apps/verticals/**.
+// start implementation; there is no fallback to the retired architecture.
 //
 // Static imports below cover executable workflows that need a dedicated
 // component. Certified profile-driven families can be rendered generically,
