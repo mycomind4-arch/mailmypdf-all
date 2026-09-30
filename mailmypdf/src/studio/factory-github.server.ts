@@ -9,6 +9,7 @@ import { GitHubRepositoryProvider } from "@mailmypdf/vertical-foundry";
 
 const DEFAULT_FACTORY_REPOSITORY = "mycomind4-arch/mailmypdf-all";
 const REQUIRED_FACTORY_CHECKS = Object.freeze([
+  "Factory generated workflow verification",
   "Shared capability verification",
   "Records Request verification",
   "Public workflow landing gate",
@@ -161,7 +162,10 @@ export async function checkFactoryAcceptance(
     artifact.repository,
     artifact.commitSha,
   );
-  const byName = new Map(status.checks.map((check) => [check.context, check]));
+  const byName = new Map<string, (typeof status.checks)[number]>();
+  for (const check of status.checks) {
+    if (!byName.has(check.context)) byName.set(check.context, check);
+  }
   const checks: FactoryAcceptanceCheck[] = REQUIRED_FACTORY_CHECKS.map((context) => {
     const observed = byName.get(context);
     return observed
