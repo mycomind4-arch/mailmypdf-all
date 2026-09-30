@@ -74,8 +74,8 @@ The next intended family is:
 A family template is ready only when it can resolve a shared factory artifact or equivalent generated execution contract without embedding workflow-specific business logic in the route generator.
 
 
-## SSDI boundary discovered
+## SSA reconsideration boundary
 
-SSDI is intentionally not a materializer special case yet. Its current start implementation is a large workflow-specific component rather than a thin shared family shell, and its hand-authored manifest uses field identifiers that do not yet form one contract with the shared SSA reconsideration runtime.
+The shared-contract portion of the SSDI/SSI prerequisite is now implemented: SSA reconsideration has a shared profile, camelCase manifest contract, runtime chat contract, and factory artifact. The local SSDI/SSI manifests project that shared artifact, and claimant-fact confirmation is enforced consistently by web and runtime.
 
-Before adding an SSA start template, the factory should first create a shared SSA reconsideration profile/manifest/artifact, declare its chat contract, and make the web start surface consume that contract. Only then should the materializer generate the static route wrappers.
+SSA is still intentionally **not** a materializer start template. The existing SSDI and SSI start pages are large workflow-specific components rather than thin family wrappers. The next step is to extract their common web execution shell into one configurable SSA reconsideration UI; only then should the materializer own their static start wrappers.
