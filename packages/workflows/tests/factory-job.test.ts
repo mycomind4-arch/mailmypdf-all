@@ -253,3 +253,43 @@ test("failed factory branch checks fail closed before publication review", () =>
   assert.equal(job.stage, "acceptance");
   assert.ok(job.diagnostics.some((item) => item.code === "ACCEPTANCE_CHECK_FAILED"));
 });
+
+
+test("pre-executor v1 build snapshots still restore after autonomous Records Request bootstrap expansion", () => {
+  const base = createFactoryJob({
+    id: "job-legacy-build",
+    problem: "Create a reviewed records request template.",
+    now: "2026-09-30T22:00:00.000Z",
+  });
+  const legacy = {
+    ...base,
+    revision: 4,
+    status: "queued",
+    stage: "build",
+    selectedWorkflowId: "records-request/legacy-city-records-request",
+    build: {
+      request: {
+        id: "records-request/legacy-city-records-request",
+        label: "Legacy City Records Request",
+        startTemplate: "records-request",
+      },
+      canonicalId: "records-request/legacy-city-records-request",
+      sectionId: "records-request",
+      slug: "legacy-city-records-request",
+      filePaths: [
+        "records-request/workflows/legacy-city-records-request/index.tsx",
+        "records-request/workflows/legacy-city-records-request/seo.ts",
+        "records-request/workflows/legacy-city-records-request/schema.ts",
+        "mailmypdf/src/routes/records-request/workflows/legacy-city-records-request/index.tsx",
+        "records-request/workflows/legacy-city-records-request/start/index.tsx",
+        "mailmypdf/src/routes/records-request/workflows/legacy-city-records-request/start/index.tsx",
+      ],
+    },
+    updatedAt: "2026-09-30T22:03:00.000Z",
+  };
+
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(legacy)));
+  assert.equal(restored.build?.request.startTemplate, "records-request");
+  assert.equal(restored.build?.filePaths.length, 6);
+  assert.equal(restored.build?.artifact, null);
+});
