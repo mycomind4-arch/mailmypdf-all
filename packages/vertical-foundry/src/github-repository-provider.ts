@@ -11,6 +11,7 @@ import type {
   FileCommit,
   CommitResult,
   PullRequestResult,
+  RepositoryFileSnapshot,
   StatusCheck,
 } from './provider-contracts.js'
 
@@ -90,6 +91,31 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
   async getBranchSha(repository: string, branch: string): Promise<{ sha: string }> {
     const data = await this.apiJson<{ commit: { sha: string } }>(`/repos/${repository}/branches/${branch}`)
     return { sha: data.commit.sha }
+  }
+
+  async getFile(repository: string, path: string, ref?: string): Promise<RepositoryFileSnapshot | null> {
+    const suffix = ref ? `?ref=${encodeURIComponent(ref)}` : ""
+    const res = await this.api(`/repos/${repository}/contents/${path}${suffix}`)
+    if (res.status === 404) return null
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(`GitHub API file read failed: ${res.status} ${res.statusText} ${text}`)
+    }
+    const data = await res.json() as {
+      path: string
+      sha: string
+      encoding: string
+      content: string
+      type: string
+    }
+    if (data.type !== "file" || data.encoding !== "base64") {
+      throw new Error(`GitHub repository path ${path} is not a readable base64 file`)
+    }
+    return {
+      path: data.path,
+      sha: data.sha,
+      content: Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8"),
+    }
   }
 
   async createFile(repository: string, branch: string, path: string, content: string, message: string): Promise<CommitResult> {
