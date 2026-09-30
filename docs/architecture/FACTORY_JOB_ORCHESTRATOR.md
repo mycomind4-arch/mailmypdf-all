@@ -39,3 +39,19 @@ Generated Records Request profiles live in a separate machine-owned registry. Ex
 ## Next executor
 
 The next slice is the **publication/PR executor**: take a passing generated proposal at `publication_review`, verify the persisted local branch/commit still matches the recorded artifact, push only that branch, create a pull request containing the acceptance evidence, and stop for explicit merge/publication review. Merge and deployment remain separate explicit actions.
+
+
+## Pull request publication boundary
+
+After a generated Records Request proposal passes the local supervised acceptance suite, Studio exposes one explicit **Create GitHub PR** action.
+
+The publication executor remains a machine-level Studio operation:
+
+- localhost plus verified administrator access is required;
+- the retained local proposal branch must still point to the exact accepted commit;
+- the fetched remote default branch must still equal the exact base commit used during acceptance, otherwise the proposal must be rebuilt;
+- an existing remote proposal branch is reused only when it already points to the accepted commit;
+- an existing open pull request for the same head/base is reused on retry;
+- GitHub PR metadata is persisted in the durable Factory Job before the job completes.
+
+Publication means **push the accepted proposal branch and open a pull request for human code review**. It does not merge the pull request, deploy production, charge a customer, or submit mail.
