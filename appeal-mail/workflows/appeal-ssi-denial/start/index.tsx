@@ -599,7 +599,7 @@ export default function SsiDenialWorkflow() {
         <SectionCard
           title="3. Confirm claimant facts"
           description="User-supplied facts are stored separately from AI-extracted notice facts. The questions adapt to the denial basis found in the notice."
-          footer={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveFacts()} disabled={Boolean(busy)}>Save claimant facts</button>}
+          footer={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveFacts()} disabled={Boolean(busy) || !facts.factsConfirmed}>Save claimant facts</button>}
         >
           <div className="wf-form-grid">
             <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => updateClaimantFact("claimantName", event.target.value)} /></Field>
