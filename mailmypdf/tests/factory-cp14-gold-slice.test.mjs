@@ -115,3 +115,11 @@ test("CP14 factory artifacts remain free of retired architecture paths", () => {
     assert.equal(source.includes("apps/mailmypdf"), false, file);
   }
 });
+
+
+test("authenticated executable workflows start through the dashboard bridge", () => {
+  const detail = read("mailmypdf/src/components/authenticated-workflow-detail.tsx");
+  assert.match(detail, /execution\?\.executionStatus === "executable"/);
+  assert.match(detail, /\$\{workflow\.workspaceHref\}\/start/);
+  assert.equal(detail.includes("execution?.executionHref ?? undefined"), false);
+});
