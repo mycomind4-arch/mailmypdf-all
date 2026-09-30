@@ -34,6 +34,7 @@ test("factory runner persists every transition through the atomic RPC", () => {
   assert.match(server, /job\.stage === "intake"/);
   assert.match(server, /job\.stage === "match"/);
   assert.match(server, /job\.stage === "certify"/);
+  assert.match(server, /job\.stage === "build"/);
   assert.doesNotMatch(server, /prepare_checkout|charge|submit.*mail|lob/i);
 });
 
@@ -60,6 +61,8 @@ test("Studio factory UI creates durable jobs and keeps review explicit", () => {
   assert.match(page, /\/api\/studio\/workflows\/jobs\//);
   assert.match(page, /Start factory job/);
   assert.match(page, /Approve next stage/);
+  assert.match(page, /Canonical workflow ID/);
+  assert.match(page, /Factory family/);
   assert.match(page, /No code is published automatically/);
   assert.match(page, /Factory job queue/);
   assert.doesNotMatch(page, /prepare_checkout|submit_mail_order|charge_card/);
