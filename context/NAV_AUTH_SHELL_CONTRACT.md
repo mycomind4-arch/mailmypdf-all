@@ -242,3 +242,17 @@ Verified against the current canonical `mailmypdf/` app and repaired in the shar
 - `mailmypdf/tests/admin-navigation-integrity.test.mjs` locks these route, shell, authorization, and real-data invariants into CI.
 
 Evidence: `mailmypdf/src/components/authenticated-sidebar.tsx`, `mailmypdf/src/routes/_authenticated.admin.audit-log.tsx`, `mailmypdf/src/routes/_authenticated.admin.entitlements.tsx`, `mailmypdf/src/lib/entitlements-management.functions.ts`, `mailmypdf/src/lib/entitlements-management.ts`.
+
+
+## 11. 2026-09-29 Studio command-center split
+
+The administrator Studio surface now has two explicit responsibilities instead of overloading one route:
+
+- `/studio` is the **administrator command center**. It is read-only and summarizes canonical workflow execution/chat certification, MCP connector coverage, Supabase/Stripe/Lob/email configuration readiness, AI routing counts, fulfillment queue/failures, user-profile counts, and deployment-target wiring. It derives these signals from the existing registries/configuration and does not create a second source of truth.
+- `/studio/builder` preserves the existing visual workflow/factory editor. The parent `/_authenticated/studio` route owns the server-verified admin check and renders an `Outlet`, so both child surfaces share the same authorization boundary and authenticated sidebar shell.
+- `/admin/users` is a deliberately read-only profile/role browser. It reads `user_profiles` and `user_roles` but exposes no role mutation, deletion, impersonation, or account takeover controls.
+- The shared Studio/Admin sidebar contains explicit entries for Studio, Workflow Builder, Operations, Users, Analytics, AI Control Plane, Publications, Audit Log, and Entitlements.
+- Command-center service readiness returns booleans/counts only. Stripe/Lob/API/webhook secrets are never returned to the browser.
+- Consequential actions remain in dedicated tools with their existing review and authorization boundaries; the command center does not introduce new send, charge, publish, role-change, or deployment side effects.
+
+Evidence: `mailmypdf/src/lib/studio-command-center.functions.ts`, `mailmypdf/src/components/studio-command-center.tsx`, `mailmypdf/src/routes/_authenticated/studio.tsx`, `mailmypdf/src/routes/_authenticated/studio/index.tsx`, `mailmypdf/src/routes/_authenticated/studio/builder.tsx`, `mailmypdf/src/lib/admin-users.functions.ts`, `mailmypdf/src/routes/_authenticated/admin/users.tsx`.
