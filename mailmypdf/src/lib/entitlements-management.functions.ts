@@ -38,13 +38,8 @@ import {
 // ============================================================================
 
 /**
- * Verify user has admin role.
- * CRITICAL: This is not a placeholder - it enforces real authorization.
- *
- * Admin role can be stored in:
- * 1. app_metadata.role (JWT claims, safe from client)
- * 2. user_roles table (database row-level enforcement)
- * 3. Both (defense in depth)
+ * Verify the canonical database-backed admin role.
+ * Never authorize administration from user/app metadata.
  */
 async function assertAdmin(userId: string) {
   const admin = getSupabaseAdmin();
