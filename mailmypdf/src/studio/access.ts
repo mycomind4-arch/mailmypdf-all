@@ -84,7 +84,7 @@ export async function localAdminFactoryAccess(
     return {
       actor: null,
       error: Response.json(
-        { error: "Factory build execution is available only on the local development server." },
+        { error: "Factory machine execution is available only on the local development server." },
         { status: 403 },
       ),
     };
