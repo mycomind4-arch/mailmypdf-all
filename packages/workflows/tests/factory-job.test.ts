@@ -6,6 +6,7 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  restoreFactoryJobSnapshot,
 } from "../src/factory-job.js";
 
 const TOOLS = [
@@ -104,4 +105,24 @@ test("factory jobs can be cancelled before completion", () => {
   const cancelled = cancelFactoryJob(job, "2026-09-30T20:01:00.000Z").job;
   assert.equal(cancelled.status, "cancelled");
   assert.equal(cancelled.stage, "intake");
+});
+
+
+test("durable factory snapshots round-trip and corrupted state fails closed", () => {
+  const original = createFactoryJob({
+    id: "job-round-trip",
+    problem: "IRS CP14 response",
+    now: "2026-09-30T20:00:00.000Z",
+  });
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(original)));
+  assert.deepEqual(restored, original);
+
+  assert.throws(
+    () => restoreFactoryJobSnapshot({ ...original, revision: 0 }),
+    /revision is invalid/i,
+  );
+  assert.throws(
+    () => restoreFactoryJobSnapshot({ ...original, schemaVersion: "future-version" }),
+    /schema version is unsupported/i,
+  );
 });
