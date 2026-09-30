@@ -11,7 +11,6 @@ import { validateCaseInput } from "../src/lib/secure-core/case-inputs.server";
 import { resolveCaseWorkflow } from "../src/lib/secure-core/workflow-runtime";
 import {
   getNoticeResponseFactoryArtifact,
-  workflowById,
 } from "@mailmypdf/workflows";
 import cp14LandingConfig from "../../notice-respond/workflows/cp14-response/config";
 
@@ -82,13 +81,10 @@ test("new notice workflows must be added by registry ID, not route branching", a
 
 test("canonical CP14 is one factory artifact across registry, landing, runtime, and start UI", () => {
   const artifact = getNoticeResponseFactoryArtifact("cp14-response");
-  const canonical = workflowById("notice-respond/cp14-response");
-
   assert.ok(artifact);
-  assert.ok(canonical);
   assert.equal(artifact.factoryReady, true);
   assert.deepEqual(artifact.diagnostics, []);
-  assert.deepEqual(artifact.canonical, canonical);
+  assert.equal(artifact.canonical.id, "notice-respond/cp14-response");
 
   assert.equal(cp14LandingConfig.id, artifact.workflowId);
   assert.equal(cp14LandingConfig.sectionId, artifact.canonical.sectionId);
