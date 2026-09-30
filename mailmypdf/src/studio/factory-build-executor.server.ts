@@ -2,6 +2,7 @@ import type {
   FactoryBuildArtifact,
   FactoryBuildCheck,
   FactoryBuildRequest,
+  FactoryJob,
 } from "@mailmypdf/workflows";
 import { findStudioProject, resolveProjectRoot } from "@/studio/domain/studio-project";
 import {
@@ -176,7 +177,7 @@ async function git(
 export async function executePersistentFactoryBuild(input: {
   jobId: string;
   actorId: string;
-}): Promise<ReturnType<typeof loadPersistentFactoryJob> extends Promise<infer T> ? NonNullable<T> : never> {
+}): Promise<FactoryJob> {
   const current = await loadPersistentFactoryJob(input.jobId);
   if (!current) throw new Error("Factory job was not found.");
   if (
