@@ -1,5 +1,16 @@
 # MailMyPDF factory status
 
+## 2026-09-30 — Reviewed Records Request build executor
+
+- Factory Jobs now persist an additive reviewed build request plus build-artifact evidence without breaking existing `mailmypdf.factory-job/v1` snapshots. Template review must explicitly choose the first supported build family (`records-request`), workflow id, and label before the job can enter `build`.
+- Added a local-admin-only build executor. It fetches fresh `origin/main`, refuses existing local/remote proposal branches and existing canonical/workflow ids, creates a temporary isolated git worktree, and writes only an allow-listed proposal surface.
+- New generated Records Request profiles live in a separate machine-owned registry. Core hand-authored profiles stay isolated. The runtime-policy registry now derives from the combined profile registry, so an approved generated profile automatically receives the same shared Records Request runtime/chat policy.
+- The executor creates a non-indexable scaffold `config.ts`, colocated `workflow.spec.json`, generated profile entry, canonical enrollment, inventory projection, and materializer-owned TanStack landing/start/SEO/schema wrappers; then commits those artifacts to a local `factory/job-…` branch with a dedicated factory commit identity.
+- Acceptance runs materialization-drift verification, the shared workflow factory/chat suite, exact generated-workflow chat certification against the live MCP catalog, Records Request unit tests, Records Request acceptance tests, and a final clean tracked-tree check. Results, changed files, branch, base SHA, commit SHA, and paths persist on the Factory Job.
+- Passing builds stop at `publication_review`. The current executor does **not** push, create a PR, merge, deploy, charge, or mail. Studio hides publication approval for generated builds until the publication/PR executor exists.
+- Build execution is a machine-level action protected by the local-host + authenticated-admin boundary. The remote Factory Job control plane remains read/write for orchestration, but it cannot execute git/shell build work.
+- Next blocker: publication/PR executor (push only the reviewed proposal branch, create a PR with persisted acceptance evidence, stop for merge review). After that, full E2E/recovery hardening remains.
+
 ## 2026-09-30 — Persistent supervised Factory Job orchestrator
 
 - Added a versioned `mailmypdf.factory-job/v1` state machine with explicit stages for intake, matching, certification, template review, build, acceptance, publication review, and completion. The runner only advances stages the repository can currently prove and fails/stops rather than inventing build or test results.
