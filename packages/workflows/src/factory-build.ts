@@ -3,6 +3,7 @@ import {
   buildCanonicalWorkflowRegistry,
   type WorkflowSeed,
 } from "./canonical-workflow-registry.js";
+export type { WorkflowSeed } from "./canonical-workflow-registry.js";
 import {
   buildWorkflowMaterializationPlan,
   WORKFLOW_MATERIALIZATION_SPEC_VERSION,
