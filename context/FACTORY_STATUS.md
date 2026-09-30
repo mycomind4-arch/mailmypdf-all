@@ -1,5 +1,14 @@
 # MailMyPDF factory status
 
+## 2026-09-30 — Persistent supervised Factory Job orchestrator
+
+- Added a versioned `mailmypdf.factory-job/v1` state machine with explicit stages for intake, matching, certification, template review, build, acceptance, publication review, and completion. The runner only advances stages the repository can currently prove and fails/stops rather than inventing build or test results.
+- Added durable admin-only `factory_jobs` and append-only `factory_job_events` persistence. RLS is enabled with no anon/authenticated client policies; service-role-only RPCs create jobs and apply optimistic revision-checked transitions atomically.
+- Added a server runner that can resume a job and automatically advance `intake → match → certify` until it reaches a human-review or unimplemented build boundary. Concurrent stale transitions fail closed.
+- Added authenticated Studio APIs to create/list jobs, inspect event history, resume deterministic execution, approve a review boundary, or cancel. Verified admin identity is attached to durable factory audit events.
+- Updated Studio Factory to create durable jobs and show a resumable queue instead of using only the one-shot problem planner. No route added here publishes code, charges, or mails.
+- The next true self-running blocker is now narrow: implement the reviewed `build` executor that converts an approved new-template job into a family/profile/workflow spec proposal, materializes it on an isolated branch, runs factory/chat/acceptance checks, and returns the job to explicit publication review.
+
 ## 2026-09-30 — SSA reconsideration becomes the third factory-artifact family
 
 - Added one shared SSA reconsideration profile registry and manifest generator for SSDI and SSI denial appeals. The generated manifest now uses the same camelCase field identifiers enforced by the shared runtime instead of maintaining separate kebab-case workflow contracts.
