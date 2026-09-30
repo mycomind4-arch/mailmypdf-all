@@ -12,12 +12,14 @@ function source(relativePath) {
 
 const routeTargets = [
   ["/studio", "src/routes/_authenticated/studio.tsx", "/_authenticated/studio"],
+  ["/studio/builder", "src/routes/_authenticated/studio/builder.tsx", "/_authenticated/studio/builder"],
   ["/admin", "src/routes/_authenticated/admin/index.tsx", "/_authenticated/admin/"],
   ["/admin/analytics", "src/routes/_authenticated/admin/analytics.tsx", "/_authenticated/admin/analytics"],
   ["/admin/ai", "src/routes/_authenticated/admin/ai.tsx", "/_authenticated/admin/ai"],
   ["/admin/publications", "src/routes/_authenticated/admin/publications.tsx", "/_authenticated/admin/publications"],
   ["/admin/audit-log", "src/routes/_authenticated.admin.audit-log.tsx", "/_authenticated/admin/audit-log"],
   ["/admin/entitlements", "src/routes/_authenticated.admin.entitlements.tsx", "/_authenticated/admin/entitlements"],
+  ["/admin/users", "src/routes/_authenticated/admin/users.tsx", "/_authenticated/admin/users"],
   ["/dashboard", "src/routes/_authenticated/dashboard/index.tsx", "/_authenticated/dashboard/"],
   ["/dashboard/orders", "src/routes/_authenticated/dashboard/orders.tsx", "/_authenticated/dashboard/orders"],
   ["/dashboard/settings", "src/routes/_authenticated/dashboard/settings.tsx", "/_authenticated/dashboard/settings"],
@@ -59,7 +61,9 @@ test("every Studio/Admin sidebar item has a real route target", () => {
   const sidebar = source("src/components/authenticated-sidebar.tsx");
   for (const href of [
     "/studio",
+    "/studio/builder",
     "/admin",
+    "/admin/users",
     "/admin/analytics",
     "/admin/ai",
     "/admin/publications",
@@ -112,4 +116,44 @@ test("Studio factory control is an in-Studio action rather than a dead route", (
   const studio = source("src/components/admin-studio.tsx");
   assert.equal(studio.includes('href="/studio/factory"'), false);
   assert.match(studio, /onClick=\{\(\) => setLeftPanelView\("library"\)\}/);
+});
+
+
+test("Studio root is the command center and builder stays separately addressable", () => {
+  const studioRoute = source("src/routes/_authenticated/studio.tsx");
+  const builderRoute = source("src/routes/_authenticated/studio/builder.tsx");
+  const commandCenter = source("src/components/studio-command-center.tsx");
+
+  assert.match(studioRoute, /StudioCommandCenter/);
+  assert.match(builderRoute, /StudioPage/);
+  assert.match(commandCenter, /Open Workflow Builder/);
+  assert.match(commandCenter, /ChatGPT connector/);
+  assert.match(commandCenter, /Production services/);
+  assert.match(commandCenter, /Recent fulfillment failures/);
+});
+
+test("Studio command center returns status booleans and counts, never service secrets", () => {
+  const server = source("src/lib/studio-command-center.functions.ts");
+
+  assert.match(server, /WORKFLOW_EXECUTION_REGISTRY/);
+  assert.match(server, /canonicalChatFactoryReport/);
+  assert.match(server, /MAILMYPDF_MCP_TOOLS/);
+  assert.match(server, /user_profiles/);
+  assert.match(server, /workflow_cases/);
+  assert.equal(/secretKey\s*:/.test(server), false);
+  assert.equal(/apiKey\s*:/.test(server), false);
+  assert.equal(/webhookSecret\s*:/.test(server), false);
+});
+
+test("admin users surface is read-only and uses canonical user_roles", () => {
+  const usersFn = source("src/lib/admin-users.functions.ts");
+  const usersRoute = source("src/routes/_authenticated/admin/users.tsx");
+
+  assert.match(usersFn, /\.from\("user_roles"\)/);
+  assert.match(usersFn, /\.eq\("role", "admin"\)/);
+  assert.match(usersFn, /\.from\("user_profiles"\)/);
+  assert.equal(usersFn.includes(".update("), false);
+  assert.equal(usersFn.includes(".delete("), false);
+  assert.equal(usersFn.includes(".insert("), false);
+  assert.match(usersRoute, /intentionally read-only/);
 });
