@@ -33,6 +33,24 @@ type FactoryJob = {
   stage: "intake" | "match" | "certify" | "template_review" | "build" | "acceptance" | "publication_review" | "complete";
   problem: string;
   selectedWorkflowId: string | null;
+  buildRequest: {
+    family: "records-request";
+    sectionId: "records-request";
+    workflowId: string;
+    label: string;
+    startTemplate: "records-request";
+  } | null;
+  buildArtifact: {
+    branch: string;
+    baseSha: string;
+    commitSha: string;
+    specPath: string;
+    profileRegistryPath: string;
+    configPath: string;
+    changedFiles: string[];
+    checks: Array<{ id: string; command: string; ok: boolean; summary: string }>;
+    builtAt: string;
+  } | null;
   diagnostics: Array<{ code: string; message: string; severity: "info" | "warning" | "error" }>;
   review: { required: boolean; reason: string | null; approvedAt: string | null };
   updatedAt: string;
@@ -69,7 +87,9 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [problem, setProblem] = useState("");
   const [filter, setFilter] = useState<"ready" | "contracts" | "all">("ready");
   const [search, setSearch] = useState("");
-  const [pending, setPending] = useState<"report" | "job" | "review" | "cancel" | null>("report");
+  const [buildWorkflowId, setBuildWorkflowId] = useState("");
+  const [buildLabel, setBuildLabel] = useState("");
+  const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
   function upsertJob(job: FactoryJob) {
@@ -124,12 +144,42 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     setPending("review");
     setError(null);
     try {
+      const isTemplateReview = job.stage === "template_review";
       const payload = await request(`/api/studio/workflows/jobs/${job.id}/review`, {
         method: "POST",
+        ...(isTemplateReview
+          ? {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                family: "records-request",
+                sectionId: "records-request",
+                workflowId: buildWorkflowId.trim(),
+                label: buildLabel.trim(),
+                startTemplate: "records-request",
+              }),
+            }
+          : {}),
       }) as { job: FactoryJob };
       upsertJob(payload.job);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to approve factory review.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function runBuild(job: FactoryJob) {
+    if (pending) return;
+    setPending("build");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/build`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to execute the local factory build.");
+      await refresh();
     } finally {
       setPending(null);
     }
@@ -223,6 +273,57 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               </div>
             </div>
 
+            {activeJob.stage === "template_review" && activeJob.review.required && (
+              <div className="mt-5 rounded-lg border border-brass/40 bg-ivory p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-brass">Reviewed build request</div>
+                <p className="mt-2 text-sm leading-6 text-stone">
+                  The first supervised build executor supports the Records Request family only. Do not approve this template if that family is not appropriate.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                    Workflow ID
+                    <input
+                      value={buildWorkflowId}
+                      onChange={(event) => setBuildWorkflowId(event.target.value.toLowerCase())}
+                      placeholder="example-records-request"
+                      className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                    Workflow label
+                    <input
+                      value={buildLabel}
+                      onChange={(event) => setBuildLabel(event.target.value)}
+                      placeholder="Example Records Request"
+                      className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal"
+                    />
+                  </label>
+                </div>
+                <p className="mt-2 text-xs text-stone">
+                  IDs must be kebab-case and end in <code>-records-request</code>. Public copy is generated as a non-indexable scaffold for later editorial review.
+                </p>
+              </div>
+            )}
+
+            {activeJob.buildArtifact && (
+              <div className="mt-5 rounded-lg border border-rule bg-ivory p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-stone">Build artifact</div>
+                <div className="mt-2 break-all font-mono text-xs text-navy">{activeJob.buildArtifact.branch}</div>
+                <div className="mt-1 break-all font-mono text-[11px] text-stone">{activeJob.buildArtifact.commitSha}</div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {activeJob.buildArtifact.checks.map((check) => (
+                    <div key={check.id} className="rounded-md border border-rule bg-paper p-3 text-xs">
+                      <div className={check.ok ? "font-semibold text-emerald-700" : "font-semibold text-error"}>
+                        {check.ok ? "Passed" : "Failed"} · {check.id}
+                      </div>
+                      <div className="mt-1 text-stone">{check.command}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-stone">{activeJob.buildArtifact.changedFiles.length} reviewed factory file(s) committed on the isolated branch.</p>
+              </div>
+            )}
+
             {activeJob.diagnostics.length > 0 && (
               <div className="mt-4 space-y-2">
                 {activeJob.diagnostics.map((item, index) => (
@@ -235,10 +336,30 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
             )}
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {activeJob.status === "awaiting_review" && activeJob.review.required && (
-                <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
-                  <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : "Approve next stage"}
+              {activeJob.status === "awaiting_review" && activeJob.review.required && activeJob.review.reason !== "generated-workflow-publication" && (
+                <button
+                  type="button"
+                  onClick={() => void approve(activeJob)}
+                  disabled={
+                    pending !== null ||
+                    (activeJob.stage === "template_review" &&
+                      (!buildWorkflowId.trim() || !buildLabel.trim()))
+                  }
+                  className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50"
+                >
+                  <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : activeJob.stage === "template_review" ? "Approve build request" : "Approve next stage"}
                 </button>
+              )}
+              {activeJob.stage === "build" && activeJob.status === "queued" && activeJob.buildRequest && (
+                <button type="button" onClick={() => void runBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                  <RefreshCw size={16} className={pending === "build" ? "animate-spin" : ""} />
+                  {pending === "build" ? "Building in isolated branch…" : "Run local supervised build"}
+                </button>
+              )}
+              {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && (
+                <p className="rounded-md border border-brass/40 bg-ivory px-4 py-2 text-sm text-stone">
+                  Acceptance passed. Publication remains blocked until the publication/PR executor is implemented.
+                </p>
               )}
               {!terminal(activeJob) && (
                 <button type="button" onClick={() => void cancel(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md border border-rule px-4 py-2 text-sm font-medium text-stone hover:border-error hover:text-error disabled:opacity-50">
