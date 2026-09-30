@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/studio/workflows/jobs/$id/review")({
                 ? templateRequest as {
                     id: string;
                     label: string;
-                    startTemplate: "notice-response" | "records-request";
+                    startTemplate: "records-request";
                   }
                 : undefined,
           });
