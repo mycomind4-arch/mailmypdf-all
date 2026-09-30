@@ -59,6 +59,7 @@ export type ClaimantFacts = {
   representativeName: string;
   responseMode: "reconsideration";
   confirmedReconsideration: true;
+  factsConfirmed: boolean;
   reasonsForDisagreement: string;
   conditionChanges: string;
   newConditions: string;
@@ -80,6 +81,7 @@ const EMPTY_FACTS: ClaimantFacts = {
   representativeName: "",
   responseMode: "reconsideration",
   confirmedReconsideration: true,
+  factsConfirmed: false,
   reasonsForDisagreement: "",
   conditionChanges: "",
   newConditions: "",
@@ -194,6 +196,21 @@ export default function SsiDenialWorkflow() {
   );
 
   const currentStep = SSI_STEPS[stepIndex]!;
+
+  function updateClaimantFact<Key extends keyof ClaimantFacts>(
+    key: Key,
+    value: ClaimantFacts[Key],
+  ): void {
+    setFacts((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "factsConfirmed" ? {} : { factsConfirmed: false }),
+    }));
+    setFactsSaved(false);
+    setDraftSaved(false);
+    setPacket(null);
+    setApprovalId("");
+  }
 
   async function refresh(id = matterId) {
     if (!id) return;
@@ -585,33 +602,38 @@ export default function SsiDenialWorkflow() {
           footer={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveFacts()} disabled={Boolean(busy)}>Save claimant facts</button>}
         >
           <div className="wf-form-grid">
-            <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => setFacts({ ...facts, claimantName: event.target.value })} /></Field>
-            <Field label="Phone" required><TextField value={facts.phone} onChange={(event) => setFacts({ ...facts, phone: event.target.value })} /></Field>
-            <Field label="Mailing address" required><TextArea rows={3} value={facts.claimantAddress} onChange={(event) => setFacts({ ...facts, claimantAddress: event.target.value })} /></Field>
-            <Field label="Representative name" hint="Leave blank if none."><TextField value={facts.representativeName} onChange={(event) => setFacts({ ...facts, representativeName: event.target.value })} /></Field>
+            <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => updateClaimantFact("claimantName", event.target.value)} /></Field>
+            <Field label="Phone" required><TextField value={facts.phone} onChange={(event) => updateClaimantFact("phone", event.target.value)} /></Field>
+            <Field label="Mailing address" required><TextArea rows={3} value={facts.claimantAddress} onChange={(event) => updateClaimantFact("claimantAddress", event.target.value)} /></Field>
+            <Field label="Representative name" hint="Leave blank if none."><TextField value={facts.representativeName} onChange={(event) => updateClaimantFact("representativeName", event.target.value)} /></Field>
           </div>
-          <Field label="Why do you disagree with the denial?" required><TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => setFacts({ ...facts, reasonsForDisagreement: event.target.value })} /></Field>
+          <Field label="Why do you disagree with the denial?" required><TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => updateClaimantFact("reasonsForDisagreement", event.target.value)} /></Field>
 
           {decisionBasis === "medical" && (
             <div className="wf-form-grid">
-              <Field label="Changes in existing conditions"><TextArea value={facts.conditionChanges} onChange={(event) => setFacts({ ...facts, conditionChanges: event.target.value })} /></Field>
-              <Field label="New conditions"><TextArea value={facts.newConditions} onChange={(event) => setFacts({ ...facts, newConditions: event.target.value })} /></Field>
-              <Field label="Treatment changes"><TextArea value={facts.treatmentChanges} onChange={(event) => setFacts({ ...facts, treatmentChanges: event.target.value })} /></Field>
-              <Field label="Medication changes"><TextArea value={facts.medicationChanges} onChange={(event) => setFacts({ ...facts, medicationChanges: event.target.value })} /></Field>
-              <Field label="Daily-function changes"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => setFacts({ ...facts, dailyFunctionChanges: event.target.value })} /></Field>
+              <Field label="Changes in existing conditions"><TextArea value={facts.conditionChanges} onChange={(event) => updateClaimantFact("conditionChanges", event.target.value)} /></Field>
+              <Field label="New conditions"><TextArea value={facts.newConditions} onChange={(event) => updateClaimantFact("newConditions", event.target.value)} /></Field>
+              <Field label="Treatment changes"><TextArea value={facts.treatmentChanges} onChange={(event) => updateClaimantFact("treatmentChanges", event.target.value)} /></Field>
+              <Field label="Medication changes"><TextArea value={facts.medicationChanges} onChange={(event) => updateClaimantFact("medicationChanges", event.target.value)} /></Field>
+              <Field label="Daily-function changes"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => updateClaimantFact("dailyFunctionChanges", event.target.value)} /></Field>
             </div>
           )}
 
           {decisionBasis === "nonmedical" && (
             <div className="wf-form-grid">
-              <Field label="Income facts" hint="Only include facts relevant to the issue stated in the notice."><TextArea value={facts.incomeFacts} onChange={(event) => setFacts({ ...facts, incomeFacts: event.target.value })} /></Field>
-              <Field label="Resource facts"><TextArea value={facts.resourceFacts} onChange={(event) => setFacts({ ...facts, resourceFacts: event.target.value })} /></Field>
-              <Field label="Living arrangement facts"><TextArea value={facts.livingArrangementFacts} onChange={(event) => setFacts({ ...facts, livingArrangementFacts: event.target.value })} /></Field>
-              <Field label="Other eligibility facts"><TextArea value={facts.eligibilityFacts} onChange={(event) => setFacts({ ...facts, eligibilityFacts: event.target.value })} /></Field>
+              <Field label="Income facts" hint="Only include facts relevant to the issue stated in the notice."><TextArea value={facts.incomeFacts} onChange={(event) => updateClaimantFact("incomeFacts", event.target.value)} /></Field>
+              <Field label="Resource facts"><TextArea value={facts.resourceFacts} onChange={(event) => updateClaimantFact("resourceFacts", event.target.value)} /></Field>
+              <Field label="Living arrangement facts"><TextArea value={facts.livingArrangementFacts} onChange={(event) => updateClaimantFact("livingArrangementFacts", event.target.value)} /></Field>
+              <Field label="Other eligibility facts"><TextArea value={facts.eligibilityFacts} onChange={(event) => updateClaimantFact("eligibilityFacts", event.target.value)} /></Field>
             </div>
           )}
 
-          <Field label="Additional facts"><TextArea rows={4} value={facts.additionalFacts} onChange={(event) => setFacts({ ...facts, additionalFacts: event.target.value })} /></Field>
+          <Field label="Additional facts"><TextArea rows={4} value={facts.additionalFacts} onChange={(event) => updateClaimantFact("additionalFacts", event.target.value)} /></Field>
+          <CheckboxField
+            checked={facts.factsConfirmed}
+            onChange={(checked) => updateClaimantFact("factsConfirmed", checked)}
+            label="I reviewed and confirm the material claimant facts used in this reconsideration."
+          />
         </SectionCard>
       )}
 
