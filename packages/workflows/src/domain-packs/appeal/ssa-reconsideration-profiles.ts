@@ -1,8 +1,8 @@
-export type SsaReconsiderationProgram = "SSDI" | "SSI";
+export type SsaWorkflowProgram = "SSDI" | "SSI";
 
 export interface SsaReconsiderationWorkflowProfile {
   workflowId: "appeal-ssdi-denial" | "appeal-ssi-denial";
-  program: SsaReconsiderationProgram;
+  program: SsaWorkflowProgram;
   title: string;
   primaryDocumentId: string;
   primaryDocumentLabel: string;
