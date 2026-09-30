@@ -65,6 +65,9 @@ Authenticated matter execution:
 - `review_direct_pdf_mail`
 - `approve_direct_pdf_mail`
 - `prepare_direct_pdf_checkout`
+- `charge_and_send_direct_pdf_mail`
+- `schedule_direct_pdf_mail`
+- `cancel_scheduled_mail`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -210,7 +213,7 @@ The tool reads only owner-scoped document/matter metadata. It does not return st
 
 The connector supports both ordinary letters composed in chat and already-prepared PDFs without forcing either through an unrelated specialized workflow.
 
-For an ordinary letter, the assistant drafts/revises the text conversationally, confirms the exact sender and recipient, then calls `prepare_conversational_letter`. MailMyPDF renders the exact finalized text through the production letter-to-PDF path and returns an unpaid draft order. The rest of the flow reuses the same exact-PDF review, postal verification, immutable approval, Stripe checkout, Lob fulfillment, and status pipeline described below.
+For an ordinary letter, the assistant drafts/revises the text conversationally, confirms the exact sender and recipient, then calls `prepare_conversational_letter`. MailMyPDF renders the exact finalized text through the production letter-to-PDF path and returns an unpaid draft order. The rest of the flow reuses the same exact-PDF review, postal verification, immutable approval, optional tokenized saved-payment send-now or Stripe hosted checkout, Lob fulfillment, and status pipeline described below.
 
 `get_mailing_context` plus `get_order_status` make these direct/conversational mailings resumable. The read-only order status response reports whether postal review is current/expired/stale/missing, whether approval is current/stale/missing, and the safest existing next tool. Recovered state never substitutes for explicit approval.
 
@@ -223,13 +226,15 @@ The expected sequence is:
 3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
 4. `review_direct_pdf_mail` verifies both addresses and returns a structured draft, owner-only exact PDF resource, illustrative envelope layout, actual price, color, and delivery caveat. Postal verification is not recipient-identity verification. Corrections, missing units, and unavailable verification block approval; changed addresses require a new draft. Successful verification is bound to the mailing snapshot and reused for up to 30 minutes.
 5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them, requires unexpired verification for both current addresses, and then records the immutable approval snapshot.
-6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
-7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
-8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
+6. After approval, `get_payment_readiness` returns only the safe saved-card display plus an opaque `paymentRevision`; it never authorizes a charge. If the user explicitly authorizes that displayed saved method, the exact approved total, and immediate sending, `charge_and_send_direct_pdf_mail` re-verifies the approval hash/price, payment revision, both postal addresses, and exclusive payment path before creating an idempotent off-session Stripe PaymentIntent. It submits to Lob only after Stripe reports `succeeded`; retries resume the same payment/fulfillment path instead of charging again.
+7. If the user prefers hosted checkout or has no ready saved method, `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
+8. Stripe's verified webhook records hosted-checkout payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
+9. `schedule_direct_pdf_mail` provides the separate future-send path and records future saved-payment authorization without charging during scheduling.
+10. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
 
 Direct-mail preparation requires a client-supplied `idempotency_key`. Retries of the same mailing intent reuse the existing order; intentionally mailing the same PDF again requires a new key.
 
-The direct-mail tools never return the legacy order lookup token and never accept raw card data.
+The direct-mail tools never return the legacy order lookup token and never accept raw card data. Saved payment is represented only by a safe brand/last-four display and opaque revision; Stripe customer and payment-method identifiers remain server-side.
 
 `get_mailing_context` returns at most ten owner-scoped recent direct mailings for
 recipient/return-address reuse. It is not an address book, public company lookup,
