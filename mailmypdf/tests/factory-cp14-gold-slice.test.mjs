@@ -22,6 +22,25 @@ test("CP14 factory gold slice is mounted in the authenticated host", () => {
   );
 });
 
+
+
+test("every canonical executable workflow has exactly one authenticated start renderer", () => {
+  const seeds = JSON.parse(read("packages/workflows/src/canonical-workflows.json"));
+  const expected = seeds
+    .filter((seed) => seed.execution)
+    .map((seed) => seed.id.replace("/", ":"))
+    .sort();
+
+  const registry = read("mailmypdf/src/lib/workflow-start-registry.tsx");
+  const actual = [...registry.matchAll(/^\s*"([^"]+)":\s*[A-Za-z0-9_]+,/gm)]
+    .map((match) => match[1])
+    .sort();
+
+  assert.equal(expected.length, 30);
+  assert.deepEqual(actual, expected);
+  assert.equal(new Set(actual).size, actual.length);
+});
+
 test("CP14 checked-in landing and start artifacts match the factory topology", () => {
   const landing = read("notice-respond/workflows/cp14-response/index.tsx");
   const config = read("notice-respond/workflows/cp14-response/config.ts");
