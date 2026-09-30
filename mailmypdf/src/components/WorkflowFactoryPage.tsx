@@ -33,6 +33,24 @@ type FactoryJob = {
   stage: "intake" | "match" | "certify" | "template_review" | "build" | "acceptance" | "publication_review" | "complete";
   problem: string;
   selectedWorkflowId: string | null;
+  build: {
+    request: { id: string; label: string; startTemplate: "notice-response" | "records-request" };
+    canonicalId: string;
+    sectionId: string;
+    slug: string;
+    filePaths: string[];
+  } | null;
+  buildArtifact: {
+    branch: string;
+    baseSha: string;
+    commitSha: string;
+    specPath: string;
+    profileRegistryPath: string;
+    configPath: string;
+    changedFiles: string[];
+    checks: Array<{ id: string; command: string; ok: boolean; summary: string }>;
+    builtAt: string;
+  } | null;
   diagnostics: Array<{ code: string; message: string; severity: "info" | "warning" | "error" }>;
   review: { required: boolean; reason: string | null; approvedAt: string | null };
   updatedAt: string;
@@ -72,7 +90,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
-  const [pending, setPending] = useState<"report" | "job" | "review" | "cancel" | null>("report");
+  const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
   function upsertJob(job: FactoryJob) {
@@ -145,6 +163,23 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
       upsertJob(payload.job);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to approve factory review.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function runBuild(job: FactoryJob) {
+    if (pending) return;
+    setPending("build");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/build`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to run the local supervised build.");
+      await refresh();
     } finally {
       setPending(null);
     }
@@ -238,6 +273,27 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               </div>
             </div>
 
+            {activeJob.buildArtifact && (
+              <div className="mt-5 rounded-lg border border-rule bg-ivory p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-stone">Build artifact</div>
+                <div className="mt-2 break-all font-mono text-xs text-navy">{activeJob.buildArtifact.branch}</div>
+                <div className="mt-1 break-all font-mono text-[11px] text-stone">{activeJob.buildArtifact.commitSha}</div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {activeJob.buildArtifact.checks.map((check) => (
+                    <div key={check.id} className="rounded-md border border-rule bg-paper p-3 text-xs">
+                      <div className={check.ok ? "font-semibold text-emerald-700" : "font-semibold text-error"}>
+                        {check.ok ? "Passed" : "Failed"} · {check.id}
+                      </div>
+                      <div className="mt-1 break-words font-mono text-[10px] text-stone">{check.command}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-stone">
+                  {activeJob.buildArtifact.changedFiles.length} proposal file(s) committed locally. Nothing has been pushed or published.
+                </p>
+              </div>
+            )}
+
             {activeJob.diagnostics.length > 0 && (
               <div className="mt-4 space-y-2">
                 {activeJob.diagnostics.map((item, index) => (
@@ -287,10 +343,26 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
             )}
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {activeJob.status === "awaiting_review" && activeJob.review.required && (
+              {activeJob.status === "awaiting_review" && activeJob.review.required && activeJob.review.reason !== "generated-workflow-publication" && (
                 <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null || (activeJob.stage === "template_review" && (!templateId.trim() || !templateLabel.trim()))} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : "Approve next stage"}
                 </button>
+              )}
+              {activeJob.stage === "acceptance" && activeJob.status === "queued" && activeJob.build?.request.startTemplate === "records-request" && (
+                <button type="button" onClick={() => void runBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                  <RefreshCw size={16} className={pending === "build" ? "animate-spin" : ""} />
+                  {pending === "build" ? "Building and testing…" : "Run local supervised build"}
+                </button>
+              )}
+              {activeJob.stage === "acceptance" && activeJob.status === "queued" && activeJob.build?.request.startTemplate === "notice-response" && (
+                <p className="rounded-md border border-brass/40 bg-ivory px-4 py-2 text-sm text-stone">
+                  Reviewed Notice Response recipe saved. Its structured profile build adapter is not implemented yet.
+                </p>
+              )}
+              {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && (
+                <p className="rounded-md border border-brass/40 bg-ivory px-4 py-2 text-sm text-stone">
+                  Acceptance passed. Publication remains blocked until the publication/PR executor is implemented.
+                </p>
               )}
               {!terminal(activeJob) && (
                 <button type="button" onClick={() => void cancel(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md border border-rule px-4 py-2 text-sm font-medium text-stone hover:border-error hover:text-error disabled:opacity-50">
