@@ -6,6 +6,7 @@ import {
   restoreFactoryJobSnapshot,
   type FactoryJob,
   type FactoryJobTransition,
+  type ReviewedFactoryTemplateRequest,
 } from "@mailmypdf/workflows";
 import type { Json } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -169,7 +170,7 @@ async function persistTransition(
 function autoRunnable(job: FactoryJob): boolean {
   return (
     (job.status === "queued" || job.status === "running") &&
-    (job.stage === "intake" || job.stage === "match" || job.stage === "certify")
+    (job.stage === "intake" || job.stage === "match" || job.stage === "certify" || job.stage === "build")
   );
 }
 
@@ -198,6 +199,7 @@ export async function runPersistentFactoryJobToBoundary(input: {
 export async function approvePersistentFactoryJobReview(input: {
   jobId: string;
   actorId: string;
+  templateRequest?: ReviewedFactoryTemplateRequest;
   now?: string;
 }): Promise<FactoryJob> {
   const current = await loadPersistentFactoryJob(input.jobId);
@@ -205,6 +207,7 @@ export async function approvePersistentFactoryJobReview(input: {
   const transition = approveFactoryJobReview(
     current,
     input.now ?? new Date().toISOString(),
+    input.templateRequest,
   );
   return persistTransition(current, transition, input.actorId);
 }
