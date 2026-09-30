@@ -89,6 +89,8 @@ test("build executor uses an isolated branch, allow-listed writes, and no public
   assert.match(executor, /materialize-workflow-spec\.ts/);
   assert.match(executor, /@mailmypdf\/workflows", "test"/);
   assert.match(executor, /@mailmypdf\/records-request", "test:acceptance"/);
+  assert.match(executor, /verify-factory-workflow\.ts/);
+  assert.match(executor, /git",\s*args: \["diff", "--exit-code", "HEAD", "--"\]/);
   assert.match(executor, /recordPersistentFactoryBuildMaterialized/);
   assert.match(executor, /recordPersistentFactoryAcceptance/);
 
@@ -106,4 +108,18 @@ test("generated Records Request profiles are isolated from hand-authored family 
   assert.match(profiles, /GENERATED_RECORDS_REQUEST_WORKFLOW_PROFILES/);
   assert.match(generated, /machine-owned/);
   assert.match(runtime, /RECORDS_REQUEST_WORKFLOW_PROFILES\.map/);
+});
+
+
+test("template review persists an explicit Records Request build request", () => {
+  const review = read("src/routes/api/studio/workflows/jobs/$id/review.ts");
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(review, /family === "records-request"/);
+  assert.match(review, /startTemplate === "records-request"/);
+  assert.match(review, /buildRequest/);
+  assert.match(page, /Workflow ID/);
+  assert.match(page, /Workflow label/);
+  assert.match(page, /Records Request family only/);
+  assert.match(page, /Approve build request/);
 });
