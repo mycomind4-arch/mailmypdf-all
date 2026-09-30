@@ -403,6 +403,21 @@ export async function executePersistentFactoryBuild(input: {
       await runCommand({
         cwd: worktree,
         command: "pnpm",
+        args: [
+          "--filter",
+          "./mailmypdf",
+          "exec",
+          "tsx",
+          "../scripts/verify-factory-workflow.ts",
+          `${request.sectionId}/${request.workflowId}`,
+        ],
+        id: "generated-workflow-certification",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
         args: ["--filter", "@mailmypdf/records-request", "test"],
         id: "records-request-tests",
       }),
@@ -413,6 +428,14 @@ export async function executePersistentFactoryBuild(input: {
         command: "pnpm",
         args: ["--filter", "@mailmypdf/records-request", "test:acceptance"],
         id: "records-request-acceptance",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "git",
+        args: ["diff", "--exit-code", "HEAD", "--"],
+        id: "clean-generated-tree",
       }),
     );
 
