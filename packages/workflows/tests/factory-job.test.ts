@@ -6,6 +6,8 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  recordFactoryAcceptanceResult,
+  recordFactoryBuildArtifact,
   restoreFactoryJobSnapshot,
 } from "../src/factory-job.js";
 
@@ -146,4 +148,108 @@ test("durable factory snapshots round-trip and corrupted state fails closed", ()
     () => restoreFactoryJobSnapshot({ ...original, schemaVersion: "future-version" }),
     /schema version is unsupported/i,
   );
+});
+
+
+test("generated factory jobs persist exact PR artifacts and require successful acceptance before publication review", () => {
+  let job = createFactoryJob({
+    id: "job-generated",
+    problem: "Create a new city contracts records request workflow.",
+    now: "2026-09-30T20:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:02:00.000Z").job;
+  job = approveFactoryJobReview(
+    job,
+    "2026-09-30T20:03:00.000Z",
+    {
+      id: "records-request/city-contracts-records-request",
+      label: "City Contracts Records Request",
+      startTemplate: "records-request",
+    },
+  ).job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:04:00.000Z").job;
+
+  job = recordFactoryBuildArtifact(
+    job,
+    {
+      repository: "mycomind4-arch/mailmypdf-all",
+      branch: "factory/generated/job-generated-city-contracts-records-request",
+      baseCommitSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      pullRequestNumber: 200,
+      pullRequestUrl: "https://github.com/mycomind4-arch/mailmypdf-all/pull/200",
+    },
+    "2026-09-30T20:05:00.000Z",
+  ).job;
+
+  assert.equal(job.stage, "acceptance");
+  assert.equal(job.status, "running");
+  assert.equal(job.build?.artifact?.pullRequestNumber, 200);
+
+  job = recordFactoryAcceptanceResult(
+    job,
+    {
+      state: "success",
+      checks: [
+        { context: "Records Request verification", state: "success" },
+        { context: "Workspace UI verification", state: "success" },
+      ],
+    },
+    "2026-09-30T20:06:00.000Z",
+  ).job;
+
+  assert.equal(job.stage, "publication_review");
+  assert.equal(job.status, "awaiting_review");
+  assert.equal(job.review.reason, "generated-workflow-publication");
+
+  const approved = approveFactoryJobReview(
+    job,
+    "2026-09-30T20:07:00.000Z",
+  );
+  assert.equal(approved.job.stage, "complete");
+  assert.equal(approved.job.status, "completed");
+  assert.equal(
+    approved.event.type,
+    "factory.generated_workflow.approved_for_publication",
+  );
+});
+
+test("failed factory branch checks fail closed before publication review", () => {
+  let job = createFactoryJob({
+    id: "job-failed-acceptance",
+    problem: "Create another new records request workflow.",
+    now: "2026-09-30T21:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:02:00.000Z").job;
+  job = approveFactoryJobReview(job, "2026-09-30T21:03:00.000Z", {
+    id: "records-request/vendor-payments-records-request",
+    label: "Vendor Payments Records Request",
+    startTemplate: "records-request",
+  }).job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:04:00.000Z").job;
+  job = recordFactoryBuildArtifact(job, {
+    repository: "mycomind4-arch/mailmypdf-all",
+    branch: "factory/generated/job-failed",
+    baseCommitSha: "a".repeat(40),
+    commitSha: "b".repeat(40),
+    pullRequestNumber: 201,
+    pullRequestUrl: "https://github.com/mycomind4-arch/mailmypdf-all/pull/201",
+  }, "2026-09-30T21:05:00.000Z").job;
+
+  job = recordFactoryAcceptanceResult(job, {
+    state: "failure",
+    checks: [
+      {
+        context: "Records Request verification",
+        state: "failure",
+        description: "completed (failure)",
+      },
+    ],
+  }, "2026-09-30T21:06:00.000Z").job;
+
+  assert.equal(job.status, "failed");
+  assert.equal(job.stage, "acceptance");
+  assert.ok(job.diagnostics.some((item) => item.code === "ACCEPTANCE_CHECK_FAILED"));
 });
