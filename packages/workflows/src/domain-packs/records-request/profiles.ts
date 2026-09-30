@@ -1,10 +1,7 @@
+import { workflowById } from "../../canonical-workflow-registry.js";
+
 export interface RecordsRequestWorkflowProfile {
-  workflowId:
-    | "agency-records-request"
-    | "government-documents-request"
-    | "open-records-request"
-    | "public-information-request"
-    | "public-records-request";
+  workflowId: string;
   title: string;
   recordsSoughtPlaceholder: string;
   contextDocumentLabel?: string;
@@ -46,15 +43,31 @@ export const RECORDS_REQUEST_WORKFLOW_PROFILES = Object.freeze([
   },
 ] as const satisfies readonly RecordsRequestWorkflowProfile[]);
 
-export type RecordsRequestProfileWorkflowId =
-  (typeof RECORDS_REQUEST_WORKFLOW_PROFILES)[number]["workflowId"];
+export type RecordsRequestProfileWorkflowId = string;
 
 export function getRecordsRequestWorkflowProfile(
   workflowId: string,
 ): RecordsRequestWorkflowProfile | null {
-  return (
-    RECORDS_REQUEST_WORKFLOW_PROFILES.find(
-      (profile) => profile.workflowId === workflowId,
-    ) ?? null
+  const explicit = RECORDS_REQUEST_WORKFLOW_PROFILES.find(
+    (profile) => profile.workflowId === workflowId,
   );
+  if (explicit) return explicit;
+
+  const canonical = workflowById(`records-request/${workflowId}`);
+  if (
+    !canonical ||
+    canonical.execution?.kind !== "platform" ||
+    canonical.execution.policyFamily !== "records-request"
+  ) {
+    return null;
+  }
+
+  return Object.freeze({
+    workflowId,
+    title: canonical.label,
+    recordsSoughtPlaceholder:
+      "Describe the records you want as specifically as possible, including record types, subjects, dates, departments, case or incident references, addresses, and other locating details.",
+    contextDocumentLabel: "Optional notice, case, or agency context document",
+    supportingContextLabel: "Supporting records-request context",
+  });
 }
