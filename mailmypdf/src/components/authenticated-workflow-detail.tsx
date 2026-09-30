@@ -42,7 +42,13 @@ export function AuthenticatedWorkflowDetail({
   // Execution readiness comes from the new-architecture execution registry,
   // never from SEO/authority state -- authority is display-only metadata below.
   const execution = workflowExecutionRecord(section.id, workflow.slug)
-  const executionHref = execution?.executionHref ?? undefined
+  // Authenticated execution always stays inside the dashboard host bridge.
+  // Public-start vs workspace-start remains a public/canonical entry concern;
+  // once a workflow is executable the host renderer owns the authenticated path.
+  const executionHref =
+    execution?.executionStatus === "executable"
+      ? `${workflow.workspaceHref}/start`
+      : undefined
   const guide = workflowDetailGuide(section.id, workflow.slug)
 
   return (
