@@ -9,6 +9,11 @@ import {
 } from "../src/lib/notice-workflow-registry";
 import { validateCaseInput } from "../src/lib/secure-core/case-inputs.server";
 import { resolveCaseWorkflow } from "../src/lib/secure-core/workflow-runtime";
+import {
+  getNoticeResponseFactoryArtifact,
+  workflowById,
+} from "@mailmypdf/workflows";
+import cp14LandingConfig from "../../notice-respond/workflows/cp14-response/config";
 
 const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
@@ -72,4 +77,41 @@ test("new notice workflows must be added by registry ID, not route branching", a
       `${id} should be routed by the executable registry, not an ad-hoc branch`,
     );
   }
+});
+
+
+test("canonical CP14 is one factory artifact across registry, landing, runtime, and start UI", () => {
+  const artifact = getNoticeResponseFactoryArtifact("cp14-response");
+  const canonical = workflowById("notice-respond/cp14-response");
+
+  assert.ok(artifact);
+  assert.ok(canonical);
+  assert.equal(artifact.factoryReady, true);
+  assert.deepEqual(artifact.diagnostics, []);
+  assert.deepEqual(artifact.canonical, canonical);
+
+  assert.equal(cp14LandingConfig.id, artifact.workflowId);
+  assert.equal(cp14LandingConfig.sectionId, artifact.canonical.sectionId);
+  assert.equal(cp14LandingConfig.path, artifact.canonical.publicHref);
+  assert.equal(cp14LandingConfig.startPath, artifact.manifest.route);
+  assert.equal(artifact.startConfig.workflowId, cp14LandingConfig.id);
+  assert.equal(artifact.startConfig.backHref, cp14LandingConfig.path);
+
+  assert.equal(artifact.manifest.id, "cp14-response");
+  assert.equal(artifact.manifest.vertical, "notice-respond");
+  assert.equal(artifact.profile.primaryDocumentId, "cp14-notice");
+  assert.equal(artifact.profile.extractionSchema, "irs.cp14.v1");
+  assert.ok(artifact.runtimePolicy.chatContract);
+});
+
+test("canonical CP14 factory path does not depend on the legacy /notice runtime", async () => {
+  const start = await read("../../notice-respond/workflows/cp14-response/start/index.tsx");
+  const chatRegistry = await read("../packages/workflows/src/chat-execution-registry.ts").catch(() => "");
+
+  assert.match(start, /getNoticeResponseFactoryArtifact\("cp14-response"\)/);
+  assert.doesNotMatch(start, /src\/routes\/notice/);
+  assert.doesNotMatch(start, /IrsNoticeWorkflow/);
+  // The shared chat registry must resolve Notice Respond through the same factory artifact.
+  const registrySource = chatRegistry || await read("../packages/workflows/src/chat-execution-registry.ts");
+  assert.match(registrySource, /getNoticeResponseFactoryArtifact/);
 });
