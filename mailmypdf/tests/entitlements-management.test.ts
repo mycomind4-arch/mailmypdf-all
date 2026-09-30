@@ -79,19 +79,19 @@ describe("entitlement read authorization", () => {
 });
 
 describe("audit actor authorization", () => {
-  const admin = { id: USER, app_metadata: { role: "admin" } };
-  const superAdmin = { id: USER, app_metadata: { role: "super_admin" } };
+  const admin = { id: USER, role: "admin" as const };
 
-  test("ordinary administrators remain scoped to themselves when omitting the filter", () => {
+  test("administrators remain scoped to their own audit entries", () => {
     assert.equal(getAuditActorScope(admin), USER);
     assert.equal(getAuditActorScope(admin, USER), USER);
     assert.throws(() => getAuditActorScope(admin, OTHER), /Forbidden/);
   });
 
-  test("only super administrators can read all actors or choose another actor", () => {
-    assert.equal(getAuditActorScope(superAdmin), undefined);
-    assert.equal(getAuditActorScope(superAdmin, OTHER), OTHER);
-    assert.throws(() => getAuditActorScope({ id: USER, app_metadata: { role: "user" } }), /Forbidden/);
+  test("audit scope uses the canonical verified role shape rather than auth metadata", () => {
+    assert.throws(
+      () => getAuditActorScope({ id: USER, role: "user" } as never),
+      /Forbidden/,
+    );
   });
 });
 
