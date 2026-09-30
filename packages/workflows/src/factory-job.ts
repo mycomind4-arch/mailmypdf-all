@@ -69,6 +69,178 @@ export type FactoryJobTransition = Readonly<{
   }>;
 }>;
 
+const FACTORY_JOB_STAGES = new Set<FactoryJobStage>([
+  "intake",
+  "match",
+  "certify",
+  "template_review",
+  "build",
+  "acceptance",
+  "publication_review",
+  "complete",
+]);
+
+const FACTORY_JOB_STATUSES = new Set<FactoryJobStatus>([
+  "queued",
+  "running",
+  "awaiting_review",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requiredSnapshotString(
+  value: unknown,
+  label: string,
+  maxLength = 10_000,
+): string {
+  if (typeof value !== "string" || !value.trim() || value.length > maxLength) {
+    throw new Error(`${label} is invalid.`);
+  }
+  return value;
+}
+
+function nullableSnapshotString(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > 10_000) {
+    throw new Error(`${label} is invalid.`);
+  }
+  return value;
+}
+
+function restoreDiagnostics(value: unknown): readonly FactoryJobDiagnostic[] {
+  if (!Array.isArray(value) || value.length > 200) {
+    throw new Error("Factory job diagnostics are invalid.");
+  }
+  return Object.freeze(
+    value.map((entry) => {
+      const item = record(entry, "Factory job diagnostic");
+      const severity = item.severity;
+      if (severity !== "info" && severity !== "warning" && severity !== "error") {
+        throw new Error("Factory job diagnostic severity is invalid.");
+      }
+      return Object.freeze({
+        code: requiredSnapshotString(item.code, "Factory job diagnostic code", 200),
+        message: requiredSnapshotString(item.message, "Factory job diagnostic message", 4000),
+        severity,
+      });
+    }),
+  );
+}
+
+function restorePlan(value: unknown): FactoryJobPlanSnapshot | null {
+  if (value === null) return null;
+  const source = record(value, "Factory job plan");
+  if (
+    source.decision !== "review-existing-workflow" &&
+    source.decision !== "needs-template-review"
+  ) {
+    throw new Error("Factory job plan decision is invalid.");
+  }
+  if (!Array.isArray(source.candidates) || source.candidates.length > 20) {
+    throw new Error("Factory job plan candidates are invalid.");
+  }
+
+  const candidates = source.candidates.map((entry) => {
+    const candidate = record(entry, "Factory job candidate");
+    if (
+      typeof candidate.chatExecutable !== "boolean" ||
+      typeof candidate.score !== "number" ||
+      !Number.isFinite(candidate.score) ||
+      !Array.isArray(candidate.matchedTerms) ||
+      candidate.matchedTerms.some((term) => typeof term !== "string")
+    ) {
+      throw new Error("Factory job candidate is invalid.");
+    }
+    return Object.freeze({
+      id: requiredSnapshotString(candidate.id, "Factory job candidate id", 300),
+      label: requiredSnapshotString(candidate.label, "Factory job candidate label", 500),
+      publicHref: requiredSnapshotString(candidate.publicHref, "Factory job candidate href", 1000),
+      chatExecutable: candidate.chatExecutable,
+      matchedTerms: Object.freeze([...candidate.matchedTerms] as string[]),
+      score: candidate.score,
+    });
+  });
+
+  return Object.freeze({
+    decision: source.decision,
+    candidateId: nullableSnapshotString(source.candidateId, "Factory job candidate id"),
+    candidates: Object.freeze(candidates),
+  });
+}
+
+/** Restore one durable snapshot and reject drift/corruption before execution. */
+export function restoreFactoryJobSnapshot(value: unknown): FactoryJob {
+  const source = record(value, "Factory job snapshot");
+  if (source.schemaVersion !== FACTORY_JOB_SCHEMA_VERSION) {
+    throw new Error("Factory job snapshot schema version is unsupported.");
+  }
+  if (
+    typeof source.revision !== "number" ||
+    !Number.isSafeInteger(source.revision) ||
+    source.revision < 1
+  ) {
+    throw new Error("Factory job snapshot revision is invalid.");
+  }
+  if (
+    typeof source.stage !== "string" ||
+    !FACTORY_JOB_STAGES.has(source.stage as FactoryJobStage)
+  ) {
+    throw new Error("Factory job snapshot stage is invalid.");
+  }
+  if (
+    typeof source.status !== "string" ||
+    !FACTORY_JOB_STATUSES.has(source.status as FactoryJobStatus)
+  ) {
+    throw new Error("Factory job snapshot status is invalid.");
+  }
+
+  const review = record(source.review, "Factory job review");
+  if (typeof review.required !== "boolean") {
+    throw new Error("Factory job review required flag is invalid.");
+  }
+
+  const createdAt = requiredSnapshotString(source.createdAt, "Factory job createdAt", 100);
+  const updatedAt = requiredSnapshotString(source.updatedAt, "Factory job updatedAt", 100);
+  if (!Number.isFinite(Date.parse(createdAt)) || !Number.isFinite(Date.parse(updatedAt))) {
+    throw new Error("Factory job timestamps are invalid.");
+  }
+
+  return Object.freeze({
+    schemaVersion: FACTORY_JOB_SCHEMA_VERSION,
+    id: requiredSnapshotString(source.id, "Factory job id", 200),
+    revision: source.revision,
+    status: source.status as FactoryJobStatus,
+    stage: source.stage as FactoryJobStage,
+    problem: normalizedProblem(
+      requiredSnapshotString(source.problem, "Factory job problem", 4000),
+    ),
+    plan: restorePlan(source.plan),
+    selectedWorkflowId: nullableSnapshotString(
+      source.selectedWorkflowId,
+      "Factory selected workflow id",
+    ),
+    diagnostics: restoreDiagnostics(source.diagnostics),
+    review: Object.freeze({
+      required: review.required,
+      reason: nullableSnapshotString(review.reason, "Factory job review reason"),
+      approvedAt: nullableSnapshotString(
+        review.approvedAt,
+        "Factory job review approval time",
+      ),
+    }),
+    createdAt,
+    updatedAt,
+  });
+}
+
 function normalizedProblem(problem: string): string {
   const value = problem.trim();
   if (!value) throw new Error("Factory job problem is required.");
