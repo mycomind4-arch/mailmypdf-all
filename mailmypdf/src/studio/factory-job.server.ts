@@ -180,7 +180,8 @@ function autoRunnable(job: FactoryJob): boolean {
       job.stage === "match" ||
       job.stage === "certify" ||
       job.stage === "build" ||
-      job.stage === "acceptance")
+      (job.stage === "acceptance" &&
+        job.build?.request.startTemplate === "records-request"))
   );
 }
 
