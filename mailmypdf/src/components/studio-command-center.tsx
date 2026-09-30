@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Activity, AlertTriangle, BarChart3, Bot, Boxes, CheckCircle2, CircleAlert,
@@ -7,6 +7,7 @@ import {
   Users, WandSparkles, Workflow, XCircle,
 } from "lucide-react";
 import { getStudioCommandCenter } from "@/lib/studio-command-center.functions";
+import { getStudioLaunchReadiness } from "@/lib/studio-launch-readiness.functions";
 
 function Metric({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
   return <div className="rounded-xl border border-rule bg-card p-5"><div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</div><div className="mt-2 font-serif text-3xl">{value}</div>{detail ? <div className="mt-1 text-xs text-muted-foreground">{detail}</div> : null}</div>;
@@ -20,10 +21,28 @@ function Shortcut({ to, title, detail, icon: Icon }: { to: string; title: string
   return <Link to={to} className="group rounded-xl border border-rule bg-card p-5 transition hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-sm"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-paper-deep"><Icon className="h-4 w-4" /></div><div className="mt-4 font-medium">{title}</div><div className="mt-1 text-xs leading-5 text-muted-foreground">{detail}</div><div className="mt-3 text-xs font-semibold text-cobalt">Open →</div></Link>;
 }
 
+function LaunchBadge({ status }: { status: "pass" | "warning" | "fail" | "manual" }) {
+  const styles = {
+    pass: "bg-emerald-50 text-emerald-800",
+    warning: "bg-amber-50 text-amber-900",
+    fail: "bg-red-50 text-red-800",
+    manual: "bg-slate-100 text-slate-700",
+  } as const;
+  const labels = { pass: "Pass", warning: "Review", fail: "Blocked", manual: "Manual" } as const;
+  return <span className={"rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider " + styles[status]}>{labels[status]}</span>;
+}
+
 export function StudioCommandCenter() {
   const load = useServerFn(getStudioCommandCenter);
   const query = useSuspenseQuery({ queryKey: ["studio-command-center"], queryFn: () => load(), refetchInterval: 60_000 });
   const data = query.data;
+  const loadLaunch = useServerFn(getStudioLaunchReadiness);
+  const launchQuery = useQuery({
+    queryKey: ["studio-launch-readiness"],
+    queryFn: () => loadLaunch(),
+    refetchInterval: 120_000,
+    retry: false,
+  });
   const criticalAlerts = data.alerts.filter((alert) => alert.severity === "critical").length;
   const warningAlerts = data.alerts.filter((alert) => alert.severity === "warning").length;
   const executablePct = data.workflows.total ? Math.round((data.workflows.executable / data.workflows.total) * 100) : 0;
@@ -40,6 +59,77 @@ export function StudioCommandCenter() {
       <Metric label="Orders" value={data.operations.orders ?? "—"} detail={String(data.operations.queue) + " active queue"} />
       <Metric label="Profiles" value={data.operations.profiles ?? "—"} detail="Admin-visible user profiles" />
       <Metric label="Alerts" value={data.alerts.length} detail={String(criticalAlerts) + " critical · " + String(warningAlerts) + " warning"} />
+    </section>
+
+    <section className="mt-6 overflow-hidden rounded-xl border border-rule bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule px-6 py-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <h2 className="font-serif text-2xl">Launch readiness</h2>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+            Read-only checks against production configuration, the deployed website, MCP discovery, storage/schema, secure-core backlog, and manual canary gates.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void launchQuery.refetch()}
+          disabled={launchQuery.isFetching}
+          className="inline-flex items-center gap-2 rounded-full border border-rule px-4 py-2 text-xs font-semibold disabled:opacity-50"
+        >
+          <RefreshCw className={"h-3.5 w-3.5 " + (launchQuery.isFetching ? "animate-spin" : "")} />
+          Run readiness checks
+        </button>
+      </div>
+
+      {launchQuery.isLoading ? (
+        <div className="px-6 py-8 text-sm text-muted-foreground">Running production readiness probes…</div>
+      ) : launchQuery.isError || !launchQuery.data ? (
+        <div className="px-6 py-8">
+          <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
+            <XCircle className="h-4 w-4" />
+            Launch readiness probe could not complete.
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            The rest of Studio remains available. Retry the read-only probe or run verify:production-config -- --live from the deployment environment.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-px bg-rule sm:grid-cols-2 lg:grid-cols-5">
+            <div className="bg-card p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Overall</div>
+              <div className="mt-2 font-serif text-2xl">
+                {launchQuery.data.launchStatus === "automated-ready" ? "Automated ready" : launchQuery.data.launchStatus === "needs-review" ? "Needs review" : "Blocked"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{launchQuery.data.paymentEnv} payments · {launchQuery.data.autoSubmitToLob ? "Lob auto-submit on" : "Lob auto-submit off"}</div>
+            </div>
+            <Metric label="Passed" value={launchQuery.data.totals.pass} detail="automated checks" />
+            <Metric label="Review" value={launchQuery.data.totals.warning} detail="non-blocking warnings" />
+            <Metric label="Blocked" value={launchQuery.data.totals.fail} detail="must resolve" />
+            <Metric label="Manual" value={launchQuery.data.totals.manual} detail="human canary/verification" />
+          </div>
+
+          <div className="grid gap-0 lg:grid-cols-2">
+            {launchQuery.data.checks.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-4 border-b border-rule px-6 py-4 lg:odd:border-r">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{item.category}</div>
+                  <div className="mt-1 text-sm font-medium">{item.label}</div>
+                  <div className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{item.detail}</div>
+                </div>
+                <LaunchBadge status={item.status} />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-paper-deep px-6 py-4 text-xs text-muted-foreground">
+            <span>Checked against {launchQuery.data.baseUrl} · generated <span suppressHydrationWarning>{new Date(launchQuery.data.generatedAt).toLocaleString()}</span></span>
+            <span>Green automated checks do not replace the listed sandbox/live canaries.</span>
+          </div>
+        </>
+      )}
     </section>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
