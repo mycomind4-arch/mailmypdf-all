@@ -6,7 +6,7 @@ import type {
 export const WORKFLOW_MATERIALIZATION_SPEC_VERSION =
   "mailmypdf.workflow-materialization/v1" as const;
 
-export type WorkflowStartTemplate = "notice-response";
+export type WorkflowStartTemplate = "notice-response" | "records-request";
 
 export type WorkflowMaterializationSpec = Readonly<{
   schemaVersion: typeof WORKFLOW_MATERIALIZATION_SPEC_VERSION;
@@ -76,6 +76,21 @@ function assertMaterializationSpec(
     ) {
       throw new Error(
         `notice-response startTemplate requires the notice-response platform policy.`,
+      );
+    }
+  }
+  if (spec.startTemplate === "records-request") {
+    if (sectionId !== "records-request") {
+      throw new Error(
+        `records-request startTemplate requires records-request, got ${sectionId}.`,
+      );
+    }
+    if (
+      spec.execution?.kind !== "platform" ||
+      spec.execution.policyFamily !== "records-request"
+    ) {
+      throw new Error(
+        `records-request startTemplate requires the records-request platform policy.`,
       );
     }
   }
@@ -182,6 +197,41 @@ export default ${component}
 `;
 }
 
+function renderRecordsRequestStart(input: {
+  sectionId: string;
+  slug: string;
+  sharedImport: string;
+}): string {
+  const component = `${pascal(input.slug)}Start`;
+  return `${GENERATED}import { createFileRoute } from "@tanstack/react-router"
+import RecordsRequestWorkflow from "${input.sharedImport}"
+import { getRecordsRequestFactoryArtifact } from "@mailmypdf/workflows"
+
+const resolvedFactoryArtifact = getRecordsRequestFactoryArtifact("${input.slug}")
+
+if (!resolvedFactoryArtifact) {
+  throw new Error("${input.slug} factory artifact is missing")
+}
+if (!resolvedFactoryArtifact.factoryReady) {
+  throw new Error("${input.slug} factory artifact is not ready")
+}
+
+const factoryArtifact = resolvedFactoryArtifact
+
+export function ${component}() {
+  return <RecordsRequestWorkflow config={factoryArtifact.startConfig} />
+}
+
+export const Route = createFileRoute(
+  "/${input.sectionId}/workflows/${input.slug}/start/",
+)({
+  component: ${component},
+})
+
+export default ${component}
+`;
+}
+
 function renderStart(
   spec: WorkflowMaterializationSpec,
   sectionId: string,
@@ -197,6 +247,15 @@ function renderStart(
           surface === "top-level"
             ? "../../../shared/NoticeResponseWorkflow"
             : "../../../../../../../notice-respond/shared/NoticeResponseWorkflow",
+      });
+    case "records-request":
+      return renderRecordsRequestStart({
+        sectionId,
+        slug,
+        sharedImport:
+          surface === "top-level"
+            ? "../../../shared/RecordsRequestWorkflow"
+            : "../../../../../../../records-request/shared/RecordsRequestWorkflow",
       });
     default:
       throw new Error(

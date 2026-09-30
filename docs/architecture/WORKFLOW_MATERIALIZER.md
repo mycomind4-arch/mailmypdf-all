@@ -57,13 +57,25 @@ The Notice Respond template resolves the shared Notice Respond factory artifact 
 
 CP2000 is the first workflow fully adopted by the route materializer. CP14 established the underlying factory-artifact pattern.
 
+### records-request
+
+The Records Request template resolves the shared Records Request factory artifact and passes its generated `startConfig` to the shared request-first UI. The same artifact owns the generated manifest and runtime policy used by ChatGPT certification.
+
+Public Records Request is the second-family proof. Its canonical seed, landing/SEO/schema wrappers, both start mounts, local manifest projection, web start configuration, and ChatGPT execution binding now converge on the same factory artifact.
+
 ## Expansion rule
 
 Add new start templates only at the family level. Do not add workflow-id branches to the materializer.
 
-The next intended families are:
+The next intended family is:
 
-- insurance / SSDI appeal
-- records request
+- SSA reconsideration / SSDI appeal
 
 A family template is ready only when it can resolve a shared factory artifact or equivalent generated execution contract without embedding workflow-specific business logic in the route generator.
+
+
+## SSDI boundary discovered
+
+SSDI is intentionally not a materializer special case yet. Its current start implementation is a large workflow-specific component rather than a thin shared family shell, and its hand-authored manifest uses field identifiers that do not yet form one contract with the shared SSA reconsideration runtime.
+
+Before adding an SSA start template, the factory should first create a shared SSA reconsideration profile/manifest/artifact, declare its chat contract, and make the web start surface consume that contract. Only then should the materializer generate the static route wrappers.
