@@ -57,6 +57,7 @@ Authenticated matter execution:
 - `get_connector_readiness`
 - `ingest_direct_pdf`
 - `prepare_conversational_letter`
+- `get_payment_readiness`
 - `prepare_direct_pdf_mail`
 - `get_mailing_context`
 - `list_saved_addresses`
@@ -77,7 +78,7 @@ Authenticated matter execution:
 - `approve_packet`
 - `prepare_checkout`
 
-The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
+The connector intentionally does **not** expose a raw-card tool or an assistant-authorized "mail now" shortcut. Immediate saved-payment mailing exists only as a separately confirmed destructive action bound to the exact approved packet, price, saved-payment revision, and current postal verification.
 
 `list_recent_matters` is owner-scoped and returns compact recent matter metadata.
 `get_matter` combines the existing matter/document snapshot with persisted
