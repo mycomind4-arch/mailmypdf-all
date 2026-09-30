@@ -2092,6 +2092,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_factory_job: {
+        Args: {
+          p_job_id: string
+          p_status: string
+          p_stage: string
+          p_problem: string
+          p_job_json: Json
+          p_actor_id?: string | null
+        }
+        Returns: FactoryJobRow
+      }
       transition_factory_job: {
         Args: {
           p_job_id: string
