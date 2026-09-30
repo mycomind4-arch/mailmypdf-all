@@ -42,15 +42,15 @@ type SidebarItem = {
   exact?: boolean
 }
 
-const primaryItems: SidebarItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home, exact: true },
-  { label: "My Cases", href: "/dashboard", icon: FolderOpen },
-  { label: "Mail a PDF", href: "/mail-a-pdf", icon: Mail },
+export const primaryItems: SidebarItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: Home, exact: true },
+  { label: "Mailings", href: "/dashboard/orders", icon: FolderOpen },
+  { label: "Send a PDF", href: "/send", icon: Mail },
 ]
 
-const adminItems: SidebarItem[] = [
-  { label: "Admin Home", href: "/admin", icon: Home, exact: true },
+export const adminItems: SidebarItem[] = [
   { label: "Studio", href: "/studio", icon: Sparkles, exact: true },
+  { label: "Operations", href: "/admin", icon: Home, exact: true },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "AI Control Plane", href: "/admin/ai", icon: Bot },
   { label: "Publications", href: "/admin/publications", icon: Newspaper },
@@ -303,17 +303,17 @@ function SidebarContents({
           {!collapsed && (
             <span className="min-w-0">
               <span className="block font-serif text-[20px] leading-none text-white">MailMyPDF</span>
-              <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.24em] text-white/38">Workspace</span>
+              <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.24em] text-white/38">{isAdmin ? "Studio / Admin" : "Workspace"}</span>
             </span>
           )}
         </Link>
       </div>
 
       <div className={collapsed ? "px-2 pt-3" : "px-3 pt-3"}>
-        <a href="/dashboard/workflows" onClick={onNavigate} title={collapsed ? "Start a case" : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
+        <Link to="/dashboard/workflows" onClick={onNavigate} title={collapsed ? (isAdmin ? "Open workflow studio" : "Start a case") : undefined} className={`flex min-h-10 items-center justify-center rounded-md border border-white/12 bg-white/[0.07] text-sm font-medium text-white transition hover:bg-white/12 ${collapsed ? "px-0" : "gap-2 px-3"}`}>
           <Sparkles className="h-4 w-4 text-[#d1ad72]" />
-          {!collapsed && <span>Start a case</span>}
-        </a>
+          {!collapsed && <span>{isAdmin ? "Open workflows" : "Start a case"}</span>}
+        </Link>
       </div>
 
       <nav className={`min-h-0 flex-1 overflow-y-auto pb-4 pt-3 ${collapsed ? "px-2" : "px-3"}`} aria-label="Authenticated navigation">
@@ -325,7 +325,7 @@ function SidebarContents({
         {isAdmin && (
           <>
             <div className="my-4 border-t border-white/10" />
-            {!collapsed && <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#d1ad72]">Admin tools</div>}
+            {!collapsed && <div className="px-3 pb-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#d1ad72]">Studio / Admin</div>}
             <div className="space-y-1">
               {adminItems.map((item) => <SidebarNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />)}
             </div>
@@ -391,7 +391,7 @@ export function AuthenticatedSidebar({
             <Menu className="h-4 w-4" />
           </button>
           <Link to="/" className="font-serif text-lg">MailMyPDF</Link>
-          <a href="/dashboard/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">Start a case</a>
+          <Link to="/dashboard/workflows" className="rounded-full bg-cobalt px-3 py-1.5 text-xs font-semibold text-white">Workflows</Link>
         </div>
       )}
 
