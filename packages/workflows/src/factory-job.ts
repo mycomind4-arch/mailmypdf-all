@@ -707,7 +707,7 @@ export function recordFactoryBuildArtifact(
     diagnostics: [
       diagnostic(
         "ACCEPTANCE_PENDING",
-        "Isolated factory branch and draft pull request created. CI acceptance is pending.",
+        "Isolated factory branch and pull request created. CI acceptance is pending.",
         "info",
       ),
     ],
