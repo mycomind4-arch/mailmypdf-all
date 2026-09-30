@@ -69,12 +69,15 @@ test("Studio factory UI creates durable jobs and keeps review explicit", () => {
 });
 
 
-test("factory build endpoint is local-admin-only and separate from remote orchestration", () => {
-  const route = read("src/routes/api/studio/workflows/jobs/$id/build.ts");
+test("factory machine executors are local-admin-only and separate from remote orchestration", () => {
+  const buildRoute = read("src/routes/api/studio/workflows/jobs/$id/build.ts");
+  const publishRoute = read("src/routes/api/studio/workflows/jobs/$id/publish.ts");
   const access = read("src/studio/access.ts");
 
-  assert.match(route, /localAdminFactoryAccess\(request\)/);
-  assert.match(route, /executePersistentFactoryAcceptance/);
+  assert.match(buildRoute, /localAdminFactoryAccess\(request\)/);
+  assert.match(buildRoute, /executePersistentFactoryAcceptance/);
+  assert.match(publishRoute, /localAdminFactoryAccess\(request\)/);
+  assert.match(publishRoute, /publishPersistentFactoryProposal/);
   assert.match(access, /Factory build execution is available only on the local development server/);
   assert.match(access, /return adminFactoryAccess\(request\)/);
 });
@@ -110,12 +113,36 @@ test("generated Records Request profiles stay separate from hand-authored core p
   assert.match(runtime, /RECORDS_REQUEST_WORKFLOW_PROFILES\.map/);
 });
 
-test("Studio exposes supervised execution evidence but blocks generated publication", () => {
+test("Studio exposes supervised execution evidence and explicit PR publication", () => {
   const page = read("src/components/WorkflowFactoryPage.tsx");
 
   assert.match(page, /Run local supervised build/);
   assert.match(page, /Build artifact/);
-  assert.match(page, /Nothing has been pushed or published/);
-  assert.match(page, /Publication remains blocked until the publication\/PR executor is implemented/);
+  assert.match(page, /Nothing has been pushed or published yet/);
+  assert.match(page, /Create GitHub PR/);
+  assert.match(page, /Publication artifact/);
+  assert.match(page, /Proposal published for review only/);
   assert.match(page, /Notice Response recipe saved/);
+});
+
+
+test("factory publication pushes only the accepted commit and never merges or deploys", () => {
+  const executor = read("src/studio/factory-publication-executor.server.ts");
+
+  assert.match(executor, /refs\/heads\/\$\{branch\}/);
+  assert.match(executor, /Local factory proposal branch moved after acceptance/);
+  assert.match(executor, /ls-remote/);
+  assert.match(executor, /"push"/);
+  assert.match(executor, /findOpenPullRequestByHead/);
+  assert.match(executor, /createPullRequest/);
+  assert.match(executor, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(executor, /mergePullRequest|merge_pull_request|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("generated workflow verifier certifies the actual chat-executable field", () => {
+  const verifier = read("../scripts/verify-factory-workflow.ts");
+
+  assert.match(verifier, /!report\.chatExecutable/);
+  assert.doesNotMatch(verifier, /report\.executable/);
 });
