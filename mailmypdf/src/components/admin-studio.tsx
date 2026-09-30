@@ -1584,14 +1584,10 @@ export function StudioPage() {
 
   async function publishToCloudflare() {
     if (!activeProject) return;
-    if (!workflowTarget) {
-      setMessage("Choose a vertical workflow before publishing to Cloudflare.");
-      return;
-    }
     setPublishStatus("publishing");
     try {
       const check = await publishProjectToCloudflare({
-        data: { projectId: activeProject.id, verticalId: workflowTarget.verticalId },
+        data: { projectId: activeProject.id },
         headers: await authenticatedHeaders(),
       });
       if (!check.deployed) {
@@ -1602,7 +1598,7 @@ export function StudioPage() {
           return;
         }
         const result = await publishProjectToCloudflare({
-          data: { projectId: activeProject.id, verticalId: workflowTarget.verticalId, confirmed: true },
+          data: { projectId: activeProject.id, confirmed: true },
           headers: await authenticatedHeaders(),
         });
         setMessage(result.message);
