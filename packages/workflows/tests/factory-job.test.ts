@@ -6,7 +6,10 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  recordFactoryJobAcceptance,
+  recordFactoryJobBuildArtifact,
   restoreFactoryJobSnapshot,
+  startFactoryJobAcceptance,
 } from "../src/factory-job.js";
 
 const TOOLS = [
@@ -146,4 +149,135 @@ test("durable factory snapshots round-trip and corrupted state fails closed", ()
     () => restoreFactoryJobSnapshot({ ...original, schemaVersion: "future-version" }),
     /schema version is unsupported/i,
   );
+});
+
+
+test("supervised acceptance persists build evidence and stops at publication review", () => {
+  let job = createFactoryJob({
+    id: "job-supervised-build",
+    problem: "Create a completely novel mars colony easement workflow.",
+    now: "2026-09-30T21:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:02:00.000Z").job;
+  job = approveFactoryJobReview(job, "2026-09-30T21:03:00.000Z", {
+    id: "records-request/mars-colony-records-request",
+    label: "Mars Colony Records Request",
+    startTemplate: "records-request",
+  }).job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:04:00.000Z").job;
+
+  job = startFactoryJobAcceptance(job, "2026-09-30T21:05:00.000Z").job;
+  assert.equal(job.stage, "acceptance");
+  assert.equal(job.status, "running");
+
+  job = recordFactoryJobBuildArtifact(
+    job,
+    {
+      branch: "factory/job-supervised-mars-colony-records-request",
+      baseSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      specPath: "records-request/workflows/mars-colony-records-request/workflow.spec.json",
+      profileRegistryPath: "packages/workflows/src/domain-packs/records-request/generated-profile-specs.json",
+      configPath: "records-request/workflows/mars-colony-records-request/config.ts",
+      changedFiles: [
+        "records-request/workflows/mars-colony-records-request/config.ts",
+      ],
+      checks: [],
+      builtAt: "2026-09-30T21:06:00.000Z",
+    },
+    "2026-09-30T21:06:00.000Z",
+  ).job;
+
+  job = recordFactoryJobAcceptance(job, {
+    checks: [
+      {
+        id: "generated-workflow-certification",
+        command: "verify-factory-workflow records-request/mars-colony-records-request",
+        ok: true,
+        summary: "chat certified",
+      },
+      {
+        id: "records-request-acceptance",
+        command: "pnpm --filter @mailmypdf/records-request test:acceptance",
+        ok: true,
+        summary: "acceptance passed",
+      },
+    ],
+    now: "2026-09-30T21:07:00.000Z",
+  }).job;
+
+  assert.equal(job.stage, "publication_review");
+  assert.equal(job.status, "awaiting_review");
+  assert.equal(job.review.reason, "generated-workflow-publication");
+  assert.equal(job.buildArtifact?.checks.length, 2);
+  assert.throws(
+    () => approveFactoryJobReview(job, "2026-09-30T21:08:00.000Z"),
+    /publication executor/i,
+  );
+
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
+  assert.deepEqual(restored, job);
+});
+
+test("failed supervised acceptance fails the durable Factory Job", () => {
+  let job = createFactoryJob({
+    id: "job-supervised-fail",
+    problem: "Create a completely novel mars colony easement workflow.",
+    now: "2026-09-30T21:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:02:00.000Z").job;
+  job = approveFactoryJobReview(job, "2026-09-30T21:03:00.000Z", {
+    id: "records-request/mars-colony-records-request",
+    label: "Mars Colony Records Request",
+    startTemplate: "records-request",
+  }).job;
+  job = advanceFactoryJob(job, TOOLS, "2026-09-30T21:04:00.000Z").job;
+  job = startFactoryJobAcceptance(job, "2026-09-30T21:05:00.000Z").job;
+  job = recordFactoryJobBuildArtifact(
+    job,
+    {
+      branch: "factory/job-fail-mars-colony-records-request",
+      baseSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      specPath: "spec.json",
+      profileRegistryPath: "profiles.json",
+      configPath: "config.ts",
+      changedFiles: ["config.ts"],
+      checks: [],
+      builtAt: "2026-09-30T21:06:00.000Z",
+    },
+    "2026-09-30T21:06:00.000Z",
+  ).job;
+  job = recordFactoryJobAcceptance(job, {
+    checks: [
+      {
+        id: "acceptance",
+        command: "test",
+        ok: false,
+        summary: "scenario failed",
+      },
+    ],
+    now: "2026-09-30T21:07:00.000Z",
+  }).job;
+
+  assert.equal(job.status, "failed");
+  assert.equal(job.stage, "acceptance");
+  assert.ok(job.diagnostics.some((item) => item.code === "FACTORY_ACCEPTANCE_FAILED"));
+});
+
+
+test("pre-executor v1 Factory Job snapshots restore with no build artifact", () => {
+  const original = createFactoryJob({
+    id: "job-legacy-v1",
+    problem: "public records request",
+    now: "2026-09-30T21:00:00.000Z",
+  });
+  const serialized = JSON.parse(JSON.stringify(original)) as Record<string, unknown>;
+  delete serialized.buildArtifact;
+
+  const restored = restoreFactoryJobSnapshot(serialized);
+  assert.equal(restored.buildArtifact, null);
+  assert.equal(restored.schemaVersion, "mailmypdf.factory-job/v1");
 });

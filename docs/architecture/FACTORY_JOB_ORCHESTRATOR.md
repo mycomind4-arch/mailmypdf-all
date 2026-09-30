@@ -10,15 +10,19 @@ Factory tables are service-role only. RLS is enabled and no anonymous or authent
 
 ## Current automatic stages
 
-The first runner deliberately automates only behavior already proven by shared packages:
+The supervised runner automates only behavior already proven by shared packages:
 
 1. `intake` validates and persists the problem description.
 2. `match` runs the canonical reuse planner against the current registry and live connector tool surface.
-3. `certify` re-runs canonical chat certification for the selected existing workflow.
-4. A certified existing workflow stops at explicit review before the job completes.
-5. A problem that requires a new template stops at `template_review`. Approval moves it to `build`, where the current runner stops because no reviewed build executor exists yet.
+3. `certify` re-runs canonical chat certification for a selected existing workflow.
+4. A certified existing workflow stops at explicit review before completion.
+5. A problem that requires a new template stops at `template_review`. The reviewer must persist a supported family, canonical workflow ID, and label.
+6. The deterministic `build` planner regenerates the materialization recipe and moves the job to `acceptance`; it does not touch the filesystem.
+7. The first machine executor is local-admin-only and supports reviewed `records-request` recipes. It creates an isolated branch/worktree from fresh `origin/main`, generates a non-indexable scaffold/profile/spec, runs the existing materializer, commits only allow-listed files locally, and persists branch/commit evidence.
+8. `acceptance` runs materialization drift, shared workflow factory/chat tests, exact generated-workflow certification, Records Request tests/acceptance, and a completely clean-tree check.
+9. Passing generated builds stop at `publication_review`.
 
-The runner never fabricates materialization, test, acceptance, or publication success.
+The executor never pushes, creates a pull request, merges, deploys, charges, or mails. A Notice Response recipe can be reviewed and persisted, but machine execution remains blocked until a structured Notice Response profile adapter exists.
 
 ## Durable API
 
@@ -26,6 +30,12 @@ Studio exposes admin-only endpoints under `/api/studio/workflows/jobs` to create
 
 Creating a job immediately runs all currently implemented deterministic stages until the first review/build boundary. A job can then be left and resumed later from the durable queue.
 
+## Build evidence
+
+The durable Factory Job keeps the reviewed deterministic build recipe separately from execution evidence. Optional `buildArtifact` data records the isolated branch, base SHA, local commit SHA, spec/config/profile paths, exact changed-file list, acceptance commands/results, and build timestamp. Older `mailmypdf.factory-job/v1` snapshots without that field remain valid.
+
+Generated Records Request profiles live in a separate machine-owned registry. Existing core family profiles are not spliced or rewritten. Generated landing copy is deliberately a non-indexable scaffold and requires later editorial/publication review.
+
 ## Next executor
 
-The next factory slice should implement the `build` stage without weakening review gates. It should consume an approved template-review job and produce a reviewed family/profile/spec proposal, write only to an isolated branch, run materialization and factory/chat certification, execute the applicable acceptance suite, persist all diagnostics/artifact references back to the job, and stop at publication review. Merge/deployment remains a separate explicit action.
+The next slice is the **publication/PR executor**: take a passing generated proposal at `publication_review`, verify the persisted local branch/commit still matches the recorded artifact, push only that branch, create a pull request containing the acceptance evidence, and stop for explicit merge/publication review. Merge and deployment remain separate explicit actions.

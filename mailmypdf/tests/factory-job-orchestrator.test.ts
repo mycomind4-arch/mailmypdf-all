@@ -67,3 +67,55 @@ test("Studio factory UI creates durable jobs and keeps review explicit", () => {
   assert.match(page, /Factory job queue/);
   assert.doesNotMatch(page, /prepare_checkout|submit_mail_order|charge_card/);
 });
+
+
+test("factory build endpoint is local-admin-only and separate from remote orchestration", () => {
+  const route = read("src/routes/api/studio/workflows/jobs/$id/build.ts");
+  const access = read("src/studio/access.ts");
+
+  assert.match(route, /localAdminFactoryAccess\(request\)/);
+  assert.match(route, /executePersistentFactoryAcceptance/);
+  assert.match(access, /Factory build execution is available only on the local development server/);
+  assert.match(access, /return adminFactoryAccess\(request\)/);
+});
+
+test("supervised executor isolates proposal work and has no publication/provider side effects", () => {
+  const executor = read("src/studio/factory-build-executor.server.ts");
+
+  assert.match(executor, /git\(rootDir, \["fetch", "origin", project\.defaultBranch\]\)/);
+  assert.match(executor, /"worktree",\s*"add",\s*"-b"/);
+  assert.match(executor, /expectedChangedPath/);
+  assert.match(executor, /Factory build produced unexpected paths/);
+  assert.match(executor, /generated-profile-specs\.json/);
+  assert.match(executor, /materialize-workflow-spec\.ts/);
+  assert.match(executor, /verify-factory-workflow\.ts/);
+  assert.match(executor, /@mailmypdf\/workflows", "test"/);
+  assert.match(executor, /@mailmypdf\/records-request", "test:acceptance"/);
+  assert.match(executor, /recordPersistentFactoryBuildArtifact/);
+  assert.match(executor, /recordPersistentFactoryAcceptance/);
+
+  assert.doesNotMatch(executor, /git\([^\n]*\["push"/);
+  assert.doesNotMatch(executor, /merge_pull_request|create_pull_request|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("generated Records Request profiles stay separate from hand-authored core profiles", () => {
+  const profiles = read("../packages/workflows/src/domain-packs/records-request/profiles.ts");
+  const generated = read("../packages/workflows/src/domain-packs/records-request/generated-profiles.ts");
+  const runtime = read("../packages/workflows/src/domain-packs/records-request/runtime-policy.ts");
+
+  assert.match(profiles, /CORE_RECORDS_REQUEST_WORKFLOW_PROFILES/);
+  assert.match(profiles, /GENERATED_RECORDS_REQUEST_WORKFLOW_PROFILES/);
+  assert.match(generated, /machine-owned/);
+  assert.match(runtime, /RECORDS_REQUEST_WORKFLOW_PROFILES\.map/);
+});
+
+test("Studio exposes supervised execution evidence but blocks generated publication", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Run local supervised build/);
+  assert.match(page, /Build artifact/);
+  assert.match(page, /Nothing has been pushed or published/);
+  assert.match(page, /Publication remains blocked until the publication\/PR executor is implemented/);
+  assert.match(page, /Notice Response recipe saved/);
+});

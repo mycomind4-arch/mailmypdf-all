@@ -31,6 +31,25 @@ export type FactoryJobDiagnostic = Readonly<{
   severity: "info" | "warning" | "error";
 }>;
 
+export type FactoryBuildCheck = Readonly<{
+  id: string;
+  command: string;
+  ok: boolean;
+  summary: string;
+}>;
+
+export type FactoryBuildArtifact = Readonly<{
+  branch: string;
+  baseSha: string;
+  commitSha: string;
+  specPath: string;
+  profileRegistryPath: string;
+  configPath: string;
+  changedFiles: readonly string[];
+  checks: readonly FactoryBuildCheck[];
+  builtAt: string;
+}>;
+
 export type FactoryJobPlanSnapshot = Readonly<{
   decision: "review-existing-workflow" | "needs-template-review";
   candidateId: string | null;
@@ -62,6 +81,7 @@ export type FactoryJob = Readonly<{
   plan: FactoryJobPlanSnapshot | null;
   selectedWorkflowId: string | null;
   build: FactoryJobBuildSnapshot | null;
+  buildArtifact: FactoryBuildArtifact | null;
   diagnostics: readonly FactoryJobDiagnostic[];
   review: Readonly<{
     required: boolean;
@@ -146,6 +166,55 @@ function restoreDiagnostics(value: unknown): readonly FactoryJobDiagnostic[] {
       });
     }),
   );
+}
+
+function restoreBuildArtifact(value: unknown): FactoryBuildArtifact | null {
+  if (value === undefined || value === null) return null;
+  const source = record(value, "Factory build artifact");
+  if (
+    !Array.isArray(source.changedFiles) ||
+    source.changedFiles.some((item) => typeof item !== "string")
+  ) {
+    throw new Error("Factory build changed files are invalid.");
+  }
+  if (!Array.isArray(source.checks) || source.checks.length > 50) {
+    throw new Error("Factory build checks are invalid.");
+  }
+  const checks = source.checks.map((entry) => {
+    const item = record(entry, "Factory build check");
+    if (typeof item.ok !== "boolean") {
+      throw new Error("Factory build check status is invalid.");
+    }
+    return Object.freeze({
+      id: requiredSnapshotString(item.id, "Factory build check id", 200),
+      command: requiredSnapshotString(item.command, "Factory build check command", 1000),
+      ok: item.ok,
+      summary: requiredSnapshotString(item.summary, "Factory build check summary", 4000),
+    });
+  });
+  const builtAt = requiredSnapshotString(
+    source.builtAt,
+    "Factory build timestamp",
+    100,
+  );
+  if (!Number.isFinite(Date.parse(builtAt))) {
+    throw new Error("Factory build timestamp is invalid.");
+  }
+  return Object.freeze({
+    branch: requiredSnapshotString(source.branch, "Factory build branch", 300),
+    baseSha: requiredSnapshotString(source.baseSha, "Factory build base sha", 100),
+    commitSha: requiredSnapshotString(source.commitSha, "Factory build commit sha", 100),
+    specPath: requiredSnapshotString(source.specPath, "Factory build spec path", 1000),
+    profileRegistryPath: requiredSnapshotString(
+      source.profileRegistryPath,
+      "Factory build profile path",
+      1000,
+    ),
+    configPath: requiredSnapshotString(source.configPath, "Factory build config path", 1000),
+    changedFiles: Object.freeze([...source.changedFiles] as string[]),
+    checks: Object.freeze(checks),
+    builtAt,
+  });
 }
 
 function restorePlan(value: unknown): FactoryJobPlanSnapshot | null {
@@ -282,6 +351,7 @@ export function restoreFactoryJobSnapshot(value: unknown): FactoryJob {
       "Factory selected workflow id",
     ),
     build: restoreBuild(source.build),
+    buildArtifact: restoreBuildArtifact(source.buildArtifact),
     diagnostics: restoreDiagnostics(source.diagnostics),
     review: Object.freeze({
       required: review.required,
@@ -321,6 +391,7 @@ function transition(
     plan?: FactoryJobPlanSnapshot | null;
     selectedWorkflowId?: string | null;
     build?: FactoryJobBuildSnapshot | null;
+    buildArtifact?: FactoryBuildArtifact | null;
     diagnostics?: readonly FactoryJobDiagnostic[];
     review?: FactoryJob["review"];
     now: string;
@@ -336,6 +407,7 @@ function transition(
       ? { selectedWorkflowId: input.selectedWorkflowId }
       : {}),
     ...(input.build !== undefined ? { build: input.build } : {}),
+    ...(input.buildArtifact !== undefined ? { buildArtifact: input.buildArtifact } : {}),
     ...(input.diagnostics !== undefined
       ? { diagnostics: Object.freeze([...input.diagnostics]) }
       : {}),
@@ -371,6 +443,7 @@ export function createFactoryJob(input: {
     plan: null,
     selectedWorkflowId: null,
     build: null,
+    buildArtifact: null,
     diagnostics: Object.freeze([]),
     review: Object.freeze({
       required: false,
@@ -587,6 +660,11 @@ export function approveFactoryJobReview(
   }
 
   if (job.stage === "publication_review") {
+    if (job.buildArtifact) {
+      throw new Error(
+        "Generated workflow publication requires the publication executor before completion.",
+      );
+    }
     return transition(job, {
       status: "completed",
       stage: "complete",
@@ -640,6 +718,128 @@ export function approveFactoryJobReview(
   }
 
   throw new Error(`Factory review is not supported at stage ${job.stage}.`);
+}
+
+export function startFactoryJobAcceptance(
+  job: FactoryJob,
+  now: string,
+): FactoryJobTransition {
+  if (job.stage !== "acceptance" || job.status !== "queued" || !job.build) {
+    throw new Error(`Factory job ${job.id} is not ready for supervised acceptance execution.`);
+  }
+  return transition(job, {
+    status: "running",
+    stage: "acceptance",
+    eventType: "factory.acceptance.started",
+    buildArtifact: null,
+    diagnostics: [],
+    data: {
+      workflowId: job.build.canonicalId,
+      filePaths: [...job.build.filePaths],
+    },
+    now,
+  });
+}
+
+export function recordFactoryJobBuildArtifact(
+  job: FactoryJob,
+  artifact: FactoryBuildArtifact,
+  now: string,
+): FactoryJobTransition {
+  if (job.stage !== "acceptance" || job.status !== "running" || !job.build) {
+    throw new Error(`Factory job ${job.id} is not running supervised acceptance.`);
+  }
+  if (artifact.checks.length !== 0) {
+    throw new Error("Initial build artifact must not contain acceptance checks.");
+  }
+  return transition(job, {
+    status: "running",
+    stage: "acceptance",
+    eventType: "factory.build.materialized",
+    buildArtifact: artifact,
+    diagnostics: [],
+    data: {
+      branch: artifact.branch,
+      commitSha: artifact.commitSha,
+      changedFiles: [...artifact.changedFiles],
+    },
+    now,
+  });
+}
+
+export function failFactoryJobAcceptance(
+  job: FactoryJob,
+  input: { code: string; message: string; now: string },
+): FactoryJobTransition {
+  if (job.stage !== "acceptance" || job.status !== "running") {
+    throw new Error(`Factory job ${job.id} is not running supervised acceptance.`);
+  }
+  return transition(job, {
+    status: "failed",
+    stage: "acceptance",
+    eventType: "factory.acceptance.failed",
+    diagnostics: [diagnostic(input.code, input.message)],
+    data: { code: input.code },
+    now: input.now,
+  });
+}
+
+export function recordFactoryJobAcceptance(
+  job: FactoryJob,
+  input: {
+    checks: readonly FactoryBuildCheck[];
+    now: string;
+  },
+): FactoryJobTransition {
+  if (
+    job.stage !== "acceptance" ||
+    job.status !== "running" ||
+    !job.build ||
+    !job.buildArtifact
+  ) {
+    throw new Error(`Factory job ${job.id} is not awaiting acceptance results.`);
+  }
+  if (input.checks.length === 0) {
+    throw new Error("Factory acceptance requires at least one check result.");
+  }
+
+  const artifact = Object.freeze({
+    ...job.buildArtifact,
+    checks: Object.freeze([...input.checks]),
+  });
+  const failed = input.checks.filter((item) => !item.ok);
+  if (failed.length > 0) {
+    return transition(job, {
+      status: "failed",
+      stage: "acceptance",
+      eventType: "factory.acceptance.failed",
+      buildArtifact: artifact,
+      diagnostics: failed.map((item) =>
+        diagnostic("FACTORY_ACCEPTANCE_FAILED", `${item.id}: ${item.summary}`),
+      ),
+      data: { failedCheckIds: failed.map((item) => item.id) },
+      now: input.now,
+    });
+  }
+
+  return transition(job, {
+    status: "awaiting_review",
+    stage: "publication_review",
+    eventType: "factory.acceptance.passed",
+    buildArtifact: artifact,
+    diagnostics: [],
+    review: {
+      required: true,
+      reason: "generated-workflow-publication",
+      approvedAt: null,
+    },
+    data: {
+      branch: artifact.branch,
+      commitSha: artifact.commitSha,
+      checkIds: input.checks.map((item) => item.id),
+    },
+    now: input.now,
+  });
 }
 
 export function cancelFactoryJob(

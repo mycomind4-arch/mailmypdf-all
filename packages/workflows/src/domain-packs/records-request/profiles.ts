@@ -1,17 +1,14 @@
+import { GENERATED_RECORDS_REQUEST_WORKFLOW_PROFILES } from "./generated-profiles.js";
+
 export interface RecordsRequestWorkflowProfile {
-  workflowId:
-    | "agency-records-request"
-    | "government-documents-request"
-    | "open-records-request"
-    | "public-information-request"
-    | "public-records-request";
+  workflowId: string;
   title: string;
   recordsSoughtPlaceholder: string;
   contextDocumentLabel?: string;
   supportingContextLabel?: string;
 }
 
-export const RECORDS_REQUEST_WORKFLOW_PROFILES = Object.freeze([
+const CORE_RECORDS_REQUEST_WORKFLOW_PROFILES = Object.freeze([
   {
     workflowId: "agency-records-request",
     title: "Agency Records Request",
@@ -44,6 +41,11 @@ export const RECORDS_REQUEST_WORKFLOW_PROFILES = Object.freeze([
     contextDocumentLabel: "Optional notice, case, or agency context document",
     supportingContextLabel: "Supporting public-records context",
   },
+] as const satisfies readonly RecordsRequestWorkflowProfile[]);
+
+export const RECORDS_REQUEST_WORKFLOW_PROFILES = Object.freeze([
+  ...CORE_RECORDS_REQUEST_WORKFLOW_PROFILES,
+  ...GENERATED_RECORDS_REQUEST_WORKFLOW_PROFILES,
 ] as const satisfies readonly RecordsRequestWorkflowProfile[]);
 
 export type RecordsRequestProfileWorkflowId =

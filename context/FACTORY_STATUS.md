@@ -1,5 +1,16 @@
 # MailMyPDF factory status
 
+## 2026-09-30 — Reviewed build planner + supervised Records Request executor
+
+- PR #139 established the canonical reviewed build recipe: template review persists a deterministic `ReviewedFactoryBuildPlan` and the runner advances the recipe to the acceptance boundary without claiming filesystem work.
+- Added an additive `buildArtifact` evidence record to `mailmypdf.factory-job/v1`; existing durable snapshots without it remain readable. Acceptance transitions persist the local branch, base/commit SHA, changed files, generated paths, check results, and timestamp through the same optimistic revision guard.
+- Added a local-host + verified-admin machine executor for reviewed **Records Request** builds. It fetches fresh `origin/main`, refuses duplicate local/remote proposal branches and existing workflow/canonical/profile identities, uses an isolated temporary worktree, and commits only allow-listed proposal files to a local `factory/job-…` branch.
+- Added a machine-owned generated Records Request profile registry. Core hand-authored profiles remain isolated; runtime IDs derive from the combined registry so a generated profile receives the same shared manifest/runtime/chat family contract.
+- Generated proposals contain a non-indexable scaffold `config.ts`, reviewed recipe-derived `workflow.spec.json`, generated profile entry, canonical enrollment/inventory, and materializer-owned static wrappers.
+- Acceptance runs materialization drift, shared workflow factory/chat tests, exact generated-workflow chat certification against the live MCP catalog, Records Request unit/acceptance tests, and a clean-tree check. Any failure is persisted and blocks publication review.
+- Passing builds stop at `publication_review`. The executor does **not** push, open a PR, merge, deploy, charge, or mail. Notice Response recipes remain planner-only until a safe structured profile adapter is added.
+- Next blocker: publication/PR executor, followed by end-to-end recovery/idempotency hardening.
+
 ## 2026-09-30 — Persistent supervised Factory Job orchestrator
 
 - Added a versioned `mailmypdf.factory-job/v1` state machine with explicit stages for intake, matching, certification, template review, build, acceptance, publication review, and completion. The runner only advances stages the repository can currently prove and fails/stops rather than inventing build or test results.

@@ -75,6 +75,23 @@ export async function adminFactoryAccess(
   return { actor: Object.freeze({ userId }), error: null };
 }
 
+export async function localAdminFactoryAccess(
+  request: Request,
+): Promise<AdminFactoryAccessResult> {
+  const url = new URL(request.url);
+  const host = request.headers.get("host");
+  if (!isLocalDevelopmentHost(host) || !isLocalDevelopmentHost(url.host)) {
+    return {
+      actor: null,
+      error: Response.json(
+        { error: "Factory build execution is available only on the local development server." },
+        { status: 403 },
+      ),
+    };
+  }
+  return adminFactoryAccess(request);
+}
+
 /** Authenticated factory control-plane requests can run remotely; shell/machine tools remain local-only. */
 export async function adminFactoryAccessError(
   request: Request,
