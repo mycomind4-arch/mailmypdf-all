@@ -33,6 +33,19 @@ type FactoryJob = {
   stage: "intake" | "match" | "certify" | "template_review" | "build" | "acceptance" | "publication_review" | "complete";
   problem: string;
   selectedWorkflowId: string | null;
+  build: {
+    canonicalId: string;
+    sectionId: string;
+    slug: string;
+    artifact: null | {
+      repository: string;
+      branch: string;
+      baseCommitSha: string;
+      commitSha: string;
+      pullRequestNumber: number;
+      pullRequestUrl: string;
+    };
+  } | null;
   diagnostics: Array<{ code: string; message: string; severity: "info" | "warning" | "error" }>;
   review: { required: boolean; reason: string | null; approvedAt: string | null };
   updatedAt: string;
@@ -72,7 +85,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const templateFamily = "records-request" as const;
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
-  const [pending, setPending] = useState<"report" | "job" | "review" | "cancel" | null>("report");
+  const [pending, setPending] = useState<"report" | "job" | "review" | "run" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
   function upsertJob(job: FactoryJob) {
@@ -145,6 +158,22 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
       upsertJob(payload.job);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to approve factory review.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function resume(job: FactoryJob) {
+    if (pending) return;
+    setPending("run");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/run`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to resume factory job.");
     } finally {
       setPending(null);
     }
@@ -230,6 +259,22 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-stone">Selected workflow</div>
                 <div className="mt-1 break-all font-mono text-sm text-navy">{activeJob.selectedWorkflowId ?? "New template review required"}</div>
               </div>
+              {activeJob.build?.artifact && (
+                <div className="rounded-lg border border-rule bg-ivory p-4 sm:col-span-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-stone">Factory pull request</div>
+                  <a
+                    href={activeJob.build.artifact.pullRequestUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-block break-all font-mono text-sm text-navy underline decoration-brass/50 underline-offset-2"
+                  >
+                    PR #{activeJob.build.artifact.pullRequestNumber} · {activeJob.build.artifact.branch}
+                  </a>
+                  <div className="mt-1 break-all font-mono text-[11px] text-stone">
+                    {activeJob.build.artifact.commitSha}
+                  </div>
+                </div>
+              )}
               <div className="rounded-lg border border-rule bg-ivory p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-stone">Next boundary</div>
                 <div className="mt-1 text-sm text-navy">
@@ -282,6 +327,12 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
             )}
 
             <div className="mt-5 flex flex-wrap gap-2">
+              {(activeJob.status === "queued" || activeJob.status === "running") && (
+                <button type="button" onClick={() => void resume(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md border border-navy px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50">
+                  <RefreshCw size={16} className={pending === "run" ? "animate-spin" : ""} />
+                  {pending === "run" ? "Checking factory…" : activeJob.stage === "acceptance" ? "Check acceptance" : "Resume factory"}
+                </button>
+              )}
               {activeJob.status === "awaiting_review" && activeJob.review.required && (
                 <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null || (activeJob.stage === "template_review" && (!templateId.trim() || !templateLabel.trim()))} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : "Approve next stage"}
