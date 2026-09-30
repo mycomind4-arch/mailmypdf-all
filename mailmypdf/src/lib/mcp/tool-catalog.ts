@@ -176,11 +176,12 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
           },
           required: ["ready", "display", "brand", "last4"],
         },
+        paymentRevision: integer("Opaque saved-payment revision. Echo this exact value only after showing the current saved-payment display and obtaining explicit charge/send authorization."),
         setupUrl: string("MailMyPDF account page for optional one-time saved-payment setup."),
         chargingAuthorized: { type: "boolean", const: false },
         note: string("Safety guidance explaining that saved payment does not authorize a charge."),
       },
-      ["accountReady", "payment", "setupUrl", "chargingAuthorized", "note"],
+      ["accountReady", "payment", "paymentRevision", "setupUrl", "chargingAuthorized", "note"],
     ),
     annotations: {
       readOnlyHint: true,
@@ -535,6 +536,52 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: [
       ...capabilities("pricing", "approval"),
+      capabilityRequirement("payment", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "charge_and_send_direct_pdf_mail",
+    title: "Charge saved payment and send approved mailing",
+    description:
+      "Charge the connected account's verified saved payment method for the exact already-approved direct/conversational PDF and immediately submit that mailing to the configured provider. Use only after get_payment_readiness shows the current saved-payment display and the user explicitly authorizes that card, the exact approved amount, and immediate mailing. The server re-verifies account ownership, PDF hash, price, saved-payment revision, both postal addresses, and the single payment path before touching Stripe. Retries are idempotent and resume fulfillment after a successful charge instead of charging again. Raw card data is never accepted.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+        expected_packet_sha256: string("Exact approved PDF SHA-256 shown to the user."),
+        expected_total_cents: integer("Exact approved total in cents shown to the user."),
+        expected_payment_revision: integer("Exact paymentRevision returned by get_payment_readiness for the saved card the user authorized."),
+        authorize_saved_payment: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly authorizes charging the displayed saved payment method for this exact amount.",
+        },
+        user_confirmed_send: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly asks to send this exact approved mailing now.",
+        },
+      },
+      [
+        "order_id",
+        "expected_packet_sha256",
+        "expected_total_cents",
+        "expected_payment_revision",
+        "authorize_saved_payment",
+        "user_confirmed_send",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
       capabilityRequirement("payment", { requiresApproval: false }),
     ],
   },
