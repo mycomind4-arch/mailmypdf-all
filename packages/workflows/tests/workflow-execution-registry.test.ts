@@ -61,6 +61,7 @@ describe("WORKFLOW_EXECUTION_REGISTRY", () => {
     for (const [sectionId, workflowId] of [
       ["appeal-mail", "appeal-ssdi-denial"],
       ["appeal-mail", "appeal-ssi-denial"],
+      ["notice-respond", "cp14-response"],
       ["notice-respond", "cp2000-response"],
       ["notice-respond", "cp504-response"],
       ["notice-respond", "irs-balance-due-notice-response"],

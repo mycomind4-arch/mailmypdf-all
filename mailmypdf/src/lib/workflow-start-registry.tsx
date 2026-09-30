@@ -2,14 +2,16 @@
 // new-architecture start component. This file only imports and renders --
 // all reusable workflow logic stays in the top-level workflow/shared
 // packages. A workflow only appears here once it genuinely has a real
-// start implementation; there is no fallback to apps/verticals/**.
+// start implementation; there is no fallback to the retired architecture.
 //
-// Every import below is a real top-level workflow's own start component,
-// matching @mailmypdf/workflows' WORKFLOW_EXECUTION_REGISTRY "executable"
-// entries exactly -- do not add an entry here without a matching registry
-// record, and do not add a registry record without a real entry here.
+// Static imports below cover executable workflows that need a dedicated
+// component. Certified profile-driven families can be rendered generically,
+// but only when canonical execution metadata AND the family profile registry
+// agree. There is never a generic unknown-workflow fallback.
 
 import type { ComponentType } from "react"
+import NoticeResponseWorkflow from "@mailmypdf/notice-respond/shared/NoticeResponseWorkflow"
+import { getNoticeResponseWorkflowProfile, workflowById } from "@mailmypdf/workflows"
 
 import AppealCarInsuranceClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-car-insurance-claim/start"
 import AppealDeniedClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-denied-claim/start"
@@ -24,11 +26,10 @@ import AppealPriorAuthorizationDenialStart from "@mailmypdf/appeal-mail/workflow
 import AppealSsdiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssdi-denial/start"
 import AppealSsiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssi-denial/start"
 import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-timely-filing-denial/start"
+import EquifaxDisputeStart from "@mailmypdf/dispute-mail-section/workflows/equifax-dispute/start"
+import ExperianDisputeStart from "@mailmypdf/dispute-mail-section/workflows/experian-dispute/start"
+import TransunionDisputeStart from "@mailmypdf/dispute-mail-section/workflows/transunion-dispute/start"
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
-import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
-import Cp504ResponseStart from "@mailmypdf/notice-respond/workflows/cp504-response/start"
-import IrsBalanceDueNoticeResponseStart from "@mailmypdf/notice-respond/workflows/irs-balance-due-notice-response/start"
-import IrsPenaltyNoticeResponseStart from "@mailmypdf/notice-respond/workflows/irs-penalty-notice-response/start"
 import AgencyRecordsRequestStart from "@mailmypdf/records-request/workflows/agency-records-request/start"
 import GovernmentDocumentsRequestStart from "@mailmypdf/records-request/workflows/government-documents-request/start"
 import OpenRecordsRequestStart from "@mailmypdf/records-request/workflows/open-records-request/start"
@@ -52,11 +53,10 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-ssdi-denial": AppealSsdiDenialStart,
   "appeal-mail:appeal-ssi-denial": AppealSsiDenialStart,
   "appeal-mail:appeal-timely-filing-denial": AppealTimelyFilingDenialStart,
+  "dispute-mail:equifax-dispute": EquifaxDisputeStart,
+  "dispute-mail:experian-dispute": ExperianDisputeStart,
+  "dispute-mail:transunion-dispute": TransunionDisputeStart,
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
-  "notice-respond:cp2000-response": Cp2000ResponseStart,
-  "notice-respond:cp504-response": Cp504ResponseStart,
-  "notice-respond:irs-balance-due-notice-response": IrsBalanceDueNoticeResponseStart,
-  "notice-respond:irs-penalty-notice-response": IrsPenaltyNoticeResponseStart,
   "records-request:agency-records-request": AgencyRecordsRequestStart,
   "records-request:government-documents-request": GovernmentDocumentsRequestStart,
   "records-request:open-records-request": OpenRecordsRequestStart,
@@ -67,6 +67,36 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "secured-transactions:obligation-value": ObligationValueStart,
 }
 
+const FACTORY_FAMILY_COMPONENTS = new Map<string, ComponentType>()
+
+function noticeResponseStartComponent(workflowId: string): ComponentType {
+  const key = `notice-response:${workflowId}`
+  const cached = FACTORY_FAMILY_COMPONENTS.get(key)
+  if (cached) return cached
+
+  const Component = () => (
+    <NoticeResponseWorkflow
+      config={{
+        workflowId,
+      }}
+    />
+  )
+  FACTORY_FAMILY_COMPONENTS.set(key, Component)
+  return Component
+}
+
 export function workflowStartComponent(sectionId: string, workflowId: string): ComponentType | undefined {
-  return WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  const staticComponent = WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  if (staticComponent) return staticComponent
+
+  const canonical = workflowById(`${sectionId}/${workflowId}`)
+  if (
+    canonical?.execution?.kind === "platform" &&
+    canonical.execution.policyFamily === "notice-response" &&
+    getNoticeResponseWorkflowProfile(workflowId)
+  ) {
+    return noticeResponseStartComponent(workflowId)
+  }
+
+  return undefined
 }

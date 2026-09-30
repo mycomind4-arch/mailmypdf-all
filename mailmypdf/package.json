@@ -32,6 +32,7 @@
     "@mailmypdf/workflows": "workspace:*",
     "@mailmypdf/workflow-ui": "workspace:*",
     "@mailmypdf/design-system": "workspace:*",
+    "@mailmypdf/dispute-mail-section": "workspace:*",
     "@mailmypdf/seo": "workspace:*",
     "@mailmypdf/appeal-mail": "workspace:*",
     "@mailmypdf/notice-respond": "workspace:*",
