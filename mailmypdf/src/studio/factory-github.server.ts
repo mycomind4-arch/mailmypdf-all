@@ -101,46 +101,71 @@ export async function createFactoryAcceptanceArtifact(
 
   const branch = branchName(job);
   const created = await provider.createBranch(repository, branch, baseBranch);
-  if (!created.created) {
-    throw new Error(
-      `Factory branch ${branch} already exists without a persisted artifact; reconcile it before retrying.`,
+  let commitSha: string;
+
+  if (created.created) {
+    const commit = await provider.createTree(
+      repository,
+      branch,
+      plan.files.map((file) => ({
+        path: file.path,
+        content: file.content,
+      })),
+      `Factory: materialize ${plan.build.canonicalId}`,
     );
+    commitSha = commit.commitSha;
+  } else {
+    const existing = await provider.getBranchSha(repository, branch);
+    if (existing.sha === baseCommitSha) {
+      const commit = await provider.createTree(
+        repository,
+        branch,
+        plan.files.map((file) => ({
+          path: file.path,
+          content: file.content,
+        })),
+        `Factory: materialize ${plan.build.canonicalId}`,
+      );
+      commitSha = commit.commitSha;
+    } else {
+      for (const file of plan.files) {
+        const observed = await provider.getFile(repository, file.path, existing.sha);
+        if (!observed || observed.content !== file.content) {
+          throw new Error(
+            `Existing factory branch ${branch} does not exactly match the reviewed build plan at ${file.path}.`,
+          );
+        }
+      }
+      commitSha = existing.sha;
+    }
   }
 
-  const commit = await provider.createTree(
-    repository,
-    branch,
-    plan.files.map((file) => ({
-      path: file.path,
-      content: file.content,
-    })),
-    `Factory: materialize ${plan.build.canonicalId}`,
-  );
-
-  const pullRequest = await provider.createPullRequest(
-    repository,
-    branch,
-    baseBranch,
-    `Factory: ${plan.build.request.label}`,
-    [
-      "## Supervised workflow-factory candidate",
-      "",
-      `Canonical workflow: \`${plan.build.canonicalId}\``,
-      `Family: \`${plan.build.request.startTemplate}\``,
-      `Factory job: \`${job.id}\``,
-      "",
-      "This pull request was materialized from an administrator-reviewed factory recipe.",
-      "Public copy is scaffold-only and non-indexable. CI acceptance must pass before Studio can present publication review.",
-      "",
-      "No payment, mailing, deployment, or merge is performed by this build step.",
-    ].join("\n"),
-  );
+  const pullRequest =
+    (await provider.findOpenPullRequestByHead(repository, branch, baseBranch)) ??
+    (await provider.createPullRequest(
+      repository,
+      branch,
+      baseBranch,
+      `Factory: ${plan.build.request.label}`,
+      [
+        "## Supervised workflow-factory candidate",
+        "",
+        `Canonical workflow: \`${plan.build.canonicalId}\``,
+        `Family: \`${plan.build.request.startTemplate}\``,
+        `Factory job: \`${job.id}\``,
+        "",
+        "This pull request was materialized from an administrator-reviewed factory recipe.",
+        "Public copy is scaffold-only and non-indexable. CI acceptance must pass before Studio can present publication review.",
+        "",
+        "No payment, mailing, deployment, or merge is performed by this build step.",
+      ].join("\n"),
+    ));
 
   return Object.freeze({
     repository,
     branch,
     baseCommitSha,
-    commitSha: commit.commitSha,
+    commitSha,
     pullRequestNumber: pullRequest.number,
     pullRequestUrl: pullRequest.url,
   });
