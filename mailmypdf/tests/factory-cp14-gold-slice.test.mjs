@@ -124,3 +124,13 @@ test("authenticated executable workflows start through the dashboard bridge", ()
   assert.match(detail, /\$\{workflow\.workspaceHref\}\/start/);
   assert.equal(detail.includes("execution?.executionHref ?? undefined"), false);
 });
+
+
+test("newly mounted credit-bureau starts export reusable components for the host", () => {
+  for (const bureau of ["equifax", "experian", "transunion"]) {
+    const source = read(`dispute-mail/workflows/${bureau}-dispute/start/index.tsx`);
+    assert.match(source, /export function [A-Za-z]+DisputeStart\(\)/);
+    assert.match(source, /export default [A-Za-z]+DisputeStart/);
+    assert.match(source, /CreditBureauDisputeIntake/);
+  }
+});
