@@ -73,6 +73,83 @@ comment on table public.factory_jobs is
 comment on table public.factory_job_events is
   'Append-only factory job transition history keyed by the resulting job revision.';
 
+create or replace function public.create_factory_job(
+  p_job_id uuid,
+  p_status text,
+  p_stage text,
+  p_problem text,
+  p_job_json jsonb,
+  p_actor_id uuid default null
+)
+returns public.factory_jobs
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $
+declare
+  v_job public.factory_jobs;
+begin
+  if jsonb_typeof(p_job_json) <> 'object' then
+    raise exception 'Factory job snapshot must be a JSON object';
+  end if;
+
+  insert into public.factory_jobs (
+    id,
+    schema_version,
+    revision,
+    status,
+    stage,
+    selected_workflow_id,
+    problem,
+    job_json,
+    created_by
+  ) values (
+    p_job_id,
+    'mailmypdf.factory-job/v1',
+    1,
+    p_status,
+    p_stage,
+    null,
+    p_problem,
+    p_job_json,
+    p_actor_id
+  )
+  returning * into v_job;
+
+  insert into public.factory_job_events (
+    job_id,
+    revision,
+    event_type,
+    from_stage,
+    to_stage,
+    data,
+    actor_id
+  ) values (
+    p_job_id,
+    1,
+    'factory.job.created',
+    null,
+    p_stage,
+    '{}'::jsonb,
+    p_actor_id
+  );
+
+  return v_job;
+end;
+$;
+
+revoke all on function public.create_factory_job(
+  uuid, text, text, text, jsonb, uuid
+) from public, anon, authenticated;
+grant execute on function public.create_factory_job(
+  uuid, text, text, text, jsonb, uuid
+) to service_role;
+
+comment on function public.create_factory_job(
+  uuid, text, text, text, jsonb, uuid
+) is
+  'Service-role-only atomic creation of a versioned factory job and its initial audit event.';
+
 create or replace function public.transition_factory_job(
   p_job_id uuid,
   p_expected_revision integer,
