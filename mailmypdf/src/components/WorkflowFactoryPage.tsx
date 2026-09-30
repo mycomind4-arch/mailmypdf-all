@@ -69,7 +69,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [problem, setProblem] = useState("");
   const [filter, setFilter] = useState<"ready" | "contracts" | "all">("ready");
   const [search, setSearch] = useState("");
-  const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
+  const templateFamily = "records-request" as const;
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
   const [pending, setPending] = useState<"report" | "job" | "review" | "cancel" | null>("report");
@@ -251,17 +251,12 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
 
             {activeJob.stage === "template_review" && activeJob.status === "awaiting_review" && (
               <div className="mt-5 grid gap-4 rounded-lg border border-rule bg-ivory p-4 sm:grid-cols-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-navy">
+                <div className="text-xs font-semibold uppercase tracking-wider text-navy">
                   Factory family
-                  <select
-                    value={templateFamily}
-                    onChange={(event) => setTemplateFamily(event.target.value as "notice-response" | "records-request")}
-                    className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy"
-                  >
-                    <option value="notice-response">Notice response</option>
-                    <option value="records-request">Records request</option>
-                  </select>
-                </label>
+                  <div className="mt-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy">
+                    Records request
+                  </div>
+                </div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-navy">
                   Workflow label
                   <input
@@ -276,7 +271,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                   <input
                     value={templateId}
                     onChange={(event) => setTemplateId(event.target.value)}
-                    placeholder={templateFamily === "notice-response" ? "notice-respond/workflow-slug" : "records-request/workflow-slug"}
+                    placeholder="records-request/example-records-request"
                     className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 font-mono text-sm font-normal normal-case tracking-normal text-navy"
                   />
                   <span className="mt-1 block font-sans text-[11px] font-normal normal-case tracking-normal text-stone">
