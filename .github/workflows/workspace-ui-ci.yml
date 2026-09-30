@@ -85,6 +85,8 @@ jobs:
       - run: pnpm --filter ./mailmypdf run prebuild
       - run: node scripts/verify-product-topology.mjs
       - run: node --test scripts/workflow-registry-topology.test.mjs
+      - name: Verify reviewed workflow specs materialize without drift
+        run: pnpm workflow:materialize:check
       - run: pnpm registry:check
       - run: pnpm --filter @mailmypdf/workflows test
       - name: Verify every projection and preserve existing executable workflows
