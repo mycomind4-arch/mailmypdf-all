@@ -59,6 +59,7 @@ export type ClaimantFacts = {
   representativeName: string;
   responseMode: "reconsideration";
   confirmedReconsideration: true;
+  factsConfirmed: boolean;
   reasonsForDisagreement: string;
   conditionChanges: string;
   newConditions: string;
@@ -77,6 +78,7 @@ const EMPTY_FACTS: ClaimantFacts = {
   representativeName: "",
   responseMode: "reconsideration",
   confirmedReconsideration: true,
+  factsConfirmed: false,
   reasonsForDisagreement: "",
   conditionChanges: "",
   newConditions: "",
@@ -188,6 +190,21 @@ export default function SsdiDenialWorkflow() {
   );
 
   const currentStep = SSDI_STEPS[stepIndex]!;
+
+  function updateClaimantFact<Key extends keyof ClaimantFacts>(
+    key: Key,
+    value: ClaimantFacts[Key],
+  ): void {
+    setFacts((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "factsConfirmed" ? {} : { factsConfirmed: false }),
+    }));
+    setFactsSaved(false);
+    setDraftSaved(false);
+    setPacket(null);
+    setApprovalId("");
+  }
 
   async function refresh(id = matterId) {
     if (!id) return;
@@ -579,21 +596,26 @@ export default function SsdiDenialWorkflow() {
           footer={<button className="wf-btn wf-btn--primary" type="button" onClick={() => void saveFacts()} disabled={Boolean(busy)}>Save claimant facts</button>}
         >
           <div className="wf-form-grid">
-            <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => setFacts({ ...facts, claimantName: event.target.value })} /></Field>
-            <Field label="Phone" required><TextField value={facts.phone} onChange={(event) => setFacts({ ...facts, phone: event.target.value })} /></Field>
-            <Field label="Mailing address" required><TextArea rows={3} value={facts.claimantAddress} onChange={(event) => setFacts({ ...facts, claimantAddress: event.target.value })} /></Field>
-            <Field label="Representative name" hint="Leave blank if none."><TextField value={facts.representativeName} onChange={(event) => setFacts({ ...facts, representativeName: event.target.value })} /></Field>
+            <Field label="Claimant name" required><TextField value={facts.claimantName} onChange={(event) => updateClaimantFact("claimantName", event.target.value)} /></Field>
+            <Field label="Phone" required><TextField value={facts.phone} onChange={(event) => updateClaimantFact("phone", event.target.value)} /></Field>
+            <Field label="Mailing address" required><TextArea rows={3} value={facts.claimantAddress} onChange={(event) => updateClaimantFact("claimantAddress", event.target.value)} /></Field>
+            <Field label="Representative name" hint="Leave blank if none."><TextField value={facts.representativeName} onChange={(event) => updateClaimantFact("representativeName", event.target.value)} /></Field>
           </div>
-          <Field label="Why do you disagree with the denial?" required><TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => setFacts({ ...facts, reasonsForDisagreement: event.target.value })} /></Field>
+          <Field label="Why do you disagree with the denial?" required><TextArea rows={6} value={facts.reasonsForDisagreement} onChange={(event) => updateClaimantFact("reasonsForDisagreement", event.target.value)} /></Field>
           <div className="wf-form-grid">
-            <Field label="Changes in existing conditions"><TextArea value={facts.conditionChanges} onChange={(event) => setFacts({ ...facts, conditionChanges: event.target.value })} /></Field>
-            <Field label="New conditions"><TextArea value={facts.newConditions} onChange={(event) => setFacts({ ...facts, newConditions: event.target.value })} /></Field>
-            <Field label="Treatment changes"><TextArea value={facts.treatmentChanges} onChange={(event) => setFacts({ ...facts, treatmentChanges: event.target.value })} /></Field>
-            <Field label="Medication changes"><TextArea value={facts.medicationChanges} onChange={(event) => setFacts({ ...facts, medicationChanges: event.target.value })} /></Field>
-            <Field label="Work changes"><TextArea value={facts.workChanges} onChange={(event) => setFacts({ ...facts, workChanges: event.target.value })} /></Field>
-            <Field label="Daily-function changes"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => setFacts({ ...facts, dailyFunctionChanges: event.target.value })} /></Field>
+            <Field label="Changes in existing conditions"><TextArea value={facts.conditionChanges} onChange={(event) => updateClaimantFact("conditionChanges", event.target.value)} /></Field>
+            <Field label="New conditions"><TextArea value={facts.newConditions} onChange={(event) => updateClaimantFact("newConditions", event.target.value)} /></Field>
+            <Field label="Treatment changes"><TextArea value={facts.treatmentChanges} onChange={(event) => updateClaimantFact("treatmentChanges", event.target.value)} /></Field>
+            <Field label="Medication changes"><TextArea value={facts.medicationChanges} onChange={(event) => updateClaimantFact("medicationChanges", event.target.value)} /></Field>
+            <Field label="Work changes"><TextArea value={facts.workChanges} onChange={(event) => updateClaimantFact("workChanges", event.target.value)} /></Field>
+            <Field label="Daily-function changes"><TextArea value={facts.dailyFunctionChanges} onChange={(event) => updateClaimantFact("dailyFunctionChanges", event.target.value)} /></Field>
           </div>
-          <Field label="Additional facts"><TextArea rows={4} value={facts.additionalFacts} onChange={(event) => setFacts({ ...facts, additionalFacts: event.target.value })} /></Field>
+          <Field label="Additional facts"><TextArea rows={4} value={facts.additionalFacts} onChange={(event) => updateClaimantFact("additionalFacts", event.target.value)} /></Field>
+          <CheckboxField
+            checked={facts.factsConfirmed}
+            onChange={(checked) => updateClaimantFact("factsConfirmed", checked)}
+            label="I reviewed and confirm the material claimant facts used in this reconsideration."
+          />
         </SectionCard>
       )}
 
