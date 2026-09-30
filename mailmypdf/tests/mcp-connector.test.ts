@@ -75,7 +75,7 @@ test("workflow state tool advertises the universal chat protocol", () => {
   assert.ok(stateTool.capabilityRequirements.some((item) => item.id === "matterState"));
 });
 
-test("CP14 and Records Request are registered only after chat-readiness certification", () => {
+test("certified factory families are registered only after chat-readiness certification", () => {
   const cp14 = getMcpWorkflowProtocolRegistration("cp14-response");
   assert.ok(cp14);
   assert.equal(cp14.certification.certified, true);
@@ -101,6 +101,23 @@ test("CP14 and Records Request are registered only after chat-readiness certific
   assert.ok(insurance.definition.inputFields.some((field) => field.id === "reasonsForDisagreement"));
   assert.ok(insurance.definition.inputFields.some((field) => field.id === "factsConfirmed"));
   assert.equal(insurance.definition.packetRecipientField?.id, "recipientAddress");
+
+  const ssdi = getMcpWorkflowProtocolRegistration("appeal-ssdi-denial");
+  assert.ok(ssdi);
+  assert.equal(ssdi.certification.certified, true);
+  assert.ok(ssdi.definition);
+  assert.equal(ssdi.definition.analysisRequired, true);
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "confirmedReconsideration"));
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "workChanges"));
+  assert.equal(ssdi.definition.packetRecipientField?.id, "recipientAddress");
+
+  const ssi = getMcpWorkflowProtocolRegistration("appeal-ssi-denial");
+  assert.ok(ssi);
+  assert.equal(ssi.certification.certified, true);
+  assert.ok(ssi.definition);
+  assert.equal(ssi.definition.analysisRequired, true);
+  assert.ok(ssi.definition.inputFields.some((field) => field.id === "incomeFacts"));
+  assert.equal(ssi.definition.packetRecipientField?.id, "recipientAddress");
 
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });

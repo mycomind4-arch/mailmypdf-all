@@ -1,5 +1,14 @@
 # MailMyPDF factory status
 
+## 2026-09-30 — SSA reconsideration becomes the third factory-artifact family
+
+- Added one shared SSA reconsideration profile registry and manifest generator for SSDI and SSI denial appeals. The generated manifest now uses the same camelCase field identifiers enforced by the shared runtime instead of maintaining separate kebab-case workflow contracts.
+- Added a family factory artifact joining canonical identity, program profile, generated manifest, runtime policy/chat contract, and start configuration. The canonical chat-execution registry now resolves both `appeal-ssdi-denial` and `appeal-ssi-denial` through that artifact.
+- Added the missing SSA runtime chat contract, including required source-document analysis, claimant facts, explicit reconsideration confirmation, recipient-address binding, and the existing source/fact/review/mailing gates. Canonical chat readiness therefore moves from 21 to 23 executable workflows when the full connector tool surface is present.
+- Replaced both local SSA manifest modules and runtime-policy modules with projections of the shared artifact so the legacy workflow folders no longer own divergent execution contracts.
+- Added shared SSA factory/chat certification tests plus MCP registration coverage for both SSDI and SSI. CI verification is required before treating this branch as merged/production-ready.
+- Remaining SSA factory boundary: the web start implementations are still large workflow-specific components. The next slice is a shared SSA reconsideration start shell driven by `startConfig`; only after that should the materializer gain a family-level `ssa-reconsideration` template and adopt the static route wrappers.
+
 ## 2026-09-29 — Records Request becomes the second factory-artifact family
 
 - Added one shared Records Request profile registry for the five currently executable request workflows. Workflow title, records-sought guidance, and optional context-document labels no longer need to be repeated independently by web start wrappers and chat binding.
