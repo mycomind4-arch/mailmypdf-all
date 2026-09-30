@@ -23,6 +23,8 @@ const routeTargets = [
   ["/dashboard/settings", "src/routes/_authenticated/dashboard/settings.tsx", "/_authenticated/dashboard/settings"],
   ["/dashboard/workflows", "src/routes/_authenticated/dashboard/workflows/index.tsx", "/_authenticated/dashboard/workflows/"],
   ["/send", "src/routes/send.tsx", "/send"],
+  ["/admin/orders/$id", "src/routes/_authenticated/admin/orders/$id.tsx", "/_authenticated/admin/orders/$id"],
+  ["/admin/publications/$publicationId/$runId", "src/routes/_authenticated/admin/publications/$publicationId.$runId.tsx", "/_authenticated/admin/publications/$publicationId/$runId"],
 ];
 
 test("authenticated and admin navigation targets resolve to real routes", () => {
@@ -102,4 +104,10 @@ test("audit log is backed by real server data rather than demo rows", () => {
 test("entitlements page does not advertise an edit action that has no implementation", () => {
   const entitlements = source("src/routes/_authenticated.admin.entitlements.tsx");
   assert.equal(entitlements.includes(">Edit<"), false);
+});
+
+test("Studio factory control is an in-Studio action rather than a dead route", () => {
+  const studio = source("src/components/admin-studio.tsx");
+  assert.equal(studio.includes('href="/studio/factory"'), false);
+  assert.match(studio, /onClick=\{\(\) => setLeftPanelView\("library"\)\}/);
 });
