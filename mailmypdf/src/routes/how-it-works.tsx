@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader, SiteFooter } from "@/components/site-chrome";
 
 export const Route = createFileRoute("/how-it-works")({
@@ -30,6 +30,34 @@ export const Route = createFileRoute("/how-it-works")({
             </div>
           ))}
         </div>
+
+        <section className="mt-16 rounded-3xl border border-cobalt/20 bg-cobalt/5 p-6 sm:p-8">
+          <div className="text-[10px] font-semibold uppercase tracking-[.18em] text-cobalt">Use it from ChatGPT</div>
+          <h2 className="mt-3 font-serif text-3xl">The same controlled mailing flow can start in a conversation.</h2>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
+            After connecting your MailMyPDF account to ChatGPT, you can draft a letter there or use an existing PDF.
+            MailMyPDF still prepares the exact mailing, verifies addresses, shows the price, and keeps approval and payment
+            as separate steps.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {[
+              "Draft or revise the letter in ChatGPT, or attach the PDF you want to mail.",
+              "Review the exact PDF, sender, recipient, service, color choice, and total.",
+              "Approve the exact mailing. Approval by itself never charges a card.",
+              "Use hosted checkout or separately confirm a saved payment method and send-now request.",
+            ].map((item, index) => (
+              <div key={item} className="flex gap-3 rounded-xl border border-rule bg-card p-4 text-sm leading-6 text-muted-foreground">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
+                  {index + 1}
+                </span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/chatgpt" className="mt-6 inline-flex items-center rounded-full bg-cobalt px-5 py-2.5 text-sm font-semibold text-white hover:bg-cobalt/90">
+            Read the ChatGPT connector guide
+          </Link>
+        </section>
       </main>
       <SiteFooter />
     </>
