@@ -4,14 +4,14 @@
 // packages. A workflow only appears here once it genuinely has a real
 // start implementation; there is no fallback to apps/verticals/**.
 //
-// Every import below is a real top-level workflow's own start component,
-// matching @mailmypdf/workflows' WORKFLOW_EXECUTION_REGISTRY "executable"
-// entries exactly -- do not add an entry here without a matching registry
-// record, and do not add a registry record without a real entry here.
+// Static imports below cover executable workflows that need a dedicated
+// component. Certified profile-driven families can be rendered generically,
+// but only when canonical execution metadata AND the family profile registry
+// agree. There is never a generic unknown-workflow fallback.
 
 import type { ComponentType } from "react"
 import NoticeResponseWorkflow from "@mailmypdf/notice-respond/shared/NoticeResponseWorkflow"
-import { workflowById } from "@mailmypdf/workflows"
+import { getNoticeResponseWorkflowProfile, workflowById } from "@mailmypdf/workflows"
 
 import AppealCarInsuranceClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-car-insurance-claim/start"
 import AppealDeniedClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-denied-claim/start"
@@ -92,7 +92,8 @@ export function workflowStartComponent(sectionId: string, workflowId: string): C
   const canonical = workflowById(`${sectionId}/${workflowId}`)
   if (
     canonical?.execution?.kind === "platform" &&
-    canonical.execution.policyFamily === "notice-response"
+    canonical.execution.policyFamily === "notice-response" &&
+    getNoticeResponseWorkflowProfile(workflowId)
   ) {
     return noticeResponseStartComponent(workflowId)
   }
