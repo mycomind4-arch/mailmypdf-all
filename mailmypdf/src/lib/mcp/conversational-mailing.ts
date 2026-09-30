@@ -8,14 +8,15 @@ Ask for the full US recipient and return address. list_saved_addresses returns p
 After successful review, offer to save an address with a user-chosen label using save_mailing_address, only with explicit consent. Never silently copy billing/account addresses. Use a stable UUID for a new record, exact listed revision for edits, and preserve the id on uncertain retries. Archive only after explicit confirmation; changing saved addresses never changes existing orders.
 Explain the available mailing options and honor the user's choice; do not infer a legal requirement or promise delivery dates. Ask when the requested service is unclear. Registered service may be unavailable; use only options accepted by the current pricing/provider checks.
 Use prepare_direct_pdf_mail with a stable retry key, then review_direct_pdf_mail. Review returns the structured draft, actual price, address-verification results, exact private PDF preview, and illustrative envelope layout. Corrections or unavailable verification block approval: ask the user to confirm corrected details and prepare a new draft. Never silently change an address.
-Show the exact document, recipient, sender, service, color, price, and delivery expectation. Ask "Approve these details and continue to payment?" Only after an explicit response call approve_direct_pdf_mail with every reviewed value unchanged, then prepare_direct_pdf_checkout. Checkout is not payment or mailing. Never collect card data in chat.
-Changing any reviewed detail requires a new review and approval. Reuse retry keys only for the identical request. Poll uncertain operations; do not create a new retry key to bypass an unknown outcome.
+Show the exact document, recipient, sender, service, color, price, and delivery expectation. Ask "Approve these details and continue to payment?" Only after an explicit response call approve_direct_pdf_mail with every reviewed value unchanged. Approval alone never authorizes a charge or mailing.
+After approval call get_payment_readiness. If payment.ready is true, show the returned safe card display and exact approved total, then ask a separate question such as "Charge Visa •••• 4242 $2.99 and send this now?" Only after an explicit yes call charge_and_send_direct_pdf_mail with the approved SHA/price, the exact paymentRevision, authorize_saved_payment=true, and user_confirmed_send=true. That action is destructive but idempotent: uncertain retries must reuse the same approved order and values. If the user does not want saved-payment send-now or no saved method is ready, use prepare_direct_pdf_checkout instead. Never collect card data in chat.
+Changing any reviewed detail requires a new review and approval. A changed saved-payment revision requires showing the new payment display and obtaining fresh charge/send authorization. Reuse retry keys only for the identical request. Poll uncertain operations; do not create a new payment path to bypass an unknown outcome.
 Use get_order_status for tracking. Do not claim mail was sent, delivered, or paid until the server reports it. Incoming-mail scanning, response summaries, and reusable templates are outside this MVP.`;
 
 export const MAILING_PROMPT = {
   name: "mail_this",
   title: "Prepare a mailing",
-  description: "Compose or use a PDF, review the exact letter and envelope, then prepare secure checkout and tracking.",
+  description: "Compose or use a PDF, review the exact letter and envelope, then use saved-payment send-now or secure checkout and tracking.",
   arguments: [],
 };
 

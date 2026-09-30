@@ -52,6 +52,10 @@ import {
   ScheduledMailError,
 } from "@/lib/scheduled-mail.server";
 import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
+import {
+  chargeAndSendDirectPdfMail,
+  ImmediateMailError,
+} from "@/lib/immediate-mail.server";
 import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
 
 export class McpToolExecutionError extends Error {
@@ -553,6 +557,27 @@ export async function executeMcpTool(
     } catch (error) {
       if (error instanceof McpDirectMailError) {
         throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "charge_and_send_direct_pdf_mail") {
+    try {
+      return await chargeAndSendDirectPdfMail(request, {
+        orderId: args.order_id,
+        expectedPacketSha256: args.expected_packet_sha256,
+        expectedTotalCents: args.expected_total_cents,
+        expectedPaymentRevision: args.expected_payment_revision,
+        authorizeSavedPayment: args.authorize_saved_payment,
+        userConfirmedSend: args.user_confirmed_send,
+      });
+    } catch (error) {
+      if (error instanceof ImmediateMailError) {
+        throw new McpToolExecutionError(error.status, error.message, {
+          ...(error.code ? { code: error.code } : {}),
+          ...(error.details ?? {}),
+        });
       }
       throw error;
     }

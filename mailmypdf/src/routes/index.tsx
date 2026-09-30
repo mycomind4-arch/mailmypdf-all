@@ -48,13 +48,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Mail a PDF or write a letter online without a printer. Review your document, choose mailing options, and see the full price before checkout with MailMyPDF.",
+          "Mail a PDF or write a letter online without a printer—or use MailMyPDF from ChatGPT. Review the exact document, mailing details, and full price before payment.",
       },
       { property: "og:title", content: "Mail a PDF or Letter Online | MailMyPDF" },
       {
         property: "og:description",
         content:
-          "Upload a PDF or write a letter. Review every page, choose your mailing options, and see the full price before checkout.",
+          "Upload a PDF, write a letter, or start from ChatGPT. Review the exact mailing, approve it, choose payment, and track what happens next.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: absoluteUrl("/") },
@@ -110,6 +110,7 @@ function LandingPage() {
       <SiteHeader />
       <main>
         <HomepageHero />
+        <ChatGptConnectorSpotlight />
         <ChooseYourPath />
         <HomepageHowItWorks />
         <HomepagePromise />
@@ -137,14 +138,14 @@ function HomepageHero() {
           </h1>
           <p className="mt-4 max-w-[380px] text-[15px] leading-[1.45] text-white/90">
             MailMyPDF helps you create, complete, and mail the right letters for government agencies,
-            businesses, and more — with confidence, speed, and proof.
+            businesses, and more — on the web or from ChatGPT, with review, approval, and proof built in.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-brand px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
               Start a Matter <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
-              Explore Workflows
+            <Link to="/chatgpt" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
+              Use with ChatGPT
             </Link>
           </div>
           <div className="mt-8 grid max-w-[480px] grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
@@ -161,6 +162,71 @@ function HomepageHero() {
           </div>
         </div>
         <HeroLetterVisual />
+      </div>
+    </section>
+  );
+}
+
+function ChatGptConnectorSpotlight() {
+  return (
+    <section className="border-b border-rule/60 bg-card">
+      <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 sm:py-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:px-[52px]">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-cobalt/20 bg-cobalt/5 px-3 py-1.5 text-[11px] font-semibold text-cobalt">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            New: use MailMyPDF from ChatGPT
+          </div>
+          <h2 className="mt-4 max-w-xl font-serif text-3xl leading-tight text-foreground sm:text-[2.3rem]">
+            Write it in chat. Review it. Mail it for real.
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
+            Connect your MailMyPDF account to ChatGPT to draft a letter conversationally or use an
+            existing PDF. MailMyPDF creates the exact mailing, verifies the addresses, shows the price,
+            and keeps payment and final sending behind explicit confirmation.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/chatgpt"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-cobalt px-5 text-sm font-semibold text-white transition hover:bg-cobalt/90"
+            >
+              See how ChatGPT mailing works <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/account/setup"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-rule bg-card px-5 text-sm font-semibold text-foreground transition hover:border-cobalt/30 hover:text-cobalt"
+            >
+              Set up my account
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              step: "1",
+              title: "Prepare",
+              copy: "Draft in ChatGPT or attach the PDF you already have.",
+            },
+            {
+              step: "2",
+              title: "Review",
+              copy: "See the exact PDF, addresses, service, and total before approval.",
+            },
+            {
+              step: "3",
+              title: "Send",
+              copy: "Use secure checkout or separately confirm a saved card and send-now request.",
+            },
+          ].map((item) => (
+            <div key={item.step} className="rounded-2xl border border-rule bg-paper-deep/30 p-4">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
+                {item.step}
+              </div>
+              <h3 className="mt-3 text-sm font-semibold text-foreground">{item.title}</h3>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.copy}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

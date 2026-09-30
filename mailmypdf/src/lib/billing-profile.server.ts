@@ -83,6 +83,7 @@ export async function getPaymentReadiness(request: Request, returnTo?: string) {
   return {
     accountReady: true,
     payment: toPublicSavedPaymentSummary(savedMethod(profile)),
+    paymentRevision: profile?.revision ?? 0,
     setupUrl: setupUrl(returnTo),
     chargingAuthorized: false,
     note:

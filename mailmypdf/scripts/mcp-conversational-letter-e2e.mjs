@@ -198,10 +198,10 @@ ok("exact reviewed draft approval was recorded");
 
 status=await callTool("get_order_status",{order_id:orderId});
 if(status?.order?.directMail?.approval?.status!=="current") fail("approval was not recoverable from order status",status);
-if(status?.order?.directMail?.nextAction?.toolName!=="prepare_direct_pdf_checkout"){
-  fail("approved draft did not resume at checkout preparation",status);
+if(status?.order?.directMail?.nextAction?.toolName!=="get_payment_readiness"){
+  fail("approved draft did not resume at saved-payment readiness",status);
 }
-ok("approved draft resumes at checkout preparation without creating checkout");
+ok("approved draft resumes at saved-payment readiness without creating a charge or checkout");
 
 if(!allowCheckout){
   console.log("\nResult");

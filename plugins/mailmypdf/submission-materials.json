@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, optional tokenized saved-payment readiness, explicit immutable approval, Stripe-hosted checkout/setup, physical mailing status, and tracking.",
+  "releaseNotes": "MailMyPDF connector submission: secure workflow execution plus conversational letter composition, exact PDF and envelope review, owner-scoped addresses, tokenized saved-payment readiness, explicit immutable approval, separately confirmed idempotent saved-payment send-now, Stripe-hosted checkout/setup, scheduled mailing, physical mailing status, and tracking.",
   "availability": [
     "US"
   ],
@@ -154,6 +154,11 @@
       "readOnlyHint": "True because it only reads the connected account's sanitized saved-payment readiness and setup URL.",
       "destructiveHint": "False because it cannot create a charge, approve a mailing, change a payment method, or submit mail.",
       "openWorldHint": "False because it reads bounded MailMyPDF account state and does not contact Stripe during the tool call."
+    },
+    "charge_and_send_direct_pdf_mail": {
+      "readOnlyHint": "False because it charges the connected account's tokenized saved payment method and advances an exact approved mailing toward provider submission.",
+      "destructiveHint": "True because a successful call can create a real payment charge and physical mailing after separate explicit user authorization.",
+      "openWorldHint": "True because it contacts Stripe, postal address verification, and the configured mailing provider while enforcing immutable approval and idempotency boundaries."
     },
     "schedule_direct_pdf_mail": {
       "readOnlyHint": "False because it persists an owned future mailing schedule and the user's explicit saved-payment authorization for that exact approved mailing.",

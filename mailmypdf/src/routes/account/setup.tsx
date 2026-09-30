@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
 
@@ -13,6 +13,7 @@ type PaymentReadiness = {
     brand: string | null;
     last4: string | null;
   };
+  paymentRevision: number;
   setupUrl: string;
   chargingAuthorized: false;
   note: string;
@@ -136,13 +137,25 @@ function AccountSetupPage() {
             MailMyPDF account setup
           </div>
           <h1 className="mt-2 font-serif text-3xl text-foreground">
-            Make future approved mailings seamless
+            Prepare your account for website or ChatGPT mailing
           </h1>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            Your MailMyPDF account is required for connector access. Adding a payment method is optional,
-            but it allows a future mailing you explicitly approve in chat to continue without a separate
-            checkout visit.
+            Your MailMyPDF account owns your documents, approvals, payment setup, and mailing records.
+            Adding a payment method is optional, but it can let an explicitly approved ChatGPT mailing
+            continue without a separate checkout visit.
           </p>
+
+          <div className="mt-5 rounded-xl border border-cobalt/20 bg-cobalt/5 p-4">
+            <div className="text-sm font-semibold text-foreground">Using MailMyPDF from ChatGPT?</div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Finish account setup here, then connect MailMyPDF from ChatGPT's available Apps or Plugins area.
+              In chat, MailMyPDF will still show the exact mailing and price before approval, and saved-payment
+              send-now requires a separate charge confirmation.
+            </p>
+            <Link to="/chatgpt" className="mt-2 inline-flex text-xs font-semibold text-cobalt hover:text-cobalt/80">
+              View the ChatGPT setup guide →
+            </Link>
+          </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-rule p-4">

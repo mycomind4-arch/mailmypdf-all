@@ -105,6 +105,7 @@ let tools = [];
     "prepare_direct_pdf_mail",
     "approve_direct_pdf_mail",
     "prepare_direct_pdf_checkout",
+    "charge_and_send_direct_pdf_mail",
     "schedule_direct_pdf_mail",
     "cancel_scheduled_mail",
     "create_matter",
@@ -123,11 +124,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 32) {
-    fail(`expected 32 MCP tools, found ${tools.length}`);
+  if (tools.length !== 33) {
+    fail(`expected 33 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 32-tool surface");
+  ok("tools/list exposes the expected 33-tool surface");
 }
 
 {

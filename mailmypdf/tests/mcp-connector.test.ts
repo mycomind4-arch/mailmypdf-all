@@ -59,9 +59,10 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
+  assert.ok(names.includes("charge_and_send_direct_pdf_mail"));
   assert.ok(names.includes("schedule_direct_pdf_mail"));
   assert.ok(names.includes("cancel_scheduled_mail"));
-  assert.equal(names.length, 32);
+  assert.equal(names.length, 33);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -239,6 +240,7 @@ test("saved-payment readiness is read-only and never authorizes charging", () =>
     properties?: Record<string, unknown>;
   };
   assert.ok(schema.properties?.payment);
+  assert.ok(schema.properties?.paymentRevision);
   assert.equal("stripe_customer_id" in (schema.properties ?? {}), false);
   assert.equal("default_payment_method_id" in (schema.properties ?? {}), false);
 });
@@ -434,13 +436,15 @@ test("conversational letter preparation is review-only and requires exact text p
   assert.ok(!prepare.capabilityRequirements.some((item) => item.id === "approval"));
 });
 
-test("direct PDF mailing keeps preparation, approval, and checkout as separate tools", () => {
+test("direct PDF mailing keeps preparation, approval, and payment execution as separate tools", () => {
   const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_mail");
   const approve = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "approve_direct_pdf_mail");
   const checkout = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_checkout");
+  const immediate = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "charge_and_send_direct_pdf_mail");
   assert.ok(prepare);
   assert.ok(approve);
   assert.ok(checkout);
+  assert.ok(immediate);
 
   const approveRequired = (approve.inputSchema.required ?? []) as string[];
   assert.deepEqual([...approveRequired].sort(), [
@@ -456,6 +460,22 @@ test("direct PDF mailing keeps preparation, approval, and checkout as separate t
   assert.equal(approve.annotations.destructiveHint, false);
   assert.equal(checkout.annotations.destructiveHint, false);
   assert.equal(checkout.annotations.openWorldHint, true);
+
+  const immediateRequired = (immediate.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...immediateRequired].sort(), [
+    "authorize_saved_payment",
+    "expected_packet_sha256",
+    "expected_payment_revision",
+    "expected_total_cents",
+    "order_id",
+    "user_confirmed_send",
+  ]);
+  assert.equal(immediate.annotations.readOnlyHint, false);
+  assert.equal(immediate.annotations.destructiveHint, true);
+  assert.equal(immediate.annotations.idempotentHint, true);
+  assert.equal(immediate.annotations.openWorldHint, true);
+  assert.ok(immediate.capabilityRequirements.some((item) => item.id === "savedPayment"));
+  assert.ok(immediate.capabilityRequirements.some((item) => item.id === "payment"));
 });
 
 test("remote attachment URLs reject local/private/nonstandard targets", () => {
@@ -699,6 +719,7 @@ test("direct order status derives safe conversational-mail resume state", () => 
     page_count: 1,
     vertical_slug: null,
     email: "owner@example.com",
+    payment_execution_key: null,
   };
 
   const reviewed = normalizeOrderStatus(baseOrder, [
@@ -779,7 +800,44 @@ test("direct order status derives safe conversational-mail resume state", () => 
   assert.equal(approved.directMail?.approval.status, "current");
   assert.equal(
     approved.directMail?.nextAction?.toolName,
-    "prepare_direct_pdf_checkout",
+    "get_payment_readiness",
+  );
+
+  const immediateActive = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+      payment_execution_key: "immediate:direct-1:bbbbbbbbbbbbbbbb:899:2",
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+  assert.equal(immediateActive.directMail?.paymentExecution?.kind, "immediate_saved_payment");
+  assert.equal(
+    immediateActive.directMail?.nextAction?.toolName,
+    "charge_and_send_direct_pdf_mail",
   );
 
   const scheduled = normalizeOrderStatus(
@@ -1006,7 +1064,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 32);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 33);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -1050,7 +1108,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 32);
+  assert.equal(payload.result.tools.length, 33);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
@@ -1063,6 +1121,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_mail"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_direct_pdf_mail"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_checkout"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "charge_and_send_direct_pdf_mail"));
 });
 
 test("preview_packet binds the review UI and recipient identity", () => {
