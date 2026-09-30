@@ -166,7 +166,16 @@ for (const specPath of specPaths) {
   }
 }
 
-if (write && registryChanged) writeCanonicalRegistry();
+if (write && registryChanged) {
+  writeCanonicalRegistry();
+  const { projectWorkflowInventory } = await import(
+    "../packages/workflows/src/canonical-workflow-registry"
+  );
+  writeFileSync(
+    join(repoRoot, "mailmypdf/WORKFLOW_INVENTORY.json"),
+    JSON.stringify(projectWorkflowInventory(), null, 2) + "\n",
+  );
+}
 
 if (!write && drift.length > 0) {
   console.error(
@@ -184,7 +193,7 @@ if (!write && drift.length > 0) {
   );
   if (write && registryChanged) {
     console.log(
-      "Canonical registry changed. Run pnpm registry:generate before committing.",
+      "Canonical registry and WORKFLOW_INVENTORY.json were regenerated together.",
     );
   }
 }
