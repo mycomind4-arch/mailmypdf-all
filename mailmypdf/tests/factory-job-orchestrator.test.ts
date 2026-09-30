@@ -84,9 +84,19 @@ test("factory GitHub executor is isolated, non-destructive, and CI-gated", () =>
   assert.match(source, /createBranch/);
   assert.match(source, /createTree/);
   assert.match(source, /createPullRequest/);
+  assert.match(source, /Factory generated workflow verification/);
   assert.match(source, /Shared capability verification/);
   assert.match(source, /Records Request verification/);
   assert.match(source, /Public workflow landing gate/);
   assert.match(source, /Workspace UI verification/);
   assert.doesNotMatch(source, /mergePullRequest|deployProduction|prepare_checkout|submit.*mail|charge/i);
+});
+
+
+test("generated workflow verification checks the canonical Records Request chat surface", () => {
+  const source = read("../scripts/verify-factory-workflow.ts");
+  assert.match(source, /canonicalChatFactoryReport/);
+  assert.match(source, /policyFamily === "records-request"/);
+  assert.match(source, /!entry\.chatExecutable/);
+  assert.doesNotMatch(source, /report\.executable/);
 });
