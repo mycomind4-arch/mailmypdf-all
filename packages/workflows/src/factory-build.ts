@@ -162,9 +162,10 @@ function workflowInventoryContent(seeds: readonly WorkflowSeed[]): string {
  */
 export function buildReviewedFactoryRepositoryPlan(
   request: ReviewedFactoryTemplateRequest,
+  baseSeeds: readonly WorkflowSeed[] = canonicalSeeds as readonly WorkflowSeed[],
 ): ReviewedFactoryRepositoryPlan {
   const build = buildReviewedFactoryTemplatePlan(request);
-  const seeds = [...(canonicalSeeds as readonly WorkflowSeed[])];
+  const seeds = [...baseSeeds];
 
   if (seeds.some((seed) => seed.id === build.canonicalId)) {
     throw new Error(
