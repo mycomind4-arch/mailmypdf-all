@@ -9,6 +9,10 @@ export function workflowRegistryTopologyIssues(root, sectionIds, input) {
   const exists = (path) => existsSync(resolve(root, path));
   const startSource = readFileSync(resolve(root, "mailmypdf/src/lib/workflow-start-registry.tsx"), "utf8");
   const starts = [...startSource.matchAll(/^\s+"([a-z0-9-]+):([a-z0-9-]+)":/gm)].map((match) => `${match[1]}/${match[2]}`);
+  const factoryFamilies = new Set(
+    [...startSource.matchAll(/canonical\.execution\.policyFamily\s*===\s*"([a-z0-9-]+)"/g)]
+      .map((match) => match[1]),
+  );
   const executableIds = new Set();
   for (const workflow of workflows) {
     if (!/^[a-z0-9-]+\/[a-z0-9-]+$/.test(workflow.id)) {
@@ -26,7 +30,14 @@ export function workflowRegistryTopologyIssues(root, sectionIds, input) {
       for (const file of [workflow.execution.definition === "step-workflow" ? "step-workflow.ts" : "manifest.ts", "start/index.tsx"]) {
         if (!exists(`${path}/${file}`)) issues.push(`Missing execution implementation ${file}: ${workflow.id}`);
       }
-      if (workflow.execution.entry === "workspace-start" && !starts.includes(workflow.id)) {
+      if (
+        workflow.execution.entry === "workspace-start" &&
+        !starts.includes(workflow.id) &&
+        !(
+          workflow.execution.kind === "platform" &&
+          factoryFamilies.has(workflow.execution.policyFamily)
+        )
+      ) {
         issues.push(`Missing workspace start component: ${workflow.id}`);
       }
       if (workflow.execution.entry === "public-start" &&
