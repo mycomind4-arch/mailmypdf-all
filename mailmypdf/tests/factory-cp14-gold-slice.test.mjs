@@ -10,35 +10,54 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-test("CP14 factory gold slice is mounted in the authenticated host", () => {
+test("CP14 factory gold slice is mounted through the generic Notice Respond family", () => {
   const registry = read("mailmypdf/src/lib/workflow-start-registry.tsx");
-  assert.match(
-    registry,
-    /import Cp14ResponseStart from "@mailmypdf\/notice-respond\/workflows\/cp14-response\/start"/,
-  );
-  assert.match(
-    registry,
-    /"notice-respond:cp14-response": Cp14ResponseStart/,
-  );
+  assert.match(registry, /NoticeResponseWorkflow/);
+  assert.match(registry, /workflowById/);
+  assert.match(registry, /canonical\.execution\.policyFamily === "notice-response"/);
+  assert.match(registry, /noticeResponseStartComponent\(workflowId\)/);
+  assert.equal(registry.includes("Cp14ResponseStart"), false);
 });
 
 
 
-test("every canonical executable workflow has exactly one authenticated start renderer", () => {
+test("every canonical executable workflow is covered by a static or factory-family renderer", () => {
   const seeds = JSON.parse(read("packages/workflows/src/canonical-workflows.json"));
-  const expected = seeds
-    .filter((seed) => seed.execution)
+  const executable = seeds.filter((seed) => seed.execution);
+  const factoryNotice = executable
+    .filter(
+      (seed) =>
+        seed.execution.kind === "platform" &&
+        seed.execution.policyFamily === "notice-response",
+    )
+    .map((seed) => seed.id.replace("/", ":"))
+    .sort();
+  const expectedStatic = executable
+    .filter(
+      (seed) =>
+        !(
+          seed.execution.kind === "platform" &&
+          seed.execution.policyFamily === "notice-response"
+        ),
+    )
     .map((seed) => seed.id.replace("/", ":"))
     .sort();
 
   const registry = read("mailmypdf/src/lib/workflow-start-registry.tsx");
-  const actual = [...registry.matchAll(/^\s*"([^"]+)":\s*[A-Za-z0-9_]+,/gm)]
+  const actualStatic = [...registry.matchAll(/^\s*"([^"]+)":\s*[A-Za-z0-9_]+,/gm)]
     .map((match) => match[1])
     .sort();
 
-  assert.equal(expected.length, 30);
-  assert.deepEqual(actual, expected);
-  assert.equal(new Set(actual).size, actual.length);
+  assert.equal(executable.length, 30);
+  assert.deepEqual(factoryNotice, [
+    "notice-respond:cp14-response",
+    "notice-respond:cp2000-response",
+    "notice-respond:cp504-response",
+    "notice-respond:irs-balance-due-notice-response",
+    "notice-respond:irs-penalty-notice-response",
+  ]);
+  assert.deepEqual(actualStatic, expectedStatic);
+  assert.equal(new Set(actualStatic).size, actualStatic.length);
 });
 
 test("CP14 checked-in landing and start artifacts match the factory topology", () => {
