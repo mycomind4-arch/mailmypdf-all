@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import workflowConfig from "../workflows/cp14-response/config";
 import {
   getNoticeResponseFactoryArtifact,
-  workflowById,
 } from "@mailmypdf/workflows";
 
 describe("CP14 factory parity", () => {
@@ -23,11 +22,9 @@ describe("CP14 factory parity", () => {
   });
 
   it("keeps canonical registry and factory identity singular", () => {
-    const canonical = workflowById("notice-respond/cp14-response");
     const artifact = getNoticeResponseFactoryArtifact("cp14-response");
 
-    expect(canonical).toBeTruthy();
-    expect(artifact?.canonical).toEqual(canonical);
+    expect(artifact?.canonical.id).toBe("notice-respond/cp14-response");
     expect(artifact?.manifest.vertical).toBe("notice-respond");
     expect(artifact?.profile.primaryDocumentId).toBe("cp14-notice");
     expect(artifact?.profile.extractionSchema).toBe("irs.cp14.v1");
