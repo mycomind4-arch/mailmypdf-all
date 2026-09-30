@@ -88,3 +88,5 @@ export * from "./workflow-chat-contract.js";
 export * from "./chat-readiness.js";
 export * from "./chat-execution-registry.js";
 export * from "./problem-workflow-plan.js";
+
+export * from "./workflow-materialization.js";
