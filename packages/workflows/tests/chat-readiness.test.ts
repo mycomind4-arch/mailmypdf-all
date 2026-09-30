@@ -118,6 +118,26 @@ test("CP14 factory artifact plan matches the canonical public and authenticated 
   assert.ok(plan.chat.requiredTools.includes("prepare_checkout"));
 });
 
+test("every canonical Notice Respond platform workflow receives a certified artifact plan", () => {
+  const noticeWorkflows = WORKFLOW_REGISTRY.filter(
+    (workflow) =>
+      workflow.execution?.kind === "platform" &&
+      workflow.execution.policyFamily === "notice-response",
+  );
+  assert.equal(noticeWorkflows.length, 5);
+
+  for (const workflow of noticeWorkflows) {
+    const plan = canonicalWorkflowArtifactPlan(workflow.slug, AVAILABLE_TOOLS);
+    assert.ok(plan, workflow.id);
+    assert.equal(plan.canonicalId, workflow.id);
+    assert.equal(plan.startRegistryKey, `${workflow.sectionId}:${workflow.slug}`);
+    assert.equal(plan.public.href, workflow.publicHref);
+    assert.equal(plan.workspace.href, workflow.workspaceHref);
+    assert.equal(plan.chat.certified, true, workflow.id);
+    assert.deepEqual(plan.chat.diagnostics, [], workflow.id);
+  }
+});
+
 test("CP14 passes chat readiness only when manifest, runtime, gates, and tools align", () => {
   const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
   const policy = createNoticeResponseRuntimePolicy("cp14-response");
