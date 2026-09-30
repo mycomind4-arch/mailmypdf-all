@@ -1,5 +1,14 @@
 # MailMyPDF factory status
 
+## 2026-09-29 — Reviewed workflow-spec materializer
+
+- Added a generic workflow materialization plan in `@mailmypdf/workflows`. One colocated `workflow.spec.json` now deterministically projects canonical registry metadata plus materializer-owned TanStack/SEO/schema/start wrappers while leaving substantive `config.ts` copy outside generation.
+- Added `scripts/materialize-workflow-spec.ts` with repository-safe spec discovery, check/write modes, canonical enrollment, section-local insertion, generated-file ownership markers, hand-authored overwrite protection, and automatic `WORKFLOW_INVENTORY.json` regeneration when canonical enrollment changes.
+- Added root commands `pnpm workflow:materialize` and `pnpm workflow:materialize:check`. Workspace registry CI now fails on materialization drift.
+- CP2000 is the first route set adopted by the materializer: top-level landing/SEO/schema/start and MailMyPDF host landing/start are generated from its colocated spec. Both start routes resolve the same Notice Respond factory artifact used by chat execution.
+- Added shared materializer tests and CP2000 landing/factory parity coverage. The materializer currently supports the `notice-response` start template only; insurance/SSDI and Records Request family templates are the next expansion targets.
+- This closes the manual canonical-enrollment + route-boilerplate gap for supported families. Human-reviewed authority/marketing copy and family-specific domain profile/rules remain intentionally outside blind generation.
+
 ## 2026-09-29 — CP14 factory vertical slice
 
 - Added a family-level Notice Respond **factory artifact** that joins the canonical workflow registry record, authored notice profile, generated manifest, runtime policy, and generated start-UI configuration into one side-effect-free contract.
