@@ -22,15 +22,23 @@ export async function studioAccessError(request: Request): Promise<Response | nu
   return adminFactoryAccessError(request, { allowQueryToken: true });
 }
 
-/** Read-only factory inspection can run remotely; machine tools remain local-only. */
-export async function adminFactoryAccessError(
+export type AdminFactoryActor = Readonly<{ userId: string }>;
+export type AdminFactoryAccessResult =
+  | Readonly<{ actor: AdminFactoryActor; error: null }>
+  | Readonly<{ actor: null; error: Response }>;
+
+/**
+ * Resolve the authenticated Studio administrator once so mutating factory
+ * routes can both enforce the boundary and attribute durable audit events.
+ */
+export async function adminFactoryAccess(
   request: Request,
   options: { allowQueryToken?: boolean } = {},
-): Promise<Response | null> {
+): Promise<AdminFactoryAccessResult> {
   const url = new URL(request.url);
   const origin = request.headers.get("origin");
   if ((origin && origin !== url.origin) || request.headers.get("sec-fetch-site") === "cross-site") {
-    return Response.json({ error: "Studio requires a same-origin request." }, { status: 403 });
+    return { actor: null, error: Response.json({ error: "Studio requires a same-origin request." }, { status: 403 }) };
   }
 
   const authorization = request.headers.get("authorization");
@@ -40,7 +48,7 @@ export async function adminFactoryAccessError(
   const supabaseUrl = process.env.SUPABASE_URL;
   const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!token || !supabaseUrl || !publishableKey) {
-    return Response.json({ error: "Administrator authentication is required." }, { status: 401 });
+    return { actor: null, error: Response.json({ error: "Administrator authentication is required." }, { status: 401 }) };
   }
 
   const supabase = createClient<Database>(supabaseUrl, publishableKey, {
@@ -50,7 +58,7 @@ export async function adminFactoryAccessError(
   const { data: claims, error: claimsError } = await supabase.auth.getClaims(token);
   const userId = claims?.claims?.sub;
   if (claimsError || !userId) {
-    return Response.json({ error: "Administrator authentication is required." }, { status: 401 });
+    return { actor: null, error: Response.json({ error: "Administrator authentication is required." }, { status: 401 }) };
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -61,8 +69,16 @@ export async function adminFactoryAccessError(
     .eq("role", "admin")
     .maybeSingle();
   if (roleError || !adminRole) {
-    return Response.json({ error: "Administrator access is required." }, { status: 403 });
+    return { actor: null, error: Response.json({ error: "Administrator access is required." }, { status: 403 }) };
   }
 
-  return null;
+  return { actor: Object.freeze({ userId }), error: null };
+}
+
+/** Authenticated factory control-plane requests can run remotely; shell/machine tools remain local-only. */
+export async function adminFactoryAccessError(
+  request: Request,
+  options: { allowQueryToken?: boolean } = {},
+): Promise<Response | null> {
+  return (await adminFactoryAccess(request, options)).error;
 }
