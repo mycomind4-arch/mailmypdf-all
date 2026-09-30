@@ -142,7 +142,7 @@ function ChatGptConnectorPage() {
                   MailMyPDF prepares the exact letter PDF, verifies the addresses, and returns the review and price.
                 </div>
                 <div className="mt-3 rounded-2xl bg-white p-4 text-sm leading-6 text-foreground shadow-sm">
-                  “Approve it. Charge my saved Visa ending in 4242 for $2.99 and send it now.”
+                  “Approve it. Charge my saved Visa ending in 4242 for the exact total shown and send it now.”
                 </div>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
