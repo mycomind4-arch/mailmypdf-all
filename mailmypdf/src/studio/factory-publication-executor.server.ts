@@ -109,16 +109,16 @@ export async function publishPersistentFactoryProposal(input: {
   }
 
   await git(rootDir, ["fetch", "origin", project.defaultBranch]);
-  await git(rootDir, [
-    "merge-base",
-    "--is-ancestor",
-    current.buildArtifact.baseSha,
+  const { stdout: currentBaseOut } = await git(rootDir, [
+    "rev-parse",
     `origin/${project.defaultBranch}`,
-  ]).catch(() => {
+  ]);
+  const currentBase = currentBaseOut.trim();
+  if (currentBase !== current.buildArtifact.baseSha) {
     throw new Error(
-      "The accepted factory base is no longer an ancestor of the current default branch. Rebuild the proposal before publishing.",
+      `The default branch moved after factory acceptance: accepted ${current.buildArtifact.baseSha}, current ${currentBase}. Rebuild the proposal before publishing.`,
     );
-  });
+  }
 
   const remoteBefore = await git(rootDir, [
     "ls-remote",
