@@ -78,20 +78,20 @@ test("factory job stops at a reviewed template boundary instead of inventing a b
     job,
     "2026-09-30T20:03:00.000Z",
     {
-      id: "records-request/mars-colony-records",
+      id: "records-request/mars-colony-records-request",
       label: "Mars Colony Records Request",
       startTemplate: "records-request",
     },
   ).job;
   assert.equal(job.status, "queued");
   assert.equal(job.stage, "build");
-  assert.equal(job.build?.canonicalId, "records-request/mars-colony-records");
+  assert.equal(job.build?.canonicalId, "records-request/mars-colony-records-request");
   assert.ok(job.diagnostics.some((item) => item.code === "BUILD_RECIPE_READY"));
 
   job = advanceFactoryJob(job, TOOLS, "2026-09-30T20:04:00.000Z").job;
   assert.equal(job.status, "queued");
   assert.equal(job.stage, "acceptance");
-  assert.equal(job.selectedWorkflowId, "records-request/mars-colony-records");
+  assert.equal(job.selectedWorkflowId, "records-request/mars-colony-records-request");
   assert.ok(job.build?.filePaths.some((path) => path.endsWith("/start/index.tsx")));
   assert.ok(job.diagnostics.some((item) => item.code === "ACCEPTANCE_EXECUTOR_REQUIRED"));
   assert.throws(
