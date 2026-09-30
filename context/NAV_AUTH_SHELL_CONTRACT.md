@@ -227,3 +227,18 @@ The workflow experience is deliberately split by audience:
 - The shared Studio-style sidebar points only to authenticated workspace URLs. It does not route signed-in users through public SEO pages.
 - Customer accounts see workflow availability and start actions. Server-verified admins additionally see publication, SEO/indexing, authority, review, and runtime status plus Studio controls.
 - Public hero assets remain public-content assets and may be reused for public directory cards and social metadata; authenticated workspace pages do not render them.
+
+
+## 10. 2026-09-29 admin navigation and Studio integrity pass
+
+Verified against the current canonical `mailmypdf/` app and repaired in the shared authenticated shell:
+
+- Authenticated operational navigation uses `/dashboard`, `/dashboard/orders`, `/send`, and `/dashboard/workflows`. The sidebar no longer sends signed-in users to the public `/mail-a-pdf` SEO page, and it no longer presents two labels for the same `/dashboard` destination.
+- The administrator group is explicitly **Studio / Admin** and resolves only to verified routes: `/studio`, `/admin`, `/admin/analytics`, `/admin/ai`, `/admin/publications`, `/admin/audit-log`, and `/admin/entitlements`.
+- `/studio` is the primary Studio surface; `/admin` is the operations dashboard. Both stay inside the shared authenticated sidebar shell.
+- The Audit Log route now reads real server-authorized `entitlements_audit_log` summaries, supports filters/pagination/current-page CSV export, and contains no demo rows or dead detail buttons.
+- The Entitlements route no longer displays an unimplemented Edit affordance.
+- Entitlements/Audit authorization now uses the same `user_roles.role = admin` source as the rest of core administration. `app_metadata`, `user_metadata`, and the nonexistent `super_admin` enum are not admin authorization sources.
+- `mailmypdf/tests/admin-navigation-integrity.test.mjs` locks these route, shell, authorization, and real-data invariants into CI.
+
+Evidence: `mailmypdf/src/components/authenticated-sidebar.tsx`, `mailmypdf/src/routes/_authenticated.admin.audit-log.tsx`, `mailmypdf/src/routes/_authenticated.admin.entitlements.tsx`, `mailmypdf/src/lib/entitlements-management.functions.ts`, `mailmypdf/src/lib/entitlements-management.ts`.

@@ -17,6 +17,12 @@ import { adminListEntitlements } from "@/lib/entitlements-management.functions";
 import { adminAssignEntitlement } from "@/lib/entitlements-management.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/entitlements")({
+  head: () => ({
+    meta: [
+      { title: "Entitlements — MailMyPDF Studio" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AdminEntitlementsPage,
 });
 
@@ -160,18 +166,15 @@ function EntitlementsList() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900 dark:text-slate-50">
                   Expires
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading entitlements…</td></tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading entitlements…</td></tr>
               ) : filteredEntitlements.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="px-6 py-8 text-center text-slate-500 dark:text-slate-400"
                   >
                     No entitlements found
@@ -201,11 +204,6 @@ function EntitlementsList() {
                       {e.expires_at
                         ? new Date(e.expires_at).toLocaleDateString()
                         : "Never"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <button className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium">
-                        Edit
-                      </button>
                     </td>
                   </tr>
                 ))

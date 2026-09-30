@@ -161,6 +161,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build MCP document-ingress and canonical registry dependencies
         run: pnpm --filter ./mailmypdf run prebuild
+      - name: Verify authenticated Studio and admin navigation
+        run: node --test mailmypdf/tests/admin-navigation-integrity.test.mjs
       - name: Verify MCP transport, review UI, approval, and checkout behavior
         run: pnpm --filter ./mailmypdf exec node --experimental-test-module-mocks --import tsx --test tests/mcp*.test.ts
       - name: Test Authority Gate and catalog topology invariants

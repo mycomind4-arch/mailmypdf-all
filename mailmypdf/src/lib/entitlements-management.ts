@@ -73,11 +73,10 @@ export function getQuotaMonthWindow(month: string) {
 }
 
 export function getAuditActorScope(
-  admin: { id: string; app_metadata: { role?: unknown } },
+  admin: { id: string; role: "admin" },
   requestedActor?: string,
 ) {
-  if (admin.app_metadata.role === "super_admin") return requestedActor;
-  if (admin.app_metadata.role !== "admin") {
+  if (admin.role !== "admin") {
     throw new Error("Forbidden: audit log access requires admin role");
   }
   if (requestedActor && requestedActor !== admin.id) {

@@ -1,0 +1,115 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+function source(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
+
+const routeTargets = [
+  ["/studio", "src/routes/_authenticated/studio.tsx", "/_authenticated/studio"],
+  ["/admin", "src/routes/_authenticated/admin/index.tsx", "/_authenticated/admin/"],
+  ["/admin/analytics", "src/routes/_authenticated/admin/analytics.tsx", "/_authenticated/admin/analytics"],
+  ["/admin/ai", "src/routes/_authenticated/admin/ai.tsx", "/_authenticated/admin/ai"],
+  ["/admin/publications", "src/routes/_authenticated/admin/publications.tsx", "/_authenticated/admin/publications"],
+  ["/admin/audit-log", "src/routes/_authenticated.admin.audit-log.tsx", "/_authenticated/admin/audit-log"],
+  ["/admin/entitlements", "src/routes/_authenticated.admin.entitlements.tsx", "/_authenticated/admin/entitlements"],
+  ["/dashboard", "src/routes/_authenticated/dashboard/index.tsx", "/_authenticated/dashboard/"],
+  ["/dashboard/orders", "src/routes/_authenticated/dashboard/orders.tsx", "/_authenticated/dashboard/orders"],
+  ["/dashboard/settings", "src/routes/_authenticated/dashboard/settings.tsx", "/_authenticated/dashboard/settings"],
+  ["/dashboard/workflows", "src/routes/_authenticated/dashboard/workflows/index.tsx", "/_authenticated/dashboard/workflows/"],
+  ["/send", "src/routes/send.tsx", "/send"],
+  ["/write", "src/routes/write.tsx", "/write"],
+  ["/admin/orders/$id", "src/routes/_authenticated/admin/orders/$id.tsx", "/_authenticated/admin/orders/$id"],
+  ["/admin/publications/$publicationId/$runId", "src/routes/_authenticated/admin/publications/$publicationId.$runId.tsx", "/_authenticated/admin/publications/$publicationId/$runId"],
+];
+
+test("authenticated and admin navigation targets resolve to real routes", () => {
+  for (const [href, file, routeId] of routeTargets) {
+    assert.equal(fs.existsSync(path.join(root, file)), true, href + " route file should exist");
+    const routeSource = source(file);
+    assert.equal(
+      routeSource.includes('createFileRoute("' + routeId + '")') ||
+        routeSource.includes("createFileRoute('" + routeId + "')"),
+      true,
+      href + " should resolve to " + routeId,
+    );
+  }
+});
+
+test("authenticated sidebar uses operational workspace destinations, not the public mail-a-pdf landing", () => {
+  const sidebar = source("src/components/authenticated-sidebar.tsx");
+  const primaryStart = sidebar.indexOf("export const primaryItems");
+  const primaryEnd = sidebar.indexOf("export const adminItems");
+  const primary = sidebar.slice(primaryStart, primaryEnd);
+
+  assert.match(primary, /href: "\/send"/);
+  assert.match(primary, /href: "\/write"/);
+  assert.match(primary, /href: "\/dashboard\/orders"/);
+  assert.equal(primary.includes('href: "/mail-a-pdf"'), false);
+  assert.equal((primary.match(/href: "\/dashboard",/g) ?? []).length, 1,
+    "only one primary item should target the dashboard root");
+});
+
+test("every Studio/Admin sidebar item has a real route target", () => {
+  const sidebar = source("src/components/authenticated-sidebar.tsx");
+  for (const href of [
+    "/studio",
+    "/admin",
+    "/admin/analytics",
+    "/admin/ai",
+    "/admin/publications",
+    "/admin/audit-log",
+    "/admin/entitlements",
+  ]) {
+    assert.equal(sidebar.includes('href: "' + href + '"'), true, "missing admin nav target " + href);
+  }
+});
+
+test("admin shell is server-authorized and shared with the authenticated sidebar", () => {
+  const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
+  const adminRoute = source("src/routes/_authenticated.admin.tsx");
+  const adminFunctions = source("src/lib/admin.functions.ts");
+
+  assert.match(authenticatedRoute, /<AuthenticatedSidebar/);
+  assert.match(adminRoute, /isCurrentUserAdmin/);
+  assert.match(adminFunctions, /\.from\("user_roles"\)/);
+  assert.match(adminFunctions, /\.eq\("role", "admin"\)/);
+});
+
+test("entitlements and audit authorization no longer trusts auth metadata", () => {
+  const functions = source("src/lib/entitlements-management.functions.ts");
+  const domain = source("src/lib/entitlements-management.ts");
+
+  assert.match(functions, /\.from\("user_roles"\)/);
+  assert.match(functions, /\.eq\("role", "admin"\)/);
+  assert.equal(functions.includes("app_metadata"), false);
+  assert.equal(domain.includes("app_metadata"), false);
+  assert.equal(domain.includes("super_admin"), false);
+});
+
+test("audit log is backed by real server data rather than demo rows", () => {
+  const audit = source("src/routes/_authenticated.admin.audit-log.tsx");
+
+  assert.match(audit, /listAuditLog/);
+  assert.match(audit, /authenticatedHeaders/);
+  assert.match(audit, /Export shown rows/);
+  assert.equal(audit.includes("1,247"), false);
+  assert.equal(audit.includes("a1b2c3d4"), false);
+  assert.equal(audit.includes("customer@"), false);
+});
+
+test("entitlements page does not advertise an edit action that has no implementation", () => {
+  const entitlements = source("src/routes/_authenticated.admin.entitlements.tsx");
+  assert.equal(entitlements.includes(">Edit<"), false);
+});
+
+test("Studio factory control is an in-Studio action rather than a dead route", () => {
+  const studio = source("src/components/admin-studio.tsx");
+  assert.equal(studio.includes('href="/studio/factory"'), false);
+  assert.match(studio, /onClick=\{\(\) => setLeftPanelView\("library"\)\}/);
+});
