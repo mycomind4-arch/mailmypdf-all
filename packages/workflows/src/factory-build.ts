@@ -1,3 +1,8 @@
+import canonicalSeeds from "./canonical-workflows.json" with { type: "json" };
+import {
+  buildCanonicalWorkflowRegistry,
+  type WorkflowSeed,
+} from "./canonical-workflow-registry.js";
 import {
   buildWorkflowMaterializationPlan,
   WORKFLOW_MATERIALIZATION_SPEC_VERSION,
@@ -112,5 +117,93 @@ export function buildReviewedFactoryTemplatePlan(
       ...bootstrapFiles.map((file) => file.path),
       ...materialization.files.map((file) => file.path),
     ]),
+  });
+}
+
+
+export type ReviewedFactoryRepositoryFile = Readonly<{
+  path: string;
+  content: string;
+}>;
+
+export type ReviewedFactoryRepositoryPlan = Readonly<{
+  build: ReviewedFactoryBuildPlan;
+  files: readonly ReviewedFactoryRepositoryFile[];
+}>;
+
+function canonicalRegistryContent(seeds: readonly WorkflowSeed[]): string {
+  return "[\n" + seeds.map((seed) => `  ${JSON.stringify(seed)}`).join(",\n") + "\n]\n";
+}
+
+function workflowInventoryContent(seeds: readonly WorkflowSeed[]): string {
+  const registry = buildCanonicalWorkflowRegistry(seeds);
+  const inventory = {
+    generatedFrom: "packages/workflows/src/canonical-workflows.json",
+    total: registry.length,
+    workflows: registry.map((workflow) => ({
+      id: workflow.id,
+      vertical: workflow.sectionId,
+      route: workflow.publicHref,
+      maturity: workflow.maturity,
+      hasGoldContent: workflow.legacyGoldId !== null,
+      hasApiEndpoint: workflow.execution?.kind === "platform",
+      sourceVerified: workflow.authority !== null,
+      testStatus: "pending",
+      lastReviewed: workflow.authority?.reviewedAt ?? null,
+    })),
+  };
+  return JSON.stringify(inventory, null, 2) + "\n";
+}
+
+/**
+ * Produce the exact repository patch for one reviewed new Records Request
+ * workflow. Existing canonical IDs are deliberately rejected: adoption of
+ * existing hand-authored/catalog routes needs a separate reviewed migration.
+ */
+export function buildReviewedFactoryRepositoryPlan(
+  request: ReviewedFactoryTemplateRequest,
+): ReviewedFactoryRepositoryPlan {
+  const build = buildReviewedFactoryTemplatePlan(request);
+  const seeds = [...(canonicalSeeds as readonly WorkflowSeed[])];
+
+  if (seeds.some((seed) => seed.id === build.canonicalId)) {
+    throw new Error(
+      `Autonomous factory build refuses existing canonical workflow ${build.canonicalId}; use a reviewed adoption path instead.`,
+    );
+  }
+
+  const newSeed = buildWorkflowMaterializationPlan(build.spec).canonicalSeed;
+  const lastSectionIndex = seeds.reduce(
+    (last, seed, index) =>
+      seed.id.startsWith(`${build.sectionId}/`) ? index : last,
+    -1,
+  );
+  seeds.splice(
+    lastSectionIndex >= 0 ? lastSectionIndex + 1 : seeds.length,
+    0,
+    newSeed,
+  );
+
+  // Fail closed on duplicate runtime slugs, invalid policy families, and any
+  // canonical registry invariant before emitting a remote repository patch.
+  buildCanonicalWorkflowRegistry(seeds);
+
+  const materialization = buildWorkflowMaterializationPlan(build.spec);
+  const files: ReviewedFactoryRepositoryFile[] = [
+    ...build.bootstrapFiles,
+    ...materialization.files,
+    {
+      path: "packages/workflows/src/canonical-workflows.json",
+      content: canonicalRegistryContent(seeds),
+    },
+    {
+      path: "mailmypdf/WORKFLOW_INVENTORY.json",
+      content: workflowInventoryContent(seeds),
+    },
+  ];
+
+  return Object.freeze({
+    build,
+    files: Object.freeze(files.map((file) => Object.freeze({ ...file }))),
   });
 }
