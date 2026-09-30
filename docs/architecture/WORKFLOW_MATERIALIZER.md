@@ -49,6 +49,16 @@ To intentionally convert an existing reviewed wrapper to materializer ownership:
 
 The normal CI registry job runs the check command. Generated wrapper drift therefore fails before merge.
 
+## Supervised factory builds
+
+The persistent Factory Job orchestrator now has a first local build adapter for the `records-request` template family.
+
+A reviewer-approved build request supplies only the family, workflow id, and label. The executor creates a **non-indexable scaffold** `config.ts`, a colocated `workflow.spec.json`, and a generated Records Request profile in a machine-owned registry. It then runs this materializer inside an isolated branch/worktree.
+
+Generated family profiles are separate from the hand-authored core profile list. They inherit the same shared Records Request manifest/runtime/chat contract, and the executor proves the exact new canonical ID is chat-certified before the job can reach publication review.
+
+The build executor does not push or publish its branch. The publication/PR executor is a separate boundary.
+
 ## Current start templates
 
 ### notice-response
