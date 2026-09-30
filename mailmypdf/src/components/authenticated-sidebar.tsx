@@ -19,6 +19,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Users,
   Workflow,
   X,
 } from "lucide-react"
@@ -52,7 +53,9 @@ export const primaryItems: SidebarItem[] = [
 
 export const adminItems: SidebarItem[] = [
   { label: "Studio", href: "/studio", icon: Sparkles, exact: true },
+  { label: "Workflow Builder", href: "/studio/builder", icon: Workflow },
   { label: "Operations", href: "/admin", icon: Home, exact: true },
+  { label: "Users", href: "/admin/users", icon: Users },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "AI Control Plane", href: "/admin/ai", icon: Bot },
   { label: "Publications", href: "/admin/publications", icon: Newspaper },
