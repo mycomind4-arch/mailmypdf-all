@@ -31,6 +31,7 @@ const STATIC_ROUTES: SitemapRoute[] = [
   { loc: "/templates", priority: "0.8", changefreq: "weekly" },
   { loc: "/solutions", priority: "0.8", changefreq: "weekly" },
   { loc: "/ecosystem", priority: "0.9", changefreq: "weekly" },
+  { loc: "/chatgpt", priority: "0.9", changefreq: "weekly" },
   { loc: "/fair-process", priority: "0.7", changefreq: "monthly" },
   { loc: "/future-self", priority: "0.7", changefreq: "monthly" },
   { loc: "/proof-of-service", priority: "0.7", changefreq: "monthly" },
