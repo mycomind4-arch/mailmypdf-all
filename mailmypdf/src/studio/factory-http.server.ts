@@ -5,8 +5,8 @@ export function factoryJobErrorResponse(error: unknown): Response {
   const status =
     /not found/i.test(message) ? 404 :
     /concurrently|revision conflict/i.test(message) ? 409 :
-    /requires review|not awaiting review|cannot advance|cannot be cancelled|requires an explicit reviewed transition|build executor/i.test(message) ? 409 :
-    /required|invalid|limited to/i.test(message) ? 400 :
+    /requires review|not awaiting review|cannot advance|cannot be cancelled|requires an explicit reviewed transition|publication executor|already exists|not ready for supervised build/i.test(message) ? 409 :
+    /required|invalid|limited to|reviewed build request|not supported by this executor/i.test(message) ? 400 :
     500;
   return Response.json({ error: message }, { status });
 }
