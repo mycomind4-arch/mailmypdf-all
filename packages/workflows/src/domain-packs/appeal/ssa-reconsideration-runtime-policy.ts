@@ -3,6 +3,7 @@ import type {
   WorkflowMatterDocument,
 } from "../../matter-runtime-client.js";
 import type { WorkflowRuntimePolicy } from "../../matter-runtime-server.js";
+import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 
 /**
  * Runtime policy for SSA reconsideration requests (SSDI and SSI denials).
@@ -101,7 +102,53 @@ export function createSsaReconsiderationRuntimePolicy(
 ): WorkflowRuntimePolicy {
   const program = SSA_RECONSIDERATION_WORKFLOWS[workflowId];
 
+  const programFields =
+    program === "SSDI"
+      ? [{ id: "workChanges", required: false }]
+      : [
+          { id: "incomeFacts", required: false },
+          { id: "resourceFacts", required: false },
+          { id: "livingArrangementFacts", required: false },
+          { id: "eligibilityFacts", required: false },
+        ];
+
   return Object.freeze({
+    chatContract: defineWorkflowRuntimeChatContract({
+      sourceDocument: "required",
+      inputFields: [
+        { id: "claimantName", required: true },
+        { id: "claimantAddress", required: true },
+        { id: "phone", required: true },
+        { id: "representativeName", required: false },
+        { id: "responseMode", required: true },
+        { id: "confirmedReconsideration", required: true },
+        { id: "reasonsForDisagreement", required: true },
+        { id: "conditionChanges", required: false },
+        { id: "newConditions", required: false },
+        { id: "treatmentChanges", required: false },
+        { id: "medicationChanges", required: false },
+        { id: "dailyFunctionChanges", required: false },
+        ...programFields,
+        { id: "additionalFacts", required: false },
+        { id: "requestedOutcome", required: false },
+        { id: "factsConfirmed", required: true },
+      ],
+      connectorFields: [
+        {
+          id: "recipientAddress",
+          required: true,
+          toolName: "preview_packet",
+          argumentName: "recipient",
+        },
+      ],
+      enforcedGateIds: [
+        "source-document-ready",
+        "facts-confirmed",
+        "exact-packet-review",
+        "mailing-authorization",
+      ],
+    }),
+
     validateMatter(input) {
       if (input.workflowId !== workflowId || input.verticalId !== VERTICAL_ID) {
         throw new Error(`${program} denial runtime identity does not match this workflow.`);
@@ -120,6 +167,9 @@ export function createSsaReconsiderationRuntimePolicy(
       if (input.responseMode !== "reconsideration" || input.confirmedReconsideration !== true) {
         throw new Error("The claimant must explicitly confirm reconsideration before continuing.");
       }
+      if (input.factsConfirmed !== true) {
+        throw new Error("The claimant must explicitly confirm the material facts before continuing.");
+      }
 
       const common = {
         claimantName: text(input.claimantName, "Claimant name", 200, true),
@@ -128,6 +178,7 @@ export function createSsaReconsiderationRuntimePolicy(
         representativeName: text(input.representativeName, "Representative name", 200),
         responseMode: "reconsideration",
         confirmedReconsideration: true,
+        factsConfirmed: true,
         reasonsForDisagreement: text(input.reasonsForDisagreement, "Reasons for disagreement", 8000, true),
         conditionChanges: text(input.conditionChanges, "Condition changes", 8000),
         newConditions: text(input.newConditions, "New conditions", 8000),
