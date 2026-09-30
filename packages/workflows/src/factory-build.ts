@@ -2,15 +2,21 @@ import {
   buildWorkflowMaterializationPlan,
   WORKFLOW_MATERIALIZATION_SPEC_VERSION,
   type WorkflowMaterializationSpec,
-  type WorkflowStartTemplate,
 } from "./workflow-materialization.js";
+
+export type ReviewedFactoryTemplateFamily = "records-request";
 
 export type ReviewedFactoryTemplateRequest = Readonly<{
   id: string;
   label: string;
-  startTemplate: WorkflowStartTemplate;
+  startTemplate: ReviewedFactoryTemplateFamily;
   authority?: WorkflowMaterializationSpec["authority"];
   legacyGoldId?: string;
+}>;
+
+export type ReviewedFactoryBootstrapFile = Readonly<{
+  path: string;
+  content: string;
 }>;
 
 export type ReviewedFactoryBuildPlan = Readonly<{
@@ -19,33 +25,81 @@ export type ReviewedFactoryBuildPlan = Readonly<{
   canonicalId: string;
   sectionId: string;
   slug: string;
+  bootstrapFiles: readonly ReviewedFactoryBootstrapFile[];
   filePaths: readonly string[];
 }>;
+
+function renderRecordsRequestConfig(slug: string, label: string): string {
+  return `import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
+
+export const workflowConfig = {
+  id: "${slug}",
+  sectionId: "records-request",
+  sectionName: "Records Requests",
+  sectionPath: "/records-request",
+  path: "/records-request/workflows/${slug}",
+  startPath: "/records-request/workflows/${slug}/start",
+  title: ${JSON.stringify(label)},
+  seoTitle: ${JSON.stringify(`${label} | Records Requests | MailMyPDF`)},
+  seoDescription: ${JSON.stringify(`Use the ${label} workflow to organize the requester, agency, records scope, supporting context, reviewable correspondence, mailing, and proof record.`)},
+  eyebrow: "Records Requests workflow",
+  heroTitle: ${JSON.stringify(label)},
+  heroDescription: ${JSON.stringify(`Use a guided ${label.toLowerCase()} workflow built around the records you want, the receiving agency, confirmed facts, optional context documents, exact review, mailing, and proof.`)},
+  indexable: false,
+  contentStatus: "scaffold",
+} as const satisfies WorkflowLandingConfig
+
+export default workflowConfig
+`;
+}
 
 export function buildReviewedFactoryTemplatePlan(
   request: ReviewedFactoryTemplateRequest,
 ): ReviewedFactoryBuildPlan {
+  if (request.startTemplate !== "records-request") {
+    throw new Error("Autonomous new-template builds currently support records-request only.");
+  }
+
+  const id = request.id.trim();
+  const label = request.label.trim();
+  if (!/^records-request\/[a-z0-9]+(?:-[a-z0-9]+)*-records-request$/.test(id)) {
+    throw new Error(
+      "Autonomous Records Request workflow IDs must use records-request/<slug>-records-request.",
+    );
+  }
+
   const spec: WorkflowMaterializationSpec = Object.freeze({
     schemaVersion: WORKFLOW_MATERIALIZATION_SPEC_VERSION,
-    id: request.id.trim(),
-    label: request.label.trim(),
+    id,
+    label,
     execution: Object.freeze({
       kind: "platform",
       entry: "workspace-start",
-      policyFamily: request.startTemplate,
+      policyFamily: "records-request",
     }),
     ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
     ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
-    startTemplate: request.startTemplate,
+    startTemplate: "records-request",
   });
 
   const materialization = buildWorkflowMaterializationPlan(spec);
+  const workflowRoot = `${materialization.sectionId}/workflows/${materialization.slug}`;
+  const bootstrapFiles = Object.freeze([
+    Object.freeze({
+      path: `${workflowRoot}/workflow.spec.json`,
+      content: JSON.stringify(spec, null, 2) + "\n",
+    }),
+    Object.freeze({
+      path: `${workflowRoot}/config.ts`,
+      content: renderRecordsRequestConfig(materialization.slug, label),
+    }),
+  ]);
 
   return Object.freeze({
     request: Object.freeze({
       id: spec.id,
       label: spec.label,
-      startTemplate: request.startTemplate,
+      startTemplate: "records-request",
       ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
       ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
     }),
@@ -53,6 +107,10 @@ export function buildReviewedFactoryTemplatePlan(
     canonicalId: materialization.canonicalSeed.id,
     sectionId: materialization.sectionId,
     slug: materialization.slug,
-    filePaths: Object.freeze(materialization.files.map((file) => file.path)),
+    bootstrapFiles,
+    filePaths: Object.freeze([
+      ...bootstrapFiles.map((file) => file.path),
+      ...materialization.files.map((file) => file.path),
+    ]),
   });
 }
