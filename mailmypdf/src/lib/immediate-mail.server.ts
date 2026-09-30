@@ -110,14 +110,14 @@ function publicPayment(profile: BillingProfileRow) {
 
 function immediateExecutionKey(
   state: ApprovedDirectMailExecutionState,
-  profile: BillingProfileRow,
+  authorizedPaymentRevision: number,
 ): string {
   return [
     "immediate",
     state.orderId,
     state.packetSha256.slice(0, 16),
     state.approvedMaxTotalCents,
-    profile.revision,
+    authorizedPaymentRevision,
   ].join(":");
 }
 
@@ -162,7 +162,7 @@ async function clearPaymentClaim(orderId: string, executionKey: string): Promise
 async function claimPaymentPath(
   state: ApprovedDirectMailExecutionState,
   executionKey: string,
-): Promise<void> {
+): Promise<{ reused: boolean }> {
   const { data: existing, error: readError } = await supabaseAdmin
     .from("orders")
     .select("status,stripe_session_id,payment_execution_key")
@@ -180,7 +180,7 @@ async function claimPaymentPath(
     );
   }
   if (existing.payment_execution_key) {
-    if (existing.payment_execution_key === executionKey) return;
+    if (existing.payment_execution_key === executionKey) return { reused: true };
     throw new ImmediateMailError(
       409,
       "Another saved-payment or scheduled execution already owns this order's payment path",
@@ -207,7 +207,7 @@ async function claimPaymentPath(
   if (claimError) {
     throw new ImmediateMailError(500, "Unable to reserve the order payment path");
   }
-  if (claimed?.length === 1) return;
+  if (claimed?.length === 1) return { reused: false };
 
   const { data: winner, error: winnerError } = await supabaseAdmin
     .from("orders")
@@ -217,7 +217,7 @@ async function claimPaymentPath(
   if (winnerError || !winner) {
     throw new ImmediateMailError(409, "The order payment path changed");
   }
-  if (winner.payment_execution_key === executionKey && !winner.stripe_session_id) return;
+  if (winner.payment_execution_key === executionKey && !winner.stripe_session_id) return { reused: true };
   if (winner.stripe_session_id) {
     throw new ImmediateMailError(
       409,
@@ -236,6 +236,7 @@ async function createOrResumePaymentIntent(args: {
   state: ApprovedDirectMailExecutionState;
   profile: BillingProfileRow;
   executionKey: string;
+  authorizedPaymentRevision: number;
 }) {
   const stripe = createStripeClient();
   let paymentIntent = await stripe.paymentIntents.create(
@@ -243,13 +244,12 @@ async function createOrResumePaymentIntent(args: {
       amount: args.state.currentTotalCents,
       currency: "usd",
       customer: args.profile.stripe_customer_id!,
-      payment_method: args.profile.default_payment_method_id!,
       metadata: {
         orderId: args.state.orderId,
         ownerId: args.state.ownerId,
         source: SOURCE,
         approvalSha256: args.state.packetSha256,
-        paymentRevision: String(args.profile.revision),
+        paymentRevision: String(args.authorizedPaymentRevision),
       },
       description: `MailMyPDF approved mailing ${args.state.orderId}`,
     },
@@ -270,7 +270,8 @@ async function createOrResumePaymentIntent(args: {
     paymentIntent.metadata?.orderId !== args.state.orderId ||
     paymentIntent.metadata?.ownerId !== args.state.ownerId ||
     paymentIntent.metadata?.source !== SOURCE ||
-    paymentIntent.metadata?.approvalSha256 !== args.state.packetSha256
+    paymentIntent.metadata?.approvalSha256 !== args.state.packetSha256 ||
+    paymentIntent.metadata?.paymentRevision !== String(args.authorizedPaymentRevision)
   ) {
     throw new ImmediateMailError(
       409,
@@ -279,7 +280,13 @@ async function createOrResumePaymentIntent(args: {
     );
   }
 
-  if (classifyScheduledPaymentIntentStatus(paymentIntent.status) === "confirm") {
+  const mayConfirmWithCurrentSavedMethod =
+    args.profile.revision === args.authorizedPaymentRevision;
+  if (
+    mayConfirmWithCurrentSavedMethod &&
+    (paymentIntent.status === "requires_confirmation" ||
+      paymentIntent.status === "requires_payment_method")
+  ) {
     try {
       paymentIntent = await stripe.paymentIntents.confirm(
         paymentIntent.id,
@@ -477,7 +484,19 @@ export async function chargeAndSendDirectPdfMail(
       "SAVED_PAYMENT_REQUIRED",
     );
   }
-  if (profile.revision !== paymentRevision) {
+  const addressCheck = await validateOrderAddresses(state.recipient, state.sender);
+  if (!scheduledAddressVerificationReady(addressCheck)) {
+    throw new ImmediateMailError(
+      409,
+      "Current postal verification did not clear both sender and recipient addresses. Review the mailing again before charging.",
+      "ADDRESS_REVERIFICATION_REQUIRED",
+    );
+  }
+
+  const executionKey = immediateExecutionKey(state, paymentRevision);
+  const paymentClaim = await claimPaymentPath(state, executionKey);
+  if (!paymentClaim.reused && profile.revision !== paymentRevision) {
+    await clearPaymentClaim(state.orderId, executionKey);
     throw new ImmediateMailError(
       409,
       "The saved payment method changed after the user confirmed it. Show the current saved payment method and ask again before charging.",
@@ -489,18 +508,6 @@ export async function chargeAndSendDirectPdfMail(
     );
   }
 
-  const addressCheck = await validateOrderAddresses(state.recipient, state.sender);
-  if (!scheduledAddressVerificationReady(addressCheck)) {
-    throw new ImmediateMailError(
-      409,
-      "Current postal verification did not clear both sender and recipient addresses. Review the mailing again before charging.",
-      "ADDRESS_REVERIFICATION_REQUIRED",
-    );
-  }
-
-  const executionKey = immediateExecutionKey(state, profile);
-  await claimPaymentPath(state, executionKey);
-
   let stripe: Stripe;
   let paymentIntent: Stripe.PaymentIntent;
   try {
@@ -508,6 +515,7 @@ export async function chargeAndSendDirectPdfMail(
       state,
       profile,
       executionKey,
+      authorizedPaymentRevision: paymentRevision,
     }));
   } catch (error) {
     if (error instanceof ImmediateMailError) throw error;
@@ -535,6 +543,7 @@ export async function chargeAndSendDirectPdfMail(
   }
 
   if (paymentState === "blocked") {
+    const savedPaymentChanged = profile.revision !== paymentRevision;
     const released = await releaseBlockedPayment(
       state.orderId,
       executionKey,
@@ -542,7 +551,7 @@ export async function chargeAndSendDirectPdfMail(
       paymentIntent,
     );
     return {
-      status: "payment_attention_required",
+      status: savedPaymentChanged ? "saved_payment_changed" : "payment_attention_required",
       orderId: state.orderId,
       paymentIntentId: paymentIntent.id,
       paymentStatus: paymentIntent.status,
@@ -552,7 +561,7 @@ export async function chargeAndSendDirectPdfMail(
       reused: false,
       paymentPathReleased: released,
       nextAction: released
-        ? "Call get_payment_readiness. If the user updates their saved payment method, show the new card summary and ask for explicit send-now authorization again."
+        ? "Call get_payment_readiness. Show the current card summary and exact total, then ask for fresh explicit send-now authorization before another charge attempt."
         : "Do not start another payment path. The saved-payment attempt could not be safely released; check get_order_status before retrying.",
     };
   }
