@@ -161,6 +161,42 @@ function ChatGptConnectorPage() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-6xl px-5 pt-14 sm:px-8 sm:pt-16">
+          <div className="rounded-3xl border border-rule bg-card p-6 shadow-card sm:p-8">
+            <div className="grid gap-8 lg:grid-cols-[.82fr_1.18fr] lg:items-start">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-cobalt">First-time setup</div>
+                <h2 className="mt-3 font-serif text-3xl">Connect MailMyPDF to ChatGPT.</h2>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  You only need to connect the account once. ChatGPT labels can vary slightly by version or workspace,
+                  but the flow is the same.
+                </p>
+                <a
+                  href="/account/setup?return_to=/chatgpt"
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-cobalt hover:text-cobalt/80"
+                >
+                  Prepare my MailMyPDF account <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+              <ol className="grid gap-3 sm:grid-cols-2">
+                {[
+                  "Create or sign in to your MailMyPDF account. Add a saved payment method only if you want optional send-now convenience.",
+                  "Open ChatGPT and go to the Apps or Plugins area from the sidebar or Settings.",
+                  "Find MailMyPDF, choose Connect, and complete the MailMyPDF sign-in/authorization prompt when asked.",
+                  "Start a new chat and describe the outcome you want. You can draft a letter, attach a PDF, find a workflow, or ask for an existing mailing status.",
+                ].map((item, index) => (
+                  <li key={item} className="flex gap-3 rounded-2xl border border-rule bg-paper-deep/25 p-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cobalt text-xs font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    <p className="text-sm leading-6 text-muted-foreground">{item}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-cobalt">How to use it</div>
