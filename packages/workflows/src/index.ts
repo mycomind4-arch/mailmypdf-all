@@ -90,3 +90,7 @@ export * from "./chat-execution-registry.js";
 export * from "./problem-workflow-plan.js";
 
 export * from "./workflow-materialization.js";
+
+export * from "./domain-packs/appeal/ssa-reconsideration-profiles.js";
+export * from "./domain-packs/appeal/ssa-reconsideration-manifest.js";
+export * from "./domain-packs/appeal/ssa-reconsideration-factory-artifact.js";
