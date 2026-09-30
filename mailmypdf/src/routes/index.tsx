@@ -54,7 +54,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Upload a PDF or write a letter. Review every page, choose your mailing options, and see the full price before checkout.",
+          "Upload a PDF, write a letter, or start from ChatGPT. Review the exact mailing, approve it, choose payment, and track what happens next.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: absoluteUrl("/") },
@@ -138,14 +138,14 @@ function HomepageHero() {
           </h1>
           <p className="mt-4 max-w-[380px] text-[15px] leading-[1.45] text-white/90">
             MailMyPDF helps you create, complete, and mail the right letters for government agencies,
-            businesses, and more — with confidence, speed, and proof.
+            businesses, and more — on the web or from ChatGPT, with review, approval, and proof built in.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center gap-3 rounded-full bg-brand px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
               Start a Matter <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/ecosystem" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
-              Explore Workflows
+            <Link to="/chatgpt" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
+              Use with ChatGPT
             </Link>
           </div>
           <div className="mt-8 grid max-w-[480px] grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
