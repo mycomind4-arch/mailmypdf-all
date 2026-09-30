@@ -10,15 +10,19 @@ Factory tables are service-role only. RLS is enabled and no anonymous or authent
 
 ## Current automatic stages
 
-The first runner deliberately automates only behavior already proven by shared packages:
+The supervised runner automates only behavior the repository can prove:
 
 1. `intake` validates and persists the problem description.
 2. `match` runs the canonical reuse planner against the current registry and live connector tool surface.
-3. `certify` re-runs canonical chat certification for the selected existing workflow.
-4. A certified existing workflow stops at explicit review before the job completes.
-5. A problem that requires a new template stops at `template_review`. Approval moves it to `build`, where the current runner stops because no reviewed build executor exists yet.
+3. `certify` re-runs canonical chat certification for a selected existing workflow.
+4. A certified existing workflow stops at explicit review before completion.
+5. A problem that requires a new template stops at `template_review`.
+6. Template review must persist a structured build request. The first build-capable family is `records-request`; the reviewer supplies the workflow id and label and explicitly approves that family choice.
+7. `build` is a **local authenticated-admin machine action**. It fetches fresh `origin/main`, creates an isolated git worktree/branch, writes only allow-listed factory proposal files, materializes canonical/routes, commits the proposal locally, and persists the branch/commit/file evidence on the durable Factory Job.
+8. `acceptance` runs materialization drift, shared factory/chat tests, exact generated-workflow certification, Records Request tests, Records Request acceptance, and a clean-tree check. Failed checks persist and fail the job.
+9. A passing generated workflow stops at `publication_review`.
 
-The runner never fabricates materialization, test, acceptance, or publication success.
+The build executor never pushes, creates a pull request, merges, deploys, charges, or mails. Publication remains a separate executor and review boundary.
 
 ## Durable API
 
@@ -26,6 +30,16 @@ Studio exposes admin-only endpoints under `/api/studio/workflows/jobs` to create
 
 Creating a job immediately runs all currently implemented deterministic stages until the first review/build boundary. A job can then be left and resumed later from the durable queue.
 
+## Current build executor scope
+
+The first executor intentionally supports **Records Request** templates only. That family is fully profile-driven: generated profile enrollment can reuse the shared manifest/runtime/chat contract without inventing legal rules in the executor.
+
+Generated profile data is isolated in a machine-owned registry. Hand-authored core family profiles are not spliced or rewritten. Generated public copy is a non-indexable `contentStatus: "scaffold"` landing config that must be reviewed before publication.
+
+A build branch is retained locally after its temporary worktree is removed. The durable Factory Job stores the branch name, base SHA, commit SHA, materialized spec/config/profile paths, changed-file list, and acceptance results.
+
 ## Next executor
 
-The next factory slice should implement the `build` stage without weakening review gates. It should consume an approved template-review job and produce a reviewed family/profile/spec proposal, write only to an isolated branch, run materialization and factory/chat certification, execute the applicable acceptance suite, persist all diagnostics/artifact references back to the job, and stop at publication review. Merge/deployment remains a separate explicit action.
+The next slice is the **publication/PR executor**: take a passing generated branch at `publication_review`, show the exact artifact/check evidence, push only that branch, create a pull request with the persisted acceptance summary, and stop for explicit merge/publication review. Merge and deployment remain separate explicit actions.
+
+Additional build families should be added by family-level adapters, not workflow-specific branches in the executor.
