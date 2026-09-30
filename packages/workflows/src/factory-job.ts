@@ -194,7 +194,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   const source = record(value, "Factory job build");
   const request = record(source.request, "Factory job build request");
   const startTemplate = request.startTemplate;
-  if (startTemplate !== "notice-response" && startTemplate !== "records-request") {
+  if (startTemplate !== "records-request") {
     throw new Error("Factory job build start template is invalid.");
   }
   if (!Array.isArray(source.filePaths) || source.filePaths.some((path) => typeof path !== "string")) {
