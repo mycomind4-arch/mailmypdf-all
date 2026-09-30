@@ -2,8 +2,7 @@ import { workflowByRuntimeId } from "./canonical-workflow-registry.js";
 import { getNoticeResponseFactoryArtifact } from "./domain-packs/notice-response/factory-artifact.js";
 import { createInsuranceAppealManifestForWorkflow } from "./domain-packs/appeal/insurance-manifest.js";
 import { getInsuranceAppealRuntimePolicy } from "./domain-packs/appeal/insurance-runtime-policy.js";
-import { createRecordsRequestManifest } from "./domain-packs/records-request/manifest.js";
-import { getRecordsRequestRuntimePolicy } from "./domain-packs/records-request/runtime-policy.js";
+import { getRecordsRequestFactoryArtifact } from "./domain-packs/records-request/factory-artifact.js";
 import type { WorkflowManifest } from "./workflow-manifest.js";
 import type { WorkflowRuntimePolicy } from "./matter-runtime-server.js";
 import { WORKFLOW_REGISTRY } from "./canonical-workflow-registry.js";
@@ -35,15 +34,9 @@ export function chatExecutionBindingFor(workflowId: string): ChatExecutionBindin
   }
 
   if (canonical.execution.policyFamily === "records-request") {
-    const policy = getRecordsRequestRuntimePolicy(workflowId);
-    return policy && canonical.sectionId === "records-request"
-      ? {
-          manifest: createRecordsRequestManifest({
-            workflowId: workflowId as Parameters<typeof createRecordsRequestManifest>[0]["workflowId"],
-            title: canonical.label,
-          }).manifest,
-          policy,
-        }
+    const artifact = getRecordsRequestFactoryArtifact(workflowId);
+    return artifact?.factoryReady && canonical.sectionId === "records-request"
+      ? { manifest: artifact.manifest, policy: artifact.runtimePolicy }
       : null;
   }
 
