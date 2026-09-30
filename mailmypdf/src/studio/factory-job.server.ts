@@ -3,7 +3,13 @@ import {
   approveFactoryJobReview,
   cancelFactoryJob,
   createFactoryJob,
+  recordFactoryJobAcceptance,
+  recordFactoryJobBuildMaterialized,
   restoreFactoryJobSnapshot,
+  startFactoryJobBuild,
+  type FactoryBuildArtifact,
+  type FactoryBuildCheck,
+  type FactoryBuildRequest,
   type FactoryJob,
   type FactoryJobTransition,
 } from "@mailmypdf/workflows";
@@ -198,6 +204,7 @@ export async function runPersistentFactoryJobToBoundary(input: {
 export async function approvePersistentFactoryJobReview(input: {
   jobId: string;
   actorId: string;
+  buildRequest?: FactoryBuildRequest;
   now?: string;
 }): Promise<FactoryJob> {
   const current = await loadPersistentFactoryJob(input.jobId);
@@ -205,8 +212,60 @@ export async function approvePersistentFactoryJobReview(input: {
   const transition = approveFactoryJobReview(
     current,
     input.now ?? new Date().toISOString(),
+    input.buildRequest,
   );
   return persistTransition(current, transition, input.actorId);
+}
+
+export async function startPersistentFactoryBuild(input: {
+  jobId: string;
+  actorId: string;
+  now?: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  return persistTransition(
+    current,
+    startFactoryJobBuild(current, input.now ?? new Date().toISOString()),
+    input.actorId,
+  );
+}
+
+export async function recordPersistentFactoryBuildMaterialized(input: {
+  jobId: string;
+  actorId: string;
+  artifact: FactoryBuildArtifact;
+  now?: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  return persistTransition(
+    current,
+    recordFactoryJobBuildMaterialized(
+      current,
+      input.artifact,
+      input.now ?? new Date().toISOString(),
+    ),
+    input.actorId,
+  );
+}
+
+export async function recordPersistentFactoryAcceptance(input: {
+  jobId: string;
+  actorId: string;
+  checks: readonly FactoryBuildCheck[];
+  now?: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  return persistTransition(
+    current,
+    recordFactoryJobAcceptance(current, {
+      checks: input.checks,
+      now: input.now ?? new Date().toISOString(),
+    }),
+    input.actorId,
+  );
 }
 
 export async function cancelPersistentFactoryJob(input: {
