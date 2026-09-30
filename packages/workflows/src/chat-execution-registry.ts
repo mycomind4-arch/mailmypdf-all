@@ -65,6 +65,14 @@ export function canonicalChatFactoryReport(availableTools: ReadonlySet<string> |
           availableTools,
         })
       : null;
+    const artifactPlan = binding
+      ? planWorkflowArtifacts({
+          canonical: workflow,
+          manifest: binding.manifest,
+          runtimePolicy: binding.policy,
+          availableTools,
+        })
+      : null;
     return Object.freeze({
       id: workflow.id,
       maturity: workflow.maturity,
@@ -73,6 +81,7 @@ export function canonicalChatFactoryReport(availableTools: ReadonlySet<string> |
       reason: result
         ? result.chatExecutable ? "certified" : "certification-failed"
         : workflow.execution?.kind === "platform" ? "chat-contract-not-registered" : "platform-runtime-not-registered",
+      artifactPlan,
       diagnostics: Object.freeze([
         ...(result?.diagnostics ?? []),
         ...(result?.chatReadiness.diagnostics ?? []),
