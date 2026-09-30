@@ -160,3 +160,40 @@ test("admin users surface is read-only and uses canonical user_roles", () => {
   assert.equal(usersFn.includes(".insert("), false);
   assert.match(usersRoute, /intentionally read-only/);
 });
+
+
+test("Studio Cloudflare target is the canonical MailMyPDF Worker", () => {
+  const project = source("src/studio/domain/studio-project.ts");
+  const publish = source("src/studio/lib/fns/publish-project-to-cloudflare.ts");
+  const deploy = source("deploy.sh");
+
+  assert.match(project, /deployment: "workers-script"/);
+  assert.match(project, /workerName: "mailmypdf"/);
+  assert.match(project, /appPath: "mailmypdf"/);
+  assert.match(project, /deployScript: "deploy\.sh"/);
+  assert.match(project, /tokenEnvVar: "CLOUDFLARE_API_TOKEN"/);
+
+  assert.match(publish, /studioFileScanAuthMiddleware/);
+  assert.match(publish, /run\("bash", \[scriptPath\]/);
+  assert.equal(publish.includes("wrangler pages"), false);
+  assert.equal(publish.includes("apps/mailmypdf"), false);
+  assert.equal(publish.includes("apps/verticals"), false);
+
+  assert.match(deploy, /preset: "cloudflare_module"/);
+  assert.match(deploy, /verify:production-config -- --live/);
+  assert.match(deploy, /wrangler deploy --config wrangler\.json/);
+  assert.match(deploy, /verify:deployment/);
+  assert.match(deploy, /mcp:readiness/);
+});
+
+test("Studio deploy confirmation targets the core project, not a selected workflow section", () => {
+  const studio = source("src/components/admin-studio.tsx");
+  const publishBlock = studio.slice(
+    studio.indexOf("async function publishToCloudflare"),
+    studio.indexOf("function addPhase", studio.indexOf("async function publishToCloudflare")),
+  );
+
+  assert.match(publishBlock, /projectId: activeProject\.id/);
+  assert.equal(publishBlock.includes("verticalId"), false);
+  assert.equal(publishBlock.includes("Choose a vertical workflow before publishing"), false);
+});

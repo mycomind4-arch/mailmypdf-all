@@ -5,20 +5,16 @@ import { findStudioProject, resolveProjectRoot } from "@/studio/domain/studio-pr
 
 const inputSchema = z.object({
   projectId: z.string(),
-  /** Which app under apps/verticals/<verticalId> (or "mailmypdf" for core) to build+deploy. */
-  verticalId: z.string(),
   confirmed: z.boolean().optional(),
 });
 
 /**
- * Deploys one app to its own Cloudflare Pages project, following the same
- * build -> wrangler pages deploy shape as the two verticals that already have
- * working CI (code-enforcement, records-request).
+ * Local-development deployment helper for the canonical MailMyPDF Worker.
  *
- * Requires studioProjects[].cloudflare to be configured for the target — most
- * verticals don't have this wired yet (only 2 of 10 have a working deploy
- * pipeline today), so this returns a clear "not configured" result rather than
- * attempting a deploy with no target.
+ * This deliberately reuses mailmypdf/deploy.sh rather than reproducing build,
+ * preflight, cron, wrangler, deployment verification, and MCP launch-readiness
+ * logic inside Studio. studioFileScanAuthMiddleware keeps this machine-level
+ * operation local-only even though the Studio UI itself can be used remotely.
  */
 export const publishProjectToCloudflare = createServerFn({ method: "POST" })
   .middleware([studioFileScanAuthMiddleware])
@@ -27,57 +23,79 @@ export const publishProjectToCloudflare = createServerFn({ method: "POST" })
     const project = findStudioProject(data.projectId);
     if (!project) throw new Error(`Unknown Studio project: ${data.projectId}`);
 
-    if (!project.cloudflare) {
+    const target = project.cloudflare;
+    if (!target) {
       return {
         deployed: false,
-        message: `Deploy is not configured for ${project.name} yet. Add a Cloudflare Pages project name and API token env var to studioProjects before publishing.`,
+        message: `Cloudflare deployment is not configured for ${project.name}.`,
+      };
+    }
+
+    if (target.deployment !== "workers-script") {
+      return {
+        deployed: false,
+        message: `Unsupported Studio deployment mode: ${target.deployment}`,
       };
     }
 
     if (!data.confirmed) {
       return {
         deployed: false,
-        message: `This will build ${data.verticalId} and deploy it to the "${project.cloudflare.projectName}" Cloudflare Pages project. Confirm to proceed.`,
+        message:
+          `This will run ${target.appPath}/${target.deployScript} and deploy the current working tree to the "${target.workerName}" Cloudflare Worker. The canonical script runs production preflight, builds the app, deploys cron configuration, verifies the deployed website, and runs MCP launch-readiness. Confirm to proceed.`,
       };
     }
 
-    const apiToken = process.env[project.cloudflare.accountEnvVar];
+    const apiToken = process.env[target.tokenEnvVar]?.trim();
     if (!apiToken) {
       return {
         deployed: false,
-        message: `Missing ${project.cloudflare.accountEnvVar} on the server — cannot authenticate with Cloudflare.`,
+        message:
+          `Missing ${target.tokenEnvVar} in the local Studio server environment. No deployment was attempted.`,
       };
     }
 
-    // Dynamic imports: this file is imported by studio.tsx (a client
-    // component), so Node built-ins must stay out of top-level imports.
     const path = (await import("node:path")).default;
     const { execFile } = await import("node:child_process");
     const { promisify } = await import("node:util");
     const run = promisify(execFile);
 
     const rootDir = await resolveProjectRoot(project);
-    const appDir =
-      data.verticalId === "mailmypdf"
-        ? path.join(rootDir, "apps/mailmypdf")
-        : path.join(rootDir, "apps/verticals", data.verticalId);
+    const appDir = path.join(rootDir, target.appPath);
+    const scriptPath = path.join(appDir, target.deployScript);
 
-    await run(
-      "pnpm",
-      ["--filter", data.verticalId === "mailmypdf" ? "tanstack_start_ts" : data.verticalId, "run", "build"],
-      { cwd: rootDir, maxBuffer: 20 * 1024 * 1024 },
-    );
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLOUDFLARE_API_TOKEN: apiToken,
+    };
+    if (target.accountIdEnvVar) {
+      const accountId = process.env[target.accountIdEnvVar]?.trim();
+      if (accountId) env.CLOUDFLARE_ACCOUNT_ID = accountId;
+    }
 
-    const outputDir = path.join(appDir, "dist");
-    const { stdout } = await run(
-      "npx",
-      ["wrangler", "pages", "deploy", outputDir, "--project-name", project.cloudflare.projectName],
-      {
+    try {
+      const { stdout, stderr } = await run("bash", [scriptPath], {
         cwd: appDir,
-        maxBuffer: 20 * 1024 * 1024,
-        env: { ...process.env, CLOUDFLARE_API_TOKEN: apiToken },
-      },
-    );
+        maxBuffer: 30 * 1024 * 1024,
+        env,
+      });
 
-    return { deployed: true, message: `Deployed to ${project.cloudflare.projectName}.`, output: stdout };
+      return {
+        deployed: true,
+        message:
+          `Deployed and verified the "${target.workerName}" Cloudflare Worker using the canonical MailMyPDF deploy script.`,
+        output: [stdout, stderr].filter(Boolean).join("\n").slice(-20_000),
+      };
+    } catch (error) {
+      const cause = error as Error & { stdout?: string; stderr?: string };
+      const details = [cause.stdout, cause.stderr, cause.message]
+        .filter(Boolean)
+        .join("\n")
+        .slice(-20_000);
+      return {
+        deployed: false,
+        message:
+          `Cloudflare Worker deployment failed. The canonical deploy script stopped before reporting success.\n${details}`,
+      };
+    }
   });

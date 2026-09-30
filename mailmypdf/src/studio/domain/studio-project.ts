@@ -1,16 +1,23 @@
 /**
- * A "Project" Studio can open. MailMyPDF is the first project registered here,
- * but Studio itself is generic — the tree scan, GitHub sync, and Cloudflare
- * publish actions all take a `projectId` and look up its root/repo here rather
- * than hardcoding MailMyPDF anywhere else. Adding a second project later is a
- * new entry in this array, not a rewrite.
+ * Projects available to the authenticated Studio.
+ *
+ * MailMyPDF is the canonical monorepo project. Deployment metadata here is
+ * intentionally declarative; it does not contain credentials and it does not
+ * make remote production deploys possible by itself.
  */
 
 export type StudioProjectCloudflareTarget = {
-  /** Name of the env var (server-side) holding the Cloudflare API token to use. */
-  accountEnvVar: string;
-  /** Cloudflare Pages project name to deploy to. */
-  projectName: string;
+  deployment: "workers-script";
+  /** Server-side env var containing the Cloudflare API token for local Studio deploys. */
+  tokenEnvVar: string;
+  /** Optional server-side Cloudflare account id env var. */
+  accountIdEnvVar?: string;
+  /** Canonical Cloudflare Worker name. */
+  workerName: string;
+  /** Repo-relative canonical application directory. */
+  appPath: string;
+  /** App-relative deployment script. */
+  deployScript: string;
 };
 
 export type StudioProject = {
@@ -20,36 +27,60 @@ export type StudioProject = {
   rootDir: string;
   repoUrl: string;
   defaultBranch: string;
-  /** Deploy target for the project's core app; null until wired. */
+  /** Declarative deploy target. Credentials remain server-side. */
   cloudflare: StudioProjectCloudflareTarget | null;
 };
 
-// This file is imported by client components (Studio's sidebar reads
-// project.name/id), so it must stay free of Node built-ins. `rootDir` is
-// resolved lazily, server-side only, by `resolveProjectRoot` below — never at
-// module load — otherwise Node imports leak into the browser bundle.
+// This file is imported by client components, so keep Node built-ins out of
+// top-level imports. resolveProjectRoot performs filesystem discovery lazily.
 export const studioProjects: StudioProject[] = [
   {
     id: "mailmypdf",
     name: "MailMyPDF",
-    rootDir: "", // see resolveProjectRoot
+    rootDir: "",
     repoUrl: "https://github.com/mycomind4-arch/mailmypdf-all",
     defaultBranch: "main",
-    cloudflare: null,
+    cloudflare: {
+      deployment: "workers-script",
+      tokenEnvVar: "CLOUDFLARE_API_TOKEN",
+      accountIdEnvVar: "CLOUDFLARE_ACCOUNT_ID",
+      workerName: "mailmypdf",
+      appPath: "mailmypdf",
+      deployScript: "deploy.sh",
+    },
   },
 ];
 
 /**
- * Server-only: resolves a project's absolute repo root on disk. Dynamic
- * imports keep Node's `path`/`process` out of any bundle this module's other
- * exports end up in client-side.
+ * Server-only: locate the current monorepo root without assuming the retired
+ * apps/verticals directory depth.
  */
 export async function resolveProjectRoot(project: StudioProject): Promise<string> {
   if (project.rootDir) return project.rootDir;
+
   const path = await import("node:path");
-  // vite dev / server fns run with cwd = the app package dir
-  // (apps/verticals/private-office), so the repo root is 3 levels up.
-  return path.resolve(process.cwd(), "../../..");
+  const { promises: fs } = await import("node:fs");
+  const cwd = process.cwd();
+  const candidates = [
+    cwd,
+    path.resolve(cwd, ".."),
+    path.resolve(cwd, "../.."),
+    path.resolve(cwd, "../../.."),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(path.join(candidate, "pnpm-workspace.yaml"));
+      await fs.access(path.join(candidate, "mailmypdf", "package.json"));
+      return candidate;
+    } catch {
+      // Try the next plausible workspace root.
+    }
+  }
+
+  throw new Error(
+    `Could not locate the MailMyPDF workspace root from ${cwd}. Expected pnpm-workspace.yaml and mailmypdf/package.json.`,
+  );
 }
 
 export function findStudioProject(projectId: string): StudioProject | undefined {

@@ -185,6 +185,11 @@ export const getStudioCommandCenter = createServerFn({ method: "GET" })
         repository: project?.repoUrl ?? "https://github.com/mycomind4-arch/mailmypdf-all",
         branch: project?.defaultBranch ?? "main",
         cloudflareTargetConfigured: Boolean(project?.cloudflare),
+        cloudflareMode: project?.cloudflare?.deployment ?? null,
+        workerName: project?.cloudflare?.workerName ?? null,
+        appPath: project?.cloudflare?.appPath ?? null,
+        deployScript: project?.cloudflare?.deployScript ?? null,
+        executionBoundary: "local-admin-only" as const,
       },
       alerts,
     };
