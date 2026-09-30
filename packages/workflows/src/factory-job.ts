@@ -1,7 +1,4 @@
-import {
-  canonicalChatFactoryReport,
-  type ChatExecutionBinding,
-} from "./chat-execution-registry.js";
+import { canonicalChatFactoryReport } from "./chat-execution-registry.js";
 import { planWorkflowFromProblem } from "./problem-workflow-plan.js";
 
 export const FACTORY_JOB_SCHEMA_VERSION = "mailmypdf.factory-job/v1" as const;
