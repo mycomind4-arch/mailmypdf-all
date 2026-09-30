@@ -444,8 +444,8 @@ export async function executePersistentFactoryAcceptance(input: {
     checks.push(
       await runCommand({
         cwd: worktree,
-        command: "git",
-        args: ["diff", "--exit-code", "HEAD", "--"],
+        command: "bash",
+        args: ["-lc", 'test -z "$(git status --porcelain)"'],
         id: "clean-generated-tree",
       }),
     );
