@@ -50,6 +50,15 @@ export type FactoryBuildArtifact = Readonly<{
   builtAt: string;
 }>;
 
+export type FactoryPublicationArtifact = Readonly<{
+  repository: string;
+  branch: string;
+  commitSha: string;
+  pullRequestNumber: number;
+  pullRequestUrl: string;
+  publishedAt: string;
+}>;
+
 export type FactoryJobPlanSnapshot = Readonly<{
   decision: "review-existing-workflow" | "needs-template-review";
   candidateId: string | null;
@@ -82,6 +91,7 @@ export type FactoryJob = Readonly<{
   selectedWorkflowId: string | null;
   build: FactoryJobBuildSnapshot | null;
   buildArtifact: FactoryBuildArtifact | null;
+  publicationArtifact: FactoryPublicationArtifact | null;
   diagnostics: readonly FactoryJobDiagnostic[];
   review: Readonly<{
     required: boolean;
@@ -214,6 +224,35 @@ function restoreBuildArtifact(value: unknown): FactoryBuildArtifact | null {
     changedFiles: Object.freeze([...source.changedFiles] as string[]),
     checks: Object.freeze(checks),
     builtAt,
+  });
+}
+
+function restorePublicationArtifact(value: unknown): FactoryPublicationArtifact | null {
+  if (value === undefined || value === null) return null;
+  const source = record(value, "Factory publication artifact");
+  const pullRequestNumber = source.pullRequestNumber;
+  if (
+    typeof pullRequestNumber !== "number" ||
+    !Number.isSafeInteger(pullRequestNumber) ||
+    pullRequestNumber < 1
+  ) {
+    throw new Error("Factory publication pull request number is invalid.");
+  }
+  const publishedAt = requiredSnapshotString(
+    source.publishedAt,
+    "Factory publication timestamp",
+    100,
+  );
+  if (!Number.isFinite(Date.parse(publishedAt))) {
+    throw new Error("Factory publication timestamp is invalid.");
+  }
+  return Object.freeze({
+    repository: requiredSnapshotString(source.repository, "Factory publication repository", 300),
+    branch: requiredSnapshotString(source.branch, "Factory publication branch", 300),
+    commitSha: requiredSnapshotString(source.commitSha, "Factory publication commit sha", 100),
+    pullRequestNumber,
+    pullRequestUrl: requiredSnapshotString(source.pullRequestUrl, "Factory publication pull request URL", 2000),
+    publishedAt,
   });
 }
 
@@ -352,6 +391,7 @@ export function restoreFactoryJobSnapshot(value: unknown): FactoryJob {
     ),
     build: restoreBuild(source.build),
     buildArtifact: restoreBuildArtifact(source.buildArtifact),
+    publicationArtifact: restorePublicationArtifact(source.publicationArtifact),
     diagnostics: restoreDiagnostics(source.diagnostics),
     review: Object.freeze({
       required: review.required,
@@ -392,6 +432,7 @@ function transition(
     selectedWorkflowId?: string | null;
     build?: FactoryJobBuildSnapshot | null;
     buildArtifact?: FactoryBuildArtifact | null;
+    publicationArtifact?: FactoryPublicationArtifact | null;
     diagnostics?: readonly FactoryJobDiagnostic[];
     review?: FactoryJob["review"];
     now: string;
@@ -408,6 +449,9 @@ function transition(
       : {}),
     ...(input.build !== undefined ? { build: input.build } : {}),
     ...(input.buildArtifact !== undefined ? { buildArtifact: input.buildArtifact } : {}),
+    ...(input.publicationArtifact !== undefined
+      ? { publicationArtifact: input.publicationArtifact }
+      : {}),
     ...(input.diagnostics !== undefined
       ? { diagnostics: Object.freeze([...input.diagnostics]) }
       : {}),
@@ -444,6 +488,7 @@ export function createFactoryJob(input: {
     selectedWorkflowId: null,
     build: null,
     buildArtifact: null,
+    publicationArtifact: null,
     diagnostics: Object.freeze([]),
     review: Object.freeze({
       required: false,
@@ -839,6 +884,53 @@ export function recordFactoryJobAcceptance(
       checkIds: input.checks.map((item) => item.id),
     },
     now: input.now,
+  });
+}
+
+export function recordFactoryJobPublication(
+  job: FactoryJob,
+  artifact: FactoryPublicationArtifact,
+  now: string,
+): FactoryJobTransition {
+  if (
+    job.stage !== "publication_review" ||
+    job.status !== "awaiting_review" ||
+    job.review.reason !== "generated-workflow-publication" ||
+    !job.buildArtifact
+  ) {
+    throw new Error(
+      `Factory job ${job.id} is not ready to publish a generated workflow proposal.`,
+    );
+  }
+  if (job.buildArtifact.checks.length === 0 || job.buildArtifact.checks.some((check) => !check.ok)) {
+    throw new Error("Generated workflow publication requires complete passing acceptance evidence.");
+  }
+  if (
+    artifact.branch !== job.buildArtifact.branch ||
+    artifact.commitSha !== job.buildArtifact.commitSha
+  ) {
+    throw new Error("Factory publication artifact does not match the accepted proposal commit.");
+  }
+
+  return transition(job, {
+    status: "completed",
+    stage: "complete",
+    eventType: "factory.generated_workflow.pull_request_created",
+    publicationArtifact: Object.freeze({ ...artifact }),
+    diagnostics: [],
+    review: {
+      required: false,
+      reason: null,
+      approvedAt: now,
+    },
+    data: {
+      repository: artifact.repository,
+      branch: artifact.branch,
+      commitSha: artifact.commitSha,
+      pullRequestNumber: artifact.pullRequestNumber,
+      pullRequestUrl: artifact.pullRequestUrl,
+    },
+    now,
   });
 }
 
