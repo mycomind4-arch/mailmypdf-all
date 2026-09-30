@@ -208,6 +208,7 @@ export async function executePersistentFactoryBuild(input: {
   const branch =
     `factory/job-${started.id.slice(0, 8)}-${request.workflowId}`;
   let worktree = "";
+  let tempRoot = "";
 
   try {
     await git(rootDir, ["fetch", "origin", project.defaultBranch]);
@@ -234,9 +235,10 @@ export async function executePersistentFactoryBuild(input: {
       throw new Error(`Factory build branch already exists on origin: ${branch}`);
     }
 
-    worktree = await fs.mkdtemp(
+    tempRoot = await fs.mkdtemp(
       path.join(os.tmpdir(), `mailmypdf-factory-${started.id.slice(0, 8)}-`),
     );
+    worktree = path.join(tempRoot, "worktree");
     await git(rootDir, [
       "worktree",
       "add",
@@ -344,6 +346,10 @@ export async function executePersistentFactoryBuild(input: {
 
     await git(worktree, ["add", "--", ...changedFiles]);
     await git(worktree, [
+      "-c",
+      "user.name=MailMyPDF Factory",
+      "-c",
+      "user.email=factory@localhost",
       "commit",
       "-m",
       `Factory proposal: ${request.sectionId}/${request.workflowId}`,
@@ -446,7 +452,9 @@ export async function executePersistentFactoryBuild(input: {
       await git(rootDir, ["worktree", "remove", "--force", worktree]).catch(
         () => undefined,
       );
-      await fs.rm(worktree, { recursive: true, force: true }).catch(() => undefined);
+    }
+    if (tempRoot) {
+      await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 }
