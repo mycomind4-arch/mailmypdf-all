@@ -1248,6 +1248,9 @@ importers:
       '@mailmypdf/workflows':
         specifier: workspace:*
         version: link:../packages/workflows
+      '@mailmypdf/vertical-foundry':
+        specifier: workspace:*
+        version: link:../packages/vertical-foundry
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.20(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

@@ -8,6 +8,7 @@ import {
   createFactoryJob,
   recordFactoryJobAcceptance,
   recordFactoryJobBuildArtifact,
+  recordFactoryJobPublication,
   restoreFactoryJobSnapshot,
   startFactoryJobAcceptance,
 } from "../src/factory-job.js";
@@ -216,6 +217,41 @@ test("supervised acceptance persists build evidence and stops at publication rev
     /publication executor/i,
   );
 
+  assert.throws(
+    () =>
+      recordFactoryJobPublication(
+        job,
+        {
+          repository: "mycomind4-arch/mailmypdf-all",
+          branch: "factory/wrong-branch",
+          commitSha: "b".repeat(40),
+          pullRequestNumber: 200,
+          pullRequestUrl: "https://github.com/mycomind4-arch/mailmypdf-all/pull/200",
+          publishedAt: "2026-09-30T21:08:00.000Z",
+        },
+        "2026-09-30T21:08:00.000Z",
+      ),
+    /does not match the accepted proposal commit/,
+  );
+
+  job = recordFactoryJobPublication(
+    job,
+    {
+      repository: "mycomind4-arch/mailmypdf-all",
+      branch: "factory/job-supervised-mars-colony-records-request",
+      commitSha: "b".repeat(40),
+      pullRequestNumber: 200,
+      pullRequestUrl: "https://github.com/mycomind4-arch/mailmypdf-all/pull/200",
+      publishedAt: "2026-09-30T21:08:00.000Z",
+    },
+    "2026-09-30T21:08:00.000Z",
+  ).job;
+
+  assert.equal(job.stage, "complete");
+  assert.equal(job.status, "completed");
+  assert.equal(job.publicationArtifact?.pullRequestNumber, 200);
+  assert.equal(job.review.required, false);
+
   const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
   assert.deepEqual(restored, job);
 });
@@ -276,8 +312,10 @@ test("pre-executor v1 Factory Job snapshots restore with no build artifact", () 
   });
   const serialized = JSON.parse(JSON.stringify(original)) as Record<string, unknown>;
   delete serialized.buildArtifact;
+  delete serialized.publicationArtifact;
 
   const restored = restoreFactoryJobSnapshot(serialized);
   assert.equal(restored.buildArtifact, null);
+  assert.equal(restored.publicationArtifact, null);
   assert.equal(restored.schemaVersion, "mailmypdf.factory-job/v1");
 });

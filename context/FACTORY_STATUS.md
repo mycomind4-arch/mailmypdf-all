@@ -1,5 +1,16 @@
 # MailMyPDF factory status
 
+## 2026-09-30 — Accepted factory proposals can publish a GitHub PR
+
+- Fixed the generated-workflow verifier so it gates on the actual canonical `chatExecutable` result instead of a nonexistent report field.
+- Added durable publication evidence to Factory Jobs: repository, branch, accepted commit, PR number/URL, and publication timestamp.
+- Added a localhost + verified-admin publication executor that pushes only the exact locally accepted proposal commit and creates or reuses the matching GitHub pull request.
+- Publication fails closed if the local proposal branch moved, the remote proposal branch points elsewhere, acceptance evidence is incomplete, or `main` advanced after acceptance. In the latter case the workflow must be rebuilt and retested against current `main`.
+- Studio now exposes **Create GitHub PR** after successful generated-workflow acceptance and displays the resulting PR artifact.
+- The publication step does not merge, deploy, charge, or mail.
+
+# MailMyPDF factory status
+
 ## 2026-09-30 — Reviewed build planner + supervised Records Request executor
 
 - PR #139 established the canonical reviewed build recipe: template review persists a deterministic `ReviewedFactoryBuildPlan` and the runner advances the recipe to the acceptance boundary without claiming filesystem work.

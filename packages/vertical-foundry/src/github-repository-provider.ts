@@ -143,6 +143,24 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
     return { number: data.number, url: data.html_url, head, base }
   }
 
+  async findOpenPullRequestByHead(repository: string, head: string, base?: string): Promise<PullRequestResult | null> {
+    const owner = repository.split('/')[0]
+    if (!owner) throw new Error(`Invalid repository name: ${repository}`)
+    const query = new URLSearchParams({
+      state: 'open',
+      head: `${owner}:${head}`,
+      ...(base ? { base } : {}),
+      per_page: '10',
+    })
+    const data = await this.apiJson<Array<{ number: number; html_url: string; head: { ref: string }; base: { ref: string } }>>(
+      `/repos/${repository}/pulls?${query.toString()}`
+    )
+    const first = data[0]
+    return first
+      ? { number: first.number, url: first.html_url, head: first.head.ref, base: first.base.ref }
+      : null
+  }
+
   async getCommitStatus(repository: string, ref: string): Promise<{ state: string; checks: StatusCheck[] }> {
     const runsData = await this.apiJson<{ workflow_runs: Array<{ status: string; conclusion: string | null; name: string; html_url: string }> }>(
       `/repos/${repository}/actions/runs?branch=${ref}&per_page=20`

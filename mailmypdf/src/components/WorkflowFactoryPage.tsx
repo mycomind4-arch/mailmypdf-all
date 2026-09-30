@@ -51,6 +51,14 @@ type FactoryJob = {
     checks: Array<{ id: string; command: string; ok: boolean; summary: string }>;
     builtAt: string;
   } | null;
+  publicationArtifact: {
+    repository: string;
+    branch: string;
+    commitSha: string;
+    pullRequestNumber: number;
+    pullRequestUrl: string;
+    publishedAt: string;
+  } | null;
   diagnostics: Array<{ code: string; message: string; severity: "info" | "warning" | "error" }>;
   review: { required: boolean; reason: string | null; approvedAt: string | null };
   updatedAt: string;
@@ -90,7 +98,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
-  const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "cancel" | null>("report");
+  const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "publish" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
   function upsertJob(job: FactoryJob) {
@@ -179,6 +187,23 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
       upsertJob(payload.job);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to run the local supervised build.");
+      await refresh();
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function publish(job: FactoryJob) {
+    if (pending) return;
+    setPending("publish");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/publish`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to publish the accepted proposal as a GitHub PR.");
       await refresh();
     } finally {
       setPending(null);
@@ -289,8 +314,27 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                   ))}
                 </div>
                 <p className="mt-3 text-xs text-stone">
-                  {activeJob.buildArtifact.changedFiles.length} proposal file(s) committed locally. Nothing has been pushed or published.
+                  {activeJob.buildArtifact.changedFiles.length} proposal file(s) committed locally.
+                  {activeJob.publicationArtifact ? " The accepted commit has been pushed for GitHub review." : " Nothing has been pushed or published yet."}
                 </p>
+              </div>
+            )}
+
+            {activeJob.publicationArtifact && (
+              <div className="mt-5 rounded-lg border border-rule bg-ivory p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-stone">Publication artifact</div>
+                <a
+                  href={activeJob.publicationArtifact.pullRequestUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-sm font-semibold text-navy underline decoration-brass/50 underline-offset-2"
+                >
+                  GitHub PR #{activeJob.publicationArtifact.pullRequestNumber}
+                </a>
+                <div className="mt-1 break-all font-mono text-[11px] text-stone">
+                  {activeJob.publicationArtifact.repository} · {activeJob.publicationArtifact.branch}
+                </div>
+                <p className="mt-2 text-xs text-stone">Proposal published for review only. It has not been merged or deployed.</p>
               </div>
             )}
 
@@ -360,9 +404,10 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                 </p>
               )}
               {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && (
-                <p className="rounded-md border border-brass/40 bg-ivory px-4 py-2 text-sm text-stone">
-                  Acceptance passed. Publication remains blocked until the publication/PR executor is implemented.
-                </p>
+                <button type="button" onClick={() => void publish(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                  <ArrowRight size={16} />
+                  {pending === "publish" ? "Publishing proposal…" : "Create GitHub PR"}
+                </button>
               )}
               {!terminal(activeJob) && (
                 <button type="button" onClick={() => void cancel(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md border border-rule px-4 py-2 text-sm font-medium text-stone hover:border-error hover:text-error disabled:opacity-50">
