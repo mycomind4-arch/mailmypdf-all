@@ -34,15 +34,23 @@ test("reviewed Records Request template produces bootstrap and deterministic mat
   );
 });
 
-test("autonomous new-template builds reject unsupported families and unsafe ids", () => {
+test("reviewed plans preserve Notice Response compatibility while autonomous repository execution stays Records Request only", () => {
+  const notice = buildReviewedFactoryTemplatePlan({
+    id: "notice-respond/state-tax-balance-response",
+    label: "State Tax Balance Notice Response",
+    startTemplate: "notice-response",
+  });
+  assert.equal(notice.spec.execution?.policyFamily, "notice-response");
+  assert.equal(notice.bootstrapFiles.length, 0);
+
   assert.throws(
     () =>
-      buildReviewedFactoryTemplatePlan({
+      buildReviewedFactoryRepositoryPlan({
         id: "notice-respond/state-tax-balance-response",
         label: "State Tax Balance Notice Response",
-        startTemplate: "notice-response" as never,
+        startTemplate: "notice-response",
       }),
-    /records-request only/,
+    /repository materialization.*records-request only/i,
   );
 
   assert.throws(
