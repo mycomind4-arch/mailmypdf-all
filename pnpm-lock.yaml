@@ -55,6 +55,9 @@ importers:
       '@mailmypdf/workflows':
         specifier: workspace:*
         version: link:../packages/workflows
+      '@mailmypdf/vertical-foundry':
+        specifier: workspace:*
+        version: link:../packages/vertical-foundry
       '@tanstack/react-router':
         specifier: ^1.170.16
         version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
