@@ -101,7 +101,7 @@ test("canonical CP14 is one factory artifact across registry, landing, runtime, 
 });
 
 test("canonical CP14 factory path does not depend on the legacy /notice runtime", async () => {
-  const start = await read("../../notice-respond/workflows/cp14-response/start/index.tsx");
+  const start = await read("../notice-respond/workflows/cp14-response/start/index.tsx");
   const chatRegistry = await read("../packages/workflows/src/chat-execution-registry.ts").catch(() => "");
 
   assert.match(start, /getNoticeResponseFactoryArtifact\("cp14-response"\)/);
