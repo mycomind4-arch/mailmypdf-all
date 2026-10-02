@@ -319,3 +319,43 @@ test("pre-executor v1 Factory Job snapshots restore with no build artifact", () 
   assert.equal(restored.publicationArtifact, null);
   assert.equal(restored.schemaVersion, "mailmypdf.factory-job/v1");
 });
+
+
+test("reviewed Notice Respond profile survives durable Factory Job restoration", () => {
+  const noticeProfile = {
+    noticeLabel: "State tax balance notice",
+    primaryDocumentId: "state-tax-balance-notice",
+    primaryDocumentLabel: "State tax balance notice",
+    extractionSchema: "state.tax.balance.v1",
+    sourcePurpose: "state_tax_balance_notice",
+    responseModeLabel: "How do you want to respond?",
+    responseModes: [
+      { value: "agree", label: "Agree" },
+      { value: "disagree", label: "Disagree" },
+    ],
+    evidenceKinds: [{ value: "other", label: "Supporting record" }],
+    explanationRequiredModes: ["disagree"],
+    explanationLabel: "Explain your response",
+    explanationHint: "Use verified facts only.",
+    requestedActionDefault: "Please review my response.",
+    analysisInstructions: "Extract notice-supported facts only. Do not invent deadlines or addresses.",
+    draftInstructions: "Draft only from verified notice facts and user-confirmed facts.",
+  } as const;
+
+  let job = createFactoryJob({
+    id: "job-notice-profile",
+    problem: "Create a state tax balance notice response workflow.",
+    now: "2026-10-01T03:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-10-01T03:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-10-01T03:02:00.000Z").job;
+  job = approveFactoryJobReview(job, "2026-10-01T03:03:00.000Z", {
+    id: "notice-respond/state-tax-balance-response",
+    label: "State Tax Balance Notice Response",
+    startTemplate: "notice-response",
+    noticeProfile,
+  }).job;
+
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
+  assert.deepEqual(restored.build?.request.noticeProfile, noticeProfile);
+});
