@@ -383,7 +383,7 @@ test("new Notice Respond template approval fails closed without a reviewed profi
 });
 
 
-function templateReviewJob(id: string, problem = "Create a workflow for a specialized records problem.") {
+function templateReviewJob(id: string, problem = "Create a completely novel mars colony easement workflow.") {
   let job = createFactoryJob({
     id,
     problem,
@@ -487,5 +487,26 @@ test("catalog adoption refuses a workflow that is already executable", () => {
         adoptExisting: true,
       }),
     /already executable/i,
+  );
+});
+
+
+test("durable adoption snapshot rejects corrupted adoption metadata", () => {
+  let job = templateReviewJob("job-adopt-corrupt");
+  job = approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+    id: "records-request/police-records-request",
+    label: "Police Records Request",
+    startTemplate: "records-request",
+    adoptExisting: true,
+  }).job;
+
+  const serialized = JSON.parse(JSON.stringify(job)) as {
+    build: { request: Record<string, unknown> };
+  };
+  serialized.build.request.adoptExisting = "yes";
+
+  assert.throws(
+    () => restoreFactoryJobSnapshot(serialized),
+    /adoption flag is invalid/i,
   );
 });
