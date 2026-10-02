@@ -68,6 +68,7 @@ export type FactoryJobPlanSnapshot = Readonly<{
     label: string;
     publicHref: string;
     chatExecutable: boolean;
+    adoptable: boolean;
     matchedTerms: readonly string[];
     score: number;
   }>[];
@@ -286,6 +287,16 @@ function restorePlan(value: unknown): FactoryJobPlanSnapshot | null {
       label: requiredSnapshotString(candidate.label, "Factory job candidate label", 500),
       publicHref: requiredSnapshotString(candidate.publicHref, "Factory job candidate href", 1000),
       chatExecutable: candidate.chatExecutable,
+      adoptable:
+        candidate.adoptable === undefined
+          ? false
+          : candidate.adoptable === true
+            ? true
+            : candidate.adoptable === false
+              ? false
+              : (() => {
+                  throw new Error("Factory job candidate adoption status is invalid.");
+                })(),
       matchedTerms: Object.freeze([...candidate.matchedTerms] as string[]),
       score: candidate.score,
     });
@@ -547,6 +558,7 @@ function planSnapshot(problem: string, availableTools: readonly string[]): Facto
           label: candidate.label,
           publicHref: candidate.publicHref,
           chatExecutable: candidate.chatExecutable,
+          adoptable: candidate.adoptable,
           matchedTerms: Object.freeze([...candidate.matchedTerms]),
           score: candidate.score,
         }),
@@ -770,6 +782,13 @@ export function approveFactoryJobReview(
       throw new Error(
         "Notice Respond template approval requires a reviewer-authored noticeProfile.",
       );
+    }
+
+    if (
+      templateRequest.adoptExisting !== undefined &&
+      typeof templateRequest.adoptExisting !== "boolean"
+    ) {
+      throw new Error("Catalog adoption flag must be true or false.");
     }
 
     const requestedId = templateRequest.id.trim();
