@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MAILMYPDF_MCP_TOOLS } from "@/lib/mcp/tool-catalog";
+import type { ReviewedFactoryTemplateRequest } from "@mailmypdf/workflows";
 import { adminFactoryAccess } from "@/studio/access";
 import {
   approvePersistentFactoryJobReview,
@@ -28,11 +29,7 @@ export const Route = createFileRoute("/api/studio/workflows/jobs/$id/review")({
             actorId: access.actor.userId,
             templateRequest:
               templateRequest && typeof templateRequest === "object" && !Array.isArray(templateRequest)
-                ? templateRequest as {
-                    id: string;
-                    label: string;
-                    startTemplate: "notice-response" | "records-request";
-                  }
+                ? templateRequest as ReviewedFactoryTemplateRequest
                 : undefined,
           });
 
