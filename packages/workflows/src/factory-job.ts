@@ -736,6 +736,14 @@ export function approveFactoryJobReview(
     if (!templateRequest) {
       throw new Error("Template review approval requires a reviewed workflow id, label, and supported family.");
     }
+    if (
+      templateRequest.startTemplate === "notice-response" &&
+      !templateRequest.noticeProfile
+    ) {
+      throw new Error(
+        "Notice Respond template approval requires a reviewer-authored noticeProfile.",
+      );
+    }
     const build = buildReviewedFactoryTemplatePlan(templateRequest);
     return transition(job, {
       status: "queued",
