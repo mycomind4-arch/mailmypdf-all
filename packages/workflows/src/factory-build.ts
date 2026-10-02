@@ -11,6 +11,7 @@ export type ReviewedNoticeResponseOption = Readonly<{
 }>;
 
 export type ReviewedNoticeResponseProfile = Readonly<{
+  domain: "tax";
   noticeLabel: string;
   primaryDocumentId: string;
   primaryDocumentLabel: string;
@@ -151,7 +152,14 @@ export function normalizeReviewedNoticeResponseProfile(
     }
   }
 
+  if (source.domain !== "tax") {
+    throw new Error(
+      "Generated Notice Respond profiles currently support tax notices only.",
+    );
+  }
+
   return Object.freeze({
+    domain: "tax",
     noticeLabel: reviewedText(source.noticeLabel, "Notice label", 300),
     primaryDocumentId: reviewedToken(
       source.primaryDocumentId,
