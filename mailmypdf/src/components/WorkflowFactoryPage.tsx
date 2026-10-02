@@ -40,6 +40,7 @@ type FactoryJob = {
       label: string;
       publicHref: string;
       chatExecutable: boolean;
+      adoptable: boolean;
       matchedTerms: string[];
       score: number;
     }>;
@@ -409,7 +410,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               <div className="mt-5 grid gap-4 rounded-lg border border-rule bg-ivory p-4 sm:grid-cols-2">
                 {activeJob.plan?.candidates.some(
                   (candidate) =>
-                    !candidate.chatExecutable &&
+                    candidate.adoptable &&
                     (candidate.id.startsWith("records-request/") ||
                       candidate.id.startsWith("notice-respond/")),
                 ) && (
@@ -424,7 +425,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                       {activeJob.plan.candidates
                         .filter(
                           (candidate) =>
-                            !candidate.chatExecutable &&
+                            candidate.adoptable &&
                             (candidate.id.startsWith("records-request/") ||
                               candidate.id.startsWith("notice-respond/")),
                         )
