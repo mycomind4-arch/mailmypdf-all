@@ -2,8 +2,8 @@ import type {
   FactoryBuildArtifact,
   FactoryBuildCheck,
   FactoryJob,
-  WorkflowSeed,
 } from "@mailmypdf/workflows";
+import type { WorkflowSeed } from "@mailmypdf/workflows/canonical-registry";
 import { GitHubRepositoryProvider } from "@mailmypdf/vertical-foundry";
 import { findStudioProject } from "@/studio/domain/studio-project";
 import {
