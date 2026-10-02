@@ -480,7 +480,7 @@ export async function executePersistentFactoryAcceptance(input: {
       baseSha,
       commitSha,
       specPath: specRelative,
-      profileRegistryPath: GENERATED_PROFILE_SPECS,
+      profileRegistryPath: profileRegistry.specs,
       configPath: `${build.sectionId}/workflows/${build.slug}/config.ts`,
       changedFiles: Object.freeze(changedFiles),
       checks: Object.freeze([]),
@@ -531,20 +531,28 @@ export async function executePersistentFactoryAcceptance(input: {
         id: "generated-workflow-certification",
       }),
     );
+    const familyPackage =
+      build.request.startTemplate === "records-request"
+        ? "@mailmypdf/records-request"
+        : "@mailmypdf/notice-respond";
+    const familyCheckPrefix =
+      build.request.startTemplate === "records-request"
+        ? "records-request"
+        : "notice-response";
     checks.push(
       await runCommand({
         cwd: worktree,
         command: "pnpm",
-        args: ["--filter", "@mailmypdf/records-request", "test"],
-        id: "records-request-tests",
+        args: ["--filter", familyPackage, "test"],
+        id: `${familyCheckPrefix}-tests`,
       }),
     );
     checks.push(
       await runCommand({
         cwd: worktree,
         command: "pnpm",
-        args: ["--filter", "@mailmypdf/records-request", "test:acceptance"],
-        id: "records-request-acceptance",
+        args: ["--filter", familyPackage, "test:acceptance"],
+        id: `${familyCheckPrefix}-acceptance`,
       }),
     );
     checks.push(
