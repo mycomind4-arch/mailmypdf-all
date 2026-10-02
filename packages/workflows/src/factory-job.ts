@@ -338,7 +338,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   }
 
   return Object.freeze({
-    request: reviewedRequest,
+    request: rebuilt.request,
     canonicalId: rebuilt.canonicalId,
     sectionId: rebuilt.sectionId,
     slug: rebuilt.slug,
