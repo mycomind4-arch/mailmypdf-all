@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "mailmypdf.workflow-materialization/v1",
+  "id": "appeal-mail/appeal-ssdi-denial",
+  "label": "Appeal SSDI Denial",
+  "execution": {
+    "kind": "platform",
+    "entry": "workspace-start",
+    "policyFamily": "ssa-reconsideration"
+  },
+  "authority": {
+    "module": "appeal-ssdi-denial",
+    "reviewedAt": "2026-09-21"
+  },
+  "legacyGoldId": "appeal/ssdi-denial",
+  "startTemplate": "ssa-reconsideration"
+}
