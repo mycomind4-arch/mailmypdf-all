@@ -510,3 +510,25 @@ test("durable adoption snapshot rejects corrupted adoption metadata", () => {
     /adoption flag is invalid/i,
   );
 });
+
+
+test("pre-adoption plan snapshots restore candidate adoption status conservatively", () => {
+  let job = createFactoryJob({
+    id: "job-old-plan",
+    problem: "IRS CP14 response",
+    now: "2026-10-02T06:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-10-02T06:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-10-02T06:02:00.000Z").job;
+
+  const serialized = JSON.parse(JSON.stringify(job)) as {
+    plan: { candidates: Array<Record<string, unknown>> };
+  };
+  for (const candidate of serialized.plan.candidates) {
+    delete candidate.adoptable;
+  }
+
+  const restored = restoreFactoryJobSnapshot(serialized);
+  assert.ok(restored.plan?.candidates.length);
+  assert.ok(restored.plan?.candidates.every((candidate) => candidate.adoptable === false));
+});
