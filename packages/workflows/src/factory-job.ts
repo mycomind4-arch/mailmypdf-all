@@ -310,22 +310,35 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     throw new Error("Factory job build file paths are invalid.");
   }
 
+  if (
+    request.adoptExisting !== undefined &&
+    typeof request.adoptExisting !== "boolean"
+  ) {
+    throw new Error("Factory build adoption flag is invalid.");
+  }
+
+  let restoredAuthority: ReviewedFactoryTemplateRequest["authority"] | undefined;
+  if (request.authority !== undefined && request.authority !== null) {
+    const authority = record(request.authority, "Factory build authority");
+    restoredAuthority = Object.freeze({
+      module: requiredSnapshotString(
+        authority.module,
+        "Factory build authority module",
+        300,
+      ),
+      reviewedAt: requiredSnapshotString(
+        authority.reviewedAt,
+        "Factory build authority review date",
+        100,
+      ),
+    });
+  }
+
   const reviewedRequest: ReviewedFactoryTemplateRequest = Object.freeze({
     id: requiredSnapshotString(request.id, "Factory build workflow id", 300),
     label: requiredSnapshotString(request.label, "Factory build workflow label", 500),
     startTemplate,
-    ...(request.authority &&
-    typeof request.authority === "object" &&
-    !Array.isArray(request.authority) &&
-    typeof (request.authority as Record<string, unknown>).module === "string" &&
-    typeof (request.authority as Record<string, unknown>).reviewedAt === "string"
-      ? {
-          authority: {
-            module: (request.authority as Record<string, unknown>).module as string,
-            reviewedAt: (request.authority as Record<string, unknown>).reviewedAt as string,
-          },
-        }
-      : {}),
+    ...(restoredAuthority ? { authority: restoredAuthority } : {}),
     ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
       ? { legacyGoldId: request.legacyGoldId }
       : {}),
