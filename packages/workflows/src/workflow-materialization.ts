@@ -6,7 +6,10 @@ import type {
 export const WORKFLOW_MATERIALIZATION_SPEC_VERSION =
   "mailmypdf.workflow-materialization/v1" as const;
 
-export type WorkflowStartTemplate = "notice-response" | "records-request";
+export type WorkflowStartTemplate =
+  | "notice-response"
+  | "records-request"
+  | "ssa-reconsideration";
 
 export type WorkflowMaterializationSpec = Readonly<{
   schemaVersion: typeof WORKFLOW_MATERIALIZATION_SPEC_VERSION;
@@ -91,6 +94,21 @@ function assertMaterializationSpec(
     ) {
       throw new Error(
         `records-request startTemplate requires the records-request platform policy.`,
+      );
+    }
+  }
+  if (spec.startTemplate === "ssa-reconsideration") {
+    if (sectionId !== "appeal-mail") {
+      throw new Error(
+        `ssa-reconsideration startTemplate requires appeal-mail, got ${sectionId}.`,
+      );
+    }
+    if (
+      spec.execution?.kind !== "platform" ||
+      spec.execution.policyFamily !== "ssa-reconsideration"
+    ) {
+      throw new Error(
+        "ssa-reconsideration startTemplate requires the ssa-reconsideration platform policy.",
       );
     }
   }
@@ -232,6 +250,41 @@ export default ${component}
 `;
 }
 
+function renderSsaReconsiderationStart(input: {
+  sectionId: string;
+  slug: string;
+  sharedImport: string;
+}): string {
+  const component = `${pascal(input.slug)}Start`;
+  return `${GENERATED}import { createFileRoute } from "@tanstack/react-router"
+import SsaReconsiderationStartShell from "${input.sharedImport}"
+import { getSsaReconsiderationFactoryArtifact } from "@mailmypdf/workflows"
+
+const resolvedFactoryArtifact = getSsaReconsiderationFactoryArtifact("${input.slug}")
+
+if (!resolvedFactoryArtifact) {
+  throw new Error("${input.slug} factory artifact is missing")
+}
+if (!resolvedFactoryArtifact.factoryReady) {
+  throw new Error("${input.slug} factory artifact is not ready")
+}
+
+const factoryArtifact = resolvedFactoryArtifact
+
+export function ${component}() {
+  return <SsaReconsiderationStartShell workflowId={factoryArtifact.workflowId} />
+}
+
+export const Route = createFileRoute(
+  "/${input.sectionId}/workflows/${input.slug}/start/",
+)({
+  component: ${component},
+})
+
+export default ${component}
+`;
+}
+
 function renderStart(
   spec: WorkflowMaterializationSpec,
   sectionId: string,
@@ -256,6 +309,15 @@ function renderStart(
           surface === "top-level"
             ? "../../../shared/RecordsRequestWorkflow"
             : "../../../../../../../records-request/shared/RecordsRequestWorkflow",
+      });
+    case "ssa-reconsideration":
+      return renderSsaReconsiderationStart({
+        sectionId,
+        slug,
+        sharedImport:
+          surface === "top-level"
+            ? "../../ssa-reconsideration/start"
+            : "../../../../../../../appeal-mail/workflows/ssa-reconsideration/start",
       });
     default:
       throw new Error(
