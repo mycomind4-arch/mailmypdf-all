@@ -218,6 +218,13 @@ export function normalizeReviewedNoticeResponseProfile(
 export function buildReviewedFactoryTemplatePlan(
   request: ReviewedFactoryTemplateRequest,
 ): ReviewedFactoryBuildPlan {
+  if (
+    request.adoptExisting !== undefined &&
+    typeof request.adoptExisting !== "boolean"
+  ) {
+    throw new Error("Catalog adoption flag must be true or false.");
+  }
+
   const noticeProfile =
     request.startTemplate === "notice-response" && request.noticeProfile
       ? normalizeReviewedNoticeResponseProfile(request.noticeProfile)
