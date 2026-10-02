@@ -34,7 +34,12 @@ type FactoryJob = {
   problem: string;
   selectedWorkflowId: string | null;
   build: {
-    request: { id: string; label: string; startTemplate: "notice-response" | "records-request" };
+    request: {
+      id: string;
+      label: string;
+      startTemplate: "notice-response" | "records-request";
+      noticeProfile?: Record<string, unknown>;
+    };
     canonicalId: string;
     sectionId: string;
     slug: string;
@@ -98,6 +103,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
+  const [noticeProfileJson, setNoticeProfileJson] = useState("");
   const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "publish" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +159,18 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     setPending("review");
     setError(null);
     try {
+      let noticeProfile: Record<string, unknown> | undefined;
+      if (job.stage === "template_review" && templateFamily === "notice-response") {
+        if (!noticeProfileJson.trim()) {
+          throw new Error("A reviewed Notice Respond profile is required.");
+        }
+        const parsed = JSON.parse(noticeProfileJson) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("Notice Respond profile JSON must be an object.");
+        }
+        noticeProfile = parsed as Record<string, unknown>;
+      }
+
       const payload = await request(`/api/studio/workflows/jobs/${job.id}/review`, {
         method: "POST",
         ...(job.stage === "template_review"
@@ -163,6 +181,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                   id: templateId.trim(),
                   label: templateLabel.trim(),
                   startTemplate: templateFamily,
+                  ...(noticeProfile ? { noticeProfile } : {}),
                 },
               }),
             }
@@ -383,25 +402,36 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                     The materializer validates that the section and runtime family agree before the build recipe is persisted.
                   </span>
                 </label>
+                {templateFamily === "notice-response" && (
+                  <label className="text-xs font-semibold uppercase tracking-wider text-navy sm:col-span-2">
+                    Reviewed notice profile JSON
+                    <textarea
+                      value={noticeProfileJson}
+                      onChange={(event) => setNoticeProfileJson(event.target.value)}
+                      rows={12}
+                      spellCheck={false}
+                      placeholder={'{"noticeLabel":"State tax notice","primaryDocumentId":"state-tax-notice","primaryDocumentLabel":"State tax notice","extractionSchema":"state.tax.notice.v1","sourcePurpose":"state_tax_notice","responseModeLabel":"How do you want to respond?","responseModes":[{"value":"disagree","label":"Disagree"}],"evidenceKinds":[{"value":"supporting-record","label":"Supporting record"}],"explanationRequiredModes":["disagree"],"explanationLabel":"Explain your response","explanationHint":"Use only verified facts.","requestedActionDefault":"Please review my response and supporting records.","analysisInstructions":"Reviewer-authored source-grounding instructions.","draftInstructions":"Reviewer-authored drafting instructions."}'}
+                      className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 font-mono text-xs font-normal normal-case tracking-normal text-navy"
+                    />
+                    <span className="mt-1 block font-sans text-[11px] font-normal normal-case tracking-normal text-stone">
+                      Required for Notice Respond. The factory validates and preserves these reviewer-authored rules; it does not invent legal authority, deadlines, addresses, remedies, or response modes.
+                    </span>
+                  </label>
+                )}
               </div>
             )}
 
             <div className="mt-5 flex flex-wrap gap-2">
               {activeJob.status === "awaiting_review" && activeJob.review.required && activeJob.review.reason !== "generated-workflow-publication" && (
-                <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null || (activeJob.stage === "template_review" && (!templateId.trim() || !templateLabel.trim()))} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                <button type="button" onClick={() => void approve(activeJob)} disabled={pending !== null || (activeJob.stage === "template_review" && (!templateId.trim() || !templateLabel.trim() || (templateFamily === "notice-response" && !noticeProfileJson.trim())))} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <CheckCircle2 size={16} /> {pending === "review" ? "Approving…" : "Approve next stage"}
                 </button>
               )}
-              {activeJob.stage === "acceptance" && activeJob.status === "queued" && activeJob.build?.request.startTemplate === "records-request" && (
+              {activeJob.stage === "acceptance" && activeJob.status === "queued" && (
                 <button type="button" onClick={() => void runBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <RefreshCw size={16} className={pending === "build" ? "animate-spin" : ""} />
                   {pending === "build" ? "Building and testing…" : "Run local supervised build"}
                 </button>
-              )}
-              {activeJob.stage === "acceptance" && activeJob.status === "queued" && activeJob.build?.request.startTemplate === "notice-response" && (
-                <p className="rounded-md border border-brass/40 bg-ivory px-4 py-2 text-sm text-stone">
-                  Reviewed Notice Response recipe saved. Its structured profile build adapter is not implemented yet.
-                </p>
               )}
               {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && (
                 <button type="button" onClick={() => void publish(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
