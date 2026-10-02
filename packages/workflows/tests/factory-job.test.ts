@@ -323,6 +323,7 @@ test("pre-executor v1 Factory Job snapshots restore with no build artifact", () 
 
 test("reviewed Notice Respond profile survives durable Factory Job restoration", () => {
   const noticeProfile = {
+    domain: "tax",
     noticeLabel: "State tax balance notice",
     primaryDocumentId: "state-tax-balance-notice",
     primaryDocumentLabel: "State tax balance notice",
