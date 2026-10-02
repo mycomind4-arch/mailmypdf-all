@@ -1,10 +1,12 @@
 import {
-  buildCanonicalWorkflowRegistry,
   buildReviewedFactoryTemplatePlan,
   buildWorkflowMaterializationPlan,
   type FactoryJob,
-  type WorkflowSeed,
 } from "@mailmypdf/workflows";
+import {
+  buildCanonicalWorkflowRegistry,
+  type WorkflowSeed,
+} from "@mailmypdf/workflows/canonical-registry";
 
 export type GeneratedRecordsRequestProfile = Readonly<{
   workflowId: string;
