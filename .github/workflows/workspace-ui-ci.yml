@@ -30,7 +30,6 @@ on:
       - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
       - '.github/workflows/deploy-mailmypdf.yml'
-      - '.github/workflows/deploy-mailmypdf.yml'
   pull_request:
     paths:
       - 'packages/design-system/**'
@@ -58,6 +57,7 @@ on:
       - 'scripts/*workflow*'
       - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
+      - '.github/workflows/deploy-mailmypdf.yml'
   workflow_dispatch:
 
 permissions:
