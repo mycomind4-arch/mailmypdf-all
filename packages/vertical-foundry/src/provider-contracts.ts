@@ -54,6 +54,8 @@ export interface RepositoryProvider {
   createRepository(name: string, options: { private: boolean; description: string }): Promise<RepositoryInfo>
   /** Create a branch from the default branch (or specified base). */
   createBranch(repository: string, branch: string, base?: string): Promise<{ branch: string; created: boolean }>
+  /** Create a branch at one exact commit SHA. */
+  createBranchAtSha(repository: string, branch: string, sha: string): Promise<{ branch: string; created: boolean }>
   /** Get the SHA of a branch tip. */
   getBranchSha(repository: string, branch: string): Promise<{ sha: string }>
   /** Read one UTF-8 repository file at an optional ref. Returns null for 404. */
