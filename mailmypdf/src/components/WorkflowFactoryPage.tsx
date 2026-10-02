@@ -148,6 +148,14 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
 
   useEffect(() => { void refresh(); }, []);
 
+  useEffect(() => {
+    if (!activeJob || activeJob.stage !== "template_review") return;
+    setTemplateId("");
+    setTemplateLabel("");
+    setAdoptExisting(false);
+    setNoticeProfileJson("");
+  }, [activeJob?.id]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!problem.trim() || pending) return;
