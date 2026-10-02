@@ -13,7 +13,6 @@ import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.
 import {
   NOTICE_RESPONSE_WORKFLOW_PROFILES,
   getNoticeResponseWorkflowProfile,
-  type NoticeResponseWorkflowId,
 } from "./profiles.js";
 
 export interface NoticeResponseRuntimeInput extends Record<string, unknown> {
