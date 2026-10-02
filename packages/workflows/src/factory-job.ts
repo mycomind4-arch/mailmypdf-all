@@ -302,7 +302,11 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   const source = record(value, "Factory job build");
   const request = record(source.request, "Factory job build request");
   const startTemplate = request.startTemplate;
-  if (startTemplate !== "notice-response" && startTemplate !== "records-request") {
+  if (
+    startTemplate !== "notice-response" &&
+    startTemplate !== "records-request" &&
+    startTemplate !== "ssa-reconsideration"
+  ) {
     throw new Error("Factory job build start template is invalid.");
   }
   if (!Array.isArray(source.filePaths) || source.filePaths.some((path) => typeof path !== "string")) {
@@ -321,6 +325,14 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
           noticeProfile:
             request.noticeProfile as NonNullable<
               ReviewedFactoryTemplateRequest["noticeProfile"]
+            >,
+        }
+      : {}),
+    ...(request.ssaProfile !== undefined
+      ? {
+          ssaProfile:
+            request.ssaProfile as NonNullable<
+              ReviewedFactoryTemplateRequest["ssaProfile"]
             >,
         }
       : {}),
@@ -742,6 +754,14 @@ export function approveFactoryJobReview(
     ) {
       throw new Error(
         "Notice Respond template approval requires a reviewer-authored noticeProfile.",
+      );
+    }
+    if (
+      templateRequest.startTemplate === "ssa-reconsideration" &&
+      !templateRequest.ssaProfile
+    ) {
+      throw new Error(
+        "SSA reconsideration template approval requires a reviewer-authored ssaProfile.",
       );
     }
     const build = buildReviewedFactoryTemplatePlan(templateRequest);
