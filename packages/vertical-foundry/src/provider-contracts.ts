@@ -64,6 +64,8 @@ export interface RepositoryProvider {
   createFile(repository: string, branch: string, path: string, content: string, message: string): Promise<CommitResult>
   /** Create a tree with multiple files in a single commit. */
   createTree(repository: string, branch: string, files: readonly FileCommit[], message: string): Promise<CommitResult>
+  /** Compare two commits and return the changed repository paths. */
+  compareChangedFiles(repository: string, base: string, head: string): Promise<readonly string[]>
   /** Create a pull request. */
   createPullRequest(repository: string, head: string, base: string, title: string, body: string): Promise<PullRequestResult>
   /** Find an existing open pull request for a branch. */
