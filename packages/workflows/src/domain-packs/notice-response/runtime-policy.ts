@@ -152,7 +152,7 @@ function validateNoticeAnalysis(analysis: WorkflowMatterAnalysis): void {
 }
 
 export function createNoticeResponseRuntimePolicy(
-  workflowId: NoticeResponseWorkflowId,
+  workflowId: string,
 ): WorkflowRuntimePolicy {
   const profile = getNoticeResponseWorkflowProfile(workflowId);
   if (!profile) {
