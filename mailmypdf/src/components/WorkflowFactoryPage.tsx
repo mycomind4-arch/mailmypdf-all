@@ -410,11 +410,11 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                       onChange={(event) => setNoticeProfileJson(event.target.value)}
                       rows={12}
                       spellCheck={false}
-                      placeholder={'{"noticeLabel":"State tax notice","primaryDocumentId":"state-tax-notice","primaryDocumentLabel":"State tax notice","extractionSchema":"state.tax.notice.v1","sourcePurpose":"state_tax_notice","responseModeLabel":"How do you want to respond?","responseModes":[{"value":"disagree","label":"Disagree"}],"evidenceKinds":[{"value":"supporting-record","label":"Supporting record"}],"explanationRequiredModes":["disagree"],"explanationLabel":"Explain your response","explanationHint":"Use only verified facts.","requestedActionDefault":"Please review my response and supporting records.","analysisInstructions":"Reviewer-authored source-grounding instructions.","draftInstructions":"Reviewer-authored drafting instructions."}'}
+                      placeholder={'{"domain":"tax","noticeLabel":"State tax notice","primaryDocumentId":"state-tax-notice","primaryDocumentLabel":"State tax notice","extractionSchema":"state.tax.notice.v1","sourcePurpose":"state_tax_notice","responseModeLabel":"How do you want to respond?","responseModes":[{"value":"disagree","label":"Disagree"}],"evidenceKinds":[{"value":"supporting-record","label":"Supporting record"}],"explanationRequiredModes":["disagree"],"explanationLabel":"Explain your response","explanationHint":"Use only verified facts.","requestedActionDefault":"Please review my response and supporting records.","analysisInstructions":"Reviewer-authored source-grounding instructions.","draftInstructions":"Reviewer-authored drafting instructions."}'}
                       className="mt-2 w-full rounded-md border border-rule bg-paper px-3 py-2 font-mono text-xs font-normal normal-case tracking-normal text-navy"
                     />
                     <span className="mt-1 block font-sans text-[11px] font-normal normal-case tracking-normal text-stone">
-                      Required for Notice Respond. The factory validates and preserves these reviewer-authored rules; it does not invent legal authority, deadlines, addresses, remedies, or response modes.
+                      Required for the current tax-notice adapter. The factory validates and preserves these reviewer-authored rules; it does not invent legal authority, deadlines, addresses, remedies, or response modes. Non-tax notice families require a separate generic official-notice runtime.
                     </span>
                   </label>
                 )}
