@@ -11,6 +11,7 @@ import {
 
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { absoluteUrl } from "@/lib/site-url";
+import { CHATGPT_PLUGIN_DIRECTORY_URL, MAILMYPDF_MCP_ENDPOINT } from "@/lib/chatgpt-links";
 
 export const Route = createFileRoute("/chatgpt")({
   head: () => ({
@@ -112,10 +113,18 @@ function ChatGptConnectorPage() {
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <a
+                  href={CHATGPT_PLUGIN_DIRECTORY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-cobalt px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90"
+                >
+                  Open ChatGPT Plugins <ArrowRight className="h-4 w-4" />
+                </a>
+                <a
                   href="/account/setup?return_to=/chatgpt"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
                 >
-                  Set up MailMyPDF <ArrowRight className="h-4 w-4" />
+                  Set up MailMyPDF
                 </a>
                 <Link
                   to="/how-it-works"
@@ -125,8 +134,8 @@ function ChatGptConnectorPage() {
                 </Link>
               </div>
               <p className="mt-4 max-w-xl text-xs leading-5 text-muted-foreground">
-                MailMyPDF availability inside ChatGPT can depend on your ChatGPT account or workspace.
-                Your MailMyPDF account remains the owner of documents, approvals, payments, and mailing records.
+                Plugin and app availability can depend on your ChatGPT plan, workspace, and rollout.
+                If MailMyPDF is not visible in the public directory for your account yet, eligible developer-mode users can connect the MCP endpoint shown below.
               </p>
             </div>
 
@@ -193,6 +202,46 @@ function ChatGptConnectorPage() {
                   </li>
                 ))}
               </ol>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 pt-10 sm:px-8 sm:pt-12">
+          <div className="rounded-3xl border border-cobalt/20 bg-cobalt/[.045] p-6 sm:p-8">
+            <div className="grid gap-6 lg:grid-cols-[.78fr_1.22fr] lg:items-center">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-cobalt">Connector access</div>
+                <h2 className="mt-3 font-serif text-3xl">Public plugin when available. MCP access for eligible testers now.</h2>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  Start with the ChatGPT Plugins directory. If MailMyPDF has not appeared for your account yet and your workspace supports custom MCP apps,
+                  use the MailMyPDF MCP endpoint below when creating the app.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rule bg-card p-5 shadow-card">
+                <div className="text-[10px] font-semibold uppercase tracking-[.16em] text-muted-foreground">MailMyPDF MCP endpoint</div>
+                <code className="mt-3 block overflow-x-auto rounded-xl border border-rule bg-paper-deep/40 px-4 py-3 text-xs text-foreground">
+                  {MAILMYPDF_MCP_ENDPOINT}
+                </code>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <a
+                    href={CHATGPT_PLUGIN_DIRECTORY_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-cobalt px-5 text-sm font-semibold text-white transition hover:bg-cobalt/90"
+                  >
+                    Open ChatGPT Plugins <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="/account/setup?return_to=/chatgpt"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-rule bg-white px-5 text-sm font-semibold text-foreground transition hover:border-cobalt/30 hover:text-cobalt"
+                  >
+                    Prepare my account
+                  </a>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  Custom MCP app access is controlled by ChatGPT plan and workspace permissions. The endpoint does not bypass MailMyPDF authentication, approval, payment, or mailing controls.
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -277,10 +326,18 @@ function ChatGptConnectorPage() {
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a
+              href={CHATGPT_PLUGIN_DIRECTORY_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-cobalt px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-cobalt/90"
+            >
+              Open ChatGPT Plugins <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
               href="/account/setup?return_to=/chatgpt"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
             >
-              Set up my account <ArrowRight className="h-4 w-4" />
+              Set up my account
             </a>
             <Link
               to="/ecosystem"

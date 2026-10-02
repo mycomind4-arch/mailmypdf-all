@@ -13,7 +13,7 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight, Search } from "lucide-react";
+import { ChevronDown, User, FileText, Mail, FolderOpen, LogOut, Clock, ArrowRight, Search, MessageSquare } from "lucide-react";
 import { AuthenticatedSidebar } from "./authenticated-sidebar";
 import { SECTION_REGISTRY } from "@/lib/section-registry";
 
@@ -180,8 +180,12 @@ function EcosystemHeader({ config }: { config: EcosystemShellConfig }) {
               <NavLink to={config.workflowsUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 Workflows
               </NavLink>
-              <NavLink to="/chatgpt" className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
-                ChatGPT
+              <NavLink
+                to="/chatgpt"
+                className="inline-flex items-center gap-1.5 rounded-full border border-cobalt/20 bg-cobalt/5 px-3 py-2 text-sm font-semibold text-cobalt transition-colors hover:border-cobalt/35 hover:bg-cobalt/10"
+              >
+                <MessageSquare size={14} />
+                Use in ChatGPT
               </NavLink>
               <NavLink to={config.howItWorksUrl} className="rounded-lg px-2.5 py-2 text-sm text-ink-soft transition-colors hover:bg-muted/40 hover:text-foreground">
                 How It Works
@@ -549,8 +553,13 @@ function MobileNav({ config, onClose }: { config: EcosystemShellConfig; onClose:
         <NavLink to={config.workflowsUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           Workflows
         </NavLink>
-        <NavLink to="/chatgpt" onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
-          Use with ChatGPT
+        <NavLink
+          to="/chatgpt"
+          onClick={onClose}
+          className="flex items-center gap-2 rounded-md border border-cobalt/15 bg-cobalt/5 px-3 py-2.5 text-sm font-semibold text-cobalt hover:bg-cobalt/10"
+        >
+          <MessageSquare size={15} />
+          Use MailMyPDF in ChatGPT
         </NavLink>
         <NavLink to={config.howItWorksUrl} onClick={onClose} className="rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-muted/50">
           How It Works
