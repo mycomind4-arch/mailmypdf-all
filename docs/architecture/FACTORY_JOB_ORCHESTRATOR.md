@@ -59,9 +59,9 @@ Publication means **push the accepted proposal branch and open a pull request fo
 
 ## Reviewed Notice Respond family adapter
 
-Notice Respond now has a supervised factory adapter parallel to Records Request, with an additional review requirement because notice-specific analysis and drafting rules can be legally consequential.
+Notice Respond now has a supervised tax-notice factory adapter parallel to Records Request, with an additional review requirement because notice-specific analysis and drafting rules can be legally consequential.
 
-- A new Notice Respond template cannot be approved without a structured reviewer-authored `noticeProfile`.
+- A new Notice Respond template cannot be approved without a structured reviewer-authored `noticeProfile`; the current adapter explicitly accepts `domain: "tax"` only.
 - The profile explicitly supplies notice identity, primary-document schema, source purpose, allowed response modes, evidence kinds, explanation requirements, requested-action default, analysis instructions, and drafting instructions.
 - The factory validates and preserves that profile. It does not infer legal authority, deadlines, mailing destinations, remedies, eligibility, appeal rights, or response modes.
 - Generated profiles are stored separately from the hand-authored core IRS profiles in machine-owned generated profile registries.
