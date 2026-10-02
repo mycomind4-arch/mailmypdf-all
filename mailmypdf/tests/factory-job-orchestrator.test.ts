@@ -127,6 +127,7 @@ test("generated Notice Respond profiles stay separate and reviewer-authored", ()
   assert.match(executor, /reviewer-authored noticeProfile/);
   assert.match(page, /Reviewed notice profile JSON/);
   assert.match(page, /does not invent legal authority, deadlines, addresses, remedies, or response modes/);
+  assert.match(page, /Non-tax notice families require a separate generic official-notice runtime/);
 });
 
 test("Studio exposes supervised execution evidence and explicit PR publication", () => {
