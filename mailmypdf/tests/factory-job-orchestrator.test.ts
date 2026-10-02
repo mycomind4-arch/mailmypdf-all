@@ -89,7 +89,8 @@ test("supervised executor isolates proposal work and has no publication/provider
   assert.match(executor, /"worktree",\s*"add",\s*"-b"/);
   assert.match(executor, /expectedChangedPath/);
   assert.match(executor, /Factory build produced unexpected paths/);
-  assert.match(executor, /generated-profile-specs\.json/);
+  const planner = read("src/studio/factory-proposal-plan.ts");
+  assert.match(planner, /generated-profile-specs\.json/);
   assert.match(executor, /materialize-workflow-spec\.ts/);
   assert.match(executor, /verify-factory-workflow\.ts/);
   assert.match(executor, /@mailmypdf\/workflows", "test"/);
@@ -133,7 +134,8 @@ test("generated Notice Respond profiles stay separate and reviewer-authored", ()
 test("Studio exposes supervised execution evidence and explicit PR publication", () => {
   const page = read("src/components/WorkflowFactoryPage.tsx");
 
-  assert.match(page, /Run local supervised build/);
+  assert.match(page, /Run remote build/);
+  assert.match(page, /Run local fallback/);
   assert.match(page, /Build artifact/);
   assert.match(page, /Nothing has been pushed or published yet/);
   assert.match(page, /Create GitHub PR/);
@@ -161,7 +163,9 @@ test("factory publication pushes only the accepted commit and never merges or de
 test("generated workflow verifier certifies the actual chat-executable field", () => {
   const verifier = read("../scripts/verify-factory-workflow.ts");
 
-  assert.match(verifier, /!report\.chatExecutable/);
+  assert.match(verifier, /!entry\.chatExecutable/);
+  assert.match(verifier, /policyFamily === "records-request"/);
+  assert.match(verifier, /policyFamily === "notice-response"/);
   assert.doesNotMatch(verifier, /report\.executable/);
 });
 
@@ -190,4 +194,53 @@ test("Studio makes catalog adoption explicit and candidate-driven", () => {
   assert.match(page, /Adopt existing canonical catalog workflow/);
   assert.match(page, /adoptExisting/);
   assert.match(page, /preserves reviewed public config, authority, and legacy metadata/);
+});
+
+
+test("remote factory routes require authenticated administrator access without localhost shell access", () => {
+  const routes = [
+    "src/routes/api/studio/workflows/jobs/$id/remote-build.ts",
+    "src/routes/api/studio/workflows/jobs/$id/remote-sync.ts",
+    "src/routes/api/studio/workflows/jobs/$id/remote-approve.ts",
+  ];
+  for (const relative of routes) {
+    const source = read(relative);
+    assert.match(source, /adminFactoryAccess\(request\)/, relative);
+    assert.doesNotMatch(source, /localAdminFactoryAccess|studioAccessError/, relative);
+  }
+});
+
+test("remote factory executor pins the base, verifies recovery diffs, and never merges or deploys", () => {
+  const executor = read("src/studio/factory-remote-executor.server.ts");
+
+  assert.match(executor, /createBranchAtSha/);
+  assert.match(executor, /compareChangedFiles/);
+  assert.match(executor, /does not exactly match the reviewed proposal plan/);
+  assert.match(executor, /getCommitStatus/);
+  assert.match(executor, /recordPersistentFactoryAcceptance/);
+  assert.match(executor, /findOpenPullRequestByHead/);
+  assert.match(executor, /createPullRequest/);
+  assert.match(executor, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(executor, /mergePullRequest|merge_pull_request|deployProduction|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("remote factory proposal planning is deterministic and preserves adoption config", () => {
+  const planner = read("src/studio/factory-proposal-plan.ts");
+
+  assert.match(planner, /buildWorkflowMaterializationPlan/);
+  assert.match(planner, /buildCanonicalWorkflowRegistry/);
+  assert.match(planner, /indexable: false/);
+  assert.match(planner, /Catalog adoption requires reviewed public config/);
+  assert.match(planner, /existingConfig/);
+  assert.match(planner, /mailmypdf\/WORKFLOW_INVENTORY\.json/);
+});
+
+test("Studio exposes the remote build, CI sync, and tested-PR approval sequence", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Run remote build/);
+  assert.match(page, /Check GitHub CI/);
+  assert.match(page, /Approve tested GitHub PR/);
+  assert.match(page, /Remote PR #/);
 });

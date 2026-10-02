@@ -94,3 +94,23 @@ The isolated executor verifies the catalog entry again against the fetched build
 The accepted diff allowlist is exact: materializer-owned wrapper files, the colocated workflow spec, the family generated-profile registry, the canonical workflow registry, and generated inventory. Existing domain files, assets, extraction schemas, definitions, and other workflow-local files are outside the allowlist.
 
 Adopted proposals run the same materialization-drift, workflow/chat certification, family unit/acceptance, clean-tree, and GitHub PR publication gates as new factory proposals.
+
+
+## Remote GitHub acceptance path
+
+The preferred supervised execution path no longer requires the Studio server to own a Git checkout.
+
+After template/adoption review:
+
+1. Studio starts remote acceptance with ordinary verified-admin access.
+2. The executor reads the default-branch SHA and all proposal inputs from GitHub at that exact ref.
+3. One deterministic proposal plan produces the desired workflow files. New public copy remains scaffold-only and non-indexable; catalog adoption omits the existing reviewed `config.ts` from the write set.
+4. A `factory/remote-…` branch is created at the exact base SHA. Only files whose desired content differs from the base are committed.
+5. Retry recovery reuses an existing branch only when the compare API reports the exact expected changed-file set and every desired generated file has the expected content.
+6. The executor creates or reuses one pull request and persists repository/PR evidence inside the Factory Job build artifact.
+7. GitHub Actions runs acceptance. Studio synchronizes the exact proposal commit and requires the generated-workflow certification, shared capability gate, public landing gate, Workspace UI gate, and the matching family suite.
+8. Complete passing evidence moves the job to `publication_review`. Explicit administrator approval verifies that the remote branch and open PR still point at the accepted commit, then records the PR as the publication artifact.
+
+The remote executor never merges the PR, deploys production, charges a customer, or submits mail. The local isolated-worktree executor remains available as a fallback.
+
+This slice intentionally keeps CI synchronization explicit through **Check GitHub CI**. Automatic synchronization of pending remote jobs is the next orchestration improvement; it should reuse the same durable transition and acceptance rules rather than creating a second state machine.

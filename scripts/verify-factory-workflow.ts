@@ -1,28 +1,75 @@
-import { canonicalChatFactoryReport } from "../packages/workflows/src/chat-execution-registry";
-import { MAILMYPDF_MCP_TOOLS } from "../mailmypdf/src/lib/mcp/tool-catalog";
+async function main(): Promise<void> {
+  const [{ canonicalChatFactoryReport }, { MAILMYPDF_MCP_TOOLS }] =
+    await Promise.all([
+      import("../packages/workflows/src/chat-execution-registry.ts"),
+      import("../mailmypdf/src/lib/mcp/tool-catalog.ts"),
+    ]);
 
-const workflowId = process.argv[2]?.trim();
-if (!workflowId) throw new Error("Provide a canonical workflow ID to verify.");
+  const requested = process.argv[2]?.trim() || null;
+  const report = canonicalChatFactoryReport(
+    MAILMYPDF_MCP_TOOLS.map((tool) => tool.name),
+  );
 
-const report = canonicalChatFactoryReport(
-  MAILMYPDF_MCP_TOOLS.map((tool) => tool.name),
-).find((entry) => entry.id === workflowId);
+  const targets = requested
+    ? report.filter((entry) => entry.id === requested)
+    : report.filter(
+        (entry) =>
+          entry.policyFamily === "records-request" ||
+          entry.policyFamily === "notice-response",
+      );
 
-if (!report) {
-  console.error(JSON.stringify({ workflowId, error: "missing-from-factory-report" }, null, 2));
-  process.exitCode = 1;
-} else if (!report.chatExecutable) {
-  console.error(JSON.stringify({
-    workflowId,
-    chatExecutable: report.chatExecutable,
-    reason: report.reason,
-    diagnostics: report.diagnostics,
-  }, null, 2));
-  process.exitCode = 1;
-} else {
-  console.log(JSON.stringify({
-    workflowId,
-    chatExecutable: report.chatExecutable,
-    policyFamily: report.policyFamily,
-  }, null, 2));
+  if (targets.length === 0) {
+    console.error(
+      JSON.stringify(
+        requested
+          ? { workflowId: requested, error: "missing-from-factory-report" }
+          : { error: "no-supported-generated-workflows" },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const failed = targets.filter((entry) => !entry.chatExecutable);
+  if (failed.length > 0) {
+    console.error(
+      JSON.stringify(
+        {
+          requested,
+          failed: failed.map((entry) => ({
+            workflowId: entry.id,
+            chatExecutable: entry.chatExecutable,
+            reason: entry.reason,
+            diagnostics: entry.diagnostics,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        requested,
+        verified: targets.map((entry) => ({
+          workflowId: entry.id,
+          chatExecutable: entry.chatExecutable,
+          policyFamily: entry.policyFamily,
+        })),
+      },
+      null,
+      2,
+    ),
+  );
 }
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  process.exitCode = 1;
+});

@@ -22,6 +22,12 @@ export interface FileCommit {
   content: string
 }
 
+export interface RepositoryFileSnapshot {
+  path: string
+  content: string
+  sha: string
+}
+
 export interface CommitResult {
   commitSha: string
   branch: string
@@ -48,12 +54,18 @@ export interface RepositoryProvider {
   createRepository(name: string, options: { private: boolean; description: string }): Promise<RepositoryInfo>
   /** Create a branch from the default branch (or specified base). */
   createBranch(repository: string, branch: string, base?: string): Promise<{ branch: string; created: boolean }>
+  /** Create a branch at one exact commit SHA. */
+  createBranchAtSha(repository: string, branch: string, sha: string): Promise<{ branch: string; created: boolean }>
   /** Get the SHA of a branch tip. */
   getBranchSha(repository: string, branch: string): Promise<{ sha: string }>
+  /** Read one UTF-8 repository file at an optional ref. Returns null for 404. */
+  getFile(repository: string, path: string, ref?: string): Promise<RepositoryFileSnapshot | null>
   /** Create or update a single file. */
   createFile(repository: string, branch: string, path: string, content: string, message: string): Promise<CommitResult>
   /** Create a tree with multiple files in a single commit. */
   createTree(repository: string, branch: string, files: readonly FileCommit[], message: string): Promise<CommitResult>
+  /** Compare two commits and return the changed repository paths. */
+  compareChangedFiles(repository: string, base: string, head: string): Promise<readonly string[]>
   /** Create a pull request. */
   createPullRequest(repository: string, head: string, base: string, title: string, body: string): Promise<PullRequestResult>
   /** Find an existing open pull request for a branch. */

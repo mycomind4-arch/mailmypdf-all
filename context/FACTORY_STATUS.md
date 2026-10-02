@@ -1,5 +1,18 @@
 # MailMyPDF factory status
 
+## 2026-10-02 — Remote GitHub factory acceptance executor
+
+- Added a server-side remote executor for reviewed Records Request and tax Notice Respond recipes, including catalog adoption. Studio no longer needs a local Git worktree to create a supervised proposal.
+- Extracted proposal generation into one deterministic plan shared with the local executor: scaffold/config where appropriate, reviewed workflow spec, family generated profile registries, materializer-owned wrappers, canonical registry, and generated inventory.
+- The remote executor reads the live canonical/profile/config state at one exact `main` SHA, creates the proposal branch at that SHA, writes only the actual changed subset, and opens or reuses the matching GitHub pull request.
+- Retry recovery is fail-closed: an existing remote branch is reused only when its exact changed-file set and desired file contents match the reviewed deterministic plan.
+- Added an exact-commit CI synchronization path. Required acceptance includes generated-workflow chat certification, shared capability verification, public landing gate, Workspace UI verification, and the relevant Records Request or Notice Respond suite.
+- Durable Factory Job build evidence can now retain the remote repository and PR identity without breaking older `mailmypdf.factory-job/v1` snapshots.
+- Studio exposes **Run remote build → Check GitHub CI → Approve tested GitHub PR** as the primary path while retaining the localhost worktree flow as a fallback.
+- Remote approval records the already-open tested PR as the publication artifact. It does not merge, deploy, charge, or submit mail.
+- Remaining autonomy gap after this slice: automatically synchronize pending remote CI jobs rather than requiring the explicit **Check GitHub CI** action, then expand safe family adapters.
+
+
 ## 2026-10-01 — Existing catalog adoption path
 
 - Added explicit reviewed adoption for catalog-only canonical workflows so the 400+ registry can be upgraded in place instead of cloned under replacement IDs.

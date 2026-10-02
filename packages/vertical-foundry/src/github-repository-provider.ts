@@ -11,6 +11,7 @@ import type {
   FileCommit,
   CommitResult,
   PullRequestResult,
+  RepositoryFileSnapshot,
   StatusCheck,
 } from './provider-contracts.js'
 
@@ -87,9 +88,45 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
     return { branch, created: true }
   }
 
+  async createBranchAtSha(repository: string, branch: string, sha: string): Promise<{ branch: string; created: boolean }> {
+    if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error(`Invalid branch base SHA: ${sha}`)
+    const existing = await this.api(`/repos/${repository}/branches/${branch}`)
+    if (existing.ok) return { branch, created: false }
+    await this.apiJson(`/repos/${repository}/git/refs`, {
+      method: 'POST',
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+    })
+    return { branch, created: true }
+  }
+
   async getBranchSha(repository: string, branch: string): Promise<{ sha: string }> {
     const data = await this.apiJson<{ commit: { sha: string } }>(`/repos/${repository}/branches/${branch}`)
     return { sha: data.commit.sha }
+  }
+
+  async getFile(repository: string, path: string, ref?: string): Promise<RepositoryFileSnapshot | null> {
+    const suffix = ref ? `?ref=${encodeURIComponent(ref)}` : ""
+    const res = await this.api(`/repos/${repository}/contents/${path}${suffix}`)
+    if (res.status === 404) return null
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(`GitHub API file read failed: ${res.status} ${res.statusText} ${text}`)
+    }
+    const data = await res.json() as {
+      path: string
+      sha: string
+      encoding: string
+      content: string
+      type: string
+    }
+    if (data.type !== "file" || data.encoding !== "base64") {
+      throw new Error(`GitHub repository path ${path} is not a readable base64 file`)
+    }
+    return {
+      path: data.path,
+      sha: data.sha,
+      content: Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8"),
+    }
   }
 
   async createFile(repository: string, branch: string, path: string, content: string, message: string): Promise<CommitResult> {
@@ -135,6 +172,13 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
     return { commitSha: commitData.sha, branch, filesCommitted: files.length }
   }
 
+  async compareChangedFiles(repository: string, base: string, head: string): Promise<readonly string[]> {
+    const data = await this.apiJson<{ files?: Array<{ filename: string }> }>(
+      `/repos/${repository}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
+    )
+    return Object.freeze((data.files ?? []).map((file) => file.filename))
+  }
+
   async createPullRequest(repository: string, head: string, base: string, title: string, body: string): Promise<PullRequestResult> {
     const data = await this.apiJson<{ number: number; html_url: string }>(`/repos/${repository}/pulls`, {
       method: 'POST',
@@ -162,8 +206,11 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
   }
 
   async getCommitStatus(repository: string, ref: string): Promise<{ state: string; checks: StatusCheck[] }> {
+    const refFilter = /^[0-9a-f]{40}$/i.test(ref)
+      ? `head_sha=${encodeURIComponent(ref)}`
+      : `branch=${encodeURIComponent(ref)}`
     const runsData = await this.apiJson<{ workflow_runs: Array<{ status: string; conclusion: string | null; name: string; html_url: string }> }>(
-      `/repos/${repository}/actions/runs?branch=${ref}&per_page=20`
+      `/repos/${repository}/actions/runs?${refFilter}&per_page=50`
     ).catch(() => ({ workflow_runs: [] }))
 
     const checks: StatusCheck[] = runsData.workflow_runs.map((run) => ({

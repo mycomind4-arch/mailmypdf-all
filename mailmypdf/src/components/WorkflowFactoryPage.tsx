@@ -69,6 +69,11 @@ type FactoryJob = {
     changedFiles: string[];
     checks: Array<{ id: string; command: string; ok: boolean; summary: string }>;
     builtAt: string;
+    remote?: {
+      repository: string;
+      pullRequestNumber: number;
+      pullRequestUrl: string;
+    };
   } | null;
   publicationArtifact: {
     repository: string;
@@ -119,7 +124,9 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [templateLabel, setTemplateLabel] = useState("");
   const [adoptExisting, setAdoptExisting] = useState(false);
   const [noticeProfileJson, setNoticeProfileJson] = useState("");
-  const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "publish" | "cancel" | null>("report");
+  const [pending, setPending] = useState<
+    "report" | "job" | "review" | "build" | "remote-build" | "remote-sync" | "remote-approve" | "publish" | "cancel" | null
+  >("report");
   const [error, setError] = useState<string | null>(null);
 
   function upsertJob(job: FactoryJob) {
@@ -267,6 +274,55 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     }
   }
 
+  async function runRemoteBuild(job: FactoryJob) {
+    if (pending) return;
+    setPending("remote-build");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/remote-build`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to start the remote factory build.");
+      await refresh();
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function syncRemote(job: FactoryJob) {
+    if (pending) return;
+    setPending("remote-sync");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/remote-sync`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to synchronize remote factory CI.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function approveRemote(job: FactoryJob) {
+    if (pending) return;
+    setPending("remote-approve");
+    setError(null);
+    try {
+      const payload = await request(`/api/studio/workflows/jobs/${job.id}/remote-approve`, {
+        method: "POST",
+      }) as { job: FactoryJob };
+      upsertJob(payload.job);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to approve the tested remote proposal.");
+    } finally {
+      setPending(null);
+    }
+  }
+
   async function cancel(job: FactoryJob) {
     if (pending) return;
     setPending("cancel");
@@ -360,6 +416,16 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                 <div className="text-xs font-semibold uppercase tracking-wider text-stone">Build artifact</div>
                 <div className="mt-2 break-all font-mono text-xs text-navy">{activeJob.buildArtifact.branch}</div>
                 <div className="mt-1 break-all font-mono text-[11px] text-stone">{activeJob.buildArtifact.commitSha}</div>
+                {activeJob.buildArtifact.remote && (
+                  <a
+                    href={activeJob.buildArtifact.remote.pullRequestUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-xs font-semibold text-navy underline decoration-brass/50 underline-offset-2"
+                  >
+                    Remote PR #{activeJob.buildArtifact.remote.pullRequestNumber} · {activeJob.buildArtifact.remote.repository}
+                  </a>
+                )}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {activeJob.buildArtifact.checks.map((check) => (
                     <div key={check.id} className="rounded-md border border-rule bg-paper p-3 text-xs">
@@ -516,12 +582,30 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                 </button>
               )}
               {activeJob.stage === "acceptance" && activeJob.status === "queued" && (
-                <button type="button" onClick={() => void runBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
-                  <RefreshCw size={16} className={pending === "build" ? "animate-spin" : ""} />
-                  {pending === "build" ? "Building and testing…" : "Run local supervised build"}
+                <>
+                  <button type="button" onClick={() => void runRemoteBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                    <ArrowRight size={16} />
+                    {pending === "remote-build" ? "Creating remote proposal…" : "Run remote build"}
+                  </button>
+                  <button type="button" onClick={() => void runBuild(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md border border-navy px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50">
+                    <RefreshCw size={16} className={pending === "build" ? "animate-spin" : ""} />
+                    {pending === "build" ? "Building and testing…" : "Run local fallback"}
+                  </button>
+                </>
+              )}
+              {activeJob.stage === "acceptance" && activeJob.status === "running" && activeJob.buildArtifact?.remote && (
+                <button type="button" onClick={() => void syncRemote(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                  <RefreshCw size={16} className={pending === "remote-sync" ? "animate-spin" : ""} />
+                  {pending === "remote-sync" ? "Checking GitHub CI…" : "Check GitHub CI"}
                 </button>
               )}
-              {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && (
+              {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && activeJob.buildArtifact?.remote && (
+                <button type="button" onClick={() => void approveRemote(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
+                  <CheckCircle2 size={16} />
+                  {pending === "remote-approve" ? "Approving tested PR…" : "Approve tested GitHub PR"}
+                </button>
+              )}
+              {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && !activeJob.buildArtifact?.remote && (
                 <button type="button" onClick={() => void publish(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <ArrowRight size={16} />
                   {pending === "publish" ? "Publishing proposal…" : "Create GitHub PR"}
