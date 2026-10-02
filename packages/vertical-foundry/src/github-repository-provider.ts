@@ -88,6 +88,17 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
     return { branch, created: true }
   }
 
+  async createBranchAtSha(repository: string, branch: string, sha: string): Promise<{ branch: string; created: boolean }> {
+    if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error(`Invalid branch base SHA: ${sha}`)
+    const existing = await this.api(`/repos/${repository}/branches/${branch}`)
+    if (existing.ok) return { branch, created: false }
+    await this.apiJson(`/repos/${repository}/git/refs`, {
+      method: 'POST',
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+    })
+    return { branch, created: true }
+  }
+
   async getBranchSha(repository: string, branch: string): Promise<{ sha: string }> {
     const data = await this.apiJson<{ commit: { sha: string } }>(`/repos/${repository}/branches/${branch}`)
     return { sha: data.commit.sha }
