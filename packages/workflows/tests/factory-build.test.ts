@@ -112,5 +112,9 @@ test("reviewed build plan preserves explicit catalog adoption intent", () => {
 
   assert.equal(plan.request.adoptExisting, true);
   assert.equal(plan.canonicalId, "records-request/police-records-request");
-  assert.equal(plan.spec.execution?.policyFamily, "records-request");
+  assert.equal(plan.spec.execution?.kind, "platform");
+  if (plan.spec.execution?.kind !== "platform") {
+    assert.fail("Catalog adoption must build a platform execution binding.");
+  }
+  assert.equal(plan.spec.execution.policyFamily, "records-request");
 });
