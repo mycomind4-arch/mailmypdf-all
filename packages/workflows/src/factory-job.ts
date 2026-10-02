@@ -1,4 +1,5 @@
 import { canonicalChatFactoryReport } from "./chat-execution-registry.js";
+import { workflowById } from "./canonical-workflow-registry.js";
 import { planWorkflowFromProblem } from "./problem-workflow-plan.js";
 import {
   buildReviewedFactoryTemplatePlan,
@@ -313,9 +314,22 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     id: requiredSnapshotString(request.id, "Factory build workflow id", 300),
     label: requiredSnapshotString(request.label, "Factory build workflow label", 500),
     startTemplate,
+    ...(request.authority &&
+    typeof request.authority === "object" &&
+    !Array.isArray(request.authority) &&
+    typeof (request.authority as Record<string, unknown>).module === "string" &&
+    typeof (request.authority as Record<string, unknown>).reviewedAt === "string"
+      ? {
+          authority: {
+            module: (request.authority as Record<string, unknown>).module as string,
+            reviewedAt: (request.authority as Record<string, unknown>).reviewedAt as string,
+          },
+        }
+      : {}),
     ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
       ? { legacyGoldId: request.legacyGoldId }
       : {}),
+    ...(request.adoptExisting === true ? { adoptExisting: true } : {}),
     ...(request.noticeProfile !== undefined
       ? {
           noticeProfile:
@@ -744,7 +758,42 @@ export function approveFactoryJobReview(
         "Notice Respond template approval requires a reviewer-authored noticeProfile.",
       );
     }
-    const build = buildReviewedFactoryTemplatePlan(templateRequest);
+
+    const requestedId = templateRequest.id.trim();
+    const canonical = workflowById(requestedId);
+    let reviewedRequest = templateRequest;
+
+    if (templateRequest.adoptExisting) {
+      if (!canonical) {
+        throw new Error(
+          `Catalog adoption requires an existing canonical workflow: ${requestedId}.`,
+        );
+      }
+      if (canonical.execution) {
+        throw new Error(
+          `Canonical workflow ${requestedId} is already executable and cannot be adopted again.`,
+        );
+      }
+      if (templateRequest.label.trim() !== canonical.label) {
+        throw new Error(
+          `Catalog adoption label must match canonical label "${canonical.label}".`,
+        );
+      }
+      reviewedRequest = Object.freeze({
+        ...templateRequest,
+        id: canonical.id,
+        label: canonical.label,
+        adoptExisting: true,
+        ...(canonical.authority ? { authority: canonical.authority } : {}),
+        ...(canonical.legacyGoldId ? { legacyGoldId: canonical.legacyGoldId } : {}),
+      });
+    } else if (canonical) {
+      throw new Error(
+        `Canonical workflow ${requestedId} already exists. Use the reviewed catalog-adoption path instead of creating a duplicate.`,
+      );
+    }
+
+    const build = buildReviewedFactoryTemplatePlan(reviewedRequest);
     return transition(job, {
       status: "queued",
       stage: "build",
