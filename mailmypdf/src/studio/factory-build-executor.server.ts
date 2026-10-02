@@ -5,8 +5,29 @@ import type {
 } from "@mailmypdf/workflows";
 import { findStudioProject, resolveProjectRoot } from "@/studio/domain/studio-project";
 import {
+  failPersistentFactoryAcceptance,
+  loadPersistentFactoryJob,
+  recordPersistentFactoryAcceptance,
+  recordPersistentFactoryBuildArtifact,
+  startPersistentFactoryAcceptance,
+} from "@/studio/factory-job.server";
+import {
   type GeneratedNoticeResponseProfile,
-  function expectedChangedPath(job: FactoryJob, changedPath: string): boolean {
+  type GeneratedRecordsRequestProfile,
+  noticeResponseProfileFromJob,
+  profileRegistryPaths,
+  recordsRequestProfileFromJob,
+  renderFactoryLandingConfig,
+  renderGeneratedNoticeResponseProfiles,
+  renderGeneratedRecordsRequestProfiles,
+} from "@/studio/factory-proposal-plan";
+
+function normalizeOutput(value: string | undefined, max = 4_000): string {
+  const text = (value ?? "").trim();
+  return text.length <= max ? text : text.slice(-max);
+}
+
+function expectedChangedPath(job: FactoryJob, changedPath: string): boolean {
   if (!job.build) return false;
   const registry = profileRegistryPaths(job);
   const specPath =
