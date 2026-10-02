@@ -93,7 +93,9 @@ test("supervised executor isolates proposal work and has no publication/provider
   assert.match(executor, /materialize-workflow-spec\.ts/);
   assert.match(executor, /verify-factory-workflow\.ts/);
   assert.match(executor, /@mailmypdf\/workflows", "test"/);
-  assert.match(executor, /@mailmypdf\/records-request", "test:acceptance"/);
+  assert.match(executor, /@mailmypdf\/records-request/);
+  assert.match(executor, /@mailmypdf\/notice-respond/);
+  assert.match(executor, /test:acceptance/);
   assert.match(executor, /recordPersistentFactoryBuildArtifact/);
   assert.match(executor, /recordPersistentFactoryAcceptance/);
 
@@ -113,6 +115,20 @@ test("generated Records Request profiles stay separate from hand-authored core p
   assert.match(runtime, /RECORDS_REQUEST_WORKFLOW_PROFILES\.map/);
 });
 
+test("generated Notice Respond profiles stay separate and reviewer-authored", () => {
+  const profiles = read("../packages/workflows/src/domain-packs/notice-response/profiles.ts");
+  const generated = read("../packages/workflows/src/domain-packs/notice-response/generated-profiles.ts");
+  const executor = read("src/studio/factory-build-executor.server.ts");
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(profiles, /CORE_NOTICE_RESPONSE_WORKFLOW_PROFILES/);
+  assert.match(profiles, /GENERATED_NOTICE_RESPONSE_WORKFLOW_PROFILES/);
+  assert.match(generated, /machine-owned/);
+  assert.match(executor, /reviewer-authored noticeProfile/);
+  assert.match(page, /Reviewed notice profile JSON/);
+  assert.match(page, /does not invent legal authority, deadlines, addresses, remedies, or response modes/);
+});
+
 test("Studio exposes supervised execution evidence and explicit PR publication", () => {
   const page = read("src/components/WorkflowFactoryPage.tsx");
 
@@ -122,7 +138,7 @@ test("Studio exposes supervised execution evidence and explicit PR publication",
   assert.match(page, /Create GitHub PR/);
   assert.match(page, /Publication artifact/);
   assert.match(page, /Proposal published for review only/);
-  assert.match(page, /Notice Response recipe saved/);
+  assert.match(page, /Reviewed notice profile JSON/);
 });
 
 
@@ -130,7 +146,8 @@ test("factory publication pushes only the accepted commit and never merges or de
   const executor = read("src/studio/factory-publication-executor.server.ts");
 
   assert.match(executor, /refs\/heads\/\$\{branch\}/);
-  assert.match(executor, /Local factory proposal branch moved after acceptance/);\n  assert.match(executor, /default branch moved after factory acceptance/);
+  assert.match(executor, /Local factory proposal branch moved after acceptance/);
+  assert.match(executor, /default branch moved after factory acceptance/);
   assert.match(executor, /ls-remote/);
   assert.match(executor, /"push"/);
   assert.match(executor, /findOpenPullRequestByHead/);
