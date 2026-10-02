@@ -1,5 +1,16 @@
 # MailMyPDF factory status
 
+## 2026-10-01 — Existing catalog adoption path
+
+- Added explicit reviewed adoption for catalog-only canonical workflows so the 400+ registry can be upgraded in place instead of cloned under replacement IDs.
+- Ranked factory candidates now mark catalog-only entries as `adoptable`; bound-but-not-chat-certified workflows are not offered as adoption candidates.
+- Adoption preserves the canonical label, authority metadata, legacy-gold identity, and existing reviewed public `config.ts`.
+- The isolated executor re-verifies the live base, refuses already-executable or partially adopted IDs, and uses the materializer's explicit `--adopt` guard only for deterministic standard wrappers.
+- The changed-file allowlist is exact and excludes legacy domain files, assets, extraction schemas, definitions, and other workflow-local files.
+- New workflow creation now refuses existing canonical IDs and points reviewers to catalog adoption.
+- Adoption currently applies only to the factory-supported Records Request and reviewed tax Notice Respond families; non-tax Notice Respond still requires a generic official-notice runtime.
+- Accepted adoption proposals still stop at the tested GitHub PR boundary; no automatic merge or deployment is introduced.
+
 ## 2026-10-01 — Notice Respond family adapter
 
 - Added a reviewer-authored tax-notice Notice Respond profile contract so authority-sensitive generated workflows can be built without the factory inventing legal rules.
