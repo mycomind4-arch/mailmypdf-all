@@ -87,22 +87,28 @@ function renderLandingConfig(job: FactoryJob): string {
   if (!job.build) throw new Error("Factory build recipe is missing.");
   const request = job.build.request;
   const label = request.label.replaceAll('"', '\\"');
-  const description =
-    `Use the ${request.label} workflow to organize the requester, agency, records scope, optional context, authority review, exact packet approval, mailing, and proof record.`
-      .replaceAll('"', '\\"');
+  const recordsRequest = request.startTemplate === "records-request";
+  const sectionId = recordsRequest ? "records-request" : "notice-respond";
+  const sectionName = recordsRequest ? "Records Request" : "Notice Respond";
+  const eyebrow = recordsRequest ? "Records Request workflow" : "Notice Respond workflow";
+  const description = (
+    recordsRequest
+      ? `Use the ${request.label} workflow to organize the requester, agency, records scope, optional context, authority review, exact packet approval, mailing, and proof record.`
+      : `Use the ${request.label} workflow to work from the actual controlling notice, confirm extracted facts, choose a reviewed response mode, include supporting records, review the exact packet, mail it, and retain proof.`
+  ).replaceAll('"', '\\"');
   return `import type { WorkflowLandingConfig } from "@mailmypdf/design-system"
 
 export const workflowConfig = {
   id: "${job.build.slug}",
-  sectionId: "records-request",
-  sectionName: "Records Request",
-  sectionPath: "/records-request",
-  path: "/records-request/workflows/${job.build.slug}",
-  startPath: "/records-request/workflows/${job.build.slug}/start",
+  sectionId: "${sectionId}",
+  sectionName: "${sectionName}",
+  sectionPath: "/${sectionId}",
+  path: "/${sectionId}/workflows/${job.build.slug}",
+  startPath: "/${sectionId}/workflows/${job.build.slug}/start",
   title: "${label}",
-  seoTitle: "${label} | Records Request | MailMyPDF",
+  seoTitle: "${label} | ${sectionName} | MailMyPDF",
   seoDescription: "${description}",
-  eyebrow: "Records Request workflow",
+  eyebrow: "${eyebrow}",
   heroTitle: "${label}",
   heroDescription: "${description}",
   indexable: false,
@@ -113,7 +119,9 @@ export default workflowConfig
 `;
 }
 
-function profileFromJob(job: FactoryJob): GeneratedRecordsRequestProfile {
+function recordsRequestProfileFromJob(
+  job: FactoryJob,
+): GeneratedRecordsRequestProfile {
   if (!job.build) throw new Error("Factory build recipe is missing.");
   return Object.freeze({
     workflowId: job.build.slug,
@@ -125,16 +133,50 @@ function profileFromJob(job: FactoryJob): GeneratedRecordsRequestProfile {
   });
 }
 
+function noticeResponseProfileFromJob(
+  job: FactoryJob,
+): GeneratedNoticeResponseProfile {
+  if (!job.build) throw new Error("Factory build recipe is missing.");
+  const reviewed = job.build.request.noticeProfile;
+  if (!reviewed) {
+    throw new Error(
+      "Notice Respond supervised builds require a reviewer-authored noticeProfile.",
+    );
+  }
+  return Object.freeze({
+    workflowId: job.build.slug,
+    title: job.build.request.label,
+    ...reviewed,
+  });
+}
+
+function profileRegistryPaths(job: FactoryJob): Readonly<{
+  specs: string;
+  generated: string;
+}> {
+  if (!job.build) throw new Error("Factory build recipe is missing.");
+  return job.build.request.startTemplate === "records-request"
+    ? Object.freeze({
+        specs: RECORDS_REQUEST_PROFILE_SPECS,
+        generated: RECORDS_REQUEST_PROFILES,
+      })
+    : Object.freeze({
+        specs: NOTICE_RESPONSE_PROFILE_SPECS,
+        generated: NOTICE_RESPONSE_PROFILES,
+      });
+}
+
 function expectedChangedPath(job: FactoryJob, changedPath: string): boolean {
   if (!job.build) return false;
-  const workflowRoot = `records-request/workflows/${job.build.slug}/`;
+  const workflowRoot = `${job.build.sectionId}/workflows/${job.build.slug}/`;
   const hostRoot =
-    `mailmypdf/src/routes/records-request/workflows/${job.build.slug}/`;
+    `mailmypdf/src/routes/${job.build.sectionId}/workflows/${job.build.slug}/`;
+  const registry = profileRegistryPaths(job);
   return (
     changedPath.startsWith(workflowRoot) ||
     changedPath.startsWith(hostRoot) ||
-    changedPath === GENERATED_PROFILE_SPECS ||
-    changedPath === GENERATED_PROFILES ||
+    changedPath === registry.specs ||
+    changedPath === registry.generated ||
     changedPath === "packages/workflows/src/canonical-workflows.json" ||
     changedPath === "mailmypdf/WORKFLOW_INVENTORY.json"
   );
