@@ -202,7 +202,7 @@ export default function SsaReconsiderationStartShell({
   const analysisReady = Boolean(
     analysis &&
       isSsaReconsiderationStage(appealStage) &&
-      isSupportedSsaReconsiderationDecisionBasis(decisionBasis),
+      isSupportedSsaDecisionBasis(decisionBasis),
   );
   const requiredForms = requiredSsaFormsForBasis(decisionBasis);
   const formsReady = hasRequiredSsaForms(documents, decisionBasis);
@@ -257,7 +257,7 @@ export default function SsaReconsiderationStartShell({
         hasReconsiderationAnalysis: Boolean(
           storedAnalysis &&
             isSsaReconsiderationStage(currentAppealStage(storedAnalysis)) &&
-            isSupportedSsaReconsiderationDecisionBasis(currentDecisionBasis(storedAnalysis)),
+            isSupportedSsaDecisionBasis(currentDecisionBasis(storedAnalysis)),
         ),
         hasClaimantFacts: Boolean(storedInput),
         hasDraft: Boolean(storedDraft?.bodyText),
