@@ -180,3 +180,14 @@ test("catalog adoption preserves reviewed config and uses materializer adoption 
     /changedPath\.startsWith\(workflowRoot\)/,
   );
 });
+
+
+test("Studio makes catalog adoption explicit and candidate-driven", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Existing catalog candidates/);
+  assert.match(page, /Adopt catalog workflow/);
+  assert.match(page, /Adopt existing canonical catalog workflow/);
+  assert.match(page, /adoptExisting/);
+  assert.match(page, /preserves reviewed public config, authority, and legacy metadata/);
+});
