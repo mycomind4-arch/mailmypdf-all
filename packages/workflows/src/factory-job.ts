@@ -39,6 +39,12 @@ export type FactoryBuildCheck = Readonly<{
   summary: string;
 }>;
 
+export type FactoryRemoteBuildArtifact = Readonly<{
+  repository: string;
+  pullRequestNumber: number;
+  pullRequestUrl: string;
+}>;
+
 export type FactoryBuildArtifact = Readonly<{
   branch: string;
   baseSha: string;
@@ -49,6 +55,7 @@ export type FactoryBuildArtifact = Readonly<{
   changedFiles: readonly string[];
   checks: readonly FactoryBuildCheck[];
   builtAt: string;
+  remote?: FactoryRemoteBuildArtifact;
 }>;
 
 export type FactoryPublicationArtifact = Readonly<{
@@ -212,6 +219,32 @@ function restoreBuildArtifact(value: unknown): FactoryBuildArtifact | null {
   if (!Number.isFinite(Date.parse(builtAt))) {
     throw new Error("Factory build timestamp is invalid.");
   }
+  let remote: FactoryRemoteBuildArtifact | undefined;
+  if (source.remote !== undefined && source.remote !== null) {
+    const value = record(source.remote, "Factory remote build artifact");
+    const pullRequestNumber = value.pullRequestNumber;
+    if (
+      typeof pullRequestNumber !== "number" ||
+      !Number.isSafeInteger(pullRequestNumber) ||
+      pullRequestNumber < 1
+    ) {
+      throw new Error("Factory remote build pull request number is invalid.");
+    }
+    remote = Object.freeze({
+      repository: requiredSnapshotString(
+        value.repository,
+        "Factory remote build repository",
+        300,
+      ),
+      pullRequestNumber,
+      pullRequestUrl: requiredSnapshotString(
+        value.pullRequestUrl,
+        "Factory remote build pull request URL",
+        2000,
+      ),
+    });
+  }
+
   return Object.freeze({
     branch: requiredSnapshotString(source.branch, "Factory build branch", 300),
     baseSha: requiredSnapshotString(source.baseSha, "Factory build base sha", 100),
@@ -226,6 +259,7 @@ function restoreBuildArtifact(value: unknown): FactoryBuildArtifact | null {
     changedFiles: Object.freeze([...source.changedFiles] as string[]),
     checks: Object.freeze(checks),
     builtAt,
+    ...(remote ? { remote } : {}),
   });
 }
 
