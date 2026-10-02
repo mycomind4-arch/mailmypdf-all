@@ -316,6 +316,14 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
       ? { legacyGoldId: request.legacyGoldId }
       : {}),
+    ...(request.noticeProfile !== undefined
+      ? {
+          noticeProfile:
+            request.noticeProfile as NonNullable<
+              ReviewedFactoryTemplateRequest["noticeProfile"]
+            >,
+        }
+      : {}),
   });
   const rebuilt = buildReviewedFactoryTemplatePlan(reviewedRequest);
   const filePaths = source.filePaths as string[];
