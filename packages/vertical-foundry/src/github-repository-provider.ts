@@ -172,6 +172,13 @@ export class GitHubRepositoryProvider implements RepositoryProvider {
     return { commitSha: commitData.sha, branch, filesCommitted: files.length }
   }
 
+  async compareChangedFiles(repository: string, base: string, head: string): Promise<readonly string[]> {
+    const data = await this.apiJson<{ files?: Array<{ filename: string }> }>(
+      `/repos/${repository}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
+    )
+    return Object.freeze((data.files ?? []).map((file) => file.filename))
+  }
+
   async createPullRequest(repository: string, head: string, base: string, title: string, body: string): Promise<PullRequestResult> {
     const data = await this.apiJson<{ number: number; html_url: string }>(`/repos/${repository}/pulls`, {
       method: 'POST',
