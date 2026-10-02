@@ -48,6 +48,7 @@ declare module "@tanstack/react-router" {
     "/appeal-mail/workflows/appeal-ssdi-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssdi-denial/">;
     "/appeal-mail/workflows/appeal-ssdi-denial/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssdi-denial/start/">;
     "/appeal-mail/workflows/appeal-ssi-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssi-denial/">;
+    "/appeal-mail/workflows/appeal-ssi-denial/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-ssi-denial/start/">;
     "/appeal-mail/workflows/appeal-timely-filing-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-timely-filing-denial/">;
     "/appeal-mail/workflows/appeal-timely-filing-denial/start/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-timely-filing-denial/start/">;
     "/appeal-mail/workflows/appeal-unemployment-denial/": StandaloneRouteInfo<"/appeal-mail/workflows/appeal-unemployment-denial/">;
