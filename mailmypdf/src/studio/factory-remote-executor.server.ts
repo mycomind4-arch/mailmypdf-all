@@ -425,6 +425,8 @@ export async function approveRemoteFactoryPublication(input: {
     throw new Error("Remote publication approval requires passing acceptance checks.");
   }
 
+  const project = findStudioProject("mailmypdf");
+  if (!project) throw new Error("MailMyPDF Studio project is not configured.");
   const provider = githubProvider();
   const remoteHead = await provider.getBranchSha(
     job.buildArtifact.remote.repository,
@@ -436,10 +438,12 @@ export async function approveRemoteFactoryPublication(input: {
   const pullRequest = await provider.findOpenPullRequestByHead(
     job.buildArtifact.remote.repository,
     job.buildArtifact.branch,
+    project.defaultBranch,
   );
   if (
     !pullRequest ||
-    pullRequest.number !== job.buildArtifact.remote.pullRequestNumber
+    pullRequest.number !== job.buildArtifact.remote.pullRequestNumber ||
+    pullRequest.url !== job.buildArtifact.remote.pullRequestUrl
   ) {
     throw new Error("Accepted remote factory pull request is no longer open.");
   }
