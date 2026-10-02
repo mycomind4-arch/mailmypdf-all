@@ -1,0 +1,49 @@
+name: Factory generated workflow verification
+
+on:
+  pull_request:
+    paths:
+      - 'records-request/workflows/**'
+      - 'notice-respond/workflows/**'
+      - 'mailmypdf/src/routes/records-request/workflows/**'
+      - 'mailmypdf/src/routes/notice-respond/workflows/**'
+      - 'packages/workflows/src/canonical-workflows.json'
+      - 'packages/workflows/src/domain-packs/records-request/**'
+      - 'packages/workflows/src/domain-packs/notice-response/**'
+      - 'mailmypdf/WORKFLOW_INVENTORY.json'
+      - 'scripts/verify-factory-workflow.ts'
+      - '.github/workflows/factory-generated-workflow-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'records-request/workflows/**'
+      - 'notice-respond/workflows/**'
+      - 'packages/workflows/src/canonical-workflows.json'
+      - 'packages/workflows/src/domain-packs/records-request/**'
+      - 'packages/workflows/src/domain-packs/notice-response/**'
+      - 'mailmypdf/WORKFLOW_INVENTORY.json'
+      - 'scripts/verify-factory-workflow.ts'
+      - '.github/workflows/factory-generated-workflow-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Certify generated Records Request and Notice Respond workflows
+        run: pnpm --filter ./mailmypdf exec tsx ../scripts/verify-factory-workflow.ts
