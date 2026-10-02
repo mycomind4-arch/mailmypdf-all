@@ -316,6 +316,14 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
       ? { legacyGoldId: request.legacyGoldId }
       : {}),
+    ...(request.noticeProfile !== undefined
+      ? {
+          noticeProfile:
+            request.noticeProfile as NonNullable<
+              ReviewedFactoryTemplateRequest["noticeProfile"]
+            >,
+        }
+      : {}),
   });
   const rebuilt = buildReviewedFactoryTemplatePlan(reviewedRequest);
   const filePaths = source.filePaths as string[];
@@ -330,7 +338,7 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
   }
 
   return Object.freeze({
-    request: reviewedRequest,
+    request: rebuilt.request,
     canonicalId: rebuilt.canonicalId,
     sectionId: rebuilt.sectionId,
     slug: rebuilt.slug,
@@ -727,6 +735,14 @@ export function approveFactoryJobReview(
   if (job.stage === "template_review") {
     if (!templateRequest) {
       throw new Error("Template review approval requires a reviewed workflow id, label, and supported family.");
+    }
+    if (
+      templateRequest.startTemplate === "notice-response" &&
+      !templateRequest.noticeProfile
+    ) {
+      throw new Error(
+        "Notice Respond template approval requires a reviewer-authored noticeProfile.",
+      );
     }
     const build = buildReviewedFactoryTemplatePlan(templateRequest);
     return transition(job, {

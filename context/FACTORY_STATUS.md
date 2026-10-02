@@ -1,5 +1,18 @@
 # MailMyPDF factory status
 
+## 2026-10-01 — Notice Respond family adapter
+
+- Added a reviewer-authored tax-notice Notice Respond profile contract so authority-sensitive generated workflows can be built without the factory inventing legal rules.
+- Added machine-owned generated Notice Respond profile registries alongside the five hand-authored IRS profiles. Non-tax notice families remain blocked until a generic official-notice runtime exists.
+- Extended the isolated supervised executor to build and test both Records Request and Notice Respond proposals.
+- Notice Respond proposals run the shared workflow/chat certification plus Notice Respond unit and acceptance suites before publication review.
+- Studio now requires reviewed Notice Respond profile JSON before template approval and exposes the same local build → GitHub PR path after acceptance.
+- Removed IRS-only fallback issuer/recipient labels from the shared Notice Respond UI so generated state/local notice workflows remain source-grounded.
+- Generated landing copy remains non-indexable scaffold content.
+- No merge, deployment, payment, or mailing behavior was added to the factory.
+
+# MailMyPDF factory status
+
 ## 2026-09-30 — Accepted factory proposals can publish a GitHub PR
 
 - Fixed the generated-workflow verifier so it gates on the actual canonical `chatExecutable` result instead of a nonexistent report field.

@@ -5,20 +5,19 @@ import type { WorkflowRuntimePolicy } from "../../matter-runtime-server.js";
 import { createNoticeResponseManifest } from "./manifest.js";
 import {
   getNoticeResponseWorkflowProfile,
-  type NoticeResponseWorkflowId,
   type NoticeResponseWorkflowProfile,
 } from "./profiles.js";
 import { createNoticeResponseRuntimePolicy } from "./runtime-policy.js";
 
 export type NoticeResponseStartConfig = Readonly<{
-  workflowId: NoticeResponseWorkflowId;
+  workflowId: string;
   backHref: string;
   subtitle: string;
 }>;
 
 export type NoticeResponseFactoryArtifact = Readonly<{
   family: "notice-response";
-  workflowId: NoticeResponseWorkflowId;
+  workflowId: string;
   canonicalId: string;
   profile: NoticeResponseWorkflowProfile;
   canonical: WorkflowDefinition;
@@ -42,7 +41,7 @@ function artifactDiagnostic(code: string, message: string): FactoryDiagnostic {
  * or fulfillment.
  */
 export function createNoticeResponseFactoryArtifact(
-  workflowId: NoticeResponseWorkflowId,
+  workflowId: string,
 ): NoticeResponseFactoryArtifact {
   const profile = getNoticeResponseWorkflowProfile(workflowId);
   if (!profile) {
@@ -148,7 +147,7 @@ export function createNoticeResponseFactoryArtifact(
   });
 }
 
-const artifacts = new Map<NoticeResponseWorkflowId, NoticeResponseFactoryArtifact>();
+const artifacts = new Map<string, NoticeResponseFactoryArtifact>();
 
 export function getNoticeResponseFactoryArtifact(
   workflowId: string,
@@ -156,7 +155,7 @@ export function getNoticeResponseFactoryArtifact(
   const profile = getNoticeResponseWorkflowProfile(workflowId);
   if (!profile) return null;
 
-  const typedId = profile.workflowId as NoticeResponseWorkflowId;
+  const typedId = profile.workflowId;
   let artifact = artifacts.get(typedId);
   if (!artifact) {
     artifact = createNoticeResponseFactoryArtifact(typedId);
