@@ -1,10 +1,10 @@
+import { GENERATED_SSA_RECONSIDERATION_WORKFLOW_PROFILES } from "./generated-ssa-reconsideration-profiles.js";
 import type {
   SsaReconsiderationProgram,
-  SsaReconsiderationWorkflowId,
 } from "./ssa-reconsideration-runtime-policy.js";
 
 export type SsaReconsiderationWorkflowProfile = Readonly<{
-  workflowId: SsaReconsiderationWorkflowId;
+  workflowId: string;
   program: SsaReconsiderationProgram;
   title: string;
   primaryDocumentId: string;
@@ -12,7 +12,7 @@ export type SsaReconsiderationWorkflowProfile = Readonly<{
   extractionSchema: string;
 }>;
 
-export const SSA_RECONSIDERATION_WORKFLOW_PROFILES: readonly SsaReconsiderationWorkflowProfile[] =
+export const CORE_SSA_RECONSIDERATION_WORKFLOW_PROFILES: readonly SsaReconsiderationWorkflowProfile[] =
   Object.freeze([
     Object.freeze({
       workflowId: "appeal-ssdi-denial",
@@ -31,6 +31,12 @@ export const SSA_RECONSIDERATION_WORKFLOW_PROFILES: readonly SsaReconsiderationW
       extractionSchema: "ssi-denial-notice-v1",
     }),
   ] as const);
+
+export const SSA_RECONSIDERATION_WORKFLOW_PROFILES =
+  Object.freeze([
+    ...CORE_SSA_RECONSIDERATION_WORKFLOW_PROFILES,
+    ...GENERATED_SSA_RECONSIDERATION_WORKFLOW_PROFILES,
+  ] as const satisfies readonly SsaReconsiderationWorkflowProfile[]);
 
 export function getSsaReconsiderationWorkflowProfile(
   workflowId: string,
