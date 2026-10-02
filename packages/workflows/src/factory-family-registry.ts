@@ -274,7 +274,7 @@ const policyFamilyToFactoryFamily = Object.freeze({
   "notice-response": "notice-response",
 } satisfies Readonly<Record<RuntimePolicyFamily, FactoryFamilyId>>);
 
-const sectionFallback = Object.freeze({
+const sectionFallback: Readonly<Record<string, FactoryFamilyId>> = Object.freeze({
   "appeal-mail": "appeal-mail-general",
   "benefits-appeal": "benefits-appeal",
   "claim-proof": "claim-proof",
