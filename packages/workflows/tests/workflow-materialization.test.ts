@@ -191,3 +191,84 @@ test("records-request materializer cannot be attached to another section or runt
     /requires records-request/,
   );
 });
+
+
+const ssdiReconsiderationSpec = Object.freeze({
+  schemaVersion: WORKFLOW_MATERIALIZATION_SPEC_VERSION,
+  id: "appeal-mail/appeal-ssdi-denial",
+  label: "Appeal SSDI Denial",
+  execution: {
+    kind: "platform",
+    entry: "workspace-start",
+    policyFamily: "ssa-reconsideration",
+  },
+  authority: {
+    module: "appeal-ssdi-denial",
+    reviewedAt: "2026-09-21",
+  },
+  legacyGoldId: "appeal/ssdi-denial",
+  startTemplate: "ssa-reconsideration",
+} as const satisfies WorkflowMaterializationSpec);
+
+test("SSA reconsideration materializer binds static routes to the shared factory artifact and start shell", () => {
+  const plan = buildWorkflowMaterializationPlan(ssdiReconsiderationSpec);
+
+  assert.equal(plan.sectionId, "appeal-mail");
+  assert.equal(plan.slug, "appeal-ssdi-denial");
+  assert.ok(plan.files.every((file) => isMaterializerOwnedFile(file.content)));
+
+  const starts = plan.files.filter((file) =>
+    file.path.endsWith("/start/index.tsx"),
+  );
+  assert.equal(starts.length, 2);
+  assert.ok(
+    starts.every((file) =>
+      file.content.includes(
+        'getSsaReconsiderationFactoryArtifact("appeal-ssdi-denial")',
+      ),
+    ),
+  );
+  assert.ok(
+    starts.every((file) =>
+      file.content.includes(
+        "<SsaReconsiderationStartShell workflowId={factoryArtifact.workflowId} />",
+      ),
+    ),
+  );
+  assert.ok(
+    starts.some((file) =>
+      file.content.includes('../../ssa-reconsideration/start'),
+    ),
+  );
+  assert.ok(
+    starts.some((file) =>
+      file.content.includes(
+        '../../../../../../../appeal-mail/workflows/ssa-reconsideration/start',
+      ),
+    ),
+  );
+});
+
+test("SSA reconsideration template rejects the wrong section or runtime family", () => {
+  assert.throws(
+    () =>
+      buildWorkflowMaterializationPlan({
+        ...ssdiReconsiderationSpec,
+        id: "benefits-appeal/appeal-ssdi-denial",
+      }),
+    /requires appeal-mail/,
+  );
+
+  assert.throws(
+    () =>
+      buildWorkflowMaterializationPlan({
+        ...ssdiReconsiderationSpec,
+        execution: {
+          kind: "platform",
+          entry: "workspace-start",
+          policyFamily: "insurance-appeal",
+        },
+      }),
+    /requires the ssa-reconsideration platform policy/,
+  );
+});
