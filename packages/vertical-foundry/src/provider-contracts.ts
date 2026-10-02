@@ -22,6 +22,12 @@ export interface FileCommit {
   content: string
 }
 
+export interface RepositoryFileSnapshot {
+  path: string
+  content: string
+  sha: string
+}
+
 export interface CommitResult {
   commitSha: string
   branch: string
@@ -50,6 +56,8 @@ export interface RepositoryProvider {
   createBranch(repository: string, branch: string, base?: string): Promise<{ branch: string; created: boolean }>
   /** Get the SHA of a branch tip. */
   getBranchSha(repository: string, branch: string): Promise<{ sha: string }>
+  /** Read one UTF-8 repository file at an optional ref. Returns null for 404. */
+  getFile(repository: string, path: string, ref?: string): Promise<RepositoryFileSnapshot | null>
   /** Create or update a single file. */
   createFile(repository: string, branch: string, path: string, content: string, message: string): Promise<CommitResult>
   /** Create a tree with multiple files in a single commit. */
