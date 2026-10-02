@@ -4,6 +4,10 @@ import type {
 } from "../../matter-runtime-client.js";
 import type { WorkflowRuntimePolicy } from "../../matter-runtime-server.js";
 import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
+import {
+  getSsaReconsiderationWorkflowProfile,
+  SSA_RECONSIDERATION_WORKFLOW_PROFILES,
+} from "./ssa-reconsideration-profiles.js";
 
 /**
  * Runtime policy for SSA reconsideration requests (SSDI and SSI denials).
@@ -26,12 +30,7 @@ export const SSA_RECONSIDERATION_FORMS = Object.freeze([
 
 export type SsaReconsiderationFormKind = (typeof SSA_RECONSIDERATION_FORMS)[number]["kind"];
 
-export const SSA_RECONSIDERATION_WORKFLOWS = Object.freeze({
-  "appeal-ssdi-denial": "SSDI",
-  "appeal-ssi-denial": "SSI",
-} as const satisfies Record<string, SsaReconsiderationProgram>);
-
-export type SsaReconsiderationWorkflowId = keyof typeof SSA_RECONSIDERATION_WORKFLOWS;
+export type SsaReconsiderationWorkflowId = string;
 
 const VERTICAL_ID = "appeal-mail";
 
@@ -131,7 +130,11 @@ function chatInputFieldsForProgram(program: SsaReconsiderationProgram) {
 export function createSsaReconsiderationRuntimePolicy(
   workflowId: SsaReconsiderationWorkflowId,
 ): WorkflowRuntimePolicy {
-  const program = SSA_RECONSIDERATION_WORKFLOWS[workflowId];
+  const profile = getSsaReconsiderationWorkflowProfile(workflowId);
+  if (!profile) {
+    throw new Error(`Unknown SSA reconsideration workflow profile: ${workflowId}`);
+  }
+  const program = profile.program;
 
   return Object.freeze({
     chatContract: defineWorkflowRuntimeChatContract({
@@ -234,18 +237,19 @@ export function createSsaReconsiderationRuntimePolicy(
   } satisfies WorkflowRuntimePolicy);
 }
 
-function isSsaReconsiderationWorkflowId(workflowId: string): workflowId is SsaReconsiderationWorkflowId {
-  return Object.hasOwn(SSA_RECONSIDERATION_WORKFLOWS, workflowId);
-}
-
 const SSA_RECONSIDERATION_POLICIES = new Map<string, WorkflowRuntimePolicy>(
-  (Object.keys(SSA_RECONSIDERATION_WORKFLOWS) as SsaReconsiderationWorkflowId[]).map((workflowId) => [
-    workflowId,
-    createSsaReconsiderationRuntimePolicy(workflowId),
+  SSA_RECONSIDERATION_WORKFLOW_PROFILES.map((profile) => [
+    profile.workflowId,
+    createSsaReconsiderationRuntimePolicy(profile.workflowId),
   ]),
 );
 
 export function getSsaReconsiderationRuntimePolicy(workflowId: string): WorkflowRuntimePolicy | null {
-  if (!isSsaReconsiderationWorkflowId(workflowId)) return null;
-  return SSA_RECONSIDERATION_POLICIES.get(workflowId) ?? null;
+  if (!getSsaReconsiderationWorkflowProfile(workflowId)) return null;
+  let policy = SSA_RECONSIDERATION_POLICIES.get(workflowId);
+  if (!policy) {
+    policy = createSsaReconsiderationRuntimePolicy(workflowId);
+    SSA_RECONSIDERATION_POLICIES.set(workflowId, policy);
+  }
+  return policy;
 }
