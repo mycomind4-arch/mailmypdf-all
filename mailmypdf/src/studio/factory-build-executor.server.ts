@@ -143,10 +143,11 @@ function noticeResponseProfileFromJob(
       "Notice Respond supervised builds require a reviewer-authored noticeProfile.",
     );
   }
+  const { domain: _domain, ...runtimeProfile } = reviewed;
   return Object.freeze({
     workflowId: job.build.slug,
     title: job.build.request.label,
-    ...reviewed,
+    ...runtimeProfile,
   });
 }
 
