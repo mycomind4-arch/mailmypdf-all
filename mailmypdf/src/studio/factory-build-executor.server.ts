@@ -249,14 +249,28 @@ export async function executePersistentFactoryAcceptance(input: {
       "Factory job is not ready for supervised acceptance execution.",
     );
   }
-  if (current.build.request.startTemplate !== "records-request") {
-    throw new Error(
-      `The supervised executor currently supports records-request builds only; ${current.build.request.startTemplate} still requires a family build adapter.`,
-    );
-  }
-  if (!current.build.slug.endsWith("-records-request")) {
+  if (
+    current.build.request.startTemplate === "records-request" &&
+    !current.build.slug.endsWith("-records-request")
+  ) {
     throw new Error(
       "Generated Records Request workflow IDs must end in -records-request.",
+    );
+  }
+  if (
+    current.build.request.startTemplate === "notice-response" &&
+    !current.build.slug.endsWith("-response")
+  ) {
+    throw new Error(
+      "Generated Notice Respond workflow IDs must end in -response.",
+    );
+  }
+  if (
+    current.build.request.startTemplate === "notice-response" &&
+    !current.build.request.noticeProfile
+  ) {
+    throw new Error(
+      "Notice Respond supervised builds require a reviewer-authored noticeProfile.",
     );
   }
 
@@ -345,16 +359,22 @@ export async function executePersistentFactoryAcceptance(input: {
       throw new Error(`Canonical workflow ${build.canonicalId} already exists.`);
     }
 
-    const profileSpecsPath = path.join(worktree, GENERATED_PROFILE_SPECS);
+    const profileRegistry = profileRegistryPaths(started);
+    const profileSpecsPath = path.join(worktree, profileRegistry.specs);
     const existingProfiles = JSON.parse(
       await fs.readFile(profileSpecsPath, "utf8"),
-    ) as GeneratedRecordsRequestProfile[];
+    ) as Array<{ workflowId: string }>;
     if (
       existingProfiles.some((profile) => profile.workflowId === build.slug)
     ) {
       throw new Error(`Generated profile ${build.slug} already exists.`);
     }
-    const nextProfiles = [...existingProfiles, profileFromJob(started)].sort(
+
+    const generatedProfile =
+      build.request.startTemplate === "records-request"
+        ? recordsRequestProfileFromJob(started)
+        : noticeResponseProfileFromJob(started);
+    const nextProfiles = [...existingProfiles, generatedProfile].sort(
       (left, right) => left.workflowId.localeCompare(right.workflowId),
     );
 
@@ -362,22 +382,22 @@ export async function executePersistentFactoryAcceptance(input: {
     await fs.writeFile(configPath, renderLandingConfig(started));
     await fs.writeFile(
       specPath,
-      JSON.stringify(started.build!.request && {
+      JSON.stringify({
         schemaVersion: "mailmypdf.workflow-materialization/v1",
-        id: started.build!.canonicalId,
-        label: started.build!.request.label,
+        id: build.canonicalId,
+        label: build.request.label,
         execution: {
           kind: "platform",
           entry: "workspace-start",
-          policyFamily: "records-request",
+          policyFamily: build.request.startTemplate,
         },
-        ...(started.build!.request.authority
-          ? { authority: started.build!.request.authority }
+        ...(build.request.authority
+          ? { authority: build.request.authority }
           : {}),
-        ...(started.build!.request.legacyGoldId
-          ? { legacyGoldId: started.build!.request.legacyGoldId }
+        ...(build.request.legacyGoldId
+          ? { legacyGoldId: build.request.legacyGoldId }
           : {}),
-        startTemplate: "records-request",
+        startTemplate: build.request.startTemplate,
       }, null, 2) + "\n",
     );
     await fs.writeFile(
@@ -385,8 +405,14 @@ export async function executePersistentFactoryAcceptance(input: {
       JSON.stringify(nextProfiles, null, 2) + "\n",
     );
     await fs.writeFile(
-      path.join(worktree, GENERATED_PROFILES),
-      renderGeneratedProfiles(nextProfiles),
+      path.join(worktree, profileRegistry.generated),
+      build.request.startTemplate === "records-request"
+        ? renderGeneratedRecordsRequestProfiles(
+            nextProfiles as GeneratedRecordsRequestProfile[],
+          )
+        : renderGeneratedNoticeResponseProfiles(
+            nextProfiles as GeneratedNoticeResponseProfile[],
+          ),
     );
 
     const install = await runCommand({
