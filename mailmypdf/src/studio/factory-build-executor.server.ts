@@ -169,13 +169,15 @@ function profileRegistryPaths(job: FactoryJob): Readonly<{
 
 function expectedChangedPath(job: FactoryJob, changedPath: string): boolean {
   if (!job.build) return false;
-  const workflowRoot = `${job.build.sectionId}/workflows/${job.build.slug}/`;
-  const hostRoot =
-    `mailmypdf/src/routes/${job.build.sectionId}/workflows/${job.build.slug}/`;
   const registry = profileRegistryPaths(job);
+  const specPath =
+    `${job.build.sectionId}/workflows/${job.build.slug}/workflow.spec.json`;
+  const configPath =
+    `${job.build.sectionId}/workflows/${job.build.slug}/config.ts`;
   return (
-    changedPath.startsWith(workflowRoot) ||
-    changedPath.startsWith(hostRoot) ||
+    job.build.filePaths.includes(changedPath) ||
+    changedPath === specPath ||
+    (!job.build.request.adoptExisting && changedPath === configPath) ||
     changedPath === registry.specs ||
     changedPath === registry.generated ||
     changedPath === "packages/workflows/src/canonical-workflows.json" ||
@@ -251,6 +253,7 @@ export async function executePersistentFactoryAcceptance(input: {
     );
   }
   if (
+    !current.build.request.adoptExisting &&
     current.build.request.startTemplate === "records-request" &&
     !current.build.slug.endsWith("-records-request")
   ) {
@@ -259,6 +262,7 @@ export async function executePersistentFactoryAcceptance(input: {
     );
   }
   if (
+    !current.build.request.adoptExisting &&
     current.build.request.startTemplate === "notice-response" &&
     !current.build.slug.endsWith("-response")
   ) {
@@ -344,20 +348,63 @@ export async function executePersistentFactoryAcceptance(input: {
     );
     const configPath = path.join(workflowRoot, "config.ts");
     const specPath = path.join(workflowRoot, "workflow.spec.json");
-    if (fsSync.existsSync(configPath) || fsSync.existsSync(specPath)) {
-      throw new Error(
-        `Workflow ${build.canonicalId} already exists on the build base.`,
-      );
-    }
+    const adopting = build.request.adoptExisting === true;
 
     const canonical = JSON.parse(
       await fs.readFile(
         path.join(worktree, "packages/workflows/src/canonical-workflows.json"),
         "utf8",
       ),
-    ) as Array<{ id?: string }>;
-    if (canonical.some((entry) => entry.id === build.canonicalId)) {
-      throw new Error(`Canonical workflow ${build.canonicalId} already exists.`);
+    ) as Array<{
+      id?: string;
+      label?: string;
+      execution?: unknown;
+      authority?: { module?: string; reviewedAt?: string };
+      legacyGoldId?: string;
+    }>;
+    const existingCanonical = canonical.find(
+      (entry) => entry.id === build.canonicalId,
+    );
+
+    let preservedConfig: string | null = null;
+    if (adopting) {
+      if (!existingCanonical) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} disappeared from the build base.`,
+        );
+      }
+      if (existingCanonical.execution) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} became executable before adoption.`,
+        );
+      }
+      if (existingCanonical.label !== build.request.label) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} label changed before adoption.`,
+        );
+      }
+      if (!fsSync.existsSync(configPath)) {
+        throw new Error(
+          `Catalog adoption requires reviewed public config at ${build.sectionId}/workflows/${build.slug}/config.ts.`,
+        );
+      }
+      if (fsSync.existsSync(specPath)) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} already has workflow.spec.json and requires manual reconciliation.`,
+        );
+      }
+      preservedConfig = await fs.readFile(configPath, "utf8");
+    } else {
+      if (existingCanonical) {
+        throw new Error(
+          `Canonical workflow ${build.canonicalId} already exists; use catalog adoption.`,
+        );
+      }
+      if (fsSync.existsSync(configPath) || fsSync.existsSync(specPath)) {
+        throw new Error(
+          `Workflow ${build.canonicalId} already exists on the build base.`,
+        );
+      }
     }
 
     const profileRegistry = profileRegistryPaths(started);
@@ -380,7 +427,9 @@ export async function executePersistentFactoryAcceptance(input: {
     );
 
     await fs.mkdir(workflowRoot, { recursive: true });
-    await fs.writeFile(configPath, renderLandingConfig(started));
+    if (!adopting) {
+      await fs.writeFile(configPath, renderLandingConfig(started));
+    }
     await fs.writeFile(
       specPath,
       JSON.stringify({
@@ -438,12 +487,23 @@ export async function executePersistentFactoryAcceptance(input: {
         "tsx",
         "../scripts/materialize-workflow-spec.ts",
         "--write",
+        ...(adopting ? ["--adopt"] : []),
         specRelative,
       ],
       id: "materialize",
     });
     if (!materialize.ok) {
       throw new Error(`Workflow materialization failed: ${materialize.summary}`);
+    }
+
+    if (
+      adopting &&
+      preservedConfig !== null &&
+      (await fs.readFile(configPath, "utf8")) !== preservedConfig
+    ) {
+      throw new Error(
+        `Catalog adoption changed reviewed public config for ${build.canonicalId}.`,
+      );
     }
 
     const { stdout: statusOut } = await git(worktree, ["status", "--porcelain"]);

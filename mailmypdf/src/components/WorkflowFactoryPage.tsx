@@ -32,12 +32,26 @@ type FactoryJob = {
   status: "queued" | "running" | "awaiting_review" | "completed" | "failed" | "cancelled";
   stage: "intake" | "match" | "certify" | "template_review" | "build" | "acceptance" | "publication_review" | "complete";
   problem: string;
+  plan: {
+    decision: "review-existing-workflow" | "needs-template-review";
+    candidateId: string | null;
+    candidates: Array<{
+      id: string;
+      label: string;
+      publicHref: string;
+      chatExecutable: boolean;
+      adoptable: boolean;
+      matchedTerms: string[];
+      score: number;
+    }>;
+  } | null;
   selectedWorkflowId: string | null;
   build: {
     request: {
       id: string;
       label: string;
       startTemplate: "notice-response" | "records-request";
+      adoptExisting?: boolean;
       noticeProfile?: Record<string, unknown>;
     };
     canonicalId: string;
@@ -103,6 +117,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   const [templateFamily, setTemplateFamily] = useState<"notice-response" | "records-request">("notice-response");
   const [templateId, setTemplateId] = useState("");
   const [templateLabel, setTemplateLabel] = useState("");
+  const [adoptExisting, setAdoptExisting] = useState(false);
   const [noticeProfileJson, setNoticeProfileJson] = useState("");
   const [pending, setPending] = useState<"report" | "job" | "review" | "build" | "publish" | "cancel" | null>("report");
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +148,14 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  useEffect(() => {
+    if (!activeJob || activeJob.stage !== "template_review") return;
+    setTemplateId("");
+    setTemplateLabel("");
+    setAdoptExisting(false);
+    setNoticeProfileJson("");
+  }, [activeJob?.id]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -181,6 +204,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                   id: templateId.trim(),
                   label: templateLabel.trim(),
                   startTemplate: templateFamily,
+                  ...(adoptExisting ? { adoptExisting: true } : {}),
                   ...(noticeProfile ? { noticeProfile } : {}),
                 },
               }),
@@ -193,6 +217,20 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     } finally {
       setPending(null);
     }
+  }
+
+  function useCatalogCandidate(candidate: NonNullable<FactoryJob["plan"]>["candidates"][number]) {
+    const family = candidate.id.startsWith("records-request/")
+      ? "records-request"
+      : candidate.id.startsWith("notice-respond/")
+        ? "notice-response"
+        : null;
+    if (!family) return;
+    setTemplateFamily(family);
+    setTemplateId(candidate.id);
+    setTemplateLabel(candidate.label);
+    setAdoptExisting(true);
+    if (family === "records-request") setNoticeProfileJson("");
   }
 
   async function runBuild(job: FactoryJob) {
@@ -370,6 +408,42 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
 
             {activeJob.stage === "template_review" && activeJob.status === "awaiting_review" && (
               <div className="mt-5 grid gap-4 rounded-lg border border-rule bg-ivory p-4 sm:grid-cols-2">
+                {activeJob.plan?.candidates.some(
+                  (candidate) =>
+                    candidate.adoptable &&
+                    (candidate.id.startsWith("records-request/") ||
+                      candidate.id.startsWith("notice-respond/")),
+                ) && (
+                  <div className="sm:col-span-2">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-navy">
+                      Existing catalog candidates
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-stone">
+                      Prefer upgrading an existing canonical workflow over creating a duplicate ID. Adoption preserves its reviewed public config and canonical metadata, then replaces only factory-owned wrappers after acceptance.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {activeJob.plan.candidates
+                        .filter(
+                          (candidate) =>
+                            candidate.adoptable &&
+                            (candidate.id.startsWith("records-request/") ||
+                              candidate.id.startsWith("notice-respond/")),
+                        )
+                        .map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            onClick={() => useCatalogCandidate(candidate)}
+                            className="rounded-md border border-rule bg-paper p-3 text-left hover:border-brass"
+                          >
+                            <div className="text-sm font-semibold text-navy">{candidate.label}</div>
+                            <div className="mt-1 break-all font-mono text-[10px] text-stone">{candidate.id}</div>
+                            <div className="mt-2 text-xs text-brass">Adopt catalog workflow</div>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
                 <label className="text-xs font-semibold uppercase tracking-wider text-navy">
                   Factory family
                   <select
@@ -400,6 +474,20 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
                   />
                   <span className="mt-1 block font-sans text-[11px] font-normal normal-case tracking-normal text-stone">
                     The materializer validates that the section and runtime family agree before the build recipe is persisted.
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-md border border-rule bg-paper p-3 text-sm text-navy sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={adoptExisting}
+                    onChange={(event) => setAdoptExisting(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <strong>Adopt existing canonical catalog workflow</strong>
+                    <span className="mt-1 block text-xs font-normal leading-5 text-stone">
+                      Use this only when the canonical ID already exists but is not executable. The factory preserves reviewed public config, authority, and legacy metadata and uses the materializer&apos;s reviewed adoption guard for standard route wrappers.
+                    </span>
                   </span>
                 </label>
                 {templateFamily === "notice-response" && (

@@ -100,3 +100,21 @@ test("reviewed Notice Respond profiles reject unsupported non-tax domains", () =
     /support tax notices only/,
   );
 });
+
+
+test("reviewed build plan preserves explicit catalog adoption intent", () => {
+  const plan = buildReviewedFactoryTemplatePlan({
+    id: "records-request/police-records-request",
+    label: "Police Records Request",
+    startTemplate: "records-request",
+    adoptExisting: true,
+  });
+
+  assert.equal(plan.request.adoptExisting, true);
+  assert.equal(plan.canonicalId, "records-request/police-records-request");
+  assert.equal(plan.spec.execution?.kind, "platform");
+  if (plan.spec.execution?.kind !== "platform") {
+    assert.fail("Catalog adoption must build a platform execution binding.");
+  }
+  assert.equal(plan.spec.execution.policyFamily, "records-request");
+});

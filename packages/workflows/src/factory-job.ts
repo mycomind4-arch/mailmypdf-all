@@ -1,4 +1,5 @@
 import { canonicalChatFactoryReport } from "./chat-execution-registry.js";
+import { workflowById } from "./canonical-workflow-registry.js";
 import { planWorkflowFromProblem } from "./problem-workflow-plan.js";
 import {
   buildReviewedFactoryTemplatePlan,
@@ -67,6 +68,7 @@ export type FactoryJobPlanSnapshot = Readonly<{
     label: string;
     publicHref: string;
     chatExecutable: boolean;
+    adoptable: boolean;
     matchedTerms: readonly string[];
     score: number;
   }>[];
@@ -285,6 +287,16 @@ function restorePlan(value: unknown): FactoryJobPlanSnapshot | null {
       label: requiredSnapshotString(candidate.label, "Factory job candidate label", 500),
       publicHref: requiredSnapshotString(candidate.publicHref, "Factory job candidate href", 1000),
       chatExecutable: candidate.chatExecutable,
+      adoptable:
+        candidate.adoptable === undefined
+          ? false
+          : candidate.adoptable === true
+            ? true
+            : candidate.adoptable === false
+              ? false
+              : (() => {
+                  throw new Error("Factory job candidate adoption status is invalid.");
+                })(),
       matchedTerms: Object.freeze([...candidate.matchedTerms] as string[]),
       score: candidate.score,
     });
@@ -309,13 +321,39 @@ function restoreBuild(value: unknown): FactoryJobBuildSnapshot | null {
     throw new Error("Factory job build file paths are invalid.");
   }
 
+  if (
+    request.adoptExisting !== undefined &&
+    typeof request.adoptExisting !== "boolean"
+  ) {
+    throw new Error("Factory build adoption flag is invalid.");
+  }
+
+  let restoredAuthority: ReviewedFactoryTemplateRequest["authority"] | undefined;
+  if (request.authority !== undefined && request.authority !== null) {
+    const authority = record(request.authority, "Factory build authority");
+    restoredAuthority = Object.freeze({
+      module: requiredSnapshotString(
+        authority.module,
+        "Factory build authority module",
+        300,
+      ),
+      reviewedAt: requiredSnapshotString(
+        authority.reviewedAt,
+        "Factory build authority review date",
+        100,
+      ),
+    });
+  }
+
   const reviewedRequest: ReviewedFactoryTemplateRequest = Object.freeze({
     id: requiredSnapshotString(request.id, "Factory build workflow id", 300),
     label: requiredSnapshotString(request.label, "Factory build workflow label", 500),
     startTemplate,
+    ...(restoredAuthority ? { authority: restoredAuthority } : {}),
     ...(typeof request.legacyGoldId === "string" && request.legacyGoldId
       ? { legacyGoldId: request.legacyGoldId }
       : {}),
+    ...(request.adoptExisting === true ? { adoptExisting: true } : {}),
     ...(request.noticeProfile !== undefined
       ? {
           noticeProfile:
@@ -520,6 +558,7 @@ function planSnapshot(problem: string, availableTools: readonly string[]): Facto
           label: candidate.label,
           publicHref: candidate.publicHref,
           chatExecutable: candidate.chatExecutable,
+          adoptable: candidate.adoptable,
           matchedTerms: Object.freeze([...candidate.matchedTerms]),
           score: candidate.score,
         }),
@@ -744,7 +783,49 @@ export function approveFactoryJobReview(
         "Notice Respond template approval requires a reviewer-authored noticeProfile.",
       );
     }
-    const build = buildReviewedFactoryTemplatePlan(templateRequest);
+
+    if (
+      templateRequest.adoptExisting !== undefined &&
+      typeof templateRequest.adoptExisting !== "boolean"
+    ) {
+      throw new Error("Catalog adoption flag must be true or false.");
+    }
+
+    const requestedId = templateRequest.id.trim();
+    const canonical = workflowById(requestedId);
+    let reviewedRequest = templateRequest;
+
+    if (templateRequest.adoptExisting) {
+      if (!canonical) {
+        throw new Error(
+          `Catalog adoption requires an existing canonical workflow: ${requestedId}.`,
+        );
+      }
+      if (canonical.execution) {
+        throw new Error(
+          `Canonical workflow ${requestedId} is already executable and cannot be adopted again.`,
+        );
+      }
+      if (templateRequest.label.trim() !== canonical.label) {
+        throw new Error(
+          `Catalog adoption label must match canonical label "${canonical.label}".`,
+        );
+      }
+      reviewedRequest = Object.freeze({
+        ...templateRequest,
+        id: canonical.id,
+        label: canonical.label,
+        adoptExisting: true,
+        ...(canonical.authority ? { authority: canonical.authority } : {}),
+        ...(canonical.legacyGoldId ? { legacyGoldId: canonical.legacyGoldId } : {}),
+      });
+    } else if (canonical) {
+      throw new Error(
+        `Canonical workflow ${requestedId} already exists. Use the reviewed catalog-adoption path instead of creating a duplicate.`,
+      );
+    }
+
+    const build = buildReviewedFactoryTemplatePlan(reviewedRequest);
     return transition(job, {
       status: "queued",
       stage: "build",

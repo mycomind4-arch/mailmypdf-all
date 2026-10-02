@@ -30,6 +30,7 @@ export function planWorkflowFromProblem(
       label: workflow.label,
       publicHref: workflow.publicHref,
       chatExecutable: ready,
+      adoptable: workflow.execution === null,
       matchedTerms: Object.freeze(matched),
       score,
     }));

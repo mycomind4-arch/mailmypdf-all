@@ -34,6 +34,8 @@ export type ReviewedFactoryTemplateRequest = Readonly<{
   startTemplate: WorkflowStartTemplate;
   authority?: WorkflowMaterializationSpec["authority"];
   legacyGoldId?: string;
+  /** Upgrade an existing catalog-only canonical workflow in place. */
+  adoptExisting?: boolean;
   /**
    * Authority-sensitive Notice Respond builds require a reviewer-authored
    * family profile before the machine executor may materialize them.
@@ -216,6 +218,13 @@ export function normalizeReviewedNoticeResponseProfile(
 export function buildReviewedFactoryTemplatePlan(
   request: ReviewedFactoryTemplateRequest,
 ): ReviewedFactoryBuildPlan {
+  if (
+    request.adoptExisting !== undefined &&
+    typeof request.adoptExisting !== "boolean"
+  ) {
+    throw new Error("Catalog adoption flag must be true or false.");
+  }
+
   const noticeProfile =
     request.startTemplate === "notice-response" && request.noticeProfile
       ? normalizeReviewedNoticeResponseProfile(request.noticeProfile)
@@ -244,6 +253,7 @@ export function buildReviewedFactoryTemplatePlan(
       startTemplate: request.startTemplate,
       ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
       ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
+      ...(request.adoptExisting ? { adoptExisting: true } : {}),
       ...(noticeProfile ? { noticeProfile } : {}),
     }),
     spec,

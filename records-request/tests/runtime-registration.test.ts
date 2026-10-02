@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS,
   platformWorkflowRuntimePolicyFor,
   type WorkflowRuntimeStoredEvent,
 } from "@mailmypdf/workflows";
@@ -29,15 +30,23 @@ test("records request vertical registers every executable start route", () => {
       recordsRequestStartRouteFor(workflowId)?.path,
       `/records-request/workflows/${workflowId}/start/`,
     );
+  }
+
+  assert.equal(
+    new Set(RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS).size,
+    RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS.length,
+  );
+  for (const workflowId of RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS) {
     assert.ok(recordsRequestRuntimePolicyFor(workflowId));
     assert.ok(platformWorkflowRuntimePolicyFor(workflowId));
   }
+
   assert.equal(recordsRequestStartRouteFor("not-real"), null);
   assert.equal(recordsRequestRuntimePolicyFor("not-real"), null);
 });
 
 test("records request policies are request-first and bind exact workflow identity", async () => {
-  for (const workflowId of ids) {
+  for (const workflowId of RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS) {
     const policy = recordsRequestRuntimePolicyFor(workflowId)!;
     assert.equal(policy.requiresSourceDocument, false);
     assert.doesNotThrow(() =>

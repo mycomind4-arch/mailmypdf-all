@@ -71,3 +71,26 @@ Notice Respond now has a supervised tax-notice factory adapter parallel to Recor
 - The shared Notice Respond UI no longer falls back to IRS-specific issuer or recipient labels when a generated non-IRS notice profile is used.
 
 Publication still means opening a GitHub pull request for the exact accepted commit. Merge and deployment remain separate.
+
+
+## Existing catalog workflow adoption
+
+The factory can now review an existing **catalog-only** canonical workflow for in-place adoption instead of creating a duplicate ID.
+
+Adoption is explicit and bounded:
+
+- ranked problem candidates now distinguish `adoptable` catalog entries from workflows that already have an execution binding but are merely not chat-certified;
+- the administrator must explicitly select **Adopt existing canonical catalog workflow**;
+- the canonical ID must already exist and have no execution binding;
+- the reviewed label must match the canonical label;
+- existing canonical authority and legacy-gold metadata are preserved automatically;
+- new-template creation refuses an existing canonical ID and directs the reviewer to adoption;
+- already-executable canonical workflows cannot be adopted again;
+- Records Request catalog IDs may retain their existing slug shape rather than being forced into the new-template `*-records-request` convention;
+- tax Notice Respond adoption still requires the reviewer-authored tax notice profile introduced by the Notice Respond family adapter.
+
+The isolated executor verifies the catalog entry again against the fetched build base, requires the existing reviewed `config.ts`, refuses partially adopted workflows that already contain `workflow.spec.json`, and preserves `config.ts` byte-for-byte. It invokes the workflow materializer with `--adopt`, which is the explicit review gate for replacing pre-existing hand-authored standard wrappers.
+
+The accepted diff allowlist is exact: materializer-owned wrapper files, the colocated workflow spec, the family generated-profile registry, the canonical workflow registry, and generated inventory. Existing domain files, assets, extraction schemas, definitions, and other workflow-local files are outside the allowlist.
+
+Adopted proposals run the same materialization-drift, workflow/chat certification, family unit/acceptance, clean-tree, and GitHub PR publication gates as new factory proposals.

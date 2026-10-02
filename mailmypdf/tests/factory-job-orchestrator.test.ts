@@ -164,3 +164,30 @@ test("generated workflow verifier certifies the actual chat-executable field", (
   assert.match(verifier, /!report\.chatExecutable/);
   assert.doesNotMatch(verifier, /report\.executable/);
 });
+
+
+test("catalog adoption preserves reviewed config and uses materializer adoption guard", () => {
+  const executor = read("src/studio/factory-build-executor.server.ts");
+
+  assert.match(executor, /adoptExisting/);
+  assert.match(executor, /Catalog adoption requires reviewed public config/);
+  assert.match(executor, /preservedConfig/);
+  assert.match(executor, /Catalog adoption changed reviewed public config/);
+  assert.match(executor, /\.\.\.\(adopting \? \["--adopt"\] : \[\]\)/);
+  assert.match(executor, /job\.build\.filePaths\.includes\(changedPath\)/);
+  assert.doesNotMatch(
+    executor,
+    /changedPath\.startsWith\(workflowRoot\)/,
+  );
+});
+
+
+test("Studio makes catalog adoption explicit and candidate-driven", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Existing catalog candidates/);
+  assert.match(page, /Adopt catalog workflow/);
+  assert.match(page, /Adopt existing canonical catalog workflow/);
+  assert.match(page, /adoptExisting/);
+  assert.match(page, /preserves reviewed public config, authority, and legacy metadata/);
+});
