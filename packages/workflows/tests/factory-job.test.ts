@@ -359,3 +359,24 @@ test("reviewed Notice Respond profile survives durable Factory Job restoration",
   const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
   assert.deepEqual(restored.build?.request.noticeProfile, noticeProfile);
 });
+
+
+test("new Notice Respond template approval fails closed without a reviewed profile", () => {
+  let job = createFactoryJob({
+    id: "job-notice-profile-required",
+    problem: "Create a new state tax notice response workflow.",
+    now: "2026-10-01T04:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-10-01T04:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-10-01T04:02:00.000Z").job;
+
+  assert.throws(
+    () =>
+      approveFactoryJobReview(job, "2026-10-01T04:03:00.000Z", {
+        id: "notice-respond/state-tax-balance-response",
+        label: "State Tax Balance Notice Response",
+        startTemplate: "notice-response",
+      }),
+    /requires a reviewer-authored noticeProfile/,
+  );
+});
