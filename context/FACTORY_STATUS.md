@@ -2,8 +2,8 @@
 
 ## 2026-10-01 — Notice Respond family adapter
 
-- Added a reviewer-authored Notice Respond profile contract so authority-sensitive generated workflows can be built without the factory inventing legal rules.
-- Added machine-owned generated Notice Respond profile registries alongside the five hand-authored IRS profiles.
+- Added a reviewer-authored tax-notice Notice Respond profile contract so authority-sensitive generated workflows can be built without the factory inventing legal rules.
+- Added machine-owned generated Notice Respond profile registries alongside the five hand-authored IRS profiles. Non-tax notice families remain blocked until a generic official-notice runtime exists.
 - Extended the isolated supervised executor to build and test both Records Request and Notice Respond proposals.
 - Notice Respond proposals run the shared workflow/chat certification plus Notice Respond unit and acceptance suites before publication review.
 - Studio now requires reviewed Notice Respond profile JSON before template approval and exposes the same local build → GitHub PR path after acceptance.
