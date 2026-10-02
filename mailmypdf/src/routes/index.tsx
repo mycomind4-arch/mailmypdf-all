@@ -20,6 +20,7 @@ import {
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ECOSYSTEM_VERTICALS } from "@/lib/ecosystem";
 import { absoluteUrl } from "@/lib/site-url";
+import { CHATGPT_PLUGIN_DIRECTORY_URL } from "@/lib/chatgpt-links";
 import {
   SectionHeader,
   CTASection,
@@ -145,7 +146,7 @@ function HomepageHero() {
               Start a Matter <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/chatgpt" className="inline-flex h-11 items-center justify-center rounded-full border border-white/80 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
-              Use with ChatGPT
+              Use MailMyPDF in ChatGPT
             </Link>
           </div>
           <div className="mt-8 grid max-w-[480px] grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
@@ -185,19 +186,31 @@ function ChatGptConnectorSpotlight() {
             and keeps payment and final sending behind explicit confirmation.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              to="/chatgpt"
+            <a
+              href={CHATGPT_PLUGIN_DIRECTORY_URL}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-cobalt px-5 text-sm font-semibold text-white transition hover:bg-cobalt/90"
             >
-              See how ChatGPT mailing works <ArrowRight className="h-4 w-4" />
-            </Link>
+              Open ChatGPT Plugins <ArrowRight className="h-4 w-4" />
+            </a>
             <Link
-              to="/account/setup"
+              to="/chatgpt"
               className="inline-flex h-10 items-center justify-center rounded-full border border-rule bg-card px-5 text-sm font-semibold text-foreground transition hover:border-cobalt/30 hover:text-cobalt"
             >
-              Set up my account
+              See connector setup
+            </Link>
+            <Link
+              to="/account/setup?return_to=/chatgpt"
+              className="inline-flex h-10 items-center justify-center px-2 text-sm font-semibold text-cobalt transition hover:text-cobalt/80"
+            >
+              Set up MailMyPDF
             </Link>
           </div>
+          <p className="mt-3 max-w-xl text-xs leading-5 text-muted-foreground">
+            MailMyPDF is rolling out through ChatGPT&apos;s plugin/app surfaces. If it is not listed for your account yet,
+            the setup page includes the current MCP endpoint for eligible developer-mode access.
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
