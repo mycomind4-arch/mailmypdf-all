@@ -14,7 +14,7 @@ const FOOTER_COLUMNS: { to: string; label: string }[][] = [
     { to: "/products", label: "Products" },
     { to: "/ecosystem", label: "Workflows" },
     { to: "/how-it-works", label: "How It Works" },
-    { to: "/chatgpt", label: "Use with ChatGPT" },
+    { to: "/chatgpt", label: "Use MailMyPDF in ChatGPT" },
   ],
   [
     { to: "/security", label: "Security" },
