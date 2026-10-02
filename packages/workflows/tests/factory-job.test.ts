@@ -381,3 +381,111 @@ test("new Notice Respond template approval fails closed without a reviewed profi
     /requires a reviewer-authored noticeProfile/,
   );
 });
+
+
+function templateReviewJob(id: string, problem = "Create a workflow for a specialized records problem.") {
+  let job = createFactoryJob({
+    id,
+    problem,
+    now: "2026-10-02T05:00:00.000Z",
+  });
+  job = advanceFactoryJob(job, TOOLS, "2026-10-02T05:01:00.000Z").job;
+  job = advanceFactoryJob(job, TOOLS, "2026-10-02T05:02:00.000Z").job;
+  assert.equal(job.stage, "template_review");
+  return job;
+}
+
+test("catalog Records Request workflow can be adopted in place", () => {
+  let job = templateReviewJob(
+    "job-adopt-police-records",
+    "I need a police records request workflow that is not yet executable.",
+  );
+
+  job = approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+    id: "records-request/police-records-request",
+    label: "Police Records Request",
+    startTemplate: "records-request",
+    adoptExisting: true,
+  }).job;
+
+  assert.equal(job.stage, "build");
+  assert.equal(job.build?.canonicalId, "records-request/police-records-request");
+  assert.equal(job.build?.request.adoptExisting, true);
+
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
+  assert.equal(restored.build?.request.adoptExisting, true);
+});
+
+test("catalog adoption preserves canonical legacy metadata", () => {
+  const job = templateReviewJob("job-adopt-follow-up");
+  const approved = approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+    id: "records-request/records-follow-up-request",
+    label: "Records Follow Up Request",
+    startTemplate: "records-request",
+    adoptExisting: true,
+  }).job;
+
+  assert.equal(approved.build?.request.legacyGoldId, "records/follow-up");
+});
+
+test("catalog adoption preserves canonical authority metadata for reviewed tax notices", () => {
+  const job = templateReviewJob("job-adopt-irs-notice");
+  const approved = approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+    id: "notice-respond/irs-notice-response",
+    label: "IRS Notice Response",
+    startTemplate: "notice-response",
+    adoptExisting: true,
+    noticeProfile: {
+      domain: "tax",
+      noticeLabel: "IRS notice",
+      primaryDocumentId: "irs-notice",
+      primaryDocumentLabel: "IRS notice",
+      extractionSchema: "irs.notice.v1",
+      sourcePurpose: "irs_notice",
+      responseModeLabel: "How do you want to respond?",
+      responseModes: [{ value: "other", label: "Send a documented response" }],
+      evidenceKinds: [{ value: "other", label: "Supporting record" }],
+      explanationRequiredModes: ["other"],
+      explanationLabel: "Explain your response",
+      explanationHint: "Use verified notice and user-confirmed facts only.",
+      requestedActionDefault: "Please review my response and supporting records.",
+      analysisInstructions: "Extract only notice-supported facts. Do not invent deadlines or addresses.",
+      draftInstructions: "Draft only from verified notice facts and user-confirmed facts.",
+    },
+  }).job;
+
+  assert.deepEqual(approved.build?.request.authority, {
+    module: "notice-irs-notice",
+    reviewedAt: "2026-09-21",
+  });
+  assert.equal(approved.build?.request.legacyGoldId, "notice/irs-notice");
+});
+
+test("new-template creation refuses an existing canonical id and directs review to adoption", () => {
+  const job = templateReviewJob("job-duplicate-canonical");
+
+  assert.throws(
+    () =>
+      approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+        id: "records-request/police-records-request",
+        label: "Police Records Request",
+        startTemplate: "records-request",
+      }),
+    /already exists.*catalog-adoption/i,
+  );
+});
+
+test("catalog adoption refuses a workflow that is already executable", () => {
+  const job = templateReviewJob("job-adopt-executable");
+
+  assert.throws(
+    () =>
+      approveFactoryJobReview(job, "2026-10-02T05:03:00.000Z", {
+        id: "records-request/public-records-request",
+        label: "Public Records Request",
+        startTemplate: "records-request",
+        adoptExisting: true,
+      }),
+    /already executable/i,
+  );
+});
