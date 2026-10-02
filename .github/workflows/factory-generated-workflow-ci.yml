@@ -45,5 +45,7 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: Build workflow package exports
+        run: pnpm --filter @mailmypdf/workflows build
       - name: Certify generated Records Request and Notice Respond workflows
         run: pnpm --filter ./mailmypdf exec tsx ../scripts/verify-factory-workflow.ts
