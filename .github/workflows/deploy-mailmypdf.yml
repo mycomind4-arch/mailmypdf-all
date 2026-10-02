@@ -1,6 +1,11 @@
 name: Deploy MailMyPDF Worker
 
 on:
+  workflow_run:
+    workflows:
+      - Workspace UI verification
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       payments_env:
@@ -27,20 +32,27 @@ concurrency:
 jobs:
   deploy:
     name: Deploy and verify MailMyPDF
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
     runs-on: ubuntu-latest
     environment: production
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
-      MAILMYPDF_BASE_URL: ${{ inputs.deployment_url }}
+      MAILMYPDF_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_url || 'https://mailmypdf.mycomind4.workers.dev' }}
       MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF }}
 
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
 
-      PAYMENTS_ENV: ${{ inputs.payments_env }}
+      PAYMENTS_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.payments_env || 'sandbox' }}
       STRIPE_SANDBOX_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
       STRIPE_LIVE_API_KEY: ${{ secrets.STRIPE_LIVE_API_KEY }}
       VITE_PAYMENTS_CLIENT_TOKEN: ${{ secrets.VITE_PAYMENTS_CLIENT_TOKEN }}
@@ -67,6 +79,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -130,7 +144,7 @@ jobs:
           {
             echo "### MailMyPDF deployment"
             echo ""
-            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Commit: \`$(git rev-parse HEAD)\`"
             echo "- Origin: \`${MAILMYPDF_BASE_URL}\`"
             echo "- Payment mode: \`${PAYMENTS_ENV}\`"
             echo "- AUTO_SUBMIT_TO_LOB: \`false\`"
