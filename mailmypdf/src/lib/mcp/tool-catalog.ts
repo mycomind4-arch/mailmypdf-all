@@ -8,7 +8,7 @@ import {
   type ConnectorCapabilityAssessment,
   type ConnectorCapabilityContext,
   type ConnectorCapabilityRequirement,
-} from "@mailmypdf/workflows/connector-readiness";
+} from "@mailmypdf/workflows";
 
 export const MCP_CONNECTOR_VERSION = "0.12.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
