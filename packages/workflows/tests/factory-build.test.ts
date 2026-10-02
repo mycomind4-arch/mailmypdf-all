@@ -6,6 +6,7 @@ import {
 } from "../src/factory-build.js";
 
 const REVIEWED_NOTICE_PROFILE = {
+  domain: "tax",
   noticeLabel: "State tax balance notice",
   primaryDocumentId: "state-tax-balance-notice",
   primaryDocumentLabel: "State tax balance notice",
@@ -80,5 +81,22 @@ test("reviewed Notice Respond profiles fail closed on malformed response rules",
         },
       }),
     /not a reviewed response mode/,
+  );
+});
+
+
+test("reviewed Notice Respond profiles reject unsupported non-tax domains", () => {
+  assert.throws(
+    () =>
+      buildReviewedFactoryTemplatePlan({
+        id: "notice-respond/benefits-notice-response",
+        label: "Benefits Notice Response",
+        startTemplate: "notice-response",
+        noticeProfile: {
+          ...REVIEWED_NOTICE_PROFILE,
+          domain: "benefits" as never,
+        },
+      }),
+    /support tax notices only/,
   );
 });
