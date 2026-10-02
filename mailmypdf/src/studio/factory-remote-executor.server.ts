@@ -278,7 +278,7 @@ export async function startRemoteFactoryAcceptance(input: {
     const commit = await provider.createTree(
       repository,
       branch,
-      plan.files,
+      filesToWrite,
       `Factory proposal: ${plan.canonicalId}`,
     );
     commitSha = commit.commitSha;
