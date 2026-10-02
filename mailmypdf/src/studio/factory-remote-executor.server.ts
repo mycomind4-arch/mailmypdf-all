@@ -139,21 +139,22 @@ async function exactPlanMatchesRemoteBranch(input: {
   repository: string;
   baseSha: string;
   headSha: string;
-  files: readonly Readonly<{ path: string; content: string }>[];
+  desiredFiles: readonly Readonly<{ path: string; content: string }>[];
+  changedPaths: readonly string[];
 }): Promise<boolean> {
   const changed = [...await input.provider.compareChangedFiles(
     input.repository,
     input.baseSha,
     input.headSha,
   )].sort();
-  const expected = input.files.map((file) => file.path).sort();
+  const expected = [...input.changedPaths].sort();
   if (
     changed.length !== expected.length ||
     changed.some((path, index) => path !== expected[index])
   ) {
     return false;
   }
-  for (const file of input.files) {
+  for (const file of input.desiredFiles) {
     const observed = await input.provider.getFile(
       input.repository,
       file.path,
@@ -259,6 +260,17 @@ export async function startRemoteFactoryAcceptance(input: {
     }
   }
 
+  const filesToWrite: Array<Readonly<{ path: string; content: string }>> = [];
+  for (const file of plan.files) {
+    const existing = await provider.getFile(repository, file.path, baseSha);
+    if (!existing || existing.content !== file.content) {
+      filesToWrite.push(file);
+    }
+  }
+  if (filesToWrite.length === 0) {
+    throw new Error("Remote factory proposal produced no changed files.");
+  }
+
   const branch = remoteBranchName(job);
   const created = await provider.createBranchAtSha(repository, branch, baseSha);
   let commitSha: string;
@@ -276,7 +288,7 @@ export async function startRemoteFactoryAcceptance(input: {
       const commit = await provider.createTree(
         repository,
         branch,
-        plan.files,
+        filesToWrite,
         `Factory proposal: ${plan.canonicalId}`,
       );
       commitSha = commit.commitSha;
@@ -286,7 +298,8 @@ export async function startRemoteFactoryAcceptance(input: {
         repository,
         baseSha,
         headSha: existing.sha,
-        files: plan.files,
+        desiredFiles: plan.files,
+        changedPaths: filesToWrite.map((file) => file.path),
       });
       if (!matches) {
         throw new Error(
@@ -330,7 +343,7 @@ export async function startRemoteFactoryAcceptance(input: {
     specPath: plan.specPath,
     profileRegistryPath: plan.profileRegistryPath,
     configPath: plan.configPath,
-    changedFiles: Object.freeze(plan.files.map((file) => file.path)),
+    changedFiles: Object.freeze(filesToWrite.map((file) => file.path)),
     checks: Object.freeze([]),
     builtAt: new Date().toISOString(),
     remote: Object.freeze({
