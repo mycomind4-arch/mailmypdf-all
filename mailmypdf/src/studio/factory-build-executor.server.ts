@@ -420,6 +420,14 @@ export async function executePersistentFactoryAcceptance(input: {
       await runCommand({
         cwd: worktree,
         command: "pnpm",
+        args: ["--filter", "@mailmypdf/workflows", "build"],
+        id: "workflow-package-build",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
         args: [
           "--filter",
           "./mailmypdf",
