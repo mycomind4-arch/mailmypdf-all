@@ -532,3 +532,51 @@ test("pre-adoption plan snapshots restore candidate adoption status conservative
   assert.ok(restored.plan?.candidates.length);
   assert.ok(restored.plan?.candidates.every((candidate) => candidate.adoptable === false));
 });
+
+
+test("durable Factory Job snapshots preserve remote PR build evidence", () => {
+  let job = templateReviewJob("job-remote-artifact");
+  job = approveFactoryJobReview(job, "2026-10-02T07:03:00.000Z", {
+    id: "records-request/remote-artifact-records-request",
+    label: "Remote Artifact Records Request",
+    startTemplate: "records-request",
+  }).job;
+  job = advanceFactoryJob(job, TOOLS, "2026-10-02T07:04:00.000Z").job;
+  job = startFactoryJobAcceptance(job, "2026-10-02T07:05:00.000Z").job;
+  job = recordFactoryJobBuildArtifact(
+    job,
+    {
+      branch: "factory/remote-job-remote-artifact",
+      baseSha: "a".repeat(40),
+      commitSha: "b".repeat(40),
+      specPath:
+        "records-request/workflows/remote-artifact-records-request/workflow.spec.json",
+      profileRegistryPath:
+        "packages/workflows/src/domain-packs/records-request/generated-profile-specs.json",
+      configPath:
+        "records-request/workflows/remote-artifact-records-request/config.ts",
+      changedFiles: ["records-request/workflows/remote-artifact-records-request/config.ts"],
+      checks: [],
+      builtAt: "2026-10-02T07:06:00.000Z",
+      remote: {
+        repository: "mycomind4-arch/mailmypdf-all",
+        pullRequestNumber: 999,
+        pullRequestUrl: "https://github.com/mycomind4-arch/mailmypdf-all/pull/999",
+      },
+    },
+    "2026-10-02T07:06:00.000Z",
+  ).job;
+
+  const restored = restoreFactoryJobSnapshot(JSON.parse(JSON.stringify(job)));
+  assert.deepEqual(restored, job);
+  assert.equal(restored.buildArtifact?.remote?.pullRequestNumber, 999);
+
+  const corrupt = JSON.parse(JSON.stringify(job)) as {
+    buildArtifact: { remote: { pullRequestNumber: unknown } };
+  };
+  corrupt.buildArtifact.remote.pullRequestNumber = 0;
+  assert.throws(
+    () => restoreFactoryJobSnapshot(corrupt),
+    /remote build pull request number is invalid/i,
+  );
+});
