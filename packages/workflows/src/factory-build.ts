@@ -10,6 +10,13 @@ export type ReviewedNoticeResponseOption = Readonly<{
   label: string;
 }>;
 
+export type ReviewedSsaReconsiderationProfile = Readonly<{
+  program: "SSDI" | "SSI";
+  primaryDocumentId: string;
+  primaryDocumentLabel: string;
+  extractionSchema: string;
+}>;
+
 export type ReviewedNoticeResponseProfile = Readonly<{
   domain: "tax";
   noticeLabel: string;
@@ -43,6 +50,13 @@ export type ReviewedFactoryTemplateRequest = Readonly<{
    * to run when this profile is absent.
    */
   noticeProfile?: ReviewedNoticeResponseProfile;
+  /**
+   * SSA reconsideration builds preserve reviewer-authored source-document
+   * identity and program selection. Appeal stage, decision basis, deadlines,
+   * recipient, and required forms continue to come from the certified runtime
+   * and source notice analysis.
+   */
+  ssaProfile?: ReviewedSsaReconsiderationProfile;
 }>;
 
 export type ReviewedFactoryBuildPlan = Readonly<{
@@ -116,6 +130,51 @@ function reviewedOptions(
  * No legal rules, deadlines, authorities, addresses, or remedies are inferred
  * here; the factory only persists the exact reviewed profile.
  */
+export function normalizeReviewedSsaReconsiderationProfile(
+  value: unknown,
+  workflowId?: string,
+): ReviewedSsaReconsiderationProfile {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(
+      "SSA reconsideration builds require a reviewed ssaProfile object.",
+    );
+  }
+  const source = value as Record<string, unknown>;
+  if (source.program !== "SSDI" && source.program !== "SSI") {
+    throw new Error("SSA reconsideration program must be SSDI or SSI.");
+  }
+  const program = source.program;
+  const normalizedId = workflowId?.trim().toLowerCase() ?? "";
+  if (
+    normalizedId &&
+    ((program === "SSDI" && normalizedId.includes("ssi") && !normalizedId.includes("ssdi")) ||
+      (program === "SSI" && normalizedId.includes("ssdi")))
+  ) {
+    throw new Error(
+      `SSA reconsideration program ${program} conflicts with workflow id ${workflowId}.`,
+    );
+  }
+
+  return Object.freeze({
+    program,
+    primaryDocumentId: reviewedToken(
+      source.primaryDocumentId,
+      "SSA primary document id",
+      160,
+    ),
+    primaryDocumentLabel: reviewedText(
+      source.primaryDocumentLabel,
+      "SSA primary document label",
+      500,
+    ),
+    extractionSchema: reviewedToken(
+      source.extractionSchema,
+      "SSA extraction schema",
+      200,
+    ),
+  });
+}
+
 export function normalizeReviewedNoticeResponseProfile(
   value: unknown,
 ): ReviewedNoticeResponseProfile {
@@ -220,6 +279,13 @@ export function buildReviewedFactoryTemplatePlan(
     request.startTemplate === "notice-response" && request.noticeProfile
       ? normalizeReviewedNoticeResponseProfile(request.noticeProfile)
       : undefined;
+  const ssaProfile =
+    request.startTemplate === "ssa-reconsideration" && request.ssaProfile
+      ? normalizeReviewedSsaReconsiderationProfile(
+          request.ssaProfile,
+          request.id,
+        )
+      : undefined;
 
   const spec: WorkflowMaterializationSpec = Object.freeze({
     schemaVersion: WORKFLOW_MATERIALIZATION_SPEC_VERSION,
@@ -245,6 +311,7 @@ export function buildReviewedFactoryTemplatePlan(
       ...(request.authority ? { authority: Object.freeze({ ...request.authority }) } : {}),
       ...(request.legacyGoldId ? { legacyGoldId: request.legacyGoldId } : {}),
       ...(noticeProfile ? { noticeProfile } : {}),
+      ...(ssaProfile ? { ssaProfile } : {}),
     }),
     spec,
     canonicalId: materialization.canonicalSeed.id,
