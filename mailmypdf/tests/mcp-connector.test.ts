@@ -1204,7 +1204,7 @@ test("modern resources list/read exposes the portable packet review app", async 
       cacheScope: string;
     };
   };
-  assert.equal(listedPayload.result.resources.length, 2);
+  assert.equal(listedPayload.result.resources.length, 3);
   assert.equal(listedPayload.result.resources[0]?.uri, PACKET_REVIEW_RESOURCE_URI);
   assert.equal(
     listedPayload.result.resources[0]?.mimeType,

@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
+import { describeRecoveryCaseEvidence } from "./recovery-case-evidence.server";
 import { SavedAddressError, listSavedAddresses, saveAddress, archiveAddress } from "./saved-addresses.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
@@ -285,10 +286,13 @@ export async function executeMcpTool(
     const context = await requireAuthenticatedUser(request);
     try {
       const store = createRecoveryCaseStore(context);
-      if (name === "save_recovery_case") return await createRecoveryCaseFromScan(args, context.user.id, store);
-      if (name === "get_recovery_case") return await getRecoveryCase(args, context.user.id, store);
       if (name === "list_recovery_cases") return await listRecoveryCases(args, context.user.id, store);
-      return await updateRecoveryCase(args, context.user.id, store);
+      const result = name === "save_recovery_case"
+        ? await createRecoveryCaseFromScan(args, context.user.id, store)
+        : name === "get_recovery_case"
+          ? await getRecoveryCase(args, context.user.id, store)
+          : await updateRecoveryCase(args, context.user.id, store);
+      return { ...result, evidence: await describeRecoveryCaseEvidence(context, result.case) };
     } catch (error) {
       if (error instanceof RecoveryCaseError) throw new McpToolExecutionError(error.status, error.message);
       throw new McpToolExecutionError(503, "Recovery storage is unavailable. Reload before retrying.");

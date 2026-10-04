@@ -1,4 +1,4 @@
-import { PACKET_REVIEW_RESOURCE_URI, RECOVERY_SCAN_RESOURCE_URI } from "./ui-resource-ids";
+import { PACKET_REVIEW_RESOURCE_URI, RECOVERY_SCAN_RESOURCE_URI, RECOVERY_CASE_RESOURCE_URI } from "./ui-resource-ids";
 import {
   assessConnectorCapabilities,
   connectorCapabilityVersion,
@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.14.0";
+export const MCP_CONNECTOR_VERSION = "0.15.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -252,6 +252,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
   },
   {
     name: "get_recovery_case",
@@ -267,6 +272,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
   },
   {
     name: "list_recovery_cases",
@@ -284,6 +294,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
   },
   {
     name: "update_recovery_case",
@@ -311,6 +326,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
   },
   {
     name: "find_workflow",

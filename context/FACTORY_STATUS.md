@@ -1,5 +1,13 @@
 # MailMyPDF factory status
 
+## 2026-10-04 — Interactive saved recovery cases in the connector
+
+- Connector **0.15.0 / 38 tools / 3 MCP App resources**. Existing case tools now return reopening, named evidence, candidate/confirmed values, waiting deadlines, start/resume, explicit closure and evidence-backed outcome confirmation.
+- Server authority retains owned references/exact revisions. Both bridge paths time out; uncertain receipts block edits until reload. Parent-only results, safe text rendering, host theme/size, cancellation and teardown are covered; pending-deletion evidence remains unavailable.
+- Actual Chromium iframe testing found and repaired native forms blocked by host sandboxing. Browser journeys use the real MCP handler/lifecycle with synthetic auth/storage at 1280/768/390px and dark/reduced-motion modes. No page/console/network errors or horizontal overflow. Zero axe violations; one incomplete contrast check is documented with visual/color review.
+- **93/93 focused**, **97.58% lines / 84.15% branches**, **8/8 prompt/transport**, **10/10 launch/schema**; app build/SSR fixer/root types/new-module lint/shared execution guard pass. Full JS **675/676**, TS **382/385**, standalone types **18 existing diagnostics**. Evidence: `docs/verification/recovery-case-app-ecc.md`.
+- Locally verified, not deployed. Hosted migration, real ChatGPT host, OAuth/provider action/payment/mail unverified or pending. `@mailmypdf/step-workflow` remains the workflow execution architecture. Saved deadlines do not schedule external actions.
+
 
 ## 2026-10-04 — ECC durable recovery cases and governed-action storage
 

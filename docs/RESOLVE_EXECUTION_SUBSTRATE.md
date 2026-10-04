@@ -1,5 +1,7 @@
 # Recovery review and governed provider actions
 
+The saved-case follow-up (connector **0.15.0**, 2026-10-04) adds a portable recovery workspace to the four existing case tools. It reopens cases, displays owned evidence labels and deadlines, and uses explicit, revision-bound lifecycle controls. The confirmed-outcome form requires supporting linked evidence and separates actual recovered value from screening candidates. See [case-app verification and screenshots](verification/recovery-case-app-ecc.md). It is locally verified with the actual MCP handler in a synthetic Chromium host; production ChatGPT verification and hosted migration remain pending. It introduces no provider activation or replacement workflow execution UI.
+
 Implemented on 2026-10-04 in the existing MailMyPDF packages and connector. This is the first executable recovery-review slice, not a replacement workflow engine or a production-enabled autonomous agent.
 
 ## Customer journey implemented in the host

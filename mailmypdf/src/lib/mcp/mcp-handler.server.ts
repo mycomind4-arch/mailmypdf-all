@@ -12,6 +12,7 @@ import {
 } from "./tool-catalog";
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
 import { RECOVERY_SCAN_RESOURCE } from "./recovery-scan-resource";
+import { RECOVERY_CASE_RESOURCE } from "./recovery-case-resource";
 import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
 import { isAllowedMcpOrigin, readMcpMessage, SUPPORTED_MCP_VERSIONS } from "./transport";
 import { CONVERSATIONAL_MAILING_INSTRUCTIONS, MAILING_PROMPT, parseDirectPdfPreviewUri } from "./conversational-mailing";
@@ -278,7 +279,7 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
   if (message.method === "resources/list") {
     return json(rpcResult(message.id, {
       resultType: "complete",
-      resources: [PACKET_REVIEW_RESOURCE, RECOVERY_SCAN_RESOURCE].map((resource) => ({
+      resources: [PACKET_REVIEW_RESOURCE, RECOVERY_SCAN_RESOURCE, RECOVERY_CASE_RESOURCE].map((resource) => ({
         uri: resource.uri,
         name: resource.name,
         title: resource.title,
@@ -299,12 +300,13 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     if (!uri) {
       return json(rpcError(message.id, -32602, "resources/read requires a resource URI"), 400);
     }
-    if (uri === RECOVERY_SCAN_RESOURCE.uri) {
+    if (uri === RECOVERY_SCAN_RESOURCE.uri || uri === RECOVERY_CASE_RESOURCE.uri) {
+      const resource = uri === RECOVERY_SCAN_RESOURCE.uri ? RECOVERY_SCAN_RESOURCE : RECOVERY_CASE_RESOURCE;
       return json(rpcResult(message.id, {
         resultType: "complete",
         contents: [{
-          uri, mimeType: RECOVERY_SCAN_RESOURCE.mimeType, text: RECOVERY_SCAN_RESOURCE.text,
-          _meta: { ...RECOVERY_SCAN_RESOURCE._meta, ui: { ...RECOVERY_SCAN_RESOURCE._meta.ui, domain: requestOrigin(request) } },
+          uri, mimeType: resource.mimeType, text: resource.text,
+          _meta: { ...resource._meta, ui: { ...resource._meta.ui, domain: requestOrigin(request) } },
         }],
         ttlMs: 300_000, cacheScope: "public",
       }));

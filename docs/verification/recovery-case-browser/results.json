@@ -1,0 +1,109 @@
+{
+  "browser": "151.0.7922.34",
+  "syntheticHost": true,
+  "journeys": [
+    "List → open → keyboard start → evidence chat handoff → owned evidence attachment → wait → resume",
+    "Confirmation and linked evidence required → decimal validation → exact $89.00 saved → terminal read-only view",
+    "Concurrent revision conflict → blocked changes without retry → explicit reload → confirmed closure"
+  ],
+  "layouts": [
+    {
+      "name": "desktop list",
+      "width": 1280,
+      "documentWidth": 1280,
+      "bodyWidth": 1280
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "documentWidth": 768,
+      "bodyWidth": 768
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "documentWidth": 390,
+      "bodyWidth": 390
+    },
+    {
+      "name": "mobile confirmation form",
+      "width": 390,
+      "documentWidth": 390,
+      "bodyWidth": 390
+    }
+  ],
+  "accessibility": [
+    {
+      "name": "desktop list",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "desktop active detail",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "mobile confirmation form",
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "mobile dark confirmed",
+      "violations": [],
+      "incomplete": []
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "networkFailures": [],
+  "sizing": [
+    {
+      "height": 625,
+      "width": 390
+    },
+    {
+      "height": 517,
+      "width": 390
+    },
+    {
+      "height": 917,
+      "width": 390
+    },
+    {
+      "height": 1095,
+      "width": 390
+    },
+    {
+      "height": 1221,
+      "width": 390
+    },
+    {
+      "height": 1654,
+      "width": 390
+    },
+    {
+      "height": 1317,
+      "width": 390
+    },
+    {
+      "height": 1186,
+      "width": 390
+    },
+    {
+      "height": 1221,
+      "width": 390
+    },
+    {
+      "height": 1475,
+      "width": 390
+    },
+    {
+      "height": 1051,
+      "width": 390
+    }
+  ],
+  "result": "PASS"
+}

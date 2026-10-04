@@ -103,7 +103,8 @@ test("case tools publish owned lifecycle schemas with no provider send or approv
       tool.annotations.readOnlyHint,
       name === "get_recovery_case" || name === "list_recovery_cases",
     );
-    assert.equal(tool._meta?.["openai/outputTemplate"], undefined);
+    assert.equal(tool._meta?.["openai/outputTemplate"], "ui://mailmypdf/recovery-case-v1.html");
+    assert.deepEqual((tool._meta?.ui as { visibility: string[] }).visibility, ["model", "app"]);
   }
 });
 test("authenticated save/get/list/update journey preserves case identity and blocks stale updates", async () => {
@@ -186,4 +187,26 @@ test("unauthenticated calls return an OAuth challenge before storage is created"
   } finally {
     authenticated = true;
   }
+});
+
+test("saved case UI is discoverable as a static resource and contains no private case data", async () => {
+  const request = (method: string, params: unknown = {}) =>
+    new Request("https://mailmypdf.test/api/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    });
+  const resources = (await (await handleMailMyPdfMcpRequest(request("resources/list"))).json())
+    .result.resources;
+  assert.ok(
+    resources.some((r: { uri: string }) => r.uri === "ui://mailmypdf/recovery-case-v1.html"),
+  );
+  const resource = await handleMailMyPdfMcpRequest(
+    request("resources/read", { uri: "ui://mailmypdf/recovery-case-v1.html" }),
+  );
+  assert.equal(resource.status, 200);
+  const contents = (await resource.json()).result.contents;
+  assert.equal(contents[0].mimeType, "text/html;profile=mcp-app");
+  assert.equal(contents[0].text.includes(owner), false);
+  assert.deepEqual(contents[0]._meta.ui.csp.connectDomains, []);
 });
