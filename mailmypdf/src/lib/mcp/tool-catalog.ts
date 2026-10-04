@@ -1,4 +1,4 @@
-import { PACKET_REVIEW_RESOURCE_URI } from "./ui-resource-ids";
+import { PACKET_REVIEW_RESOURCE_URI, RECOVERY_SCAN_RESOURCE_URI } from "./ui-resource-ids";
 import {
   assessConnectorCapabilities,
   connectorCapabilityVersion,
@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.12.0";
+export const MCP_CONNECTOR_VERSION = "0.13.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -111,6 +111,33 @@ const assistantFileSchema = objectSchema(
 
 
 export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
+  {
+    name: "scan_recovery_candidates",
+    title: "Scan for possible duplicate charges",
+    description:
+      "Screen transaction data explicitly supplied by the connected user for possible duplicate settled charges. Use integer minor-unit amounts, preserve provider transaction ids, and include invoice/refund links only when verified from evidence. This does not access bank accounts, determine money owed, send disputes, or create matters. Present candidates for evidence review before recommending a certified workflow.",
+    inputSchema: objectSchema({
+      transactions: {
+        type: "array", maxItems: 2000,
+        items: objectSchema({
+          id: { type: "string", maxLength: 512 },
+          accountId: { type: "string", maxLength: 512, description: "Stable source account alias; omit account numbers and credentials." },
+          merchant: { type: "string", maxLength: 512 },
+          amountMinor: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+          currency: { type: "string", pattern: "^[A-Z]{3}$" },
+          postedAt: { type: "string", format: "date-time" },
+          state: { type: "string", enum: ["settled", "pending", "reversed"] },
+          kind: { type: "string", enum: ["debit", "credit"] },
+          invoiceId: { type: "string", maxLength: 512 },
+          reversesTransactionId: { type: "string", maxLength: 512 },
+        }, ["id", "accountId", "merchant", "amountMinor", "currency", "postedAt", "state", "kind"]),
+      },
+    }, ["transactions"]),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: { ui: { resourceUri: RECOVERY_SCAN_RESOURCE_URI }, "openai/outputTemplate": RECOVERY_SCAN_RESOURCE_URI },
+  },
   {
     name: "find_workflow",
     title: "Find a MailMyPDF workflow",

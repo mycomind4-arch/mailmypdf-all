@@ -11,6 +11,7 @@ import {
   listMcpToolsForDiscovery,
 } from "./tool-catalog";
 import { PACKET_REVIEW_RESOURCE } from "./packet-review-resource";
+import { RECOVERY_SCAN_RESOURCE } from "./recovery-scan-resource";
 import { parsePacketPreviewResourceUri } from "./packet-preview-resource";
 import { isAllowedMcpOrigin, readMcpMessage, SUPPORTED_MCP_VERSIONS } from "./transport";
 import { CONVERSATIONAL_MAILING_INSTRUCTIONS, MAILING_PROMPT, parseDirectPdfPreviewUri } from "./conversational-mailing";
@@ -277,13 +278,13 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
   if (message.method === "resources/list") {
     return json(rpcResult(message.id, {
       resultType: "complete",
-      resources: [{
-        uri: PACKET_REVIEW_RESOURCE.uri,
-        name: PACKET_REVIEW_RESOURCE.name,
-        title: PACKET_REVIEW_RESOURCE.title,
-        description: PACKET_REVIEW_RESOURCE.description,
-        mimeType: PACKET_REVIEW_RESOURCE.mimeType,
-      }],
+      resources: [PACKET_REVIEW_RESOURCE, RECOVERY_SCAN_RESOURCE].map((resource) => ({
+        uri: resource.uri,
+        name: resource.name,
+        title: resource.title,
+        description: resource.description,
+        mimeType: resource.mimeType,
+      })),
       ttlMs: 300_000,
       cacheScope: "public",
     }));
@@ -297,6 +298,16 @@ export async function handleMailMyPdfMcpRequest(request: Request): Promise<Respo
     const uri = params && typeof params.uri === "string" ? params.uri : "";
     if (!uri) {
       return json(rpcError(message.id, -32602, "resources/read requires a resource URI"), 400);
+    }
+    if (uri === RECOVERY_SCAN_RESOURCE.uri) {
+      return json(rpcResult(message.id, {
+        resultType: "complete",
+        contents: [{
+          uri, mimeType: RECOVERY_SCAN_RESOURCE.mimeType, text: RECOVERY_SCAN_RESOURCE.text,
+          _meta: { ...RECOVERY_SCAN_RESOURCE._meta, ui: { ...RECOVERY_SCAN_RESOURCE._meta.ui, domain: requestOrigin(request) } },
+        }],
+        ttlMs: 300_000, cacheScope: "public",
+      }));
     }
     if (uri === PACKET_REVIEW_RESOURCE.uri) {
       return json(rpcResult(message.id, {

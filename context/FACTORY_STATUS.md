@@ -1,5 +1,16 @@
 # MailMyPDF factory status
 
+## 2026-10-04 — Recovery review and governed provider substrate
+
+- Added `scan_recovery_candidates` to the existing authenticated MCP catalog/handler and conversational instructions, plus `ui://mailmypdf/recovery-scan-v1.html`. Users can supply transaction records and inspect candidate values, merchant, confidence, and original evidence IDs in a responsive card. This is connected host behavior, not an unused scanner module.
+- Added deterministic recovery screening to `packages/intelligence`: settled-charge groups, verified invoice links, account/currency boundaries, bounded time windows, and explicit full/partial refund handling. Candidate value remains screening evidence, not confirmed money owed. No bank access, persistence, or automatic disputes.
+- Upgraded `packages/document-intelligence/src/docling-provider.ts` to native Docling Serve v1, keeping custom wrappers behind explicit `protocol: "legacy"`. Added API-key support, bounded request/response bytes, response-body timeout, conversion-status checks, sparse/blank page provenance, bounded tables, and unlocated-text preservation.
+- Extended existing `packages/agent-runtime` with exact-request approved actions, owner/scope checks, atomic execution-store contracts, ambiguous-write reconciliation states, native Gmail bindings, private case-goal transitions, and a Trigger REST binding for the existing client contract. No new execution engine or registry. Package bindings need durable production storage, OAuth/token handling, host registration, and a deployed worker before activation.
+- Verified package tests: agent-runtime **53/53**, document-intelligence **23/23**, intelligence **539/539**. Focused MCP/card/transport/readiness/prompt tests **66/66**. Root `tsc -b` and affected package typechecks clean. App Vite build and SSR cycle fixer clean.
+- Rendered the actual recovery card in Chromium at 840px and 390px; inspected both screenshots, expanded evidence, checked $378.99 synthetic candidate total, zero page errors and no phone horizontal overflow. Screenshots and implementation/activation details: `docs/RESOLVE_EXECUTION_SUBSTRATE.md`, `docs/verification/recovery-review-{desktop,mobile}.png`.
+- Broader verification: app JS **674/675**, app TS **333/336**. Remaining scheduler-gap and workflow inventory/registry failures reproduced on unchanged `4439147`. Standalone host typecheck reports **18 existing diagnostics**, identical to unchanged main with the same dependency environment. Restored the missing checkout-is-not-payment/mailing prompt instruction, closing one baseline test failure without weakening assertions.
+- No live provider action, payment, mailing, or deployment performed. Next: durable action/approval/connection/case storage and exact-action review UI, then owned Trigger worker activation; reconcile host-wide baseline acceptance failures. The recovery scan can deploy separately from activating external actions.
+
 ## 2026-10-02 — Remote GitHub factory acceptance executor
 
 - Added a server-side remote executor for reviewed Records Request and tax Notice Respond recipes, including catalog adoption. Studio no longer needs a local Git worktree to create a supervised proposal.

@@ -351,3 +351,4 @@ export {
   replaceUnderstandingObservation,
   understandingToFacts,
 } from "./understanding.js";
+export * from './recovery-scan.js';

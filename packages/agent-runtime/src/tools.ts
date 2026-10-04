@@ -5,6 +5,10 @@ export interface ToolContext {
   caseId?: string
   actorId?: string
   signal?: AbortSignal
+  /** Present only after the action executor has verified server-side ownership. */
+  ownerId?: string
+  connectionId?: string
+  idempotencyKey?: string
 }
 
 export interface ToolDefinition<I = unknown, O = unknown> {
@@ -15,6 +19,14 @@ export interface ToolDefinition<I = unknown, O = unknown> {
   reversible: boolean
   idempotent: boolean
   inputSchema?: unknown
+  /** Versioned external-action policy. Legacy tools must opt in before action execution. */
+  actionPolicy?: {
+    version: number
+    provider: string
+    effect: 'none' | 'email' | 'browser' | 'payment' | 'mailing' | 'storage'
+    scopes: readonly string[]
+    maxInputBytes: number
+  }
   execute(input: I, context: ToolContext): Promise<O>
 }
 

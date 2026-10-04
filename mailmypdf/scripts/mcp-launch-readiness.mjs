@@ -14,6 +14,7 @@ const protocolVersion="2026-07-28";
 const reviewResourceUri="ui://mailmypdf/packet-review-v1.html";
 
 const requiredTools=[
+  "scan_recovery_candidates",
   "find_workflow",
   "get_workflow",
   "get_profile",

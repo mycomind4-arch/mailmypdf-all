@@ -57,6 +57,7 @@ import {
   ImmediateMailError,
 } from "@/lib/immediate-mail.server";
 import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
+import { screenProvidedRecoveryTransactions } from "./recovery-scan";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -271,6 +272,15 @@ export async function executeMcpTool(
   rawArguments: unknown,
 ): Promise<unknown> {
   const args = object(rawArguments ?? {}, "arguments");
+
+  if (name === "scan_recovery_candidates") {
+    await requireAuthenticatedUser(request);
+    try {
+      return screenProvidedRecoveryTransactions(args);
+    } catch (error) {
+      throw new McpToolExecutionError(400, error instanceof Error ? error.message : "Invalid transaction data");
+    }
+  }
 
   if (name === "find_workflow") {
     const query = requiredString(args.query, "query");

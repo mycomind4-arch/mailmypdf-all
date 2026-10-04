@@ -62,7 +62,7 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("charge_and_send_direct_pdf_mail"));
   assert.ok(names.includes("schedule_direct_pdf_mail"));
   assert.ok(names.includes("cancel_scheduled_mail"));
-  assert.equal(names.length, 33);
+  assert.equal(names.length, 34);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -1081,7 +1081,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 33);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 34);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -1125,7 +1125,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 33);
+  assert.equal(payload.result.tools.length, 34);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
@@ -1204,7 +1204,7 @@ test("modern resources list/read exposes the portable packet review app", async 
       cacheScope: string;
     };
   };
-  assert.equal(listedPayload.result.resources.length, 1);
+  assert.equal(listedPayload.result.resources.length, 2);
   assert.equal(listedPayload.result.resources[0]?.uri, PACKET_REVIEW_RESOURCE_URI);
   assert.equal(
     listedPayload.result.resources[0]?.mimeType,
