@@ -58,6 +58,14 @@ import {
 } from "@/lib/immediate-mail.server";
 import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
 import { screenProvidedRecoveryTransactions } from "./recovery-scan";
+import {
+  createRecoveryCaseFromScan,
+  getRecoveryCase,
+  listRecoveryCases,
+  updateRecoveryCase,
+  RecoveryCaseError,
+} from "./recovery-case-service";
+import { createRecoveryCaseStore } from "./recovery-store.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -272,6 +280,20 @@ export async function executeMcpTool(
   rawArguments: unknown,
 ): Promise<unknown> {
   const args = object(rawArguments ?? {}, "arguments");
+
+  if (["save_recovery_case", "get_recovery_case", "list_recovery_cases", "update_recovery_case"].includes(name)) {
+    const context = await requireAuthenticatedUser(request);
+    try {
+      const store = createRecoveryCaseStore(context);
+      if (name === "save_recovery_case") return await createRecoveryCaseFromScan(args, context.user.id, store);
+      if (name === "get_recovery_case") return await getRecoveryCase(args, context.user.id, store);
+      if (name === "list_recovery_cases") return await listRecoveryCases(args, context.user.id, store);
+      return await updateRecoveryCase(args, context.user.id, store);
+    } catch (error) {
+      if (error instanceof RecoveryCaseError) throw new McpToolExecutionError(error.status, error.message);
+      throw new McpToolExecutionError(503, "Recovery storage is unavailable. Reload before retrying.");
+    }
+  }
 
   if (name === "scan_recovery_candidates") {
     await requireAuthenticatedUser(request);

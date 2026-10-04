@@ -98,6 +98,10 @@ let tools = [];
 
   for (const required of [
     "scan_recovery_candidates",
+    "save_recovery_case",
+    "get_recovery_case",
+    "list_recovery_cases",
+    "update_recovery_case",
     "find_workflow",
     "get_workflow",
     "ingest_direct_pdf",
@@ -125,11 +129,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 34) {
-    fail(`expected 34 MCP tools, found ${tools.length}`);
+  if (tools.length !== 38) {
+    fail(`expected 38 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 34-tool surface");
+  ok("tools/list exposes the expected 38-tool surface");
 }
 
 {

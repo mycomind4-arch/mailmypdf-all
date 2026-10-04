@@ -14,7 +14,7 @@ test("launch required tools match the canonical tool catalog",()=>{
   const requiredBlock=readiness.match(/const requiredTools=\[([\s\S]*?)\];/)?.[1];
   assert.ok(requiredBlock);
   const required=[...requiredBlock.matchAll(/"([^"]+)"/g)].map(match=>match[1]);
-  assert.equal(names.length,34);
+  assert.equal(names.length,38);
   assert.deepEqual(required.sort(),names.sort());
 });
 

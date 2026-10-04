@@ -1179,6 +1179,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.86.0(react@19.2.8))(zod@3.25.76)
+      '@mailmypdf/agent-runtime':
+        specifier: workspace:*
+        version: link:../packages/agent-runtime
       '@mailmypdf/ai':
         specifier: workspace:*
         version: link:../packages/ai
@@ -1242,15 +1245,15 @@ importers:
       '@mailmypdf/step-workflow':
         specifier: workspace:*
         version: link:../packages/step-workflow
+      '@mailmypdf/vertical-foundry':
+        specifier: workspace:*
+        version: link:../packages/vertical-foundry
       '@mailmypdf/workflow-ui':
         specifier: workspace:*
         version: link:../packages/workflow-ui
       '@mailmypdf/workflows':
         specifier: workspace:*
         version: link:../packages/workflows
-      '@mailmypdf/vertical-foundry':
-        specifier: workspace:*
-        version: link:../packages/vertical-foundry
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.20(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1429,6 +1432,9 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.8
+        version: 0.5.8
       '@eslint/js':
         specifier: ^9.32.0
         version: 9.39.5
@@ -1592,6 +1598,8 @@ importers:
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
+
+  packages/capability-services: {}
 
   packages/core:
     devDependencies:
@@ -2221,6 +2229,9 @@ packages:
 
   '@electric-sql/client@1.0.14':
     resolution: {integrity: sha512-LtPAfeMxXRiYS0hyDQ5hue2PjljUiK9stvzsVyVb4nwxWQxfOWTSF42bHTs/o5i3x1T4kAQ7mwHpxa4A+f8X7Q==}
+
+  '@electric-sql/pglite@0.5.8':
+    resolution: {integrity: sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==}
 
   '@emnapi/core@1.11.3':
     resolution: {integrity: sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg==}
@@ -8442,6 +8453,8 @@ snapshots:
       '@microsoft/fetch-event-source': 2.0.1
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.63.1
+
+  '@electric-sql/pglite@0.5.8': {}
 
   '@emnapi/core@1.11.3':
     dependencies:

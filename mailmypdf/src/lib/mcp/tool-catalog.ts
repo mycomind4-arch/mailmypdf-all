@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.13.0";
+export const MCP_CONNECTOR_VERSION = "0.14.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -110,33 +110,207 @@ const assistantFileSchema = objectSchema(
 );
 
 
+const recoveryTransactionsSchema = {
+  type: "array",
+  maxItems: 2000,
+  items: objectSchema(
+    {
+      id: { type: "string", maxLength: 512 },
+      accountId: {
+        type: "string",
+        maxLength: 512,
+        description:
+          "Stable source account alias; omit account numbers and credentials.",
+      },
+      merchant: { type: "string", maxLength: 512 },
+      amountMinor: {
+        type: "integer",
+        minimum: 1,
+        maximum: Number.MAX_SAFE_INTEGER,
+      },
+      currency: { type: "string", pattern: "^[A-Z]{3}$" },
+      postedAt: { type: "string", format: "date-time" },
+      state: { type: "string", enum: ["settled", "pending", "reversed"] },
+      kind: { type: "string", enum: ["debit", "credit"] },
+      invoiceId: { type: "string", maxLength: 512 },
+      reversesTransactionId: { type: "string", maxLength: 512 },
+    },
+    [
+      "id",
+      "accountId",
+      "merchant",
+      "amountMinor",
+      "currency",
+      "postedAt",
+      "state",
+      "kind",
+    ],
+  ),
+};
+const recoveryIdSchema = { type: "string", format: "uuid" };
+const recoveryTextSchema = { type: "string", minLength: 1, maxLength: 4000 };
+const recoveryMoneySchema = objectSchema(
+  {
+    amountMinor: {
+      type: "integer",
+      minimum: 0,
+      maximum: Number.MAX_SAFE_INTEGER,
+    },
+    currency: { type: "string", pattern: "^[A-Z]{3}$" },
+  },
+  ["amountMinor", "currency"],
+);
+const recoveryEventSchema = {
+  oneOf: [
+    ...["activate", "resume", "cancel"].map((type) =>
+      objectSchema({ type: { const: type } }, ["type"]),
+    ),
+    objectSchema(
+      { type: { const: "attach-evidence" }, evidenceId: recoveryIdSchema },
+      ["type", "evidenceId"],
+    ),
+    objectSchema(
+      { type: { const: "link-matter" }, matterId: recoveryIdSchema },
+      ["type", "matterId"],
+    ),
+    objectSchema(
+      {
+        type: { const: "wait" },
+        reason: recoveryTextSchema,
+        dueAt: { type: "string", format: "date-time" },
+      },
+      ["type", "reason"],
+    ),
+    objectSchema(
+      {
+        type: { const: "resolve" },
+        outcome: recoveryTextSchema,
+        evidenceIds: {
+          type: "array",
+          minItems: 1,
+          maxItems: 1000,
+          items: recoveryIdSchema,
+        },
+        recoveredValue: recoveryMoneySchema,
+      },
+      ["type", "outcome", "evidenceIds"],
+    ),
+  ],
+};
+
 export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
   {
     name: "scan_recovery_candidates",
     title: "Scan for possible duplicate charges",
     description:
       "Screen transaction data explicitly supplied by the connected user for possible duplicate settled charges. Use integer minor-unit amounts, preserve provider transaction ids, and include invoice/refund links only when verified from evidence. This does not access bank accounts, determine money owed, send disputes, or create matters. Present candidates for evidence review before recommending a certified workflow.",
-    inputSchema: objectSchema({
-      transactions: {
-        type: "array", maxItems: 2000,
-        items: objectSchema({
-          id: { type: "string", maxLength: 512 },
-          accountId: { type: "string", maxLength: 512, description: "Stable source account alias; omit account numbers and credentials." },
-          merchant: { type: "string", maxLength: 512 },
-          amountMinor: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
-          currency: { type: "string", pattern: "^[A-Z]{3}$" },
-          postedAt: { type: "string", format: "date-time" },
-          state: { type: "string", enum: ["settled", "pending", "reversed"] },
-          kind: { type: "string", enum: ["debit", "credit"] },
-          invoiceId: { type: "string", maxLength: 512 },
-          reversesTransactionId: { type: "string", maxLength: 512 },
-        }, ["id", "accountId", "merchant", "amountMinor", "currency", "postedAt", "state", "kind"]),
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
       },
-    }, ["transactions"]),
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      ["transactions"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
-    _meta: { ui: { resourceUri: RECOVERY_SCAN_RESOURCE_URI }, "openai/outputTemplate": RECOVERY_SCAN_RESOURCE_URI },
+    _meta: {
+      ui: { resourceUri: RECOVERY_SCAN_RESOURCE_URI },
+      "openai/outputTemplate": RECOVERY_SCAN_RESOURCE_URI,
+    },
+  },
+  {
+    name: "save_recovery_case",
+    title: "Save a recovery case",
+    description:
+      "After the user explicitly agrees, recompute and save one supplied duplicate-charge candidate as a private intake case. Supply the same transaction records and candidate id from the scan. State the desired outcome and preserve a retry key. Supplied records remain unverified provenance; saving does not approve correspondence, access accounts, or prove money owed.",
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
+        candidate_id: { type: "string", minLength: 1, maxLength: 4000 },
+        desired_outcome: recoveryTextSchema,
+        user_confirmed_save: { const: true },
+        idempotency_key: idempotencyKeySchema,
+      },
+      [
+        "transactions",
+        "candidate_id",
+        "desired_outcome",
+        "user_confirmed_save",
+        "idempotency_key",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "get_recovery_case",
+    title: "Get a saved recovery case",
+    description:
+      "Read one private recovery case, its current revision, desired outcome, unverified source provenance, linked evidence and confirmed resolution. Only the authenticated owner can read it.",
+    inputSchema: objectSchema({ case_id: recoveryIdSchema }, ["case_id"]),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "list_recovery_cases",
+    title: "List saved recovery cases",
+    description:
+      "List the connected user's private recovery cases, newest first, including status, revision and source provenance. This does not scan connected accounts.",
+    inputSchema: objectSchema({
+      limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+    }),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+  },
+  {
+    name: "update_recovery_case",
+    title: "Update a recovery case",
+    description:
+      "Apply one lifecycle event to an owned case using its latest expected revision. Attach owned secure document evidence or link an owned workflow matter; activate, wait with a deadline, resume, cancel, or resolve. Resolve only after explicit user confirmation and with already-linked owned evidence. Record recovered money only when confirmed. A successful provider action does not resolve a case. Reload after a revision conflict; this tool never authorizes sending.",
+    inputSchema: objectSchema(
+      {
+        case_id: recoveryIdSchema,
+        expected_revision: { type: "integer", minimum: 1, maximum: 2147483646 },
+        event: recoveryEventSchema,
+        user_confirmed_resolution: {
+          const: true,
+          description:
+            "Required for a resolve event only; records the user's explicit confirmation of the evidenced outcome.",
+        },
+      },
+      ["case_id", "expected_revision", "event"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
   },
   {
     name: "find_workflow",

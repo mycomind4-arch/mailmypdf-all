@@ -15,6 +15,10 @@ const reviewResourceUri="ui://mailmypdf/packet-review-v1.html";
 
 const requiredTools=[
   "scan_recovery_candidates",
+  "save_recovery_case",
+  "get_recovery_case",
+  "list_recovery_cases",
+  "update_recovery_case",
   "find_workflow",
   "get_workflow",
   "get_profile",
