@@ -57,7 +57,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -102,7 +104,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -143,7 +147,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
