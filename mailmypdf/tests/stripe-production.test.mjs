@@ -288,24 +288,26 @@ describe("Legacy Quote Payment Safety", () => {
     const checkout = await source("src/lib/stripe-payment.functions.ts");
     const page = await source("src/routes/checkout.review.tsx");
     const schema = checkout.slice(checkout.indexOf("const CreateCheckoutSessionSchema"), checkout.indexOf("const ProcessPaymentSchema"));
-    assert.match(schema, /quoteId: z\\.string\\(\\)\\.uuid\\(\\)/);
-    assert.doesNotMatch(schema, /successUrl|cancelUrl/);
-    assert.match(checkout, /success_url: new URL\\(/);
-    assert.match(checkout, /cancel_url: new URL\\(/);
-    assert.match(checkout, /getMailMyPdfBaseUrl\\(\\)/);
-    assert.doesNotMatch(page, /successUrl:|cancelUrl:/);
+    assert.ok(schema.includes("quoteId: z.string().uuid()"));
+    assert.ok(!schema.includes("successUrl") && !schema.includes("cancelUrl"));
+    assert.ok(checkout.includes("success_url: new URL("));
+    assert.ok(checkout.includes("cancel_url: new URL("));
+    assert.ok(checkout.includes("getMailMyPdfBaseUrl()"));
+    assert.ok(!page.includes("successUrl:") && !page.includes("cancelUrl:"));
   });
+
   it("legacy refunds require a privileged role and a settled, matching payment", async () => {
     const sourceText = await source("src/lib/stripe-payment.functions.ts");
     const section = sourceText.slice(sourceText.indexOf("export const createRefund"), sourceText.indexOf("// WEBHOOK HANDLER"));
-    assert.match(section, /from\\("user_roles"\\)/);
-    assert.match(section, /eq\\("role", "admin"\\)/);
-    assert.match(section, /order\\.status !== "accepted"/);
-    assert.match(section, /paymentIntents\\.retrieve\\(paymentIntentId\\)/);
-    assert.match(section, /intent\\.metadata\\.quote_id !== order\\.id/);
-    assert.match(section, /intent\\.metadata\\.user_id !== order\\.user_id/);
-    assert.match(section, /intent\\.amount_received !== order\\.total_cents/);
-    assert.match(section, /idempotencyKey: \`legacy_quote_refund_/);
-    assert.match(section, /refund\\.status === "succeeded"/);
+    for (const required of [
+      '.from("user_roles")', '.eq("role", "admin")',
+      'order.status !== "accepted"', "paymentIntents.retrieve(paymentIntentId)",
+      "intent.metadata.quote_id !== order.id",
+      "intent.metadata.user_id !== order.user_id",
+      "intent.amount_received !== order.total_cents",
+      "legacy_quote_refund_", 'refund.status === "succeeded"',
+    ]) {
+      assert.ok(section.includes(required), "Missing refund safeguard: " + required);
+    }
   });
 });
