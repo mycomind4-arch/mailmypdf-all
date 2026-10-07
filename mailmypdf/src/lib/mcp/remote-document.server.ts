@@ -336,6 +336,9 @@ export async function downloadAssistantFile(
     response = await fetchImpl(url, {
       method: "GET",
       redirect: "manual",
+      // Bound both the response handshake and streaming read. A permitted
+      // provider endpoint must not be able to hold a Worker open indefinitely.
+      signal: AbortSignal.timeout(30_000),
       headers: {
         accept: "application/pdf,image/png,image/jpeg,image/tiff,text/plain;q=0.9,*/*;q=0.1",
       },
