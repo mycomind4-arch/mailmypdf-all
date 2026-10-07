@@ -156,8 +156,11 @@ export function validateRemoteDocumentUrl(
     );
   }
 
+  // Without an explicit provider host allowlist, remote ingestion is disabled.
+  // Public-HTTPS-only checks do not prevent DNS rebinding or cloud metadata
+  // egress. Keep this fail-closed even on redirects.
   if (
-    allowedHostPatterns.length > 0 &&
+    allowedHostPatterns.length === 0 ||
     !allowedHostPatterns.some((pattern) => hostnameMatchesPattern(hostname, pattern))
   ) {
     throw new AssistantFileIngressError(

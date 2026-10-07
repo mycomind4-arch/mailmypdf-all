@@ -38,8 +38,6 @@ function getStripe() {
 
 const CreateCheckoutSessionSchema = z.object({
   quoteId: z.string().uuid(),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
 });
 
 const ProcessPaymentSchema = z.object({
@@ -335,11 +333,15 @@ export const createRefund = createServerFn({ method: "POST" })
         .from("pricing_quotes") // This would be 'orders' table
         .select("*")
         .eq("id", validInput.orderId)
-        .eq("user_id", user.id)
         .single();
 
-      if (!order) {
-        throw new Error("Order not found");
+      if (!order || order.status !== "accepted") {
+        throw new Error("Only a settled, accepted quote can be refunded");
+      }
+
+      const originalMetadata = quoteMetadata(order.metadata);
+      if (originalMetadata.refund_id) {
+        throw new Error("This quote already has a refund recorded");
       }
 
       const paymentIntentId =
@@ -349,13 +351,28 @@ export const createRefund = createServerFn({ method: "POST" })
         throw new Error("Order has no payment intent ID");
       }
 
+      // Never refund based only on editable quote metadata. Reconcile the actual
+      // Stripe payment, settled amount, currency, quote and customer identity.
+      const stripe = getStripe();
+      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (
+        intent.status !== "succeeded" ||
+        intent.metadata.quote_id !== order.id ||
+        intent.metadata.user_id !== order.user_id ||
+        intent.currency !== "usd" ||
+        intent.amount_received !== order.total_cents
+      ) {
+        throw new Error("The settled Stripe payment does not match the approved quote");
+      }
+
       // Create refund via Stripe
-      const refund = await getStripe().refunds.create({
+      const refund = await stripe.refunds.create({
         payment_intent: paymentIntentId,
         reason: validInput.reason === "other" ? undefined : validInput.reason,
         metadata: {
           order_id: validInput.orderId,
-          user_id: user.id,
+          user_id: order.user_id,
+          issued_by: user.id,
           reason_text: validInput.reasonText || "",
         },
       }, {
@@ -366,15 +383,17 @@ export const createRefund = createServerFn({ method: "POST" })
       await admin
         .from("pricing_quotes")
         .update({
-          status: "reversed",
+          ...(refund.status === "succeeded" ? { status: "reversed" } : {}),
           metadata: {
-            ...quoteMetadata(order.metadata),
+            ...originalMetadata,
             refund_id: refund.id,
-            refunded_at: new Date().toISOString(),
+            refund_status: refund.status,
+            refund_requested_at: new Date().toISOString(),
             refund_reason: validInput.reason,
           },
         })
-        .eq("id", validInput.orderId);
+        .eq("id", validInput.orderId)
+        .eq("status", "accepted");
 
       // Log refund
       await logAuditEntry({
@@ -383,7 +402,7 @@ export const createRefund = createServerFn({ method: "POST" })
         resourceType: "quote",
         resourceId: validInput.orderId,
         changes: {
-          status: "reversed",
+          status: refund.status === "succeeded" ? "reversed" : "refund_pending",
           refund_id: refund.id,
           refund_amount: refund.amount,
         },
@@ -395,7 +414,7 @@ export const createRefund = createServerFn({ method: "POST" })
         refundId: refund.id,
         amount: refund.amount,
         status: refund.status,
-        message: "Refund processed successfully",
+        message: refund.status === "succeeded" ? "Refund completed" : "Refund requested; awaiting settlement",
       };
     } catch (error) {
       console.error("Error creating refund:", error);

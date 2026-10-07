@@ -63,6 +63,9 @@ jobs:
       LOB_WEBHOOK_SECRET: ${{ secrets.LOB_WEBHOOK_SECRET }}
       AUTO_SUBMIT_TO_LOB: "false"
 
+      # Explicit HTTPS host allowlist for user-supplied assistant attachment links.
+      # Empty by default: remote ingestion fails closed until trusted hosts are configured.
+      MCP_REMOTE_FILE_HOSTS: ${{ secrets.MCP_REMOTE_FILE_HOSTS }}
       MAILMYPDF_CLEANUP_SECRET: ${{ secrets.MAILMYPDF_CLEANUP_SECRET }}
       MAILMYPDF_SCANNER_JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
       MAILMYPDF_MALWARE_SCANNER_URL: ${{ secrets.MAILMYPDF_MALWARE_SCANNER_URL }}
