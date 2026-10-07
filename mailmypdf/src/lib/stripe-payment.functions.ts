@@ -15,6 +15,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequest } from "@tanstack/react-start/server";
 import Stripe from "stripe";
+import { createStripeClient, getMailMyPdfBaseUrl } from "@/lib/stripe.server";
+import { getConfig } from "@/config";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { getSupabaseServer } from "@/lib/user-client.server";
 import { getSupabaseAdmin, logAuditEntry } from "@/lib/supabase-admin.server";
@@ -27,9 +29,7 @@ function quoteMetadata(value: Json | null): { [key: string]: Json | undefined } 
 
 // Initialize only on the server when an operation actually needs Stripe.
 function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Payment processing is not configured");
-  return new Stripe(key);
+  return createStripeClient();
 }
 
 // ============================================================================
@@ -151,8 +151,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         payment_method_types: ["card"],
         mode: "payment",
         customer_email: userEmail,
-        success_url: validInput.successUrl,
-        cancel_url: validInput.cancelUrl,
+        success_url: new URL(`/checkout/success?quoteId=${encodeURIComponent(quote.id)}`, getMailMyPdfBaseUrl()).toString(),
+        cancel_url: new URL(`/checkout/cancelled?quoteId=${encodeURIComponent(quote.id)}`, getMailMyPdfBaseUrl()).toString(),
         line_items: lineItems,
         metadata: {
           quote_id: quote.id,
@@ -426,7 +426,7 @@ export async function handleStripeWebhook(req: Request) {
     event = getStripe().webhooks.constructEvent(
       body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
+      getConfig().stripe.webhookSecret
     );
   } catch (error) {
     console.error("Webhook signature verification failed:", error);
