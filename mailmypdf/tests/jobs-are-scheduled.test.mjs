@@ -76,6 +76,17 @@ describe("scheduling", () => {
   });
 });
 
+test("Worker cron dispatches authenticated jobs in-process without a public self-fetch", async () => {
+  const server = await readFile(new URL("../src/server.ts", import.meta.url), "utf8");
+  const scheduled = server.slice(server.indexOf("async function handleScheduled("), server.indexOf("export default"));
+  assert.match(scheduled, /const handler = await getServerEntry\(\)/);
+  assert.match(scheduled, /await handler\.fetch\(request, env, ctx\)/);
+  assert.doesNotMatch(scheduled, /await fetch\(/, "Worker-to-Worker public fetch can fail under Cloudflare route restrictions");
+  assert.match(scheduled, /result\.ok !== true/, "cron must reject processors reporting HTTP 200 but unsuccessful work");
+  assert.match(scheduled, /result\.failed > 0/, "cron must report partially failed batches");
+  assert.match(scheduled, /if \(failures\.length > 0\) throw new Error/, "failures must reach Cloudflare cron observability");
+});
+
 describe("job endpoints that still have no schedule", () => {
   test("every unscheduled internal job is a known and accepted gap", async () => {
     const dir = new URL("../src/routes/api/internal/", import.meta.url);
