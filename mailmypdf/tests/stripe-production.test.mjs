@@ -310,4 +310,19 @@ describe("Legacy Quote Payment Safety", () => {
       assert.ok(section.includes(required), "Missing refund safeguard: " + required);
     }
   });
+  it("checkout session creation and database persistence are retry-safe", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const checkout = text.slice(text.indexOf("export const createCheckoutSession"), text.indexOf("// PROCESS PAYMENT"));
+    assert.ok(checkout.includes("legacy_quote_checkout_"));
+    assert.ok(checkout.includes("checkoutSaveError"));
+    assert.ok(checkout.includes('eq("status", "pending")'));
+  });
+  it("refund persistence errors cannot be reported as successful", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const refund = text.slice(text.indexOf("export const createRefund"), text.indexOf("// WEBHOOK HANDLER"));
+    assert.ok(refund.includes("refundSaveError"));
+    assert.ok(refund.includes("!refundedQuote"));
+    assert.ok(refund.includes("Refund initiated but not reconciled"));
+  });
+
 });

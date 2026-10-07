@@ -145,6 +145,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         },
       ];
 
+      // A quote can be retried after a lost HTTP response. Reuse the original
+      // Stripe session rather than creating multiple payment opportunities.
       const session = await getStripe().checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
@@ -166,6 +168,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
             user_id: user.id,
           },
         },
+      }, {
+        idempotencyKey: `legacy_quote_checkout_${quote.id}`,
       });
 
       // ────────────────────────────────────────────────────────────────
@@ -173,7 +177,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       // ────────────────────────────────────────────────────────────────
 
       const admin = getSupabaseAdmin();
-      await admin
+      const { data: checkedOutQuote, error: checkoutSaveError } = await admin
         .from("pricing_quotes")
         .update({
           metadata: {
@@ -182,7 +186,14 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
             checkout_started_at: new Date().toISOString(),
           },
         })
-        .eq("id", quote.id);
+        .eq("id", quote.id)
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (checkoutSaveError || !checkedOutQuote) {
+        throw new Error("Unable to preserve the checkout session. Retry the same quote.");
+      }
 
       // Log to audit trail
       await logAuditEntry({
@@ -380,7 +391,7 @@ export const createRefund = createServerFn({ method: "POST" })
       });
 
       // Mark quote as reversed in database
-      await admin
+      const { data: refundedQuote, error: refundSaveError } = await admin
         .from("pricing_quotes")
         .update({
           ...(refund.status === "succeeded" ? { status: "reversed" } : {}),
@@ -393,7 +404,18 @@ export const createRefund = createServerFn({ method: "POST" })
           },
         })
         .eq("id", validInput.orderId)
-        .eq("status", "accepted");
+        .eq("status", "accepted")
+        .select("id")
+        .maybeSingle();
+      if (refundSaveError || !refundedQuote) {
+        // The Stripe refund may already exist. Do not attempt a second refund.
+        console.error("Stripe refund created but database reconciliation failed", {
+          quoteId: validInput.orderId,
+          refundId: refund.id,
+          dbError: refundSaveError?.message ?? "quote status changed",
+        });
+        throw new Error("Refund initiated but not reconciled; contact support with the quote ID");
+      }
 
       // Log refund
       await logAuditEntry({
