@@ -505,6 +505,16 @@ test("remote attachment URLs reject local/private/nonstandard targets", () => {
     /not allowed/i,
   );
 
+  assert.throws(
+    () => validateRemoteDocumentUrl("https://files.example.com/file.pdf", []),
+    /not allowed/i,
+    "Remote file ingestion must fail closed when no trusted hosts are configured",
+  );
+  assert.throws(
+    () => validateRemoteDocumentUrl("https://files.example.com.evil.net/file.pdf", ["files.example.com"]),
+    /not allowed/i,
+  );
+
   const accepted = validateRemoteDocumentUrl(
     "https://files.example.com/file.pdf",
     ["files.example.com"],
@@ -559,7 +569,7 @@ test("assistant file redirects are revalidated before following", async () => {
           file_id: "file_redirect",
         },
         {
-          allowedHostPatterns: [],
+          allowedHostPatterns: ["files.example.com"],
           fetchImpl: async () =>
             new Response(null, {
               status: 302,

@@ -282,3 +282,30 @@ describe("Stripe Production — Refund Logic (Inline)", () => {
     assert.equal(idempotencyKey, "refund_pi_12345_full");
   });
 });
+
+describe("Legacy Quote Payment Safety", () => {
+  it("checkout return URLs are server-origin only; clients supply only a quote id", async () => {
+    const checkout = await source("src/lib/stripe-payment.functions.ts");
+    const page = await source("src/routes/checkout.review.tsx");
+    const schema = checkout.slice(checkout.indexOf("const CreateCheckoutSessionSchema"), checkout.indexOf("const ProcessPaymentSchema"));
+    assert.match(schema, /quoteId: z\\.string\\(\\)\\.uuid\\(\\)/);
+    assert.doesNotMatch(schema, /successUrl|cancelUrl/);
+    assert.match(checkout, /success_url: new URL\\(/);
+    assert.match(checkout, /cancel_url: new URL\\(/);
+    assert.match(checkout, /getMailMyPdfBaseUrl\\(\\)/);
+    assert.doesNotMatch(page, /successUrl:|cancelUrl:/);
+  });
+  it("legacy refunds require a privileged role and a settled, matching payment", async () => {
+    const sourceText = await source("src/lib/stripe-payment.functions.ts");
+    const section = sourceText.slice(sourceText.indexOf("export const createRefund"), sourceText.indexOf("// WEBHOOK HANDLER"));
+    assert.match(section, /from\\("user_roles"\\)/);
+    assert.match(section, /eq\\("role", "admin"\\)/);
+    assert.match(section, /order\\.status !== "accepted"/);
+    assert.match(section, /paymentIntents\\.retrieve\\(paymentIntentId\\)/);
+    assert.match(section, /intent\\.metadata\\.quote_id !== order\\.id/);
+    assert.match(section, /intent\\.metadata\\.user_id !== order\\.user_id/);
+    assert.match(section, /intent\\.amount_received !== order\\.total_cents/);
+    assert.match(section, /idempotencyKey: \`legacy_quote_refund_/);
+    assert.match(section, /refund\\.status === "succeeded"/);
+  });
+});
