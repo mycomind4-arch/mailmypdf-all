@@ -132,3 +132,34 @@ describe("job endpoints that still have no schedule", () => {
     ]);
   });
 });
+
+
+describe("production release gate", () => {
+  const DEPLOY = new URL(".github/workflows/deploy-mailmypdf.yml", repoRoot);
+
+  test("manual deployments are main-only and require actions read permission", async () => {
+    const yaml = await readFile(DEPLOY, "utf8");
+    assert.match(yaml, /github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main'/);
+    assert.match(yaml, /^  actions: read$/m);
+    assert.match(yaml, /AUTO_SUBMIT_TO_LOB: "false"/);
+  });
+
+  test("promotion checks the exact commit and every triggered verification suite", async () => {
+    const yaml = await readFile(DEPLOY, "utf8");
+    const guard = yaml.indexOf("Require successful triggered verification suites");
+    const deployment = yaml.indexOf("Deploy current main and verify public connector");
+    assert.ok(guard >= 0 && deployment > guard, "verification must precede deployment");
+    assert.match(yaml, /github\.rest\.actions\.listWorkflowRunsForRepo/);
+    assert.match(yaml, /run\.head_sha !== sha/);
+    assert.match(yaml, /run\.conclusion !== "success"/);
+    assert.match(yaml, /run\.status !== "completed"/);
+    for (const check of [
+      "Workspace UI verification", "Shared capability verification",
+      "Factory generated workflow verification", "Public workflow landing gate",
+      "Records Request verification", "Notice Respond package verification",
+      "SSDI Appeal verification",
+    ]) {
+      assert.ok(yaml.includes('"' + check + '"'), "Missing release-gated check: " + check);
+    }
+  });
+});
