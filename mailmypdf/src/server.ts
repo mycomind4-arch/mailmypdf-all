@@ -76,8 +76,7 @@ async function handleScheduled(
 ): Promise<void> {
   const cleanupSecret = env.MAILMYPDF_CLEANUP_SECRET;
   if (!cleanupSecret) {
-    console.error("[scheduled] MAILMYPDF_CLEANUP_SECRET not set — skipping cron tasks");
-    return;
+    throw new Error("[scheduled] MAILMYPDF_CLEANUP_SECRET not set — cron tasks cannot run");
   }
 
   // Determine the base URL — use the env var or fall back to the deployed URL
@@ -86,6 +85,7 @@ async function handleScheduled(
   console.log(`[scheduled] cron "${controller.cron}" fired — calling internal processors`);
 
   const jobs = ["proof-processor", "publication-scheduler"] as const;
+  const failures: string[] = [];
   for (const job of jobs) {
     try {
       const response = await fetch(`${baseUrl}/api/internal/${job}`, {
@@ -99,14 +99,17 @@ async function handleScheduled(
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         console.error(`[scheduled] ${job} returned ${response.status}: ${body}`);
+        failures.push(`${job}: HTTP ${response.status}`);
       } else {
         const result = await response.json().catch(() => ({}));
         console.log(`[scheduled] ${job} completed:`, result);
       }
     } catch (error) {
       console.error(`[scheduled] failed to call ${job}:`, error);
+      failures.push(`${job}: network or runtime failure`);
     }
   }
+  if (failures.length > 0) throw new Error(`[scheduled] ${failures.join("; ")}`);
 }
 
 export default {
