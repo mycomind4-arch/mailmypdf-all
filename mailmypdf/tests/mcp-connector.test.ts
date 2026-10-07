@@ -545,11 +545,13 @@ test("assistant PDF download preserves provider provenance without trusting MIME
     },
     {
       allowedHostPatterns: ["files.example.com"],
-      fetchImpl: async () =>
-        new Response(pdf, {
+      fetchImpl: async (_url, options) => {
+        assert.ok(options?.signal instanceof AbortSignal, "Remote attachment download must be time-bounded");
+        return new Response(pdf, {
           status: 200,
           headers: { "content-type": "application/pdf" },
-        }),
+        });
+      },
     },
   );
 
