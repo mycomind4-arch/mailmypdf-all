@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-mailmypdf-production
@@ -33,7 +34,7 @@ jobs:
   deploy:
     name: Deploy and verify MailMyPDF
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (
         github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.event == 'push' &&
@@ -81,6 +82,60 @@ jobs:
       OPENAI_CHALLENGE_EXPECTED_TOKEN: ${{ secrets.OPENAI_APPS_CHALLENGE_TOKEN }}
 
     steps:
+      # workflow_run fires as soon as the UI suite completes. Other workflow
+      # runs may still be pending, so check *this exact SHA*, not a stale branch
+      # status, before allowing any Cloudflare deployment.
+      - name: Require successful triggered verification suites
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.eventName === "workflow_run"
+              ? context.payload.workflow_run.head_sha
+              : context.sha;
+            const { owner, repo } = context.repo;
+            const suites = new Set([
+              "Workspace UI verification",
+              "Shared capability verification",
+              "Factory generated workflow verification",
+              "Public workflow landing gate",
+              "Records Request verification",
+              "Notice Respond package verification",
+              "SSDI Appeal verification",
+            ]);
+
+            for (let attempt = 0; attempt < 30; attempt++) {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner, repo, head_sha: sha, branch: "main",
+                event: "push", per_page: 100,
+              });
+              const latest = new Map();
+              for (const run of data.workflow_runs) {
+                if (run.head_sha !== sha || !suites.has(run.name)) continue;
+                if (!latest.has(run.name)) latest.set(run.name, run);
+              }
+              if (!latest.has("Workspace UI verification")) {
+                if (attempt === 29) throw new Error("Missing UI verification for deployment commit " + sha);
+                await new Promise(resolve => setTimeout(resolve, 10000));
+                continue;
+              }
+              const failures = [...latest.values()].filter(run =>
+                run.status === "completed" && run.conclusion !== "success");
+              if (failures.length) {
+                throw new Error("Deployment blocked by failing CI: " +
+                  failures.map(run => run.name + " (" + run.conclusion + ")").join(", "));
+              }
+              const pending = [...latest.values()].filter(run => run.status !== "completed");
+              if (!pending.length) {
+                core.info("All " + latest.size + " triggered release checks passed for " + sha);
+                return;
+              }
+              if (attempt === 29) {
+                throw new Error("Deployment blocked by unfinished CI: " +
+                  pending.map(run => run.name).join(", "));
+              }
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
