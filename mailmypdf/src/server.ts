@@ -84,7 +84,9 @@ async function handleScheduled(
 
   console.log(`[scheduled] cron "${controller.cron}" fired — calling internal processors`);
 
-  const jobs = ["proof-processor", "publication-scheduler"] as const;
+  // Direct-mail schedules have an approval-bound payment/provider safety interlock.
+  // The legacy process-scheduled order flow is intentionally NOT auto-dispatched.
+  const jobs = ["proof-processor", "publication-scheduler", "scheduled-mailings"] as const;
   const failures: string[] = [];
   for (const job of jobs) {
     try {

@@ -67,9 +67,11 @@ describe("scheduling", () => {
     assert.match(yaml, /\$\{\{ secrets\.MAILMYPDF_CONNECTOR_JOB_SECRET \}\}/);
   });
 
-  test("an unconfigured repository skips instead of failing every ten minutes", async () => {
+  test("missing maintenance credentials fail the job rather than reporting a false-green result", async () => {
     const yaml = await readFile(WORKFLOW, "utf8");
-    assert.match(yaml, /configured=false/);
+    assert.doesNotMatch(yaml, /configured=false/);
+    assert.match(yaml, /Required scheduled job credentials are missing/);
+    assert.match(yaml, /exit 1/);
     assert.match(yaml, /steps\.config\.outputs\.configured == 'true'/);
   });
 });
@@ -105,6 +107,7 @@ describe("job endpoints that still have no schedule", () => {
     );
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
     assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
+    assert.ok(byWorkerCron.has("scheduled-mailings"), "the Worker cron must dispatch approved due mailing schedules");
 
     // These dispatch webhooks and submit to a mailing provider, so turning them
     // on is a business decision rather than a code one. This list records that,

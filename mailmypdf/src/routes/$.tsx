@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
+import { workflowByPublicPath } from "@mailmypdf/workflows/canonical-registry";
 import { ProductPlaceholderPage } from "@/components/product-placeholder-page";
 import { WorkflowAuthorityPage } from "@/components/workflow-authority-page";
 import { WorkflowAuthorityRichPage } from "@/components/workflow-authority-rich-page";
@@ -109,6 +110,23 @@ function workflowHead(path: string) {
 }
 
 export const Route = createFileRoute("/$")({
+  beforeLoad: ({ params }) => {
+    const path = normalizePath(params._splat);
+    // Preserve canonical catalog scaffolds, but unknown URLs must return a
+    // genuine SSR 404 rather than an SEO-damaging placeholder with HTTP 200.
+    if (!publicVerticalByPath(path) && !workflowAuthorityForPath(path) && !workflowByPublicPath(path)) {
+      throw notFound();
+    }
+  },
+  notFoundComponent: () => {
+    const { _splat } = Route.useParams();
+    return <ProductPlaceholderPage
+      product="MailMyPDF"
+      title="Page not found"
+      description="The requested MailMyPDF URL does not exist."
+      path={normalizePath(_splat)}
+    />;
+  },
   component: ReservedPublicRoute,
   head: ({ params }) => {
     const path = normalizePath(params._splat);
