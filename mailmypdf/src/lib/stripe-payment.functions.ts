@@ -319,6 +319,15 @@ export const createRefund = createServerFn({ method: "POST" })
       }
 
       const admin = getSupabaseAdmin();
+      // Refunds are consequential financial actions: an authenticated customer
+      // cannot grant themselves a refund by invoking this server function.
+      const { data: staffRole, error: staffRoleError } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (staffRoleError || !staffRole) throw new Error("Admin authorization required for refunds");
 
       // Get order (placeholder - would be from orders table in production)
       // For now, we'll assume order has a quote_id in metadata
@@ -349,6 +358,8 @@ export const createRefund = createServerFn({ method: "POST" })
           user_id: user.id,
           reason_text: validInput.reasonText || "",
         },
+      }, {
+        idempotencyKey: `legacy_quote_refund_${validInput.orderId}_${paymentIntentId}`,
       });
 
       // Mark quote as reversed in database
