@@ -17,8 +17,8 @@
 #   MAILMYPDF_RETENTION_JOB_SECRET matches the app's env of the same name
 #   MAILMYPDF_CONNECTOR_JOB_SECRET matches the app's env of the same name
 #
-# Until those are set, every run skips quietly rather than failing on a
-# schedule and mailing the repository owner every few minutes.
+# Missing credentials fail each scheduled job loudly; a green run must mean
+# the scanner, retention, or reconciliation worker actually ran.
 
 name: Secure core jobs
 
@@ -60,7 +60,6 @@ jobs:
             echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
             echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
             exit 1
-            echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -107,7 +106,6 @@ jobs:
             echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
             echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
             exit 1
-            echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -150,7 +148,6 @@ jobs:
             echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
             echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
             exit 1
-            echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
