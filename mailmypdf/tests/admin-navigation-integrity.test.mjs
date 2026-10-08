@@ -139,7 +139,7 @@ test("Studio command center returns status booleans and counts, never service se
   const server = source("src/lib/studio-command-center.functions.ts");
 
   assert.match(server, /WORKFLOW_EXECUTION_REGISTRY/);
-  assert.match(server, /canonicalChatFactoryReport/);
+  assert.match(server, /buildFactoryGraduationReport/);
   assert.match(server, /MAILMYPDF_MCP_TOOLS/);
   assert.match(server, /user_profiles/);
   assert.match(server, /workflow_cases/);
