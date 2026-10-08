@@ -118,3 +118,24 @@ describe("job endpoints that still have no schedule", () => {
     ]);
   });
 });
+
+test("scheduled-mail batch reports partial execution failures as HTTP 500", async () => {
+  const endpoint = await readFile(
+    new URL("../src/routes/api/internal/scheduled-mailings.ts", import.meta.url),
+    "utf8",
+  );
+  const failed = endpoint.indexOf('result.results.some((entry) => entry.error)');
+  const ok = endpoint.indexOf('Response.json({ ok: true, result })');
+  assert.ok(failed >= 0 && failed < ok, "detect failed entries before reporting batch success");
+  const branch = endpoint.slice(failed, ok);
+  assert.match(branch, /Response\.json\(\{ ok: false, error: "Scheduled mailing processing failed" \}, \{ status: 500 \}\)/);
+  assert.match(branch, /attachRequestId\(/, "failure must retain request correlation");
+  assert.match(branch, /log\.error\(/, "operator logs must capture failed batches");
+
+  const processor = await readFile(
+    new URL("../src/lib/scheduled-mail.server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(processor, /results\.push\(\{\s*scheduleId: row\.id,\s*error:/);
+  assert.match(processor, /return \{ checked: data\?\.length \?\? 0, results \};/);
+});
