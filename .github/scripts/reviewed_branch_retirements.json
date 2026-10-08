@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "retirements": [
+    {
+      "branch": "build/identity-capacity-foundation",
+      "sha": "c5f38725aeccd69beeb6304d8d64c44ef73ec06b",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/build/identity-capacity-foundation",
+      "main_blobs": {
+        "packages/identity-capacity/package.json": "bcbbd988fcc26f90d77f8341f9fc013315336e4a",
+        "packages/identity-capacity/src/authoritative-name.ts": "121cb73aec68bc28f928122aa7b0a1f9471970ea",
+        "packages/identity-capacity/src/index.ts": "cd1e86f36428b77d783deab36e6dc493040774e8",
+        "packages/identity-capacity/src/name-normalization.ts": "951850381dd41f13e70d946c3373c4a25427212a",
+        "packages/identity-capacity/src/source-authority.ts": "14c12770b3381de14a8d482713adf297a1ef0aae",
+        "packages/identity-capacity/tests/authoritative-name.test.ts": "24ef781fe3625eb46e3baefc1f7ba8c8da00fd68",
+        "packages/identity-capacity/tests/name-normalization.test.ts": "95532b287e11dac8adc63e7dc6c888cd3b8bf5e4",
+        "packages/identity-capacity/tests/source-authority.test.ts": "cb30437ed4869cbe59811140252789f321e5ea27",
+        "packages/identity-capacity/tsconfig.json": "93e096d7c94cf467ae77eb3f5121590adf7427b1",
+        "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356",
+        "tsconfig.json": "0731f10b081236c79601da66b2846e861106e502"
+      },
+      "reason": "All 11 commit patch IDs match main. Eight foundation files are identical; index.ts contains the complete foundation plus later engines, and workspace/lock entries retain the package."
+    },
+    {
+      "branch": "build/identity-capacity-foundation-v2",
+      "sha": "2796ea51184184ee078a767688c54afb8eca6f09",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/build/identity-capacity-foundation-v2",
+      "main_blobs": {
+        "packages/identity-capacity/package.json": "bcbbd988fcc26f90d77f8341f9fc013315336e4a",
+        "packages/identity-capacity/src/authoritative-name.ts": "121cb73aec68bc28f928122aa7b0a1f9471970ea",
+        "packages/identity-capacity/src/index.ts": "cd1e86f36428b77d783deab36e6dc493040774e8",
+        "packages/identity-capacity/src/name-normalization.ts": "951850381dd41f13e70d946c3373c4a25427212a",
+        "packages/identity-capacity/src/source-authority.ts": "14c12770b3381de14a8d482713adf297a1ef0aae",
+        "packages/identity-capacity/tests/authoritative-name.test.ts": "24ef781fe3625eb46e3baefc1f7ba8c8da00fd68",
+        "packages/identity-capacity/tests/name-normalization.test.ts": "95532b287e11dac8adc63e7dc6c888cd3b8bf5e4",
+        "packages/identity-capacity/tests/source-authority.test.ts": "cb30437ed4869cbe59811140252789f321e5ea27",
+        "packages/identity-capacity/tsconfig.json": "93e096d7c94cf467ae77eb3f5121590adf7427b1",
+        "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356",
+        "tsconfig.json": "0731f10b081236c79601da66b2846e861106e502"
+      },
+      "reason": "All 11 commit patch IDs match main. This repeats the first foundation tree; later main exports extend rather than remove the foundation."
+    },
+    {
+      "branch": "verify/identity-capacity-ci",
+      "sha": "3fbae2dd9cfcc19bb3928c8b1deada91380bbe4a",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/identity-capacity-ci",
+      "main_blobs": {
+        "packages/identity-capacity/README.md": "25292c98cd3afa84e1413bb72be0679644e8dedf"
+      },
+      "reason": "README-only branch. Current README preserves name normalization, source authority, authoritative-name resolution, provenance, uncertainty and human-review gates, and documents later engines."
+    },
+    {
+      "branch": "verify/search-strategy",
+      "sha": "5a29dc603d7a803b40820b3f8a7161f083e699d8",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/search-strategy",
+      "main_blobs": {
+        "packages/registry-adapters/README.md": "b1b7d7b142a4dfcc20be90123aa0d69975761ace"
+      },
+      "reason": "README-only branch. Its exact added search-strategy coverage sentence is present in current README, followed by newer certification coverage."
+    },
+    {
+      "branch": "verify/search-strategy-v2",
+      "sha": "b53dc228f3ee9aa9bdb0ee4c3d3b758f0a645dbd",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/search-strategy-v2",
+      "main_blobs": {
+        "packages/registry-adapters/README.md": "b1b7d7b142a4dfcc20be90123aa0d69975761ace"
+      },
+      "reason": "Same README patch as verify/search-strategy; its exact added coverage sentence is present in main."
+    },
+    {
+      "branch": "factory/catalog-family-planner",
+      "sha": "a0f0f425eab188d4d03ba4772025e6ee5fc97b7d",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/factory/catalog-family-planner",
+      "main_blobs": {
+        "packages/workflows/src/factory-family-registry.ts": "0518b5b620087e30d8abb970e6ffa0d82c63dfae",
+        "packages/workflows/tests/factory-family-registry.test.ts": "1f8c6fdb08eb89a34e8dccb6cbd778df0c4485c7"
+      },
+      "reason": "Both authored files integrated by PR #149 at 3528bc22. Main also fixes sectionFallback indexing and replaces stale 441-count expectations with canonical-registry assertions."
+    }
+  ]
+}

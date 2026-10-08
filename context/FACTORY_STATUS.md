@@ -1,5 +1,13 @@
 # MailMyPDF factory status
 
+## 2026-10-08 — Reviewed branch retirement with durable archives
+
+- Audited all 39 remote branches at `3528bc22`. Six histories are superseded: identity foundation (both versions), three README-only verification heads, and the old family planner integrated by #149.
+- Added exact-tip/main-blob review evidence and archive-before-delete support to the existing conservative pruner. Archive tags must be verified remotely; existing tags cannot be overwritten. Open PRs/protected branches remain excluded; changed tips/evidence or archive errors fail closed.
+- Verification: 22 guard tests pass locally; all six evidence entries match fetched main. Remote Action logs determine actual archive/deletion completion. Full audit: `docs/verification/branch-consolidation-2026-10-08.md`.
+- The approved batch would reduce 39 to 33 heads. Thirteen open PRs conflict with current main and still require reconciliation; nineteen other non-PR histories remain preserved. No deployment, payment, mailing or price change.
+
+
 ## 2026-10-04 — Interactive saved recovery cases in the connector
 
 - Connector **0.15.0 / 38 tools / 3 MCP App resources**. Existing case tools now return reopening, named evidence, candidate/confirmed values, waiting deadlines, start/resume, explicit closure and evidence-backed outcome confirmation.
