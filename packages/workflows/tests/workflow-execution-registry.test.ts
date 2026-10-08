@@ -1,3 +1,4 @@
+import { WORKFLOW_REGISTRY } from "../src/canonical-workflow-registry.js";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
@@ -8,11 +9,11 @@ import {
 } from "../src/workflow-execution-registry.js";
 
 describe("WORKFLOW_EXECUTION_REGISTRY", () => {
-  test("covers exactly 15 sections and 441 canonical workflows", () => {
+  test("covers all canonical workflows across exactly 15 sections", () => {
     const sections = new Set(WORKFLOW_EXECUTION_REGISTRY.map((r) => r.sectionId));
     assert.equal(sections.size, 15);
-    assert.equal(WORKFLOW_EXECUTION_REGISTRY_COUNT, 441);
-    assert.equal(WORKFLOW_EXECUTION_REGISTRY.length, 441);
+    assert.equal(WORKFLOW_EXECUTION_REGISTRY_COUNT, WORKFLOW_REGISTRY.length);
+    assert.equal(WORKFLOW_EXECUTION_REGISTRY.length, WORKFLOW_REGISTRY.length);
   });
 
   test("every record resolves uniquely by (sectionId, workflowId)", () => {
