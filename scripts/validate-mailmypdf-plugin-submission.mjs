@@ -65,6 +65,49 @@ for(const extra of Object.keys(justifications)){
   if(!toolNames.includes(extra)) errors.push(`annotation justifications contain unknown tool ${extra}`);
 }
 
+/**
+ * Keep the review descriptions aligned with the annotations actually published
+ * by the MCP server. A good-sounding explanation is not enough if its declared
+ * true/false safety claim differs from the tool metadata.
+ */
+for(const [index,name] of toolNames.entries()){
+  const published=annotationMatches[index];
+  if(!published) continue; // the catalog-shape check above already reports this
+  for(const [offset,key] of ["readOnlyHint","destructiveHint","openWorldHint"].entries()){
+    const claim=justifications[name]?.[key]?.trim().match(/^(true|false)\\b/i)?.[1]?.toLowerCase();
+    if(!claim){
+      errors.push(`${name} ${key} justification must begin with True or False`);
+    }else if(claim!==published[offset+1]){
+      errors.push(`${name} ${key} justification contradicts the published MCP annotation`);
+    }
+  }
+}
+
+// Do not accidentally recategorize tools that process external data, prepare
+// payment, or can trigger a real-world side effect.
+const safetyBoundaries={
+  ingest_document:{readOnlyHint:false,openWorldHint:true},
+  analyze_matter:{openWorldHint:true},
+  generate_draft:{openWorldHint:true},
+  preview_packet:{readOnlyHint:false},
+  approve_packet:{readOnlyHint:false},
+  prepare_checkout:{readOnlyHint:false,openWorldHint:true},
+  charge_and_send_direct_pdf_mail:{readOnlyHint:false,destructiveHint:true,openWorldHint:true},
+  schedule_direct_pdf_mail:{readOnlyHint:false,destructiveHint:true,openWorldHint:true},
+};
+for(const [name,required] of Object.entries(safetyBoundaries)){
+  const index=toolNames.indexOf(name);
+  if(index<0){errors.push(`required safety-boundary tool missing: ${name}`);continue;}
+  const annotation=annotationMatches[index];
+  if(!annotation) continue;
+  for(const [key,expected] of Object.entries(required)){
+    const offset={readOnlyHint:1,destructiveHint:2,openWorldHint:3}[key];
+    if((annotation[offset]==="true")!==expected){
+      errors.push(`${name} ${key} safety boundary must remain ${expected}`);
+    }
+  }
+}
+
 const profileBlock=catalog.match(/name: "get_profile"[\s\S]*?_meta: \{ "openai\/profile": true \}/)?.[0]??"";
 if(!profileBlock.includes("outputSchema:")) errors.push("get_profile must declare outputSchema");
 if(!profileBlock.includes('["id"]')) errors.push("get_profile outputSchema must require id");
