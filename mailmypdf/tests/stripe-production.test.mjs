@@ -358,3 +358,29 @@ describe("Legacy Quote Settlement Through Production Webhooks", () => {
     }
   });
 });
+
+
+describe("Legacy Quote Refund Webhook Reconciliation", () => {
+  it("routes quote refund metadata separately from ordinary order refund events", async () => {
+    const route = await source("src/routes/api/public/payments/webhook.ts");
+    assert.ok(route.includes('refund.metadata?.order_id && refund.metadata?.user_id'));
+    assert.ok(route.includes('handleLegacyQuoteRefundEvent(event.data.object as Stripe.Refund)'));
+    assert.ok(route.includes('await handleRefundEvent(refund, log, event.id)'));
+  });
+  it("marks quote reversed only after a matching full Stripe refund succeeds", async () => {
+    const content = await source("src/lib/stripe-payment.functions.ts");
+    const ref = content.slice(content.indexOf("export async function handleLegacyQuoteRefundEvent"), content.indexOf("// WEBHOOK HANDLER"));
+    for (const term of [
+      'refund.status !== "succeeded"',
+      'refund.amount !== quote.total_cents',
+      'quote.user_id !== ownerId',
+      'metadata.stripe_payment_intent_id !== paymentIntentId',
+      'metadata.refund_id !== refund.id',
+      'quote.status !== "accepted"',
+      'status: "reversed"',
+      '.eq("status", "accepted")',
+    ]) {
+      assert.ok(ref.includes(term), "Missing refund webhook safeguard: " + term);
+    }
+  });
+});

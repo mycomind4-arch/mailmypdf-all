@@ -478,6 +478,71 @@ export const createRefund = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Reconcile legacy quote refunds from the production, signature-verified Stripe
+ * webhook. A created/pending refund never counts as a completed refund.
+ */
+export async function handleLegacyQuoteRefundEvent(refund: Stripe.Refund): Promise<void> {
+  const quoteId = refund.metadata?.order_id;
+  const ownerId = refund.metadata?.user_id;
+  if (!quoteId || !ownerId) throw new Error("Legacy quote refund identity is missing");
+  const paymentIntentId = typeof refund.payment_intent === "string"
+    ? refund.payment_intent
+    : refund.payment_intent?.id ?? null;
+  if (!paymentIntentId) throw new Error("Legacy quote refund has no PaymentIntent");
+
+  const admin = getSupabaseAdmin();
+  const { data: quote, error } = await admin
+    .from("pricing_quotes")
+    .select("*")
+    .eq("id", quoteId)
+    .single();
+  if (error || !quote || quote.user_id !== ownerId) {
+    throw new Error("Legacy quote refund owner does not match");
+  }
+  const metadata = quoteMetadata(quote.metadata);
+  if (metadata.stripe_payment_intent_id !== paymentIntentId) {
+    throw new Error("Legacy quote refund PaymentIntent does not match");
+  }
+  if (refund.status !== "succeeded") return;
+  if (refund.amount !== quote.total_cents) {
+    // A partial refund does not mean the quote was fully reversed.
+    throw new Error("Legacy quote refund amount does not equal settled quote price");
+  }
+  if (quote.status === "reversed" && metadata.refund_id === refund.id) return;
+  if (quote.status !== "accepted" || metadata.refund_id !== refund.id) {
+    // If the webhook outran the original write-back, returning an error makes
+    // Stripe retry; no financial action is repeated from this observer.
+    throw new Error("Legacy quote refund has not been reconciled to the accepted quote");
+  }
+
+  const { data: updated, error: updateError } = await admin
+    .from("pricing_quotes")
+    .update({
+      status: "reversed",
+      metadata: {
+        ...metadata,
+        refund_status: refund.status,
+        refunded_at: new Date().toISOString(),
+      },
+    })
+    .eq("id", quoteId)
+    .eq("status", "accepted")
+    .select("id")
+    .maybeSingle();
+  if (updateError) throw new Error("Unable to reconcile successful quote refund");
+  if (!updated) {
+    const { data: latest } = await admin
+      .from("pricing_quotes")
+      .select("status,metadata")
+      .eq("id", quoteId)
+      .single();
+    if (latest?.status !== "reversed" || quoteMetadata(latest.metadata).refund_id !== refund.id) {
+      throw new Error("Conflicting quote refund reconciliation");
+    }
+  }
+}
+
 // ============================================================================
 // WEBHOOK HANDLER (Express endpoint)
 // ============================================================================

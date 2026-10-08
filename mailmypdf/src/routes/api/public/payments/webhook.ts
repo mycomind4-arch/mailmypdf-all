@@ -62,7 +62,7 @@ interface StripeRefundEvent {
   status: string;
   payment_intent: string | null;
   reason?: string | null;
-  metadata?: { orderId?: string } | null;
+  metadata?: { orderId?: string; order_id?: string; user_id?: string } | null;
 }
 
 type WebhookObject = StripeCheckoutSession | StripePaymentIntent | StripeRefundEvent;
@@ -623,9 +623,18 @@ async function handleWebhook(req: Request, log: ReturnType<typeof createRequestL
 
     case "charge.refunded":
     case "refund.created":
-    case "refund.updated":
-      await handleRefundEvent(event.data.object as StripeRefundEvent, log, event.id);
+    case "refund.updated": {
+      const refund = event.data.object as StripeRefundEvent;
+      // Only the legacy quote refund path writes snake_case order_id plus
+      // user_id metadata. Normal order refunds keep their existing handler.
+      if (refund.metadata?.order_id && refund.metadata?.user_id) {
+        const { handleLegacyQuoteRefundEvent } = await import("@/lib/stripe-payment.functions");
+        await handleLegacyQuoteRefundEvent(event.data.object as Stripe.Refund);
+      } else {
+        await handleRefundEvent(refund, log, event.id);
+      }
       break;
+    }
 
     // ── Subscription lifecycle events ────────────────────────────────────────
     case "customer.subscription.created": {
