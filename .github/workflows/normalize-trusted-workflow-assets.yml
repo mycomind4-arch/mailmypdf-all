@@ -81,13 +81,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          branch="automation/normalize-trusted-workflow-assets-${GITHUB_RUN_ID}"
-          git switch -c "$branch"
-          git commit -m "build: normalize trusted SSA forms and workspace lock"
-          git push origin "HEAD:$branch"
+          # Reuse one automation-owned PR branch instead of making a new branch
+          # for every run. A lease prevents overwriting concurrent/manual edits.
+          branch="automation/normalize-trusted-workflow-assets"
+          remote_ref="refs/heads/${branch}"
+          previous_sha="$(git ls-remote --heads origin "$remote_ref" | cut -f1)"
 
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "build: normalize trusted SSA forms and workspace lock" \
-            --body "Automated normalization detected generated SSA PDF and/or pnpm lockfile changes. This PR replaces the previous workflow behavior that pushed directly to main."
+          git switch -C "$branch"
+          git commit -m "build: normalize trusted SSA forms and workspace lock"
+          if [[ -n "$previous_sha" ]]; then
+            git push --force-with-lease="${remote_ref}:${previous_sha}" origin "HEAD:${remote_ref}"
+          else
+            git push origin "HEAD:${remote_ref}"
+          fi
+
+          # Updating the stable branch updates its open PR in place.
+          existing_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing_pr" ]]; then
+            echo "Updated existing normalization PR #${existing_pr}."
+          else
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$branch" \
+              --title "build: normalize trusted SSA forms and workspace lock" \
+              --body "Automated normalization detected generated SSA PDF and/or pnpm lockfile changes. Review the generated output before merging."
+          fi
