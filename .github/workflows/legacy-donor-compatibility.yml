@@ -63,6 +63,11 @@ jobs:
             echo "Legacy donor ${{ matrix.app }} moved. Update this matrix and record parity before deletion." >&2
             exit 1
           }
+      - name: Build dependencies of this legacy donor
+        # Each donor imports packages with dist/* exports. Building only
+        # @mailmypdf/pricing leaves design-system/public and other imports
+        # unresolved in a fresh CI checkout.
+        run: pnpm --filter "./apps/verticals/${{ matrix.app }}^..." --workspace-concurrency=2 run build
       - name: Test Private Office compound workflow and authority safety gates
         if: matrix.app == 'private-office'
         run: |
