@@ -35,6 +35,33 @@ test("P01 stays lean and does not silently inherit every Gold stage", () => {
 });
 
 
+test("P11 defaults to requirements and findings before validation, gate and review", () => {
+  const stages = configuredPipelineStages("P11_SECURED_TRANSACTION");
+  assert.deepEqual(stages, ["requirements", "findings", "validation", "blockingGate", "review"]);
+  for (const optional of ["research", "approval", "mailing", "tracking", "proofAudit"]) {
+    assert.ok(!stages.includes(optional as PipelineStage), `${optional} must not be silently enabled`);
+  }
+});
+
+test("P11 cannot proceed to human review after a failed required basis check", async () => {
+  const pack = noopPack(configuredPipelineStages("P11_SECURED_TRANSACTION")) as any;
+  pack.requirements = async () => ({
+    stage: "requirements", status: "warning", messages: ["Required basis not established"],
+  });
+  let reviewed = false;
+  pack.review = async () => {
+    reviewed = true;
+    return { stage: "review", status: "passed", messages: [] };
+  };
+  const { runConfiguredPipeline } = await import("../src/configured-pipeline.js");
+  const result = await runConfiguredPipeline("eligibility-test", "P11_SECURED_TRANSACTION", pack, {
+    documents: [],
+  });
+  assert.equal(result.status, "blocked");
+  assert.equal(reviewed, false);
+  assert.equal(result.stages.at(-1)?.stage, "blockingGate");
+});
+
 test("consequential stages run only after blockingGate and exactly once", async () => {
   const calls: PipelineStage[] = [];
   const stages = configuredPipelineStages("P01_CORE_MAIL");
