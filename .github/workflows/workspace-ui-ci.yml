@@ -279,3 +279,30 @@ jobs:
           package_name=$(node -p "require('./${section}/package.json').name")
           pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
           pnpm --filter "${package_name}" run build
+
+  private-office-legacy-compatibility:
+    name: Private Office donor compound runtime regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Build shared dependencies for the retained donor runtime
+        run: pnpm --filter mailmypdf-private-office run build:shared
+      - name: Verify Private Office compound workflow and authority logic
+        run: |
+          pnpm --filter mailmypdf-private-office exec vitest run \
+            src/domain/compound-workflows.test.ts \
+            src/domain/compound-workflow-runtime.test.ts \
+            src/domain/compound-phase-readiness.test.ts \
+            src/platform/authority-provider.test.ts \
+            src/services/compound-workflow-service.test.ts \
+            src/services/compound-capability-executor.test.ts
