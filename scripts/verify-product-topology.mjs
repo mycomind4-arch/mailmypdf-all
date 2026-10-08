@@ -47,6 +47,57 @@ if (missing.length || unexpected.length) {
   process.exit(1);
 }
 
+// If a canonical section is activated as a workspace package, its manifest
+// must identify that very section. Unpackaged section roots are valid: their
+// routes are mounted by the one canonical TanStack host instead.
+const activePackageNames = new Set();
+for (const section of expectedSections) {
+  const packagePath = resolve(repoRoot, section, "package.json");
+  let manifestText;
+  try {
+    manifestText = await readFile(packagePath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") continue;
+    throw error;
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch {
+    console.error(`Activated section ${section} has an invalid package.json.`);
+    process.exit(1);
+  }
+
+  const expectedNames = [`@mailmypdf/${section}`, `@mailmypdf/${section}-section`];
+  if (!expectedNames.includes(manifest?.name)) {
+    console.error(
+      `Activated section ${section} has invalid workspace package name ${manifest?.name ?? "(missing)"}; expected ${expectedNames.join(" or ")}.`,
+    );
+    process.exit(1);
+  }
+  if (activePackageNames.has(manifest.name)) {
+    console.error(`Duplicate canonical section workspace package: ${manifest.name}.`);
+    process.exit(1);
+  }
+  activePackageNames.add(manifest.name);
+}
+
+// The historical apps/verticals donor tree may contain compatibility packages,
+// but Secured Transactions is native to the top level and must not be copied
+// back under the deprecated application-shell layout.
+let duplicateLegacySecuredTransactions = false;
+try {
+  await access(resolve(repoRoot, "apps", "verticals", "secured-transactions"));
+  duplicateLegacySecuredTransactions = true;
+} catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
+if (duplicateLegacySecuredTransactions) {
+  console.error("Secured Transactions must not be implemented under apps/verticals/secured-transactions.");
+  process.exit(1);
+}
+
 // Every canonical root section must also be mounted into the live TanStack app.
 // A root package that is not reachable from mailmypdf/src/routes is not a
 // deployed section, even if its source tree is otherwise complete.
