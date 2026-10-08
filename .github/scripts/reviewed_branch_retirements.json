@@ -81,6 +81,17 @@
         "packages/workflows/tests/factory-family-registry.test.ts": "1f8c6fdb08eb89a34e8dccb6cbd778df0c4485c7"
       },
       "reason": "Both authored files integrated by PR #149 at 3528bc22. Main also fixes sectionFallback indexing and replaces stale 441-count expectations with canonical-registry assertions."
+    },
+    {
+      "branch": "fix/cp2000-public-landing",
+      "sha": "7e5891569a64de5eb21508d262452aa6ba01cee4",
+      "audited_main_sha": "20a4102c3f7cf4c1481e2ab9ef142bcbaf91ca06",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/fix/cp2000-public-landing",
+      "main_blobs": {
+        "notice-respond/workflows/cp2000-response/config.ts": "039867edec80aec8d757857d1cc56bce6655bf0e",
+        "packages/design-system/src/workflow-landing.tsx": "fe52850057d04180c315bb79318a4c5e2f6ee0b7"
+      },
+      "reason": "Current main contains every line of the branch's CP2000 workflow config and adds stronger notice/IRS guidance, official links and disclaimer. The older branch's landing component hardcodes IRS/notice-specific presentation in a shared component; main intentionally retains the behavior via a generalized workflow-landing implementation with configurable CTAs. No unique executable source remains. Archive the exact branch tip before deleting the stale head."
     }
   ]
 }
