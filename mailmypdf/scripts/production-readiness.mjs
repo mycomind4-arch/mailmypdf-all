@@ -145,6 +145,21 @@ requireSecret("MAILMYPDF_MALWARE_SCANNER_KEY", 32);
 requireSecret("MAILMYPDF_RETENTION_JOB_SECRET", 32);
 requireSecret("MAILMYPDF_CONNECTOR_JOB_SECRET", 32);
 
+// Never enable generic Internet egress for AI-supplied temporary attachments.
+// The deployment workflow and this manual preflight must enforce the same rule.
+const remoteFileHosts = requireValue("MCP_REMOTE_FILE_HOSTS");
+if (remoteFileHosts) {
+  const hostPatterns = remoteFileHosts.split(",").map((host) => host.trim()).filter(Boolean);
+  const validDns = /^(?:\\*\\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+  const validPatterns = hostPatterns.length > 0 && hostPatterns.every((host) =>
+    validDns.test(host) && !host.includes("..") &&
+    (!host.startsWith("*.") || host.slice(2).split(".").length >= 2) &&
+    !/\\.(?:localhost|local|internal|invalid|test)$/i.test(host)
+  );
+  if (validPatterns) pass("Trusted assistant attachment hosts", hostPatterns.length + " configured");
+  else fail("MCP_REMOTE_FILE_HOSTS", "must be a list of trusted public hostnames or scoped wildcard suffixes");
+}
+
 const baseUrl = requireValue("MAILMYPDF_BASE_URL");
 if (baseUrl) {
   try {
