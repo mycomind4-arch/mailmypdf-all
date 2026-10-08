@@ -232,3 +232,37 @@ CP14 runtime implementation heads still require review.
 GitHub deployment preflight is still blocked by missing authorized secrets
 per [run 37837370411](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37837370411).
 Green build/CI does not establish deployment.
+
+## Scheduled mailing partial-batch failure isolation — PR #165
+
+[PR #165](https://github.com/mycomind4-arch/mailmypdf-all/pull/165)
+was squash-merged at `4a135ed5b052615a7fe63d0e963442cc260ec333`.
+It extracted one safety/reliability change from unmerged #152: the authenticated
+`/api/internal/scheduled-mailings` POST handler now returns HTTP 500 with
+`ok:false` and the existing request ID if a due batch reports any failed
+individual schedule in `results[].error`. Previously the batch could
+respond `ok:true` even though downstream work failed. Explicitly deferred
+schedules do not trigger this error branch.
+
+`mailmypdf/tests/jobs-are-scheduled.test.mjs` now verifies the failure
+check occurs before the successful HTTP 200 response and accurately records
+that `scheduled-mailings` is **not** an activated Worker cron job. This
+test was added to `.github/workflows/workspace-ui-ci.yml`'s core payment/
+fulfillment verification. [Workspace UI verification
+37841264245](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37841264245)
+completed with **20/20 jobs successful**; the public landing gate also
+passed. No payment, Lob fulfillment, live deployment or automatic cron
+activation was performed by this PR.
+
+The temporary `hardening/scheduled-mail-batch-failures-20261008` review
+branch was automatically retired by
+[successful Action 37841718663](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37841718663).
+PR #152 and its implementation history remain open/preserved for distinct
+unmerged hardening changes (deployment prerequisite gates, scheduled-worker
+dispatch semantics, Stripe payment/webhook integration, secure remote file
+allowlists, etc.). Do **not** retire or force-merge #152 as part of this change.
+
+**Current independently verified snapshot: 26 remote branches = 1 main +
+9 open PR heads + 16 other preserved histories.** Production deployment
+remains unverified because required GitHub Actions secrets are missing;
+the latest relevant deploy preflight failed without uploading the Worker.
