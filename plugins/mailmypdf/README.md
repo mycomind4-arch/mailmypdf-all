@@ -8,7 +8,7 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 - `mcp.json` — future canonical submission endpoint at `https://mailmypdf.ai/api/mcp`. Until that custom domain is live, the current deployed Worker/preview target is `https://mailmypdf.mycomind4.workers.dev/api/mcp`; do not confuse the submission manifest with the temporary deployment target.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
 - `review-cases.json` — exactly five positive and three negative reviewer cases for connector behavior.
-- `submission-materials.json` — release notes, availability intent, all 30 tool-annotation justifications, and the remaining manual portal/deployment requirements.
+- `submission-materials.json` — release notes, availability intent, all currently published tool-annotation justifications, and the remaining manual portal/deployment requirements.
 
 The plugin does not duplicate workflow logic. MailMyPDF remains authoritative for authentication, matter ownership, secure document intake, malware scanning, analysis, drafting, packet construction, recipient/packet fingerprints, pricing, approval, Stripe checkout, Lob fulfillment, and mailing status.
 
@@ -44,7 +44,7 @@ Run:
 pnpm plugin:mailmypdf:submission:validate
 ```
 
-This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, 30-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
+This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, published-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
 
 ## Before public submission
 
