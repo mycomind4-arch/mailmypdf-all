@@ -234,49 +234,80 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
  * Updates quote status to "accepted" and logs payment.
  */
 export async function handleStripePaymentSuccess(
-  paymentIntentId: string,
-  quoteId: string,
-  amount: number
+  paymentIntent: Stripe.PaymentIntent,
+  checkoutSessionId: string,
 ) {
-  const admin = getSupabaseAdmin();
+  const quoteId = paymentIntent.metadata?.quote_id;
+  if (!quoteId || !checkoutSessionId || paymentIntent.status !== "succeeded") {
+    throw new Error("Quote settlement requires a successful Stripe payment and its Checkout Session");
+  }
 
-  // Get quote
+  const admin = getSupabaseAdmin();
   const { data: quote, error: quoteError } = await admin
     .from("pricing_quotes")
     .select("*")
     .eq("id", quoteId)
     .single();
-
   if (quoteError || !quote) {
-    throw new Error(`Quote ${quoteId} not found`);
+    throw new Error("Payment references an unknown quote");
   }
 
-  // Verify amount matches quote
-  if (amount !== quote.total_cents) {
-    throw new Error(
-      `Payment amount ${amount} does not match quote amount ${quote.total_cents}`
-    );
+  const metadata = quoteMetadata(quote.metadata);
+  // Both the PaymentIntent and the signed Checkout Session must refer to the
+  // same preexisting owner-bound quote. Do not trust Stripe metadata alone.
+  if (
+    metadata.stripe_session_id !== checkoutSessionId ||
+    paymentIntent.metadata.user_id !== quote.user_id ||
+    paymentIntent.currency !== "usd" ||
+    paymentIntent.amount !== quote.total_cents ||
+    paymentIntent.amount_received !== quote.total_cents
+  ) {
+    throw new Error("Stripe payment identity, session, currency or amount does not match the quote");
   }
 
-  // Update quote status
-  const { error: updateError } = await admin
+  // Stripe can retry and deliver events out of order. Once the quote has been
+  // accepted or refunded, never regress it to pending/accepted via replay.
+  if (quote.status === "accepted" && metadata.stripe_payment_intent_id === paymentIntent.id) {
+    return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: true };
+  }
+  if (quote.status !== "pending") {
+    throw new Error("Quote is not awaiting this payment");
+  }
+
+  const { data: accepted, error: updateError } = await admin
     .from("pricing_quotes")
     .update({
       status: "accepted",
       accepted_at: new Date().toISOString(),
       metadata: {
-        ...quoteMetadata(quote.metadata),
-        stripe_payment_intent_id: paymentIntentId,
+        ...metadata,
+        stripe_payment_intent_id: paymentIntent.id,
         payment_processed_at: new Date().toISOString(),
       },
     })
-    .eq("id", quoteId);
-
-  if (updateError) {
-    throw new Error(`Failed to update quote: ${updateError.message}`);
+    .eq("id", quoteId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (updateError) throw new Error("Unable to record settled quote payment");
+  if (!accepted) {
+    // Concurrent copies of the webhook may both see pending, but only one
+    // may perform the transition. Confirm the other successfully committed it.
+    const { data: latest, error: latestError } = await admin
+      .from("pricing_quotes")
+      .select("status,metadata")
+      .eq("id", quoteId)
+      .single();
+    if (
+      latestError ||
+      latest?.status !== "accepted" ||
+      quoteMetadata(latest.metadata).stripe_payment_intent_id !== paymentIntent.id
+    ) {
+      throw new Error("Quote payment settlement conflicted with another state change");
+    }
+    return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: true };
   }
 
-  // Log payment success
   await logAuditEntry({
     actor: quote.user_id,
     action: "quote_accepted",
@@ -284,13 +315,12 @@ export async function handleStripePaymentSuccess(
     resourceId: quoteId,
     changes: {
       status: "accepted",
-      stripe_payment_intent_id: paymentIntentId,
-      amount: amount,
+      stripe_payment_intent_id: paymentIntent.id,
+      amount: paymentIntent.amount_received,
     },
-    reason: "Payment processed successfully",
+    reason: "Verified Stripe payment settled",
   });
-
-  return { success: true, quoteId, paymentIntentId };
+  return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: false };
 }
 
 // ============================================================================
@@ -493,11 +523,16 @@ export async function handleStripeWebhook(req: Request) {
         const quoteId = paymentIntent.metadata?.quote_id;
 
         if (quoteId) {
-          await handleStripePaymentSuccess(
-            paymentIntent.id,
-            quoteId,
-            paymentIntent.amount
+          const sessions = await getStripe().checkout.sessions.list({
+            payment_intent: paymentIntent.id,
+            limit: 10,
+          });
+          const session = sessions.data.find((candidate) =>
+            candidate.metadata?.quote_id === quoteId &&
+            candidate.payment_status === "paid"
           );
+          if (!session) throw new Error("Verified quote Checkout Session not found");
+          await handleStripePaymentSuccess(paymentIntent, session.id);
         }
         break;
       }

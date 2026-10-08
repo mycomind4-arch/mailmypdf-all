@@ -326,3 +326,35 @@ describe("Legacy Quote Payment Safety", () => {
   });
 
 });
+
+
+describe("Legacy Quote Settlement Through Production Webhooks", () => {
+  it("routes signed Checkout and PaymentIntent events to verified quote settlement", async () => {
+    const live = await source("src/routes/api/public/payments/webhook.ts");
+    assert.ok(live.includes('session.metadata?.quote_id'));
+    assert.ok(live.includes('session.payment_status !== "paid"'));
+    assert.ok(live.includes('paymentIntents.retrieve(session.payment_intent)'));
+    assert.ok(live.includes('case "payment_intent.succeeded":'));
+    assert.ok(live.includes('checkout.sessions.list({'));
+    assert.ok(live.includes('handleStripePaymentSuccess(intent, session.id)'));
+    assert.ok(live.includes('await markOrderPaid(session, origin, log, event.id)'), "Order checkout must remain supported");
+  });
+  it("requires strict quote, owner, session and settled-amount binding, with idempotent update", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const section = text.slice(text.indexOf("export async function handleStripePaymentSuccess("), text.indexOf("// CREATE REFUND"));
+    for (const safeguard of [
+      'paymentIntent.status !== "succeeded"',
+      'metadata.stripe_session_id !== checkoutSessionId',
+      'paymentIntent.metadata.user_id !== quote.user_id',
+      'paymentIntent.currency !== "usd"',
+      'paymentIntent.amount_received !== quote.total_cents',
+      'quote.status === "accepted"',
+      'quote.status !== "pending"',
+      '.eq("status", "pending")',
+      'stripe_payment_intent_id: paymentIntent.id',
+      'alreadyProcessed: true',
+    ]) {
+      assert.ok(section.includes(safeguard), "Missing quote settlement guard: " + safeguard);
+    }
+  });
+});
