@@ -100,10 +100,16 @@ jobs:
           if [[ -n "$existing_pr" ]]; then
             echo "Updated existing normalization PR #${existing_pr}."
           else
-            gh pr create \
+            # Some repositories disable PR creation by GITHUB_TOKEN even when
+            # contents:write and pull-requests:write are declared.
+            if ! gh pr create \
               --repo "$GITHUB_REPOSITORY" \
               --base main \
               --head "$branch" \
               --title "build: normalize trusted SSA forms and workspace lock" \
-              --body "Automated normalization detected generated SSA PDF and/or pnpm lockfile changes. Review the generated output before merging."
+              --body "Automated normalization detected generated SSA PDF and/or pnpm lockfile changes. Review the generated output before merging."; then
+              review_url="https://github.com/${GITHUB_REPOSITORY}/compare/main...${branch}?expand=1"
+              echo "::warning title=Manual generated-assets PR required::GitHub Actions cannot create a pull request. The generated assets are preserved on ${branch}. Open ${review_url}."
+              printf '%s\n' "### Manual review needed" "Generated SSA assets were pushed to \`${branch}\`, but GitHub Actions cannot create a pull request." "Open ${review_url} to review them." >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
