@@ -2,6 +2,7 @@ import type {
   FactoryBuildArtifact,
   FactoryBuildCheck,
   FactoryJob,
+  evaluateFactoryRemoteChecks,
 } from "@mailmypdf/workflows";
 import type { WorkflowSeed } from "@mailmypdf/workflows/canonical-registry";
 import { GitHubRepositoryProvider } from "@mailmypdf/vertical-foundry";
@@ -441,12 +442,33 @@ export async function approveRemoteFactoryPublication(input: {
   const project = findStudioProject("mailmypdf");
   if (!project) throw new Error("MailMyPDF Studio project is not configured.");
   const provider = githubProvider();
-  const remoteHead = await provider.getBranchSha(
-    job.buildArtifact.remote.repository,
-    job.buildArtifact.branch,
-  );
+  const repository = job.buildArtifact.remote.repository;
+
+  // The recorded acceptance is historical evidence, not a standing
+  // authorization. A changed base or a failed/queued CI rerun invalidates
+  // final publication approval. Never merge or deploy from this endpoint.
+  const [currentBase, remoteHead, currentCI] = await Promise.all([
+    provider.getBranchSha(repository, project.defaultBranch),
+    provider.getBranchSha(repository, job.buildArtifact.branch),
+    provider.getCommitStatus(repository, job.buildArtifact.commitSha),
+  ]);
+  if (currentBase.sha !== job.buildArtifact.baseSha) {
+    throw new Error(
+      "The default branch moved after factory acceptance. Rebuild and retest the proposal before approval.",
+    );
+  }
   if (remoteHead.sha !== job.buildArtifact.commitSha) {
     throw new Error("Remote factory branch moved after acceptance.");
+  }
+
+  const readiness = evaluateFactoryRemoteChecks(
+    requiredChecks(job),
+    currentCI.checks,
+  );
+  if (!readiness.ready) {
+    throw new Error(
+      `Current GitHub CI does not certify this proposal commit: ${readiness.blockedContexts.join(", ") || "no required checks"}.`,
+    );
   }
   const pullRequest = await provider.findOpenPullRequestByHead(
     job.buildArtifact.remote.repository,
