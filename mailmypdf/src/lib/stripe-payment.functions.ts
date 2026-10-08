@@ -506,8 +506,13 @@ export async function handleLegacyQuoteRefundEvent(refund: Stripe.Refund): Promi
   }
   if (refund.status !== "succeeded") return;
   if (refund.amount !== quote.total_cents) {
-    // A partial refund does not mean the quote was fully reversed.
-    throw new Error("Legacy quote refund amount does not equal settled quote price");
+    // Partial refunds are legitimate Stripe events, but they must never be
+    // mistaken for full quote reversal. Do not trigger pointless webhook
+    // retries for a valid partial refund; leave it for staff reconciliation.
+    console.warn("Partial legacy quote refund requires staff reconciliation", {
+      quoteId, refundId: refund.id,
+    });
+    return;
   }
   if (quote.status === "reversed" && metadata.refund_id === refund.id) return;
   if (quote.status !== "accepted" || metadata.refund_id !== refund.id) {
