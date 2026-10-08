@@ -244,3 +244,17 @@ test("Studio exposes the remote build, CI sync, and tested-PR approval sequence"
   assert.match(page, /Approve tested GitHub PR/);
   assert.match(page, /Remote PR #/);
 });
+
+test("remote publication approval rechecks live base and mandatory GitHub CI", () => {
+  const server = read("src/studio/factory-remote-executor.server.ts");
+  const approval = server.slice(server.indexOf("export async function approveRemoteFactoryPublication"));
+  assert.match(approval, /provider\.getBranchSha\(repository, project\.defaultBranch\)/);
+  assert.match(approval, /provider\.getBranchSha\(repository, job\.buildArtifact\.branch\)/);
+  assert.match(approval, /provider\.getCommitStatus\(repository, job\.buildArtifact\.commitSha\)/);
+  assert.match(approval, /currentBase\.sha !== job\.buildArtifact\.baseSha/);
+  assert.match(approval, /evaluateFactoryRemoteChecks\(/);
+  assert.match(approval, /requiredChecks\(job\)/);
+  assert.match(approval, /if \(!readiness\.ready\)/);
+  assert.match(approval, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(approval, /mergePullRequest|merge_pull_request|wrangler deploy|submit.*mail/i);
+});
