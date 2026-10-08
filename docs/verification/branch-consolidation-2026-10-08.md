@@ -189,3 +189,46 @@ authorized configuration and another verified deployment run.
 other preserved branch heads.** The two short-lived review branches from
 #162 and #163 were also deleted by the successful safe-pruner workflow.
 No distinct unreviewed branch was intentionally discarded.
+
+## Legacy donor compatibility reconciled — PR #164
+
+[PR #164](https://github.com/mycomind4-arch/mailmypdf-all/pull/164)
+merged as `b912c6e30100f44724764d24edecb5d4af5f7feb`, adding
+`.github/workflows/legacy-donor-compatibility.yml` alongside (not inside)
+canonical `workspace-ui-ci.yml`. It preserves the legacy donor parity checks
+from old PR #88, without reintroducing the retired `apps/mailmypdf` host.
+It is triggered on donor changes and is also dispatchable.
+
+The older PR named thirteen donors, but only ten still have extant package
+manifests. The new matrix builds those ten, and runs the six legacy
+Private Office compound-workflow, authorization and capability suites.
+Three deleted legacy donor package directories are intentionally excluded:
+`claim-proof`, `permit-reply` and `tenant-reply`. The canonical
+top-level section roots remain separately verified in the current host.
+
+The initial run exposed actual missing built workspace dependency exports,
+notably `@mailmypdf/design-system/public`. A correct
+`<package-name>^...` dependency-closure build now precedes each donor build.
+[Action 37840372064](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37840372064)
+completed with **10/10 jobs successful**, including all six Private Office
+safety regression suites. This is a compatibility CI result, not a production
+deployment or evidence that legacy donor apps should be deployed.
+
+Old [PR #88](https://github.com/mycomind4-arch/mailmypdf-all/pull/88)
+had already been closed unmerged. Its canonical host/topology portion was
+superseded by #161 and #163; its donor checks are now reconciled by #164.
+Exact historic head
+`f089372f07b56264b78dcc774d3055532b6e066b` is preserved at
+`archive/branch-cleanup-2026-10-08/chat/canonical-topology-source-of-truth`
+and the branch head was deleted by
+[successful guarded Action 37840857260](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37840857260).
+The old branch and temporary #164 review branch are both absent.
+
+**Verified snapshot: 26 remote branches = 1 main + 9 open PR heads +
+16 other preserved histories.** The 16 preserved histories are not all safe
+to retire yet. In particular, the generated-PDF runs and the factory and
+CP14 runtime implementation heads still require review.
+
+GitHub deployment preflight is still blocked by missing authorized secrets
+per [run 37837370411](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37837370411).
+Green build/CI does not establish deployment.
