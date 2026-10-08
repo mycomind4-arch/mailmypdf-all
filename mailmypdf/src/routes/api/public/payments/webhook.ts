@@ -34,6 +34,9 @@ import { withRetry } from "@/lib/retry";
  */
 interface CheckoutSessionMetadata {
   orderId?: string;
+  // Legacy pricing-quote checkout uses snake_case metadata, unlike order mail.
+  quote_id?: string;
+  user_id?: string;
   isBulk?: string;
   orderIds?: string;
   bulkOrderId?: string;
