@@ -67,7 +67,9 @@ jobs:
         # Each donor imports packages with dist/* exports. Building only
         # @mailmypdf/pricing leaves design-system/public and other imports
         # unresolved in a fresh CI checkout.
-        run: pnpm --filter "./apps/verticals/${{ matrix.app }}^..." --workspace-concurrency=2 run build
+        run: |
+          package_name=$(node -p "require('./apps/verticals/${{ matrix.app }}/package.json').name")
+          pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
       - name: Test Private Office compound workflow and authority safety gates
         if: matrix.app == 'private-office'
         run: |
