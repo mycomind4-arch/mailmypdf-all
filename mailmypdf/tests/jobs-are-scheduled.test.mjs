@@ -106,8 +106,8 @@ describe("job endpoints that still have no schedule", () => {
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
     assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
 
-    // These dispatch webhooks and submit to a mailing provider, so turning them
-    // on is a business decision rather than a code one. This list records that,
+    // These can dispatch webhooks, payment, or physical mailing, so enabling
+    // unscheduled endpoints requires an explicit release decision. This list records that,
     // and fails if a new job appears unnoticed.
     const unscheduled = endpoints.filter((name) => !covered.has(name)).sort();
     assert.deepEqual(unscheduled, [
@@ -115,6 +115,28 @@ describe("job endpoints that still have no schedule", () => {
       "process-scheduled",
       "proof-webhook-retries",
       "proof-window-expiry",
+      "scheduled-mailings",
     ]);
   });
+});
+
+test("scheduled-mail batch reports partial execution failures as HTTP 500", async () => {
+  const endpoint = await readFile(
+    new URL("../src/routes/api/internal/scheduled-mailings.ts", import.meta.url),
+    "utf8",
+  );
+  const failed = endpoint.indexOf('result.results.some((entry) => entry.error)');
+  const ok = endpoint.indexOf('Response.json({ ok: true, result })');
+  assert.ok(failed >= 0 && failed < ok, "detect failed entries before reporting batch success");
+  const branch = endpoint.slice(failed, ok);
+  assert.match(branch, /Response\.json\(\{ ok: false, error: "Scheduled mailing processing failed" \}, \{ status: 500 \}\)/);
+  assert.match(branch, /attachRequestId\(/, "failure must retain request correlation");
+  assert.match(branch, /log\.error\(/, "operator logs must capture failed batches");
+
+  const processor = await readFile(
+    new URL("../src/lib/scheduled-mail.server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(processor, /results\.push\(\{\s*scheduleId: row\.id,\s*error:/);
+  assert.match(processor, /return \{ checked: data\?\.length \?\? 0, results \};/);
 });
