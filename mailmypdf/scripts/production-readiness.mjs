@@ -150,11 +150,11 @@ requireSecret("MAILMYPDF_CONNECTOR_JOB_SECRET", 32);
 const remoteFileHosts = requireValue("MCP_REMOTE_FILE_HOSTS");
 if (remoteFileHosts) {
   const hostPatterns = remoteFileHosts.split(",").map((host) => host.trim()).filter(Boolean);
-  const validDns = /^(?:\\*\\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+  const validDns = /^(?:\*\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
   const validPatterns = hostPatterns.length > 0 && hostPatterns.every((host) =>
     validDns.test(host) && !host.includes("..") &&
     (!host.startsWith("*.") || host.slice(2).split(".").length >= 2) &&
-    !/\\.(?:localhost|local|internal|invalid|test)$/i.test(host)
+    !/\.(?:localhost|local|internal|invalid|test)$/i.test(host)
   );
   if (validPatterns) pass("Trusted assistant attachment hosts", hostPatterns.length + " configured");
   else fail("MCP_REMOTE_FILE_HOSTS", "must be a list of trusted public hostnames or scoped wildcard suffixes");
