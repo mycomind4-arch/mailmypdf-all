@@ -115,7 +115,7 @@
     },
     {
       "branch": "feature/plugin-annotation-justifications",
-      "sha": "6ff4c6c59297eba09b4372a874c126b6ab7705a8",
+      "sha": "e00d3d32d37bf2ae9ffe0eea2c5e9e6ef8ea8358",
       "audited_main_sha": "6ff4c6c59297eba09b4372a874c126b6ab7705a8",
       "archive_tag": "archive/branch-cleanup-2026-10-08/feature/plugin-annotation-justifications",
       "main_blobs": {
