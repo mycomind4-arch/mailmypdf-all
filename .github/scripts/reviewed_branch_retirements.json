@@ -112,6 +112,20 @@
         "mailmypdf/package.json": "4e8e210e8b1c8060bc190be921f10d0becec8ea1"
       },
       "reason": "PR #89 changes only the obsolete apps/mailmypdf/package.json prebuild line. The canonical mailmypdf/package.json on main already includes all 18 packages named by PR #89, including document-intelligence and registry-adapters, with dependency-closure filters (...), two-way concurrency and additional checks. Never reintroduce retired apps/mailmypdf host paths. Preserve exact reviewed commit SHA as an archive before retiring this branch."
+    },
+    {
+      "branch": "feature/plugin-annotation-justifications",
+      "sha": "6ff4c6c59297eba09b4372a874c126b6ab7705a8",
+      "audited_main_sha": "6ff4c6c59297eba09b4372a874c126b6ab7705a8",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/feature/plugin-annotation-justifications",
+      "main_blobs": {
+        "plugins/mailmypdf/submission-materials.json": "ad097591d5c5912130b6ae5eb5458ebb82b53edb",
+        "plugins/mailmypdf/README.md": "51300ddafe6b7540c31bfdf8b469750f17d2479b",
+        "scripts/validate-mailmypdf-plugin-submission.mjs": "ce9e6fc4042c7ce6363cac64834696596394f90c",
+        ".github/workflows/workspace-ui-ci.yml": "266b44655ffba670f3c1f24886f7dd398bb4a46f",
+        "mailmypdf/src/lib/mcp/tool-catalog.ts": "5268d4503bf8a4bee0bdf478425b0a0e4f731dc0"
+      },
+      "reason": "Old branch reviews 15 MCP annotations; current main publishes 38 tools with complete justifications, and every one of the 15 old true/false claims matches the current canonical record. PR #160 integrated the missing dynamic truth-value/safety-boundary checks into the canonical submission validator with 20/20 CI jobs green. Current README and workspace CI invoke that validator; old parallel annotation JSON and test are obsolete. Archive exact historic tip and remove obsolete head, never merge outdated 15-tool catalog."
     }
   ]
 }
