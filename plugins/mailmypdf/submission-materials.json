@@ -169,6 +169,31 @@
       "readOnlyHint": "False because it changes an owned scheduled mailing from an active future action to a cancelled state.",
       "destructiveHint": "False because cancellation prevents a future charge or mailing and cannot interrupt or alter payment or fulfillment once processing has begun.",
       "openWorldHint": "False because it only updates bounded MailMyPDF schedule state and does not contact a payment or mailing provider."
+    },
+    "scan_recovery_candidates": {
+      "readOnlyHint": "True because the scan only analyzes transaction records supplied for this call and returns unverified candidates without persisting them.",
+      "destructiveHint": "False because it neither sends disputes nor updates, charges, or deletes any user records.",
+      "openWorldHint": "False because duplicate-candidate analysis is performed on the caller's supplied records without reaching banks or external providers."
+    },
+    "save_recovery_case": {
+      "readOnlyHint": "False because the explicitly confirmed candidate and its provenance are stored as a new private recovery intake case.",
+      "destructiveHint": "False because creating a case does not initiate refunds, change accounts, submit mail, or approve correspondence.",
+      "openWorldHint": "False because the write is limited to the authenticated owner's MailMyPDF case storage and does not contact third-party services."
+    },
+    "get_recovery_case": {
+      "readOnlyHint": "True because the tool reads one recovery case and its linked evidence only after owner authorization.",
+      "destructiveHint": "False because viewing an existing case neither modifies its lifecycle nor triggers outside actions.",
+      "openWorldHint": "False because the result comes only from an authenticated, owner-scoped MailMyPDF case record."
+    },
+    "list_recovery_cases": {
+      "readOnlyHint": "True because this tool lists previously saved cases belonging to the signed-in user without changing them.",
+      "destructiveHint": "False because enumerating cases cannot resolve, cancel, charge, delete, or otherwise mutate a case.",
+      "openWorldHint": "False because the listing only reads existing private MailMyPDF records without querying an external provider."
+    },
+    "update_recovery_case": {
+      "readOnlyHint": "False because a revision-checked lifecycle event updates an existing owned case or its evidence links.",
+      "destructiveHint": "False because lifecycle changes are reversible or recordkeeping updates and cannot send mail, charge funds, or take provider actions.",
+      "openWorldHint": "False because updates are limited to existing authenticated MailMyPDF cases and their authorized evidence references."
     }
   },
   "manualSubmissionRequirements": [
