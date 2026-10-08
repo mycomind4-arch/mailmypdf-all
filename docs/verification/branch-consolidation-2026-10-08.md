@@ -49,3 +49,25 @@ includes document-intelligence and registry-adapters, while the current prebuild
 selector dependency closure does not include those packages. PR #133 also adds
 workflow-artifact-plan and gold-slice test files absent from main. These findings
 justify continued preservation and focused integration review.
+
+## Further reviewed retirements — 2026-10-08
+
+Two additional non-PR branch heads were retired through the exact-tip archive
+and lease-guarded deletion workflow, with both Actions successful:
+
+| Retired branch | Evidence and durable archive | Verification |
+| --- | --- | --- |
+| `fix/cp2000-public-landing` | Every line of its CP2000 workflow config is already included in `main`, which adds official guidance and safe-response detail. The branch's notice-specific shared landing component was superseded by the generic template in `main`. Original tip `7e5891569a64de5eb21508d262452aa6ba01cee4`, archived under `archive/branch-cleanup-2026-10-08/fix/cp2000-public-landing`. | [Successful Action 37834140817](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37834140817); remote branch absent; archive tag SHA verified. |
+| `backup/github-main-before-local-replace` | Its only unique path against its merge base was a historical `pnpm-lock.yaml`. The current lockfile remains on `main`; original backup tip `4ad3359a9e02f0e4d32a9c00d73642ec6538ca99` is preserved under `archive/branch-cleanup-2026-10-08/backup/github-main-before-local-replace`. | [Successful Action 37834294011](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37834294011); remote branch absent; archive tag SHA verified. |
+
+**New snapshot: 31 remote branches = 1 main + 13 open-PR heads + 17 other preserved histories.**
+The first two further retirements changed only GitHub branch/archive references and
+the reviewed-retirement manifest, not application runtime behavior.
+
+The remaining seven `automation/normalize-trusted-workflow-assets-<run-id>`
+heads still have individually different binary Git blobs even where byte lengths
+match; retain them until #156's trusted PDF provenance and outputs are reviewed.
+The legacy `build/core-new-architecture-bridge` head refers to removed
+`apps/mailmypdf/*` paths absent from current `main`, and other unverified
+changes to `packages/workflows/*`; it remains preserved for architectural
+reconciliation rather than being force-merged or deleted.
