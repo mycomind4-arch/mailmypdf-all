@@ -71,3 +71,62 @@ The legacy `build/core-new-architecture-bridge` head refers to removed
 `apps/mailmypdf/*` paths absent from current `main`, and other unverified
 changes to `packages/workflows/*`; it remains preserved for architectural
 reconciliation rather than being force-merged or deleted.
+
+## Further integration and retirement — 2026-10-08
+
+### Plugin annotations: PR #160
+
+[PR #160](https://github.com/mycomind4-arch/mailmypdf-all/pull/160) was
+squash-merged to `main` as commit `6ff4c6c59297eba09b4372a874c126b6ab7705a8`
+with **20/20 CI jobs successful**. The canonical plugin submission validator
+now cross-checks each of 38 MCP tools' documented True/False safety claims
+against its published annotations, and protects consequential tool boundaries.
+
+The historic `feature/plugin-annotation-justifications` review branch covered
+only 15 tools. All 15 original annotation values were independently verified
+to match the current 38-tool submission materials. Its exact historical tip
+`e00d3d32d37bf2ae9ffe0eea2c5e9e6ef8ea8358` has been archived at
+`archive/branch-cleanup-2026-10-08/feature/plugin-annotation-justifications`
+and the branch head was removed by a passing guarded cleanup run.
+
+### Build script: PR #89
+
+[PR #89](https://github.com/mycomind4-arch/mailmypdf-all/pull/89)
+was **closed, not merged**: it edited only the retired
+`apps/mailmypdf/package.json` prebuild. The current canonical host at
+`mailmypdf/package.json` already builds all 18 of the old PR's dependencies
+(including document-intelligence and registry-adapters), via dependency-aware
+workspace filters. Its tip `b71de27a753d33e5f0453540c447b77908db5fac`
+was archived under
+`archive/branch-cleanup-2026-10-08/chat/mailmypdf-prebuild-runtime-deps`.
+[Action 37835279999](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37835279999)
+confirmed a successful guarded branch cleanup.
+
+### Architecture documentation: PR #161
+
+[PR #161](https://github.com/mycomind4-arch/mailmypdf-all/pull/161)
+was squash-merged as `339ec310bab61d7416210045d14e2b2f4d4f12ac`.
+`MAILMYPDF_APPLICATION_TOPOLOGY.md` now correctly identifies `mailmypdf/`
+as the single TanStack host, all 15 top-level sections, the canonical
+`mailmypdf/src/lib/section-registry.ts`, and the explicitly noncanonical
+`apps/verticals/**` donors. No runtime components were modified.
+Its short-lived review branch was pruned on successful
+[Action 37835823028](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37835823028).
+
+### Snapshot and preservation boundaries
+
+**Verified: 29 remote branches = 1 main + 12 open PR heads + 16 other
+preserved histories.**
+
+- Preserve #88 for its remaining distinct topology policy/checks until reviewed
+  against the now-corrected canonical document. Do not merge the old
+  `apps/mailmypdf`/deprecated workspace content.
+- Preserve #85 and #90: the P11 capability truthfulness changes are still
+  absent from current `packages/workflows/src/pipeline-registry.ts`.
+- Preserve #152, #153, #133, #124, #126, #99, #91, #86 and #156 pending
+  conflicts, tests, provider security and binary provenance review.
+- Preserve the seven run-suffixed SSA PDF branches; distinct binary blobs
+  have not been verified against #156.
+- Do not claim completion of production deployment, mailing tests, Stripe/Lob
+  live transactions, or the 449-workflow factory from these repository
+  cleanup changes.
