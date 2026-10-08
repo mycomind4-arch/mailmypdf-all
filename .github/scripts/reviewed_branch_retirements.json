@@ -126,6 +126,38 @@
         "mailmypdf/src/lib/mcp/tool-catalog.ts": "5268d4503bf8a4bee0bdf478425b0a0e4f731dc0"
       },
       "reason": "Old branch reviews 15 MCP annotations; current main publishes 38 tools with complete justifications, and every one of the 15 old true/false claims matches the current canonical record. PR #160 integrated the missing dynamic truth-value/safety-boundary checks into the canonical submission validator with 20/20 CI jobs green. Current README and workspace CI invoke that validator; old parallel annotation JSON and test are obsolete. Archive exact historic tip and remove obsolete head, never merge outdated 15-tool catalog."
+    },
+    {
+      "branch": "chat/p11-capability-truthfulness",
+      "sha": "ba2caf78b153ecbefda729000c5443dc71de72b9",
+      "audited_main_sha": "88cd2a19ccd8a7a9a59a52fe05487f7a02848a99",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/p11-capability-truthfulness",
+      "main_blobs": {
+        "packages/workflows/src/pipeline-registry.ts": "68334a6c649e56c38d59aa9e52aa555191cafb09",
+        "packages/workflows/tests/workflow-factory.test.ts": "0966b0462709b0aa6ba89ccf6e675a506cb3ceea",
+        "packages/workflows/tests/configured-pipeline.test.ts": "a2895caf5522d8ec1f42ee81c5a9870df9dd2b73",
+        "secured-transactions/workflows/secured-transaction-eligibility/manifest.ts": "af04263ca9cc37e96b312ad9a7d135a7840841fa",
+        "secured-transactions/tests/registry.test.ts": "ad651077c0351e1dfbe788df5cfb6192ed64808c",
+        "secured-transactions/shared/domain/manifest-base.ts": "a2bcff9dc684bda73e9b1fc90c41ec0df097ec29",
+        "secured-transactions/shared/domain/manifest-base.test.ts": "1cb9e2e401becc7a751366706ba1edf0de0dd5fc"
+      },
+      "reason": "PR #85 was reviewed and closed as superseded by green merged PR #162 (88cd2a19), which implements stronger P11 shared invariants (findings, requirements, validation, blockingGate, review), a six-capability eligibility manifest, fail-closed tests, and current three-wired-intake assertions. Adds broad family-wide basis/validation gates and narrow capability declarations, but its registry tests assume only one wired intake. Exact historic tip must be tagged before deleting the obsolete branch."
+    },
+    {
+      "branch": "fix/p11-capability-truthfulness",
+      "sha": "3632bc4d9a1d264d4c082fd70295123d5d117247",
+      "audited_main_sha": "88cd2a19ccd8a7a9a59a52fe05487f7a02848a99",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/fix/p11-capability-truthfulness",
+      "main_blobs": {
+        "packages/workflows/src/pipeline-registry.ts": "68334a6c649e56c38d59aa9e52aa555191cafb09",
+        "packages/workflows/tests/workflow-factory.test.ts": "0966b0462709b0aa6ba89ccf6e675a506cb3ceea",
+        "packages/workflows/tests/configured-pipeline.test.ts": "a2895caf5522d8ec1f42ee81c5a9870df9dd2b73",
+        "secured-transactions/workflows/secured-transaction-eligibility/manifest.ts": "af04263ca9cc37e96b312ad9a7d135a7840841fa",
+        "secured-transactions/tests/registry.test.ts": "ad651077c0351e1dfbe788df5cfb6192ed64808c",
+        "secured-transactions/shared/domain/manifest-base.ts": "a2bcff9dc684bda73e9b1fc90c41ec0df097ec29",
+        "secured-transactions/shared/domain/manifest-base.test.ts": "1cb9e2e401becc7a751366706ba1edf0de0dd5fc"
+      },
+      "reason": "PR #90 was reviewed and closed as superseded by green merged PR #162 (88cd2a19), which implements stronger P11 shared invariants (findings, requirements, validation, blockingGate, review), a six-capability eligibility manifest, fail-closed tests, and current three-wired-intake assertions. Correctly narrows eligibility declarations but omits family-wide requirements and blockingGate invariants; the newer implementation retains both. Exact historic tip must be tagged before deleting the obsolete branch."
     }
   ]
 }
