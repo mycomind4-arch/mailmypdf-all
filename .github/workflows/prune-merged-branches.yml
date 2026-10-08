@@ -1,0 +1,31 @@
+name: Prune merged and fully incorporated branches
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/prune-merged-branches.yml"
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: mailmypdf-safe-branch-pruner
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Delete only verified redundant branches
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/prune_merged_branches.py --apply
