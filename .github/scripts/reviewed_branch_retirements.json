@@ -102,6 +102,16 @@
         "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356"
       },
       "reason": "Historical pre-local-replacement backup branch has exactly one changed file relative to its shared main ancestry: an older pnpm-lock.yaml (archived blob 80951cf014ab65468c2e8e0c2db7e129d7a3390a). Current main has a distinct and subsequently maintained lockfile (blob 40a735b22df1a169bd5ef9a6558ea918f8ec1356). Preserving the branch's exact tip as a durable archive tag retains the full historical backup, so its mutable branch head is unnecessary; no historic content is thrown away."
+    },
+    {
+      "branch": "chat/mailmypdf-prebuild-runtime-deps",
+      "sha": "b71de27a753d33e5f0453540c447b77908db5fac",
+      "audited_main_sha": "d879790321babd3f1497dfb4c08cf518c506d301",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/mailmypdf-prebuild-runtime-deps",
+      "main_blobs": {
+        "mailmypdf/package.json": "4e8e210e8b1c8060bc190be921f10d0becec8ea1"
+      },
+      "reason": "PR #89 changes only the obsolete apps/mailmypdf/package.json prebuild line. The canonical mailmypdf/package.json on main already includes all 18 packages named by PR #89, including document-intelligence and registry-adapters, with dependency-closure filters (...), two-way concurrency and additional checks. Never reintroduce retired apps/mailmypdf host paths. Preserve exact reviewed commit SHA as an archive before retiring this branch."
     }
   ]
 }
