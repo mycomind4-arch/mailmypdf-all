@@ -1,0 +1,87 @@
+# Regression protection for legacy donor application shells still present in
+# apps/verticals/. These are NOT canonical production hosts.
+# The main TanStack application and 15 root-section builds are verified in
+# workspace-ui-ci.yml. Keep this job separate so older donor shells do not
+# become mandatory dependencies of current production feature work.
+name: Legacy donor compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'apps/verticals/**'
+      - '.github/workflows/legacy-donor-compatibility.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/verticals/**'
+      - '.github/workflows/legacy-donor-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-donor-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  donor-builds:
+    name: Donor compatibility — ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Only donors with extant package.json files are maintained.
+      # claim-proof, permit-reply, and tenant-reply are no longer donor apps.
+      matrix:
+        app:
+          - appeal-mail
+          - benefits-appeal
+          - code-enforcement
+          - dispute-mail
+          - immigration-mail
+          - insurance-claims
+          - notice-respond
+          - private-office
+          - records-request
+          - small-business
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Verify legacy donor still exists
+        shell: bash
+        run: |
+          test -f "apps/verticals/${{ matrix.app }}/package.json" || {
+            echo "Legacy donor ${{ matrix.app }} moved. Update this matrix and record parity before deletion." >&2
+            exit 1
+          }
+      - name: Build dependencies of this legacy donor
+        # Each donor imports packages with dist/* exports. Building only
+        # @mailmypdf/pricing leaves design-system/public and other imports
+        # unresolved in a fresh CI checkout.
+        run: |
+          package_name=$(node -p "require('./apps/verticals/${{ matrix.app }}/package.json').name")
+          pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
+      - name: Test Private Office compound workflow and authority safety gates
+        if: matrix.app == 'private-office'
+        run: |
+          pnpm --filter mailmypdf-private-office run build:shared
+          pnpm --filter mailmypdf-private-office exec vitest run \
+            src/domain/compound-workflows.test.ts \
+            src/domain/compound-workflow-runtime.test.ts \
+            src/domain/compound-phase-readiness.test.ts \
+            src/platform/authority-provider.test.ts \
+            src/services/compound-workflow-service.test.ts \
+            src/services/compound-capability-executor.test.ts
+      - name: Build shared legacy pricing package
+        run: pnpm --filter @mailmypdf/pricing build
+      - name: Verify legacy donor builds without moving it to the canonical host
+        run: pnpm --filter ./apps/verticals/${{ matrix.app }} run build
