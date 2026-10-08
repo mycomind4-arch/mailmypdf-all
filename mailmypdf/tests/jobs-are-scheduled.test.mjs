@@ -106,8 +106,8 @@ describe("job endpoints that still have no schedule", () => {
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
     assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
 
-    // These dispatch webhooks and submit to a mailing provider, so turning them
-    // on is a business decision rather than a code one. This list records that,
+    // These can dispatch webhooks, payment, or physical mailing, so enabling
+    // unscheduled endpoints requires an explicit release decision. This list records that,
     // and fails if a new job appears unnoticed.
     const unscheduled = endpoints.filter((name) => !covered.has(name)).sort();
     assert.deepEqual(unscheduled, [
@@ -115,6 +115,7 @@ describe("job endpoints that still have no schedule", () => {
       "process-scheduled",
       "proof-webhook-retries",
       "proof-window-expiry",
+      "scheduled-mailings",
     ]);
   });
 });
