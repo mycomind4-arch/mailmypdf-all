@@ -143,6 +143,62 @@ export function StudioCommandCenter() {
       <section className="rounded-xl border border-rule bg-card p-6"><div className="flex items-center gap-2"><Bot className="h-4 w-4" /><h2 className="font-serif text-2xl">AI & publishing</h2></div><div className="mt-5 space-y-3 text-sm"><div className="flex justify-between border-b border-rule pb-2"><span>AI providers</span><strong>{data.ai.enabledProviders}/{data.ai.providers}</strong></div><div className="flex justify-between border-b border-rule pb-2"><span>AI routes</span><strong>{data.ai.enabledRoutes}/{data.ai.routes}</strong></div><div className="flex justify-between border-b border-rule pb-2"><span>Publications</span><strong>{data.publications.total ?? "—"}</strong></div><div className="flex justify-between"><span>Workflow matters</span><strong>{data.operations.workflowCases ?? "—"}</strong></div></div><div className="mt-5 flex flex-wrap gap-3 text-xs font-semibold"><Link to="/admin/ai" className="text-cobalt">AI Control Plane →</Link><Link to="/admin/publications" className="text-cobalt">Publications →</Link></div></section>
     </div>
 
+
+    <section className="mt-6 rounded-xl border border-rule bg-card" aria-labelledby="reference-journeys-heading">
+      <div className="border-b border-rule px-6 py-5">
+        <h2 id="reference-journeys-heading" className="font-serif text-2xl">Reference journeys &amp; factory graduation</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Tool registration and manifest certification are not end-to-end acceptance or proof of mailing.
+          The factory queue stays supervised; nothing is published or charged from this view.
+        </p>
+      </div>
+      <div className="grid divide-y divide-rule lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+        {data.workflows.graduation.references.map((journey) => (
+          <div key={journey.id} className="space-y-3 p-6">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-sm font-semibold">{journey.label}</h3>
+              <span className={"shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold " +
+                (journey.contractReady ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900")}>
+                {journey.contractReady ? "Contract compatible" : "Contract needs work"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {journey.contractEvidence === "tool-surface-only"
+                ? "MCP tool availability only; no specialized workflow certificate."
+                : "Manifest + runtime chat-contract certification."}
+            </p>
+            <p className="text-xs text-amber-800">Acceptance unverified · Live fulfillment unverified</p>
+            {journey.missingTools.length > 0 && (
+              <p className="text-xs text-red-700">Missing: {journey.missingTools.join(", ")}</p>
+            )}
+            <p className="text-xs leading-5 text-muted-foreground">{journey.nextAcceptance}</p>
+            {journey.workspaceHref && (
+              <Link to={journey.workspaceHref} className="inline-block text-xs font-semibold text-cobalt">
+                Inspect workspace →
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-rule px-6 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">Next factory graduation steps</h3>
+          <span className="text-xs text-muted-foreground">
+            {data.workflows.graduation.summary.awaitingGraduation} workflows require chat-contract work
+          </span>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {data.workflows.graduation.queue.slice(0, 6).map((item) => (
+            <div key={item.id} className="rounded-lg border border-rule/70 p-3">
+              <div className="font-mono text-[11px] text-muted-foreground">{item.id}</div>
+              <div className="mt-1 text-xs font-semibold">{item.milestone.replaceAll("-", " ")}</div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.nextAction}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
     <section className="mt-6 rounded-xl border border-rule bg-card"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule px-6 py-5"><div><h2 className="font-serif text-2xl">Recent fulfillment failures</h2><p className="mt-1 text-xs text-muted-foreground">Latest failed fulfillment/provider submissions.</p></div><Link to="/admin" className="text-xs font-semibold text-cobalt">Open Operations →</Link></div>{data.operations.recentFailures.length === 0 ? <div className="flex items-center gap-3 px-6 py-8 text-sm text-muted-foreground"><ShieldCheck className="h-5 w-5 text-emerald-700" />No recent fulfillment failures.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-paper-deep text-left text-[10px] uppercase tracking-widest text-muted-foreground"><tr><th className="px-6 py-3">Created</th><th className="px-6 py-3">Customer</th><th className="px-6 py-3">Recipient</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Price</th><th className="px-6 py-3"></th></tr></thead><tbody className="divide-y divide-rule">{data.operations.recentFailures.map((order) => <tr key={order.id}><td className="px-6 py-4 font-mono text-xs text-muted-foreground" suppressHydrationWarning>{new Date(order.created_at).toLocaleString()}</td><td className="px-6 py-4">{order.email}</td><td className="px-6 py-4">{order.recipient_name}</td><td className="px-6 py-4 font-mono text-xs text-red-700">{order.status}</td><td className="px-6 py-4">${((order.price_cents ?? 0) / 100).toFixed(2)}</td><td className="px-6 py-4 text-right"><Link to="/admin/orders/$id" params={{ id: order.id }} className="text-xs font-semibold text-cobalt">Inspect →</Link></td></tr>)}</tbody></table></div>}</section>
 
     <section className="mt-6"><div className="mb-4 flex items-center gap-2"><Boxes className="h-4 w-4" /><h2 className="font-serif text-2xl">Admin tools</h2></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Shortcut to="/studio/builder" title="Workflow Builder" detail="Open the visual workflow/factory environment." icon={WandSparkles} /><Shortcut to="/admin/users" title="Users" detail="Review account profiles and roles without changing privileges." icon={Users} /><Shortcut to="/admin" title="Operations" detail="Revenue, fulfillment queue, orders, failures, and provider health." icon={Mail} /><Shortcut to="/admin/analytics" title="Analytics" detail="First-party acquisition, usage, and page activity." icon={BarChart3} /><Shortcut to="/admin/ai" title="AI Control Plane" detail="Providers, models, routing, and shared runtime variables." icon={Bot} /><Shortcut to="/admin/publications" title="Publications" detail="Preview and approve controlled publishing runs." icon={Newspaper} /><Shortcut to="/admin/audit-log" title="Audit Log" detail="Review administrator entitlement and quote activity." icon={FileClock} /><Shortcut to="/admin/entitlements" title="Entitlements" detail="Review and assign pricing/access policies." icon={KeyRound} /></div></section>

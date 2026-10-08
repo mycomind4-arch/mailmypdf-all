@@ -44,3 +44,10 @@ test("Studio sidebar routes signed-in workflow navigation to workspace URLs", ()
   assert.match(source, /section\.workspaceHref/)
   assert.doesNotMatch(source, /href="\/workflows"/)
 })
+
+test("customer workflow page labels start links accurately rather than claiming fulfillment readiness", () => {
+  const source = read("src/components/authenticated-workflow-detail.tsx")
+  assert.match(source, /Start page/)
+  assert.match(source, /this does not certify chat execution, end-to-end acceptance, payment, or physical mailing/)
+  assert.doesNotMatch(source, /executionHref \? "Ready"/)
+})
