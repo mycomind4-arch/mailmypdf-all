@@ -30,6 +30,7 @@ test("catalog planner classifies every canonical workflow exactly once", () => {
   }
 });
 
+// Keep this test keyed to the canonical registry: catalog identities grow over time.
 test("catalog planner production queue reconciles to live registry", () => {
   const plan = planCanonicalCatalogProduction();
   const dispositionCounts = [
