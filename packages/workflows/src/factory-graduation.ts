@@ -119,7 +119,13 @@ export function buildFactoryGraduationReport(
   for (const workflow of WORKFLOW_REGISTRY) {
     const check = byId.get(workflow.id);
     if (check?.chatExecutable === true) continue;
-    const { milestone, priority, nextAction } = milestoneFor(check?.reason ?? "");
+    // Local domain intakes appear as "platform-runtime-not-registered" in
+    // chat readiness, but already have analytical logic to promote rather
+    // than building an entirely new runtime from scratch.
+    const { milestone, priority, nextAction } =
+      workflow.execution?.kind === "local"
+        ? milestoneFor("local-domain-intake")
+        : milestoneFor(check?.reason ?? "");
     const priorityBoost = REFERENCE_JOURNEYS.some((journey) => journey.workflowId === workflow.id) ? -1 : 0;
     queue.push(Object.freeze({
       id: workflow.id,
