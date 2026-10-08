@@ -74,7 +74,7 @@ for(const [index,name] of toolNames.entries()){
   const published=annotationMatches[index];
   if(!published) continue; // the catalog-shape check above already reports this
   for(const [offset,key] of ["readOnlyHint","destructiveHint","openWorldHint"].entries()){
-    const claim=justifications[name]?.[key]?.trim().match(/^(true|false)\\b/i)?.[1]?.toLowerCase();
+    const claim=justifications[name]?.[key]?.trim().match(/^(true|false)\b/i)?.[1]?.toLowerCase();
     if(!claim){
       errors.push(`${name} ${key} justification must begin with True or False`);
     }else if(claim!==published[offset+1]){
