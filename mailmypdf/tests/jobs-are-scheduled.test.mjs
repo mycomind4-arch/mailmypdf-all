@@ -67,11 +67,24 @@ describe("scheduling", () => {
     assert.match(yaml, /\$\{\{ secrets\.MAILMYPDF_CONNECTOR_JOB_SECRET \}\}/);
   });
 
-  test("an unconfigured repository skips instead of failing every ten minutes", async () => {
+  test("missing maintenance credentials fail the job rather than reporting a false-green result", async () => {
     const yaml = await readFile(WORKFLOW, "utf8");
-    assert.match(yaml, /configured=false/);
+    assert.doesNotMatch(yaml, /configured=false/);
+    assert.match(yaml, /Required scheduled job credentials are missing/);
+    assert.match(yaml, /exit 1/);
     assert.match(yaml, /steps\.config\.outputs\.configured == 'true'/);
   });
+});
+
+test("Worker cron dispatches authenticated jobs in-process without a public self-fetch", async () => {
+  const server = await readFile(new URL("../src/server.ts", import.meta.url), "utf8");
+  const scheduled = server.slice(server.indexOf("async function handleScheduled("), server.indexOf("export default"));
+  assert.match(scheduled, /const handler = await getServerEntry\(\)/);
+  assert.match(scheduled, /await handler\.fetch\(request, env, ctx\)/);
+  assert.doesNotMatch(scheduled, /await fetch\(/, "Worker-to-Worker public fetch can fail under Cloudflare route restrictions");
+  assert.match(scheduled, /result\.ok !== true/, "cron must reject processors reporting HTTP 200 but unsuccessful work");
+  assert.match(scheduled, /result\.failed > 0/, "cron must report partially failed batches");
+  assert.match(scheduled, /if \(failures\.length > 0\) throw new Error/, "failures must reach Cloudflare cron observability");
 });
 
 describe("job endpoints that still have no schedule", () => {
@@ -105,6 +118,7 @@ describe("job endpoints that still have no schedule", () => {
     );
     assert.ok(byWorkerCron.has("proof-processor"), "the Worker cron must call the proof processor");
     assert.ok(byWorkerCron.has("publication-scheduler"), "the Worker cron must call the publication scheduler");
+    assert.ok(byWorkerCron.has("scheduled-mailings"), "the Worker cron must dispatch approved due mailing schedules");
 
     // These dispatch webhooks and submit to a mailing provider, so turning them
     // on is a business decision rather than a code one. This list records that,
@@ -116,5 +130,36 @@ describe("job endpoints that still have no schedule", () => {
       "proof-webhook-retries",
       "proof-window-expiry",
     ]);
+  });
+});
+
+
+describe("production release gate", () => {
+  const DEPLOY = new URL(".github/workflows/deploy-mailmypdf.yml", repoRoot);
+
+  test("manual deployments are main-only and require actions read permission", async () => {
+    const yaml = await readFile(DEPLOY, "utf8");
+    assert.match(yaml, /github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main'/);
+    assert.match(yaml, /^  actions: read$/m);
+    assert.match(yaml, /AUTO_SUBMIT_TO_LOB: "false"/);
+  });
+
+  test("promotion checks the exact commit and every triggered verification suite", async () => {
+    const yaml = await readFile(DEPLOY, "utf8");
+    const guard = yaml.indexOf("Require successful triggered verification suites");
+    const deployment = yaml.indexOf("Deploy current main and verify public connector");
+    assert.ok(guard >= 0 && deployment > guard, "verification must precede deployment");
+    assert.match(yaml, /github\.rest\.actions\.listWorkflowRunsForRepo/);
+    assert.match(yaml, /run\.head_sha !== sha/);
+    assert.match(yaml, /run\.conclusion !== "success"/);
+    assert.match(yaml, /run\.status !== "completed"/);
+    for (const check of [
+      "Workspace UI verification", "Shared capability verification",
+      "Factory generated workflow verification", "Public workflow landing gate",
+      "Records Request verification", "Notice Respond package verification",
+      "SSDI Appeal verification",
+    ]) {
+      assert.ok(yaml.includes('"' + check + '"'), "Missing release-gated check: " + check);
+    }
   });
 });

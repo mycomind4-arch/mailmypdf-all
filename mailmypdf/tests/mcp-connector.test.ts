@@ -505,6 +505,16 @@ test("remote attachment URLs reject local/private/nonstandard targets", () => {
     /not allowed/i,
   );
 
+  assert.throws(
+    () => validateRemoteDocumentUrl("https://files.example.com/file.pdf", []),
+    /not allowed/i,
+    "Remote file ingestion must fail closed when no trusted hosts are configured",
+  );
+  assert.throws(
+    () => validateRemoteDocumentUrl("https://files.example.com.evil.net/file.pdf", ["files.example.com"]),
+    /not allowed/i,
+  );
+
   const accepted = validateRemoteDocumentUrl(
     "https://files.example.com/file.pdf",
     ["files.example.com"],
@@ -535,11 +545,13 @@ test("assistant PDF download preserves provider provenance without trusting MIME
     },
     {
       allowedHostPatterns: ["files.example.com"],
-      fetchImpl: async () =>
-        new Response(pdf, {
+      fetchImpl: async (_url, options) => {
+        assert.ok(options?.signal instanceof AbortSignal, "Remote attachment download must be time-bounded");
+        return new Response(pdf, {
           status: 200,
           headers: { "content-type": "application/pdf" },
-        }),
+        });
+      },
     },
   );
 
@@ -559,7 +571,7 @@ test("assistant file redirects are revalidated before following", async () => {
           file_id: "file_redirect",
         },
         {
-          allowedHostPatterns: [],
+          allowedHostPatterns: ["files.example.com"],
           fetchImpl: async () =>
             new Response(null, {
               status: 302,

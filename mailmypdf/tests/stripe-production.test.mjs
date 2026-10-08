@@ -282,3 +282,105 @@ describe("Stripe Production — Refund Logic (Inline)", () => {
     assert.equal(idempotencyKey, "refund_pi_12345_full");
   });
 });
+
+describe("Legacy Quote Payment Safety", () => {
+  it("checkout return URLs are server-origin only; clients supply only a quote id", async () => {
+    const checkout = await source("src/lib/stripe-payment.functions.ts");
+    const page = await source("src/routes/checkout.review.tsx");
+    const schema = checkout.slice(checkout.indexOf("const CreateCheckoutSessionSchema"), checkout.indexOf("const ProcessPaymentSchema"));
+    assert.ok(schema.includes("quoteId: z.string().uuid()"));
+    assert.ok(!schema.includes("successUrl") && !schema.includes("cancelUrl"));
+    assert.ok(checkout.includes("success_url: new URL("));
+    assert.ok(checkout.includes("cancel_url: new URL("));
+    assert.ok(checkout.includes("getMailMyPdfBaseUrl()"));
+    assert.ok(!page.includes("successUrl:") && !page.includes("cancelUrl:"));
+  });
+
+  it("legacy refunds require a privileged role and a settled, matching payment", async () => {
+    const sourceText = await source("src/lib/stripe-payment.functions.ts");
+    const section = sourceText.slice(sourceText.indexOf("export const createRefund"), sourceText.indexOf("// WEBHOOK HANDLER"));
+    for (const required of [
+      '.from("user_roles")', '.eq("role", "admin")',
+      'order.status !== "accepted"', "paymentIntents.retrieve(paymentIntentId)",
+      "intent.metadata.quote_id !== order.id",
+      "intent.metadata.user_id !== order.user_id",
+      "intent.amount_received !== order.total_cents",
+      "legacy_quote_refund_", 'refund.status === "succeeded"',
+    ]) {
+      assert.ok(section.includes(required), "Missing refund safeguard: " + required);
+    }
+  });
+  it("checkout session creation and database persistence are retry-safe", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const checkout = text.slice(text.indexOf("export const createCheckoutSession"), text.indexOf("// PROCESS PAYMENT"));
+    assert.ok(checkout.includes("legacy_quote_checkout_"));
+    assert.ok(checkout.includes("checkoutSaveError"));
+    assert.ok(checkout.includes('eq("status", "pending")'));
+  });
+  it("refund persistence errors cannot be reported as successful", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const refund = text.slice(text.indexOf("export const createRefund"), text.indexOf("// WEBHOOK HANDLER"));
+    assert.ok(refund.includes("refundSaveError"));
+    assert.ok(refund.includes("!refundedQuote"));
+    assert.ok(refund.includes("Refund initiated but not reconciled"));
+  });
+
+});
+
+
+describe("Legacy Quote Settlement Through Production Webhooks", () => {
+  it("routes signed Checkout and PaymentIntent events to verified quote settlement", async () => {
+    const live = await source("src/routes/api/public/payments/webhook.ts");
+    assert.ok(live.includes('session.metadata?.quote_id'));
+    assert.ok(live.includes('session.payment_status !== "paid"'));
+    assert.ok(live.includes('paymentIntents.retrieve(session.payment_intent)'));
+    assert.ok(live.includes('case "payment_intent.succeeded":'));
+    assert.ok(live.includes('checkout.sessions.list({'));
+    assert.ok(live.includes('handleStripePaymentSuccess(intent, session.id)'));
+    assert.ok(live.includes('await markOrderPaid(session, origin, log, event.id)'), "Order checkout must remain supported");
+  });
+  it("requires strict quote, owner, session and settled-amount binding, with idempotent update", async () => {
+    const text = await source("src/lib/stripe-payment.functions.ts");
+    const section = text.slice(text.indexOf("export async function handleStripePaymentSuccess("), text.indexOf("// CREATE REFUND"));
+    for (const safeguard of [
+      'paymentIntent.status !== "succeeded"',
+      'metadata.stripe_session_id !== checkoutSessionId',
+      'paymentIntent.metadata.user_id !== quote.user_id',
+      'paymentIntent.currency !== "usd"',
+      'paymentIntent.amount_received !== quote.total_cents',
+      'quote.status === "accepted"',
+      'quote.status !== "pending"',
+      '.eq("status", "pending")',
+      'stripe_payment_intent_id: paymentIntent.id',
+      'alreadyProcessed: true',
+    ]) {
+      assert.ok(section.includes(safeguard), "Missing quote settlement guard: " + safeguard);
+    }
+  });
+});
+
+
+describe("Legacy Quote Refund Webhook Reconciliation", () => {
+  it("routes quote refund metadata separately from ordinary order refund events", async () => {
+    const route = await source("src/routes/api/public/payments/webhook.ts");
+    assert.ok(route.includes('refund.metadata?.order_id && refund.metadata?.user_id'));
+    assert.ok(route.includes('handleLegacyQuoteRefundEvent(event.data.object as Stripe.Refund)'));
+    assert.ok(route.includes('await handleRefundEvent(refund, log, event.id)'));
+  });
+  it("marks quote reversed only after a matching full Stripe refund succeeds", async () => {
+    const content = await source("src/lib/stripe-payment.functions.ts");
+    const ref = content.slice(content.indexOf("export async function handleLegacyQuoteRefundEvent"), content.indexOf("// WEBHOOK HANDLER"));
+    for (const term of [
+      'refund.status !== "succeeded"',
+      'refund.amount !== quote.total_cents',
+      'quote.user_id !== ownerId',
+      'metadata.stripe_payment_intent_id !== paymentIntentId',
+      'metadata.refund_id !== refund.id',
+      'quote.status !== "accepted"',
+      'status: "reversed"',
+      '.eq("status", "accepted")',
+    ]) {
+      assert.ok(ref.includes(term), "Missing refund webhook safeguard: " + term);
+    }
+  });
+});

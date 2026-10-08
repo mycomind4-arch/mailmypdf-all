@@ -14,6 +14,7 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import type Stripe from "stripe";
 import { createStripeClient, getStripeEnvironment, getMailMyPdfBaseUrl, getStripeErrorMessage } from "@/lib/stripe.server";
 import { sendPaymentConfirmationEmail } from "@/lib/email.server";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
@@ -33,6 +34,9 @@ import { withRetry } from "@/lib/retry";
  */
 interface CheckoutSessionMetadata {
   orderId?: string;
+  // Legacy pricing-quote checkout uses snake_case metadata, unlike order mail.
+  quote_id?: string;
+  user_id?: string;
   isBulk?: string;
   orderIds?: string;
   bulkOrderId?: string;
@@ -61,7 +65,7 @@ interface StripeRefundEvent {
   status: string;
   payment_intent: string | null;
   reason?: string | null;
-  metadata?: { orderId?: string } | null;
+  metadata?: { orderId?: string; order_id?: string; user_id?: string } | null;
 }
 
 type WebhookObject = StripeCheckoutSession | StripePaymentIntent | StripeRefundEvent;
@@ -578,9 +582,42 @@ async function handleWebhook(req: Request, log: ReturnType<typeof createRequestL
 
   switch (event.type) {
     case "checkout.session.completed":
-    case "checkout.session.async_payment_succeeded":
-      await markOrderPaid(event.data.object as StripeCheckoutSession, origin, log, event.id);
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as StripeCheckoutSession;
+      // The legacy quote Checkout and direct-mail order Checkout share this
+      // signed Stripe endpoint, but have distinct metadata and persistence.
+      if (session.metadata?.quote_id) {
+        if (session.payment_status !== "paid") break;
+        if (typeof session.payment_intent !== "string") {
+          throw new Error("Paid quote Checkout Session has no PaymentIntent");
+        }
+        const intent = await createStripeClient().paymentIntents.retrieve(session.payment_intent);
+        const { handleStripePaymentSuccess } = await import("@/lib/stripe-payment.functions");
+        await handleStripePaymentSuccess(intent, session.id);
+      } else {
+        await markOrderPaid(session, origin, log, event.id);
+      }
       break;
+    }
+    case "payment_intent.succeeded": {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      if (intent.metadata?.quote_id) {
+        // Some Stripe configurations deliver the PaymentIntent success event
+        // without the Checkout Session event. Resolve its exact Session first.
+        const sessions = await createStripeClient().checkout.sessions.list({
+          payment_intent: intent.id,
+          limit: 10,
+        });
+        const session = sessions.data.find((candidate) =>
+          candidate.metadata?.quote_id === intent.metadata.quote_id &&
+          candidate.payment_status === "paid"
+        );
+        if (!session) throw new Error("Quote PaymentIntent has no settled matching Checkout Session");
+        const { handleStripePaymentSuccess } = await import("@/lib/stripe-payment.functions");
+        await handleStripePaymentSuccess(intent, session.id);
+      }
+      break;
+    }
 
     case "checkout.session.async_payment_failed":
     case "payment_intent.payment_failed":
@@ -589,9 +626,18 @@ async function handleWebhook(req: Request, log: ReturnType<typeof createRequestL
 
     case "charge.refunded":
     case "refund.created":
-    case "refund.updated":
-      await handleRefundEvent(event.data.object as StripeRefundEvent, log, event.id);
+    case "refund.updated": {
+      const refund = event.data.object as StripeRefundEvent;
+      // Only the legacy quote refund path writes snake_case order_id plus
+      // user_id metadata. Normal order refunds keep their existing handler.
+      if (refund.metadata?.order_id && refund.metadata?.user_id) {
+        const { handleLegacyQuoteRefundEvent } = await import("@/lib/stripe-payment.functions");
+        await handleLegacyQuoteRefundEvent(event.data.object as Stripe.Refund);
+      } else {
+        await handleRefundEvent(refund, log, event.id);
+      }
       break;
+    }
 
     // ── Subscription lifecycle events ────────────────────────────────────────
     case "customer.subscription.created": {

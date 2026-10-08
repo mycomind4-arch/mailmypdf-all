@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { validateTrustedRemoteFileHosts } from "./validate-remote-file-hosts.mjs";
 
 /**
  * MailMyPDF production-readiness preflight.
@@ -144,6 +145,14 @@ const scannerUrl = requireValue("MAILMYPDF_MALWARE_SCANNER_URL");
 requireSecret("MAILMYPDF_MALWARE_SCANNER_KEY", 32);
 requireSecret("MAILMYPDF_RETENTION_JOB_SECRET", 32);
 requireSecret("MAILMYPDF_CONNECTOR_JOB_SECRET", 32);
+
+// Generic Internet egress is not allowed for temporary assistant attachments.
+const remoteFileHosts = requireValue("MCP_REMOTE_FILE_HOSTS");
+if (remoteFileHosts) {
+  const hosts = validateTrustedRemoteFileHosts(remoteFileHosts);
+  if (hosts.ok) pass("Trusted assistant attachment hosts", hosts.count + " configured");
+  else fail("MCP_REMOTE_FILE_HOSTS", "must contain trusted public domain names or scoped wildcards");
+}
 
 const baseUrl = requireValue("MAILMYPDF_BASE_URL");
 if (baseUrl) {

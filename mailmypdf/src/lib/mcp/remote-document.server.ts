@@ -156,8 +156,11 @@ export function validateRemoteDocumentUrl(
     );
   }
 
+  // Without an explicit provider host allowlist, remote ingestion is disabled.
+  // Public-HTTPS-only checks do not prevent DNS rebinding or cloud metadata
+  // egress. Keep this fail-closed even on redirects.
   if (
-    allowedHostPatterns.length > 0 &&
+    allowedHostPatterns.length === 0 ||
     !allowedHostPatterns.some((pattern) => hostnameMatchesPattern(hostname, pattern))
   ) {
     throw new AssistantFileIngressError(
@@ -333,6 +336,9 @@ export async function downloadAssistantFile(
     response = await fetchImpl(url, {
       method: "GET",
       redirect: "manual",
+      // Bound both the response handshake and streaming read. A permitted
+      // provider endpoint must not be able to hold a Worker open indefinitely.
+      signal: AbortSignal.timeout(30_000),
       headers: {
         accept: "application/pdf,image/png,image/jpeg,image/tiff,text/plain;q=0.9,*/*;q=0.1",
       },

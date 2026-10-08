@@ -35,6 +35,12 @@ export const Route = createFileRoute("/api/internal/scheduled-mailings")({
             ? await processScheduledMailing(scheduleId)
             : await processDueScheduledMailings(limit);
 
+          // Cron monitoring must not report success if an individual scheduled
+          // execution failed. Deferred (feature-disabled) schedules are safe.
+          if ("results" in result && result.results.some((entry) => entry.error)) {
+            log.error("one or more scheduled mailings failed");
+            return attachRequestId(Response.json({ ok: false, error: "Scheduled mailing processing failed" }, { status: 500 }), requestId);
+          }
           log.info("scheduled mail job processed", {
             scheduleId,
             dueBatch: !scheduleId,

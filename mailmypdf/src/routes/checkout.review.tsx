@@ -61,15 +61,9 @@ function CheckoutReviewPage() {
       setSubmitting(true);
       setError(null);
 
-      // Get current URL for success/cancel redirects
-      const currentUrl = new URL(window.location.href);
-      const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
-
       const result = await createCheckoutSession({
         headers: await authenticatedHeaders(),
-        data: { quoteId: search.quoteId,
-        successUrl: `${baseUrl}/checkout/success?quoteId=${search.quoteId}`,
-        cancelUrl: `${baseUrl}/checkout/cancelled?quoteId=${search.quoteId}` },
+        data: { quoteId: search.quoteId },
       });
 
       if (!result.success) {

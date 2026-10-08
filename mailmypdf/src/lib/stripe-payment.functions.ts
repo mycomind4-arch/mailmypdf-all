@@ -15,6 +15,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequest } from "@tanstack/react-start/server";
 import Stripe from "stripe";
+import { createStripeClient, getMailMyPdfBaseUrl } from "@/lib/stripe.server";
+import { getConfig } from "@/config";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { getSupabaseServer } from "@/lib/user-client.server";
 import { getSupabaseAdmin, logAuditEntry } from "@/lib/supabase-admin.server";
@@ -27,9 +29,7 @@ function quoteMetadata(value: Json | null): { [key: string]: Json | undefined } 
 
 // Initialize only on the server when an operation actually needs Stripe.
 function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Payment processing is not configured");
-  return new Stripe(key);
+  return createStripeClient();
 }
 
 // ============================================================================
@@ -38,8 +38,6 @@ function getStripe() {
 
 const CreateCheckoutSessionSchema = z.object({
   quoteId: z.string().uuid(),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
 });
 
 const ProcessPaymentSchema = z.object({
@@ -147,12 +145,14 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         },
       ];
 
+      // A quote can be retried after a lost HTTP response. Reuse the original
+      // Stripe session rather than creating multiple payment opportunities.
       const session = await getStripe().checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
         customer_email: userEmail,
-        success_url: validInput.successUrl,
-        cancel_url: validInput.cancelUrl,
+        success_url: new URL(`/checkout/success?quoteId=${encodeURIComponent(quote.id)}`, getMailMyPdfBaseUrl()).toString(),
+        cancel_url: new URL(`/checkout/cancelled?quoteId=${encodeURIComponent(quote.id)}`, getMailMyPdfBaseUrl()).toString(),
         line_items: lineItems,
         metadata: {
           quote_id: quote.id,
@@ -168,6 +168,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
             user_id: user.id,
           },
         },
+      }, {
+        idempotencyKey: `legacy_quote_checkout_${quote.id}`,
       });
 
       // ────────────────────────────────────────────────────────────────
@@ -175,7 +177,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       // ────────────────────────────────────────────────────────────────
 
       const admin = getSupabaseAdmin();
-      await admin
+      const { data: checkedOutQuote, error: checkoutSaveError } = await admin
         .from("pricing_quotes")
         .update({
           metadata: {
@@ -184,7 +186,14 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
             checkout_started_at: new Date().toISOString(),
           },
         })
-        .eq("id", quote.id);
+        .eq("id", quote.id)
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (checkoutSaveError || !checkedOutQuote) {
+        throw new Error("Unable to preserve the checkout session. Retry the same quote.");
+      }
 
       // Log to audit trail
       await logAuditEntry({
@@ -225,49 +234,80 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
  * Updates quote status to "accepted" and logs payment.
  */
 export async function handleStripePaymentSuccess(
-  paymentIntentId: string,
-  quoteId: string,
-  amount: number
+  paymentIntent: Stripe.PaymentIntent,
+  checkoutSessionId: string,
 ) {
-  const admin = getSupabaseAdmin();
+  const quoteId = paymentIntent.metadata?.quote_id;
+  if (!quoteId || !checkoutSessionId || paymentIntent.status !== "succeeded") {
+    throw new Error("Quote settlement requires a successful Stripe payment and its Checkout Session");
+  }
 
-  // Get quote
+  const admin = getSupabaseAdmin();
   const { data: quote, error: quoteError } = await admin
     .from("pricing_quotes")
     .select("*")
     .eq("id", quoteId)
     .single();
-
   if (quoteError || !quote) {
-    throw new Error(`Quote ${quoteId} not found`);
+    throw new Error("Payment references an unknown quote");
   }
 
-  // Verify amount matches quote
-  if (amount !== quote.total_cents) {
-    throw new Error(
-      `Payment amount ${amount} does not match quote amount ${quote.total_cents}`
-    );
+  const metadata = quoteMetadata(quote.metadata);
+  // Both the PaymentIntent and the signed Checkout Session must refer to the
+  // same preexisting owner-bound quote. Do not trust Stripe metadata alone.
+  if (
+    metadata.stripe_session_id !== checkoutSessionId ||
+    paymentIntent.metadata.user_id !== quote.user_id ||
+    paymentIntent.currency !== "usd" ||
+    paymentIntent.amount !== quote.total_cents ||
+    paymentIntent.amount_received !== quote.total_cents
+  ) {
+    throw new Error("Stripe payment identity, session, currency or amount does not match the quote");
   }
 
-  // Update quote status
-  const { error: updateError } = await admin
+  // Stripe can retry and deliver events out of order. Once the quote has been
+  // accepted or refunded, never regress it to pending/accepted via replay.
+  if (quote.status === "accepted" && metadata.stripe_payment_intent_id === paymentIntent.id) {
+    return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: true };
+  }
+  if (quote.status !== "pending") {
+    throw new Error("Quote is not awaiting this payment");
+  }
+
+  const { data: accepted, error: updateError } = await admin
     .from("pricing_quotes")
     .update({
       status: "accepted",
       accepted_at: new Date().toISOString(),
       metadata: {
-        ...quoteMetadata(quote.metadata),
-        stripe_payment_intent_id: paymentIntentId,
+        ...metadata,
+        stripe_payment_intent_id: paymentIntent.id,
         payment_processed_at: new Date().toISOString(),
       },
     })
-    .eq("id", quoteId);
-
-  if (updateError) {
-    throw new Error(`Failed to update quote: ${updateError.message}`);
+    .eq("id", quoteId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (updateError) throw new Error("Unable to record settled quote payment");
+  if (!accepted) {
+    // Concurrent copies of the webhook may both see pending, but only one
+    // may perform the transition. Confirm the other successfully committed it.
+    const { data: latest, error: latestError } = await admin
+      .from("pricing_quotes")
+      .select("status,metadata")
+      .eq("id", quoteId)
+      .single();
+    if (
+      latestError ||
+      latest?.status !== "accepted" ||
+      quoteMetadata(latest.metadata).stripe_payment_intent_id !== paymentIntent.id
+    ) {
+      throw new Error("Quote payment settlement conflicted with another state change");
+    }
+    return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: true };
   }
 
-  // Log payment success
   await logAuditEntry({
     actor: quote.user_id,
     action: "quote_accepted",
@@ -275,13 +315,12 @@ export async function handleStripePaymentSuccess(
     resourceId: quoteId,
     changes: {
       status: "accepted",
-      stripe_payment_intent_id: paymentIntentId,
-      amount: amount,
+      stripe_payment_intent_id: paymentIntent.id,
+      amount: paymentIntent.amount_received,
     },
-    reason: "Payment processed successfully",
+    reason: "Verified Stripe payment settled",
   });
-
-  return { success: true, quoteId, paymentIntentId };
+  return { success: true, quoteId, paymentIntentId: paymentIntent.id, alreadyProcessed: false };
 }
 
 // ============================================================================
@@ -319,6 +358,15 @@ export const createRefund = createServerFn({ method: "POST" })
       }
 
       const admin = getSupabaseAdmin();
+      // Refunds are consequential financial actions: an authenticated customer
+      // cannot grant themselves a refund by invoking this server function.
+      const { data: staffRole, error: staffRoleError } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (staffRoleError || !staffRole) throw new Error("Admin authorization required for refunds");
 
       // Get order (placeholder - would be from orders table in production)
       // For now, we'll assume order has a quote_id in metadata
@@ -326,11 +374,15 @@ export const createRefund = createServerFn({ method: "POST" })
         .from("pricing_quotes") // This would be 'orders' table
         .select("*")
         .eq("id", validInput.orderId)
-        .eq("user_id", user.id)
         .single();
 
-      if (!order) {
-        throw new Error("Order not found");
+      if (!order || order.status !== "accepted") {
+        throw new Error("Only a settled, accepted quote can be refunded");
+      }
+
+      const originalMetadata = quoteMetadata(order.metadata);
+      if (originalMetadata.refund_id) {
+        throw new Error("This quote already has a refund recorded");
       }
 
       const paymentIntentId =
@@ -340,30 +392,60 @@ export const createRefund = createServerFn({ method: "POST" })
         throw new Error("Order has no payment intent ID");
       }
 
+      // Never refund based only on editable quote metadata. Reconcile the actual
+      // Stripe payment, settled amount, currency, quote and customer identity.
+      const stripe = getStripe();
+      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (
+        intent.status !== "succeeded" ||
+        intent.metadata.quote_id !== order.id ||
+        intent.metadata.user_id !== order.user_id ||
+        intent.currency !== "usd" ||
+        intent.amount_received !== order.total_cents
+      ) {
+        throw new Error("The settled Stripe payment does not match the approved quote");
+      }
+
       // Create refund via Stripe
-      const refund = await getStripe().refunds.create({
+      const refund = await stripe.refunds.create({
         payment_intent: paymentIntentId,
         reason: validInput.reason === "other" ? undefined : validInput.reason,
         metadata: {
           order_id: validInput.orderId,
-          user_id: user.id,
+          user_id: order.user_id,
+          issued_by: user.id,
           reason_text: validInput.reasonText || "",
         },
+      }, {
+        idempotencyKey: `legacy_quote_refund_${validInput.orderId}_${paymentIntentId}`,
       });
 
       // Mark quote as reversed in database
-      await admin
+      const { data: refundedQuote, error: refundSaveError } = await admin
         .from("pricing_quotes")
         .update({
-          status: "reversed",
+          ...(refund.status === "succeeded" ? { status: "reversed" } : {}),
           metadata: {
-            ...quoteMetadata(order.metadata),
+            ...originalMetadata,
             refund_id: refund.id,
-            refunded_at: new Date().toISOString(),
+            refund_status: refund.status,
+            refund_requested_at: new Date().toISOString(),
             refund_reason: validInput.reason,
           },
         })
-        .eq("id", validInput.orderId);
+        .eq("id", validInput.orderId)
+        .eq("status", "accepted")
+        .select("id")
+        .maybeSingle();
+      if (refundSaveError || !refundedQuote) {
+        // The Stripe refund may already exist. Do not attempt a second refund.
+        console.error("Stripe refund created but database reconciliation failed", {
+          quoteId: validInput.orderId,
+          refundId: refund.id,
+          dbError: refundSaveError?.message ?? "quote status changed",
+        });
+        throw new Error("Refund initiated but not reconciled; contact support with the quote ID");
+      }
 
       // Log refund
       await logAuditEntry({
@@ -372,7 +454,7 @@ export const createRefund = createServerFn({ method: "POST" })
         resourceType: "quote",
         resourceId: validInput.orderId,
         changes: {
-          status: "reversed",
+          status: refund.status === "succeeded" ? "reversed" : "refund_pending",
           refund_id: refund.id,
           refund_amount: refund.amount,
         },
@@ -384,7 +466,7 @@ export const createRefund = createServerFn({ method: "POST" })
         refundId: refund.id,
         amount: refund.amount,
         status: refund.status,
-        message: "Refund processed successfully",
+        message: refund.status === "succeeded" ? "Refund completed" : "Refund requested; awaiting settlement",
       };
     } catch (error) {
       console.error("Error creating refund:", error);
@@ -395,6 +477,76 @@ export const createRefund = createServerFn({ method: "POST" })
       };
     }
   });
+
+/**
+ * Reconcile legacy quote refunds from the production, signature-verified Stripe
+ * webhook. A created/pending refund never counts as a completed refund.
+ */
+export async function handleLegacyQuoteRefundEvent(refund: Stripe.Refund): Promise<void> {
+  const quoteId = refund.metadata?.order_id;
+  const ownerId = refund.metadata?.user_id;
+  if (!quoteId || !ownerId) throw new Error("Legacy quote refund identity is missing");
+  const paymentIntentId = typeof refund.payment_intent === "string"
+    ? refund.payment_intent
+    : refund.payment_intent?.id ?? null;
+  if (!paymentIntentId) throw new Error("Legacy quote refund has no PaymentIntent");
+
+  const admin = getSupabaseAdmin();
+  const { data: quote, error } = await admin
+    .from("pricing_quotes")
+    .select("*")
+    .eq("id", quoteId)
+    .single();
+  if (error || !quote || quote.user_id !== ownerId) {
+    throw new Error("Legacy quote refund owner does not match");
+  }
+  const metadata = quoteMetadata(quote.metadata);
+  if (metadata.stripe_payment_intent_id !== paymentIntentId) {
+    throw new Error("Legacy quote refund PaymentIntent does not match");
+  }
+  if (refund.status !== "succeeded") return;
+  if (refund.amount !== quote.total_cents) {
+    // Partial refunds are legitimate Stripe events, but they must never be
+    // mistaken for full quote reversal. Do not trigger pointless webhook
+    // retries for a valid partial refund; leave it for staff reconciliation.
+    console.warn("Partial legacy quote refund requires staff reconciliation", {
+      quoteId, refundId: refund.id,
+    });
+    return;
+  }
+  if (quote.status === "reversed" && metadata.refund_id === refund.id) return;
+  if (quote.status !== "accepted" || metadata.refund_id !== refund.id) {
+    // If the webhook outran the original write-back, returning an error makes
+    // Stripe retry; no financial action is repeated from this observer.
+    throw new Error("Legacy quote refund has not been reconciled to the accepted quote");
+  }
+
+  const { data: updated, error: updateError } = await admin
+    .from("pricing_quotes")
+    .update({
+      status: "reversed",
+      metadata: {
+        ...metadata,
+        refund_status: refund.status,
+        refunded_at: new Date().toISOString(),
+      },
+    })
+    .eq("id", quoteId)
+    .eq("status", "accepted")
+    .select("id")
+    .maybeSingle();
+  if (updateError) throw new Error("Unable to reconcile successful quote refund");
+  if (!updated) {
+    const { data: latest } = await admin
+      .from("pricing_quotes")
+      .select("status,metadata")
+      .eq("id", quoteId)
+      .single();
+    if (latest?.status !== "reversed" || quoteMetadata(latest.metadata).refund_id !== refund.id) {
+      throw new Error("Conflicting quote refund reconciliation");
+    }
+  }
+}
 
 // ============================================================================
 // WEBHOOK HANDLER (Express endpoint)
@@ -426,7 +578,7 @@ export async function handleStripeWebhook(req: Request) {
     event = getStripe().webhooks.constructEvent(
       body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
+      getConfig().stripe.webhookSecret
     );
   } catch (error) {
     console.error("Webhook signature verification failed:", error);
@@ -441,11 +593,16 @@ export async function handleStripeWebhook(req: Request) {
         const quoteId = paymentIntent.metadata?.quote_id;
 
         if (quoteId) {
-          await handleStripePaymentSuccess(
-            paymentIntent.id,
-            quoteId,
-            paymentIntent.amount
+          const sessions = await getStripe().checkout.sessions.list({
+            payment_intent: paymentIntent.id,
+            limit: 10,
+          });
+          const session = sessions.data.find((candidate) =>
+            candidate.metadata?.quote_id === quoteId &&
+            candidate.payment_status === "paid"
           );
+          if (!session) throw new Error("Verified quote Checkout Session not found");
+          await handleStripePaymentSuccess(paymentIntent, session.id);
         }
         break;
       }

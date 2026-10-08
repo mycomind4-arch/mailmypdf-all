@@ -17,8 +17,8 @@
 #   MAILMYPDF_RETENTION_JOB_SECRET matches the app's env of the same name
 #   MAILMYPDF_CONNECTOR_JOB_SECRET matches the app's env of the same name
 #
-# Until those are set, every run skips quietly rather than failing on a
-# schedule and mailing the repository owner every few minutes.
+# Missing credentials fail each scheduled job loudly; a green run must mean
+# the scanner, retention, or reconciliation worker actually ran.
 
 name: Secure core jobs
 
@@ -57,8 +57,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
-            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -102,8 +103,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
-            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -143,8 +145,9 @@ jobs:
           JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$JOB_SECRET" ]; then
-            echo "Secrets are not configured; skipping." >> "$GITHUB_STEP_SUMMARY"
-            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Missing required scheduled job configuration." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Required scheduled job credentials are missing; refusing a false-green run."
+            exit 1
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi

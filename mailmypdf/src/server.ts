@@ -76,8 +76,7 @@ async function handleScheduled(
 ): Promise<void> {
   const cleanupSecret = env.MAILMYPDF_CLEANUP_SECRET;
   if (!cleanupSecret) {
-    console.error("[scheduled] MAILMYPDF_CLEANUP_SECRET not set — skipping cron tasks");
-    return;
+    throw new Error("[scheduled] MAILMYPDF_CLEANUP_SECRET not set — cron tasks cannot run");
   }
 
   // Determine the base URL — use the env var or fall back to the deployed URL
@@ -85,28 +84,58 @@ async function handleScheduled(
 
   console.log(`[scheduled] cron "${controller.cron}" fired — calling internal processors`);
 
-  const jobs = ["proof-processor", "publication-scheduler"] as const;
+  // Direct-mail schedules have an approval-bound payment/provider safety interlock.
+  // The legacy process-scheduled order flow is intentionally NOT auto-dispatched.
+  const jobs = ["proof-processor", "publication-scheduler", "scheduled-mailings"] as const;
+  // A Worker cannot safely call its own public route via global fetch():
+  // same-zone routing restrictions can reject the subrequest (1042). Reuse
+  // the already-loaded TanStack request handler in the cron invocation.
+  // Each job still passes through its existing authenticated POST route.
+  const handler = await getServerEntry();
+  const failures: string[] = [];
   for (const job of jobs) {
     try {
-      const response = await fetch(`${baseUrl}/api/internal/${job}`, {
+      const request = new Request(new URL(`/api/internal/${job}`, baseUrl), {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${cleanupSecret}`,
           "Content-Type": "application/json",
         },
+        body: "{}",
       });
+      const response = await handler.fetch(request, env, ctx);
 
       if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        console.error(`[scheduled] ${job} returned ${response.status}: ${body}`);
-      } else {
-        const result = await response.json().catch(() => ({}));
-        console.log(`[scheduled] ${job} completed:`, result);
+        console.error(`[scheduled] ${job} returned HTTP ${response.status}`);
+        failures.push(`${job}: HTTP ${response.status}`);
+        continue;
       }
+
+      // Some maintenance processors can return HTTP 200 while reporting
+      // partial failures; do not record those runs as successful.
+      const result = await response.json() as {
+        ok?: boolean;
+        failed?: number;
+        unhandled?: boolean;
+      };
+      if (
+        !result || typeof result !== "object" ||
+        result.ok !== true ||
+        result.unhandled === true ||
+        (typeof result.failed === "number" && result.failed > 0)
+      ) {
+        console.error(`[scheduled] ${job} reported an unsuccessful batch`);
+        failures.push(`${job}: job reported failure`);
+        continue;
+      }
+
+      console.log(`[scheduled] ${job} completed successfully`);
     } catch (error) {
-      console.error(`[scheduled] failed to call ${job}:`, error);
+      console.error(`[scheduled] failed to execute ${job}:`, error);
+      failures.push(`${job}: execution failure`);
     }
   }
+  if (failures.length > 0) throw new Error(`[scheduled] ${failures.join("; ")}`);
 }
 
 export default {
