@@ -15,7 +15,6 @@ test("catalog planner classifies every canonical workflow exactly once", () => {
   const plan = planCanonicalCatalogProduction();
 
   assert.equal(plan.total, WORKFLOW_REGISTRY_COUNT);
-  assert.equal(plan.total, 441);
   assert.equal(plan.workflows.length, WORKFLOW_REGISTRY.length);
 
   const plannedIds = new Set(plan.workflows.map((workflow) => workflow.workflowId));
@@ -31,64 +30,68 @@ test("catalog planner classifies every canonical workflow exactly once", () => {
   }
 });
 
-test("catalog planner exposes the current 441-workflow production queue", () => {
+test("catalog planner production queue reconciles to live registry", () => {
   const plan = planCanonicalCatalogProduction();
+  const dispositionCounts = [
+    plan.complete,
+    plan.readyNow,
+    plan.reviewRequired,
+    plan.orchestratorRequired,
+    plan.materializerRequired,
+    plan.adapterRequired,
+  ];
 
-  assert.deepEqual(
-    {
-      total: plan.total,
-      complete: plan.complete,
-      unfinished: plan.unfinished,
-      readyNow: plan.readyNow,
-      reviewRequired: plan.reviewRequired,
-      orchestratorRequired: plan.orchestratorRequired,
-      materializerRequired: plan.materializerRequired,
-      adapterRequired: plan.adapterRequired,
-    },
-    {
-      total: 441,
-      complete: 24,
-      unfinished: 417,
-      readyNow: 25,
-      reviewRequired: 26,
-      orchestratorRequired: 0,
-      materializerRequired: 29,
-      adapterRequired: 337,
-    },
-  );
+  assert.equal(plan.total, WORKFLOW_REGISTRY_COUNT);
+  assert.equal(plan.complete + plan.unfinished, plan.total);
+  assert.equal(dispositionCounts.reduce((sum, value) => sum + value, 0), plan.total);
+  assert.equal(plan.families.reduce((sum, family) => sum + family.total, 0), plan.total);
+  assert.equal(plan.families.reduce((sum, family) => sum + family.complete, 0), plan.complete);
+
+  for (const family of plan.families) {
+    assert.equal(family.complete + family.unfinished, family.total);
+    assert.equal(family.unlockCount, family.unfinished);
+    assert.equal(
+      family.complete + family.readyNow + family.reviewRequired +
+        family.orchestratorRequired + family.materializerRequired +
+        family.adapterRequired,
+      family.total,
+    );
+  }
 });
 
-test("records-request is immediately buildable while notice-response remains reviewed", () => {
+test("records-request is factory-ready while notice-response is review-gated", () => {
   const plan = planCanonicalCatalogProduction();
 
-  const records = plan.families.find(
-    (family) => family.familyId === "records-request",
-  );
+  const records = plan.families.find((family) => family.familyId === "records-request");
   assert.ok(records);
-  assert.equal(records.total, 30);
-  assert.equal(records.complete, 5);
-  assert.equal(records.readyNow, 25);
-  assert.equal(records.unlockCount, 25);
-
-  const notices = plan.families.find(
-    (family) => family.familyId === "notice-response",
+  assert.equal(records.readiness, "factory-ready");
+  assert.equal(records.complete + records.readyNow, records.total);
+  assert.equal(
+    records.total,
+    WORKFLOW_REGISTRY.filter(
+      (workflow) => factoryFamilyForWorkflow(workflow).id === "records-request",
+    ).length,
   );
+
+  const notices = plan.families.find((family) => family.familyId === "notice-response");
   assert.ok(notices);
-  assert.equal(notices.total, 31);
-  assert.equal(notices.complete, 5);
-  assert.equal(notices.reviewRequired, 26);
-  assert.equal(notices.unlockCount, 26);
+  assert.equal(notices.readiness, "review-gated");
+  assert.equal(notices.complete + notices.reviewRequired, notices.total);
+  assert.equal(
+    notices.total,
+    WORKFLOW_REGISTRY.filter(
+      (workflow) => factoryFamilyForWorkflow(workflow).id === "notice-response",
+    ).length,
+  );
 });
 
-test("family summaries rank the largest unfinished production multipliers first", () => {
+test("family summaries rank unfinished production multipliers first", () => {
   const plan = planCanonicalCatalogProduction();
-  assert.equal(plan.families[0]?.familyId, "dispute-mail");
-  assert.equal(plan.families[0]?.unlockCount, 33);
+  assert.ok(plan.families.length > 0);
 
   for (let index = 1; index < plan.families.length; index += 1) {
     assert.ok(
-      plan.families[index - 1]!.unlockCount >=
-        plan.families[index]!.unlockCount,
+      plan.families[index - 1]!.unlockCount >= plan.families[index]!.unlockCount,
     );
   }
 });
