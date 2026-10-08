@@ -31,8 +31,11 @@ the authority for completed deletion, not this approved manifest.
 
 ## Remaining queue
 
-The six approved retirements would leave 33 heads: main, 13 open-PR heads,
-and 19 other preserved histories. All 13 open PRs reported merge conflicts
+The completed Action [37831447800](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37831447800)
+passed all 22 guard tests and archived/deleted all six heads with zero failures.
+Independent `git ls-remote` verification confirmed all archive tags point to their
+exact reviewed tips and the deleted heads are absent. **33 remote branches remain:**
+main, 13 open-PR heads, and 19 other preserved histories. All 13 open PRs reported merge conflicts
 at audit time; their changes require reconciliation with current main.
 Production hardening #152, reference journeys #153, pricing #126 and binary
 SSA template review #156 remain open. Other preserved work includes factory,
@@ -40,3 +43,9 @@ SSA, connector, architecture, backup and generated PDF attempts.
 
 Issue #158 tracks the remaining review. No application deployment, payment,
 mailing, or change to customer prices is part of this cleanup.
+
+Do not treat PR #89 as redundant solely from its title: its old prebuild command
+includes document-intelligence and registry-adapters, while the current prebuild
+selector dependency closure does not include those packages. PR #133 also adds
+workflow-artifact-plan and gold-slice test files absent from main. These findings
+justify continued preservation and focused integration review.
