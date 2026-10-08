@@ -130,3 +130,62 @@ preserved histories.**
 - Do not claim completion of production deployment, mailing tests, Stripe/Lob
   live transactions, or the 449-workflow factory from these repository
   cleanup changes.
+
+## P11 and topology reconciliation — verified 2026-10-08
+
+### P11 secured-transactions correction
+
+[PR #162](https://github.com/mycomind4-arch/mailmypdf-all/pull/162)
+was merged at `88cd2a19ccd8a7a9a59a52fe05487f7a02848a99`
+with all six PR workflow suites green, including secured-transactions,
+shared capability, Notice Respond, Records Request, SSDI Appeal and the
+20-job workspace verification. The new P11 baseline requires
+`findings`, `requirements`, `validation`, `blockingGate`, and
+`review`. Specialist capabilities remain selected by each workflow.
+The eligibility manifest now declares only its six exercised capabilities,
+while the section registry still recognizes three wired intakes.
+
+Old draft PRs [#85](https://github.com/mycomind4-arch/mailmypdf-all/pull/85)
+and [#90](https://github.com/mycomind4-arch/mailmypdf-all/pull/90)
+were closed unmerged after source comparison; their heads
+`ba2caf78b153ecbefda729000c5443dc71de72b9` and
+`3632bc4d9a1d264d4c082fd70295123d5d117247` were archived under
+`archive/branch-cleanup-2026-10-08/<old-branch>` before removal.
+[Action 37837046334](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37837046334)
+completed successfully; both exact archive SHAs and absent remote heads
+were verified independently.
+
+### Canonical topology guard
+
+[PR #163](https://github.com/mycomind4-arch/mailmypdf-all/pull/163)
+merged at `8e8ea4e4cfd5aeb11e9289f7eb1a210dd21d9278` after
+20/20 workspace jobs passed. It retains useful checks from old
+topology PR #88: only canonical scoped names for activated section packages,
+and no duplicate `apps/verticals/secured-transactions` implementation.
+It does not restore the retired `apps/mailmypdf` host.
+
+**Do not delete branch `chat/canonical-topology-source-of-truth` just yet.**
+PR #88 is closed without merge, but contains separate legacy-donor build
+and Private Office compound-workflow CI tests whose current coverage has
+not been proven equivalent. The exact historic tip remains preserved under
+its existing branch ref pending parity review. The current canonical
+topology document (#161) and guard (#163) supersede its outdated host
+references, not necessarily its entire legacy-test matrix.
+
+### Deployment state is distinct from code verification
+
+[Deployment run 37837370411](https://github.com/mycomind4-arch/mailmypdf-all/actions/runs/37837370411)
+failed **before deployment**, at the required-secret preflight gate.
+Its missing GitHub Actions configuration includes Cloudflare account/token,
+Supabase server secret, Lob webhook secret, background-job secrets and
+sandbox payments webhook secret. The deployment job skipped uploading and
+public verification. The successful branch/CI work above does **not**
+establish a new production deployment; credentials require separate
+authorized configuration and another verified deployment run.
+
+### Latest independently verified snapshot
+
+**27 remote branches = 1 permanent `main` + 9 open PR heads + 17
+other preserved branch heads.** The two short-lived review branches from
+#162 and #163 were also deleted by the successful safe-pruner workflow.
+No distinct unreviewed branch was intentionally discarded.
