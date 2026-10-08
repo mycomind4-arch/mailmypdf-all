@@ -158,6 +158,21 @@
         "secured-transactions/shared/domain/manifest-base.test.ts": "1cb9e2e401becc7a751366706ba1edf0de0dd5fc"
       },
       "reason": "PR #90 was reviewed and closed as superseded by green merged PR #162 (88cd2a19), which implements stronger P11 shared invariants (findings, requirements, validation, blockingGate, review), a six-capability eligibility manifest, fail-closed tests, and current three-wired-intake assertions. Correctly narrows eligibility declarations but omits family-wide requirements and blockingGate invariants; the newer implementation retains both. Exact historic tip must be tagged before deleting the obsolete branch."
+    },
+    {
+      "branch": "chat/canonical-topology-source-of-truth",
+      "sha": "f089372f07b56264b78dcc774d3055532b6e066b",
+      "audited_main_sha": "b912c6e30100f44724764d24edecb5d4af5f7feb",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/canonical-topology-source-of-truth",
+      "main_blobs": {
+        ".github/workflows/legacy-donor-compatibility.yml": "acde6e5ca844c4b55221f656582adbfbac1fed46",
+        ".github/workflows/workspace-ui-ci.yml": "266b44655ffba670f3c1f24886f7dd398bb4a46f",
+        "AGENTS.md": "c06ff40b384e3eb60eb9730c3f519d7b68b57d3a",
+        "MAILMYPDF_APPLICATION_TOPOLOGY.md": "b18ca7d5249a2e3c27aaddf0564cc2df2f9881c1",
+        "context/CURRENT_WORK.md": "a657c992cef0cbf57564c73da416e28d3f819037",
+        "scripts/verify-product-topology.mjs": "cd28a9f2a7afdcc6c6a6719fb405b49962956329"
+      },
+      "reason": "Old draft PR #88 targeted the retired apps/mailmypdf host. Its unique canonical-root architecture policy and topology guard are superseded by merged #161 and #163; the current AGENTS and CURRENT_WORK files are newer and protect @mailmypdf/step-workflow canonical execution. Its additional legacy-donor compatibility matrix (10 extant packages; 3 old directories now gone) and the six Private Office authority/compound-workflow regression suites are preserved in separate, path-scoped .github/workflows/legacy-donor-compatibility.yml merged via #164 at b912c6e3, verified green across all 10 jobs in Action 37840372064. Do not reintroduce obsolete apps/mailmypdf host or legacy CI routing. Preserve exact old branch tip under archive tag before deleting branch."
     }
   ]
 }
