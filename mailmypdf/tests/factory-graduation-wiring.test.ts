@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  buildFactoryGraduationReport,
-  WORKFLOW_REGISTRY,
-} from "@mailmypdf/workflows";
+import { buildFactoryGraduationReport } from "@mailmypdf/workflows";
+import { WORKFLOW_REGISTRY } from "@mailmypdf/workflows/canonical-registry";
 import { MAILMYPDF_MCP_TOOLS } from "../src/lib/mcp/tool-catalog";
 
 const repo = path.resolve(import.meta.dirname, "../..");
