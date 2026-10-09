@@ -27,13 +27,16 @@ test("Ruthless bridge issues only mapped server requests and sends bearer token"
     const created = await ruthlessRequest("start", { question: "What happened?", budgetUSD: 5, mode: "STANDARD" }) as { id: string };
     assert.equal(created.id, "inv-abc123");
     await ruthlessRequest("state", {}, "inv-abc123");
-    assert.equal(captured.length, 2);
+    await ruthlessRequest("load", {}, "inv-abc123");
+    assert.equal(captured.length, 3);
     assert.equal(captured[0]?.target, "https://research.example.com/api/investigations");
     assert.equal(captured[0]?.init.method, "POST");
     assert.equal((captured[0]?.init.headers as Record<string, string>).authorization, "Bearer " + "test-".repeat(9));
     assert.equal(captured[1]?.target, "https://research.example.com/api/investigations/inv-abc123");
     assert.equal(captured[1]?.init.method, "GET");
     assert.equal(captured[0]?.init.redirect, "error");
+    assert.equal(captured[2]?.target, "https://research.example.com/api/investigations/inv-abc123/load");
+    assert.equal(captured[2]?.init.method, "POST");
   } finally {
     globalThis.fetch = priorFetch;
     if (priorUrl === undefined) delete process.env.STUDIO_RUTHLESS_API_URL; else process.env.STUDIO_RUTHLESS_API_URL = priorUrl;
