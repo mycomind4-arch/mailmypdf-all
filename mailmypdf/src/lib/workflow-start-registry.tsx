@@ -11,7 +11,8 @@
 
 import type { ComponentType } from "react"
 import NoticeResponseWorkflow from "@mailmypdf/notice-respond/shared/NoticeResponseWorkflow"
-import { getNoticeResponseFactoryArtifact, workflowById } from "@mailmypdf/workflows"
+import { getNoticeResponseFactoryArtifact } from "@mailmypdf/workflows"
+import { workflowById } from "@mailmypdf/workflows/canonical-registry"
 
 import AppealCarInsuranceClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-car-insurance-claim/start"
 import AppealDeniedClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-denied-claim/start"
