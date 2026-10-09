@@ -65,6 +65,26 @@ test("Registry dependency engine resolves dependencies without executing them", 
   assert.ok(output.ordered.includes("evidence"));
 });
 
+test("Fact contradiction engine preserves conflicts without deciding which source is true", () => {
+  const output = executeStudioEngine("studio.fact-contradictions", { facts: [
+    { subject: "case-x", predicate: "has_deadline", value: "2026-10-30" },
+    { subject: "case-x", predicate: "has_deadline", value: "2026-11-02" },
+  ] }).output as { facts: unknown[]; contradictions: { detectionType: string }[] };
+  assert.equal(output.facts.length, 2);
+  assert.equal(output.contradictions.length, 1);
+  assert.equal(output.contradictions[0]?.detectionType, "confirmed");
+});
+
+test("Deadline engine uses an explicit unverified user-supplied rule", () => {
+  const output = executeStudioEngine("studio.deadline-calculation", {
+    triggerDate: "2026-10-09", days: 30, calendarType: "calendar", ruleBasis: "Example interval",
+  }).output as { date: string };
+  assert.equal(output.date, "2026-11-08");
+  assert.throws(() => executeStudioEngine("studio.deadline-calculation", {
+    triggerDate: "2026-02-31", days: 30, calendarType: "calendar", ruleBasis: "Example",
+  }), StudioEngineInputError);
+});
+
 test("Unlisted engines and invalid or unsafe submissions fail closed", () => {
   assert.throws(() => executeStudioEngine("studio.payment", {}), StudioEngineInputError);
   assert.throws(() => executeStudioEngine("studio.name-normalization", { name: "" }), StudioEngineInputError);
