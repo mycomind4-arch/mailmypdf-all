@@ -47,6 +47,22 @@ export const studioRunnableEngines = [
     exampleInput: { capabilityIds: ["evidence", "provenance", "timeline"] },
   },
   {
+    id: "studio.fact-contradictions",
+    label: "Fact contradiction detection",
+    description: "Create source-statused facts from supplied statements and identify confirmed versus potential contradictions.",
+    packageName: "@mailmypdf/intelligence",
+    category: "intelligence",
+    exampleInput: { facts: [{ subject: "case-1", predicate: "has_deadline", value: "2026-10-30" }, { subject: "case-1", predicate: "has_deadline", value: "2026-11-02" }] },
+  },
+  {
+    id: "studio.deadline-calculation",
+    label: "Deadline rule arithmetic",
+    description: "Apply a user-provided day-count rule to a date; does not verify the applicable legal rule or holiday calendar.",
+    packageName: "@mailmypdf/intelligence",
+    category: "intelligence",
+    exampleInput: { triggerDate: "2026-10-09", days: 30, calendarType: "calendar", ruleBasis: "Illustrative 30-day interval only" },
+  },
+  {
     id: "studio.recovery-scan",
     label: "Duplicate-payment evidence scan",
     description: "Screen user-supplied transactions for possible duplicate charges; no recovery entitlement is determined.",
