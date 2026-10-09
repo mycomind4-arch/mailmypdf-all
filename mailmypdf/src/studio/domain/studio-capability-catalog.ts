@@ -1,4 +1,4 @@
-import { capabilityRegistry, type CapabilityDefinition } from "@mailmypdf/workflows";
+import { capabilityRegistry, type CapabilityDefinition } from "@mailmypdf/workflows/capability-registry";
 import type { StudioExecutionMode } from "./studio-workflow";
 
 /**
