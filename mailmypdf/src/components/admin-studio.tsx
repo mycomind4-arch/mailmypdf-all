@@ -1831,7 +1831,7 @@ export function StudioPage() {
         if (!line) continue;
         try {
           const trace = JSON.parse(line.slice(6)) as TraceEvent;
-          if (trace.type === "phase.blocked") blocked = true;
+          if (trace.type === "phase.blocked" || trace.type === "phase.failed") blocked = true;
           setTraceEvents((current) => [...current, trace]);
         } catch {
           // Ignore a malformed trace event; a full error event follows from the server.
