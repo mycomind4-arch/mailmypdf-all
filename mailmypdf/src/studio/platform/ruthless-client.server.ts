@@ -3,7 +3,7 @@
  * No engine duplication and no arbitrary URL/command/tool proxying.
  */
 export type RuthlessReadAction = "health" | "list" | "state" | "events" | "runs" | "cost";
-export type RuthlessWriteAction = "start" | "intervene" | "pause" | "resume" | "reopen" | "refresh";
+export type RuthlessWriteAction = "start" | "intervene" | "pause" | "resume" | "reopen" | "refresh" | "load";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const MAX_RESPONSE_LENGTH = 4_000_000;
@@ -46,6 +46,7 @@ function route(action: RuthlessReadAction | RuthlessWriteAction, id?: string): s
     case "resume": return investigation + "/resume";
     case "reopen": return investigation + "/reopen";
     case "refresh": return investigation + "/refresh";
+    case "load": return investigation + "/load";
   }
 }
 
