@@ -258,3 +258,25 @@ test("remote publication approval rechecks live base and mandatory GitHub CI", (
   assert.match(approval, /recordPersistentFactoryPublication/);
   assert.doesNotMatch(approval, /mergePullRequest|merge_pull_request|wrangler deploy|submit.*mail/i);
 });
+
+
+test("remote factory CI synchronization pins the reviewed base and proposal head", () => {
+  const server = read("src/studio/factory-remote-executor.server.ts");
+  // CI readiness is called at runtime; importing only the type would make
+  // the final approval handler fail on an otherwise fully passing proposal.
+  assert.match(
+    server,
+    /import \{ evaluateFactoryRemoteChecks \} from "@mailmypdf\/workflows";/,
+  );
+  const sync = server.slice(
+    server.indexOf("export async function syncRemoteFactoryAcceptance"),
+    server.indexOf("export async function approveRemoteFactoryPublication"),
+  );
+  assert.match(sync, /provider\.getBranchSha\(repository, project\.defaultBranch\)/);
+  assert.match(sync, /provider\.getBranchSha\(repository, job\.buildArtifact\.branch\)/);
+  assert.match(sync, /provider\.getCommitStatus\(repository, job\.buildArtifact\.commitSha\)/);
+  assert.match(sync, /currentBase\.sha !== job\.buildArtifact\.baseSha/);
+  assert.match(sync, /remoteHead\.sha !== job\.buildArtifact\.commitSha/);
+  assert.match(sync, /evaluateFactoryRemoteChecks\(required, status\.checks\)\.ready/);
+  assert.match(sync, /if \(failed\.length > 0\)/);
+});
