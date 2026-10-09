@@ -6,6 +6,10 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
+    "./capability-registry": {
+      "types": "./src/capability-registry.ts",
+      "import": "./dist/capability-registry.js"
+    },
     "./canonical-registry": {
       "types": "./src/canonical-workflow-registry.ts",
       "import": "./dist/canonical-workflow-registry.js"
