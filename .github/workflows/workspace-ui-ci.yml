@@ -89,6 +89,8 @@ jobs:
         run: pnpm workflow:materialize:check
       - run: pnpm registry:check
       - run: pnpm --filter @mailmypdf/workflows test
+      - name: Verify CP14 host parity against the factory family renderer
+        run: node --test mailmypdf/tests/factory-cp14-host-parity.test.mjs
       - name: Verify every projection and preserve existing executable workflows
         run: |
           pnpm --filter ./mailmypdf exec tsx --test \

@@ -42,7 +42,11 @@ export function AuthenticatedWorkflowDetail({
   // Execution readiness comes from the new-architecture execution registry,
   // never from SEO/authority state -- authority is display-only metadata below.
   const execution = workflowExecutionRecord(section.id, workflow.slug)
-  const executionHref = execution?.executionHref ?? undefined
+  // Authenticated Notice Respond execution stays inside the dashboard, where
+  // the reviewed family renderer is checked against its canonical profile.
+  const executionHref = execution?.executionStatus === "executable" && section.id === "notice-respond"
+    ? `${workflow.workspaceHref}/start`
+    : execution?.executionHref ?? undefined
   const guide = workflowDetailGuide(section.id, workflow.slug)
 
   return (

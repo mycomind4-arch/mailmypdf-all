@@ -10,6 +10,9 @@
 // record, and do not add a registry record without a real entry here.
 
 import type { ComponentType } from "react"
+import NoticeResponseWorkflow from "@mailmypdf/notice-respond/shared/NoticeResponseWorkflow"
+import { getNoticeResponseFactoryArtifact } from "@mailmypdf/workflows"
+import { workflowById } from "@mailmypdf/workflows/canonical-registry"
 
 import AppealCarInsuranceClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-car-insurance-claim/start"
 import AppealDeniedClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-denied-claim/start"
@@ -67,6 +70,32 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "secured-transactions:obligation-value": ObligationValueStart,
 }
 
+// Profile-driven Notice Respond workflows share a reviewed factory runtime.
+// Never mount unknown or factory-unready definitions as executable UI.
+const FACTORY_FAMILY_COMPONENTS = new Map<string, ComponentType>()
+
 export function workflowStartComponent(sectionId: string, workflowId: string): ComponentType | undefined {
-  return WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  const staticComponent = WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  if (staticComponent) return staticComponent
+
+  const canonical = workflowById(`${sectionId}/${workflowId}`)
+  if (
+    canonical?.execution?.kind !== "platform" ||
+    canonical.execution.policyFamily !== "notice-response" ||
+    canonical.sectionId !== "notice-respond"
+  ) return undefined
+
+  const artifact = getNoticeResponseFactoryArtifact(workflowId)
+  if (!artifact?.factoryReady || artifact.canonicalId !== canonical.id) return undefined
+
+  const key = `notice-response:${workflowId}`
+  const cached = FACTORY_FAMILY_COMPONENTS.get(key)
+  if (cached) return cached
+  const Component = () => (
+    <NoticeResponseWorkflow
+      config={{ ...artifact.startConfig, backHref: canonical.workspaceHref }}
+    />
+  )
+  FACTORY_FAMILY_COMPONENTS.set(key, Component)
+  return Component
 }
