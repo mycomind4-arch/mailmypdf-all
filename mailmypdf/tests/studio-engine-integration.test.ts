@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { capabilityRegistry } from "@mailmypdf/workflows";
+import { capabilityRegistry } from "@mailmypdf/workflows/capability-registry";
 import {
   studioCapabilityCatalog,
   studioRunnableEngines,
