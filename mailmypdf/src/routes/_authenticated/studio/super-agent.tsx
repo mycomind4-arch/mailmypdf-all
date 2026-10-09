@@ -6,7 +6,7 @@ import { authenticatedHeaders } from "@/lib/authenticated-client";
 type WorkMode = "research" | "develop";
 type ResearchMode = "QUICK" | "STANDARD" | "DEEP" | "FORENSIC";
 type Provider = "claude" | "codex";
-type CaseListing = { id: string; question: string; phase: string; mode?: string };
+type CaseListing = { id: string; question: string; phase: string; mode?: string; active?: boolean };
 type Source = { id: string; title: string; url?: string; isPrimary: boolean };
 type Evidence = { id: string; text: string; sourceId: string; independentConfirmation?: boolean };
 type Hypothesis = { id: string; statement: string; supportLevel: string; unknowns?: string[] };
@@ -109,6 +109,16 @@ function SuperAgentPage() {
     return () => clearInterval(timer);
   }, [caseId, loadCase]);
 
+  async function selectCase(item: CaseListing) {
+    setError("");
+    if (item.active === false) {
+      setBusy(true);
+      try { await api("/api/studio/ruthless", { action: "load", id: item.id }); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : "Could not restore investigation"); setBusy(false); return; }
+      finally { setBusy(false); }
+    }
+    setCaseId(item.id); setPrompt("");
+  }
   async function startDeveloper() {
     if (busy) return;
     setBusy(true); setError("");
@@ -117,6 +127,13 @@ function SuperAgentPage() {
       setSession(data.session as DevSession);
       await loadDeveloper();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not start developer agent"); }
+    finally { setBusy(false); }
+  }
+  async function closeDeveloper() {
+    if (!session || busy || !window.confirm("Close this local development worktree? Unsaved changes in its worktree will be discarded.")) return;
+    setBusy(true); setError("");
+    try { await api("/api/studio/chat/close", { sessionId: session.sessionId }); setSession(null); await loadDeveloper(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not close developer worktree"); }
     finally { setBusy(false); }
   }
   async function submit(event?: FormEvent<HTMLFormElement>) {
@@ -206,8 +223,8 @@ function SuperAgentPage() {
           <div className="flex items-center justify-between pt-3 text-xs font-semibold text-muted-foreground">INVESTIGATIONS
             <button type="button" title="Refresh" onClick={()=>void loadResearch()}><RefreshCw size={14}/></button>
           </div>
-          <div className="max-h-[46vh] space-y-1 overflow-y-auto">{cases.map((item)=><button key={item.id} type="button" onClick={()=>{setCaseId(item.id);setPrompt("");setError("");}} className={"w-full rounded-lg p-2 text-left text-xs " + (caseId===item.id?"bg-paper-deep font-semibold":"hover:bg-paper-deep")}>
-            <span className="line-clamp-2 block">{item.question}</span><span className="mt-1 block text-[10px] text-muted-foreground">{format(item.phase)}</span></button>)}</div>
+          <div className="max-h-[46vh] space-y-1 overflow-y-auto">{cases.map((item)=><button key={item.id} type="button" onClick={()=>void selectCase(item)} className={"w-full rounded-lg p-2 text-left text-xs " + (caseId===item.id?"bg-paper-deep font-semibold":"hover:bg-paper-deep")}>
+            <span className="line-clamp-2 block">{item.question}</span><span className="mt-1 block text-[10px] text-muted-foreground">{format(item.phase)}{item.active===false?" · persisted":""}</span></button>)}</div>
         </div> : <div className="mt-4 space-y-3">
           <label className="block text-xs font-semibold">Coding provider
             <select className="input-field mt-1 w-full" value={provider} onChange={(e)=>setProvider(e.target.value as Provider)}>
@@ -226,7 +243,8 @@ function SuperAgentPage() {
           <div className="flex items-center gap-3"><div className="rounded-lg bg-paper-deep p-2">{mode==="research"?<BrainCircuit size={19}/>:<Bot size={19}/>}</div>
             <div><h2 className="font-semibold">{mode==="research"?"Ruthless Investigator Council":"Studio Development Agent"}</h2><p className="text-xs text-muted-foreground">{mode==="research"?format(currentCase?.phase):(session?.branch??"No isolated workspace selected")}</p></div></div>
           {mode==="research" && currentCase && <div className="flex gap-2">
-            <button type="button" title="Refresh" disabled={busy} onClick={()=>void loadCase(currentCase.id)} className="rounded-lg border border-rule p-2"><RefreshCw size={14}/></button>
+            <button type="button" title="Refresh visible status" disabled={busy} onClick={()=>void loadCase(currentCase.id)} className="rounded-lg border border-rule p-2"><RefreshCw size={14}/></button>
+            <button type="button" title="Ask Director to refresh research" disabled={busy} onClick={()=>void changeCase("refresh")} className="rounded-lg border border-rule px-3 py-2 text-xs">Refresh research</button>
             <button type="button" disabled={busy} onClick={()=>void changeCase(paused?"resume":"pause")} className="rounded-lg border border-rule px-3 py-2 text-xs">{paused?<Play size={14} className="mr-1 inline"/>:<Pause size={14} className="mr-1 inline"/>}{paused?"Resume":"Pause"}</button>
             {(currentCase.converged||currentCase.phase==="CONVERGED") && <button type="button" disabled={busy} onClick={()=>void changeCase("reopen")} className="rounded-lg border border-rule px-3 py-2 text-xs">Reopen</button>}
           </div>}
@@ -248,7 +266,7 @@ function SuperAgentPage() {
             {devError && <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{devError}<p className="mt-2 text-xs">Local coding agents require the Studio development host and installed Claude/Codex CLI.</p></div>}
             {!session && <div className="mx-auto max-w-md py-16 text-center"><Code2 size={35} className="mx-auto text-cobalt"/><h3 className="mt-3 font-serif text-2xl">Work with coding agents</h3><p className="mt-3 text-sm leading-6 text-muted-foreground">Start a separate local git worktree. Use actual Claude or Codex sessions, then run existing tester, reviewer and SEO gates before considering a merge.</p></div>}
             {session?.messages.map((item)=><div key={item.id} className={item.role==="user"?"ml-auto max-w-[88%] rounded-xl bg-cobalt p-4 text-sm text-white":"mr-auto max-w-[92%] rounded-xl bg-paper-deep p-4 text-sm"}><p className="mb-2 text-[10px] font-semibold uppercase opacity-70">{item.provider??item.role}</p><div className="whitespace-pre-wrap leading-6">{item.content}</div></div>)}
-            {session && <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4"><span className="text-xs text-muted-foreground">Quality checks:</span>{(["tester","reviewer","seo"] as const).map((kind)=><button type="button" key={kind} disabled={busy} onClick={()=>void gate(kind)} className="rounded-lg border border-rule px-3 py-1.5 text-xs capitalize disabled:opacity-50">{kind}</button>)}</div>}
+            {session && <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4"><span className="text-xs text-muted-foreground">Quality checks:</span>{(["tester","reviewer","seo"] as const).map((kind)=><button type="button" key={kind} disabled={busy} onClick={()=>void gate(kind)} className="rounded-lg border border-rule px-3 py-1.5 text-xs capitalize disabled:opacity-50">{kind}</button>)}<button type="button" disabled={busy} onClick={()=>void closeDeveloper()} className="rounded-lg border border-rule px-3 py-1.5 text-xs text-red-700 disabled:opacity-50">Close worktree</button></div>}
           </>}
           {error && <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
         </div>
