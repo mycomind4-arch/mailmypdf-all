@@ -27,7 +27,7 @@ or private network proxy is necessary for remote Studio use.
 
 - `GET /api/studio/ruthless?action=health|list|state|events|runs|cost&id=...`
 - `POST /api/studio/ruthless` accepts a strict action schema:
-  `start`, `intervene`, `pause`, `resume`, `reopen`, `refresh`.
+  `start`, `intervene`, `pause`, `resume`, `reopen`, `refresh`, `load` (recover persisted state).
 - All requests require existing Studio admin authentication, same-origin checks,
   and server-side URL configuration. The browser does **not** receive the
   Ruthless service token.
