@@ -173,6 +173,32 @@
         "scripts/verify-product-topology.mjs": "cd28a9f2a7afdcc6c6a6719fb405b49962956329"
       },
       "reason": "Old draft PR #88 targeted the retired apps/mailmypdf host. Its unique canonical-root architecture policy and topology guard are superseded by merged #161 and #163; the current AGENTS and CURRENT_WORK files are newer and protect @mailmypdf/step-workflow canonical execution. Its additional legacy-donor compatibility matrix (10 extant packages; 3 old directories now gone) and the six Private Office authority/compound-workflow regression suites are preserved in separate, path-scoped .github/workflows/legacy-donor-compatibility.yml merged via #164 at b912c6e3, verified green across all 10 jobs in Action 37840372064. Do not reintroduce obsolete apps/mailmypdf host or legacy CI routing. Preserve exact old branch tip under archive tag before deleting branch."
+    },
+    {
+      "branch": "factory-reference-journey-readiness-2026-10",
+      "sha": "388e0403bbd3f15edff8bdafa6ed807ae667ef0d",
+      "audited_main_sha": "834033b311c8108c8625cf381ce53136cc81d755",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/factory-reference-journey-readiness-2026-10",
+      "main_blobs": {
+        "packages/workflows/src/factory-graduation.ts": "8883f3aa3c83eba98ce137d96ba7d8b71dbcd1da",
+        "packages/workflows/tests/factory-graduation.test.ts": "1cfeaa316df10c14991cfaf5cdcee34d6e634cce",
+        "mailmypdf/src/components/studio-command-center.tsx": "d4b13993e88bcacb45f0fe10dfe3385a88a098f1",
+        "mailmypdf/src/routes/api.studio.workflows.readiness.ts": "630270d9db60ce47e5a3eab320be238c52eaa586",
+        ".github/workflows/reference-journeys-ci.yml": "7be9d1ceb811551361eef722fc0b3f763339e9e3",
+        "mailmypdf/WORKFLOW_INVENTORY.json": "5b4b452ffad9f259cb7402c00f9535f71aa734a3",
+        "plugins/mailmypdf/submission-materials.json": "ad097591d5c5912130b6ae5eb5458ebb82b53edb",
+        "mailmypdf/tests/workflow-registry.test.ts": "e5d1f57b409f2d9dfbd46c434b1e5159bb79d7a4",
+        "packages/workflows/tests/workflow-execution-registry.test.ts": "40a7f7857d9611b6fbf8f29252aa149145fc3332",
+        "private-office/workflows/family-trust-asset-inventory/config.ts": "dd07b84c832f4868a68620c4d94fe40ba05bbf84",
+        "private-office/workflows/family-trust-beneficiary-communication/config.ts": "fa4f54753ee23bce4ec5afcb07c832223eda6e33",
+        "private-office/workflows/family-trust-distribution-request/config.ts": "495cd230e1ac42df8e7fc742c0f88e425508b858",
+        "private-office/workflows/family-trust-successor-trustee-transition/config.ts": "09846e7a045e82bd1ebbeb8195817f1cbb425592",
+        "private-office/workflows/probate-beneficiary-update/config.ts": "e845ed7cb2882c1876c17484a5d9188a8c6bbc49",
+        "private-office/workflows/probate-creditor-notice/config.ts": "5fdfdc781bc07e010c84b999a40399799162431c",
+        "private-office/workflows/probate-estate-administration/config.ts": "ffdb17b74be0f309c1c40fb5344194aad563060e",
+        "private-office/workflows/probate-executor-document-request/config.ts": "045ea43278aecab9615ac88742316cddcaf127a9"
+      },
+      "reason": "Reviewed PR #153 and exact 12-commit tip. PR #169 merged the complete read-only factory graduation engine, CI, Studio queue, admin readiness and tests on the canonical host. Main already has the 449-workflow registry and inventory, the five recovery annotation justifications, and the eight noindex catalog-only probate/trust configs with clearer non-executable notices (intentionally superseding old generic SEO copy). Existing dynamic registry/execution tests protect counts. Do not restore older side changes over newer factory/remote approval architecture."
     }
   ]
 }
