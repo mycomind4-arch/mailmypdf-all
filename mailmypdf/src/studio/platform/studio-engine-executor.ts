@@ -3,7 +3,7 @@ import { normalizeName, compareNormalizedNames, evaluateSourceAuthority, resolve
 import { resolveCapabilityDependencies } from "@mailmypdf/workflows";
 import { scanRecoveryTransactions } from "@mailmypdf/intelligence";
 import type { RecoveryTransaction } from "@mailmypdf/intelligence";
-import { buildExhibitIndex, renderExhibitIndex } from "@mailmypdf/packet-builder";
+import { buildExhibitIndex, renderExhibitIndex } from "@mailmypdf/packet-builder/exhibit-index";
 import {
   evaluateSecuredTransactionEligibility,
   SECURED_TRANSACTION_ELIGIBILITY_GATES,
