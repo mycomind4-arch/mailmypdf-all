@@ -16,7 +16,7 @@ const interveneSchema = z.object({
   instruction: z.string().trim().min(2).max(4000),
 }).strict();
 const simpleSchema = z.object({
-  action: z.enum(["pause", "resume", "refresh", "reopen"]),
+  action: z.enum(["pause", "resume", "refresh", "reopen", "load"]),
   id: idSchema,
 }).strict();
 const cacheHeaders = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
