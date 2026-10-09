@@ -17,6 +17,7 @@ import {
   Newspaper,
   PenLine,
   Search,
+  Boxes,
   Settings,
   Sparkles,
   Users,
@@ -54,6 +55,7 @@ export const primaryItems: SidebarItem[] = [
 export const adminItems: SidebarItem[] = [
   { label: "Studio", href: "/studio", icon: Sparkles, exact: true },
   { label: "Workflow Builder", href: "/studio/builder", icon: Workflow },
+  { label: "Engine Workbench", href: "/studio/engines", icon: Boxes },
   { label: "Operations", href: "/admin", icon: Home, exact: true },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },

@@ -42,6 +42,7 @@ import {
   X,
 } from "lucide-react";
 import { createStudioPhases, type StudioProposal } from "@/studio/domain/studio-proposal";
+import { studioCapabilityCatalog, findStudioCapability } from "@/studio/domain/studio-capability-catalog";
 import {
   findStudioVertical,
   studioCatalog,
@@ -106,25 +107,7 @@ const nodeStyle: Record<StudioNodeKind, { badge: string; tone: string }> = {
   output: { badge: "OUTPUT", tone: "studio-node--navy" },
 };
 
-const capabilityCatalog: Array<{
-  id: string;
-  label: string;
-  mode: StudioExecutionMode;
-}> = [
-  { id: "secure-ingest", label: "Secure document ingest", mode: "deterministic" },
-  { id: "fact-provenance", label: "Fact provenance", mode: "deterministic" },
-  { id: "timeline", label: "Timeline analysis", mode: "deterministic" },
-  { id: "authority-research", label: "Authority research", mode: "ai_advisory" },
-  { id: "evidence-analysis", label: "Evidence analysis", mode: "ai_advisory" },
-  { id: "risk-assessment", label: "Risk assessment", mode: "ai_advisory" },
-  { id: "strategy", label: "Strategy", mode: "ai_advisory" },
-  { id: "draft-generation", label: "Draft generation", mode: "ai_advisory" },
-  { id: "draft-validation", label: "Draft validation", mode: "deterministic" },
-  { id: "owner-review", label: "Owner approval", mode: "human" },
-  { id: "stripe-checkout", label: "Stripe checkout", mode: "external_service" },
-  { id: "mailing-submit", label: "MailMyPDF fulfillment", mode: "external_service" },
-  { id: "tracking", label: "Tracking and proof", mode: "deterministic" },
-];
+const capabilityCatalog = studioCapabilityCatalog;
 
 type TraceEvent = {
   id: string;
@@ -1696,11 +1679,28 @@ export function StudioPage() {
   function addCapability() {
     const entry = capabilityCatalog.find((candidate) => candidate.id === capabilityToAdd);
     if (!entry || selected.capabilities.some((item) => item.capabilityId === entry.id)) return;
-    updateSelected({ capabilities: [...selected.capabilities, capability(entry.id, entry.mode)] });
+    updateSelected({ capabilities: [...selected.capabilities, {
+      ...capability(entry.id, entry.mode),
+      configuration: entry.exampleInput ? structuredClone(entry.exampleInput) : {},
+      missingImplementation: !entry.runnable && entry.mode === "deterministic",
+    }] });
   }
 
   function removeCapability(capabilityId: string) {
     updateSelected({ capabilities: selected.capabilities.filter((item) => item.capabilityId !== capabilityId) });
+  }
+
+  function updateCapabilityInput(capabilityId: string, json: string) {
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Input must be a JSON object.");
+      updateSelected({ capabilities: selected.capabilities.map((item) =>
+        item.capabilityId === capabilityId ? { ...item, configuration: parsed as Record<string, unknown> } : item,
+      ) });
+      setStatus("ready"); setMessage("Engine input saved to this Studio draft.");
+    } catch (cause) {
+      setStatus("error"); setMessage(cause instanceof Error ? cause.message : "Invalid JSON input.");
+    }
   }
 
   function addGate() {
@@ -1808,7 +1808,7 @@ export function StudioPage() {
         title: phase.title,
         objective: phase.objective,
         kind: phase.kind,
-        capabilities: phase.capabilities.map((item) => ({ capabilityId: item.capabilityId, executionMode: item.executionMode })),
+        capabilities: phase.capabilities.map((item) => ({ capabilityId: item.capabilityId, executionMode: item.executionMode, configuration: item.configuration })),
         gates: phase.gates,
       }),
     });
@@ -1816,6 +1816,7 @@ export function StudioPage() {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       throw new Error(data?.error ?? "Studio could not start this phase.");
     }
+    let blocked = false;
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -1829,12 +1830,15 @@ export function StudioPage() {
         const line = message.split("\n").find((candidate) => candidate.startsWith("data: "));
         if (!line) continue;
         try {
-          setTraceEvents((current) => [...current, JSON.parse(line.slice(6)) as TraceEvent]);
+          const trace = JSON.parse(line.slice(6)) as TraceEvent;
+          if (trace.type === "phase.blocked" || trace.type === "phase.failed") blocked = true;
+          setTraceEvents((current) => [...current, trace]);
         } catch {
           // Ignore a malformed trace event; a full error event follows from the server.
         }
       }
     }
+    return !blocked;
   }
 
   async function runSelectedPhase() {
@@ -1858,7 +1862,8 @@ export function StudioPage() {
     try {
       for (const phase of workflow.phases) {
         setSelectedId(phase.id);
-        await streamPhase(phase);
+        const completed = await streamPhase(phase);
+        if (!completed) break;
       }
     } catch (error) {
       setTraceEvents((current) => [...current, { id: crypto.randomUUID(), at: new Date().toISOString(), type: "workflow.failed", label: "Workflow simulation stopped", detail: error instanceof Error ? error.message : "Studio execution failed." }]);
@@ -2641,17 +2646,17 @@ export function StudioPage() {
                 <div className="max-h-[520px] space-y-3 overflow-auto rounded-lg border border-rule bg-ivory p-4">
                   {traceEvents.length ? traceEvents.map((event) => (
                     <div key={event.id} className="border-b border-rule pb-3 text-xs last:border-0 last:pb-0">
-                      <div className="flex gap-2 text-charcoal-soft"><span className={event.type.includes("failed") || event.type.includes("unavailable") ? "text-warning" : "text-success"}>{event.type.includes("failed") || event.type.includes("unavailable") ? "!" : "✓"}</span><div className="min-w-0 flex-1"><div className="font-medium">{event.label}</div><div className="mt-1 text-stone">{formatTime(event.at)} · {event.type}</div>{event.detail && <p className="mt-2 whitespace-pre-wrap leading-relaxed text-stone">{event.detail}</p>}{event.data && <details className="mt-2 rounded border border-rule bg-paper p-2"><summary className="cursor-pointer font-medium text-navy">Show request, response, and provenance</summary><pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-charcoal-soft">{JSON.stringify(event.data, null, 2)}</pre></details>}</div></div>
+                      <div className="flex gap-2 text-charcoal-soft"><span className={event.type.includes("failed") || event.type.includes("unavailable") || event.type.includes("blocked") || event.type.includes("blocked") ? "text-warning" : "text-success"}>{event.type.includes("failed") || event.type.includes("unavailable") ? "!" : "✓"}</span><div className="min-w-0 flex-1"><div className="font-medium">{event.label}</div><div className="mt-1 text-stone">{formatTime(event.at)} · {event.type}</div>{event.detail && <p className="mt-2 whitespace-pre-wrap leading-relaxed text-stone">{event.detail}</p>}{event.data && <details className="mt-2 rounded border border-rule bg-paper p-2"><summary className="cursor-pointer font-medium text-navy">Show request, response, and provenance</summary><pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-charcoal-soft">{JSON.stringify(event.data, null, 2)}</pre></details>}</div></div>
                     </div>
                   )) : <p className="text-xs leading-relaxed text-stone">Run this phase to inspect its prompt, provider response, provenance, gates, and connector decisions as they happen.</p>}
                 </div>
-                <div className="rounded-md border border-navy/15 bg-navy-bg p-3 text-xs leading-relaxed text-navy"><ShieldCheck size={14} className="mr-1 inline" /> Studio runs are simulations. Stripe, mailing, Supabase, n8n, and other connectors are described in the trace but never called here.</div>
+                <div className="rounded-md border border-navy/15 bg-navy-bg p-3 text-xs leading-relaxed text-navy"><ShieldCheck size={14} className="mr-1 inline" /> Studio invokes only explicitly bound read-only engines. Other deterministic capabilities are blocked; AI requests may run, but payment, mailing, filing, and other consequential actions are never performed here.</div>
               </div>
             ) : tab === "Capabilities" ? (
               <div className="space-y-4 p-5">
-                <div><div className="section-kicker">Reusable engines</div><p className="mt-2 text-sm text-stone">Capabilities determine what this phase can do when it runs.</p></div>
-                {selected.capabilities.length ? selected.capabilities.map((item) => <div key={item.capabilityId} className="rounded-lg border border-rule p-3"><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-medium">{getCapabilityLabel(item.capabilityId)}</div><div className="mt-1 font-mono text-[11px] text-stone">{item.capabilityId}</div></div><button aria-label={`Remove ${item.capabilityId}`} onClick={() => removeCapability(item.capabilityId)} className="text-stone hover:text-error"><X size={15} /></button></div><span className="badge badge-stone mt-3">{item.executionMode.replaceAll("_", " ")}</span></div>) : <div className="rounded-lg border border-dashed border-rule p-4 text-sm text-stone">No capabilities are connected to this phase.</div>}
-                <div className="flex gap-2"><select value={capabilityToAdd} onChange={(event) => setCapabilityToAdd(event.target.value)} className="input-field min-w-0 flex-1 text-sm">{capabilityCatalog.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button onClick={addCapability} className="btn-outline shrink-0"><Plus size={15} /> Add</button></div>
+                <div><div className="section-kicker">Reusable engines</div><p className="mt-2 text-sm text-stone">Studio lists the canonical capability registry. Only entries marked as directly wired execute inside a Studio phase; catalog status alone does not authorize execution.</p></div>
+                {selected.capabilities.length ? selected.capabilities.map((item) => <div key={item.capabilityId} className="rounded-lg border border-rule p-3"><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-medium">{getCapabilityLabel(item.capabilityId)}</div><div className="mt-1 font-mono text-[11px] text-stone">{item.capabilityId}</div></div><button aria-label={`Remove ${item.capabilityId}`} onClick={() => removeCapability(item.capabilityId)} className="text-stone hover:text-error"><X size={15} /></button></div><span className="badge badge-stone mt-3">{item.executionMode.replaceAll("_", " ")}</span><p className="mt-2 text-xs text-stone">{findStudioCapability(item.capabilityId)?.runnable ? "Live read-only engine bound" : "Catalog or legacy capability — not directly executable in Studio"} · {findStudioCapability(item.capabilityId)?.packageName ?? "Legacy"}</p>{findStudioCapability(item.capabilityId)?.runnable && <div className="mt-3"><label className="text-xs font-medium">Engine JSON input (save on blur)</label><textarea key={`${selected.id}-${item.capabilityId}`} className="mt-1 min-h-28 w-full rounded border border-rule p-2 font-mono text-xs" defaultValue={JSON.stringify(item.configuration, null, 2)} onBlur={(event) => updateCapabilityInput(item.capabilityId, event.currentTarget.value)} spellCheck={false} /></div>}</div>) : <div className="rounded-lg border border-dashed border-rule p-4 text-sm text-stone">No capabilities are connected to this phase.</div>}
+                <div className="flex gap-2"><select value={capabilityToAdd} onChange={(event) => setCapabilityToAdd(event.target.value)} className="input-field min-w-0 flex-1 text-sm">{capabilityCatalog.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.runnable ? "wired" : item.status}</option>)}</select><button onClick={addCapability} className="btn-outline shrink-0"><Plus size={15} /> Add</button></div>
               </div>
             ) : tab === "Gates" ? (
               <div className="space-y-4 p-5">
