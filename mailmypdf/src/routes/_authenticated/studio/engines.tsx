@@ -12,7 +12,7 @@ type ExecutionResult = {
   output: unknown;
   limitations: readonly string[];
 };
-function pretty(value: unknown): string { return JSON.stringify(value, null, 2); }
+function pretty(value: unknown): string { return JSON.stringify(value, null, 2) ?? "{}"; }
 
 function EngineWorkbench() {
   const [catalog, setCatalog] = useState<StudioCapabilityCatalogEntry[]>([]);
