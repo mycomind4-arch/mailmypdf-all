@@ -27,6 +27,9 @@ import AppealPriorAuthorizationDenialStart from "@mailmypdf/appeal-mail/workflow
 import AppealSsdiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssdi-denial/start"
 import AppealSsiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssi-denial/start"
 import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-timely-filing-denial/start"
+import EquifaxDisputeStart from "@mailmypdf/dispute-mail-section/workflows/equifax-dispute/start"
+import ExperianDisputeStart from "@mailmypdf/dispute-mail-section/workflows/experian-dispute/start"
+import TransunionDisputeStart from "@mailmypdf/dispute-mail-section/workflows/transunion-dispute/start"
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
 import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
 import Cp504ResponseStart from "@mailmypdf/notice-respond/workflows/cp504-response/start"
@@ -55,6 +58,9 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-ssdi-denial": AppealSsdiDenialStart,
   "appeal-mail:appeal-ssi-denial": AppealSsiDenialStart,
   "appeal-mail:appeal-timely-filing-denial": AppealTimelyFilingDenialStart,
+  "dispute-mail:equifax-dispute": EquifaxDisputeStart,
+  "dispute-mail:experian-dispute": ExperianDisputeStart,
+  "dispute-mail:transunion-dispute": TransunionDisputeStart,
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
   "notice-respond:cp2000-response": Cp2000ResponseStart,
   "notice-respond:cp504-response": Cp504ResponseStart,
