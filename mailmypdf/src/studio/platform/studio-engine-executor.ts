@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { normalizeName, compareNormalizedNames } from "@mailmypdf/identity-capacity";
+import { normalizeName, compareNormalizedNames, evaluateSourceAuthority, resolveAuthoritativeName, resolveEntityClassification } from "@mailmypdf/identity-capacity";
+import { resolveCapabilityDependencies } from "@mailmypdf/workflows";
 import { scanRecoveryTransactions } from "@mailmypdf/intelligence";
 import type { RecoveryTransaction } from "@mailmypdf/intelligence";
 import { buildExhibitIndex, renderExhibitIndex } from "@mailmypdf/packet-builder";
@@ -14,6 +15,55 @@ const shortText = z.string().trim().min(1).max(250);
 const nameInput = z.object({
   name: shortText,
   compareTo: shortText.optional(),
+}).strict();
+
+const source = z.object({
+  id: shortText,
+  sourceType: z.enum([
+    "public-organic-record", "official-registry-record", "government-issued-id",
+    "recorded-title", "court-order", "organizational-document", "executed-contract",
+    "tax-record", "bank-record", "agency-notice", "correspondence", "invoice",
+    "website", "user-statement", "ai-inference", "other",
+  ]),
+  provenanceLevel: z.enum(["user_provided", "document_extracted", "external_source", "rule_derived", "ai_inferred", "human_verified"]),
+  issuer: shortText.optional(),
+  jurisdiction: shortText.optional(),
+  effectiveAt: z.string().datetime({ offset: true }).optional(),
+}).strict();
+const sourceAuthorityInput = z.object({
+  source,
+  context: z.object({
+    purpose: shortText,
+    jurisdiction: shortText.optional(),
+    entityType: shortText.optional(),
+    asOf: z.string().datetime({ offset: true }).optional(),
+  }).strict(),
+}).strict();
+const authoritativeNameInput = z.object({
+  purpose: shortText,
+  candidates: z.array(z.object({
+    id: shortText, rawName: shortText, source,
+    confidence: z.number().min(0).max(1).optional(),
+    entityId: shortText.optional(),
+    subjectClassification: shortText.optional(),
+  }).strict()).max(50),
+  jurisdiction: shortText.optional(),
+  entityType: shortText.optional(),
+  minimumResolutionScore: z.number().min(0).max(1).optional(),
+}).strict();
+const entityClassificationInput = z.object({
+  signals: z.array(z.object({
+    id: shortText,
+    proposedType: z.enum(["individual", "registered-organization", "nonregistered-organization", "trust", "estate", "sole-proprietorship", "government-entity", "unknown"]),
+    source,
+    confidence: z.number().min(0).max(1).optional(),
+    entityId: shortText.optional(),
+    reason: z.string().max(1000).optional(),
+  }).strict()).max(50),
+  minimumResolutionScore: z.number().min(0).max(1).optional(),
+}).strict();
+const capabilityDependenciesInput = z.object({
+  capabilityIds: z.array(shortText).min(1).max(75),
 }).strict();
 
 const transaction = z.object({
@@ -84,6 +134,30 @@ export function executeStudioEngine(engineId: string, rawInput: unknown): Studio
           output: { normalized: normalizeName(input.name), comparison: input.compareTo ? compareNormalizedNames(input.name, input.compareTo) : null },
           limitations: ["Name-form comparison is not evidence of legal identity or ownership."],
         };
+      }
+      case "studio.source-authority": {
+        const input = sourceAuthorityInput.parse(rawInput);
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: evaluateSourceAuthority(input),
+          limitations: ["Source quality is purpose-specific, not a legal determination of ownership or authority."] };
+      }
+      case "studio.authoritative-name": {
+        const input = authoritativeNameInput.parse(rawInput);
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: resolveAuthoritativeName(input),
+          limitations: ["A name resolution from submitted evidence does not independently establish legal identity."] };
+      }
+      case "studio.entity-classification": {
+        const input = entityClassificationInput.parse(rawInput);
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: resolveEntityClassification(input),
+          limitations: ["Classification is evidence-driven and may require human review."] };
+      }
+      case "studio.capability-dependencies": {
+        const input = capabilityDependenciesInput.parse(rawInput);
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: resolveCapabilityDependencies(input.capabilityIds),
+          limitations: ["Dependency resolution does not certify adapters or live production readiness."] };
       }
       case "studio.recovery-scan": {
         const input = recoveryInput.parse(rawInput);
