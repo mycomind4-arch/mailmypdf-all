@@ -169,6 +169,8 @@ jobs:
         run: node --test mailmypdf/tests/admin-navigation-integrity.test.mjs mailmypdf/tests/workflow-start-bridge-parity.test.mjs
       - name: Test Studio shared engine bindings and blocked-action safeguards
         run: pnpm --filter ./mailmypdf exec tsx --test tests/studio-engine-integration.test.ts
+      - name: Test Ruthless Investigator Studio service boundary
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/studio-ruthless-integration.test.ts
       - name: Verify MCP transport, review UI, approval, and checkout behavior
         run: pnpm --filter ./mailmypdf exec node --experimental-test-module-mocks --import tsx --test tests/mcp*.test.ts
       - name: Test Authority Gate and catalog topology invariants
