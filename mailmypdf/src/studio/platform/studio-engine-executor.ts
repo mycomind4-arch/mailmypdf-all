@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeName, compareNormalizedNames, evaluateSourceAuthority, resolveAuthoritativeName, resolveEntityClassification } from "@mailmypdf/identity-capacity";
-import { resolveCapabilityDependencies } from "@mailmypdf/workflows";
+import { resolveCapabilityDependencies } from "@mailmypdf/workflows/capability-registry";
 import { scanRecoveryTransactions } from "@mailmypdf/intelligence";
 import type { RecoveryTransaction } from "@mailmypdf/intelligence";
 import { buildExhibitIndex, renderExhibitIndex } from "@mailmypdf/packet-builder/exhibit-index";
