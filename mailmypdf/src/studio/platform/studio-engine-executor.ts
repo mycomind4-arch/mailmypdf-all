@@ -75,7 +75,7 @@ const contradictionInput = z.object({
   }).strict()).min(2).max(60),
 }).strict();
 const deadlineInput = z.object({
-  triggerDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+  triggerDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   days: z.number().int().min(1).max(3650),
   calendarType: z.enum(["calendar", "business"]),
   ruleBasis: z.string().trim().min(1).max(200),
