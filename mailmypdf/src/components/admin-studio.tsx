@@ -1816,6 +1816,7 @@ export function StudioPage() {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       throw new Error(data?.error ?? "Studio could not start this phase.");
     }
+    let blocked = false;
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -1829,12 +1830,15 @@ export function StudioPage() {
         const line = message.split("\n").find((candidate) => candidate.startsWith("data: "));
         if (!line) continue;
         try {
-          setTraceEvents((current) => [...current, JSON.parse(line.slice(6)) as TraceEvent]);
+          const trace = JSON.parse(line.slice(6)) as TraceEvent;
+          if (trace.type === "phase.blocked") blocked = true;
+          setTraceEvents((current) => [...current, trace]);
         } catch {
           // Ignore a malformed trace event; a full error event follows from the server.
         }
       }
     }
+    return !blocked;
   }
 
   async function runSelectedPhase() {
@@ -1858,7 +1862,8 @@ export function StudioPage() {
     try {
       for (const phase of workflow.phases) {
         setSelectedId(phase.id);
-        await streamPhase(phase);
+        const completed = await streamPhase(phase);
+        if (!completed) break;
       }
     } catch (error) {
       setTraceEvents((current) => [...current, { id: crypto.randomUUID(), at: new Date().toISOString(), type: "workflow.failed", label: "Workflow simulation stopped", detail: error instanceof Error ? error.message : "Studio execution failed." }]);
