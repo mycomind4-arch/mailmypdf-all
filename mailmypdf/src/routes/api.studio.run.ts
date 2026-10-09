@@ -3,6 +3,8 @@ import { studioAccessError } from "@/studio/access";
 import { z } from "zod";
 import { studioExecutionModes, studioNodeKinds } from "@/studio/domain/studio-workflow";
 import { routeLLMRequest } from "@/studio/platform/llm-router";
+import { findStudioCapability } from "@/studio/domain/studio-capability-catalog";
+import { executeStudioEngine } from "@/studio/platform/studio-engine-executor";
 
 const phaseSchema = z.object({
   id: z.string().trim().min(1).max(80),
@@ -14,6 +16,7 @@ const phaseSchema = z.object({
       z.object({
         capabilityId: z.string().trim().min(1).max(100),
         executionMode: z.enum(studioExecutionModes),
+        configuration: z.record(z.unknown()).optional(),
       }),
     )
     .max(10),
@@ -57,7 +60,11 @@ export const Route = createFileRoute("/api/studio/run")({
       POST: async ({ request }) => {
         const accessError = await studioAccessError(request);
         if (accessError) return accessError;
-        const parsed = phaseSchema.safeParse(await request.json().catch(() => null));
+        const raw = await request.text();
+        if (raw.length > 32_768) return Response.json({ error: "Studio phase request is too large." }, { status: 413 });
+        let input: unknown;
+        try { input = JSON.parse(raw); } catch { return Response.json({ error: "Invalid JSON." }, { status: 400 }); }
+        const parsed = phaseSchema.safeParse(input);
         if (!parsed.success) {
           return Response.json(
             { error: "A complete Studio phase is required." },
@@ -79,6 +86,7 @@ export const Route = createFileRoute("/api/studio/run")({
                 detail: phase.objective,
               });
 
+              let blocked = false;
               for (const capability of phase.capabilities) {
                 send({
                   type: "capability.started",
@@ -86,7 +94,21 @@ export const Route = createFileRoute("/api/studio/run")({
                   detail: `Execution mode: ${capability.executionMode.replace("_", " ")}`,
                 });
 
-                if (capability.executionMode === "ai_advisory") {
+                const registered = findStudioCapability(capability.capabilityId);
+                if (!registered || registered.mode !== capability.executionMode) {
+                  blocked = true;
+                  send({ type: "capability.blocked", label: capability.capabilityId + " is not bound in this execution mode", detail: "Select a registered capability with the correct execution mode." });
+                  continue;
+                }
+                if (registered.runnable) {
+                  const outcome = executeStudioEngine(capability.capabilityId, capability.configuration ?? {});
+                  send({
+                    type: "capability.completed",
+                    label: registered.label + " executed",
+                    detail: "Executed " + outcome.packageName + " on the server with no external effects.",
+                    data: { output: outcome.output, limitations: outcome.limitations },
+                  });
+                } else if (capability.executionMode === "ai_advisory") {
                   const systemPrompt =
                     "You are a Private Office workflow phase assistant. Provide a concise, non-consequential advisory result. Do not assert facts not supplied, do not authorize payment, fulfillment, or mailing, and clearly identify assumptions.";
                   const userPrompt = `Phase: ${phase.title}\nObjective: ${phase.objective}\nCapability: ${capability.capabilityId}\nReturn the proposed output for this phase.`;
@@ -128,6 +150,7 @@ export const Route = createFileRoute("/api/studio/run")({
                       },
                     });
                   } else {
+                    blocked = true;
                     send({
                       type: "llm.unavailable",
                       label: "Claude is not configured for this local server",
@@ -136,6 +159,7 @@ export const Route = createFileRoute("/api/studio/run")({
                     });
                   }
                 } else if (capability.executionMode === "external_service") {
+                  blocked = true;
                   send({
                     type: "connector.simulated",
                     label: `${serviceName(capability.capabilityId)} action held for approval`,
@@ -143,6 +167,7 @@ export const Route = createFileRoute("/api/studio/run")({
                       "Studio simulation never sends payments, mail, or third-party actions. A published workflow must pass its required approval gate before its existing fulfillment adapter can act.",
                   });
                 } else if (capability.executionMode === "human") {
+                  blocked = true;
                   send({
                     type: "approval.required",
                     label: "Owner review required",
@@ -150,23 +175,23 @@ export const Route = createFileRoute("/api/studio/run")({
                       "This phase is paused for the required human decision.",
                   });
                 } else {
+                  blocked = true;
                   send({
-                    type: "capability.completed",
-                    label: `${capability.capabilityId} completed`,
-                    detail: "The deterministic or source-backed step is ready for the next phase.",
+                    type: "capability.blocked",
+                    label: registered.label + " is cataloged but not connected to Studio execution",
+                    detail: "A tested runtime adapter and required matter inputs are needed. Registry status is not evidence of execution.",
                   });
                 }
               }
 
               const requiresReview = phase.gates.some((gate) => gate.required);
+              if (requiresReview) blocked = true;
               send({
-                type: "phase.completed",
-                label: requiresReview
-                  ? "Phase complete — required gate remains"
-                  : "Phase complete",
+                type: blocked ? "phase.blocked" : "phase.completed",
+                label: blocked ? "Phase awaiting a real execution adapter or approval" : "Phase complete",
                 detail: requiresReview
                   ? `Required gates: ${phase.gates.filter((gate) => gate.required).map((gate) => gate.label).join(", ")}`
-                  : "Output is available to the next phase.",
+                  : blocked ? "A capability was unavailable or required review; no successful execution is asserted." : "The bound read-only operations completed.",
               });
             } catch (error) {
               send({
