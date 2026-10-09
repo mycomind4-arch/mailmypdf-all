@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 import {
   BarChart3,
   Bot,
+  BrainCircuit,
   ChevronDown,
   ChevronRight,
   CircleHelp,
@@ -56,6 +57,7 @@ export const adminItems: SidebarItem[] = [
   { label: "Studio", href: "/studio", icon: Sparkles, exact: true },
   { label: "Workflow Builder", href: "/studio/builder", icon: Workflow },
   { label: "Engine Workbench", href: "/studio/engines", icon: Boxes },
+  { label: "Super Agent Chat", href: "/studio/super-agent", icon: BrainCircuit },
   { label: "Operations", href: "/admin", icon: Home, exact: true },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
