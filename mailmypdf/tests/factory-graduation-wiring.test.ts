@@ -56,4 +56,6 @@ test("factory graduation is admin-only and visible in Studio without claiming a 
   assert.ok(ui.includes("Reference journeys &amp; factory graduation"));
   assert.ok(ui.includes("Acceptance unverified · Live fulfillment unverified"));
   assert.ok(ui.includes("journey.nextAcceptance"));
+  assert.ok(ui.includes('to="/studio/factory" className="text-xs font-semibold text-cobalt">Open supervised Workflow Factory'));
+  assert.ok(!ui.includes("Open supervised Workflow Builder →"));
 });
