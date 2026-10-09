@@ -1,8 +1,8 @@
+import { evaluateFactoryRemoteChecks } from "@mailmypdf/workflows";
 import type {
   FactoryBuildArtifact,
   FactoryBuildCheck,
   FactoryJob,
-  evaluateFactoryRemoteChecks,
 } from "@mailmypdf/workflows";
 import type { WorkflowSeed } from "@mailmypdf/workflows/canonical-registry";
 import { GitHubRepositoryProvider } from "@mailmypdf/vertical-foundry";
@@ -375,11 +375,24 @@ export async function syncRemoteFactoryAcceptance(input: {
     throw new Error("Factory job has no remote acceptance run to synchronize.");
   }
 
+  const project = findStudioProject("mailmypdf");
+  if (!project) throw new Error("MailMyPDF Studio project is not configured.");
   const provider = githubProvider();
-  const status = await provider.getCommitStatus(
-    job.buildArtifact.remote.repository,
-    job.buildArtifact.commitSha,
-  );
+  const repository = repositoryFromUrl(project.repoUrl);
+  if (job.buildArtifact.remote.repository !== repository) {
+    throw new Error("Remote factory artifact does not match the configured repository.");
+  }
+  const [currentBase, remoteHead, status] = await Promise.all([
+    provider.getBranchSha(repository, project.defaultBranch),
+    provider.getBranchSha(repository, job.buildArtifact.branch),
+    provider.getCommitStatus(repository, job.buildArtifact.commitSha),
+  ]);
+  if (currentBase.sha !== job.buildArtifact.baseSha) {
+    throw new Error("The default branch moved after factory acceptance started. Rebuild and retest the proposal.");
+  }
+  if (remoteHead.sha !== job.buildArtifact.commitSha) {
+    throw new Error("Remote factory branch moved after acceptance started.");
+  }
   const byName = new Map<string, (typeof status.checks)[number]>();
   for (const check of status.checks) {
     if (!byName.has(check.context)) byName.set(check.context, check);
@@ -399,11 +412,9 @@ export async function syncRemoteFactoryAcceptance(input: {
     });
   }
 
-  if (
-    observed.some(
-      (check) => !check || check.state === "pending",
-    )
-  ) {
+  // Reuse the same newest-run, fail-closed evaluation as final publication
+  // approval; a missing, pending, or cancelled mandatory run cannot graduate.
+  if (!evaluateFactoryRemoteChecks(required, status.checks).ready) {
     return job;
   }
 
