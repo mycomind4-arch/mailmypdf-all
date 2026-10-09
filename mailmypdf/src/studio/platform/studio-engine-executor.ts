@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { normalizeName, compareNormalizedNames, evaluateSourceAuthority, resolveAuthoritativeName, resolveEntityClassification } from "@mailmypdf/identity-capacity";
 import { resolveCapabilityDependencies } from "@mailmypdf/workflows/capability-registry";
-import { scanRecoveryTransactions } from "@mailmypdf/intelligence";
+import { scanRecoveryTransactions, createFact, detectContradictions, createTemporalConstraint, createDeadlineRule, createTimelineEvent, computeDeadline } from "@mailmypdf/intelligence";
 import type { RecoveryTransaction } from "@mailmypdf/intelligence";
 import { buildExhibitIndex, renderExhibitIndex } from "@mailmypdf/packet-builder/exhibit-index";
 import {
@@ -64,6 +64,21 @@ const entityClassificationInput = z.object({
 }).strict();
 const capabilityDependenciesInput = z.object({
   capabilityIds: z.array(shortText).min(1).max(75),
+}).strict();
+
+const contradictionInput = z.object({
+  facts: z.array(z.object({
+    subject: shortText,
+    predicate: shortText,
+    value: z.string().trim().min(1).max(1500),
+    confidence: z.number().min(0).max(1).optional(),
+  }).strict()).min(2).max(60),
+}).strict();
+const deadlineInput = z.object({
+  triggerDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+  days: z.number().int().min(1).max(3650),
+  calendarType: z.enum(["calendar", "business"]),
+  ruleBasis: z.string().trim().min(1).max(200),
 }).strict();
 
 const transaction = z.object({
@@ -158,6 +173,38 @@ export function executeStudioEngine(engineId: string, rawInput: unknown): Studio
         return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
           output: resolveCapabilityDependencies(input.capabilityIds),
           limitations: ["Dependency resolution does not certify adapters or live production readiness."] };
+      }
+      case "studio.fact-contradictions": {
+        const input = contradictionInput.parse(rawInput);
+        const facts = input.facts.map((fact) => createFact({
+          ...fact,
+          provenance: { level: "user_provided" },
+        }));
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: { facts, contradictions: detectContradictions(facts, { level: "user_provided" }) },
+          limitations: ["User-entered facts are unverified; a flagged conflict does not establish which statement is true."] };
+      }
+      case "studio.deadline-calculation": {
+        const input = deadlineInput.parse(rawInput);
+        const date = new Date(input.triggerDate + "T00:00:00Z");
+        if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== input.triggerDate) {
+          throw new StudioEngineInputError("An actual calendar date is required.");
+        }
+        const duration = createTemporalConstraint({ triggerEventType: "studio-trigger", days: input.days, calendarType: input.calendarType });
+        const rule = createDeadlineRule({
+          name: "Studio user-supplied interval",
+          description: "Calculation from a user-supplied rule only; no jurisdiction or law validation",
+          triggerEventType: "studio-trigger", duration, deadlineEventType: "studio-deadline",
+          authority: input.ruleBasis, version: "1",
+          provenance: { level: "user_provided" },
+        });
+        const trigger = createTimelineEvent({
+          caseId: "studio-read-only", eventType: "studio-trigger", date: input.triggerDate,
+          provenance: { level: "user_provided" },
+        });
+        return { engineId, packageName: engine.packageName, executed: true, sideEffects: "none",
+          output: computeDeadline(trigger, rule),
+          limitations: ["The rule was supplied by the user and has not been checked against law, notices, service rules, or holidays.", "Business-day calculation excludes weekends; no jurisdiction-specific holiday calendar is supplied."] };
       }
       case "studio.recovery-scan": {
         const input = recoveryInput.parse(rawInput);
