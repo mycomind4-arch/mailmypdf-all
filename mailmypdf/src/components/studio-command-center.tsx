@@ -181,7 +181,7 @@ export function StudioCommandCenter() {
       </div>
       <div className="border-t border-rule px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3"><h3 className="text-sm font-semibold">Next factory graduation steps</h3><Link to="/studio/builder" className="text-xs font-semibold text-cobalt">Open supervised Workflow Builder →</Link></div>
+          <div className="flex flex-wrap items-center gap-3"><h3 className="text-sm font-semibold">Next factory graduation steps</h3><Link to="/studio/factory" className="text-xs font-semibold text-cobalt">Open supervised Workflow Factory →</Link></div>
           <span className="text-xs text-muted-foreground">
             {data.workflows.graduation.summary.awaitingGraduation} workflows require chat-contract work
           </span>
