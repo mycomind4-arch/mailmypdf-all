@@ -19,9 +19,11 @@ Studio visual builder, and adds an administrator-only Engine Workbench.
 3. Authoritative name evidence resolution (identity-capacity).
 4. Entity classification (identity-capacity).
 5. Workflow capability dependency resolution (workflows).
-6. Duplicate-charge candidate screening (intelligence).
-7. Exhibit index generation (packet-builder).
-8. Secured-transaction evidence eligibility (secured-transactions).
+6. Fact contradiction detection (intelligence).
+7. Deadline arithmetic using a user-supplied rule (intelligence).
+8. Duplicate-charge candidate screening (intelligence).
+9. Exhibit index generation (packet-builder).
+10. Secured-transaction evidence eligibility (secured-transactions).
 
 The workbench accepts administrator-supplied JSON, never obtains real records
 on its own, and does not persist inputs or results. Its examples are demo data.
