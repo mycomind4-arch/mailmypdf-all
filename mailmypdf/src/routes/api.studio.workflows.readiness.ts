@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { canonicalChatFactoryReport } from "@mailmypdf/workflows";
+import { canonicalChatFactoryReport, buildFactoryGraduationReport } from "@mailmypdf/workflows";
 import { adminFactoryAccessError } from "@/studio/access";
 import { MAILMYPDF_MCP_TOOLS } from "@/lib/mcp/tool-catalog";
 
@@ -11,12 +11,15 @@ export const Route = createFileRoute("/api/studio/workflows/readiness")({
         const accessError = await adminFactoryAccessError(request);
         if (accessError) return accessError;
 
-        const workflows = canonicalChatFactoryReport(MAILMYPDF_MCP_TOOLS.map((tool) => tool.name));
+        const toolNames = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
+        const workflows = canonicalChatFactoryReport(toolNames);
+        const graduation = buildFactoryGraduationReport(toolNames);
         return Response.json({
           total: workflows.length,
           chatExecutable: workflows.filter((workflow) => workflow.chatExecutable).length,
           awaitingChatContract: workflows.filter((workflow) => workflow.reason === "chat-contract-not-registered").length,
           workflows,
+          graduation,
         }, { headers: { "cache-control": "no-store" } });
       },
     },
