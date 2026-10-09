@@ -6,7 +6,7 @@ import { SECTION_REGISTRY } from "@/lib/section-registry";
 import { studioProjects } from "@/studio/domain/studio-project";
 import {
   WORKFLOW_EXECUTION_REGISTRY,
-  canonicalChatFactoryReport,
+  buildFactoryGraduationReport,
 } from "@mailmypdf/workflows";
 import {
   MAILMYPDF_MCP_TOOLS,
@@ -84,8 +84,8 @@ export const getStudioCommandCenter = createServerFn({ method: "GET" })
     const executable = WORKFLOW_EXECUTION_REGISTRY.filter(
       (workflow) => workflow.executionStatus === "executable",
     ).length;
-    const factory = canonicalChatFactoryReport(MAILMYPDF_MCP_TOOLS.map((tool) => tool.name));
-    const chatCertified = factory.filter((workflow) => workflow.chatExecutable).length;
+    const graduation = buildFactoryGraduationReport(MAILMYPDF_MCP_TOOLS.map((tool) => tool.name));
+    const chatCertified = graduation.summary.chatContractCertified;
 
     const publicTools = MAILMYPDF_MCP_TOOLS.filter((tool) =>
       tool.securitySchemes.some((scheme) => scheme.type === "noauth"),
@@ -155,6 +155,11 @@ export const getStudioCommandCenter = createServerFn({ method: "GET" })
         chatCertified,
         sections: SECTION_REGISTRY.length,
         sectionsByState,
+        graduation: {
+          summary: graduation.summary,
+          references: graduation.references,
+          queue: graduation.queue.slice(0, 12),
+        },
       },
       connector: {
         version: MCP_CONNECTOR_VERSION,

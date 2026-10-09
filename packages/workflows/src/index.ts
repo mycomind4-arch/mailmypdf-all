@@ -90,6 +90,7 @@ export * from "./browser-access-token.js";
 export * from "./workflow-chat-contract.js";
 export * from "./chat-readiness.js";
 export * from "./chat-execution-registry.js";
+export * from "./factory-graduation.js";
 export * from "./problem-workflow-plan.js";
 export * from "./factory-job.js";
 export * from "./factory-build.js";
