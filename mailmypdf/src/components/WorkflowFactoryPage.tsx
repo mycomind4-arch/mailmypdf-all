@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { authenticatedHeaders } from "@/lib/authenticated-client";
+import { FACTORY_CI_POLL_INTERVAL_MS, shouldPollRemoteFactoryCi } from "./factory-ci-polling";
 
 type FactoryEntry = {
   id: string;
@@ -128,6 +129,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     "report" | "job" | "review" | "build" | "remote-build" | "remote-sync" | "remote-approve" | "publish" | "cancel" | null
   >("report");
   const [error, setError] = useState<string | null>(null);
+  const remoteSyncInFlight = useRef(false);
 
   function upsertJob(job: FactoryJob) {
     setJobs((current) => [job, ...current.filter((item) => item.id !== job.id)]);
@@ -163,6 +165,46 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     setAdoptExisting(false);
     setNoticeProfileJson("");
   }, [activeJob?.id]);
+
+  // Check CI automatically only while Studio is open. Never approve or publish.
+  useEffect(() => {
+    if (!shouldPollRemoteFactoryCi(activeJob, pending !== null)) return;
+    const jobId = activeJob!.id;
+    let disposed = false;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "hidden" || remoteSyncInFlight.current) return;
+      remoteSyncInFlight.current = true;
+      void (async () => {
+        try {
+          const payload = await request(`/api/studio/workflows/jobs/${jobId}/remote-sync`, {
+            method: "POST",
+          }) as { job: FactoryJob };
+          if (payload.job.id !== jobId) throw new Error("CI synchronization returned a different factory job.");
+          if (disposed) return;
+          setJobs((current) => current.map((job) => job.id === jobId ? payload.job : job));
+          setActiveJob((current) => current?.id === jobId ? payload.job : current);
+        } catch (cause) {
+          if (!disposed) {
+            setError(cause instanceof Error ? cause.message : "Automatic GitHub CI check failed.");
+          }
+        } finally {
+          remoteSyncInFlight.current = false;
+        }
+      })();
+    }, FACTORY_CI_POLL_INTERVAL_MS);
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [
+    activeJob?.id,
+    activeJob?.revision,
+    activeJob?.stage,
+    activeJob?.status,
+    activeJob?.buildArtifact?.remote?.pullRequestNumber,
+    pending,
+    request,
+  ]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -292,7 +334,8 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
   }
 
   async function syncRemote(job: FactoryJob) {
-    if (pending) return;
+    if (pending || remoteSyncInFlight.current) return;
+    remoteSyncInFlight.current = true;
     setPending("remote-sync");
     setError(null);
     try {
@@ -303,6 +346,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to synchronize remote factory CI.");
     } finally {
+      remoteSyncInFlight.current = false;
       setPending(null);
     }
   }
@@ -596,7 +640,7 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               {activeJob.stage === "acceptance" && activeJob.status === "running" && activeJob.buildArtifact?.remote && (
                 <button type="button" onClick={() => void syncRemote(activeJob)} disabled={pending !== null} className="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-paper disabled:opacity-50">
                   <RefreshCw size={16} className={pending === "remote-sync" ? "animate-spin" : ""} />
-                  {pending === "remote-sync" ? "Checking GitHub CI…" : "Check GitHub CI"}
+                  {pending === "remote-sync" ? "Checking GitHub CI…" : "Check GitHub CI now (auto-check every 30s)"}
                 </button>
               )}
               {activeJob.stage === "publication_review" && activeJob.review.reason === "generated-workflow-publication" && activeJob.buildArtifact?.remote && (
