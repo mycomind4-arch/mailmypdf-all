@@ -174,7 +174,7 @@ jobs:
       - name: Verify MCP transport, review UI, approval, and checkout behavior
         run: pnpm --filter ./mailmypdf exec node --experimental-test-module-mocks --import tsx --test tests/mcp*.test.ts
       - name: Test Authority Gate and catalog topology invariants
-        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts tests/factory-graduation-wiring.test.ts
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts tests/factory-graduation-wiring.test.ts tests/factory-ci-polling.test.ts
       - name: Validate MailMyPDF plugin submission bundle
         run: pnpm plugin:mailmypdf:submission:validate
       - name: Verify MCP E2E safety interlocks
