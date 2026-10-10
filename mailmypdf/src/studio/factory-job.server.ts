@@ -113,6 +113,31 @@ export async function listPersistentFactoryJobs(
   return Object.freeze((data ?? []).map(assertPersistedRow));
 }
 
+/**
+ * Select a bounded database-backed acceptance queue instead of scanning only
+ * the newest Studio jobs. Local acceptance runs are intentionally ignored.
+ */
+export async function listPersistentPendingRemoteFactoryJobs(
+  limit = 20,
+): Promise<readonly FactoryJob[]> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 25) {
+    throw new Error("Factory CI queue limit must be an integer from 1 to 25.");
+  }
+  const { data, error } = await supabaseAdmin
+    .from("factory_jobs")
+    .select("*")
+    .eq("stage", "acceptance")
+    .eq("status", "running")
+    .order("updated_at", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return Object.freeze(
+    (data ?? [])
+      .map(assertPersistedRow)
+      .filter((job) => Boolean(job.buildArtifact?.remote)),
+  );
+}
+
 export async function listPersistentFactoryJobEvents(
   jobId: string,
 ): Promise<readonly PersistentFactoryJobEvent[]> {
@@ -143,7 +168,7 @@ export async function listPersistentFactoryJobEvents(
 async function persistTransition(
   current: FactoryJob,
   transition: FactoryJobTransition,
-  actorId: string,
+  actorId: string | null,
 ): Promise<FactoryJob> {
   if (
     transition.job.id !== current.id ||
@@ -275,7 +300,7 @@ export async function failPersistentFactoryAcceptance(input: {
 
 export async function recordPersistentFactoryAcceptance(input: {
   jobId: string;
-  actorId: string;
+  actorId: string | null;
   checks: readonly FactoryBuildCheck[];
   now?: string;
 }): Promise<FactoryJob> {

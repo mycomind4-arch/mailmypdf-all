@@ -280,3 +280,27 @@ test("remote factory CI synchronization pins the reviewed base and proposal head
   assert.match(sync, /evaluateFactoryRemoteChecks\(required, status\.checks\)\.ready/);
   assert.match(sync, /if \(failed\.length > 0\)/);
 });
+
+test("background factory CI sweeps use a secret-gated Worker cron and never auto-publish", () => {
+  const route = read("src/routes/api/internal/factory-ci-sync.ts");
+  const cron = read("src/server.ts");
+  const queue = read("src/studio/factory-job.server.ts");
+  const remote = read("src/studio/factory-remote-executor.server.ts");
+  const deploy = read("deploy.sh");
+
+  assert.match(route, /getConfig\(\)\.jobs\.cleanupSecret/);
+  assert.match(route, /request\.headers\.get\("authorization"\)/);
+  assert.match(route, /status: 401/);
+  assert.match(route, /sweepFactoryRemoteCi/);
+  assert.match(route, /listPersistentPendingRemoteFactoryJobs/);
+  assert.match(route, /syncRemoteFactoryAcceptance\(\{ jobId, actorId: null \}\)/);
+  assert.match(route, /summary\.errors === 0 && summary\.failedAcceptance === 0/);
+  assert.match(cron, /"factory-ci-sync"/);
+  assert.match(cron, /Bearer \$\{cleanupSecret\}/);
+  assert.match(deploy, /"\*\/5 \* \* \* \*"/);
+  assert.match(queue, /\.eq\("stage", "acceptance"\)/);
+  assert.match(queue, /\.eq\("status", "running"\)/);
+  assert.match(queue, /job\.buildArtifact\?\.remote/);
+  assert.match(remote, /actorId: string \| null/);
+  assert.doesNotMatch(route, /approveRemoteFactoryPublication|recordPersistentFactoryPublication|mergePullRequest|publishPersistentFactoryProposal|submitOrderToLob|stripe/);
+});

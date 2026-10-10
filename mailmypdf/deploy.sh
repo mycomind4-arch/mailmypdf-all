@@ -10,7 +10,7 @@
 # the proof jobs silently never run. The guard below fails loudly rather than
 # letting that recur as a confusing `cd` error.
 #
-# Cron: every 5 minutes → POST /api/internal/proof-processor
+# Cron: every 5 minutes → proof-processor, publication-scheduler, factory-ci-sync
 # Auth: Bearer MAILMYPDF_CLEANUP_SECRET
 #
 # The secure-core jobs (document scanning, retention) are scheduled separately
@@ -51,14 +51,14 @@ with open("wrangler.json") as f:
 config["name"] = "mailmypdf"
 config["triggers"] = {
     "crons": [
-        "*/5 * * * *",   # Every 5 minutes: proof-processor (webhook retries, window expiry)
+        "*/5 * * * *",   # Every 5 minutes: authenticated internal processors
     ]
 }
 
 with open("wrangler.json", "w") as f:
     json.dump(config, f, indent=2)
 
-print("✅ Cron triggers added: proof-processor every 5 minutes")
+print("✅ Cron triggers added: internal processors every 5 minutes")
 PYEOF
 
 echo "🚀 Deploying to Cloudflare Workers..."
@@ -78,4 +78,4 @@ echo "🔎 Running MCP launch-readiness against $MAILMYPDF_BASE_URL..."
 MCP_BASE_URL="$MAILMYPDF_BASE_URL" pnpm mcp:readiness
 
 echo ""
-echo "✅ Deployed and verified at $MAILMYPDF_BASE_URL! Cron: */5 * * * * → /api/internal/proof-processor"
+echo "✅ Deployed and verified at $MAILMYPDF_BASE_URL! Cron: */5 * * * * → authenticated internal processors"
