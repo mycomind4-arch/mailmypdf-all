@@ -363,7 +363,7 @@ export async function startRemoteFactoryAcceptance(input: {
 
 export async function syncRemoteFactoryAcceptance(input: {
   jobId: string;
-  actorId: string;
+  actorId: string | null;
 }): Promise<FactoryJob> {
   const job = await loadPersistentFactoryJob(input.jobId);
   if (!job) throw new Error("Factory job was not found.");
