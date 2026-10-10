@@ -28,61 +28,43 @@ async function source(path) {
   return readFile(join(root, path), "utf8");
 }
 
-// ── Tests: surcharges are cost-plus-margin, above Lob cost ──────────────
+// ── Tests: app pricing delegates to canonical pricing authority ──────────
 
-test("certified mail surcharge is at least Lob cost ($6.95) plus $1.00 margin", async () => {
+test("certified and registered surcharges come from @mailmypdf/pricing", async () => {
   const pricing = await source("src/lib/pricing.ts");
 
-  // Extract LOB_CERTIFIED_COST
-  const costMatch = pricing.match(/LOB_CERTIFIED_COST\s*=\s*(\d+)/);
-  assert.ok(costMatch, "LOB_CERTIFIED_COST constant must exist");
-  const lobCost = parseInt(costMatch[1], 10);
-  assert.ok(lobCost >= 695, `LOB_CERTIFIED_COST should be at least 695 ($6.95), got ${lobCost}`);
-
-  // Extract MAIL_CLASS_MARGIN
-  const marginMatch = pricing.match(/MAIL_CLASS_MARGIN\s*=\s*(\d+)/);
-  assert.ok(marginMatch, "MAIL_CLASS_MARGIN constant must exist");
-  const margin = parseInt(marginMatch[1], 10);
-  assert.ok(margin >= 100, `MAIL_CLASS_MARGIN should be at least 100 ($1.00), got ${margin}`);
-
-  // The certified surcharge should be cost + margin (at minimum)
-  const minExpected = lobCost + margin;
-  assert.ok(
-    minExpected >= 695 + 100,
-    `Certified surcharge (cost ${lobCost} + margin ${margin} = ${minExpected}) should be at least $7.95`
-  );
-
-  // Verify the surcharge is expressed as LOB_CERTIFIED_COST + MAIL_CLASS_MARGIN, not a bare number
   assert.match(
     pricing,
-    /certified:\s*LOB_CERTIFIED_COST\s*\+\s*MAIL_CLASS_MARGIN/,
-    "Certified surcharge must be LOB_CERTIFIED_COST + MAIL_CLASS_MARGIN, not a hardcoded number"
+    /certified:\s*getMailSurcharge\("certified"\)/,
+    "Certified surcharge must delegate to the canonical pricing package",
+  );
+  assert.match(
+    pricing,
+    /registered:\s*getMailSurcharge\("registered"\)/,
+    "Registered surcharge must delegate to the canonical pricing package",
+  );
+  assert.match(
+    pricing,
+    /FULFILLMENT_COSTS/,
+    "Fulfillment cost references should come from the canonical pricing package",
   );
 });
 
-test("registered mail surcharge is at least Lob cost ($24.50) plus $1.00 margin", async () => {
+test("core page-count pricing launches at $2.99 / $3.99 / $4.99", async () => {
   const pricing = await source("src/lib/pricing.ts");
+  assert.match(pricing, /pageCount <= 2\) return PRICES\.standard/);
+  assert.match(pricing, /pageCount <= 5\) return 399/);
+  assert.match(pricing, /return 499/);
+});
 
-  const costMatch = pricing.match(/LOB_REGISTERED_COST\s*=\s*(\d+)/);
-  assert.ok(costMatch, "LOB_REGISTERED_COST constant must exist");
-  const lobCost = parseInt(costMatch[1], 10);
-  assert.ok(lobCost >= 2450, `LOB_REGISTERED_COST should be at least 2450 ($24.50), got ${lobCost}`);
-
-  const marginMatch = pricing.match(/MAIL_CLASS_MARGIN\s*=\s*(\d+)/);
-  assert.ok(marginMatch, "MAIL_CLASS_MARGIN constant must exist");
-  const margin = parseInt(marginMatch[1], 10);
-
-  const minExpected = lobCost + margin;
-  assert.ok(
-    minExpected >= 2450 + 100,
-    `Registered surcharge (cost ${lobCost} + margin ${margin} = ${minExpected}) should be at least $25.50`
-  );
-
-  assert.match(
-    pricing,
-    /registered:\s*LOB_REGISTERED_COST\s*\+\s*MAIL_CLASS_MARGIN/,
-    "Registered surcharge must be LOB_REGISTERED_COST + MAIL_CLASS_MARGIN, not a hardcoded number"
-  );
+test("marketing no longer advertises core mailing from $4.99", async () => {
+  const files = await collectFiles(srcDir, new Set([".ts", ".tsx", ".json", ".md", ".html", ".mjs"]));
+  const offenders = [];
+  for (const f of files) {
+    const content = await readFile(f, "utf8");
+    if (/from \$4\.99/i.test(content)) offenders.push(f.replace(root + "/", ""));
+  }
+  assert.deepEqual(offenders, [], `Found stale "from $4.99" marketing copy in: ${offenders.join(", ")}`);
 });
 
 // ── Regression test: old literal prices must not appear anywhere ─────────
