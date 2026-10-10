@@ -49,10 +49,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // ── Scheduled (Cron) Handler ───────────────────────────────────────────────────
 //
 // Cloudflare Workers fires the `scheduled` event when a cron trigger fires.
-// We route it to our internal proof-processor endpoint, which handles:
-// 1. Pending webhook retries (proof-of-service webhook delivery)
-// 2. Expired response windows (legal notice cure periods)
-// 3. (Future) Reconciliation of stale communications with Lob
+// It invokes narrowly authenticated internal processors for proof handling,
+// publication scheduling and supervised factory GitHub CI reconciliation.
+// Factory CI reconciliation can only reach publication_review: it does not
+// approve, merge, deploy, charge or submit customer mail.
 //
 // The endpoint requires Bearer auth via MAILMYPDF_CLEANUP_SECRET.
 // We read the secret from the Worker environment (env object).
@@ -85,7 +85,7 @@ async function handleScheduled(
 
   console.log(`[scheduled] cron "${controller.cron}" fired — calling internal processors`);
 
-  const jobs = ["proof-processor", "publication-scheduler"] as const;
+  const jobs = ["proof-processor", "publication-scheduler", "factory-ci-sync"] as const;
   for (const job of jobs) {
     try {
       const response = await fetch(`${baseUrl}/api/internal/${job}`, {
