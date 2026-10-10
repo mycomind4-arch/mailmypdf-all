@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { buildFactoryGraduationReport } from "@mailmypdf/workflows";
+import { buildFactoryGraduationReport, planCanonicalCatalogProduction } from "@mailmypdf/workflows";
 import { WORKFLOW_REGISTRY } from "@mailmypdf/workflows/canonical-registry";
 import { MAILMYPDF_MCP_TOOLS } from "../src/lib/mcp/tool-catalog";
 
@@ -58,4 +58,24 @@ test("factory graduation is admin-only and visible in Studio without claiming a 
   assert.ok(ui.includes("journey.nextAcceptance"));
   assert.ok(ui.includes('to="/studio/factory" className="text-xs font-semibold text-cobalt">Open supervised Workflow Factory'));
   assert.ok(!ui.includes("Open supervised Workflow Builder →"));
+});
+
+test("Studio factory surfaces a catalog-wide production family plan without claiming live fulfillment", () => {
+  const plan = planCanonicalCatalogProduction();
+  const route = read("mailmypdf/src/routes/api.studio.workflows.readiness.ts");
+  const ui = read("mailmypdf/src/components/WorkflowFactoryPage.tsx");
+
+  assert.equal(plan.total, WORKFLOW_REGISTRY.length);
+  assert.equal(plan.families.reduce((sum, family) => sum + family.total, 0), plan.total);
+  assert.equal(
+    plan.families.reduce((sum, family) => sum + family.unfinished, 0),
+    plan.unfinished,
+  );
+  assert.ok(route.includes("adminFactoryAccessError(request)"));
+  assert.ok(route.includes("planCanonicalCatalogProduction()"));
+  assert.ok(route.includes("productionPlan: {"));
+  assert.ok(route.includes("families: production.families"));
+  assert.ok(ui.includes("Production roadmap by workflow family"));
+  assert.ok(ui.includes("This is a planning backlog, not proof of end-to-end payment"));
+  assert.ok(ui.includes("report?.productionPlan.families"));
 });
