@@ -20,11 +20,39 @@ type FactoryEntry = {
   diagnostics: Array<{ code: string; message: string }>;
 };
 
+type FactoryFamilySummary = {
+  familyId: string;
+  label: string;
+  readiness: string;
+  total: number;
+  complete: number;
+  unfinished: number;
+  readyNow: number;
+  reviewRequired: number;
+  orchestratorRequired: number;
+  materializerRequired: number;
+  adapterRequired: number;
+  unlockCount: number;
+};
+
+type FactoryProductionPlan = {
+  total: number;
+  complete: number;
+  unfinished: number;
+  readyNow: number;
+  reviewRequired: number;
+  orchestratorRequired: number;
+  materializerRequired: number;
+  adapterRequired: number;
+  families: FactoryFamilySummary[];
+};
+
 type FactoryReport = {
   total: number;
   chatExecutable: number;
   awaitingChatContract: number;
   workflows: FactoryEntry[];
+  productionPlan: FactoryProductionPlan;
 };
 
 type FactoryJob = {
@@ -681,6 +709,61 @@ export function WorkflowFactoryPage({ request = factoryRequest }: {
               </button>
             ))}
             {jobs.length === 0 && pending !== "report" && <p className="p-5 text-sm text-stone">No persistent factory jobs yet.</p>}
+          </div>
+        </section>
+
+        <section aria-labelledby="factory-family-title" className="mt-8 rounded-xl border border-rule bg-paper p-5 shadow-sm sm:p-7">
+          <h2 id="factory-family-title" className="font-serif text-2xl text-navy">Production roadmap by workflow family</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-stone">
+            Each catalog workflow is classified against its shared factory adapter.
+            This is a planning backlog, not proof of end-to-end payment, fulfillment, or deployment.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite">
+            {([
+              ["Catalog", report?.productionPlan.total],
+              ["Executable maturity", report?.productionPlan.complete],
+              ["Factory-ready backlog", report?.productionPlan.readyNow],
+              ["Needs adapter", report?.productionPlan.adapterRequired],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-rule bg-ivory p-3">
+                <div className="font-serif text-2xl text-navy">{value ?? "—"}</div>
+                <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-stone">{label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-stone">
+            Additional blockers: {report?.productionPlan.reviewRequired ?? "—"} require reviewed profiles,
+            {" "}{report?.productionPlan.orchestratorRequired ?? "—"} require orchestration,
+            {" "}{report?.productionPlan.materializerRequired ?? "—"} require materialization.
+            Every build still requires its applicable acceptance and publication gates.
+          </p>
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
+            {(report?.productionPlan.families ?? []).map((family) => (
+              <article key={family.familyId} className="rounded-lg border border-rule bg-ivory p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-navy">{family.label}</h3>
+                  <span className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone">
+                    {family.readiness.replaceAll("-", " ")}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone">
+                  <span>Total: <strong className="text-navy">{family.total}</strong></span>
+                  <span>Executable maturity: <strong className="text-navy">{family.complete}</strong></span>
+                  <span>Unfinished: <strong className="text-navy">{family.unfinished}</strong></span>
+                </div>
+                <div className="mt-2 text-xs font-medium text-navy">
+                  {family.readiness === "factory-ready"
+                    ? `${family.readyNow} catalog workflows eligible for supervised adoption`
+                    : family.readiness === "review-gated"
+                      ? `${family.reviewRequired} workflows need reviewed authority-specific profiles`
+                      : family.readiness === "orchestrator-gap"
+                        ? `${family.orchestratorRequired} workflows need a persistent executor`
+                        : family.readiness === "materializer-gap"
+                          ? `${family.materializerRequired} workflows need shared start materialization`
+                          : `${family.adapterRequired} workflows need a reusable family adapter`}
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
