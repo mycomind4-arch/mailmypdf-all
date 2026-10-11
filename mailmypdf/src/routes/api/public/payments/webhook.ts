@@ -93,7 +93,7 @@ async function verifyWebhookWithSdk(
 
   let event: any;
   try {
-    event = client.webhooks.constructEvent(raw, signature, secret);
+    event = await client.webhooks.constructEventAsync(raw, signature, secret);
   } catch (e) {
     log.error("Stripe webhook signature verification failed", {
       error: e instanceof Error ? e.message : String(e),

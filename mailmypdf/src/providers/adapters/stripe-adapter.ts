@@ -188,7 +188,7 @@ export class StripeAdapter implements PaymentProvider {
     const client = getClient();
     let event: Stripe.Event;
     try {
-      event = client.webhooks.constructEvent(body, signature, secret);
+      event = await client.webhooks.constructEventAsync(body, signature, secret);
     } catch (e) {
       logWebhook({
         provider: "stripe",
