@@ -9,7 +9,8 @@ the owner's phone or computer to remain online.
 - Schedule: daily at **16:23 UTC**; manual launch through GitHub Actions
   `workflow_dispatch` is also supported.
 - Queue: open issues **authored by repository owner** whose title starts with
-  `[Cloud Agent]`, processed oldest first, one issue per run.
+  `[Cloud Agent]`, processed oldest-first (skipping tasks with an existing PR), one issue per run,
+  and no more than **three simultaneous open agent PRs**.
 - Execution: ephemeral Ubuntu GitHub Actions runner, Node 24, Claude Code CLI.
   The model receives only its Anthropic API key. GitHub write credentials are
   provided *after* model execution to the deterministic branch/PR step.
@@ -21,7 +22,8 @@ the owner's phone or computer to remain online.
 - Safeguards: no production credentials in agent step; changed-path blocklist;
   no external sends, deploys, customer charges, automatic merge or live mailing.
   The code proposal is left as a pull request for human review.
-- Only an initial revenue-readiness audit is seeded (issue #178).
+- Three owner-created starter tasks are seeded: #178 (paid mailing readiness),
+  #179 (synthetic conversion measurement), and #180 (ChatGPT onboarding).
   The first PR will not establish live payment or fulfillment readiness.
 
 ## REQUIRED one-time activation by repository owner
@@ -53,10 +55,10 @@ the owner's phone or computer to remain online.
 
 ## Limits / failure behavior
 
-- If the first open owner issue already has a matching PR, a scheduled run
-  deliberately stops rather than duplicating or competing with that review.
-  Merge/close that issue, or provide another issue number in manual dispatch,
-  before work continues on further tasks.
+- The queue skips any issue that already has an agent PR, including closed PRs;
+  after three open agent PRs it pauses until an owner reviews them. To retry an
+  abandoned issue, create a fresh owner-authored task rather than duplicating a
+  previously attempted PR.
 - If the model exits with an error, runs out of budget, or touches a protected
   path, the job stops before pushing its changes.
 - If PR creation is disabled in repository settings, code may reach the
