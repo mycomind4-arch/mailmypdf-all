@@ -39,11 +39,28 @@ jobs:
             echo "::error::issue_number must be a positive integer"
             exit 1
           fi
+          # Bounded backlog: never allow more than three open agent PRs.
+          active="$(gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json headRefName | jq '[.[] | select(.headRefName | startswith("cloud-agent/issue-"))] | length')"
+          if [[ "$active" -ge 3 ]]; then
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+            echo "Three cloud-agent PRs already await review; pausing." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [[ -z "$issue" ]]; then
-            issue="$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 \
+            candidates="$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 \
               --json number,title,author \
               | jq -r --arg owner "$REPO_OWNER" \
-                '[.[] | select(.author.login == $owner and (.title | startswith("[Cloud Agent]")))] | sort_by(.number) | (.[0].number // empty)')"
+                '[.[] | select(.author.login == $owner and (.title | startswith("[Cloud Agent]")))] | sort_by(.number) | .[].number')"
+            while IFS= read -r candidate; do
+              [[ -n "$candidate" ]] || continue
+              found="$(gh pr list -R "$GITHUB_REPOSITORY" --state all \
+                --head "cloud-agent/issue-$candidate" --json number | jq 'length')"
+              if [[ "$found" == 0 ]]; then
+                issue="$candidate"
+                break
+              fi
+            done <<< "$candidates"
           fi
           if [[ -z "$issue" ]]; then
             echo "selected=false" >> "$GITHUB_OUTPUT"
