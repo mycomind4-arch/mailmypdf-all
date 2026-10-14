@@ -1,0 +1,181 @@
+name: MailMyPDF Cloud Agent (review-only)
+
+on:
+  schedule:
+    # Once daily, off the hour. GitHub schedules run on UTC.
+    - cron: "23 16 * * *"
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Optional owner-created [Cloud Agent] issue number; blank selects oldest eligible issue"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: mailmypdf-cloud-agent
+  cancel-in-progress: false
+
+jobs:
+  build-proposal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Select one owner-approved issue (no third-party input)
+        id: task
+        env:
+          GH_TOKEN: \${{ github.token }}
+          INPUT_ISSUE: \${{ inputs.issue_number }}
+          REPO_OWNER: \${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          issue="$INPUT_ISSUE"
+          if [[ -n "$issue" && ! "$issue" =~ ^[0-9]+$ ]]; then
+            echo "::error::issue_number must be a positive integer"
+            exit 1
+          fi
+          if [[ -z "$issue" ]]; then
+            issue="$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 \
+              --json number,title,author \
+              | jq -r --arg owner "$REPO_OWNER" \
+                '[.[] | select(.author.login == $owner and (.title | startswith("[Cloud Agent]")))] | sort_by(.number) | (.[0].number // empty)')"
+          fi
+          if [[ -z "$issue" ]]; then
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+            echo "No open owner-authored [Cloud Agent] issues." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          item="$(gh issue view "$issue" -R "$GITHUB_REPOSITORY" --json number,title,author,state)"
+          if ! jq -e --arg owner "$REPO_OWNER" \
+            '.state == "OPEN" and .author.login == $owner and (.title | startswith("[Cloud Agent]"))' \
+            <<<"$item" >/dev/null; then
+            echo "::error::Issue is not open or not an owner-authored [Cloud Agent] task"
+            exit 1
+          fi
+          existing="$(gh pr list -R "$GITHUB_REPOSITORY" --state all --head "cloud-agent/issue-$issue" \
+            --json number | jq 'length')"
+          if [[ "$existing" != "0" ]]; then
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+            echo "Issue #$issue already has a cloud-agent PR; skipping to avoid duplicate work." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "selected=true" >> "$GITHUB_OUTPUT"
+          echo "issue=$issue" >> "$GITHUB_OUTPUT"
+          echo "Selected issue #$issue" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check model credential (never print secret)
+        id: credential
+        if: steps.task.outputs.selected == 'true'
+        env:
+          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Agent paused: configure the ANTHROPIC_API_KEY Actions secret to enable paid model runs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.credential.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.credential.outputs.ready == 'true'
+        with:
+          node-version: "24"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.credential.outputs.ready == 'true'
+        with:
+          version: 9.10.0
+          run_install: false
+
+      - name: Prepare isolated proposal branch and trusted task prompt
+        if: steps.credential.outputs.ready == 'true'
+        env:
+          GH_TOKEN: \${{ github.token }}
+          ISSUE: \${{ steps.task.outputs.issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git switch -c "cloud-agent/issue-$ISSUE"
+          gh issue view "$ISSUE" -R "$GITHUB_REPOSITORY" --json body --jq '.body' > "$RUNNER_TEMP/cloud-task.md"
+          {
+            cat .github/cloud-agent/PROMPT.md
+            printf '\n\n---\n## Approved issue #%s\n' "$ISSUE"
+            cat "$RUNNER_TEMP/cloud-task.md"
+          } > "$RUNNER_TEMP/cloud-prompt.md"
+
+      - name: Install headless Claude Code runner
+        if: steps.credential.outputs.ready == 'true'
+        shell: bash
+        run: npm install --global @anthropic-ai/claude-code@latest
+
+      - name: Implement one bounded task (estimated API cap $2/run)
+        if: steps.credential.outputs.ready == 'true'
+        env:
+          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          claude -p "$(cat "$RUNNER_TEMP/cloud-prompt.md")" \
+            --max-budget-usd 2.00 \
+            --max-turns 14 \
+            --permission-mode dontAsk \
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(pnpm *),Bash(node *),Bash(git status *),Bash(git diff *),Bash(git log *),Bash(ls *)"
+
+      - name: Enforce safe change boundaries and open review PR
+        if: steps.credential.outputs.ready == 'true'
+        env:
+          GH_TOKEN: \${{ github.token }}
+          ISSUE: \${{ steps.task.outputs.issue }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "No file changes from agent on issue #$ISSUE." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Inspect ALL tracked and untracked changes before staging.
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              .github/*|.claude/*|.agents/*|AGENTS.md|CLAUDE.md|\
+              */supabase/*|*/migrations/*|*stripe*|*Stripe*|*payment*|*Payment*|\
+              *fulfillment*|*Fulfillment*|*lob*|*Lob*|*mailing-client*|\
+              *wrangler*|*/deploy.sh|*.env|*.env.*|*secret*|*Secret*|\
+              package.json|pnpm-lock.yaml|pnpm-workspace.yaml)
+                echo "::error::Blocked protected path: $file"
+                exit 1
+                ;;
+            esac
+          done < <( { git diff --name-only -z; git ls-files --others --exclude-standard -z; } | sort -zu )
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No staged changes after verification." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "docs(test): cloud-agent proposal for issue #$ISSUE"
+          # No stored credential during model execution. Apply scoped token only now.
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/cloud-agent/issue-$ISSUE"
+          gh pr create -R "$GITHUB_REPOSITORY" --base main \
+            --head "cloud-agent/issue-$ISSUE" \
+            --title "Cloud Agent: proposal for issue #$ISSUE" \
+            --body "Closes #$ISSUE
+
+          Generated by the scheduled MailMyPDF cloud development agent.
+
+          **REVIEW REQUIRED:** no automatic merge, deployment, live payments, or mail submission. Review the diff and independently run the relevant CI/tests. Actions-created PR checks may require a maintainer approval."
+          echo "Created a review-only PR for issue #$ISSUE. No merge or deployment performed." >> "$GITHUB_STEP_SUMMARY"
