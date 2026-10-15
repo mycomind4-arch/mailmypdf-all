@@ -31,12 +31,12 @@ export const Route = createFileRoute("/pro")({
       {
         name: "description",
         content:
-          "Mail a document from $4.99. Pro members get 5 free letters every month and discounted rates. Certified Mail, Registered Mail, and color printing available. No hidden fees.",
+          "Mail a document from $2.99. Pro members get 5 free letters every month and discounted rates. Certified Mail, Registered Mail, and color printing available. No hidden fees.",
       },
       { property: "og:title", content: "MailMyPDF Pricing" },
       {
         property: "og:description",
-        content: "Transparent per-document pricing. Mail a short document from $4.99.",
+        content: "Transparent per-document pricing. Mail a short document from $2.99.",
       },
       { property: "og:type", content: "website" },
     ],
@@ -144,7 +144,7 @@ function ProPage() {
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
             <SectionHeader
               eyebrow="Per document"
-              title="Mail a document from $4.99."
+              title="Mail a document from $2.99."
               subtitle="Base price depends on page count. Mailing service and color printing are added at checkout. The total is shown before you pay."
             />
 
@@ -154,7 +154,7 @@ function ProPage() {
                 <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cobalt">
                   Short document
                 </div>
-                <div className="mt-2 font-serif text-3xl">$4.99</div>
+                <div className="mt-2 font-serif text-3xl">$2.99</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   1–2 pages, black & white, standard delivery
                 </p>
@@ -163,7 +163,7 @@ function ProPage() {
                 <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cobalt">
                   Medium document
                 </div>
-                <div className="mt-2 font-serif text-3xl">$6.99</div>
+                <div className="mt-2 font-serif text-3xl">$3.99</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   3–5 pages, black & white, standard delivery
                 </p>
@@ -172,7 +172,7 @@ function ProPage() {
                 <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cobalt">
                   Long document
                 </div>
-                <div className="mt-2 font-serif text-3xl">$9.99</div>
+                <div className="mt-2 font-serif text-3xl">$4.99</div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   6+ pages, black & white, standard delivery
                 </p>

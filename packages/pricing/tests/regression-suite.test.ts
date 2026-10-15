@@ -160,9 +160,9 @@ describe("Universal Pricing Regression Suite", () => {
   // ── 4. Legacy Drift ──────────────────────────────────────────────────────
   describe("Legacy drift detection", () => {
     it("canonical PRICES match the known mailing values", () => {
-      assert.equal(PRICES.standard, 499, "Standard mail should be 499 cents ($4.99)");
-      assert.equal(PRICES.certified, 1494, "Certified mail should be 1494 cents ($14.94)");
-      assert.equal(PRICES.registered, 3249, "Registered mail should be 3249 cents ($32.49)");
+      assert.equal(PRICES.standard, 299, "Standard mail should be 299 cents ($2.99)");
+      assert.equal(PRICES.certified, 1099, "Certified mail should be 1099 cents ($10.99)");
+      assert.equal(PRICES.registered, 2999, "Registered mail should be 2999 cents ($29.99)");
     });
 
     it("no production workflow charges ONLY the mailing price (legacy model)", () => {

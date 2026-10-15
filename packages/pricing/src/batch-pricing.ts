@@ -9,9 +9,9 @@ export interface BatchDiscountPolicy {
 
 export const DEFAULT_BATCH_DISCOUNT_POLICY: BatchDiscountPolicy = {
   tiers: [
-    { minPieces: 2, discountBps: 500 },
-    { minPieces: 10, discountBps: 1000 },
-    { minPieces: 50, discountBps: 1500 },
+    { minPieces: 2, discountBps: 2000 },
+    { minPieces: 10, discountBps: 2500 },
+    { minPieces: 50, discountBps: 3000 },
   ],
 };
 
