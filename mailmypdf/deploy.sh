@@ -22,6 +22,7 @@
 set -euo pipefail
 
 APP_DIR="$(pwd)"
+export MAILMYPDF_DEPLOYED_SHA="$(git rev-parse HEAD)"
 CURRENT_DEPLOYMENT_URL="https://mailmypdf.mycomind4.workers.dev"
 export MAILMYPDF_BASE_URL="${MAILMYPDF_BASE_URL:-$CURRENT_DEPLOYMENT_URL}"
 
@@ -44,11 +45,13 @@ cd .output/server
 
 python3 << 'PYEOF'
 import json
+import os
 
 with open("wrangler.json") as f:
     config = json.load(f)
 
 config["name"] = "mailmypdf"
+config.setdefault("vars", {})["MAILMYPDF_DEPLOYED_SHA"] = os.environ["MAILMYPDF_DEPLOYED_SHA"]
 config["triggers"] = {
     "crons": [
         "*/5 * * * *",   # Every 5 minutes: authenticated internal processors

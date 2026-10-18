@@ -1,5 +1,15 @@
 # MailMyPDF factory status
 
+## 2026-10-17 — Studio operational evidence
+
+- Extended the existing admin-only launch-readiness surface with GitHub processing-step evidence and serving-revision comparison. No parallel dashboard or public credential endpoint.
+- A successful workflow with skipped processing cannot pass. Missing, stale, duplicate or unavailable evidence remains review/unknown; GitHub errors are sanitized. Server-side repository/Actions token required.
+- Next explicitly approved deploy stamps its full Git SHA into generated Worker vars. Existing deployments correctly remain revision-unknown until then.
+- Manual canary/telemetry gaps now keep overall launch readiness at needs-review, even when configuration checks pass.
+- Verification: 8 focused pure evidence tests passed under Node 24; added to Workspace UI verification. Full integrated CI and hosted browser/deployment verification remain separate.
+- Remaining: durable Worker heartbeat, hosted Records Request acceptance, bounded discovery-to-job orchestration, SSA remote adapter, verified conversion/margin telemetry and branch reconciliation. No provider execution or deployment performed.
+
+
 ## 2026-10-17 — First selective hardening integration from PR #152
 
 - Integrated the three secure-core missing-credential failures from audit-hardening-2026-10-07 into current main; retained all current endpoint and schedule wiring.

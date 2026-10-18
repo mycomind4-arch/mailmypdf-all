@@ -1,3 +1,4 @@
+import { readOperationalEvidence } from "@/lib/operational-evidence.server";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getConfig } from "@/config";
@@ -76,7 +77,7 @@ export const getStudioLaunchReadiness = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const config = getConfig();
-    const checks: LaunchCheck[] = [];
+    const checks: LaunchCheck[] = (await readOperationalEvidence()).map(item => ({ ...item, category: "operations" as const }));
 
     // Configuration parity with scripts/production-readiness.mjs.
     const expectedRef = env("MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF");
@@ -504,7 +505,7 @@ export const getStudioLaunchReadiness = createServerFn({ method: "GET" })
     const automated = checks.filter((item) => item.status !== "manual");
     const automatedReady = automated.every((item) => item.status === "pass");
     const launchStatus: "blocked" | "needs-review" | "automated-ready" =
-      totals.fail > 0 ? "blocked" : totals.warning > 0 ? "needs-review" : "automated-ready";
+      totals.fail > 0 ? "blocked" : totals.warning > 0 || totals.manual > 0 ? "needs-review" : "automated-ready";
 
     return {
       generatedAt: new Date().toISOString(),
