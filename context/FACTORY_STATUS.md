@@ -1,5 +1,14 @@
 # MailMyPDF factory status
 
+## 2026-10-17 — First selective hardening integration from PR #152
+
+- Integrated the three secure-core missing-credential failures from audit-hardening-2026-10-07 into current main; retained all current endpoint and schedule wiring.
+- Replaced the obsolete skip-success expectation with execution of all three Bash configuration guards across four credential combinations (12 passing cases under Node 24 / Bash). Test module syntax checked. Full workspace CI remains separate; no production verification claimed.
+- Deployment now requires explicit manual dispatch from main. This preserves the user-authorized merge/sync scope without automatically releasing code.
+- Preserved factory-ci-sync and all customer mailing boundaries. No branches deleted, provider credentials changed, customer operations executed, or deployment invoked.
+- PR #152 remains partially integrated: cron failure propagation, attachment host restrictions, and other unique changes still require reconciliation. SSA cloud executor remains a separate gap.
+
+
 ## 2026-10-08 — Reviewed branch retirement with durable archives
 
 - Audited all 39 remote branches at `3528bc22`. Six histories are superseded: identity foundation (both versions), three README-only verification heads, and the old family planner integrated by #149.

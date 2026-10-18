@@ -1,4 +1,5 @@
 import { describe, test } from "node:test";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 
@@ -67,10 +68,23 @@ describe("scheduling", () => {
     assert.match(yaml, /\$\{\{ secrets\.MAILMYPDF_CONNECTOR_JOB_SECRET \}\}/);
   });
 
-  test("an unconfigured repository skips instead of failing every ten minutes", async () => {
+  test("configuration guards reject missing credentials and accept configured jobs", async () => {
     const yaml = await readFile(WORKFLOW, "utf8");
-    assert.match(yaml, /configured=false/);
-    assert.match(yaml, /steps\.config\.outputs\.configured == 'true'/);
+    const guards = [...yaml.matchAll(/if \[ -z "\$APP_URL" \] \|\| \[ -z "\$JOB_SECRET" \]; then[\s\S]*?\n\s+fi/g)];
+    assert.equal(guards.length, 3);
+    for (const [index, guard] of guards.entries()) {
+      for (const [appUrl, secret, expected] of [
+        ["", "", 1], ["https://example.invalid", "", 1],
+        ["", "synthetic-secret", 1], ["https://example.invalid", "synthetic-secret", 0],
+      ]) {
+        const result = spawnSync("bash", ["-c", guard[0]], {
+          encoding: "utf8",
+          env: { ...process.env, APP_URL: appUrl, JOB_SECRET: secret,
+            GITHUB_STEP_SUMMARY: "/dev/null", GITHUB_OUTPUT: "/dev/null" },
+        });
+        assert.equal(result.status, expected, `job ${index}: ${result.stderr}`);
+      }
+    }
   });
 });
 
