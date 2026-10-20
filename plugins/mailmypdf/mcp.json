@@ -3,7 +3,7 @@
   "mcpServers": {
     "mailmypdf": {
       "type": "streamable-http",
-      "url": "https://mailmypdf.ai/api/mcp"
+      "url": "https://mailmypdf.mycomind4.workers.dev/api/mcp"
     }
   }
 }
