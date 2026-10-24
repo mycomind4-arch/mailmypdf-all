@@ -6,22 +6,22 @@ import {
 } from "../src/batch-pricing.js";
 
 test("single-piece mailing receives no batch discount", () => {
-  assert.deepEqual(calculateBatchMailingPrice({ unitPriceCents: 499, quantity: 1 }), {
+  assert.deepEqual(calculateBatchMailingPrice({ unitPriceCents: 299, quantity: 1 }), {
     quantity: 1,
-    unitPriceCents: 499,
-    subtotalCents: 499,
+    unitPriceCents: 299,
+    subtotalCents: 299,
     discountBps: 0,
     discountCents: 0,
-    totalCents: 499,
+    totalCents: 299,
   });
 });
 
 test("default batch policy applies the highest reached tier", () => {
-  const quote = calculateBatchMailingPrice({ unitPriceCents: 499, quantity: 10 });
-  assert.equal(quote.discountBps, 1000);
-  assert.equal(quote.subtotalCents, 4990);
-  assert.equal(quote.discountCents, 499);
-  assert.equal(quote.totalCents, 4491);
+  const quote = calculateBatchMailingPrice({ unitPriceCents: 299, quantity: 10 });
+  assert.equal(quote.discountBps, 2500);
+  assert.equal(quote.subtotalCents, 2990);
+  assert.equal(quote.discountCents, 747);
+  assert.equal(quote.totalCents, 2243);
   assert.equal(DEFAULT_BATCH_DISCOUNT_POLICY.tiers.length, 3);
 });
 

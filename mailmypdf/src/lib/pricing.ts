@@ -10,6 +10,8 @@ import {
   PRICES,
   LABELS,
   MAIL_TYPE_MAP,
+  FULFILLMENT_COSTS,
+  getMailSurcharge,
   isValidPricingKey,
   type PricingKey,
 } from "@mailmypdf/pricing";
@@ -30,14 +32,15 @@ export const MAIL_CLASS_LABELS: Record<MailClass, string> = {
 // ── Fulfillment cost configuration (from canonical package) ────────────────
 // These costs come from @mailmypdf/pricing and represent the Lob/USPS
 // pass-through costs. The customer-facing prices include a margin.
-export const LOB_CERTIFIED_COST = 695;   // $6.95 per piece
-export const LOB_REGISTERED_COST = 2450; // $24.50 per piece
-export const MAIL_CLASS_MARGIN = 300; // $3.00
+export const LOB_CERTIFIED_COST = FULFILLMENT_COSTS.certifiedCostCents;
+export const LOB_REGISTERED_COST = FULFILLMENT_COSTS.registeredCostCents;
+/** @deprecated Customer prices come from the canonical pricing package, not a flat margin. */
+export const MAIL_CLASS_MARGIN = FULFILLMENT_COSTS.mailMarginCents;
 
 export const MAIL_CLASS_SURCHARGE: Record<MailClass, number> = {
   standard: 0,
-  certified: LOB_CERTIFIED_COST + MAIL_CLASS_MARGIN,    // $9.95
-  registered: LOB_REGISTERED_COST + MAIL_CLASS_MARGIN,  // $27.50
+  certified: getMailSurcharge("certified"),
+  registered: getMailSurcharge("registered"),
 };
 
 // ── Display helpers ─────────────────────────────────────────────────────────
@@ -55,9 +58,9 @@ export function mailClassSurchargeUsd(mailClass: MailClass): string {
 // These prices represent the physical mailing service (print + postage + handling).
 // Workflow preparation fees are separate and come from the canonical pricing engine.
 function basePriceCents(pageCount: number): number {
-  if (pageCount <= 2) return 499;
-  if (pageCount <= 5) return 699;
-  return 999;
+  if (pageCount <= 2) return PRICES.standard; // $2.99
+  if (pageCount <= 5) return 399;
+  return 499;
 }
 
 // Color surcharge: +$0.15 per page.

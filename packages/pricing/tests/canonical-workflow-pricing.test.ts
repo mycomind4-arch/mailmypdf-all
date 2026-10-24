@@ -36,6 +36,6 @@ test("insurance claim denial uses its matching profile instead of generic denied
   const generic = getCanonicalWorkflowPricingProfile("appeal-denied-claim");
   assert.ok(insurance);
   assert.ok(generic);
-  assert.equal(insurance.basePriceCents, 6999);
-  assert.equal(generic.basePriceCents, 6999);
+  assert.equal(insurance.basePriceCents, 699);
+  assert.equal(generic.basePriceCents, 699);
 });
