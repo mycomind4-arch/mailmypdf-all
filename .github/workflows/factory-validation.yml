@@ -37,6 +37,8 @@ jobs:
         run: pnpm capabilities:check
       - name: Validate workflow specifications
         run: pnpm workflow:materialize:check
+      - name: Build shared pricing package for runtime imports
+        run: pnpm --filter @mailmypdf/pricing build
       - name: Run tests
         run: pnpm test
       - name: Build workspace
