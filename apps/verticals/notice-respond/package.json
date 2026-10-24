@@ -9,7 +9,7 @@
     "build": "pnpm run build:shared && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "npx tsx --test tests/*.test.mjs src/domain/__tests__/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.mjs && pnpm exec vitest run src/domain/__tests__",
     "verify:launch": "npm test && npm run build",
     "build:shared": "pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },
