@@ -80,6 +80,11 @@ function matchesCategory(record: PoliceProductionRecord, category: PoliceRequest
   const content = record.text ?? ''
   if (!content.trim()) return false
 
+  // A record mentioning withheld/redacted material does not establish that
+  // the mentioned category was produced. Require explicit category metadata
+  // or a category-specific filename (handled above) for such records.
+  if (REDACTION_PATTERNS.test(content)) return false
+
   // Require at least two distinct keyword hits, not one. Sibling categories
   // in the same workflow legitimately share domain vocabulary (every
   // use-of-force category description mentions "force"), so a single shared
