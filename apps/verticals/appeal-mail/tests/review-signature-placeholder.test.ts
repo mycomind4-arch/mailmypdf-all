@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { runReadinessReview } from "@/domain/review";
 import { createDecision } from "@/domain/decision";
 
@@ -36,20 +37,20 @@ describe("runReadinessReview — signature placeholder", () => {
   it("does not pass missing_signature when the draft still contains the unresolved [Your Name] placeholder, even if hasSignature is reported true", () => {
     const review = runReadinessReview(baseParams("Dear Sir or Madam,\n\nRe: Appeal.\n\nSincerely,\n[Your Name]"));
     const check = review.checks.find((c) => c.id === "missing_signature");
-    expect(check?.status).toBe("warning");
-    expect(check?.detail).toMatch(/\[Your Name\]/i);
+    assert.equal(check?.status, "warning");
+    assert.match(check?.detail ?? "", /\[Your Name\]/i);
   });
 
   it("passes missing_signature when the draft ends with an actual signature and no placeholder remains", () => {
     const review = runReadinessReview(baseParams("Dear Sir or Madam,\n\nRe: Appeal.\n\nSincerely,\n\nJordan A. Rivera"));
     const check = review.checks.find((c) => c.id === "missing_signature");
-    expect(check?.status).toBe("pass");
+    assert.equal(check?.status, "pass");
   });
 
   it("still warns when hasSignature is false, regardless of placeholder presence", () => {
     const review = runReadinessReview({ ...baseParams("Dear Sir or Madam,\n\nRe: Appeal."), hasSignature: false });
     const check = review.checks.find((c) => c.id === "missing_signature");
-    expect(check?.status).toBe("warning");
-    expect(check?.detail).toBe("Add a signature line to the draft.");
+    assert.equal(check?.status, "warning");
+    assert.equal(check?.detail, "Add a signature line to the draft.");
   });
 });
