@@ -9,16 +9,16 @@ export const workflowConfig = {
   startPath: "/notice-respond/workflows/irs-notice-response/start",
   title: "General IRS Notice Response",
   seoTitle: "General IRS Notice Response | Notice Respond | MailMyPDF",
-  seoDescription: "Respond to any general IRS notice with guided analysis, action planning, documentation, exact review, and proof retention.",
+  seoDescription: "Organize a general IRS notice, verify its specific instructions and printed dates, review evidence and retain submission proof.",
   eyebrow: "Notice Respond workflow",
   heroTitle: "Respond to an IRS Notice",
-  heroDescription: "Start with the IRS notice you received, understand the required action and deadline, gather supporting information, prepare your response, review the exact packet, and retain proof.",
+  heroDescription: "Start with the actual IRS notice, check whether it requires a response, verify the printed instructions and dates, and review any proposed packet before mailing.",
   indexable: true,
   contentStatus: "published",
   whatYouDo: [
     "Start from the actual IRS notice you received, not a generic document.",
-    "Understand the specific issue, required action, and response deadline.",
-    "Determine the appropriate response: acknowledge, provide information, protest, or pay.",
+    "Identify whether action is requested and confirm the notice-specific instructions and printed dates; do not assume every notice requires a reply.",
+    "If action is required, determine the notice-specific response channel and any formal appeal process separately from general correspondence.",
     "Prepare your response with supporting documentation and review the exact packet before mailing.",
   ],
   whatYouNeed: [
@@ -28,9 +28,9 @@ export const workflowConfig = {
     "Prior correspondence or notices about this matter, if any.",
   ],
   outputs: [
-    "A response appropriate to the IRS notice and its requirements.",
+    "A draft based on the notice and facts you confirm, only when a response is appropriate.",
     "A reviewed, exact PDF packet with supporting documentation.",
-    "A confirmed response deadline and submission method.",
+    "Notice-specific dates and submission instructions presented for your verification, not a calculated or guaranteed deadline.",
     "Mailing or submission proof retained with the matter.",
   ],
   faqs: [
@@ -44,7 +44,7 @@ export const workflowConfig = {
     ],
     [
       "Should I respond to every notice?",
-      "Most IRS notices require a response or action. Missing a deadline can result in penalties or adverse action. This workflow helps you respond appropriately.",
+      "Not every IRS notice requires a reply. The IRS says you generally do not need to reply when you agree unless the notice specifically asks you to. Follow the instructions on the notice, including any formal appeal requirements.",
     ],
     [
       "What if I think the notice is an error?",
@@ -58,10 +58,10 @@ export const workflowConfig = {
   ],
   workflowSteps: [
     ["Upload the notice", "Add the IRS notice you received."],
-    ["Analyze and understand", "Identify the issue, required action, and deadline."],
+    ["Analyze and understand", "Identify whether a response is required, preserve the printed dates, and check the notice-specific submission instructions."],
     ["Gather information", "Collect supporting documentation as needed."],
     ["Prepare response", "Draft your response appropriate to the notice type."],
-    ["Submit and retain proof", "Approve and mail/submit before deadline, retain proof."],
+    ["Submit and retain proof", "Review and approve any required response and retain proof of the actual submission method; do not assume mailing alone preserves appeal rights."],
   ],
   readyItems: [
     ["IRS notice", "The complete notice with all instructions and deadline."],
@@ -69,6 +69,11 @@ export const workflowConfig = {
     ["Supporting documentation", "Any records or information the notice requests."],
     ["Prior correspondence", "Previous notices or letters about this issue."],
   ],
+  sources: [
+    { title: "Understanding your IRS notice or letter", publisher: "Internal Revenue Service", href: "https://www.irs.gov/individuals/understanding-your-irs-notice-or-letter" },
+    { title: "Tax relief in disaster situations", publisher: "Internal Revenue Service", href: "https://www.irs.gov/newsroom/tax-relief-in-disaster-situations" },
+  ],
+  disclaimer: "Not all IRS notices require a response. Relief for disasters or other special circumstances does not automatically extend every notice response or appeal deadline. Confirm the applicable taxpayer, act, notice, instructions, and current IRS guidance before relying on relief. A general letter does not replace a required IRS form or formal appeal.",
 } as const satisfies WorkflowLandingConfig
 
 export default workflowConfig
