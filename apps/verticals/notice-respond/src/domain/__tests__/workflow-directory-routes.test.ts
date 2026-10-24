@@ -15,8 +15,13 @@ test("every directory workflow uses its canonical executable route", () => {
     assert.ok(definition, `directory workflow ${workflow.slug} must exist in the catalog`);
     assert.equal(
       workflow.route,
+      `/workflows/${definition.id}/landing`,
+      `directory workflow ${workflow.slug} must link to its dedicated landing route`,
+    );
+    assert.equal(
+      workflow.canonicalPath,
       definition.searchIntent.canonicalPath,
-      `directory workflow ${workflow.slug} must link to its canonical route`,
+      `directory workflow ${workflow.slug} must retain its canonical search path`,
     );
   }
 });
