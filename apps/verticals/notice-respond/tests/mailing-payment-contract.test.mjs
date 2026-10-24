@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const checkout = await readFile(new URL("../server/api/checkout.ts", import.meta.url), "utf8");
-const mailing = await readFile(new URL("../server/api/mail/response.ts", import.meta.url), "utf8");
+const checkout = await readFile(new URL("../src/routes/api/checkout.ts", import.meta.url), "utf8");
+const mailing = await readFile(new URL("../src/routes/api/mail/response.ts", import.meta.url), "utf8");
 const schema = await readFile(new URL("../supabase/schema.sql", import.meta.url), "utf8");
 const funnel = await readFile(new URL("../src/components/mailing-funnel.tsx", import.meta.url), "utf8");
 
