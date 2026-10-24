@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { runReadinessReview } from "@/domain/review";
-import { createDecision } from "@/domain/decision";
+import { runReadinessReview } from "../src/domain/review";
+import { createDecision } from "../src/domain/decision";
 
 /**
  * Regression test for a real, confirmed defect found while building a
