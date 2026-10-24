@@ -152,9 +152,11 @@ describe("MailMyPDF provider: HTTP error handling", () => {
     const provider = new MailMyPDFProvider();
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: "" }, 201));
 
-    await expect(provider.createLetter(baseDraft)).rejects.toThrow(
-      /no provider order ID/,
-    );
+    await expect(provider.createLetter(baseDraft)).rejects.toMatchObject({
+      name: "MailMyPDFPlatformError",
+      status: 502,
+      code: "INVALID_COMMUNICATION_RESPONSE",
+    });
   });
 
   it("throws on malformed JSON response", async () => {
