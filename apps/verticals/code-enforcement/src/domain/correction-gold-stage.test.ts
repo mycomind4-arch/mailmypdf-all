@@ -865,10 +865,10 @@ describe('Correction Gold-Stage Execution', () => {
       expect(openaiConfig).toBeDefined();
     });
 
-    it('should activate Claude fallback for recipient_reconciliation when Gemini fails', () => {
+    it('should use Claude primary with OpenAI and Gemini fallbacks for recipient_reconciliation', () => {
       const config = AI_TASK_CONFIG['recipient_reconciliation' as never];
       expect(config.preferredProvider).toBe('claude');
-      expect(config.fallbackProviders).toContain('claude');
+      expect(config.fallbackProviders).toEqual(['openai', 'gemini']);
     });
 
     it('should record AI invocation provenance', () => {
@@ -969,12 +969,9 @@ describe('Correction Gold-Stage Execution', () => {
     it('should reject hedging in final validation', () => {
       const hedgingOutput = 'I think the draft looks okay, maybe it could be improved.';
       const validation = validateAIOutput(hedgingOutput, 'correction_final_validation' as never);
-      // The validateAIOutput function checks hedging for 'final_validation' in the highStakes list,
-      // but correction_final_validation may not be in that list. Check behavior:
-      // It IS in the highStakes list as 'final_validation' but our task is 'correction_final_validation'.
-      // The validation should still pass because the task name doesn't match the highStakes check.
-      // This is actually a gap — but the test documents the current behavior.
-      expect(validation.valid).toBe(true);
+      // Final validation must reject uncertain language for both correction and general workflows.
+      expect(validation.valid).toBe(false);
+      expect(validation.validationState).toBe('rejected');
     });
   });
 

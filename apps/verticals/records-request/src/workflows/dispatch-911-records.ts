@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { deriveCategoryKeywords } from './shared-capabilities'
+import { deriveCategoryKeywords, hasScopedValue } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import { analyzePoliceProduction, type PoliceProductionIdentifiers, type PoliceProductionRecord } from './police-records-analysis'
 import { assessPoliceContradiction, classifyPoliceRecord, extractPoliceIncidentFacts, recommendPoliceFollowUp } from './police-records-ai'
@@ -85,7 +85,7 @@ function validateDispatch911(request:ValidatedRequest):readonly {field:string;me
   const issues:{field:string;message:string}[]=[]; const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ')
   if(!request.agency?.trim()) issues.push({field:'agency',message:'Identify the agency, dispatch center, or public body.'})
   if(!request.jurisdiction?.trim()) issues.push({field:'jurisdiction',message:'Identify the relevant jurisdiction.'})
-  if(!corpus.includes('location ')) issues.push({field:'location',message:'Provide the incident location so the dispatch event can be identified.'})
+  if(!hasScopedValue(request.scope, 'location')) issues.push({field:'location',message:'Provide the incident location so the dispatch event can be identified.'})
   if(!corpus.includes('event date:')) issues.push({field:'incidentDate',message:'Provide the incident date so the call and CAD records can be located.'})
   if(!corpus.includes('event description supplied by requester:')) issues.push({field:'subjectMatter',message:'Describe the call, response, or incident in plain language.'})
   return issues

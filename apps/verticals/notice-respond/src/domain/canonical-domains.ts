@@ -127,6 +127,18 @@ export const CANONICAL_DOMAINS: Record<string, CanonicalDomain> = {
     repoExists: true,
     status: "planned",
   },
+  "claim-proof": {
+    id: "claim-proof",
+    name: "Claim Proof",
+    canonicalRepo: "claim-proof",
+    description:
+      "Prepare evidence and supporting document packages for insurance, benefits, and other claims.",
+    primaryEngines: ["appeal", "document-action"],
+    ownershipRule:
+      "Claim proof or evidence packet preparation → organize source records → validate claims and exhibits → assemble reviewable package. Do not invent evidence or legal entitlements.",
+    repoExists: true,
+    status: "planned",
+  },
   "tenant-reply": {
     id: "tenant-reply",
     name: "Tenant Reply",
@@ -151,10 +163,10 @@ export const CANONICAL_DOMAINS: Record<string, CanonicalDomain> = {
     repoExists: true,
     status: "planned",
   },
-  "permit-response": {
-    id: "permit-response",
-    name: "Permit Response",
-    canonicalRepo: "permit-response",
+  "permit-reply": {
+    id: "permit-reply",
+    name: "Permit Reply",
+    canonicalRepo: "permit-reply",
     description:
       "Respond to building/planning/zoning/permit authorities.",
     primaryEngines: ["jurisdictional"],

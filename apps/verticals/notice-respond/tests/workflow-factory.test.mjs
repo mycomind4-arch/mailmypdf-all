@@ -142,6 +142,28 @@ test("registryByVertical groups entries by vertical", () => {
   assert.ok(registryByVertical["notice-respond"].length > 0, "notice-respond has no workflows");
 });
 
+test("registryByVertical contains only correctly owned workflows", () => {
+  for (const [vertical, entries] of Object.entries(registryByVertical)) {
+    assert.ok(entries.length > 0, `Vertical ${vertical} should not be empty`);
+    assert.ok(entries.every((entry) => entry.vertical === vertical),
+      `Vertical ${vertical} contains a workflow owned by another vertical`);
+    assert.equal(entries.length, WORKFLOW_REGISTRY.filter((entry) => entry.vertical === vertical).length);
+  }
+});
+
+test("tenant, claim-proof, and permit workflows are registered without overstating maturity", () => {
+  for (const id of [
+    "tenant-eviction-response", "tenant-repair-demand",
+    "claim-proof-package", "permit-denial-response",
+  ]) {
+    const entry = registryById[id];
+    assert.ok(entry, `Missing master registry entry for ${id}`);
+    assert.equal(entry.lifecycle, "blueprint");
+    assert.equal(entry.testStatus, "partial");
+    assert.notEqual(entry.deploymentStatus, "production");
+  }
+});
+
 test("registryById returns correct entries", () => {
   for (const entry of WORKFLOW_REGISTRY) {
     assert.ok(registryById[entry.id], `registryById missing ${entry.id}`);

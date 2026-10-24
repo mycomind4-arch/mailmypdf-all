@@ -1,0 +1,46 @@
+name: Workflow Factory Validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate workflow factory
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check workflow inventory
+        run: pnpm registry:check
+      - name: Validate workflow capabilities
+        run: pnpm capabilities:check
+      - name: Validate workflow specifications
+        run: pnpm workflow:materialize:check
+      - name: Build shared pricing package for runtime imports
+        run: pnpm --filter @mailmypdf/pricing build
+      - name: Run tests
+        run: pnpm test
+      - name: Build workspace
+        if: ${{ success() || failure() }}
+        run: pnpm build

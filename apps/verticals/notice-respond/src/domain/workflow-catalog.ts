@@ -307,10 +307,10 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
         { id: "facts", label: "Facts" },
         { id: "objective", label: "Objective" },
         { id: "draft", label: "Draft" },
+        { id: "review", label: "Review" },
         { id: "attachments", label: "Documents" },
         { id: "recipient", label: "Recipient" },
         { id: "mailing", label: "Mail" },
-        { id: "review", label: "Review" },
         { id: "checkout", label: "Checkout" },
         { id: "done", label: "Done" },
       ],
@@ -1264,7 +1264,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
   {
     id: "tenant-eviction-response",
     vertical: "tenant-reply",
-    lifecycle: "functional",
+    lifecycle: "blueprint",
     engine: "jurisdictional",
     title: "Respond to an Eviction Notice",
     description: "Analyze an eviction notice — pay-or-quit, cure-or-quit, or unconditional quit — identify the deadline, organize your facts and evidence, and prepare a documented response.",
@@ -1325,7 +1325,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
   {
     id: "tenant-repair-demand",
     vertical: "tenant-reply",
-    lifecycle: "functional",
+    lifecycle: "blueprint",
     engine: "jurisdictional",
     title: "Respond to a Repair Demand or Habitability Issue",
     description: "Document a habitability issue, organize your repair requests and evidence, and prepare a formal repair demand letter to your landlord.",
@@ -1386,7 +1386,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
   {
     id: "claim-proof-package",
     vertical: "claim-proof",
-    lifecycle: "functional",
+    lifecycle: "blueprint",
     engine: "appeal",
     title: "Build a Claim Proof Package",
     description: "Organize evidence, build a proof package for an insurance, disability, unemployment, or VA claim. Attach documentation, identify gaps, and prepare a submission-ready package.",
@@ -1448,7 +1448,7 @@ export const noticeRespondCatalog: MasterWorkflowDefinition[] = [
   {
     id: "permit-denial-response",
     vertical: "permit-reply",
-    lifecycle: "functional",
+    lifecycle: "blueprint",
     engine: "jurisdictional",
     title: "Respond to a Permit Denial",
     description: "Analyze a permit denial, identify the cited code sections, organize your compliance evidence, and prepare a reconsideration request with code references.",

@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { deriveCategoryKeywords } from './shared-capabilities'
+import { deriveCategoryKeywords, hasScopedValue } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import {
   analyzePoliceProduction,
@@ -110,7 +110,7 @@ function describe(category: string, input: Record<string, unknown>): string {
     'activation-and-event-logs': `Lawfully accessible activation, deactivation, buffering, event, synchronization, upload, tagging, categorization, export, and other event records associated with responsive body-worn camera recordings. Request operational event history needed to evaluate completeness, not authentication secrets or security-control configuration.${scope}`,
     'audit-and-access-logs': `Lawfully accessible audit history showing viewing, export, copying, modification, redaction, sharing, download, or other handling events for responsive recordings where maintained. Request non-secret activity records only; do not demand credentials, access-control secrets, internal network details, or unrelated personnel/security data.${scope}`,
     'retention-and-deletion-records': `Existing retention classifications, retention-expiration records, deletion schedules, actual deletion-event records, preservation holds, litigation/preservation flags where lawfully accessible, and other records showing the maintained preservation status of responsive body-camera material. Do not infer deletion, spoliation, misconduct, or a legal violation unless supported by verified records and applicable authority.${scope}`,
-    'redaction-and-withholding-records': `Existing records identifying redactions, withheld segments, redaction logs, redacted-export history, withholding determinations, and the agency's actually stated basis for material not produced. Preserve the stated basis rather than inventing an exemption, privilege, deadline, disclosure right, violation, or review route.${scope}`,
+    'redaction-and-withholding-records': `Existing records identifying redactions, withheld segments, redaction logs, redacted-export history, withholding determinations, and the agency's actually stated basis for material not produced. Preserve the agency's stated basis rather than inventing a deadline, exemption, privilege, disclosure right, violation, or review route.${scope}`,
     'dispatch-and-cad': `Existing dispatch, CAD, call-for-service, unit assignment, timestamp, disposition, and related communications records that identify officers, units, locations, and time windows associated with the encounter where lawfully accessible.${scope}`,
     'incident-and-supplemental-reports': `Lawfully accessible incident, offense, arrest, supplemental, use-of-force, field-contact, citation, collision, or other reports associated with the encounter that can identify responsive recordings and involved personnel. An allegation, arrest, citation, or officer narrative is not an adjudicated finding merely because it appears in a police record.${scope}`,
     'evidence-indexes': `Lawfully accessible evidence indexes, digital-evidence inventories, media indexes, attachment lists, evidence/property references, file manifests, and cross-references showing body-camera files associated with the incident. Request record evidence sufficient to identify media, not evidence-system secrets or security-sensitive access details.${scope}`,
@@ -125,7 +125,7 @@ function validateBodyCamera(request: ValidatedRequest): readonly { field: string
   const corpus = request.items.map((item) => item.description.toLowerCase()).join(' ')
   if (!request.agency?.trim()) issues.push({ field: 'agency', message: 'Identify the law-enforcement agency or public body.' })
   if (!request.jurisdiction?.trim()) issues.push({ field: 'jurisdiction', message: 'Identify the relevant jurisdiction.' })
-  if (!corpus.includes('location ')) issues.push({ field: 'location', message: 'Provide the incident location so the agency can identify the encounter.' })
+  if (!hasScopedValue(request.scope, 'location')) issues.push({ field: 'location', message: 'Provide the incident location so the agency can identify the encounter.' })
   if (!corpus.includes('incident date:')) issues.push({ field: 'incidentDate', message: 'Provide the incident date so responsive recordings can be located.' })
   if (!corpus.includes('encounter description supplied by requester:')) issues.push({ field: 'subjectMatter', message: 'Describe the encounter in plain language.' })
   return issues
