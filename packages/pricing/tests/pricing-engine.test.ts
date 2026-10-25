@@ -329,6 +329,40 @@ describe("Quote snapshot", () => {
   });
 });
 
+it("quote matching rejects a changed mail class even at the same total", () => {
+  const original = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+  });
+  const changed = { ...original, mailService: "registered" as const };
+  assert.equal(changed.totalCents, original.totalCents);
+  assert.equal(quotesMatch(original, changed), false);
+});
+
+it("quote matching rejects changed page or discount terms with the same total", () => {
+  const original = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+  });
+  assert.equal(quotesMatch(original, { ...original, actualPages: 6 }), false);
+  assert.equal(quotesMatch(original, { ...original, discountCode: "FORGED" }), false);
+  assert.equal(quotesMatch(original, { ...original, supportingPageCost: 10 }), false);
+});
+
+it("quote matching ignores only the noncommercial timestamp", () => {
+  const original = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+  });
+  assert.equal(quotesMatch(original, { ...original, quotedAt: "2000-01-01T00:00:00.000Z" }), true);
+});
+
 // ── Margin Analysis ───────────────────────────────────────────────────────
 
 describe("Margin analysis", () => {
