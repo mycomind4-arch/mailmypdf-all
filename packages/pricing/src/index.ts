@@ -182,7 +182,7 @@ export const PRICING_KEY_MAP: Record<MailType, PricingKey> = {
 
 export function getPriceCents(key: PricingKey): number {
   const price = PRICES[key];
-  if (price === undefined) throw new Error(`Unknown pricing key: ${key}`);
+  if (!Object.prototype.hasOwnProperty.call(PRICES, key)) throw new Error(`Unknown pricing key: ${key}`);
   return price;
 }
 
@@ -196,7 +196,7 @@ export function getLabel(key: PricingKey): string {
 }
 
 export function isValidPricingKey(key: string): key is PricingKey {
-  return key in PRICES;
+  return Object.prototype.hasOwnProperty.call(PRICES, key);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
