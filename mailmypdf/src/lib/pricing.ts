@@ -120,6 +120,14 @@ export function calculateTotalPrice(args: {
   mailClass: MailClass;
   vertical?: VerticalOrderMetadata;
 }): number {
+  // Reject malformed checkout inputs before calculating color or delivery fees.
+  if (!Number.isSafeInteger(args.pageCount) || args.pageCount < 1) {
+    throw new RangeError("pageCount must be a positive safe integer");
+  }
+  if (!Object.prototype.hasOwnProperty.call(MAIL_CLASS_SURCHARGE, args.mailClass)) {
+    throw new RangeError("Unsupported mailClass");
+  }
+
   const verticalSlug = args.vertical?.vertical_slug;
   const config = verticalSlug ? getVerticalPricing(verticalSlug) : undefined;
 
@@ -142,7 +150,11 @@ export function calculateTotalPrice(args: {
 
   const processingFee = config?.processingFeeCents ?? 0;
 
-  return base + colorSurcharge + deliverySurcharge + processingFee;
+  const total = base + colorSurcharge + deliverySurcharge + processingFee;
+  if (!Number.isSafeInteger(total) || total < 0) {
+    throw new RangeError("Calculated price must be a non-negative safe integer");
+  }
+  return total;
 }
 
 export function priceDescription(args: {
