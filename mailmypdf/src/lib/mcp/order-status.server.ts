@@ -1,3 +1,4 @@
+import { canonicalJSON } from "@/lib/proof-of-service/hashing";
 import {
   isFailedStatus,
   isPaidStatus,
@@ -29,6 +30,16 @@ type OrderRow = {
   approved_price_cents: number | null;
   price_cents: number;
   mail_class: string;
+  color: boolean | null;
+  sender_name: string;
+  sender_line1: string;
+  sender_line2: string | null;
+  sender_city: string;
+  sender_state: string;
+  sender_postal: string;
+  recipient_line1: string;
+  recipient_line2: string | null;
+  recipient_postal: string;
   lob_letter_id: string | null;
   mailed_at: string | null;
   paid_at: string | null;
@@ -42,6 +53,7 @@ type OrderRow = {
   page_count: number;
   vertical_slug: string | null;
   email: string;
+  payment_execution_key: string | null;
 };
 
 type OrderEventRow = {
@@ -49,6 +61,20 @@ type OrderEventRow = {
   label: string;
   created_at: string;
   metadata: unknown;
+};
+
+type ScheduledMailingStatusRow = {
+  id: string;
+  status: string;
+  send_at: string;
+  timezone: string | null;
+  approved_max_total_cents: number;
+  payment_authorized_at: string;
+  payment_amount_cents: number | null;
+  payment_status: string | null;
+  blocked_reason: string | null;
+  released_at: string | null;
+  cancelled_at: string | null;
 };
 
 function statusMessage(status: OrderStatus): string {
@@ -97,6 +123,140 @@ function metadataObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+}
+
+function latestEvent(
+  events: readonly OrderEventRow[],
+  type: string,
+): OrderEventRow | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index]?.type === type) return events[index] ?? null;
+  }
+  return null;
+}
+
+function directMailSnapshot(order: OrderRow) {
+  return {
+    sender: {
+      name: order.sender_name,
+      line1: order.sender_line1,
+      line2: order.sender_line2,
+      city: order.sender_city,
+      state: order.sender_state,
+      postal: order.sender_postal,
+    },
+    recipient: {
+      name: order.recipient_name,
+      line1: order.recipient_line1,
+      line2: order.recipient_line2,
+      city: order.recipient_city,
+      state: order.recipient_state,
+      postal: order.recipient_postal,
+    },
+    mailClass: order.mail_class,
+    color: order.color ?? false,
+  };
+}
+
+function directMailResumeState(
+  order: OrderRow,
+  events: readonly OrderEventRow[],
+  schedule: ScheduledMailingStatusRow | null = null,
+) {
+  const preparedEvent = latestEvent(events, "mcp.direct_mail.prepared");
+  const prepared = metadataObject(preparedEvent?.metadata);
+  if (!prepared) return null;
+
+  const snapshot = directMailSnapshot(order);
+  const review = metadataObject(
+    latestEvent(events, "mcp.direct_mail.addresses_reviewed")?.metadata,
+  );
+  const approval = metadataObject(
+    latestEvent(events, "mcp.direct_mail.approved")?.metadata,
+  );
+
+  const reviewSnapshotMatches =
+    review?.verified === true &&
+    canonicalJSON(review.mailing_snapshot) === canonicalJSON(snapshot);
+  const reviewExpiresAt =
+    typeof review?.expires_at === "string" ? review.expires_at : null;
+  const reviewCurrent =
+    reviewSnapshotMatches &&
+    Boolean(reviewExpiresAt && Date.parse(reviewExpiresAt) > Date.now());
+
+  const approvalCurrent = Boolean(
+    order.approved_packet_sha256 &&
+      order.approved_price_cents !== null &&
+      approval?.packet_sha256 === order.approved_packet_sha256 &&
+      approval?.total_cents === order.approved_price_cents &&
+      canonicalJSON(approval?.mailing_snapshot) === canonicalJSON(snapshot),
+  );
+
+  const source =
+    prepared.source === "conversational-letter"
+      ? "conversational_letter"
+      : typeof prepared.secure_document_id === "string"
+        ? "uploaded_pdf"
+        : "direct_mail";
+
+  let nextAction: { toolName: string; reason: string } | null = null;
+  const scheduleActive =
+    schedule?.status === "scheduled" || schedule?.status === "processing";
+  const immediatePaymentActive =
+    typeof order.payment_execution_key === "string" &&
+    order.payment_execution_key.startsWith("immediate:");
+  if (order.status === "draft" && !scheduleActive) {
+    nextAction = immediatePaymentActive
+      ? {
+          toolName: "charge_and_send_direct_pdf_mail",
+          reason:
+            "A previously authorized immediate saved-payment execution owns this order's payment path. Retry that idempotent action to reconcile Stripe or fulfillment; do not create hosted checkout or schedule another payment path.",
+        }
+      : approvalCurrent
+        ? {
+            toolName: "get_payment_readiness",
+            reason:
+              "The exact mailing is approved. Check whether a saved payment method is ready before choosing immediate saved-payment send or hosted checkout.",
+          }
+        : {
+            toolName: "review_direct_pdf_mail",
+            reason: reviewCurrent
+              ? "Reopen the exact current PDF/envelope review before asking for approval; the saved postal verification is still current."
+              : "Build or refresh the exact PDF/envelope review and postal verification before approval.",
+          };
+  }
+
+  return {
+    source,
+    preparedAt: preparedEvent?.created_at ?? null,
+    preparedPacketSha256:
+      typeof prepared.packet_sha256 === "string"
+        ? prepared.packet_sha256
+        : null,
+    letterTextSha256:
+      typeof prepared.letter_text_sha256 === "string"
+        ? prepared.letter_text_sha256
+        : null,
+    review: {
+      status: reviewCurrent
+        ? "current"
+        : review
+          ? reviewSnapshotMatches
+            ? "expired"
+            : "stale"
+          : "missing",
+      expiresAt: reviewExpiresAt,
+    },
+    approval: {
+      status: approvalCurrent ? "current" : approval ? "stale" : "missing",
+      packetSha256: order.approved_packet_sha256,
+      totalCents: order.approved_price_cents,
+    },
+    paymentExecution: immediatePaymentActive
+      ? { kind: "immediate_saved_payment", status: "processing" }
+      : null,
+    nextAction,
+  };
 }
 
 function firstMetadataString(
@@ -153,6 +313,7 @@ async function directMcpOrderBelongsToUser(
 export function normalizeOrderStatus(
   order: OrderRow,
   events: readonly OrderEventRow[],
+  schedule: ScheduledMailingStatusRow | null = null,
 ) {
   const trackingNumber = firstMetadataString(events, [
     "tracking_number",
@@ -199,6 +360,34 @@ export function normalizeOrderStatus(
       providerReference: order.lob_letter_id,
       trackingNumber,
     },
+    directMail: directMailResumeState(order, events, schedule),
+    scheduledMailing: schedule
+      ? {
+          scheduleId: schedule.id,
+          status: schedule.status,
+          sendAt: schedule.send_at,
+          timezone: schedule.timezone,
+          approvedMaxTotalCents: schedule.approved_max_total_cents,
+          paymentAuthorizedAt: schedule.payment_authorized_at,
+          paymentAmountCents: schedule.payment_amount_cents,
+          paymentStatus: schedule.payment_status,
+          blockedReason: schedule.blocked_reason,
+          releasedAt: schedule.released_at,
+          cancelledAt: schedule.cancelled_at,
+          nextAction:
+            schedule.status === "scheduled"
+              ? {
+                  toolName: "cancel_scheduled_mail",
+                  reason: "The approved mailing is scheduled for future saved-payment execution. Cancel it before choosing a different payment path.",
+                }
+              : schedule.status === "processing"
+                ? {
+                    toolName: "get_order_status",
+                    reason: "Scheduled payment or fulfillment is processing. Recheck persisted order state; do not start another payment path.",
+                  }
+                : null,
+        }
+      : null,
     history: events.map((event) => ({
       type: /^(order|payment|lob|fulfillment|workflow)\.[a-z0-9_.-]+$/i.test(event.type)
         ? event.type
@@ -227,7 +416,7 @@ export async function getOwnedOrderStatus(
   let query = supabaseAdmin
     .from("orders")
     .select(
-      "id,status,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents,price_cents,mail_class,lob_letter_id,mailed_at,paid_at,created_at,updated_at,scheduled_delivery_date,recipient_name,recipient_city,recipient_state,file_name,page_count,vertical_slug,email",
+      "id,status,workflow_case_id,case_approval_id,approved_packet_sha256,approved_price_cents,price_cents,mail_class,color,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal,lob_letter_id,mailed_at,paid_at,created_at,updated_at,scheduled_delivery_date,file_name,page_count,vertical_slug,email,payment_execution_key",
     )
     .order("created_at", { ascending: false })
     .limit(1);
@@ -260,5 +449,21 @@ export async function getOwnedOrderStatus(
   if (eventError) throw new Error(eventError.message);
   const events = (eventRows ?? []) as OrderEventRow[];
 
-  return normalizeOrderStatus(order, events);
+  const { data: scheduleRow, error: scheduleError } = await supabaseAdmin
+    .from("scheduled_mailings")
+    .select(
+      "id,status,send_at,timezone,approved_max_total_cents,payment_authorized_at,payment_amount_cents,payment_status,blocked_reason,released_at,cancelled_at",
+    )
+    .eq("order_id", order.id)
+    .eq("owner_id", context.user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (scheduleError) throw new Error(scheduleError.message);
+
+  return normalizeOrderStatus(
+    order,
+    events,
+    (scheduleRow as ScheduledMailingStatusRow | null) ?? null,
+  );
 }

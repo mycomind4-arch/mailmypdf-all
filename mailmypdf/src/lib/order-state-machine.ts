@@ -92,6 +92,7 @@ export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   ],
   draft: [
     "checkout_created",
+    "paid_pending_manual_fulfillment",
     "failed_payment",
     "cancelled",
     "priced",
@@ -177,6 +178,7 @@ interface TransitionDef {
  */
 const TRANSITION_METADATA: Record<string, TransitionDef> = {
   "draft→checkout_created": { event: "checkout.created", label: "Checkout session created" },
+  "draft→paid_pending_manual_fulfillment": { event: "payment.received", label: "Scheduled saved payment received" },
   "draft→failed_payment": { event: "payment.failed", label: "Payment failed" },
   "draft→priced": { event: "order.priced", label: "Order priced" },
   "draft→uploaded": { event: "file.uploaded", label: "File uploaded" },
@@ -248,6 +250,15 @@ const GUARDS: Record<string, TransitionGuard[]> = {
     {
       check: (ctx) => !ctx.metadata?.["lob_letter_id"] || typeof ctx.metadata["lob_letter_id"] === "string",
       message: "lob_letter_id must be a string when provided",
+    },
+  ],
+  "draft→paid_pending_manual_fulfillment": [
+    {
+      check: (ctx) =>
+        ctx.triggeredBy === "scheduled_job" &&
+        typeof ctx.metadata?.["payment_intent_id"] === "string" &&
+        Boolean(ctx.metadata["payment_intent_id"]),
+      message: "Only a scheduled job with a verified Stripe payment intent can mark a draft paid",
     },
   ],
   "checkout_created→paid_pending_manual_fulfillment": [

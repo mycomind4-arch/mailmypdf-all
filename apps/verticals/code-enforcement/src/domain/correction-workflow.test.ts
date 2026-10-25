@@ -711,7 +711,7 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
 
     it('recipient_reconciliation requires independent review', () => {
       expect(CORRECTION_TASK_CONFIG.recipient_reconciliation.requiresIndependentReview).toBe(true);
-      expect(CORRECTION_TASK_CONFIG.recipient_reconciliation.independentReviewProvider).toBe('claude');
+      expect(CORRECTION_TASK_CONFIG.recipient_reconciliation.independentReviewProvider).toBe('openai');
     });
 
     it('authority_reconciliation requires independent review', () => {
@@ -797,9 +797,9 @@ describe('Correction Workflow — Gold Standard Test Suite', () => {
 
     it('independent review providers are configured in AI_TASK_CONFIG for high-consequence tasks', () => {
       expect(AI_TASK_CONFIG['recipient_reconciliation' as never].requiresIndependentReview).toBe(true);
-      expect(AI_TASK_CONFIG['recipient_reconciliation' as never].independentReviewProvider).toBe('claude');
+      expect(AI_TASK_CONFIG['recipient_reconciliation' as never].independentReviewProvider).toBe('openai');
       expect(AI_TASK_CONFIG['authority_reconciliation' as never].requiresIndependentReview).toBe(true);
-      expect(AI_TASK_CONFIG['authority_reconciliation' as never].independentReviewProvider).toBe('claude');
+      expect(AI_TASK_CONFIG['authority_reconciliation' as never].independentReviewProvider).toBe('openai');
       expect(AI_TASK_CONFIG['deadline_reconciliation' as never].requiresIndependentReview).toBe(true);
       expect(AI_TASK_CONFIG['correction_strategy' as never].requiresIndependentReview).toBe(true);
     });

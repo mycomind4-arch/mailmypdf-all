@@ -12,8 +12,17 @@ const expectedChallenge=process.env.OPENAI_CHALLENGE_EXPECTED_TOKEN?.trim()||nul
 const token=process.env.MCP_BEARER_TOKEN?.trim()||null;
 const protocolVersion="2026-07-28";
 const reviewResourceUri="ui://mailmypdf/packet-review-v1.html";
+const recoveryResources=[
+  {uri:"ui://mailmypdf/recovery-scan-v1.html",markers:["Possible money to recover","Review the evidence first"]},
+  {uri:"ui://mailmypdf/recovery-case-v1.html",markers:["Recovery workspace","Record what actually happened","Confirm and save outcome"]},
+];
 
 const requiredTools=[
+  "scan_recovery_candidates",
+  "save_recovery_case",
+  "get_recovery_case",
+  "list_recovery_cases",
+  "update_recovery_case",
   "find_workflow",
   "get_workflow",
   "get_profile",
@@ -26,6 +35,8 @@ const requiredTools=[
   "get_operation_status",
   "get_connector_readiness",
   "ingest_direct_pdf",
+  "prepare_conversational_letter",
+  "get_payment_readiness",
   "prepare_direct_pdf_mail",
   "get_mailing_context",
   "review_direct_pdf_mail",
@@ -34,6 +45,9 @@ const requiredTools=[
   "archive_mailing_address",
   "approve_direct_pdf_mail",
   "prepare_direct_pdf_checkout",
+  "charge_and_send_direct_pdf_mail",
+  "schedule_direct_pdf_mail",
+  "cancel_scheduled_mail",
   "ingest_document",
   "save_matter_input",
   "analyze_matter",
@@ -194,6 +208,11 @@ if(!isLocalHost(parsedBase.hostname)&&parsedBase.protocol!=="https:"){
     if(!review) fail("packet review MCP Apps resource is missing",resources);
     else if(review.mimeType!=="text/html;profile=mcp-app") fail("packet review resource has unexpected MIME type",review);
     else pass("packet review MCP Apps resource is advertised");
+    for(const expected of recoveryResources){
+      const resource=resources.find(item=>item?.uri===expected.uri);
+      if(!resource||resource.mimeType!=="text/html;profile=mcp-app") fail("recovery MCP Apps resource is missing or has an unexpected MIME type",expected.uri);
+      else pass(`recovery MCP Apps resource is advertised: ${expected.uri}`);
+    }
   }
 }
 
@@ -210,6 +229,14 @@ if(!isLocalHost(parsedBase.hostname)&&parsedBase.protocol!=="https:"){
       pass("packet review UI includes exact-PDF and approval controls");
     }
   }
+}
+
+for(const resource of recoveryResources){
+  const {response,body}=await rpc("resources/read",{uri:resource.uri},{name:resource.uri});
+  const content=body?.result?.contents?.[0];
+  const html=typeof content?.text==="string"?content.text:"";
+  if(!response.ok||resource.markers.some(marker=>!html.includes(marker))) fail("recovery MCP Apps resource could not be read or lacks required controls",resource.uri);
+  else pass(`recovery MCP Apps resource can be read: ${resource.uri}`);
 }
 
 {

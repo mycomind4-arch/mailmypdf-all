@@ -26,6 +26,8 @@ const DIRECT_PREPARED_EVENT = "mcp.direct_mail.prepared";
 const DIRECT_APPROVED_EVENT = "mcp.direct_mail.approved";
 const DIRECT_CHECKOUT_EVENT = "mcp.direct_mail.checkout_created";
 const DIRECT_REVIEW_EVENT = "mcp.direct_mail.addresses_reviewed";
+const CONVERSATIONAL_LETTER_SOURCE = "conversational-letter";
+const MAX_CONVERSATIONAL_LETTER_CHARS = 30_000;
 
 const addressSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -80,6 +82,7 @@ type DirectOrderRow = {
   file_name: string;
   pdf_storage_path: string;
   stripe_session_id: string | null;
+  payment_execution_key: string | null;
   color: boolean | null;
   mail_class: string | null;
   approved_packet_sha256: string | null;
@@ -133,6 +136,21 @@ function parseIdempotencyKey(value: unknown): string {
     );
   }
   return parsed.data;
+}
+
+function parseLetterText(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new McpDirectMailError(400, "letter_text is required");
+  }
+  if (value.length > MAX_CONVERSATIONAL_LETTER_CHARS) {
+    throw new McpDirectMailError(
+      400,
+      `letter_text must be ${MAX_CONVERSATIONAL_LETTER_CHARS.toLocaleString("en-US")} characters or fewer`,
+    );
+  }
+  // Preserve the exact reviewed text, including intentional leading/trailing
+  // whitespace. Only the validation check above trims.
+  return value;
 }
 
 async function requireAccount(request: Request): Promise<AuthenticatedUserContext> {
@@ -213,7 +231,7 @@ async function orderById(orderId: string): Promise<DirectOrderRow | null> {
   const { data, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,color,mail_class,approved_packet_sha256,approved_price_cents,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal",
+      "id,lookup_token,status,email,page_count,price_cents,file_name,pdf_storage_path,stripe_session_id,payment_execution_key,color,mail_class,approved_packet_sha256,approved_price_cents,sender_name,sender_line1,sender_line2,sender_city,sender_state,sender_postal,recipient_name,recipient_line1,recipient_line2,recipient_city,recipient_state,recipient_postal",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -272,15 +290,42 @@ export async function getMailingContext(request: Request) {
   const context = await requireAccount(request);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.from("order_events")
-    .select("order_id").eq("type", DIRECT_PREPARED_EVENT)
+    .select("order_id,created_at,metadata").eq("type", DIRECT_PREPARED_EVENT)
     .contains("metadata", { owner_id: context.user.id })
     .order("created_at", { ascending: false }).limit(10);
   if (error) throw new McpDirectMailError(500, "Unable to load your mailing history");
-  const ids = [...new Set((data ?? []).map((event) => event.order_id))];
+  const events = data ?? [];
+  const ids = [...new Set(events.map((event) => event.order_id))];
   const orders = await Promise.all(ids.map((id) => requireDirectOrder(id, context)));
+  const preparationByOrder = new Map<string, { createdAt: string | null; metadata: Record<string, unknown> | null }>();
+  for (const event of events) {
+    if (preparationByOrder.has(event.order_id)) continue;
+    preparationByOrder.set(event.order_id, {
+      createdAt: typeof event.created_at === "string" ? event.created_at : null,
+      metadata: metadataObject(event.metadata),
+    });
+  }
   return {
-    recentMailings: orders.map((order) => ({ orderId: order.id, status: order.status, fileName: order.file_name, ...mailingSnapshot(order) })),
-    nextAction: "These are this account's recent direct-mail addresses, not verified business profiles. Ask the user which recipient and return address to reuse; if none match, ask for the complete addresses. Re-verify before approval.",
+    recentMailings: orders.map((order) => {
+      const prepared = preparationByOrder.get(order.id);
+      const metadata = prepared?.metadata;
+      const source =
+        metadata?.source === CONVERSATIONAL_LETTER_SOURCE
+          ? "conversational_letter"
+          : typeof metadata?.secure_document_id === "string"
+            ? "uploaded_pdf"
+            : "direct_mail";
+      return {
+        orderId: order.id,
+        status: order.status,
+        fileName: order.file_name,
+        source,
+        preparedAt: prepared?.createdAt ?? null,
+        ...mailingSnapshot(order),
+        resumeWith: "get_order_status",
+      };
+    }),
+    nextAction: "Choose the matching mailing with the user, then call get_order_status with its order_id. For draft direct mail, follow order.directMail.nextAction; never infer approval from a prior conversation. If the user only wants to reuse an address, confirm the exact recipient and return address and re-verify them for the new mailing.",
   };
 }
 
@@ -372,7 +417,11 @@ async function currentQuote(order: DirectOrderRow): Promise<number> {
 async function preparedOrderForIdempotency(
   ownerId: string,
   idempotencyKey: string,
-): Promise<{ order: DirectOrderRow; documentId: string | null } | null> {
+): Promise<{
+  order: DirectOrderRow;
+  documentId: string | null;
+  metadata: Record<string, unknown> | null;
+} | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: event, error } = await supabaseAdmin
     .from("order_events")
@@ -391,7 +440,14 @@ async function preparedOrderForIdempotency(
   const order = await orderById(event.order_id);
   if (!order) throw new McpDirectMailError(409, "The prior mailing intent is unavailable; use a new retry key");
   const metadata = metadataObject(event.metadata);
-  return { order, documentId: typeof metadata?.secure_document_id === "string" ? metadata.secure_document_id : null };
+  return {
+    order,
+    documentId:
+      typeof metadata?.secure_document_id === "string"
+        ? metadata.secure_document_id
+        : null,
+    metadata,
+  };
 }
 
 function mailingSnapshot(order: DirectOrderRow) {
@@ -462,6 +518,86 @@ function approvalSnapshotMatches(
     metadata?.packet_sha256 === order.approved_packet_sha256 &&
     metadata?.total_cents === order.approved_price_cents
   );
+}
+
+export type ApprovedDirectMailExecutionState = {
+  orderId: string;
+  ownerId: string;
+  status: string;
+  email: string;
+  packetSha256: string;
+  approvedMaxTotalCents: number;
+  currentTotalCents: number;
+  sender: DirectMailAddress;
+  recipient: DirectMailAddress;
+  mailClass: DirectMailClass;
+  color: boolean;
+};
+
+/**
+ * Server-only execution snapshot for scheduled/direct fulfillment.
+ * This does not approve, charge, or submit mail. It re-verifies ownership and
+ * the immutable direct-mail approval before returning the current quote.
+ */
+export async function loadApprovedDirectMailExecutionState(
+  orderId: string,
+  ownerId: string,
+): Promise<ApprovedDirectMailExecutionState> {
+  const normalizedOrderId = orderId.trim();
+  const normalizedOwnerId = ownerId.trim();
+  if (!normalizedOrderId || !normalizedOwnerId) {
+    throw new McpDirectMailError(400, "orderId and ownerId are required");
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: ownership, error: ownershipError } = await supabaseAdmin
+    .from("order_events")
+    .select("id")
+    .eq("order_id", normalizedOrderId)
+    .eq("type", DIRECT_PREPARED_EVENT)
+    .contains("metadata", { owner_id: normalizedOwnerId })
+    .limit(1)
+    .maybeSingle();
+
+  if (ownershipError) {
+    throw new McpDirectMailError(500, "Unable to verify direct-mail order ownership");
+  }
+  if (!ownership) throw new McpDirectMailError(404, "Order not found");
+
+  const order = await orderById(normalizedOrderId);
+  if (!order) throw new McpDirectMailError(404, "Order not found");
+  if (!order.approved_packet_sha256 || order.approved_price_cents === null) {
+    throw new McpDirectMailError(409, "The direct-mail order has not been approved");
+  }
+
+  const approval = await directApprovalEvent(normalizedOrderId, normalizedOwnerId);
+  if (!approvalSnapshotMatches(order, approval)) {
+    throw new McpDirectMailError(
+      409,
+      "The current mailing details do not match the immutable direct-mail approval",
+    );
+  }
+
+  const packetSha256 = await orderPdfSha256(order);
+  if (packetSha256 !== order.approved_packet_sha256) {
+    throw new McpDirectMailError(409, "The prepared PDF no longer matches the approved hash");
+  }
+
+  const currentTotalCents = await currentQuote(order);
+  const snapshot = mailingSnapshot(order);
+  return {
+    orderId: order.id,
+    ownerId: normalizedOwnerId,
+    status: order.status,
+    email: order.email,
+    packetSha256,
+    approvedMaxTotalCents: order.approved_price_cents,
+    currentTotalCents,
+    sender: snapshot.sender,
+    recipient: snapshot.recipient,
+    mailClass: snapshot.mailClass as DirectMailClass,
+    color: snapshot.color,
+  };
 }
 
 export async function ingestDirectPdf(
@@ -569,6 +705,155 @@ export async function getOwnedDocumentStatus(
           : readiness === "unavailable"
             ? "The document is unavailable and must be replaced."
             : "The document is still in quarantine or scanning. Check this status again before using it.",
+  };
+}
+
+export async function prepareConversationalLetterMail(
+  request: Request,
+  input: {
+    letterText: unknown;
+    sender: unknown;
+    recipient: unknown;
+    mailClass: unknown;
+    color: unknown;
+    idempotencyKey: unknown;
+    senderProfile?: unknown;
+    recipientEntry?: unknown;
+  },
+) {
+  const context = await requireAccount(request);
+  const letterText = parseLetterText(input.letterText);
+  const sender = parseAddress(input.sender, "sender");
+  const recipient = parseAddress(input.recipient, "recipient");
+  const mailClass = parseMailClass(input.mailClass);
+  const color = parseColor(input.color);
+  const idempotencyKey = parseIdempotencyKey(input.idempotencyKey);
+  const letterTextSha256 = computeSha256(new TextEncoder().encode(letterText));
+
+  async function reusePrepared(existing: {
+    order: DirectOrderRow;
+    documentId: string | null;
+    metadata: Record<string, unknown> | null;
+  }) {
+    const expectedMailing = { sender, recipient, mailClass, color };
+    if (
+      existing.documentId !== null ||
+      existing.metadata?.source !== CONVERSATIONAL_LETTER_SOURCE ||
+      existing.metadata?.letter_text_sha256 !== letterTextSha256 ||
+      canonicalJSON(mailingSnapshot(existing.order)) !== canonicalJSON(expectedMailing)
+    ) {
+      throw new McpDirectMailError(
+        409,
+        "The retry key belongs to different letter text or mailing details; use a new key after any intentional change",
+      );
+    }
+
+    const packetSha256 = await orderPdfSha256(existing.order);
+    const totalCents = await currentQuote(existing.order);
+    return {
+      order: summary(existing.order, packetSha256, totalCents),
+      letter: { textSha256: letterTextSha256 },
+      reused: true,
+      nextAction:
+        "Call review_direct_pdf_mail to verify both addresses and show the exact generated PDF and envelope before approval.",
+    };
+  }
+
+  const existing = await preparedOrderForIdempotency(
+    context.user.id,
+    idempotencyKey,
+  );
+  if (existing) return reusePrepared(existing);
+
+  // Saved-address references are provenance only. The order stores an exact
+  // sender/recipient snapshot, so later address-book edits cannot alter it.
+  const senderProfile = await requireSavedAddressSnapshot(
+    context.user.id,
+    "sender",
+    input.senderProfile,
+    sender,
+  );
+  const recipientEntry = await requireSavedAddressSnapshot(
+    context.user.id,
+    "recipient",
+    input.recipientEntry,
+    recipient,
+  );
+
+  const email = context.user.email!.trim().toLowerCase();
+  const created = await getMailService().createOrderFromLetter({
+    email,
+    sender: {
+      name: sender.name,
+      line1: sender.line1,
+      line2: sender.line2,
+      city: sender.city,
+      state: sender.state,
+      postalCode: sender.postal,
+    },
+    recipient: {
+      name: recipient.name,
+      line1: recipient.line1,
+      line2: recipient.line2,
+      city: recipient.city,
+      state: recipient.state,
+      postalCode: recipient.postal,
+    },
+    letterText,
+    color,
+    mailClass,
+    clientIp: getClientIp(request),
+  });
+
+  const order = await orderById(created.orderId);
+  if (!order) {
+    throw new McpDirectMailError(
+      500,
+      "Prepared conversational letter could not be reloaded",
+    );
+  }
+
+  // Re-read the stored order PDF and hash those exact bytes. The review
+  // resource, approval RPC, checkout, and Lob fulfillment all use this file.
+  const packetSha256 = await orderPdfSha256(order);
+  const totalCents = await currentQuote(order);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error: eventError } = await supabaseAdmin.from("order_events").insert({
+    order_id: order.id,
+    type: DIRECT_PREPARED_EVENT,
+    label: "Conversational letter mailing prepared from exact chat-reviewed text",
+    metadata: {
+      owner_id: context.user.id,
+      source: CONVERSATIONAL_LETTER_SOURCE,
+      letter_text_sha256: letterTextSha256,
+      packet_sha256: packetSha256,
+      idempotency_key: idempotencyKey,
+      sender_profile: senderProfile,
+      recipient_entry: recipientEntry,
+    },
+  });
+
+  if (eventError) {
+    if (eventError.code === "23505") {
+      const winner = await preparedOrderForIdempotency(
+        context.user.id,
+        idempotencyKey,
+      );
+      if (winner) return reusePrepared(winner);
+    }
+    throw new McpDirectMailError(
+      500,
+      "The letter draft was created but its ownership record could not be saved",
+    );
+  }
+
+  return {
+    order: summary(order, packetSha256, totalCents),
+    letter: { textSha256: letterTextSha256 },
+    reused: false,
+    nextAction:
+      "Call review_direct_pdf_mail. Show the exact PDF preview, envelope layout, recipient, return address, service, color, and total before requesting explicit approval.",
   };
 }
 
@@ -784,7 +1069,7 @@ export async function approveDirectPdfMail(
       approved: true,
     },
     reused,
-    nextAction: "The exact PDF, price, and mailing details are approved. Prepare secure checkout.",
+    nextAction: "The exact PDF, price, and mailing details are approved. Call get_payment_readiness. If a saved payment method is ready, show its safe display plus the exact total and ask for a separate explicit charge-and-send-now confirmation before charge_and_send_direct_pdf_mail. Otherwise use hosted checkout.",
   };
 }
 
@@ -827,6 +1112,14 @@ export async function prepareDirectPdfCheckout(
   if (order.status !== "draft") {
     throw new McpDirectMailError(409, "This order is no longer awaiting checkout");
   }
+  if (order.payment_execution_key) {
+    throw new McpDirectMailError(
+      409,
+      order.payment_execution_key.startsWith("scheduled:")
+        ? "This approved draft is already reserved for scheduled payment execution"
+        : "This approved draft is already reserved for another saved-payment execution",
+    );
+  }
 
   const stripe = createStripeClient();
   if (order.stripe_session_id) {
@@ -850,36 +1143,53 @@ export async function prepareDirectPdfCheckout(
   const cancelUrl = new URL(`/orders/${order.id}`, `${baseUrl}/`);
   cancelUrl.searchParams.set("token", order.lookup_token);
 
-  const session = await stripe.checkout.sessions.create(
-    {
-      mode: "payment",
-      customer_email: order.email,
-      success_url: successUrl.toString(),
-      cancel_url: cancelUrl.toString(),
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Mail ${order.page_count}-page PDF · ${order.mail_class ?? "standard"}`,
-            },
-            unit_amount: order.approved_price_cents,
+  const checkoutParams = {
+    mode: "payment" as const,
+    customer_email: order.email,
+    success_url: successUrl.toString(),
+    cancel_url: cancelUrl.toString(),
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Mail ${order.page_count}-page PDF · ${order.mail_class ?? "standard"}`,
           },
-          quantity: 1,
+          unit_amount: order.approved_price_cents,
         },
-      ],
-      metadata: { orderId: order.id, source: "mcp_direct_pdf" },
-      payment_intent_data: {
-        description: `MailMyPDF direct PDF mailing · ${order.file_name}`,
+        quantity: 1,
       },
+    ],
+    metadata: { orderId: order.id, source: "mcp_direct_pdf" },
+    payment_intent_data: {
+      description: `MailMyPDF direct PDF mailing · ${order.file_name}`,
     },
-    {
-      idempotencyKey: `mcp_direct_checkout_${order.id}_${order.approved_packet_sha256.slice(0, 16)}_${order.approved_price_cents}`,
-    },
-  );
+  };
 
-  if (!session.url) {
-    throw new McpDirectMailError(502, "Stripe did not return a hosted checkout URL");
+  const checkoutKey =
+    `mcp_direct_checkout_${order.id}_${order.approved_packet_sha256.slice(0, 16)}_${order.approved_price_cents}`;
+  let session = await stripe.checkout.sessions.create(checkoutParams, {
+    idempotencyKey: checkoutKey,
+  });
+
+  // If an earlier race loser was deliberately expired, follow a deterministic
+  // successor key. Replays walk the same chain and never create parallel open
+  // sessions. A completed session is never replaced because it may represent
+  // money already collected and requires reconciliation instead.
+  for (let generation = 0; session.status === "expired" && generation < 3; generation += 1) {
+    session = await stripe.checkout.sessions.create(checkoutParams, {
+      idempotencyKey: `${checkoutKey}_after_${session.id}`,
+    });
+  }
+
+  if (session.status === "complete") {
+    throw new McpDirectMailError(
+      409,
+      "A prior checkout completed but is not yet reconciled to this draft. Check order status before creating another checkout.",
+    );
+  }
+  if (session.status !== "open" || !session.url) {
+    throw new McpDirectMailError(409, "Stripe checkout is not open; retry after the prior payment path is reconciled");
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -889,6 +1199,7 @@ export async function prepareDirectPdfCheckout(
     .eq("id", order.id)
     .eq("status", "draft")
     .is("stripe_session_id", null)
+    .is("payment_execution_key", null)
     .select("id");
 
   if (claimError || !claimed || claimed.length !== 1) {

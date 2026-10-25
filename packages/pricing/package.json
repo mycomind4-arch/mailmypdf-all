@@ -13,6 +13,10 @@
     "./canonical": {
       "types": "./src/canonical-workflow-pricing.ts",
       "import": "./dist/canonical-workflow-pricing.js"
+    },
+    "./batch-pricing": {
+      "types": "./src/batch-pricing.ts",
+      "import": "./dist/batch-pricing.js"
     }
   },
   "files": [

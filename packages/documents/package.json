@@ -25,6 +25,10 @@
     "./privacy": {
       "types": "./src/privacy/index.ts",
       "import": "./dist/privacy/index.js"
+    },
+    "./document-source": {
+      "types": "./src/document-source.ts",
+      "import": "./dist/document-source.js"
     }
   },
   "files": [

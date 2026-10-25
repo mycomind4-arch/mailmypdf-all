@@ -32,14 +32,17 @@ const sql = readdirSync(MIGRATIONS)
 
 const types = readFileSync(TYPES, "utf-8");
 
-function declaredTables() {
-  const tablesBlock = types.slice(types.indexOf("    Tables: {"), types.indexOf("    Views: {"));
+function declaredTables(schema = "public") {
+  const schemaStart = types.indexOf(`  ${schema}: {`, types.indexOf("export type Database"));
+  if (schemaStart < 0) return new Set();
+  const tablesBlock = types.slice(types.indexOf("    Tables: {", schemaStart), types.indexOf("    Views: {", schemaStart));
   return new Set([...tablesBlock.matchAll(/^ {6}([a-z_]+): \{$/gm)].map((m) => m[1]));
 }
 
-const migrationTables = [
-  ...new Set([...sql.matchAll(/create table (?:if not exists )?(?:public\.)?([a-z_]+)/gi)].map((m) => m[1])),
-].sort();
+// Capture schema and table separately; a private table must not be mistaken for public.private.
+const migrated = [...sql.matchAll(/create table (?:if not exists )?(?:([a-z_]+)\.)?([a-z_][a-z_0-9]*)/gi)]
+  .map(match => ({ schema: match[1] ?? "public", table: match[2] }));
+const migrationTables = [...new Map(migrated.map(value => [`${value.schema}.${value.table}`, value])).values()];
 
 describe("Supabase schema sync", () => {
   test("migrations were found", () => {
@@ -47,8 +50,9 @@ describe("Supabase schema sync", () => {
   });
 
   test("every migration table is described in the generated types", () => {
-    const declared = declaredTables();
-    const missing = migrationTables.filter((t) => !declared.has(t));
+    const missing = migrationTables
+      .filter(({ schema, table }) => !declaredTables(schema).has(table))
+      .map(({ schema, table }) => `${schema}.${table}`).sort();
     assert.deepEqual(
       missing,
       [],
@@ -73,7 +77,8 @@ describe("Supabase schema sync", () => {
   });
 
   test("security-core RPCs the app calls are typed", () => {
-    const functionsBlock = types.slice(types.indexOf("    Functions: {"), types.indexOf("    Enums: {"));
+    const publicStart = types.indexOf("  public: {", types.indexOf("export type Database"));
+    const functionsBlock = types.slice(types.indexOf("    Functions: {", publicStart), types.indexOf("    Enums: {", publicStart));
     for (const fn of [
       "claim_secure_documents_for_scan",
       "claim_secure_document_for_scan",

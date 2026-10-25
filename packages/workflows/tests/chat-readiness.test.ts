@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { certifyWorkflowChatReadiness } from "../src/chat-readiness.js";
+import { canonicalChatFactoryReport, chatExecutionBindingFor } from "../src/chat-execution-registry.js";
+import { WORKFLOW_REGISTRY } from "../src/canonical-workflow-registry.js";
 import { composeWorkflowForChat } from "../src/workflow-factory.js";
 import { createNoticeResponseManifest } from "../src/domain-packs/notice-response/manifest.js";
 import { createInsuranceAppealManifestForWorkflow } from "../src/domain-packs/appeal/insurance-manifest.js";
@@ -14,8 +16,9 @@ import { createRecordsRequestManifest } from "../src/domain-packs/records-reques
 import {
   createRecordsRequestRuntimePolicy,
 } from "../src/domain-packs/records-request/runtime-policy.js";
-import { createSsaReconsiderationManifestForWorkflow } from "../src/domain-packs/appeal/ssa-reconsideration-manifest.js";
-import { getSsaReconsiderationRuntimePolicy } from "../src/domain-packs/appeal/ssa-reconsideration-runtime-policy.js";
+import {
+  getSsaReconsiderationFactoryArtifact,
+} from "../src/domain-packs/appeal/ssa-reconsideration-factory-artifact.js";
 import type { WorkflowManifest } from "../src/workflow-manifest.js";
 
 const AVAILABLE_TOOLS = new Set([
@@ -32,6 +35,40 @@ const AVAILABLE_TOOLS = new Set([
   "prepare_checkout",
   "get_order_status",
 ]);
+
+test("canonical chat registry certifies supported platform families and excludes all others", () => {
+  for (const workflow of WORKFLOW_REGISTRY) {
+    const binding = chatExecutionBindingFor(workflow.slug);
+    const supported = workflow.execution?.kind === "platform" &&
+      ["notice-response", "records-request", "insurance-appeal", "ssa-reconsideration"].includes(workflow.execution.policyFamily);
+    assert.equal(Boolean(binding), supported, workflow.id);
+    if (binding) {
+      assert.equal(binding.manifest.id, workflow.slug, workflow.id);
+      assert.equal(certifyWorkflowChatReadiness({
+        manifest: binding.manifest,
+        runtimePolicy: binding.policy,
+        availableTools: AVAILABLE_TOOLS,
+      }).certified, true, workflow.id);
+    }
+  }
+  assert.equal(chatExecutionBindingFor("unknown-workflow"), null);
+});
+
+test("factory report separates catalog identity, missing contracts, and failing certification", () => {
+  const report = canonicalChatFactoryReport(AVAILABLE_TOOLS);
+  assert.equal(report.length, WORKFLOW_REGISTRY.length);
+  assert.equal(report.filter((item) => item.chatExecutable).length, 23);
+  assert.equal(report.filter((item) => item.reason === "chat-contract-not-registered").length, 1);
+  assert.equal(report.find((item) => item.id === "notice-respond/cp14-response")?.reason, "certified");
+  assert.equal(report.find((item) => item.id === "appeal-mail/appeal-ssdi-denial")?.reason, "certified");
+  assert.equal(report.find((item) => item.id === "secured-transactions/secured-transaction-eligibility")?.reason, "platform-runtime-not-registered");
+
+  const reduced = new Set(AVAILABLE_TOOLS);
+  reduced.delete("preview_packet");
+  const blocked = canonicalChatFactoryReport(reduced).find((item) => item.id === "notice-respond/cp14-response");
+  assert.equal(blocked?.reason, "certification-failed");
+  assert.ok(blocked?.diagnostics.some((item) => item.code === "CONNECTOR_TOOL_MISSING"));
+});
 
 test("CP14 passes chat readiness only when manifest, runtime, gates, and tools align", () => {
   const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
@@ -64,6 +101,24 @@ test("records request passes request-first chat readiness after contract reconci
   assert.deepEqual(result.diagnostics, []);
   assert.equal(result.requiredTools.includes("analyze_matter"), false);
   assert.ok(result.requiredTools.includes("save_matter_input"));
+});
+
+test("SSA reconsideration passes source-document chat readiness for SSDI and SSI", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
+    assert.ok(artifact);
+
+    const result = certifyWorkflowChatReadiness({
+      manifest: artifact.manifest,
+      runtimePolicy: artifact.runtimePolicy,
+      availableTools: AVAILABLE_TOOLS,
+    });
+
+    assert.equal(result.certified, true, workflowId);
+    assert.deepEqual(result.diagnostics, [], workflowId);
+    assert.ok(result.requiredTools.includes("analyze_matter"), workflowId);
+    assert.ok(result.requiredTools.includes("preview_packet"), workflowId);
+  }
 });
 
 test("chat readiness fails closed when a manifest field has no runtime binding", () => {
@@ -174,24 +229,4 @@ test("insurance appeal passes evidence-heavy chat readiness", () => {
   assert.ok(result.requiredTools.includes("ingest_document"));
   assert.ok(result.requiredTools.includes("analyze_matter"));
   assert.ok(result.requiredTools.includes("preview_packet"));
-});
-
-test("SSDI and SSI reconsideration pass chat readiness for the SSA/benefits family", () => {
-  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
-    const defined = createSsaReconsiderationManifestForWorkflow(workflowId);
-    assert.ok(defined, workflowId);
-
-    const result = certifyWorkflowChatReadiness({
-      manifest: defined.manifest,
-      runtimePolicy: getSsaReconsiderationRuntimePolicy(workflowId),
-      availableTools: AVAILABLE_TOOLS,
-    });
-
-    assert.equal(result.certified, true, JSON.stringify(result.diagnostics));
-    assert.deepEqual(result.diagnostics, []);
-    assert.ok(result.requiredTools.includes("ingest_document"));
-    assert.ok(result.requiredTools.includes("analyze_matter"));
-    assert.ok(result.requiredTools.includes("preview_packet"));
-    assert.ok(result.requiredTools.includes("prepare_checkout"));
-  }
 });

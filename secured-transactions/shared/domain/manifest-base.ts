@@ -107,18 +107,19 @@ export function securedTransactionCapabilities(
 }
 
 /**
- * secured-transaction-eligibility's truthful, minimal capability set.
+ * Eligibility intake's truthful, constrained capability set:
  *
- * matterState: real, persisted via @mailmypdf/step-workflow.
- * findings: real, the engine's per-gate findings are persisted.
- * validation: real, runtime input validation + the engine's fail-closed gates.
- * humanReview: real, human-review-required state is persisted and surfaced.
+ * - matterState: case-specific step-workflow state is persisted.
+ * - findings and requirements: per-gate findings and required basis checks
+ *   are surfaced by the eligibility engine.
+ * - validation and blockingGate: validation and fail-closed eligibility gates
+ *   prevent progression without material required inputs.
+ * - humanReview: required review is surfaced and persisted by step-workflow.
  *
- * Deliberately NOT claimed: identity (no live authenticated session resolves
- * ownerId yet), evidence/provenance (only plain structured source
- * references are recorded, not a stronger provenance/chain-of-custody
- * facility), security/documents/facts/approval/research/audit (not
- * exercised by this workflow at all).
+ * Do not claim identity, document analysis, provenance, approval, filing,
+ * mailing, or proofAudit until each has a real workflow-specific integration.
+ * This selection yields six capabilities because the grouped findings and
+ * validation selections each contain two related registered capabilities.
  */
 export const SECURED_TRANSACTION_ELIGIBILITY_REQUIRED_CAPABILITIES = securedTransactionCapabilities({
   matterState: true,

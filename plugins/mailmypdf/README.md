@@ -5,10 +5,10 @@ This directory packages the MailMyPDF remote MCP server and the document-executi
 ## Contents
 
 - `plugin.json` — portable plugin metadata.
-- `mcp.json` — remote streamable-HTTP MCP endpoint at `https://mailmypdf.ai/api/mcp`.
+- `mcp.json` — current deployed Worker endpoint at `https://mailmypdf.mycomind4.workers.dev/api/mcp`. Switch to `https://mailmypdf.ai/api/mcp` only after the branded domain passes the deployment and MCP readiness checks.
 - `skills/document-execution/SKILL.md` — safe execution sequence for document workflows.
 - `review-cases.json` — exactly five positive and three negative reviewer cases for connector behavior.
-- `submission-materials.json` — release notes, availability intent, all 27 tool-annotation justifications, and the remaining manual portal/deployment requirements.
+- `submission-materials.json` — release notes, availability intent, all currently published tool-annotation justifications, and the remaining manual portal/deployment requirements.
 
 The plugin does not duplicate workflow logic. MailMyPDF remains authoritative for authentication, matter ownership, secure document intake, malware scanning, analysis, drafting, packet construction, recipient/packet fingerprints, pricing, approval, Stripe checkout, Lob fulfillment, and mailing status.
 
@@ -17,6 +17,8 @@ The plugin does not duplicate workflow logic. MailMyPDF remains authoritative fo
 The skill directs compatible assistants through:
 
 ```
+ordinary letter: draft/revise in chat → prepare_conversational_letter → exact PDF + envelope review
+or specialized workflow:
 discover workflow
 → create owner-scoped matter
 → list/resume recent matters
@@ -42,13 +44,13 @@ Run:
 pnpm plugin:mailmypdf:submission:validate
 ```
 
-This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, 27-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
+This validates the listing limits, HTTPS policy/support URLs, starter prompts, exact 5/3 review-case count, published-tool annotation coverage and justifications, and the standard OpenAI profile-tool declaration. It intentionally does not claim that external portal/deployment requirements have passed.
 
 ## Before public submission
 
 The production deployment should have all of the following verified:
 
-1. `https://mailmypdf.ai/api/mcp` is publicly reachable over HTTPS and passes `mcp:smoke`.
+1. The currently deployed connector origin passes `verify:deployment` and `mcp:readiness`. The live Worker URL is `https://mailmypdf.mycomind4.workers.dev/api/mcp`; switch to the branded domain only after it passes those checks.
 2. Hosted Supabase OAuth 2.1 Server is enabled with authorization path `/oauth/consent`.
 3. Dynamic client registration/account linking has been exercised with a real external MCP client.
 4. Public privacy policy, terms, and support pages are current.

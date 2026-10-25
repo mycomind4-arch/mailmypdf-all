@@ -13,6 +13,10 @@
     "./approved-checkout": {
       "types": "./src/approved-checkout.ts",
       "import": "./dist/approved-checkout.js"
+    },
+    "./saved-payment": {
+      "types": "./src/saved-payment.ts",
+      "import": "./dist/saved-payment.js"
     }
   },
   "files": [

@@ -17,6 +17,7 @@ export type WorkflowProtocolActionKind =
   | "analysis"
   | "structured_input"
   | "draft_generation"
+  | "draft_review"
   | "packet_preview"
   | "checkout"
   | "tracking"
@@ -143,6 +144,23 @@ function action(
   });
 }
 
+/** Generation is transient: the user must review the text before it is saved. */
+export function generatedDraftReviewAction(matterId: string): WorkflowProtocolAction {
+  return action({
+    id: "review-and-save-draft",
+    kind: "draft_review",
+    toolName: "save_draft",
+    title: "Review and save the draft",
+    prompt:
+      "Show the generated draft to the user. Accept edits and confirm the exact final text before calling save_draft with body_text. Then call get_workflow_state. Generating a draft does not save it or authorize mailing.",
+    requiresUserInput: true,
+    requiresExplicitConsent: false,
+    idempotencyRequired: true,
+    consequential: false,
+    arguments: { matter_id: matterId },
+  });
+}
+
 function sourceDocument(
   documents: readonly WorkflowMatterDocument[],
 ): WorkflowMatterDocument | null {
@@ -257,7 +275,7 @@ export function deriveWorkflowProtocolState(input: {
         toolName: "generate_draft",
         title: "Generate a review draft",
         prompt:
-          "Generate the draft from the current verified matter state, show it to the user, and save only the exact text the user reviews.",
+          "Generate a proposed draft from verified facts. The result is transient; show it to the user and follow its review-and-save action before building a packet.",
         requiresUserInput: false,
         requiresExplicitConsent: false,
         idempotencyRequired: true,

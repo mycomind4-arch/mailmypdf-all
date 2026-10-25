@@ -14,9 +14,9 @@ const repositoryRoot = process.cwd().endsWith("packages/workflows")
 
 test("capability registry includes the complete cross-workflow platform surface", () => {
   const required: WorkflowCapability[] = [
-    "identity","matterState","aiExecution","secureUpload","documentStorage","documentScanning","retention",
-    "visionAnalysis","pdfGeneration","packetAssembly","pricing","payment","addressVerification",
-    "notifications","resilience","observability","acceptanceTesting","proofAudit","archive",
+    "identity","matterState","aiExecution","secureUpload","documentSourceImport","documentStorage","documentScanning","retention",
+    "visionAnalysis","pdfGeneration","packetAssembly","pricing","payment","savedPayment","addressVerification",
+    "mailing","scheduledMailing","batchMailing","notifications","resilience","observability","acceptanceTesting","proofAudit","archive",
   ];
   for (const id of required) {
     assert.equal(hasCapability(id),true,`missing capability ${id}`);

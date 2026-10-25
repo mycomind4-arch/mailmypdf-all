@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "mailmypdf.workflow-materialization/v1",
+  "id": "notice-respond/cp2000-response",
+  "label": "CP2000 Response",
+  "execution": {
+    "kind": "platform",
+    "entry": "workspace-start",
+    "policyFamily": "notice-response"
+  },
+  "authority": {
+    "module": "notice-cp2000-response",
+    "reviewedAt": "2026-09-15"
+  },
+  "legacyGoldId": "notice/cp2000-response",
+  "startTemplate": "notice-response"
+}

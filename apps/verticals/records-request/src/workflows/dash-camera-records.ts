@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { deriveCategoryKeywords } from './shared-capabilities'
+import { deriveCategoryKeywords, hasScopedValue } from './shared-capabilities'
 import type { RecordsDomainCapability } from './domain-pack'
 import { analyzePoliceProduction, type PoliceProductionIdentifiers, type PoliceProductionRecord } from './police-records-analysis'
 import { assessPoliceContradiction, classifyPoliceRecord, extractPoliceIncidentFacts, recommendPoliceFollowUp } from './police-records-ai'
@@ -91,7 +91,7 @@ function describe(category:string,input:Record<string,unknown>):string {
     'incident-and-supplemental-reports':`Lawfully accessible incident, traffic-stop, citation, arrest, collision, pursuit, supplemental, field-contact, or other reports associated with the same event. An allegation, arrest, citation, charge, or officer narrative is not an adjudicated finding merely because it appears in a police record.${scope}`,
     'evidence-indexes':`Lawfully accessible digital-evidence inventories, media indexes, attachment lists, evidence/property references, file manifests, and cross-references showing in-car video associated with the event. Request record evidence sufficient to identify responsive media, not evidence-system secrets or security-sensitive access details.${scope}`,
     'retention-and-deletion-records':`Existing retention classifications, preservation holds, deletion schedules, actual deletion-event records, overwrite/status records, and other records showing the maintained preservation status of responsive in-car media. Do not infer deletion, spoliation, misconduct, or a legal violation unless supported by verified records and applicable authority.${scope}`,
-    'redaction-and-withholding-records':`Existing records identifying redactions, withheld segments, redaction logs, redacted-export history, withholding determinations, and the agency's actually stated basis for material not produced. Preserve the stated basis rather than inventing an exemption, privilege, deadline, disclosure right, violation, or review route.${scope}`,
+    'redaction-and-withholding-records':`Existing records identifying redactions, withheld segments, redaction logs, redacted-export history, withholding determinations, and the agency's actually stated basis for material not produced. Preserve the agency's stated basis rather than inventing a deadline, exemption, privilege, disclosure right, violation, or review route.${scope}`,
     'request-status-and-release-records':`Existing acknowledgment, request/search status, fee, clarification, transfer/referral, identity/access-verification requirement, no-records response, retention/deletion statement, production manifest, release/export record, partial-production notice, closure, and review/appeal instructions where actually stated. Preserve the agency's actual statement and do not invent access entitlement, completeness, deadlines, exemptions, or review rights.${scope}`,
   }
   return `${descriptions[category]??`Existing dash-camera records concerning ${category}.${scope}`}${subject}`
@@ -102,7 +102,7 @@ function validateDashCamera(request:ValidatedRequest):readonly {field:string;mes
   const corpus=request.items.map(item=>item.description.toLowerCase()).join(' ')
   if(!request.agency?.trim()) issues.push({field:'agency',message:'Identify the law-enforcement agency or public body.'})
   if(!request.jurisdiction?.trim()) issues.push({field:'jurisdiction',message:'Identify the relevant jurisdiction.'})
-  if(!corpus.includes('location ')) issues.push({field:'location',message:'Provide the event location so responsive vehicle-camera records can be identified.'})
+  if(!hasScopedValue(request.scope, 'location')) issues.push({field:'location',message:'Provide the event location so responsive vehicle-camera records can be identified.'})
   if(!corpus.includes('incident date:')) issues.push({field:'incidentDate',message:'Provide the incident date so responsive recordings can be located.'})
   if(!corpus.includes('event description supplied by requester:')) issues.push({field:'subjectMatter',message:'Describe the stop, pursuit, collision, transport, or encounter in plain language.'})
   return issues

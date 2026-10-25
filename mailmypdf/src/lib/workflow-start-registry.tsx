@@ -10,6 +10,9 @@
 // record, and do not add a registry record without a real entry here.
 
 import type { ComponentType } from "react"
+import NoticeResponseWorkflow from "@mailmypdf/notice-respond/shared/NoticeResponseWorkflow"
+import { getNoticeResponseFactoryArtifact } from "@mailmypdf/workflows"
+import { workflowById } from "@mailmypdf/workflows/canonical-registry"
 
 import AppealCarInsuranceClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-car-insurance-claim/start"
 import AppealDeniedClaimStart from "@mailmypdf/appeal-mail/workflows/appeal-denied-claim/start"
@@ -24,6 +27,9 @@ import AppealPriorAuthorizationDenialStart from "@mailmypdf/appeal-mail/workflow
 import AppealSsdiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssdi-denial/start"
 import AppealSsiDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-ssi-denial/start"
 import AppealTimelyFilingDenialStart from "@mailmypdf/appeal-mail/workflows/appeal-timely-filing-denial/start"
+import EquifaxDisputeStart from "@mailmypdf/dispute-mail-section/workflows/equifax-dispute/start"
+import ExperianDisputeStart from "@mailmypdf/dispute-mail-section/workflows/experian-dispute/start"
+import TransunionDisputeStart from "@mailmypdf/dispute-mail-section/workflows/transunion-dispute/start"
 import ImmigrationFilingCoverLetterStart from "@mailmypdf/immigration-mail/workflows/immigration-filing-cover-letter/start"
 import Cp2000ResponseStart from "@mailmypdf/notice-respond/workflows/cp2000-response/start"
 import Cp504ResponseStart from "@mailmypdf/notice-respond/workflows/cp504-response/start"
@@ -52,6 +58,9 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "appeal-mail:appeal-ssdi-denial": AppealSsdiDenialStart,
   "appeal-mail:appeal-ssi-denial": AppealSsiDenialStart,
   "appeal-mail:appeal-timely-filing-denial": AppealTimelyFilingDenialStart,
+  "dispute-mail:equifax-dispute": EquifaxDisputeStart,
+  "dispute-mail:experian-dispute": ExperianDisputeStart,
+  "dispute-mail:transunion-dispute": TransunionDisputeStart,
   "immigration-mail:immigration-filing-cover-letter": ImmigrationFilingCoverLetterStart,
   "notice-respond:cp2000-response": Cp2000ResponseStart,
   "notice-respond:cp504-response": Cp504ResponseStart,
@@ -67,6 +76,32 @@ const WORKFLOW_START_COMPONENTS: Readonly<Record<string, ComponentType>> = {
   "secured-transactions:obligation-value": ObligationValueStart,
 }
 
+// Profile-driven Notice Respond workflows share a reviewed factory runtime.
+// Never mount unknown or factory-unready definitions as executable UI.
+const FACTORY_FAMILY_COMPONENTS = new Map<string, ComponentType>()
+
 export function workflowStartComponent(sectionId: string, workflowId: string): ComponentType | undefined {
-  return WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  const staticComponent = WORKFLOW_START_COMPONENTS[`${sectionId}:${workflowId}`]
+  if (staticComponent) return staticComponent
+
+  const canonical = workflowById(`${sectionId}/${workflowId}`)
+  if (
+    canonical?.execution?.kind !== "platform" ||
+    canonical.execution.policyFamily !== "notice-response" ||
+    canonical.sectionId !== "notice-respond"
+  ) return undefined
+
+  const artifact = getNoticeResponseFactoryArtifact(workflowId)
+  if (!artifact?.factoryReady || artifact.canonicalId !== canonical.id) return undefined
+
+  const key = `notice-response:${workflowId}`
+  const cached = FACTORY_FAMILY_COMPONENTS.get(key)
+  if (cached) return cached
+  const Component = () => (
+    <NoticeResponseWorkflow
+      config={{ ...artifact.startConfig, backHref: canonical.workspaceHref }}
+    />
+  )
+  FACTORY_FAMILY_COMPONENTS.set(key, Component)
+  return Component
 }

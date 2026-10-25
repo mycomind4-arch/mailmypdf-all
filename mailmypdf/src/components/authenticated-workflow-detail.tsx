@@ -42,7 +42,11 @@ export function AuthenticatedWorkflowDetail({
   // Execution readiness comes from the new-architecture execution registry,
   // never from SEO/authority state -- authority is display-only metadata below.
   const execution = workflowExecutionRecord(section.id, workflow.slug)
-  const executionHref = execution?.executionHref ?? undefined
+  // Authenticated Notice Respond execution stays inside the dashboard, where
+  // the reviewed family renderer is checked against its canonical profile.
+  const executionHref = execution?.executionStatus === "executable" && section.id === "notice-respond"
+    ? `${workflow.workspaceHref}/start`
+    : execution?.executionHref ?? undefined
   const guide = workflowDetailGuide(section.id, workflow.slug)
 
   return (
@@ -54,12 +58,18 @@ export function AuthenticatedWorkflowDetail({
         startHref={executionHref}
         guide={guide}
         metrics={[
-          { label: "Execution", value: executionHref ? "Ready" : "Not connected", tone: executionHref ? "success" : "neutral" },
+          { label: "Start page", value: executionHref ? "Connected" : "Not connected", tone: executionHref ? "success" : "neutral" },
           { label: "Workspace", value: "Available", tone: "success" },
           { label: "Account", value: "Authenticated", tone: "success" },
           { label: "Product", value: section.label },
         ]}
       />
+
+      {executionHref && (
+        <p className="rounded-md border border-rule/70 bg-card px-5 py-3 text-xs text-muted-foreground">
+          The start page is connected; this does not certify chat execution, end-to-end acceptance, payment, or physical mailing.
+        </p>
+      )}
 
       {!guide && (
         <p className="rounded-md border border-rule/70 bg-card px-5 py-4 text-sm text-muted-foreground">

@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
+import { describeRecoveryCaseEvidence } from "./recovery-case-evidence.server";
 import { SavedAddressError, listSavedAddresses, saveAddress, archiveAddress } from "./saved-addresses.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
@@ -9,6 +10,7 @@ import {
   ingestDirectPdf,
   prepareDirectPdfCheckout,
   prepareDirectPdfMail,
+  prepareConversationalLetterMail,
   reviewDirectPdfMail,
   getMailingContext,
 } from "./direct-mail.server";
@@ -36,6 +38,7 @@ import {
 } from "@mailmypdf/workflows/connector-operation";
 import {
   deriveWorkflowProtocolState,
+  generatedDraftReviewAction,
   platformWorkflowRuntimePolicyFor,
   type WorkflowMatterDocument,
   type WorkflowMatterRecord,
@@ -44,6 +47,26 @@ import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
 import { listRecentCases } from "@/lib/secure-core/case.server";
 import { deriveMatterGuidance } from "./matter-guidance";
+import {
+  cancelScheduledDirectMail,
+  createScheduledDirectMail,
+  ScheduledMailError,
+} from "@/lib/scheduled-mail.server";
+import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
+import {
+  chargeAndSendDirectPdfMail,
+  ImmediateMailError,
+} from "@/lib/immediate-mail.server";
+import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
+import { screenProvidedRecoveryTransactions } from "./recovery-scan";
+import {
+  createRecoveryCaseFromScan,
+  getRecoveryCase,
+  listRecoveryCases,
+  updateRecoveryCase,
+  RecoveryCaseError,
+} from "./recovery-case-service";
+import { createRecoveryCaseStore } from "./recovery-store.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -259,6 +282,32 @@ export async function executeMcpTool(
 ): Promise<unknown> {
   const args = object(rawArguments ?? {}, "arguments");
 
+  if (["save_recovery_case", "get_recovery_case", "list_recovery_cases", "update_recovery_case"].includes(name)) {
+    const context = await requireAuthenticatedUser(request);
+    try {
+      const store = createRecoveryCaseStore(context);
+      if (name === "list_recovery_cases") return await listRecoveryCases(args, context.user.id, store);
+      const result = name === "save_recovery_case"
+        ? await createRecoveryCaseFromScan(args, context.user.id, store)
+        : name === "get_recovery_case"
+          ? await getRecoveryCase(args, context.user.id, store)
+          : await updateRecoveryCase(args, context.user.id, store);
+      return { ...result, evidence: await describeRecoveryCaseEvidence(context, result.case) };
+    } catch (error) {
+      if (error instanceof RecoveryCaseError) throw new McpToolExecutionError(error.status, error.message);
+      throw new McpToolExecutionError(503, "Recovery storage is unavailable. Reload before retrying.");
+    }
+  }
+
+  if (name === "scan_recovery_candidates") {
+    await requireAuthenticatedUser(request);
+    try {
+      return screenProvidedRecoveryTransactions(args);
+    } catch (error) {
+      throw new McpToolExecutionError(400, error instanceof Error ? error.message : "Invalid transaction data");
+    }
+  }
+
   if (name === "find_workflow") {
     const query = requiredString(args.query, "query");
     return { workflows: findWorkflowMatches(query, boundedLimit(args.limit)) };
@@ -295,6 +344,17 @@ export async function executeMcpTool(
       name: fullName,
       email: context.user.email ?? null,
     };
+  }
+
+  if (name === "get_payment_readiness") {
+    try {
+      return await getPaymentReadiness(request);
+    } catch (error) {
+      if (error instanceof BillingProfileError) {
+        throw new McpToolExecutionError(error.status, error.message);
+      }
+      throw error;
+    }
   }
 
   if (name === "create_matter") {
@@ -468,6 +528,26 @@ export async function executeMcpTool(
     }
   }
 
+  if (name === "prepare_conversational_letter") {
+    try {
+      return await prepareConversationalLetterMail(request, {
+        letterText: args.letter_text,
+        sender: args.sender,
+        recipient: args.recipient,
+        mailClass: args.mail_class,
+        color: args.color,
+        idempotencyKey: args.idempotency_key,
+        senderProfile: args.sender_profile,
+        recipientEntry: args.recipient_entry,
+      });
+    } catch (error) {
+      if (error instanceof McpDirectMailError || error instanceof SavedAddressError) {
+        throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
   if (name === "prepare_direct_pdf_mail") {
     try {
       return await prepareDirectPdfMail(request, {
@@ -513,6 +593,27 @@ export async function executeMcpTool(
     } catch (error) {
       if (error instanceof McpDirectMailError) {
         throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "charge_and_send_direct_pdf_mail") {
+    try {
+      return await chargeAndSendDirectPdfMail(request, {
+        orderId: args.order_id,
+        expectedPacketSha256: args.expected_packet_sha256,
+        expectedTotalCents: args.expected_total_cents,
+        expectedPaymentRevision: args.expected_payment_revision,
+        authorizeSavedPayment: args.authorize_saved_payment,
+        userConfirmedSend: args.user_confirmed_send,
+      });
+    } catch (error) {
+      if (error instanceof ImmediateMailError) {
+        throw new McpToolExecutionError(error.status, error.message, {
+          ...(error.code ? { code: error.code } : {}),
+          ...(error.details ?? {}),
+        });
       }
       throw error;
     }
@@ -715,6 +816,34 @@ export async function executeMcpTool(
     return { ...snapshot, ...guidance };
   }
 
+  if (name === "schedule_direct_pdf_mail" || name === "cancel_scheduled_mail") {
+    try {
+      if (name === "schedule_direct_pdf_mail") {
+        return await createScheduledDirectMail(request, {
+          orderId: args.order_id,
+          sendAt: args.send_at,
+          timezone: args.timezone,
+          idempotencyKey: args.idempotency_key,
+          authorizeSavedPayment: args.authorize_saved_payment,
+        });
+      }
+      if (args.user_confirmed !== true) {
+        throw new McpToolExecutionError(
+          400,
+          "user_confirmed must be true after the user explicitly asks to cancel this scheduled mailing",
+        );
+      }
+      return await cancelScheduledDirectMail(request, args.schedule_id);
+    } catch (error) {
+      if (error instanceof ScheduledMailError) {
+        throw new McpToolExecutionError(error.status, error.message, {
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
+      throw error;
+    }
+  }
+
   if (name === "ingest_document") {
     if (args.processing_consent !== true) {
       throw new McpToolExecutionError(
@@ -738,6 +867,26 @@ export async function executeMcpTool(
       (typeof position !== "number" || !Number.isInteger(position) || position < 0)
     ) {
       throw new McpToolExecutionError(400, "position must be a non-negative integer");
+    }
+
+    const rawSourceKind =
+      args.source_kind === undefined ? "conversation_attachment" : requiredString(args.source_kind, "source_kind");
+    const allowedSourceKinds = new Set([
+      "local_upload",
+      "conversation_attachment",
+      "google_drive",
+      "mailmypdf_library",
+      "external_provider",
+    ]);
+    if (!allowedSourceKinds.has(rawSourceKind)) {
+      throw new McpToolExecutionError(400, "source_kind is not supported");
+    }
+    const sourceProvider =
+      args.source_provider === null || args.source_provider === undefined
+        ? null
+        : requiredString(args.source_provider, "source_provider");
+    if (sourceProvider && sourceProvider.length > 80) {
+      throw new McpToolExecutionError(400, "source_provider is too long");
     }
 
     return runOperation("ingest_document", async () => {
@@ -777,9 +926,58 @@ export async function executeMcpTool(
         ...(typeof position === "number" ? { position } : {}),
       });
 
+      const context = await requireAuthenticatedUser(request);
+      let provenance;
+      try {
+        provenance = normalizeDocumentSource({
+          kind: rawSourceKind as
+            | "local_upload"
+            | "conversation_attachment"
+            | "google_drive"
+            | "mailmypdf_library"
+            | "external_provider",
+          role: role === "subject_notice" ? "primary" : "supporting",
+          sourceId: downloaded.sourceFileId,
+          provider:
+            rawSourceKind === "google_drive"
+              ? "google"
+              : rawSourceKind === "mailmypdf_library"
+                ? "mailmypdf"
+                : sourceProvider,
+          fileName: downloaded.file.name,
+          mimeType: downloaded.file.type || downloaded.sourceMimeType,
+        });
+      } catch (error) {
+        throw new McpToolExecutionError(
+          400,
+          error instanceof Error ? error.message : "Document source provenance is invalid",
+        );
+      }
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: provenanceError } = await supabaseAdmin
+        .from("document_source_provenance")
+        .upsert(
+          {
+            document_id: document.id,
+            owner_id: context.user.id,
+            source_kind: provenance.kind,
+            use_role: provenance.role,
+            source_provider: provenance.provider,
+            source_id: provenance.sourceId,
+            imported_at: provenance.importedAt,
+          },
+          { onConflict: "document_id" },
+        );
+      if (provenanceError) {
+        throw new McpToolExecutionError(
+          500,
+          "The document was secured but its source provenance could not be recorded",
+        );
+      }
+
       if (document.securityStatus === "quarantined") {
         try {
-          const context = await requireAuthenticatedUser(request);
           const { scanQuarantinedDocumentNow } = await import("@/lib/secure-core/scanner.server");
           await scanQuarantinedDocumentNow(document.id, context.user.id);
         } catch {
@@ -800,6 +998,9 @@ export async function executeMcpTool(
           sourceFileId: downloaded.sourceFileId,
           sourceHost: downloaded.sourceHost,
           sourceMimeType: downloaded.sourceMimeType,
+          sourceKind: provenance.kind,
+          sourceProvider: provenance.provider,
+          sourceRole: provenance.role,
         },
         attached: attachedPayload,
         nextAction:
@@ -827,7 +1028,10 @@ export async function executeMcpTool(
   if (name === "generate_draft") {
     return runOperation(
       "generate_draft",
-      () => callRuntime(request, `${base}/draft/generate`, "POST", {}),
+      async () => ({
+        ...object(await callRuntime(request, `${base}/draft/generate`, "POST", {}), "generated draft"),
+        nextAction: generatedDraftReviewAction(matterId),
+      }),
     );
   }
 

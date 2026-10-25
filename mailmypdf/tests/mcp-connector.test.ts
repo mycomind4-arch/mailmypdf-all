@@ -52,12 +52,17 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.ok(names.includes("get_workflow_state"));
   assert.ok(!names.includes("charge_card"));
   assert.ok(!names.includes("submit_mail_order"));
+  assert.ok(names.includes("prepare_conversational_letter"));
+  assert.ok(names.includes("get_payment_readiness"));
   assert.ok(names.includes("review_direct_pdf_mail"));
   assert.ok(names.includes("get_mailing_context"));
   assert.ok(names.includes("list_saved_addresses"));
   assert.ok(names.includes("save_mailing_address"));
   assert.ok(names.includes("archive_mailing_address"));
-  assert.equal(names.length, 28);
+  assert.ok(names.includes("charge_and_send_direct_pdf_mail"));
+  assert.ok(names.includes("schedule_direct_pdf_mail"));
+  assert.ok(names.includes("cancel_scheduled_mail"));
+  assert.equal(names.length, 38);
 });
 
 test("workflow state tool advertises the universal chat protocol", () => {
@@ -70,7 +75,7 @@ test("workflow state tool advertises the universal chat protocol", () => {
   assert.ok(stateTool.capabilityRequirements.some((item) => item.id === "matterState"));
 });
 
-test("CP14 and Records Request are registered only after chat-readiness certification", () => {
+test("certified factory families are registered only after chat-readiness certification", () => {
   const cp14 = getMcpWorkflowProtocolRegistration("cp14-response");
   assert.ok(cp14);
   assert.equal(cp14.certification.certified, true);
@@ -97,23 +102,24 @@ test("CP14 and Records Request are registered only after chat-readiness certific
   assert.ok(insurance.definition.inputFields.some((field) => field.id === "factsConfirmed"));
   assert.equal(insurance.definition.packetRecipientField?.id, "recipientAddress");
 
-  assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
-});
-
-test("SSDI and SSI reconsideration are registered for chat/MCP execution", () => {
   const ssdi = getMcpWorkflowProtocolRegistration("appeal-ssdi-denial");
   assert.ok(ssdi);
-  assert.equal(ssdi.certification.certified, true, JSON.stringify(ssdi.certification.diagnostics));
+  assert.equal(ssdi.certification.certified, true);
   assert.ok(ssdi.definition);
   assert.equal(ssdi.definition.analysisRequired, true);
-  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "reasons-for-disagreement"));
-  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "confirmed-reconsideration"));
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "confirmedReconsideration"));
+  assert.ok(ssdi.definition.inputFields.some((field) => field.id === "workChanges"));
+  assert.equal(ssdi.definition.packetRecipientField?.id, "recipientAddress");
 
   const ssi = getMcpWorkflowProtocolRegistration("appeal-ssi-denial");
   assert.ok(ssi);
-  assert.equal(ssi.certification.certified, true, JSON.stringify(ssi.certification.diagnostics));
+  assert.equal(ssi.certification.certified, true);
   assert.ok(ssi.definition);
-  assert.ok(ssi.definition.inputFields.some((field) => field.id === "income-facts"));
+  assert.equal(ssi.definition.analysisRequired, true);
+  assert.ok(ssi.definition.inputFields.some((field) => field.id === "incomeFacts"));
+  assert.equal(ssi.definition.packetRecipientField?.id, "recipientAddress");
+
+  assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
 
 test("public workflow discovery reports certified chat execution separately", async () => {
@@ -238,6 +244,22 @@ test("connector tool dry run never performs the requested external effect", () =
   assert.equal(dryRun.sideEffectsPerformed, false);
   assert.equal(dryRun.toolName, "prepare_checkout");
   assert.ok(dryRun.resolvedCapabilities.includes("pricing"));
+});
+
+test("saved-payment readiness is read-only and never authorizes charging", () => {
+  const tool = MAILMYPDF_MCP_TOOLS.find((candidate) => candidate.name === "get_payment_readiness");
+  assert.ok(tool);
+  assert.equal(tool.annotations.readOnlyHint, true);
+  assert.equal(tool.annotations.destructiveHint, false);
+  assert.equal(tool.annotations.idempotentHint, true);
+  assert.ok(tool.capabilityRequirements.some((item) => item.id === "savedPayment"));
+  const schema = tool.outputSchema as {
+    properties?: Record<string, unknown>;
+  };
+  assert.ok(schema.properties?.payment);
+  assert.ok(schema.properties?.paymentRevision);
+  assert.equal("stripe_customer_id" in (schema.properties ?? {}), false);
+  assert.equal("default_payment_method_id" in (schema.properties ?? {}), false);
 });
 
 test("profile tool declares the current OpenAI account-recognition contract", () => {
@@ -382,6 +404,20 @@ test("ingest_document exposes the exact ChatGPT file-parameter shape", () => {
     ["download_url", "file_id", "file_name", "mime_type"],
   );
   assert.deepEqual([...(file.required ?? [])].sort(), ["download_url", "file_id"]);
+
+  const sourceKind = input.properties.source_kind as unknown as {
+    enum?: string[];
+    default?: string;
+  };
+  assert.deepEqual(sourceKind.enum, [
+    "local_upload",
+    "conversation_attachment",
+    "google_drive",
+    "mailmypdf_library",
+    "external_provider",
+  ]);
+  assert.equal(sourceKind.default, "conversation_attachment");
+  assert.ok(input.properties.source_provider);
 });
 
 test("direct PDF ingestion uses the same assistant file parameter contract", () => {
@@ -397,13 +433,35 @@ test("direct PDF ingestion uses the same assistant file parameter contract", () 
   assert.deepEqual([...(schema.required ?? [])].sort(), ["file", "processing_consent"]);
 });
 
-test("direct PDF mailing keeps preparation, approval, and checkout as separate tools", () => {
+test("conversational letter preparation is review-only and requires exact text plus addresses", () => {
+  const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_conversational_letter");
+  assert.ok(prepare);
+  const required = (prepare.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...required].sort(), [
+    "idempotency_key",
+    "letter_text",
+    "mail_class",
+    "recipient",
+    "sender",
+  ]);
+  assert.equal(prepare.annotations.readOnlyHint, false);
+  assert.equal(prepare.annotations.destructiveHint, false);
+  assert.equal(prepare.annotations.openWorldHint, true);
+  assert.ok(prepare.capabilityRequirements.some((item) => item.id === "documentStorage"));
+  assert.ok(prepare.capabilityRequirements.some((item) => item.id === "pricing"));
+  assert.ok(!prepare.capabilityRequirements.some((item) => item.id === "payment"));
+  assert.ok(!prepare.capabilityRequirements.some((item) => item.id === "approval"));
+});
+
+test("direct PDF mailing keeps preparation, approval, and payment execution as separate tools", () => {
   const prepare = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_mail");
   const approve = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "approve_direct_pdf_mail");
   const checkout = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "prepare_direct_pdf_checkout");
+  const immediate = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "charge_and_send_direct_pdf_mail");
   assert.ok(prepare);
   assert.ok(approve);
   assert.ok(checkout);
+  assert.ok(immediate);
 
   const approveRequired = (approve.inputSchema.required ?? []) as string[];
   assert.deepEqual([...approveRequired].sort(), [
@@ -419,6 +477,22 @@ test("direct PDF mailing keeps preparation, approval, and checkout as separate t
   assert.equal(approve.annotations.destructiveHint, false);
   assert.equal(checkout.annotations.destructiveHint, false);
   assert.equal(checkout.annotations.openWorldHint, true);
+
+  const immediateRequired = (immediate.inputSchema.required ?? []) as string[];
+  assert.deepEqual([...immediateRequired].sort(), [
+    "authorize_saved_payment",
+    "expected_packet_sha256",
+    "expected_payment_revision",
+    "expected_total_cents",
+    "order_id",
+    "user_confirmed_send",
+  ]);
+  assert.equal(immediate.annotations.readOnlyHint, false);
+  assert.equal(immediate.annotations.destructiveHint, true);
+  assert.equal(immediate.annotations.idempotentHint, true);
+  assert.equal(immediate.annotations.openWorldHint, true);
+  assert.ok(immediate.capabilityRequirements.some((item) => item.id === "savedPayment"));
+  assert.ok(immediate.capabilityRequirements.some((item) => item.id === "payment"));
 });
 
 test("remote attachment URLs reject local/private/nonstandard targets", () => {
@@ -436,6 +510,18 @@ test("remote attachment URLs reject local/private/nonstandard targets", () => {
     ["files.example.com"],
   );
   assert.equal(accepted.hostname, "files.example.com");
+});
+
+test("document source metadata is provenance-only and does not accept credentials or source URLs", () => {
+  const ingest = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "ingest_document");
+  assert.ok(ingest);
+  const schema = ingest.inputSchema as { properties?: Record<string, unknown> };
+  const keys = Object.keys(schema.properties ?? {});
+  for (const forbidden of ["access_token", "refresh_token", "authorization", "download_url", "source_url"]) {
+    assert.equal(keys.includes(forbidden), false);
+  }
+  assert.ok(keys.includes("source_kind"));
+  assert.ok(keys.includes("source_provider"));
 });
 
 test("assistant PDF download preserves provider provenance without trusting MIME alone", async () => {
@@ -539,6 +625,16 @@ test("order status normalization exposes tracking facts without raw event metada
       approved_price_cents: 1299,
       price_cents: 1399,
       mail_class: "certified",
+      color: false,
+      sender_name: "Example Sender",
+      sender_line1: "1 Sender St",
+      sender_line2: null,
+      sender_city: "Oakland",
+      sender_state: "CA",
+      sender_postal: "94607",
+      recipient_line1: "2 Recipient St",
+      recipient_line2: null,
+      recipient_postal: "95814",
       lob_letter_id: "ltr_123",
       mailed_at: "2026-09-25T12:00:00.000Z",
       paid_at: "2026-09-25T11:00:00.000Z",
@@ -586,6 +682,267 @@ test("order status normalization exposes tracking facts without raw event metada
   assert.equal(JSON.stringify(normalized).includes("evt_private"), false);
 });
 
+
+test("direct order status derives safe conversational-mail resume state", () => {
+  const sender = {
+    name: "Sender",
+    line1: "1 Main St",
+    line2: null,
+    city: "Eureka",
+    state: "CA",
+    postal: "95501",
+  };
+  const recipient = {
+    name: "Recipient",
+    line1: "2 Main St",
+    line2: null,
+    city: "Arcata",
+    state: "CA",
+    postal: "95521",
+  };
+  const mailing = { sender, recipient, mailClass: "standard", color: false };
+  const packetSha256 = "b".repeat(64);
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+
+  const baseOrder = {
+    id: "direct-1",
+    status: "draft" as const,
+    workflow_case_id: null,
+    case_approval_id: null,
+    approved_packet_sha256: null,
+    approved_price_cents: null,
+    price_cents: 899,
+    mail_class: "standard",
+    color: false,
+    sender_name: sender.name,
+    sender_line1: sender.line1,
+    sender_line2: sender.line2,
+    sender_city: sender.city,
+    sender_state: sender.state,
+    sender_postal: sender.postal,
+    recipient_name: recipient.name,
+    recipient_line1: recipient.line1,
+    recipient_line2: recipient.line2,
+    recipient_city: recipient.city,
+    recipient_state: recipient.state,
+    recipient_postal: recipient.postal,
+    lob_letter_id: null,
+    mailed_at: null,
+    paid_at: null,
+    created_at: "2026-09-27T10:00:00.000Z",
+    updated_at: "2026-09-27T10:00:00.000Z",
+    scheduled_delivery_date: null,
+    file_name: "typed-letter.pdf",
+    page_count: 1,
+    vertical_slug: null,
+    email: "owner@example.com",
+    payment_execution_key: null,
+  };
+
+  const reviewed = normalizeOrderStatus(baseOrder, [
+    {
+      type: "mcp.direct_mail.prepared",
+      label: "Prepared",
+      created_at: "2026-09-27T10:00:00.000Z",
+      metadata: {
+        owner_id: "owner-1",
+        source: "conversational-letter",
+        packet_sha256: packetSha256,
+        letter_text_sha256: "c".repeat(64),
+      },
+    },
+    {
+      type: "mcp.direct_mail.addresses_reviewed",
+      label: "Reviewed",
+      created_at: "2026-09-27T10:01:00.000Z",
+      metadata: {
+        owner_id: "owner-1",
+        verified: true,
+        mailing_snapshot: mailing,
+        expires_at: expiresAt,
+      },
+    },
+  ]);
+
+  assert.equal(reviewed.directMail?.source, "conversational_letter");
+  assert.equal(reviewed.directMail?.preparedPacketSha256, packetSha256);
+  assert.equal(reviewed.directMail?.review.status, "current");
+  assert.equal(reviewed.directMail?.approval.status, "missing");
+  assert.equal(reviewed.directMail?.nextAction?.toolName, "review_direct_pdf_mail");
+
+  const approved = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+    },
+    [
+      ...(reviewed.history.length ? [] : []),
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+          letter_text_sha256: "c".repeat(64),
+        },
+      },
+      {
+        type: "mcp.direct_mail.addresses_reviewed",
+        label: "Reviewed",
+        created_at: "2026-09-27T10:01:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          verified: true,
+          mailing_snapshot: mailing,
+          expires_at: expiresAt,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+
+  assert.equal(approved.directMail?.approval.status, "current");
+  assert.equal(
+    approved.directMail?.nextAction?.toolName,
+    "get_payment_readiness",
+  );
+
+  const immediateActive = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+      payment_execution_key: "immediate:direct-1:bbbbbbbbbbbbbbbb:899:2",
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+  assert.equal(immediateActive.directMail?.paymentExecution?.kind, "immediate_saved_payment");
+  assert.equal(
+    immediateActive.directMail?.nextAction?.toolName,
+    "charge_and_send_direct_pdf_mail",
+  );
+
+  const scheduled = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+    {
+      id: "schedule-1",
+      status: "scheduled",
+      send_at: "2026-10-15T16:00:00.000Z",
+      timezone: "America/Los_Angeles",
+      approved_max_total_cents: 899,
+      payment_authorized_at: "2026-09-27T10:03:00.000Z",
+      payment_amount_cents: null,
+      payment_status: null,
+      blocked_reason: null,
+      released_at: null,
+      cancelled_at: null,
+    },
+  );
+
+  assert.equal(scheduled.directMail?.approval.status, "current");
+  assert.equal(scheduled.directMail?.nextAction, null);
+  assert.equal(scheduled.scheduledMailing?.status, "scheduled");
+  assert.equal(scheduled.scheduledMailing?.paymentAuthorizedAt, "2026-09-27T10:03:00.000Z");
+  assert.equal(scheduled.scheduledMailing?.nextAction?.toolName, "cancel_scheduled_mail");
+  assert.equal(JSON.stringify(scheduled).includes("stripe_payment_intent_id"), false);
+
+  const changed = normalizeOrderStatus(
+    {
+      ...baseOrder,
+      approved_packet_sha256: packetSha256,
+      approved_price_cents: 899,
+      recipient_postal: "95522",
+    },
+    [
+      {
+        type: "mcp.direct_mail.prepared",
+        label: "Prepared",
+        created_at: "2026-09-27T10:00:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          source: "conversational-letter",
+          packet_sha256: packetSha256,
+        },
+      },
+      {
+        type: "mcp.direct_mail.approved",
+        label: "Approved",
+        created_at: "2026-09-27T10:02:00.000Z",
+        metadata: {
+          owner_id: "owner-1",
+          packet_sha256: packetSha256,
+          total_cents: 899,
+          mailing_snapshot: mailing,
+        },
+      },
+    ],
+  );
+
+  assert.equal(changed.directMail?.approval.status, "stale");
+  assert.equal(changed.directMail?.nextAction?.toolName, "review_direct_pdf_mail");
+});
 
 test("exact packet PDF resource URI is hash-bound and round-trips safely", () => {
   const packetSha256 = "a".repeat(64);
@@ -724,7 +1081,7 @@ test("modern server/discover advertises the stateless 2026 protocol", async () =
     payload.result._meta["mailmypdf/connectorContract"].schemaVersion,
     MCP_CONNECTOR_CONTRACT_VERSION,
   );
-  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 28);
+  assert.equal(payload.result._meta["mailmypdf/connectorContract"].toolCount, 38);
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
   assert.ok(payload.result.capabilities.tools);
@@ -768,7 +1125,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.equal(payload.result.resultType, "complete");
   assert.equal(payload.result.ttlMs, 300_000);
   assert.equal(payload.result.cacheScope, "public");
-  assert.equal(payload.result.tools.length, 28);
+  assert.equal(payload.result.tools.length, 38);
   assert.ok(payload.result.tools.some((tool) => tool.name === "list_recent_matters"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "ingest_document"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "get_document_status"));
@@ -781,6 +1138,7 @@ test("modern tools/list returns deterministic cacheable public tool metadata", a
   assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_mail"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "approve_direct_pdf_mail"));
   assert.ok(payload.result.tools.some((tool) => tool.name === "prepare_direct_pdf_checkout"));
+  assert.ok(payload.result.tools.some((tool) => tool.name === "charge_and_send_direct_pdf_mail"));
 });
 
 test("preview_packet binds the review UI and recipient identity", () => {
@@ -846,7 +1204,7 @@ test("modern resources list/read exposes the portable packet review app", async 
       cacheScope: string;
     };
   };
-  assert.equal(listedPayload.result.resources.length, 1);
+  assert.equal(listedPayload.result.resources.length, 3);
   assert.equal(listedPayload.result.resources[0]?.uri, PACKET_REVIEW_RESOURCE_URI);
   assert.equal(
     listedPayload.result.resources[0]?.mimeType,

@@ -37,7 +37,7 @@ Legacy `initialize` supports `2025-03-26`, `2025-06-18`, and `2025-11-25`.
 Unknown versions are not echoed as if implemented. Requests are capped at 1 MiB;
 browser origins are validated and account responses are never HTTP-cacheable.
 
-## v0.8 / connector-v2 tool boundary (27 tools)
+## v0.9 / connector-v2 tool boundary (29 tools)
 
 Public discovery:
 
@@ -50,11 +50,14 @@ Authenticated matter execution:
 - `create_matter`
 - `list_recent_matters`
 - `get_matter`
+- `get_workflow_state`
 - `get_order_status`
 - `get_document_status`
 - `get_operation_status`
 - `get_connector_readiness`
 - `ingest_direct_pdf`
+- `prepare_conversational_letter`
+- `get_payment_readiness`
 - `prepare_direct_pdf_mail`
 - `get_mailing_context`
 - `list_saved_addresses`
@@ -63,6 +66,9 @@ Authenticated matter execution:
 - `review_direct_pdf_mail`
 - `approve_direct_pdf_mail`
 - `prepare_direct_pdf_checkout`
+- `charge_and_send_direct_pdf_mail`
+- `schedule_direct_pdf_mail`
+- `cancel_scheduled_mail`
 - `ingest_document`
 - `save_matter_input`
 - `analyze_matter`
@@ -72,7 +78,7 @@ Authenticated matter execution:
 - `approve_packet`
 - `prepare_checkout`
 
-The connector intentionally does **not** expose a raw-card tool or a model-authorized "mail now" tool.
+The connector intentionally does **not** expose a raw-card tool or an assistant-authorized "mail now" shortcut. Immediate saved-payment mailing exists only as a separately confirmed destructive action bound to the exact approved packet, price, saved-payment revision, and current postal verification.
 
 `list_recent_matters` is owner-scoped and returns compact recent matter metadata.
 `get_matter` combines the existing matter/document snapshot with persisted
@@ -88,9 +94,11 @@ confirmation. Preparation accepts optional `sender_profile` / `recipient_entry`
 id/revision references alongside explicit addresses. The server checks the exact
 selected snapshot and records provenance; fulfillment never follows a mutable
 saved-address reference. Every new mailing still requires review. Archiving does
-not change old orders. Requires `20260928010000_saved_mailing_addresses.sql`,
-not yet applied to production. Manual address entry remains independent of this
-table. Public autocomplete and address overrides are not implemented.
+not change old orders. Production migration `20260928010000_saved_mailing_addresses.sql` is applied
+to the MailMyPDF Supabase project as remote migration
+`20260928014545_saved_mailing_addresses_20260928`. Manual address entry remains
+independent of this table. Public autocomplete and address overrides are not
+implemented.
 
 `approve_packet` is bound server-side to the exact packet SHA-256, exact price, recipient, and mail class. `prepare_checkout` can only run against that saved approval and returns the existing Stripe-hosted checkout path. Existing payment and fulfillment infrastructure remains authoritative.
 
@@ -202,9 +210,15 @@ Interactive MCP ingestion makes a best-effort immediate claim of the just-upload
 
 The tool reads only owner-scoped document/matter metadata. It does not return storage paths, scanner signatures, scanner error text, retention internals, or raw security metadata.
 
-## Direct PDF mailing from chat
+## Conversational letters and direct PDF mailing from chat
 
-The connector now supports the core MailMyPDF use case without forcing a finished PDF through a specialized workflow.
+The connector supports both ordinary letters composed in chat and already-prepared PDFs without forcing either through an unrelated specialized workflow.
+
+For an ordinary letter, the assistant drafts/revises the text conversationally, confirms the exact sender and recipient, then calls `prepare_conversational_letter`. MailMyPDF renders the exact finalized text through the production letter-to-PDF path and returns an unpaid draft order. The rest of the flow reuses the same exact-PDF review, postal verification, immutable approval, optional tokenized saved-payment send-now or Stripe hosted checkout, Lob fulfillment, and status pipeline described below.
+
+`get_mailing_context` plus `get_order_status` make these direct/conversational mailings resumable. The read-only order status response reports whether postal review is current/expired/stale/missing, whether approval is current/stale/missing, and the safest existing next tool. Recovered state never substitutes for explicit approval.
+
+The connector also supports the core direct-PDF use case without forcing a finished PDF through a specialized workflow.
 
 The expected sequence is:
 
@@ -213,13 +227,15 @@ The expected sequence is:
 3. `prepare_direct_pdf_mail` creates or reuses an unpaid MailMyPDF order from the clean PDF and returns the exact order PDF SHA-256 and effective quote.
 4. `review_direct_pdf_mail` verifies both addresses and returns a structured draft, owner-only exact PDF resource, illustrative envelope layout, actual price, color, and delivery caveat. Postal verification is not recipient-identity verification. Corrections, missing units, and unavailable verification block approval; changed addresses require a new draft. Successful verification is bound to the mailing snapshot and reused for up to 30 minutes.
 5. Only after explicit confirmation, `approve_direct_pdf_mail` requires the client to echo the reviewed sender, recipient, mail class, color, SHA-256, and price; the server compares all of them, requires unexpired verification for both current addresses, and then records the immutable approval snapshot.
-6. `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
-7. Stripe's verified webhook records payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
-8. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
+6. After approval, `get_payment_readiness` returns only the safe saved-card display plus an opaque `paymentRevision`; it never authorizes a charge. If the user explicitly authorizes that displayed saved method, the exact approved total, and immediate sending, `charge_and_send_direct_pdf_mail` re-verifies the approval hash/price, payment revision, both postal addresses, and exclusive payment path before creating an idempotent off-session Stripe PaymentIntent. It submits to Lob only after Stripe reports `succeeded`; retries resume the same payment/fulfillment path instead of charging again.
+7. If the user prefers hosted checkout or has no ready saved method, `prepare_direct_pdf_checkout` re-hashes the order PDF, re-quotes it, verifies both against approval, and returns a Stripe-hosted checkout URL.
+8. Stripe's verified webhook records hosted-checkout payment and, when auto-fulfillment is enabled, submits the order through the existing Lob pipeline.
+9. `schedule_direct_pdf_mail` provides the separate future-send path and records future saved-payment authorization without charging during scheduling.
+10. `get_order_status(order_id)` reports payment, provider, tracking, and delivery state.
 
 Direct-mail preparation requires a client-supplied `idempotency_key`. Retries of the same mailing intent reuse the existing order; intentionally mailing the same PDF again requires a new key.
 
-The direct-mail tools never return the legacy order lookup token and never accept raw card data.
+The direct-mail tools never return the legacy order lookup token and never accept raw card data. Saved payment is represented only by a safe brand/last-four display and opaque revision; Stripe customer and payment-method identifiers remain server-side.
 
 `get_mailing_context` returns at most ten owner-scoped recent direct mailings for
 recipient/return-address reuse. It is not an address book, public company lookup,
@@ -343,16 +359,16 @@ identity, owner/matter binding, and one row per owner/tool/idempotency key.
 Use the stricter read-only diagnostic after deploying staging or production:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
 
-It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 27-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata. With a bearer token it also verifies the owner-scoped recent-matter resume path without creating data.
+It verifies the live HTTPS endpoint, OAuth protected-resource metadata, stateless MCP discovery, the full 29-tool catalog, the packet-review MCP Apps resource, exact-PDF/approval controls, CP14 discovery, the protected-tool OAuth challenge, public support/privacy/terms/security routes, and the portable plugin package metadata. With a bearer token it also verifies the owner-scoped recent-matter resume path without creating data.
 
 To additionally verify a real connected account without creating any matter or document:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 MCP_BEARER_TOKEN="<temporary-user-access-token>" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```
@@ -360,7 +376,7 @@ pnpm --filter ./mailmypdf mcp:readiness
 During OpenAI directory submission, the portal provides a domain-verification token. Verify that exact deployed token with:
 
 ```bash
-MCP_BASE_URL="https://mailmypdf.ai" \
+MCP_BASE_URL="https://mailmypdf.mycomind4.workers.dev" \
 OPENAI_CHALLENGE_EXPECTED_TOKEN="<portal-provided-token>" \
 pnpm --filter ./mailmypdf mcp:readiness
 ```

@@ -1,28 +1,18 @@
-import { defineWorkflow, type DefinedWorkflow } from "../../define-workflow.js";
-import type { WorkflowManifest, WorkflowMaturity } from "../../workflow-manifest.js";
-import type { WorkflowFieldManifest } from "../../workflow-fields.js";
 import {
-  SSA_RECONSIDERATION_WORKFLOWS,
-  type SsaReconsiderationProgram,
-  type SsaReconsiderationWorkflowId,
-} from "./ssa-reconsideration-runtime-policy.js";
+  checkboxField,
+  longTextField,
+  personNameField,
+  postalAddressField,
+  textField,
+} from "../../workflow-fields.js";
+import { defineWorkflow, type DefinedWorkflow } from "../../define-workflow.js";
+import type { WorkflowManifest } from "../../workflow-manifest.js";
+import {
+  getSsaReconsiderationWorkflowProfile,
+  type SsaReconsiderationWorkflowProfile,
+} from "./ssa-reconsideration-profiles.js";
 
-/**
- * Canonical manifest factory for the SSA reconsideration family (SSDI and SSI
- * denial appeals). SSDI and SSI share every step, document, gate, and output;
- * they differ only in title/document labels and the claimant-facts field set,
- * mirroring the split already enforced by
- * `createSsaReconsiderationRuntimePolicy()`.
- */
-
-export interface SsaReconsiderationManifestOptions {
-  maturity?: WorkflowMaturity;
-  route?: string;
-}
-
-const VERTICAL_ID = "appeal-mail";
-
-const REQUIRED_CAPABILITIES = [
+export const SSA_RECONSIDERATION_REQUIRED_CAPABILITIES = [
   "identity",
   "matterState",
   "security",
@@ -67,91 +57,139 @@ const REQUIRED_CAPABILITIES = [
   "acceptanceTesting",
 ] as const;
 
-const COMMON_CLAIMANT_FIELDS: readonly WorkflowFieldManifest[] = [
-  { id: "claimant-name", label: "Claimant name", type: "person_name", required: true, origin: "user", maxLength: 200 },
-  { id: "claimant-address", label: "Claimant address", type: "postal_address", required: true, origin: "user", sensitive: true },
-  { id: "phone", label: "Phone", type: "phone", required: true, origin: "user", sensitive: true, maxLength: 60 },
-  { id: "representative-name", label: "Representative name", type: "person_name", required: false, origin: "user", maxLength: 200 },
-  { id: "reasons-for-disagreement", label: "Why do you disagree with the denial?", type: "textarea", required: true, origin: "user", maxLength: 8000 },
-  {
-    id: "confirmed-reconsideration",
-    label: "I confirm I am requesting reconsideration of this denial.",
-    type: "checkbox",
-    required: true,
-    origin: "user",
-  },
-  { id: "condition-changes", label: "Changes in existing conditions", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-  { id: "new-conditions", label: "New conditions", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-  { id: "treatment-changes", label: "Treatment changes", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-  { id: "medication-changes", label: "Medication changes", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-];
+function claimantFields(profile: SsaReconsiderationWorkflowProfile) {
+  const shared = [
+    personNameField({
+      id: "claimantName",
+      label: "Claimant name",
+      required: true,
+    }),
+    postalAddressField({
+      id: "claimantAddress",
+      label: "Claimant mailing address",
+      required: true,
+      sensitive: true,
+    }),
+    {
+      id: "phone",
+      label: "Phone",
+      type: "phone" as const,
+      required: true,
+      origin: "user" as const,
+      sensitive: true,
+      maxLength: 60,
+    },
+    personNameField({
+      id: "representativeName",
+      label: "Representative name",
+    }),
+    textField({
+      id: "responseMode",
+      label: "Appeal stage",
+      required: true,
+      maxLength: 64,
+      hint: "This workflow only supports reconsideration.",
+    }),
+    checkboxField({
+      id: "confirmedReconsideration",
+      label: "I confirm this appeal is at the reconsideration stage.",
+      required: true,
+    }),
+    longTextField({
+      id: "reasonsForDisagreement",
+      label: "Why do you disagree with the denial?",
+      required: true,
+      maxLength: 8_000,
+    }),
+    longTextField({
+      id: "conditionChanges",
+      label: "Changes in existing conditions",
+      maxLength: 8_000,
+    }),
+    longTextField({
+      id: "newConditions",
+      label: "New conditions",
+      maxLength: 8_000,
+    }),
+    longTextField({
+      id: "treatmentChanges",
+      label: "Treatment changes",
+      maxLength: 8_000,
+    }),
+    longTextField({
+      id: "medicationChanges",
+      label: "Medication changes",
+      maxLength: 8_000,
+    }),
+    longTextField({
+      id: "dailyFunctionChanges",
+      label: "Changes in daily functioning",
+      maxLength: 8_000,
+    }),
+  ];
 
-const PROGRAM_CLAIMANT_FIELDS: Record<SsaReconsiderationProgram, readonly WorkflowFieldManifest[]> = {
-  SSDI: [
-    ...COMMON_CLAIMANT_FIELDS,
-    { id: "work-changes", label: "Work changes", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "daily-function-changes", label: "Changes in daily functioning", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "additional-facts", label: "Additional facts", type: "textarea", required: false, origin: "user", maxLength: 12000 },
-  ],
-  SSI: [
-    ...COMMON_CLAIMANT_FIELDS,
-    { id: "daily-function-changes", label: "Changes in daily functioning", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "income-facts", label: "Income facts", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "resource-facts", label: "Resource facts", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "living-arrangement-facts", label: "Living arrangement facts", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "eligibility-facts", label: "Other eligibility facts", type: "textarea", required: false, origin: "user", maxLength: 8000 },
-    { id: "additional-facts", label: "Additional facts", type: "textarea", required: false, origin: "user", maxLength: 12000 },
-  ],
-};
+  const programSpecific =
+    profile.program === "SSDI"
+      ? [
+          longTextField({
+            id: "workChanges",
+            label: "Work changes",
+            maxLength: 8_000,
+          }),
+        ]
+      : [
+          longTextField({
+            id: "incomeFacts",
+            label: "Income facts",
+            maxLength: 8_000,
+          }),
+          longTextField({
+            id: "resourceFacts",
+            label: "Resource facts",
+            maxLength: 8_000,
+          }),
+          longTextField({
+            id: "livingArrangementFacts",
+            label: "Living arrangement facts",
+            maxLength: 8_000,
+          }),
+          longTextField({
+            id: "eligibilityFacts",
+            label: "Other eligibility facts",
+            maxLength: 8_000,
+          }),
+        ];
 
-const PROGRAM_LABELS: Record<
-  SsaReconsiderationProgram,
-  { title: string; noticeLabel: string; extractionSchema: string; analysisDescription: string }
-> = {
-  SSDI: {
-    title: "Appeal SSDI Denial",
-    noticeLabel: "SSDI denial notice",
-    extractionSchema: "ssdi-denial-notice-v1",
-    analysisDescription: "Confirm appeal level, decision basis, dates, stated reasons, and uncertainties from the source notice.",
-  },
-  SSI: {
-    title: "Appeal SSI Denial",
-    noticeLabel: "SSI denial notice",
-    extractionSchema: "ssi-denial-notice-v1",
-    analysisDescription: "Confirm appeal level, medical or non-medical decision basis, dates, stated reasons, and uncertainties from the source notice.",
-  },
-};
-
-function acceptanceScenarios(program: SsaReconsiderationProgram) {
   return [
-    { id: "medical-reconsideration", description: `Medical ${program} denial with SSA-561, SSA-3441, and SSA-827.`, required: true },
-    { id: "nonmedical-reconsideration", description: `Non-medical ${program} denial requiring SSA-561 without forcing medical forms.`, required: true },
-    { id: "wrong-appeal-level", description: "Hearing or unknown appeal level must fail closed.", required: true },
-    { id: "quarantined-document", description: "Unscanned source/evidence documents must block downstream use.", required: true },
-    { id: "payment-mail-idempotency", description: "Repeated payment/provider events must not create duplicate mail.", required: true },
+    ...shared,
+    ...programSpecific,
+    longTextField({
+      id: "additionalFacts",
+      label: "Additional facts",
+      maxLength: 12_000,
+    }),
+    longTextField({
+      id: "requestedOutcome",
+      label: "Requested outcome",
+      maxLength: 2_000,
+    }),
   ];
 }
 
-export function createSsaReconsiderationManifestForWorkflow(
-  workflowId: string,
-  options: SsaReconsiderationManifestOptions = {},
-): DefinedWorkflow<WorkflowManifest> | null {
-  if (!Object.hasOwn(SSA_RECONSIDERATION_WORKFLOWS, workflowId)) return null;
-  const program = SSA_RECONSIDERATION_WORKFLOWS[workflowId as SsaReconsiderationWorkflowId];
-  const labels = PROGRAM_LABELS[program];
-  const documentId = `${program.toLowerCase()}-denial-notice`;
-
+export function createSsaReconsiderationManifest(
+  profile: SsaReconsiderationWorkflowProfile,
+): DefinedWorkflow<WorkflowManifest> {
   return defineWorkflow({
-    id: workflowId,
-    vertical: VERTICAL_ID,
-    title: labels.title,
-    route: options.route ?? `/appeal-mail/workflows/${workflowId}/start`,
+    id: profile.workflowId,
+    vertical: "appeal-mail",
+    title: profile.title,
+    route: `/appeal-mail/workflows/${profile.workflowId}/start`,
     pipeline: "P03_APPEAL",
     adapters: ["government", "benefits", "healthcare"],
-    requiredCapabilities: REQUIRED_CAPABILITIES,
+    requiredCapabilities: SSA_RECONSIDERATION_REQUIRED_CAPABILITIES,
     optionalCapabilities: [],
     notApplicableCapabilities: [],
-    maturity: options.maturity ?? "executable",
+    maturity: "executable",
     primaryInput: "document",
     requiresHumanReview: true,
     allowsConsequentialAction: true,
@@ -160,7 +198,7 @@ export function createSsaReconsiderationManifestForWorkflow(
       {
         id: "decision",
         title: "Decision notice",
-        description: `Securely upload and process the actual ${program} denial notice.`,
+        description: `Securely upload and process the actual ${profile.program} denial notice.`,
         uses: [
           "secureUpload",
           "documentStorage",
@@ -176,31 +214,54 @@ export function createSsaReconsiderationManifestForWorkflow(
       {
         id: "analysis",
         title: "Decision analysis",
-        description: labels.analysisDescription,
-        uses: ["deadlines", "findings", "contradictions", "discrepancies", "requirements", "evidence", "research", "risk"],
+        description:
+          "Confirm reconsideration stage, medical or non-medical decision basis, dates, stated reasons, and uncertainties from the source notice.",
+        uses: [
+          "deadlines",
+          "findings",
+          "contradictions",
+          "discrepancies",
+          "requirements",
+          "evidence",
+          "research",
+          "risk",
+        ],
         requires: ["source_notice_clean"],
         completeWhen: ["appeal_level_confirmed", "decision_basis_confirmed"],
       },
       {
         id: "claimant",
         title: "Claimant facts",
-        description: "Capture user-supplied facts separately from extracted notice facts.",
+        description:
+          "Capture user-supplied facts separately from facts extracted from the source notice.",
         uses: ["matterState", "facts"],
         requires: ["appeal_level_confirmed"],
-        completeWhen: ["claimant_identity_complete", "disagreement_basis_complete"],
-        fields: PROGRAM_CLAIMANT_FIELDS[program],
+        completeWhen: [
+          "claimant_identity_complete",
+          "disagreement_basis_complete",
+          "reconsideration_confirmed",
+        ],
+        fields: claimantFields(profile),
       },
       {
         id: "evidence",
         title: "Supporting evidence",
-        description: "Upload, scan, organize, and explicitly select evidence for the packet.",
-        uses: ["secureUpload", "documentStorage", "documentScanning", "evidence", "provenance"],
+        description:
+          "Upload, scan, organize, and explicitly select evidence for the reconsideration packet.",
+        uses: [
+          "secureUpload",
+          "documentStorage",
+          "documentScanning",
+          "evidence",
+          "provenance",
+        ],
         completeWhen: ["evidence_reviewed"],
       },
       {
         id: "draft",
         title: "Grounded draft",
-        description: "Create a reconsideration response constrained to source-grounded and user-confirmed facts.",
+        description:
+          "Create a reconsideration response constrained to source-grounded and user-confirmed facts.",
         uses: ["strategy", "draft", "draftProvenance", "validation"],
         requires: ["claimant_identity_complete", "disagreement_basis_complete"],
         completeWhen: ["draft_validated", "no_unresolved_placeholders"],
@@ -208,7 +269,8 @@ export function createSsaReconsiderationManifestForWorkflow(
       {
         id: "forms",
         title: "Official SSA forms",
-        description: "Require the correct official SSA form set for the confirmed reconsideration type.",
+        description:
+          "Require the correct official SSA form set for the confirmed reconsideration basis.",
         uses: ["evidence", "validation"],
         requires: ["decision_basis_confirmed"],
         completeWhen: ["required_ssa_forms_clean_and_included"],
@@ -216,7 +278,8 @@ export function createSsaReconsiderationManifestForWorkflow(
       {
         id: "review",
         title: "Packet review",
-        description: "Build the exact mail-ready packet, calculate server-authoritative pricing, and require explicit review.",
+        description:
+          "Build the exact mail-ready packet, calculate server-authoritative pricing, confirm the destination, and require explicit review.",
         uses: [
           "pdfGeneration",
           "packetAssembly",
@@ -228,31 +291,59 @@ export function createSsaReconsiderationManifestForWorkflow(
         ],
         requires: ["draft_validated", "required_ssa_forms_clean_and_included"],
         completeWhen: ["exact_packet_approved"],
+        fields: [
+          postalAddressField({
+            id: "recipientAddress",
+            label: "SSA mailing destination",
+            required: true,
+            origin: "extracted_confirmation",
+            hint:
+              "Confirm this against the controlling denial notice or current verified SSA instructions.",
+          }),
+        ],
       },
       {
         id: "mail",
         title: "Payment, mailing, tracking, and proof",
-        description: "Pay for and submit only the exact approved packet, then retain tracking and proof.",
-        uses: ["payment", "mailing", "tracking", "notifications", "proofAudit", "archive"],
+        description:
+          "Pay for and submit only the exact approved packet, then retain tracking and proof.",
+        uses: [
+          "payment",
+          "mailing",
+          "tracking",
+          "notifications",
+          "proofAudit",
+          "archive",
+        ],
         requires: ["exact_packet_approved"],
         completeWhen: ["mailing_submitted", "proof_recorded"],
       },
     ],
     documents: [
       {
-        id: documentId,
-        label: labels.noticeLabel,
+        id: profile.primaryDocumentId,
+        label: profile.primaryDocumentLabel,
         role: "primary",
         required: true,
-        acceptedKinds: ["application/pdf", "image/png", "image/jpeg", "image/tiff"],
-        extractionSchema: labels.extractionSchema,
+        acceptedKinds: [
+          "application/pdf",
+          "image/png",
+          "image/jpeg",
+          "image/tiff",
+        ],
+        extractionSchema: profile.extractionSchema,
       },
       {
         id: "supporting-evidence",
         label: "Supporting evidence",
         role: "evidence",
         required: false,
-        acceptedKinds: ["application/pdf", "image/png", "image/jpeg", "image/tiff"],
+        acceptedKinds: [
+          "application/pdf",
+          "image/png",
+          "image/jpeg",
+          "image/tiff",
+        ],
       },
       {
         id: "ssa-561",
@@ -277,8 +368,18 @@ export function createSsaReconsiderationManifestForWorkflow(
       },
     ],
     gates: [
-      { id: "source-document-ready", kind: "document_ready", label: "Source denial notice is clean and usable", required: true },
-      { id: "facts-confirmed", kind: "fact_confirmation", label: "Claimant confirms material facts used in the response", required: true },
+      {
+        id: "source-document-ready",
+        kind: "document_ready",
+        label: `Source ${profile.program} denial notice is clean and usable`,
+        required: true,
+      },
+      {
+        id: "facts-confirmed",
+        kind: "fact_confirmation",
+        label: "Claimant confirms material facts used in the reconsideration",
+        required: true,
+      },
       {
         id: "exact-packet-review",
         kind: "human_review",
@@ -303,6 +404,42 @@ export function createSsaReconsiderationManifestForWorkflow(
       { id: "mailing-proof", kind: "proof", required: true },
       { id: "matter-archive", kind: "archive", required: true },
     ],
-    acceptanceScenarios: acceptanceScenarios(program),
+    acceptanceScenarios: [
+      {
+        id: "medical-reconsideration",
+        description: `Medical ${profile.program} denial with SSA-561, SSA-3441, and SSA-827.`,
+        required: true,
+      },
+      {
+        id: "nonmedical-reconsideration",
+        description:
+          "Non-medical reconsideration requiring SSA-561 without forcing medical forms.",
+        required: true,
+      },
+      {
+        id: "wrong-appeal-level",
+        description: "Hearing or unknown appeal level must fail closed.",
+        required: true,
+      },
+      {
+        id: "quarantined-document",
+        description:
+          "Unscanned source or evidence documents must block downstream use.",
+        required: true,
+      },
+      {
+        id: "payment-mail-idempotency",
+        description:
+          "Repeated payment/provider events must not create duplicate mail.",
+        required: true,
+      },
+    ],
   });
+}
+
+export function createSsaReconsiderationManifestForWorkflow(
+  workflowId: string,
+): DefinedWorkflow<WorkflowManifest> | null {
+  const profile = getSsaReconsiderationWorkflowProfile(workflowId);
+  return profile ? createSsaReconsiderationManifest(profile) : null;
 }

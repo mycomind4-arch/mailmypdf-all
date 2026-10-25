@@ -97,12 +97,22 @@ let tools = [];
   const names = new Set(tools.map((tool) => tool.name));
 
   for (const required of [
+    "scan_recovery_candidates",
+    "save_recovery_case",
+    "get_recovery_case",
+    "list_recovery_cases",
+    "update_recovery_case",
     "find_workflow",
     "get_workflow",
     "ingest_direct_pdf",
+    "prepare_conversational_letter",
+    "get_payment_readiness",
     "prepare_direct_pdf_mail",
     "approve_direct_pdf_mail",
     "prepare_direct_pdf_checkout",
+    "charge_and_send_direct_pdf_mail",
+    "schedule_direct_pdf_mail",
+    "cancel_scheduled_mail",
     "create_matter",
     "list_recent_matters",
     "ingest_document",
@@ -119,11 +129,11 @@ let tools = [];
     if (!names.has(required)) fail(`tools/list is missing ${required}`);
   }
 
-  if (tools.length !== 28) {
-    fail(`expected 28 MCP tools, found ${tools.length}`);
+  if (tools.length !== 38) {
+    fail(`expected 38 MCP tools, found ${tools.length}`);
   }
 
-  ok("tools/list exposes the expected 28-tool surface");
+  ok("tools/list exposes the expected 38-tool surface");
 }
 
 {

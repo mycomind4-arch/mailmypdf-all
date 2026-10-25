@@ -1,4 +1,4 @@
-import { PACKET_REVIEW_RESOURCE_URI } from "./ui-resource-ids";
+import { PACKET_REVIEW_RESOURCE_URI, RECOVERY_SCAN_RESOURCE_URI, RECOVERY_CASE_RESOURCE_URI } from "./ui-resource-ids";
 import {
   assessConnectorCapabilities,
   connectorCapabilityVersion,
@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.8.0";
+export const MCP_CONNECTOR_VERSION = "0.15.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -110,7 +110,228 @@ const assistantFileSchema = objectSchema(
 );
 
 
+const recoveryTransactionsSchema = {
+  type: "array",
+  maxItems: 2000,
+  items: objectSchema(
+    {
+      id: { type: "string", maxLength: 512 },
+      accountId: {
+        type: "string",
+        maxLength: 512,
+        description:
+          "Stable source account alias; omit account numbers and credentials.",
+      },
+      merchant: { type: "string", maxLength: 512 },
+      amountMinor: {
+        type: "integer",
+        minimum: 1,
+        maximum: Number.MAX_SAFE_INTEGER,
+      },
+      currency: { type: "string", pattern: "^[A-Z]{3}$" },
+      postedAt: { type: "string", format: "date-time" },
+      state: { type: "string", enum: ["settled", "pending", "reversed"] },
+      kind: { type: "string", enum: ["debit", "credit"] },
+      invoiceId: { type: "string", maxLength: 512 },
+      reversesTransactionId: { type: "string", maxLength: 512 },
+    },
+    [
+      "id",
+      "accountId",
+      "merchant",
+      "amountMinor",
+      "currency",
+      "postedAt",
+      "state",
+      "kind",
+    ],
+  ),
+};
+const recoveryIdSchema = { type: "string", format: "uuid" };
+const recoveryTextSchema = { type: "string", minLength: 1, maxLength: 4000 };
+const recoveryMoneySchema = objectSchema(
+  {
+    amountMinor: {
+      type: "integer",
+      minimum: 0,
+      maximum: Number.MAX_SAFE_INTEGER,
+    },
+    currency: { type: "string", pattern: "^[A-Z]{3}$" },
+  },
+  ["amountMinor", "currency"],
+);
+const recoveryEventSchema = {
+  oneOf: [
+    ...["activate", "resume", "cancel"].map((type) =>
+      objectSchema({ type: { const: type } }, ["type"]),
+    ),
+    objectSchema(
+      { type: { const: "attach-evidence" }, evidenceId: recoveryIdSchema },
+      ["type", "evidenceId"],
+    ),
+    objectSchema(
+      { type: { const: "link-matter" }, matterId: recoveryIdSchema },
+      ["type", "matterId"],
+    ),
+    objectSchema(
+      {
+        type: { const: "wait" },
+        reason: recoveryTextSchema,
+        dueAt: { type: "string", format: "date-time" },
+      },
+      ["type", "reason"],
+    ),
+    objectSchema(
+      {
+        type: { const: "resolve" },
+        outcome: recoveryTextSchema,
+        evidenceIds: {
+          type: "array",
+          minItems: 1,
+          maxItems: 1000,
+          items: recoveryIdSchema,
+        },
+        recoveredValue: recoveryMoneySchema,
+      },
+      ["type", "outcome", "evidenceIds"],
+    ),
+  ],
+};
+
 export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
+  {
+    name: "scan_recovery_candidates",
+    title: "Scan for possible duplicate charges",
+    description:
+      "Screen transaction data explicitly supplied by the connected user for possible duplicate settled charges. Use integer minor-unit amounts, preserve provider transaction ids, and include invoice/refund links only when verified from evidence. This does not access bank accounts, determine money owed, send disputes, or create matters. Present candidates for evidence review before recommending a certified workflow.",
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
+      },
+      ["transactions"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_SCAN_RESOURCE_URI },
+      "openai/outputTemplate": RECOVERY_SCAN_RESOURCE_URI,
+    },
+  },
+  {
+    name: "save_recovery_case",
+    title: "Save a recovery case",
+    description:
+      "After the user explicitly agrees, recompute and save one supplied duplicate-charge candidate as a private intake case. Supply the same transaction records and candidate id from the scan. State the desired outcome and preserve a retry key. Supplied records remain unverified provenance; saving does not approve correspondence, access accounts, or prove money owed.",
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
+        candidate_id: { type: "string", minLength: 1, maxLength: 4000 },
+        desired_outcome: recoveryTextSchema,
+        user_confirmed_save: { const: true },
+        idempotency_key: idempotencyKeySchema,
+      },
+      [
+        "transactions",
+        "candidate_id",
+        "desired_outcome",
+        "user_confirmed_save",
+        "idempotency_key",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "get_recovery_case",
+    title: "Get a saved recovery case",
+    description:
+      "Read one private recovery case, its current revision, desired outcome, unverified source provenance, linked evidence and confirmed resolution. Only the authenticated owner can read it.",
+    inputSchema: objectSchema({ case_id: recoveryIdSchema }, ["case_id"]),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "list_recovery_cases",
+    title: "List saved recovery cases",
+    description:
+      "List the connected user's private recovery cases, newest first, including status, revision and source provenance. This does not scan connected accounts.",
+    inputSchema: objectSchema({
+      limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+    }),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "update_recovery_case",
+    title: "Update a recovery case",
+    description:
+      "Apply one lifecycle event to an owned case using its latest expected revision. Attach owned secure document evidence or link an owned workflow matter; activate, wait with a deadline, resume, cancel, or resolve. Resolve only after explicit user confirmation and with already-linked owned evidence. Record recovered money only when confirmed. A successful provider action does not resolve a case. Reload after a revision conflict; this tool never authorizes sending.",
+    inputSchema: objectSchema(
+      {
+        case_id: recoveryIdSchema,
+        expected_revision: { type: "integer", minimum: 1, maximum: 2147483646 },
+        event: recoveryEventSchema,
+        user_confirmed_resolution: {
+          const: true,
+          description:
+            "Required for a resolve event only; records the user's explicit confirmation of the evidenced outcome.",
+        },
+      },
+      ["case_id", "expected_revision", "event"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
   {
     name: "find_workflow",
     title: "Find a MailMyPDF workflow",
@@ -155,6 +376,45 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: accountCapabilities("identity"),
     _meta: { "openai/profile": true },
+  },
+  {
+    name: "get_payment_readiness",
+    title: "Get saved-payment readiness",
+    description:
+      "Read whether the connected MailMyPDF account has a tokenized payment method ready for a future explicitly approved mailing. Returns only a safe card display summary and MailMyPDF setup URL; it never returns Stripe customer/payment-method identifiers and never charges anything.",
+    inputSchema: objectSchema({}),
+    outputSchema: objectSchema(
+      {
+        accountReady: { type: "boolean", description: "Whether the MailMyPDF account is authenticated and usable." },
+        payment: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            ready: { type: "boolean" },
+            display: { type: ["string", "null"] },
+            brand: { type: ["string", "null"] },
+            last4: { type: ["string", "null"] },
+          },
+          required: ["ready", "display", "brand", "last4"],
+        },
+        paymentRevision: integer("Opaque saved-payment revision. Echo this exact value only after showing the current saved-payment display and obtaining explicit charge/send authorization."),
+        setupUrl: string("MailMyPDF account page for optional one-time saved-payment setup."),
+        chargingAuthorized: { type: "boolean", const: false },
+        note: string("Safety guidance explaining that saved payment does not authorize a charge."),
+      },
+      ["accountReady", "payment", "paymentRevision", "setupUrl", "chargingAuthorized", "note"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...accountCapabilities("identity"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
+    ],
   },
   {
     name: "create_matter",
@@ -238,7 +498,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "get_order_status",
     title: "Get mailing order status",
     description:
-      "Read the connected user's MailMyPDF payment and mailing status, sanitized event history, provider reference, and recorded tracking details. Supply an order_id or matter_id. This tool is read-only and never polls or mutates the mail provider.",
+      "Read persisted state for the connected user's MailMyPDF order. For direct or conversational mail drafts, the response also derives review/approval continuity and the safest existing next tool from immutable order events. For paid or submitted orders, it returns payment, mailing, provider reference, tracking, and sanitized event history. Supply an order_id or matter_id. This tool is read-only and never polls or mutates the mail provider.",
     inputSchema: objectSchema({
       order_id: {
         type: "string",
@@ -340,6 +600,42 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     capabilityRequirements: accountCapabilities("identity", "secureUpload", "documentStorage", "documentScanning"),
   },
   {
+    name: "prepare_conversational_letter",
+    title: "Prepare a conversational letter",
+    description:
+      "Render the exact finalized letter text from chat into a MailMyPDF PDF and create or reuse an unpaid draft order with the confirmed sender, recipient, mail class, and color choice. Use for ordinary letters that do not require a specialized certified workflow. Call review_direct_pdf_mail next to verify addresses and show the exact PDF and envelope. This does not approve, charge, or mail.",
+    inputSchema: objectSchema(
+      {
+        letter_text: {
+          type: "string",
+          minLength: 1,
+          maxLength: 30000,
+          description:
+            "Exact finalized letter body text the user has reviewed in chat. Preserve wording and line breaks; any change requires a new preparation/review.",
+        },
+        sender: addressSchema,
+        recipient: addressSchema,
+        sender_profile: objectSchema(
+          { id: string("Selected saved sender UUID."), revision: integer("Exact selected revision.") },
+          ["id", "revision"],
+        ),
+        recipient_entry: objectSchema(
+          { id: string("Selected saved recipient UUID."), revision: integer("Exact selected revision.") },
+          ["id", "revision"],
+        ),
+        mail_class: mailClassSchema,
+        color: { type: "boolean", default: false, description: "Print in color when true." },
+        idempotency_key: string(
+          "Stable 8-128 character key for retries of this exact letter and mailing intent. Use a new key after changing the text, addresses, service, or color.",
+        ),
+      },
+      ["letter_text", "sender", "recipient", "mail_class", "idempotency_key"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: capabilities("identity", "documentStorage", "pricing"),
+  },
+  {
     name: "prepare_direct_pdf_mail",
     title: "Prepare a direct PDF mailing",
     description:
@@ -398,7 +694,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
   {
     name: "get_mailing_context",
     title: "Find my recent mailing addresses",
-    description: "Return up to ten recent direct-mail orders belonging to the connected account, including recipient and return addresses. Use for 'same recipient as last time' or a previous business return address. Never guess between candidates; ask the user to select. This is not public address search or a saved-profile directory.",
+    description: "Return up to ten recent direct-mail orders belonging to the connected account, including source type, recipient and return addresses, and the read-only tool to use for resume. Use for 'continue my letter', 'same recipient as last time', or a previous return address. Never guess between candidates; ask the user to select, then call get_order_status for exact review/approval continuity. This is not public address search or a saved-profile directory.",
     inputSchema: objectSchema({}),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
@@ -418,11 +714,11 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     name: "approve_direct_pdf_mail",
     title: "Approve exact direct PDF mailing",
     description:
-      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings. Call only after review_direct_pdf_mail verifies both addresses and the user explicitly approves the displayed details. Expired verification requires a fresh review. This does not pay or send mail.",
+      "Record explicit user approval of the exact direct-mail PDF hash, quoted price, sender, recipient, mail class, and color settings. The PDF may come from an uploaded document or prepare_conversational_letter. Call only after review_direct_pdf_mail verifies both addresses and the user explicitly approves the displayed details. Expired verification requires a fresh review. This does not pay or send mail.",
     inputSchema: objectSchema(
       {
         order_id: string("MailMyPDF direct-mail order id."),
-        expected_packet_sha256: string("Exact PDF SHA-256 returned by prepare_direct_pdf_mail."),
+        expected_packet_sha256: string("Exact PDF SHA-256 returned by prepare_direct_pdf_mail or prepare_conversational_letter."),
         expected_total_cents: integer("Exact total price in cents returned by prepare_direct_pdf_mail."),
         expected_sender: addressSchema,
         expected_recipient: addressSchema,
@@ -465,6 +761,116 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ],
   },
   {
+    name: "charge_and_send_direct_pdf_mail",
+    title: "Charge saved payment and send approved mailing",
+    description:
+      "Charge the connected account's verified saved payment method for the exact already-approved direct/conversational PDF and immediately submit that mailing to the configured provider. Use only after get_payment_readiness shows the current saved-payment display and the user explicitly authorizes that card, the exact approved amount, and immediate mailing. The server re-verifies account ownership, PDF hash, price, saved-payment revision, both postal addresses, and the single payment path before touching Stripe. Retries are idempotent and resume fulfillment after a successful charge instead of charging again. Raw card data is never accepted.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+        expected_packet_sha256: string("Exact approved PDF SHA-256 shown to the user."),
+        expected_total_cents: integer("Exact approved total in cents shown to the user."),
+        expected_payment_revision: integer("Exact paymentRevision returned by get_payment_readiness for the saved card the user authorized."),
+        authorize_saved_payment: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly authorizes charging the displayed saved payment method for this exact amount.",
+        },
+        user_confirmed_send: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly asks to send this exact approved mailing now.",
+        },
+      },
+      [
+        "order_id",
+        "expected_packet_sha256",
+        "expected_total_cents",
+        "expected_payment_revision",
+        "authorize_saved_payment",
+        "user_confirmed_send",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
+      capabilityRequirement("payment", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "schedule_direct_pdf_mail",
+    title: "Schedule an approved mailing",
+    description:
+      "Schedule an already-approved direct or conversational-letter mailing for future execution using the connected account's saved payment method. The server re-verifies the immutable approved PDF, price ceiling, account ownership, and payment readiness. This records explicit authorization for a future charge and physical mailing, but it does not charge or mail during this call. Use only after the user explicitly confirms the send time and authorizes saved-payment use.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+        send_at: string("Future ISO 8601 date-time for mailing execution."),
+        timezone: {
+          type: ["string", "null"],
+          description: "Optional IANA timezone used as display provenance, such as America/Los_Angeles.",
+        },
+        idempotency_key: idempotencyKeySchema,
+        authorize_saved_payment: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly authorizes this exact approved mailing to use their saved payment method at the scheduled time.",
+        },
+      },
+      ["order_id", "send_at", "idempotency_key", "authorize_saved_payment"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
+      capabilityRequirement("scheduledMailing", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "cancel_scheduled_mail",
+    title: "Cancel a scheduled mailing",
+    description:
+      "Cancel an owned scheduled mailing only before payment processing begins. Repeating the same cancellation is safe. This cannot interrupt an in-progress or completed charge/mailing and never creates a new payment or mailing.",
+    inputSchema: objectSchema(
+      {
+        schedule_id: string("MailMyPDF scheduled mailing id returned when the mailing was scheduled."),
+        user_confirmed: {
+          type: "boolean",
+          const: true,
+          description: "Must be true after the user explicitly asks to cancel this scheduled mailing.",
+        },
+      },
+      ["schedule_id", "user_confirmed"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...accountCapabilities("identity"),
+      capabilityRequirement("scheduledMailing", { requiresApproval: false }),
+    ],
+  },
+  {
     name: "ingest_document",
     title: "Securely ingest an attached document",
     description:
@@ -474,6 +880,19 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
         matter_id: string("MailMyPDF matter id that should own the document."),
         idempotency_key: idempotencyKeySchema,
         file: assistantFileSchema,
+        source_kind: {
+          type: "string",
+          enum: ["local_upload", "conversation_attachment", "google_drive", "mailmypdf_library", "external_provider"],
+          default: "conversation_attachment",
+          description:
+            "Optional origin classification for provenance only. The actual file bytes still arrive through the secure file parameter; never place provider credentials or download URLs here.",
+        },
+        source_provider: {
+          type: ["string", "null"],
+          maxLength: 80,
+          description:
+            "Optional provider label for provenance (for example google). Google Drive and MailMyPDF library origins are normalized server-side.",
+        },
         role: {
           type: "string",
           enum: ["subject_notice", "evidence"],
@@ -498,7 +917,7 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
-    capabilityRequirements: capabilities("security", "secureUpload", "documentStorage", "documentScanning"),
+    capabilityRequirements: capabilities("security", "secureUpload", "documentSourceImport", "documentStorage", "documentScanning"),
     _meta: {
       "openai/fileParams": ["file"],
       "openai/toolInvocation/invoking": "Securing attachment…",

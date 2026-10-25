@@ -1,14 +1,10 @@
-import { createSsaReconsiderationManifestForWorkflow } from "@mailmypdf/workflows";
+import { getSsaReconsiderationFactoryArtifact } from "@mailmypdf/workflows";
 
-const manifest = createSsaReconsiderationManifestForWorkflow("appeal-ssdi-denial", {
-  maturity: "executable",
-  route: "/appeal-mail/workflows/appeal-ssdi-denial/start",
-});
+const factoryArtifact = getSsaReconsiderationFactoryArtifact("appeal-ssdi-denial");
 
-if (!manifest) {
-  throw new Error("Missing shared SSA reconsideration manifest profile for appeal-ssdi-denial");
+if (!factoryArtifact || !factoryArtifact.factoryReady) {
+  throw new Error("SSDI reconsideration factory artifact is not ready");
 }
 
-export const ssdiDenialManifest = manifest;
-
+export const ssdiDenialManifest = factoryArtifact.definition;
 export default ssdiDenialManifest;

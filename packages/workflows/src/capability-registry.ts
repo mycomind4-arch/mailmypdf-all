@@ -39,6 +39,7 @@ export type CapabilityId =
   | "matterState"
   | "security"
   | "secureUpload"
+  | "documentSourceImport"
   | "documentStorage"
   | "documentScanning"
   | "officialForms"
@@ -82,8 +83,11 @@ export type CapabilityId =
   | "packetAssembly"
   | "pricing"
   | "payment"
+  | "savedPayment"
   | "addressVerification"
   | "mailing"
+  | "scheduledMailing"
+  | "batchMailing"
   | "tracking"
   | "notifications"
   | "proofAudit"
@@ -342,6 +346,12 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   matterState: capability("matterState", "Matter State", "platform", "workflow", "Durable workflow/matter state, optimistic concurrency, resume, and ownership.", "@mailmypdf/step-workflow", "implemented"),
   security: capability("security", "Security Boundary", "platform", "documents", "Authorization, safe intake, tenant isolation, input validation, and disclosure controls.", "@mailmypdf/documents", "implemented"),
   secureUpload: capability("secureUpload", "Secure Upload", "platform", "documents", "Validated consented document intake into quarantine before processing.", "@mailmypdf/documents", "production", { dependencies: ["security"] }),
+  documentSourceImport: capability("documentSourceImport", "Document Source Import", "platform", "documents", "Normalize user-authorized local, conversation, Google Drive, MailMyPDF library, and provider document references into one secure intake provenance contract.", "@mailmypdf/documents", "implemented", {
+    dependencies: ["secureUpload", "documentStorage", "documentScanning"],
+    security: { dataClass: "sensitive", reads: ["user-authorized source metadata"], writes: ["document provenance"], externalEffects: ["none"], requiresOwnership: true, requiresApproval: false, failClosed: true },
+    fixtures: [{ id: "documentSourceImport-contract", kind: "unit", path: "packages/documents/tests/document-source.test.ts", status: "present" }],
+    runtimeBindings: [{ kind: "package-export", package: "@mailmypdf/documents", exportPath: "./document-source", status: "implemented" }],
+  }),
   documentStorage: capability("documentStorage", "Document Storage", "platform", "documents", "Private object storage, ownership-safe paths, signed retrieval, hashes, and deletion.", "@mailmypdf/documents", "production", { dependencies: ["security"] }),
   documentScanning: capability("documentScanning", "Document Scanning", "platform", "documents", "Malware and structural scanning before a document becomes disclosable.", "@mailmypdf/documents", "production", { dependencies: ["secureUpload", "documentStorage"] }),
   officialForms: capability("officialForms", "Official Form Registry", "platform", "documents", "Versioned official-form definitions, source provenance, signatures, and completeness rules.", "@mailmypdf/forms", "implemented"),
@@ -385,8 +395,29 @@ export const CAPABILITIES: Readonly<Record<CapabilityId, CapabilityDefinition>> 
   piiDetection: capability("piiDetection", "PII Detection", "hybrid", "documents", "Automatic detection of sensitive personal data spans feeding the existing privacy release/redaction review before a document may be disclosed or reused as a template.", "@mailmypdf/documents", "implemented", { dependencies: ["documentStorage"], applicability: { jurisdictions: ["unspecified"], domains: ["shared"], limitations: ["Detection produces review findings; it does not authorize disclosure or silently redact source files."] } }),
   pricing: capability("pricing", "Server-authoritative Pricing", "platform", "commerce", "Deterministic workflow and mailing quotes controlled by the server.", "@mailmypdf/pricing", "implemented"),
   payment: capability("payment", "Payment", "platform", "commerce", "Stripe/payment intent state and immutable approved-artifact payment boundary.", "@mailmypdf/payment-fulfillment", "production", { consequential: true, dependencies: ["pricing", "approval"] }),
+  savedPayment: capability("savedPayment", "Saved Payment Authorization", "platform", "commerce", "Use a server-held tokenized payment method only after explicit authorization bound to the current approved packet and price ceiling.", "@mailmypdf/payment-fulfillment", "implemented", {
+    consequential: true,
+    dependencies: ["payment", "resilience"],
+    security: { dataClass: "account", reads: ["tokenized payment readiness", "approved mailing identity"], writes: ["payment authorization result"], externalEffects: ["payment"], requiresOwnership: true, requiresApproval: true, failClosed: true },
+    fixtures: [{ id: "savedPayment-contract", kind: "unit", path: "packages/payment-fulfillment/tests/saved-payment.test.ts", status: "present" }],
+    runtimeBindings: [{ kind: "package-export", package: "@mailmypdf/payment-fulfillment", exportPath: "./saved-payment", status: "implemented" }],
+  }),
   addressVerification: capability("addressVerification", "Address Verification", "platform", "fulfillment", "Normalize and verify recipient/sender postal addresses before submission.", "@mailmypdf/fulfillment", "production"),
   mailing: capability("mailing", "Authorized Mailing", "platform", "fulfillment", "Idempotent physical-mail submission of the exact approved packet.", "@mailmypdf/payment-fulfillment", "production", { consequential: true, dependencies: ["packetAssembly", "addressVerification", "approval"] }),
+  scheduledMailing: capability("scheduledMailing", "Scheduled Mailing", "platform", "fulfillment", "Release an immutable approved mailing at a future send time only while packet, approval, address, payment, and approved price-ceiling gates remain current.", "@mailmypdf/fulfillment", "implemented", {
+    consequential: true,
+    dependencies: ["mailing", "pricing", "resilience"],
+    security: { dataClass: "matter", reads: ["approved mailing snapshot", "current quote", "payment readiness"], writes: ["scheduled mailing state"], externalEffects: ["mailing"], requiresOwnership: true, requiresApproval: true, failClosed: true },
+    fixtures: [{ id: "scheduledMailing-contract", kind: "unit", path: "packages/fulfillment/tests/mailing-schedule.test.ts", status: "present" }],
+    runtimeBindings: [{ kind: "package-export", package: "@mailmypdf/fulfillment", exportPath: "./mailing-schedule", status: "implemented" }],
+  }),
+  batchMailing: capability("batchMailing", "Batch Mailing", "platform", "fulfillment", "Represent one approved mailing operation spanning multiple independently addressable pieces, including identical and personalized packet modes.", "@mailmypdf/fulfillment", "implemented", {
+    consequential: true,
+    dependencies: ["mailing", "pricing", "resilience"],
+    security: { dataClass: "matter", reads: ["recipient set", "approved packet identities", "server-authoritative pricing"], writes: ["batch mailing manifest"], externalEffects: ["mailing"], requiresOwnership: true, requiresApproval: true, failClosed: true },
+    fixtures: [{ id: "batchMailing-contract", kind: "unit", path: "packages/fulfillment/tests/mailing-batch.test.ts", status: "present" }],
+    runtimeBindings: [{ kind: "package-export", package: "@mailmypdf/fulfillment", exportPath: "./mailing-batch", status: "implemented" }],
+  }),
   tracking: capability("tracking", "Tracking", "platform", "fulfillment", "Normalize provider tracking state and retain delivery events.", "@mailmypdf/fulfillment", "production", { dependencies: ["mailing"] }),
   notifications: capability("notifications", "Notifications / Reminders", "platform", "operations", "Idempotent transactional notifications and deadline/action reminders.", "@mailmypdf/notifications", "production"),
   proofAudit: capability("proofAudit", "Proof / Audit", "platform", "proof", "Durable artifacts, custody, mailing events, hashes, and proof records.", "@mailmypdf/proof", "production", { dependencies: ["provenance"] }),

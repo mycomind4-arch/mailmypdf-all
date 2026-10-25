@@ -10,7 +10,7 @@ import {
   noticeRespondStartRoutes,
 } from "../runtime";
 
-const ids = [
+const coreIds = [
   "cp14-response",
   "cp2000-response",
   "cp504-response",
@@ -19,15 +19,22 @@ const ids = [
 ] as const;
 
 describe("Notice Respond runtime registration", () => {
-  it("registers every executable notice workflow exactly once", () => {
-    expect(noticeRespondStartRoutes).toHaveLength(ids.length);
-    expect(new Set(noticeRespondStartRoutes.map((route) => route.workflowId)).size).toBe(ids.length);
-    expect(new Set(NOTICE_RESPONSE_RUNTIME_WORKFLOW_IDS)).toEqual(new Set(ids));
+  it("keeps core static routes registered and every reviewed profile runtime-bound exactly once", () => {
+    expect(noticeRespondStartRoutes).toHaveLength(coreIds.length);
+    expect(
+      new Set(noticeRespondStartRoutes.map((route) => route.workflowId)).size,
+    ).toBe(coreIds.length);
 
-    for (const workflowId of ids) {
+    const runtimeIds = [...NOTICE_RESPONSE_RUNTIME_WORKFLOW_IDS];
+    expect(new Set(runtimeIds).size).toBe(runtimeIds.length);
+    for (const workflowId of coreIds) {
+      expect(runtimeIds).toContain(workflowId);
       expect(noticeRespondStartRouteFor(workflowId)?.path).toBe(
         `/notice-respond/workflows/${workflowId}/start/`,
       );
+    }
+
+    for (const workflowId of runtimeIds) {
       expect(noticeRespondRuntimePolicyFor(workflowId)).not.toBeNull();
       expect(getNoticeResponseRuntimePolicy(workflowId)).not.toBeNull();
       expect(platformWorkflowRuntimePolicyFor(workflowId)).not.toBeNull();
@@ -37,8 +44,8 @@ describe("Notice Respond runtime registration", () => {
     expect(noticeRespondRuntimePolicyFor("not-real")).toBeNull();
   });
 
-  it("binds runtime identity to Notice Respond", () => {
-    for (const workflowId of ids) {
+  it("binds runtime identity to Notice Respond for core and generated profiles", () => {
+    for (const workflowId of NOTICE_RESPONSE_RUNTIME_WORKFLOW_IDS) {
       const policy = noticeRespondRuntimePolicyFor(workflowId)!;
       expect(() =>
         policy.validateMatter({

@@ -11,9 +11,9 @@ import {
   workflowsForSection,
 } from "../src/lib/workflow-registry"
 
-test("canonical workflow registry includes all original identities and recovered bureau intakes", () => {
-  assert.equal(WORKFLOW_REGISTRY_COUNT, 441)
-  assert.equal(WORKFLOW_REGISTRY.length, 441)
+test("canonical workflow registry retains the original catalog and recovered bureau intakes", () => {
+  assert.ok(WORKFLOW_REGISTRY_COUNT >= 441, "must retain at least the original 441 catalog workflows")
+  assert.equal(WORKFLOW_REGISTRY.length, WORKFLOW_REGISTRY_COUNT)
   for (const slug of ["equifax-dispute", "experian-dispute", "transunion-dispute"]) {
     assert.equal(workflowById(`dispute-mail/${slug}`)?.maturity, "domain-ready")
   }

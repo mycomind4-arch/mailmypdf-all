@@ -227,3 +227,72 @@ The workflow experience is deliberately split by audience:
 - The shared Studio-style sidebar points only to authenticated workspace URLs. It does not route signed-in users through public SEO pages.
 - Customer accounts see workflow availability and start actions. Server-verified admins additionally see publication, SEO/indexing, authority, review, and runtime status plus Studio controls.
 - Public hero assets remain public-content assets and may be reused for public directory cards and social metadata; authenticated workspace pages do not render them.
+
+
+## 10. 2026-09-29 admin navigation and Studio integrity pass
+
+Verified against the current canonical `mailmypdf/` app and repaired in the shared authenticated shell:
+
+- Authenticated operational navigation uses `/dashboard`, `/dashboard/orders`, `/send`, and `/dashboard/workflows`. The sidebar no longer sends signed-in users to the public `/mail-a-pdf` SEO page, and it no longer presents two labels for the same `/dashboard` destination.
+- The administrator group is explicitly **Studio / Admin** and resolves only to verified routes: `/studio`, `/admin`, `/admin/analytics`, `/admin/ai`, `/admin/publications`, `/admin/audit-log`, and `/admin/entitlements`.
+- `/studio` is the primary Studio surface; `/admin` is the operations dashboard. Both stay inside the shared authenticated sidebar shell.
+- The Audit Log route now reads real server-authorized `entitlements_audit_log` summaries, supports filters/pagination/current-page CSV export, and contains no demo rows or dead detail buttons.
+- The Entitlements route no longer displays an unimplemented Edit affordance.
+- Entitlements/Audit authorization now uses the same `user_roles.role = admin` source as the rest of core administration. `app_metadata`, `user_metadata`, and the nonexistent `super_admin` enum are not admin authorization sources.
+- `mailmypdf/tests/admin-navigation-integrity.test.mjs` locks these route, shell, authorization, and real-data invariants into CI.
+
+Evidence: `mailmypdf/src/components/authenticated-sidebar.tsx`, `mailmypdf/src/routes/_authenticated.admin.audit-log.tsx`, `mailmypdf/src/routes/_authenticated.admin.entitlements.tsx`, `mailmypdf/src/lib/entitlements-management.functions.ts`, `mailmypdf/src/lib/entitlements-management.ts`.
+
+
+## 11. 2026-09-29 Studio command-center split
+
+The administrator Studio surface now has two explicit responsibilities instead of overloading one route:
+
+- `/studio` is the **administrator command center**. It is read-only and summarizes canonical workflow execution/chat certification, MCP connector coverage, Supabase/Stripe/Lob/email configuration readiness, AI routing counts, fulfillment queue/failures, user-profile counts, and deployment-target wiring. It derives these signals from the existing registries/configuration and does not create a second source of truth.
+- `/studio/builder` preserves the existing visual workflow/factory editor. The parent `/_authenticated/studio` route owns the server-verified admin check and renders an `Outlet`, so both child surfaces share the same authorization boundary and authenticated sidebar shell.
+- `/admin/users` is a deliberately read-only profile/role browser. It reads `user_profiles` and `user_roles` but exposes no role mutation, deletion, impersonation, or account takeover controls.
+- The shared Studio/Admin sidebar contains explicit entries for Studio, Workflow Builder, Operations, Users, Analytics, AI Control Plane, Publications, Audit Log, and Entitlements.
+- Command-center service readiness returns booleans/counts only. Stripe/Lob/API/webhook secrets are never returned to the browser.
+- Consequential actions remain in dedicated tools with their existing review and authorization boundaries; the command center does not introduce new send, charge, publish, role-change, or deployment side effects.
+
+Evidence: `mailmypdf/src/lib/studio-command-center.functions.ts`, `mailmypdf/src/components/studio-command-center.tsx`, `mailmypdf/src/routes/_authenticated/studio.tsx`, `mailmypdf/src/routes/_authenticated/studio/index.tsx`, `mailmypdf/src/routes/_authenticated/studio/builder.tsx`, `mailmypdf/src/lib/admin-users.functions.ts`, `mailmypdf/src/routes/_authenticated/admin/users.tsx`.
+
+
+## 12. 2026-09-29 Cloudflare Worker deployment wiring
+
+Studio deployment metadata now reflects the current canonical architecture rather than the retired Pages/vertical layout:
+
+- MailMyPDF deploys as a **Cloudflare Worker** named `mailmypdf`, not a Cloudflare Pages project.
+- The canonical application directory is `mailmypdf/`; Studio deploy code must not use `apps/mailmypdf` or `apps/verticals/*`.
+- `mailmypdf/deploy.sh` remains the single deployment implementation. It runs live production configuration preflight, builds the TanStack/Nitro Worker, injects the proof-processor cron into the generated Wrangler config, deploys with Wrangler, verifies the deployed website, and runs MCP launch-readiness.
+- Studio's publish helper is a local-development machine action protected by `studioFileScanAuthMiddleware`. It invokes the canonical deploy script only after explicit confirmation and requires `CLOUDFLARE_API_TOKEN` in the local Studio server environment. Production Studio does not receive a remote shell/deploy primitive.
+- The command center may expose Worker name/deploy-mode metadata, but never Cloudflare credentials.
+- `resolveProjectRoot` discovers the workspace root instead of assuming the retired three-level `apps/verticals` directory depth.
+
+Evidence: `mailmypdf/src/studio/domain/studio-project.ts`, `mailmypdf/src/studio/lib/fns/publish-project-to-cloudflare.ts`, `mailmypdf/deploy.sh`, `mailmypdf/src/lib/studio-command-center.functions.ts`.
+
+
+## 13. 2026-09-29 Studio production launch readiness
+
+The Studio command center now contains a **read-only Launch Readiness** panel backed by a dedicated admin-authorized server probe.
+
+The checklist intentionally mirrors the production launch/runbook criteria rather than inventing a separate definition of ready:
+
+- canonical Supabase project identity
+- selected Stripe environment plus matching server/browser/webhook credential formats
+- Lob API + webhook configuration
+- Resend API + explicit sender configuration
+- cleanup, scanner, retention, and connector-reconciliation job secrets
+- malware-scanner URL/key and live `/health` reachability
+- required database tables and `secure-documents` / `order-pdfs` buckets
+- deployed HTTPS homepage and `/api/internal/health`
+- MCP OAuth metadata, `server/discover`, and exact deployed tool-count parity
+- OpenAI Apps challenge verification when an expected token is configured
+- current quarantined/scan-error/retention/connector/fulfillment/proof-webhook backlogs
+- explicit manual gates for sandbox E2E, one controlled live mailing, and Certified Mail canaries when sold
+
+The panel returns only statuses, counts, origin metadata, and human-readable details. It never returns Stripe/Lob/Supabase/job secrets and performs no writes, payments, fulfillment, publication, deployment, or account mutation.
+
+Two schedule checks remain deliberately **manual** rather than falsely green: the Worker proof-processor cron and the GitHub-hosted scanner/retention/reconcile schedules are configured in code, but the platform does not yet persist a last-success heartbeat that Studio can prove. That missing telemetry must be represented as an observability gap until a durable heartbeat is added.
+
+Evidence: `mailmypdf/src/lib/studio-launch-readiness.functions.ts`, `mailmypdf/src/components/studio-command-center.tsx`, `mailmypdf/tests/admin-navigation-integrity.test.mjs`.

@@ -1,3 +1,5 @@
+import { calculateQuote } from "@mailmypdf/pricing";
+
 /**
  * Benefits Appeal — Workflow Engine
  * Domain-specific analysis, drafting, and validation for government benefits appeals.
@@ -283,7 +285,7 @@ export function calculateBenefitsPricing(
 ) {
   // Pricing is delegated to the canonical @mailmypdf/pricing engine.
   // This function is kept for backward compatibility but now delegates.
-  const { calculateQuote } = require("@mailmypdf/pricing");
+  // ESM import is resolved by both Vite/Vitest and the production bundler.
   const quote = calculateQuote({
     workflowId: config.workflowId,
     verticalId: "benefits-appeal",

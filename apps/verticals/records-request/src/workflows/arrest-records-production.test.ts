@@ -31,7 +31,8 @@ describe('production arrest records workflow', () => {
   it('keeps the canonical arrest workflow identity while upgrading the contract', () => {
     expect(productionArrestRecordsWorkflow.contractVersion).toBe(2)
     expect(productionArrestRecordsWorkflow.manifest.id).toBe('arrest-records')
-    expect(productionArrestRecordsWorkflow.manifest.intakeVersion).toBe('2.0.0')
+    expect(productionArrestRecordsWorkflow.intakeVersion).toBe('2.0.0')
+    expect(productionArrestRecordsWorkflow.manifest.version).toBe('2.0.0')
     expect(productionArrestRecordsWorkflow.request.categories).toEqual(ARREST_RECORD_CATEGORIES)
     expect(productionArrestRecordsWorkflow.capabilities).toEqual(expect.arrayContaining([
       'classification', 'extraction', 'contradiction', 'evidence', 'research', 'strategy',

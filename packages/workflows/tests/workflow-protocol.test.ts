@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   deriveWorkflowProtocolState,
+  generatedDraftReviewAction,
   workflowProtocolDefinitionFromManifest,
   WORKFLOW_PROTOCOL_VERSION,
 } from "../src/workflow-protocol.js";
@@ -110,6 +111,15 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state({ approvalPresent: false }).nextActions[0]?.toolName, "preview_packet");
   assert.equal(state({ orderPresent: false }).nextActions[0]?.toolName, "prepare_checkout");
   assert.equal(state().nextActions[0]?.toolName, "get_order_status");
+});
+
+test("generated draft requires user review before saving and does not carry unreviewed text", () => {
+  const next = generatedDraftReviewAction(matter.id);
+  assert.equal(next.toolName, "save_draft");
+  assert.equal(next.kind, "draft_review");
+  assert.equal(next.requiresUserInput, true);
+  assert.deepEqual(next.arguments, { matter_id: matter.id });
+  assert.match(next.prompt, /confirm the exact final text/);
 });
 
 

@@ -75,6 +75,7 @@ function addressReady(value: WorkflowMailingAddress): boolean {
 
 function responseAddressFromAnalysis(
   analysis: WorkflowMatterAnalysis | null,
+  fallbackName: string,
 ): WorkflowMailingAddress | null {
   const raw = analysis?.result.workflowDetails?.responseAddress;
   if (!raw || typeof raw !== "object") return null;
@@ -88,7 +89,7 @@ function responseAddressFromAnalysis(
     name:
       typeof value.name === "string" && value.name.trim()
         ? value.name
-        : "Internal Revenue Service",
+        : fallbackName,
     line1,
     line2: typeof value.line2 === "string" ? value.line2 : "",
     city,
@@ -261,7 +262,7 @@ export default function NoticeResponseWorkflow({
         setDraftSaved(true);
       }
       if (storedApproval?.approvalId) setApprovalId(storedApproval.approvalId);
-      const detectedAddress = responseAddressFromAnalysis(storedAnalysis);
+      const detectedAddress = responseAddressFromAnalysis(storedAnalysis, profile.primaryDocumentLabel);
       if (detectedAddress) setRecipient(detectedAddress);
     } catch (cause) {
       sessionStorage.removeItem(storageKey(profile.workflowId));
@@ -362,7 +363,7 @@ export default function NoticeResponseWorkflow({
     try {
       const next = await client.analyze(matterId);
       setAnalysis(next);
-      const detectedAddress = responseAddressFromAnalysis(next);
+      const detectedAddress = responseAddressFromAnalysis(next, profile.primaryDocumentLabel);
       if (detectedAddress) setRecipient(detectedAddress);
     } catch (cause) {
       setError(
@@ -732,7 +733,7 @@ export default function NoticeResponseWorkflow({
             <div className="wf-review-list">
               {[
                 ["Notice/decision", analysis.result.decision ?? "Not confirmed"],
-                ["Issuer", analysis.result.issuer ?? "Internal Revenue Service"],
+                ["Issuer", analysis.result.issuer ?? "Not confirmed"],
                 ["Notice date", analysis.result.decisionDate ?? "Not confirmed"],
                 ["Printed response/action date", analysis.result.deadline ?? "Not confirmed"],
               ].map(([label, value]) => (

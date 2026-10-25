@@ -238,6 +238,24 @@ function OAuthConsentPage() {
                 Those consequential steps remain separately validated by MailMyPDF.
               </div>
 
+              <div className="mt-5 rounded-xl border border-rule bg-card p-4">
+                <div className="text-sm font-semibold text-foreground">
+                  Payment method <span className="font-normal text-muted-foreground">— optional</span>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Save a tokenized payment method once if you want future mailings you explicitly
+                  approve in chat to continue without leaving the conversation for checkout.
+                </p>
+                <a
+                  href={`/account/setup?return_to=${encodeURIComponent(
+                    `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`,
+                  )}`}
+                  className="mt-3 inline-flex text-sm font-medium text-cobalt underline"
+                >
+                  Set up payment
+                </a>
+              </div>
+
               {details.redirect_uri ? (
                 <p className="mt-4 break-all text-[10px] text-muted-foreground">
                   Return destination: {details.redirect_uri}

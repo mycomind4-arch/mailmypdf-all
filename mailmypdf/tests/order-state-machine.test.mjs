@@ -12,7 +12,7 @@ const ALLOWED_TRANSITIONS = {
   paid: ["submitted_to_provider", "manual_fulfillment_in_progress", "failed_fulfillment", "cancelled", "refunded"],
   failed: ["paid_pending_manual_fulfillment", "cancelled", "refunded"],
 
-  draft: ["checkout_created", "failed_payment", "cancelled", "priced", "uploaded"],
+  draft: ["checkout_created", "paid_pending_manual_fulfillment", "failed_payment", "cancelled", "priced", "uploaded"],
   uploaded: ["priced", "cancelled"],
   priced: ["checkout_created", "cancelled"],
   checkout_created: ["paid_pending_manual_fulfillment", "failed_payment", "cancelled", "draft"],
@@ -119,8 +119,8 @@ describe("Order State Machine — Transition Table", () => {
     assert.ok(canTransition("delivered", "returned"));
   });
 
-  it("blocks draft → paid_pending_manual_fulfillment (must go through checkout)", () => {
-    assert.ok(!canTransition("draft", "paid_pending_manual_fulfillment"));
+  it("allows draft → paid_pending_manual_fulfillment for the guarded scheduled-payment path", () => {
+    assert.ok(canTransition("draft", "paid_pending_manual_fulfillment"));
   });
 
   it("blocks delivered → draft (no going back)", () => {

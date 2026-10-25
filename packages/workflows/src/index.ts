@@ -59,8 +59,10 @@ export * from "./domain-packs/appeal/insurance-workflows.js";
 export * from "./domain-packs/appeal/insurance-manifest.js";
 export * from "./domain-packs/appeal/insurance-runtime.js";
 export * from "./domain-packs/appeal/insurance-runtime-policy.js";
-export * from "./domain-packs/appeal/ssa-reconsideration-runtime-policy.js";
+export * from "./domain-packs/appeal/ssa-reconsideration-profiles.js";
 export * from "./domain-packs/appeal/ssa-reconsideration-manifest.js";
+export * from "./domain-packs/appeal/ssa-reconsideration-runtime-policy.js";
+export * from "./domain-packs/appeal/ssa-reconsideration-factory-artifact.js";
 export * from "./domain-packs/immigration/cover-letter-runtime-policy.js";
 export * from "./domain-packs/records-request/index.js";
 export * from "./matter-runtime-client.js";
@@ -87,3 +89,13 @@ export * from "./browser-access-token.js";
 
 export * from "./workflow-chat-contract.js";
 export * from "./chat-readiness.js";
+export * from "./chat-execution-registry.js";
+export * from "./factory-graduation.js";
+export * from "./factory-family-registry.js";
+export * from "./workflow-artifact-plan.js";
+export * from "./problem-workflow-plan.js";
+export * from "./factory-job.js";
+export * from "./factory-build.js";
+
+export * from "./workflow-materialization.js";
+export * from "./factory-remote-checks.js";

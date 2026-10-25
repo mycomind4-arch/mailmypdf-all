@@ -10,7 +10,7 @@
 # the proof jobs silently never run. The guard below fails loudly rather than
 # letting that recur as a confusing `cd` error.
 #
-# Cron: every 5 minutes → POST /api/internal/proof-processor
+# Cron: every 5 minutes → proof-processor, publication-scheduler, factory-ci-sync
 # Auth: Bearer MAILMYPDF_CLEANUP_SECRET
 #
 # The secure-core jobs (document scanning, retention) are scheduled separately
@@ -20,6 +20,11 @@
 # Usage: ./deploy.sh
 
 set -euo pipefail
+
+APP_DIR="$(pwd)"
+export MAILMYPDF_DEPLOYED_SHA="$(git rev-parse HEAD)"
+CURRENT_DEPLOYMENT_URL="https://mailmypdf.mycomind4.workers.dev"
+export MAILMYPDF_BASE_URL="${MAILMYPDF_BASE_URL:-$CURRENT_DEPLOYMENT_URL}"
 
 if ! grep -q 'preset: "cloudflare_module"' vite.config.ts; then
   echo "❌ vite.config.ts is not on the Cloudflare Workers preset." >&2
@@ -40,21 +45,23 @@ cd .output/server
 
 python3 << 'PYEOF'
 import json
+import os
 
 with open("wrangler.json") as f:
     config = json.load(f)
 
 config["name"] = "mailmypdf"
+config.setdefault("vars", {})["MAILMYPDF_DEPLOYED_SHA"] = os.environ["MAILMYPDF_DEPLOYED_SHA"]
 config["triggers"] = {
     "crons": [
-        "*/5 * * * *",   # Every 5 minutes: proof-processor (webhook retries, window expiry)
+        "*/5 * * * *",   # Every 5 minutes: authenticated internal processors
     ]
 }
 
 with open("wrangler.json", "w") as f:
     json.dump(config, f, indent=2)
 
-print("✅ Cron triggers added: proof-processor every 5 minutes")
+print("✅ Cron triggers added: internal processors every 5 minutes")
 PYEOF
 
 echo "🚀 Deploying to Cloudflare Workers..."
@@ -65,4 +72,13 @@ else
 fi
 
 echo ""
-echo "✅ Deployed! Cron: */5 * * * * → /api/internal/proof-processor"
+echo "🔎 Verifying deployed website + MCP connector..."
+cd "$APP_DIR"
+pnpm verify:deployment
+
+echo ""
+echo "🔎 Running MCP launch-readiness against $MAILMYPDF_BASE_URL..."
+MCP_BASE_URL="$MAILMYPDF_BASE_URL" pnpm mcp:readiness
+
+echo ""
+echo "✅ Deployed and verified at $MAILMYPDF_BASE_URL! Cron: */5 * * * * → authenticated internal processors"

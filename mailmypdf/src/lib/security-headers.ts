@@ -26,7 +26,7 @@
  */
 export function buildCspHeader(): string {
   const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
-  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const supabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)?.trim();
   const connectSources = [
     "'self'",
     "https://api.stripe.com",

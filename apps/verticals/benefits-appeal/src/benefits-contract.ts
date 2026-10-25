@@ -47,7 +47,7 @@ export type BenefitsCase = {
 
 export function extractBenefitsCase(input: BenefitsCaseInput): BenefitsCase {
   const lines = input.decision.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const issues = lines.filter((line) => /denied|reduced|terminated|discontinued|ineligible|overpayment|reason/i.test(line)).map((line, index) => ({
+  const issues = lines.filter((line) => /denied|reduced|terminated|discontinued|ineligible|overpayment|reason|incomplete|insufficient|missing|failed to (?:provide|submit)/i.test(line)).map((line, index) => ({
     id: `${input.decision.id}:issue:${index + 1}`,
     statement: line,
     status: "unmapped" as const,

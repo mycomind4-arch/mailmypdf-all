@@ -1,6 +1,6 @@
 {
   "generatedFrom": "packages/workflows/src/canonical-workflows.json",
-  "total": 441,
+  "total": 449,
   "workflows": [
     {
       "id": "appeal-mail/appeal-car-insurance-claim",
@@ -3622,9 +3622,97 @@
       "lastReviewed": null
     },
     {
+      "id": "private-office/probate-estate-administration",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/probate-estate-administration",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/probate-executor-document-request",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/probate-executor-document-request",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/probate-creditor-notice",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/probate-creditor-notice",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/probate-beneficiary-update",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/probate-beneficiary-update",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
       "id": "private-office/security-deposit-dispute",
       "vertical": "private-office",
       "route": "/private-office/workflows/security-deposit-dispute",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/family-trust-asset-inventory",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/family-trust-asset-inventory",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/family-trust-distribution-request",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/family-trust-distribution-request",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/family-trust-beneficiary-communication",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/family-trust-beneficiary-communication",
+      "maturity": "catalog",
+      "hasGoldContent": false,
+      "hasApiEndpoint": false,
+      "sourceVerified": false,
+      "testStatus": "pending",
+      "lastReviewed": null
+    },
+    {
+      "id": "private-office/family-trust-successor-trustee-transition",
+      "vertical": "private-office",
+      "route": "/private-office/workflows/family-trust-successor-trustee-transition",
       "maturity": "catalog",
       "hasGoldContent": false,
       "hasApiEndpoint": false,

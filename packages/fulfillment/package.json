@@ -13,6 +13,14 @@
     "./mailing-order": {
       "types": "./src/mailing-order.ts",
       "import": "./dist/mailing-order.js"
+    },
+    "./mailing-schedule": {
+      "types": "./src/mailing-schedule.ts",
+      "import": "./dist/mailing-schedule.js"
+    },
+    "./mailing-batch": {
+      "types": "./src/mailing-batch.ts",
+      "import": "./dist/mailing-batch.js"
     }
   },
   "files": [

@@ -12,21 +12,39 @@ The workflow-specific layer should be configuration, validation, and instruction
 
 ## Source of truth
 
-The executable registry lives at:
+The canonical new-architecture identity registry lives at:
 
-`apps/mailmypdf/src/lib/notice-workflow-registry.ts`
+`packages/workflows/src/canonical-workflows.json`
 
-`NOTICE_WORKFLOW_IDS` is the permission boundary for the generic IRS notice route. A public SEO page or catalog entry alone does not make a workflow executable.
+Executable Notice Respond behavior is composed from the shared Notice Respond profile, generated manifest, runtime policy, chat contract, and factory artifact under:
 
-Every executable ID must have all of the following:
+`packages/workflows/src/domain-packs/notice-response/`
 
-1. UI configuration in `NOTICE_WORKFLOW_CONFIGS`.
-2. A runtime definition in `secure-core/workflow-runtime.ts`.
-3. An input schema in `secure-core/case-inputs.server.ts`.
-4. Evidence options in `components/workflows/irs-notice-workflow.tsx` until those options are moved into registry configuration.
-5. Tests proving the registry/runtime/schema modes agree.
+A colocated `workflow.spec.json` can now own the deterministic registry seed and route boilerplate for a workflow. `scripts/materialize-workflow-spec.ts` verifies or writes the generated TanStack landing/start wrappers while leaving substantive `config.ts` marketing and authority copy human-authored.
 
-The TypeScript `Record<NoticeWorkflowId, ...>` contracts are intentional. Adding a registry ID should fail the build until every required executable layer is supplied.
+The older `mailmypdf/src/lib/notice-workflow-registry.ts` and `/notice/# Executable IRS Notice Workflow Factory
+
+This document defines the minimum contract for adding a new executable IRS notice workflow to MailMyPDF without forking the secure runtime.
+
+## Goal
+
+A new IRS notice should reuse the same protected lifecycle:
+
+`authenticated case -> private upload -> malware scan -> analysis -> user facts -> evidence -> draft -> packet preview -> immutable approval -> checkout -> payment webhook -> mailing -> proof/status`
+
+The workflow-specific layer should be configuration, validation, and instructions. Security, storage, approval, payment, and fulfillment remain shared.
+
+ runtime remain compatibility surfaces for legacy IRS notice flows. They are not the canonical source for the top-level `/notice-respond/workflows/**` architecture and must not be used to redefine a factory-driven workflow.
+
+For a factory-driven executable Notice Respond workflow, all of the following must agree:
+
+1. canonical enrollment from `workflow.spec.json`;
+2. the Notice Respond workflow profile;
+3. the generated manifest and runtime policy;
+4. the factory artifact and chat-readiness contract;
+5. the reviewed public `config.ts`;
+6. materializer-owned static TanStack wrappers;
+7. tests proving identity, route, document schema, gates, and connector-tool parity.
 
 ## Workflow-specific configuration
 
@@ -151,16 +169,13 @@ The generic route must continue to dispatch through `isNoticeWorkflowId()` rathe
 
 Use this sequence:
 
-1. Research the official IRS notice page.
-2. Add the workflow ID and UI config to the executable registry.
-3. Add/confirm evidence options.
-4. Add the bounded input schema.
-5. Add the runtime analysis and drafting instructions.
-6. Add notice-specific tests for dangerous shortcuts and response-mode validation.
-7. Run the factory contract test.
-8. Run the secure workflow invariant suite.
-9. Run the MailMyPDF build.
-10. Push only when all gates are green.
+1. Research the current official IRS authority for the notice.
+2. Author and review the workflow's substantive `config.ts` and Notice Respond profile.
+3. Add a colocated `workflow.spec.json` describing canonical identity, execution binding, authority metadata, and the Notice Respond start template.
+4. Run `pnpm workflow:materialize` to enroll the canonical seed and create the deterministic TanStack/SEO/schema/start wrappers. Use `--adopt` only when intentionally converting an already-reviewed hand-authored wrapper.
+5. Add or refine notice-specific bounded fields, analysis instructions, drafting constraints, and evidence rules in the shared profile/runtime family.
+6. Run `pnpm workflow:materialize:check`, the shared workflow tests, Notice Respond verification, secure workflow invariant suite, and the MailMyPDF production build.
+7. Publish only after the workflow spec, authority copy, runtime behavior, and generated files all pass review and CI.
 
 ## Current executable IRS notice workflows
 
