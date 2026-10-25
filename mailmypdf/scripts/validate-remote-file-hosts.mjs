@@ -15,7 +15,7 @@ export function validateTrustedRemoteFileHosts(value) {
     return fqdn.test(host) &&
       !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(suffix) &&
       !/\.(?:local|localhost|internal|invalid|test|home|lan)$/i.test(suffix) &&
-      !(host.startsWith("*.") && suffix.split(".").length < 2);
+      !(host.startsWith("*.") && suffix.split(".").length < 3);
   });
   return { ok: valid, count: valid ? entries.length : 0 };
 }
