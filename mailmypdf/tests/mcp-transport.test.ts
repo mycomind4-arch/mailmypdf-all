@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { handleMailMyPdfMcpRequest as handle } from "../src/lib/mcp/mcp-handler.server";
+import { MAILMYPDF_MCP_TOOLS } from "../src/lib/mcp/tool-catalog";
 
 const url = "https://mailmypdf.mycomind4.workers.dev/api/mcp";
 function request(body: unknown, headers: Record<string, string> = {}) {
@@ -17,7 +18,7 @@ test("legacy ChatGPT/Claude handshake negotiates supported revisions only", asyn
 test("legacy discovery returns the full catalog and OAuth errors preserve request id", async () => {
   const response = await handle(request({ jsonrpc: "2.0", id: 9, method: "tools/list" }));
   const tools = (await response.json()).result.tools as Array<{ name: string }>;
-  assert.equal(tools.length, 32);
+  assert.equal(tools.length, MAILMYPDF_MCP_TOOLS.length);
   assert.ok(tools.some((tool) => tool.name === "schedule_direct_pdf_mail"));
   assert.ok(tools.some((tool) => tool.name === "cancel_scheduled_mail"));
   const protectedCall = await handle(request({ jsonrpc: "2.0", id: 42, method: "tools/call", params: { name: "get_profile", arguments: {} } }));
