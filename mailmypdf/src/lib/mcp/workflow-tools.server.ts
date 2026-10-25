@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser } from "@/lib/secure-core/auth.server";
+import { describeRecoveryCaseEvidence } from "./recovery-case-evidence.server";
 import { SavedAddressError, listSavedAddresses, saveAddress, archiveAddress } from "./saved-addresses.server";
 import { handleWorkflowRuntimeRequest } from "@/lib/secure-core/workflow-runtime-host.server";
 import { McpOrderStatusError, getOwnedOrderStatus } from "./order-status.server";
@@ -52,7 +53,20 @@ import {
   ScheduledMailError,
 } from "@/lib/scheduled-mail.server";
 import { BillingProfileError, getPaymentReadiness } from "@/lib/billing-profile.server";
+import {
+  chargeAndSendDirectPdfMail,
+  ImmediateMailError,
+} from "@/lib/immediate-mail.server";
 import { normalizeDocumentSource } from "@mailmypdf/documents/document-source";
+import { screenProvidedRecoveryTransactions } from "./recovery-scan";
+import {
+  createRecoveryCaseFromScan,
+  getRecoveryCase,
+  listRecoveryCases,
+  updateRecoveryCase,
+  RecoveryCaseError,
+} from "./recovery-case-service";
+import { createRecoveryCaseStore } from "./recovery-store.server";
 
 export class McpToolExecutionError extends Error {
   constructor(
@@ -267,6 +281,32 @@ export async function executeMcpTool(
   rawArguments: unknown,
 ): Promise<unknown> {
   const args = object(rawArguments ?? {}, "arguments");
+
+  if (["save_recovery_case", "get_recovery_case", "list_recovery_cases", "update_recovery_case"].includes(name)) {
+    const context = await requireAuthenticatedUser(request);
+    try {
+      const store = createRecoveryCaseStore(context);
+      if (name === "list_recovery_cases") return await listRecoveryCases(args, context.user.id, store);
+      const result = name === "save_recovery_case"
+        ? await createRecoveryCaseFromScan(args, context.user.id, store)
+        : name === "get_recovery_case"
+          ? await getRecoveryCase(args, context.user.id, store)
+          : await updateRecoveryCase(args, context.user.id, store);
+      return { ...result, evidence: await describeRecoveryCaseEvidence(context, result.case) };
+    } catch (error) {
+      if (error instanceof RecoveryCaseError) throw new McpToolExecutionError(error.status, error.message);
+      throw new McpToolExecutionError(503, "Recovery storage is unavailable. Reload before retrying.");
+    }
+  }
+
+  if (name === "scan_recovery_candidates") {
+    await requireAuthenticatedUser(request);
+    try {
+      return screenProvidedRecoveryTransactions(args);
+    } catch (error) {
+      throw new McpToolExecutionError(400, error instanceof Error ? error.message : "Invalid transaction data");
+    }
+  }
 
   if (name === "find_workflow") {
     const query = requiredString(args.query, "query");
@@ -553,6 +593,27 @@ export async function executeMcpTool(
     } catch (error) {
       if (error instanceof McpDirectMailError) {
         throw new McpToolExecutionError(error.status, error.message, error.details);
+      }
+      throw error;
+    }
+  }
+
+  if (name === "charge_and_send_direct_pdf_mail") {
+    try {
+      return await chargeAndSendDirectPdfMail(request, {
+        orderId: args.order_id,
+        expectedPacketSha256: args.expected_packet_sha256,
+        expectedTotalCents: args.expected_total_cents,
+        expectedPaymentRevision: args.expected_payment_revision,
+        authorizeSavedPayment: args.authorize_saved_payment,
+        userConfirmedSend: args.user_confirmed_send,
+      });
+    } catch (error) {
+      if (error instanceof ImmediateMailError) {
+        throw new McpToolExecutionError(error.status, error.message, {
+          ...(error.code ? { code: error.code } : {}),
+          ...(error.details ?? {}),
+        });
       }
       throw error;
     }

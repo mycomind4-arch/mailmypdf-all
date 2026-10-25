@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "retirements": [
+    {
+      "branch": "build/identity-capacity-foundation",
+      "sha": "c5f38725aeccd69beeb6304d8d64c44ef73ec06b",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/build/identity-capacity-foundation",
+      "main_blobs": {
+        "packages/identity-capacity/package.json": "bcbbd988fcc26f90d77f8341f9fc013315336e4a",
+        "packages/identity-capacity/src/authoritative-name.ts": "121cb73aec68bc28f928122aa7b0a1f9471970ea",
+        "packages/identity-capacity/src/index.ts": "cd1e86f36428b77d783deab36e6dc493040774e8",
+        "packages/identity-capacity/src/name-normalization.ts": "951850381dd41f13e70d946c3373c4a25427212a",
+        "packages/identity-capacity/src/source-authority.ts": "14c12770b3381de14a8d482713adf297a1ef0aae",
+        "packages/identity-capacity/tests/authoritative-name.test.ts": "24ef781fe3625eb46e3baefc1f7ba8c8da00fd68",
+        "packages/identity-capacity/tests/name-normalization.test.ts": "95532b287e11dac8adc63e7dc6c888cd3b8bf5e4",
+        "packages/identity-capacity/tests/source-authority.test.ts": "cb30437ed4869cbe59811140252789f321e5ea27",
+        "packages/identity-capacity/tsconfig.json": "93e096d7c94cf467ae77eb3f5121590adf7427b1",
+        "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356",
+        "tsconfig.json": "0731f10b081236c79601da66b2846e861106e502"
+      },
+      "reason": "All 11 commit patch IDs match main. Eight foundation files are identical; index.ts contains the complete foundation plus later engines, and workspace/lock entries retain the package."
+    },
+    {
+      "branch": "build/identity-capacity-foundation-v2",
+      "sha": "2796ea51184184ee078a767688c54afb8eca6f09",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/build/identity-capacity-foundation-v2",
+      "main_blobs": {
+        "packages/identity-capacity/package.json": "bcbbd988fcc26f90d77f8341f9fc013315336e4a",
+        "packages/identity-capacity/src/authoritative-name.ts": "121cb73aec68bc28f928122aa7b0a1f9471970ea",
+        "packages/identity-capacity/src/index.ts": "cd1e86f36428b77d783deab36e6dc493040774e8",
+        "packages/identity-capacity/src/name-normalization.ts": "951850381dd41f13e70d946c3373c4a25427212a",
+        "packages/identity-capacity/src/source-authority.ts": "14c12770b3381de14a8d482713adf297a1ef0aae",
+        "packages/identity-capacity/tests/authoritative-name.test.ts": "24ef781fe3625eb46e3baefc1f7ba8c8da00fd68",
+        "packages/identity-capacity/tests/name-normalization.test.ts": "95532b287e11dac8adc63e7dc6c888cd3b8bf5e4",
+        "packages/identity-capacity/tests/source-authority.test.ts": "cb30437ed4869cbe59811140252789f321e5ea27",
+        "packages/identity-capacity/tsconfig.json": "93e096d7c94cf467ae77eb3f5121590adf7427b1",
+        "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356",
+        "tsconfig.json": "0731f10b081236c79601da66b2846e861106e502"
+      },
+      "reason": "All 11 commit patch IDs match main. This repeats the first foundation tree; later main exports extend rather than remove the foundation."
+    },
+    {
+      "branch": "verify/identity-capacity-ci",
+      "sha": "3fbae2dd9cfcc19bb3928c8b1deada91380bbe4a",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/identity-capacity-ci",
+      "main_blobs": {
+        "packages/identity-capacity/README.md": "25292c98cd3afa84e1413bb72be0679644e8dedf"
+      },
+      "reason": "README-only branch. Current README preserves name normalization, source authority, authoritative-name resolution, provenance, uncertainty and human-review gates, and documents later engines."
+    },
+    {
+      "branch": "verify/search-strategy",
+      "sha": "5a29dc603d7a803b40820b3f8a7161f083e699d8",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/search-strategy",
+      "main_blobs": {
+        "packages/registry-adapters/README.md": "b1b7d7b142a4dfcc20be90123aa0d69975761ace"
+      },
+      "reason": "README-only branch. Its exact added search-strategy coverage sentence is present in current README, followed by newer certification coverage."
+    },
+    {
+      "branch": "verify/search-strategy-v2",
+      "sha": "b53dc228f3ee9aa9bdb0ee4c3d3b758f0a645dbd",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/verify/search-strategy-v2",
+      "main_blobs": {
+        "packages/registry-adapters/README.md": "b1b7d7b142a4dfcc20be90123aa0d69975761ace"
+      },
+      "reason": "Same README patch as verify/search-strategy; its exact added coverage sentence is present in main."
+    },
+    {
+      "branch": "factory/catalog-family-planner",
+      "sha": "a0f0f425eab188d4d03ba4772025e6ee5fc97b7d",
+      "audited_main_sha": "3528bc228d371edaec3e2df65a487a36d9363b6d",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/factory/catalog-family-planner",
+      "main_blobs": {
+        "packages/workflows/src/factory-family-registry.ts": "0518b5b620087e30d8abb970e6ffa0d82c63dfae",
+        "packages/workflows/tests/factory-family-registry.test.ts": "1f8c6fdb08eb89a34e8dccb6cbd778df0c4485c7"
+      },
+      "reason": "Both authored files integrated by PR #149 at 3528bc22. Main also fixes sectionFallback indexing and replaces stale 441-count expectations with canonical-registry assertions."
+    },
+    {
+      "branch": "fix/cp2000-public-landing",
+      "sha": "7e5891569a64de5eb21508d262452aa6ba01cee4",
+      "audited_main_sha": "20a4102c3f7cf4c1481e2ab9ef142bcbaf91ca06",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/fix/cp2000-public-landing",
+      "main_blobs": {
+        "notice-respond/workflows/cp2000-response/config.ts": "039867edec80aec8d757857d1cc56bce6655bf0e",
+        "packages/design-system/src/workflow-landing.tsx": "fe52850057d04180c315bb79318a4c5e2f6ee0b7"
+      },
+      "reason": "Current main contains every line of the branch's CP2000 workflow config and adds stronger notice/IRS guidance, official links and disclaimer. The older branch's landing component hardcodes IRS/notice-specific presentation in a shared component; main intentionally retains the behavior via a generalized workflow-landing implementation with configurable CTAs. No unique executable source remains. Archive the exact branch tip before deleting the stale head."
+    },
+    {
+      "branch": "backup/github-main-before-local-replace",
+      "sha": "4ad3359a9e02f0e4d32a9c00d73642ec6538ca99",
+      "audited_main_sha": "2cfb0387e0276e14f7e3c0a243192524df68ad50",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/backup/github-main-before-local-replace",
+      "main_blobs": {
+        "pnpm-lock.yaml": "40a735b22df1a169bd5ef9a6558ea918f8ec1356"
+      },
+      "reason": "Historical pre-local-replacement backup branch has exactly one changed file relative to its shared main ancestry: an older pnpm-lock.yaml (archived blob 80951cf014ab65468c2e8e0c2db7e129d7a3390a). Current main has a distinct and subsequently maintained lockfile (blob 40a735b22df1a169bd5ef9a6558ea918f8ec1356). Preserving the branch's exact tip as a durable archive tag retains the full historical backup, so its mutable branch head is unnecessary; no historic content is thrown away."
+    },
+    {
+      "branch": "chat/mailmypdf-prebuild-runtime-deps",
+      "sha": "b71de27a753d33e5f0453540c447b77908db5fac",
+      "audited_main_sha": "d879790321babd3f1497dfb4c08cf518c506d301",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/mailmypdf-prebuild-runtime-deps",
+      "main_blobs": {
+        "mailmypdf/package.json": "4e8e210e8b1c8060bc190be921f10d0becec8ea1"
+      },
+      "reason": "PR #89 changes only the obsolete apps/mailmypdf/package.json prebuild line. The canonical mailmypdf/package.json on main already includes all 18 packages named by PR #89, including document-intelligence and registry-adapters, with dependency-closure filters (...), two-way concurrency and additional checks. Never reintroduce retired apps/mailmypdf host paths. Preserve exact reviewed commit SHA as an archive before retiring this branch."
+    },
+    {
+      "branch": "feature/plugin-annotation-justifications",
+      "sha": "e00d3d32d37bf2ae9ffe0eea2c5e9e6ef8ea8358",
+      "audited_main_sha": "6ff4c6c59297eba09b4372a874c126b6ab7705a8",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/feature/plugin-annotation-justifications",
+      "main_blobs": {
+        "plugins/mailmypdf/submission-materials.json": "ad097591d5c5912130b6ae5eb5458ebb82b53edb",
+        "plugins/mailmypdf/README.md": "51300ddafe6b7540c31bfdf8b469750f17d2479b",
+        "scripts/validate-mailmypdf-plugin-submission.mjs": "ce9e6fc4042c7ce6363cac64834696596394f90c",
+        ".github/workflows/workspace-ui-ci.yml": "266b44655ffba670f3c1f24886f7dd398bb4a46f",
+        "mailmypdf/src/lib/mcp/tool-catalog.ts": "5268d4503bf8a4bee0bdf478425b0a0e4f731dc0"
+      },
+      "reason": "Old branch reviews 15 MCP annotations; current main publishes 38 tools with complete justifications, and every one of the 15 old true/false claims matches the current canonical record. PR #160 integrated the missing dynamic truth-value/safety-boundary checks into the canonical submission validator with 20/20 CI jobs green. Current README and workspace CI invoke that validator; old parallel annotation JSON and test are obsolete. Archive exact historic tip and remove obsolete head, never merge outdated 15-tool catalog."
+    },
+    {
+      "branch": "chat/p11-capability-truthfulness",
+      "sha": "ba2caf78b153ecbefda729000c5443dc71de72b9",
+      "audited_main_sha": "88cd2a19ccd8a7a9a59a52fe05487f7a02848a99",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/p11-capability-truthfulness",
+      "main_blobs": {
+        "packages/workflows/src/pipeline-registry.ts": "68334a6c649e56c38d59aa9e52aa555191cafb09",
+        "packages/workflows/tests/workflow-factory.test.ts": "0966b0462709b0aa6ba89ccf6e675a506cb3ceea",
+        "packages/workflows/tests/configured-pipeline.test.ts": "a2895caf5522d8ec1f42ee81c5a9870df9dd2b73",
+        "secured-transactions/workflows/secured-transaction-eligibility/manifest.ts": "af04263ca9cc37e96b312ad9a7d135a7840841fa",
+        "secured-transactions/tests/registry.test.ts": "ad651077c0351e1dfbe788df5cfb6192ed64808c",
+        "secured-transactions/shared/domain/manifest-base.ts": "a2bcff9dc684bda73e9b1fc90c41ec0df097ec29",
+        "secured-transactions/shared/domain/manifest-base.test.ts": "1cb9e2e401becc7a751366706ba1edf0de0dd5fc"
+      },
+      "reason": "PR #85 was reviewed and closed as superseded by green merged PR #162 (88cd2a19), which implements stronger P11 shared invariants (findings, requirements, validation, blockingGate, review), a six-capability eligibility manifest, fail-closed tests, and current three-wired-intake assertions. Adds broad family-wide basis/validation gates and narrow capability declarations, but its registry tests assume only one wired intake. Exact historic tip must be tagged before deleting the obsolete branch."
+    },
+    {
+      "branch": "fix/p11-capability-truthfulness",
+      "sha": "3632bc4d9a1d264d4c082fd70295123d5d117247",
+      "audited_main_sha": "88cd2a19ccd8a7a9a59a52fe05487f7a02848a99",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/fix/p11-capability-truthfulness",
+      "main_blobs": {
+        "packages/workflows/src/pipeline-registry.ts": "68334a6c649e56c38d59aa9e52aa555191cafb09",
+        "packages/workflows/tests/workflow-factory.test.ts": "0966b0462709b0aa6ba89ccf6e675a506cb3ceea",
+        "packages/workflows/tests/configured-pipeline.test.ts": "a2895caf5522d8ec1f42ee81c5a9870df9dd2b73",
+        "secured-transactions/workflows/secured-transaction-eligibility/manifest.ts": "af04263ca9cc37e96b312ad9a7d135a7840841fa",
+        "secured-transactions/tests/registry.test.ts": "ad651077c0351e1dfbe788df5cfb6192ed64808c",
+        "secured-transactions/shared/domain/manifest-base.ts": "a2bcff9dc684bda73e9b1fc90c41ec0df097ec29",
+        "secured-transactions/shared/domain/manifest-base.test.ts": "1cb9e2e401becc7a751366706ba1edf0de0dd5fc"
+      },
+      "reason": "PR #90 was reviewed and closed as superseded by green merged PR #162 (88cd2a19), which implements stronger P11 shared invariants (findings, requirements, validation, blockingGate, review), a six-capability eligibility manifest, fail-closed tests, and current three-wired-intake assertions. Correctly narrows eligibility declarations but omits family-wide requirements and blockingGate invariants; the newer implementation retains both. Exact historic tip must be tagged before deleting the obsolete branch."
+    },
+    {
+      "branch": "chat/canonical-topology-source-of-truth",
+      "sha": "f089372f07b56264b78dcc774d3055532b6e066b",
+      "audited_main_sha": "b912c6e30100f44724764d24edecb5d4af5f7feb",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/chat/canonical-topology-source-of-truth",
+      "main_blobs": {
+        ".github/workflows/legacy-donor-compatibility.yml": "acde6e5ca844c4b55221f656582adbfbac1fed46",
+        ".github/workflows/workspace-ui-ci.yml": "266b44655ffba670f3c1f24886f7dd398bb4a46f",
+        "AGENTS.md": "c06ff40b384e3eb60eb9730c3f519d7b68b57d3a",
+        "MAILMYPDF_APPLICATION_TOPOLOGY.md": "b18ca7d5249a2e3c27aaddf0564cc2df2f9881c1",
+        "context/CURRENT_WORK.md": "a657c992cef0cbf57564c73da416e28d3f819037",
+        "scripts/verify-product-topology.mjs": "cd28a9f2a7afdcc6c6a6719fb405b49962956329"
+      },
+      "reason": "Old draft PR #88 targeted the retired apps/mailmypdf host. Its unique canonical-root architecture policy and topology guard are superseded by merged #161 and #163; the current AGENTS and CURRENT_WORK files are newer and protect @mailmypdf/step-workflow canonical execution. Its additional legacy-donor compatibility matrix (10 extant packages; 3 old directories now gone) and the six Private Office authority/compound-workflow regression suites are preserved in separate, path-scoped .github/workflows/legacy-donor-compatibility.yml merged via #164 at b912c6e3, verified green across all 10 jobs in Action 37840372064. Do not reintroduce obsolete apps/mailmypdf host or legacy CI routing. Preserve exact old branch tip under archive tag before deleting branch."
+    },
+    {
+      "branch": "factory-reference-journey-readiness-2026-10",
+      "sha": "388e0403bbd3f15edff8bdafa6ed807ae667ef0d",
+      "audited_main_sha": "834033b311c8108c8625cf381ce53136cc81d755",
+      "archive_tag": "archive/branch-cleanup-2026-10-08/factory-reference-journey-readiness-2026-10",
+      "main_blobs": {
+        "packages/workflows/src/factory-graduation.ts": "8883f3aa3c83eba98ce137d96ba7d8b71dbcd1da",
+        "packages/workflows/tests/factory-graduation.test.ts": "1cfeaa316df10c14991cfaf5cdcee34d6e634cce",
+        "mailmypdf/src/components/studio-command-center.tsx": "d4b13993e88bcacb45f0fe10dfe3385a88a098f1",
+        "mailmypdf/src/routes/api.studio.workflows.readiness.ts": "630270d9db60ce47e5a3eab320be238c52eaa586",
+        ".github/workflows/reference-journeys-ci.yml": "7be9d1ceb811551361eef722fc0b3f763339e9e3",
+        "mailmypdf/WORKFLOW_INVENTORY.json": "5b4b452ffad9f259cb7402c00f9535f71aa734a3",
+        "plugins/mailmypdf/submission-materials.json": "ad097591d5c5912130b6ae5eb5458ebb82b53edb",
+        "mailmypdf/tests/workflow-registry.test.ts": "e5d1f57b409f2d9dfbd46c434b1e5159bb79d7a4",
+        "packages/workflows/tests/workflow-execution-registry.test.ts": "40a7f7857d9611b6fbf8f29252aa149145fc3332",
+        "private-office/workflows/family-trust-asset-inventory/config.ts": "dd07b84c832f4868a68620c4d94fe40ba05bbf84",
+        "private-office/workflows/family-trust-beneficiary-communication/config.ts": "fa4f54753ee23bce4ec5afcb07c832223eda6e33",
+        "private-office/workflows/family-trust-distribution-request/config.ts": "495cd230e1ac42df8e7fc742c0f88e425508b858",
+        "private-office/workflows/family-trust-successor-trustee-transition/config.ts": "09846e7a045e82bd1ebbeb8195817f1cbb425592",
+        "private-office/workflows/probate-beneficiary-update/config.ts": "e845ed7cb2882c1876c17484a5d9188a8c6bbc49",
+        "private-office/workflows/probate-creditor-notice/config.ts": "5fdfdc781bc07e010c84b999a40399799162431c",
+        "private-office/workflows/probate-estate-administration/config.ts": "ffdb17b74be0f309c1c40fb5344194aad563060e",
+        "private-office/workflows/probate-executor-document-request/config.ts": "045ea43278aecab9615ac88742316cddcaf127a9"
+      },
+      "reason": "Reviewed PR #153 and exact 12-commit tip. PR #169 merged the complete read-only factory graduation engine, CI, Studio queue, admin readiness and tests on the canonical host. Main already has the 449-workflow registry and inventory, the five recovery annotation justifications, and the eight noindex catalog-only probate/trust configs with clearer non-executable notices (intentionally superseding old generic SEO copy). Existing dynamic registry/execution tests protect counts. Do not restore older side changes over newer factory/remote approval architecture."
+    }
+  ]
+}

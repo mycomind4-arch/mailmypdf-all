@@ -423,7 +423,7 @@ export async function handleStripeWebhook(req: Request) {
 
   try {
     const body = await req.text();
-    event = getStripe().webhooks.constructEvent(
+    event = await getStripe().webhooks.constructEventAsync(
       body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET || ""

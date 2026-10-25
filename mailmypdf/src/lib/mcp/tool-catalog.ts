@@ -1,4 +1,4 @@
-import { PACKET_REVIEW_RESOURCE_URI } from "./ui-resource-ids";
+import { PACKET_REVIEW_RESOURCE_URI, RECOVERY_SCAN_RESOURCE_URI, RECOVERY_CASE_RESOURCE_URI } from "./ui-resource-ids";
 import {
   assessConnectorCapabilities,
   connectorCapabilityVersion,
@@ -10,7 +10,7 @@ import {
   type ConnectorCapabilityRequirement,
 } from "@mailmypdf/workflows/connector-readiness";
 
-export const MCP_CONNECTOR_VERSION = "0.11.0";
+export const MCP_CONNECTOR_VERSION = "0.15.0";
 export const MCP_CONNECTOR_CONTRACT_VERSION = "mailmypdf.connector/v2";
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -110,7 +110,228 @@ const assistantFileSchema = objectSchema(
 );
 
 
+const recoveryTransactionsSchema = {
+  type: "array",
+  maxItems: 2000,
+  items: objectSchema(
+    {
+      id: { type: "string", maxLength: 512 },
+      accountId: {
+        type: "string",
+        maxLength: 512,
+        description:
+          "Stable source account alias; omit account numbers and credentials.",
+      },
+      merchant: { type: "string", maxLength: 512 },
+      amountMinor: {
+        type: "integer",
+        minimum: 1,
+        maximum: Number.MAX_SAFE_INTEGER,
+      },
+      currency: { type: "string", pattern: "^[A-Z]{3}$" },
+      postedAt: { type: "string", format: "date-time" },
+      state: { type: "string", enum: ["settled", "pending", "reversed"] },
+      kind: { type: "string", enum: ["debit", "credit"] },
+      invoiceId: { type: "string", maxLength: 512 },
+      reversesTransactionId: { type: "string", maxLength: 512 },
+    },
+    [
+      "id",
+      "accountId",
+      "merchant",
+      "amountMinor",
+      "currency",
+      "postedAt",
+      "state",
+      "kind",
+    ],
+  ),
+};
+const recoveryIdSchema = { type: "string", format: "uuid" };
+const recoveryTextSchema = { type: "string", minLength: 1, maxLength: 4000 };
+const recoveryMoneySchema = objectSchema(
+  {
+    amountMinor: {
+      type: "integer",
+      minimum: 0,
+      maximum: Number.MAX_SAFE_INTEGER,
+    },
+    currency: { type: "string", pattern: "^[A-Z]{3}$" },
+  },
+  ["amountMinor", "currency"],
+);
+const recoveryEventSchema = {
+  oneOf: [
+    ...["activate", "resume", "cancel"].map((type) =>
+      objectSchema({ type: { const: type } }, ["type"]),
+    ),
+    objectSchema(
+      { type: { const: "attach-evidence" }, evidenceId: recoveryIdSchema },
+      ["type", "evidenceId"],
+    ),
+    objectSchema(
+      { type: { const: "link-matter" }, matterId: recoveryIdSchema },
+      ["type", "matterId"],
+    ),
+    objectSchema(
+      {
+        type: { const: "wait" },
+        reason: recoveryTextSchema,
+        dueAt: { type: "string", format: "date-time" },
+      },
+      ["type", "reason"],
+    ),
+    objectSchema(
+      {
+        type: { const: "resolve" },
+        outcome: recoveryTextSchema,
+        evidenceIds: {
+          type: "array",
+          minItems: 1,
+          maxItems: 1000,
+          items: recoveryIdSchema,
+        },
+        recoveredValue: recoveryMoneySchema,
+      },
+      ["type", "outcome", "evidenceIds"],
+    ),
+  ],
+};
+
 export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
+  {
+    name: "scan_recovery_candidates",
+    title: "Scan for possible duplicate charges",
+    description:
+      "Screen transaction data explicitly supplied by the connected user for possible duplicate settled charges. Use integer minor-unit amounts, preserve provider transaction ids, and include invoice/refund links only when verified from evidence. This does not access bank accounts, determine money owed, send disputes, or create matters. Present candidates for evidence review before recommending a certified workflow.",
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
+      },
+      ["transactions"],
+    ),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_SCAN_RESOURCE_URI },
+      "openai/outputTemplate": RECOVERY_SCAN_RESOURCE_URI,
+    },
+  },
+  {
+    name: "save_recovery_case",
+    title: "Save a recovery case",
+    description:
+      "After the user explicitly agrees, recompute and save one supplied duplicate-charge candidate as a private intake case. Supply the same transaction records and candidate id from the scan. State the desired outcome and preserve a retry key. Supplied records remain unverified provenance; saving does not approve correspondence, access accounts, or prove money owed.",
+    inputSchema: objectSchema(
+      {
+        transactions: recoveryTransactionsSchema,
+        candidate_id: { type: "string", minLength: 1, maxLength: 4000 },
+        desired_outcome: recoveryTextSchema,
+        user_confirmed_save: { const: true },
+        idempotency_key: idempotencyKeySchema,
+      },
+      [
+        "transactions",
+        "candidate_id",
+        "desired_outcome",
+        "user_confirmed_save",
+        "idempotency_key",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "get_recovery_case",
+    title: "Get a saved recovery case",
+    description:
+      "Read one private recovery case, its current revision, desired outcome, unverified source provenance, linked evidence and confirmed resolution. Only the authenticated owner can read it.",
+    inputSchema: objectSchema({ case_id: recoveryIdSchema }, ["case_id"]),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "list_recovery_cases",
+    title: "List saved recovery cases",
+    description:
+      "List the connected user's private recovery cases, newest first, including status, revision and source provenance. This does not scan connected accounts.",
+    inputSchema: objectSchema({
+      limit: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+    }),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
+  {
+    name: "update_recovery_case",
+    title: "Update a recovery case",
+    description:
+      "Apply one lifecycle event to an owned case using its latest expected revision. Attach owned secure document evidence or link an owned workflow matter; activate, wait with a deadline, resume, cancel, or resolve. Resolve only after explicit user confirmation and with already-linked owned evidence. Record recovered money only when confirmed. A successful provider action does not resolve a case. Reload after a revision conflict; this tool never authorizes sending.",
+    inputSchema: objectSchema(
+      {
+        case_id: recoveryIdSchema,
+        expected_revision: { type: "integer", minimum: 1, maximum: 2147483646 },
+        event: recoveryEventSchema,
+        user_confirmed_resolution: {
+          const: true,
+          description:
+            "Required for a resolve event only; records the user's explicit confirmation of the evidenced outcome.",
+        },
+      },
+      ["case_id", "expected_revision", "event"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: accountCapabilities("identity"),
+    _meta: {
+      ui: { resourceUri: RECOVERY_CASE_RESOURCE_URI, visibility: ["model", "app"] },
+      "openai/outputTemplate": RECOVERY_CASE_RESOURCE_URI,
+      "openai/widgetAccessible": true,
+    },
+  },
   {
     name: "find_workflow",
     title: "Find a MailMyPDF workflow",
@@ -176,11 +397,12 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
           },
           required: ["ready", "display", "brand", "last4"],
         },
+        paymentRevision: integer("Opaque saved-payment revision. Echo this exact value only after showing the current saved-payment display and obtaining explicit charge/send authorization."),
         setupUrl: string("MailMyPDF account page for optional one-time saved-payment setup."),
         chargingAuthorized: { type: "boolean", const: false },
         note: string("Safety guidance explaining that saved payment does not authorize a charge."),
       },
-      ["accountReady", "payment", "setupUrl", "chargingAuthorized", "note"],
+      ["accountReady", "payment", "paymentRevision", "setupUrl", "chargingAuthorized", "note"],
     ),
     annotations: {
       readOnlyHint: true,
@@ -535,6 +757,52 @@ export const MAILMYPDF_MCP_TOOLS: readonly MailMyPdfMcpTool[] = [
     securitySchemes: oauth(...MCP_OAUTH_SCOPES),
     capabilityRequirements: [
       ...capabilities("pricing", "approval"),
+      capabilityRequirement("payment", { requiresApproval: false }),
+    ],
+  },
+  {
+    name: "charge_and_send_direct_pdf_mail",
+    title: "Charge saved payment and send approved mailing",
+    description:
+      "Charge the connected account's verified saved payment method for the exact already-approved direct/conversational PDF and immediately submit that mailing to the configured provider. Use only after get_payment_readiness shows the current saved-payment display and the user explicitly authorizes that card, the exact approved amount, and immediate mailing. The server re-verifies account ownership, PDF hash, price, saved-payment revision, both postal addresses, and the single payment path before touching Stripe. Retries are idempotent and resume fulfillment after a successful charge instead of charging again. Raw card data is never accepted.",
+    inputSchema: objectSchema(
+      {
+        order_id: string("Approved MailMyPDF direct-mail order id."),
+        expected_packet_sha256: string("Exact approved PDF SHA-256 shown to the user."),
+        expected_total_cents: integer("Exact approved total in cents shown to the user."),
+        expected_payment_revision: integer("Exact paymentRevision returned by get_payment_readiness for the saved card the user authorized."),
+        authorize_saved_payment: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly authorizes charging the displayed saved payment method for this exact amount.",
+        },
+        user_confirmed_send: {
+          type: "boolean",
+          const: true,
+          description:
+            "Must be true only after the user explicitly asks to send this exact approved mailing now.",
+        },
+      },
+      [
+        "order_id",
+        "expected_packet_sha256",
+        "expected_total_cents",
+        "expected_payment_revision",
+        "authorize_saved_payment",
+        "user_confirmed_send",
+      ],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    securitySchemes: oauth(...MCP_OAUTH_SCOPES),
+    capabilityRequirements: [
+      ...capabilities("pricing", "approval"),
+      capabilityRequirement("savedPayment", { requiresApproval: false }),
       capabilityRequirement("payment", { requiresApproval: false }),
     ],
   },

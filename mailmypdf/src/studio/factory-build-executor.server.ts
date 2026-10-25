@@ -1,0 +1,526 @@
+import type {
+  FactoryBuildArtifact,
+  FactoryBuildCheck,
+  FactoryJob,
+} from "@mailmypdf/workflows";
+import { findStudioProject, resolveProjectRoot } from "@/studio/domain/studio-project";
+import {
+  failPersistentFactoryAcceptance,
+  loadPersistentFactoryJob,
+  recordPersistentFactoryAcceptance,
+  recordPersistentFactoryBuildArtifact,
+  startPersistentFactoryAcceptance,
+} from "@/studio/factory-job.server";
+import {
+  type GeneratedNoticeResponseProfile,
+  type GeneratedRecordsRequestProfile,
+  noticeResponseProfileFromJob,
+  profileRegistryPaths,
+  recordsRequestProfileFromJob,
+  renderFactoryLandingConfig,
+  renderGeneratedNoticeResponseProfiles,
+  renderGeneratedRecordsRequestProfiles,
+} from "@/studio/factory-proposal-plan";
+
+function normalizeOutput(value: string | undefined, max = 4_000): string {
+  const text = (value ?? "").trim();
+  return text.length <= max ? text : text.slice(-max);
+}
+
+function expectedChangedPath(job: FactoryJob, changedPath: string): boolean {
+  if (!job.build) return false;
+  const registry = profileRegistryPaths(job);
+  const specPath =
+    `${job.build.sectionId}/workflows/${job.build.slug}/workflow.spec.json`;
+  const configPath =
+    `${job.build.sectionId}/workflows/${job.build.slug}/config.ts`;
+  return (
+    job.build.filePaths.includes(changedPath) ||
+    changedPath === specPath ||
+    (!job.build.request.adoptExisting && changedPath === configPath) ||
+    changedPath === registry.specs ||
+    changedPath === registry.generated ||
+    changedPath === "packages/workflows/src/canonical-workflows.json" ||
+    changedPath === "mailmypdf/WORKFLOW_INVENTORY.json"
+  );
+}
+
+async function runCommand(input: {
+  cwd: string;
+  command: string;
+  args: readonly string[];
+  id: string;
+}): Promise<FactoryBuildCheck> {
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+  const commandText = [input.command, ...input.args].join(" ");
+  try {
+    const { stdout, stderr } = await run(input.command, [...input.args], {
+      cwd: input.cwd,
+      maxBuffer: 30 * 1024 * 1024,
+      env: process.env,
+    });
+    return Object.freeze({
+      id: input.id,
+      command: commandText,
+      ok: true,
+      summary:
+        normalizeOutput([stdout, stderr].filter(Boolean).join("\n")) ||
+        "Command completed successfully.",
+    });
+  } catch (cause) {
+    const error = cause as Error & { stdout?: string; stderr?: string };
+    return Object.freeze({
+      id: input.id,
+      command: commandText,
+      ok: false,
+      summary:
+        normalizeOutput(
+          [error.stdout, error.stderr, error.message].filter(Boolean).join("\n"),
+        ) || "Command failed.",
+    });
+  }
+}
+
+async function git(
+  cwd: string,
+  args: readonly string[],
+): Promise<{ stdout: string; stderr: string }> {
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+  return run("git", [...args], {
+    cwd,
+    maxBuffer: 20 * 1024 * 1024,
+    env: process.env,
+  });
+}
+
+export async function executePersistentFactoryAcceptance(input: {
+  jobId: string;
+  actorId: string;
+}): Promise<FactoryJob> {
+  const current = await loadPersistentFactoryJob(input.jobId);
+  if (!current) throw new Error("Factory job was not found.");
+  if (
+    current.stage !== "acceptance" ||
+    current.status !== "queued" ||
+    !current.build
+  ) {
+    throw new Error(
+      "Factory job is not ready for supervised acceptance execution.",
+    );
+  }
+  if (
+    !current.build.request.adoptExisting &&
+    current.build.request.startTemplate === "records-request" &&
+    !current.build.slug.endsWith("-records-request")
+  ) {
+    throw new Error(
+      "Generated Records Request workflow IDs must end in -records-request.",
+    );
+  }
+  if (
+    !current.build.request.adoptExisting &&
+    current.build.request.startTemplate === "notice-response" &&
+    !current.build.slug.endsWith("-response")
+  ) {
+    throw new Error(
+      "Generated Notice Respond workflow IDs must end in -response.",
+    );
+  }
+  if (
+    current.build.request.startTemplate === "notice-response" &&
+    !current.build.request.noticeProfile
+  ) {
+    throw new Error(
+      "Notice Respond supervised builds require a reviewer-authored noticeProfile.",
+    );
+  }
+
+  const started = await startPersistentFactoryAcceptance({
+    jobId: current.id,
+    actorId: input.actorId,
+  });
+
+  const project = findStudioProject("mailmypdf");
+  if (!project) throw new Error("MailMyPDF Studio project is not configured.");
+
+  const fs = await import("node:fs/promises");
+  const fsSync = await import("node:fs");
+  const path = (await import("node:path")).default;
+  const os = await import("node:os");
+  const rootDir = await resolveProjectRoot(project);
+  const branch = `factory/job-${started.id.slice(0, 8)}-${started.build!.slug}`;
+  let tempRoot = "";
+  let worktree = "";
+
+  try {
+    await git(rootDir, ["fetch", "origin", project.defaultBranch]);
+    const { stdout: baseOut } = await git(rootDir, [
+      "rev-parse",
+      `origin/${project.defaultBranch}`,
+    ]);
+    const baseSha = baseOut.trim();
+    if (!/^[0-9a-f]{40}$/i.test(baseSha)) {
+      throw new Error("Unable to resolve the factory build base commit.");
+    }
+
+    const localBranch = await runCommand({
+      cwd: rootDir,
+      command: "git",
+      args: ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`],
+      id: "branch-local-availability",
+    });
+    if (localBranch.ok) {
+      throw new Error(`Factory proposal branch already exists locally: ${branch}`);
+    }
+    const remoteBranch = await git(rootDir, [
+      "ls-remote",
+      "--heads",
+      "origin",
+      branch,
+    ]);
+    if (remoteBranch.stdout.trim()) {
+      throw new Error(`Factory proposal branch already exists on origin: ${branch}`);
+    }
+
+    tempRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), `mailmypdf-factory-${started.id.slice(0, 8)}-`),
+    );
+    worktree = path.join(tempRoot, "worktree");
+    await git(rootDir, [
+      "worktree",
+      "add",
+      "-b",
+      branch,
+      worktree,
+      `origin/${project.defaultBranch}`,
+    ]);
+
+    const build = started.build!;
+    const workflowRoot = path.join(
+      worktree,
+      build.sectionId,
+      "workflows",
+      build.slug,
+    );
+    const configPath = path.join(workflowRoot, "config.ts");
+    const specPath = path.join(workflowRoot, "workflow.spec.json");
+    const adopting = build.request.adoptExisting === true;
+
+    const canonical = JSON.parse(
+      await fs.readFile(
+        path.join(worktree, "packages/workflows/src/canonical-workflows.json"),
+        "utf8",
+      ),
+    ) as Array<{
+      id?: string;
+      label?: string;
+      execution?: unknown;
+      authority?: { module?: string; reviewedAt?: string };
+      legacyGoldId?: string;
+    }>;
+    const existingCanonical = canonical.find(
+      (entry) => entry.id === build.canonicalId,
+    );
+
+    let preservedConfig: string | null = null;
+    if (adopting) {
+      if (!existingCanonical) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} disappeared from the build base.`,
+        );
+      }
+      if (existingCanonical.execution) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} became executable before adoption.`,
+        );
+      }
+      if (existingCanonical.label !== build.request.label) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} label changed before adoption.`,
+        );
+      }
+      if (!fsSync.existsSync(configPath)) {
+        throw new Error(
+          `Catalog adoption requires reviewed public config at ${build.sectionId}/workflows/${build.slug}/config.ts.`,
+        );
+      }
+      if (fsSync.existsSync(specPath)) {
+        throw new Error(
+          `Catalog workflow ${build.canonicalId} already has workflow.spec.json and requires manual reconciliation.`,
+        );
+      }
+      preservedConfig = await fs.readFile(configPath, "utf8");
+    } else {
+      if (existingCanonical) {
+        throw new Error(
+          `Canonical workflow ${build.canonicalId} already exists; use catalog adoption.`,
+        );
+      }
+      if (fsSync.existsSync(configPath) || fsSync.existsSync(specPath)) {
+        throw new Error(
+          `Workflow ${build.canonicalId} already exists on the build base.`,
+        );
+      }
+    }
+
+    const profileRegistry = profileRegistryPaths(started);
+    const profileSpecsPath = path.join(worktree, profileRegistry.specs);
+    const existingProfiles = JSON.parse(
+      await fs.readFile(profileSpecsPath, "utf8"),
+    ) as Array<{ workflowId: string }>;
+    if (
+      existingProfiles.some((profile) => profile.workflowId === build.slug)
+    ) {
+      throw new Error(`Generated profile ${build.slug} already exists.`);
+    }
+
+    const generatedProfile =
+      build.request.startTemplate === "records-request"
+        ? recordsRequestProfileFromJob(started)
+        : noticeResponseProfileFromJob(started);
+    const nextProfiles = [...existingProfiles, generatedProfile].sort(
+      (left, right) => left.workflowId.localeCompare(right.workflowId),
+    );
+
+    await fs.mkdir(workflowRoot, { recursive: true });
+    if (!adopting) {
+      await fs.writeFile(configPath, renderFactoryLandingConfig(started));
+    }
+    await fs.writeFile(
+      specPath,
+      JSON.stringify({
+        schemaVersion: "mailmypdf.workflow-materialization/v1",
+        id: build.canonicalId,
+        label: build.request.label,
+        execution: {
+          kind: "platform",
+          entry: "workspace-start",
+          policyFamily: build.request.startTemplate,
+        },
+        ...(build.request.authority
+          ? { authority: build.request.authority }
+          : {}),
+        ...(build.request.legacyGoldId
+          ? { legacyGoldId: build.request.legacyGoldId }
+          : {}),
+        startTemplate: build.request.startTemplate,
+      }, null, 2) + "\n",
+    );
+    await fs.writeFile(
+      profileSpecsPath,
+      JSON.stringify(nextProfiles, null, 2) + "\n",
+    );
+    await fs.writeFile(
+      path.join(worktree, profileRegistry.generated),
+      build.request.startTemplate === "records-request"
+        ? renderGeneratedRecordsRequestProfiles(
+            nextProfiles as GeneratedRecordsRequestProfile[],
+          )
+        : renderGeneratedNoticeResponseProfiles(
+            nextProfiles as GeneratedNoticeResponseProfile[],
+          ),
+    );
+
+    const install = await runCommand({
+      cwd: worktree,
+      command: "pnpm",
+      args: ["install", "--frozen-lockfile"],
+      id: "install",
+    });
+    if (!install.ok) {
+      throw new Error(`Dependency install failed: ${install.summary}`);
+    }
+
+    const specRelative =
+      `${build.sectionId}/workflows/${build.slug}/workflow.spec.json`;
+    const materialize = await runCommand({
+      cwd: worktree,
+      command: "pnpm",
+      args: [
+        "--filter",
+        "./mailmypdf",
+        "exec",
+        "tsx",
+        "../scripts/materialize-workflow-spec.ts",
+        "--write",
+        ...(adopting ? ["--adopt"] : []),
+        specRelative,
+      ],
+      id: "materialize",
+    });
+    if (!materialize.ok) {
+      throw new Error(`Workflow materialization failed: ${materialize.summary}`);
+    }
+
+    if (
+      adopting &&
+      preservedConfig !== null &&
+      (await fs.readFile(configPath, "utf8")) !== preservedConfig
+    ) {
+      throw new Error(
+        `Catalog adoption changed reviewed public config for ${build.canonicalId}.`,
+      );
+    }
+
+    const { stdout: statusOut } = await git(worktree, ["status", "--porcelain"]);
+    const changedFiles = statusOut
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.slice(3).trim().replaceAll("\\", "/"));
+    if (changedFiles.length === 0) {
+      throw new Error("Factory build produced no changed files.");
+    }
+    const unexpected = changedFiles.filter(
+      (changed) => !expectedChangedPath(started, changed),
+    );
+    if (unexpected.length > 0) {
+      throw new Error(
+        `Factory build produced unexpected paths: ${unexpected.join(", ")}`,
+      );
+    }
+
+    await git(worktree, ["add", "--", ...changedFiles]);
+    await git(worktree, [
+      "-c",
+      "user.name=MailMyPDF Factory",
+      "-c",
+      "user.email=factory@localhost",
+      "commit",
+      "-m",
+      `Factory proposal: ${build.canonicalId}`,
+    ]);
+    const { stdout: commitOut } = await git(worktree, ["rev-parse", "HEAD"]);
+    const commitSha = commitOut.trim();
+
+    const artifact: FactoryBuildArtifact = Object.freeze({
+      branch,
+      baseSha,
+      commitSha,
+      specPath: specRelative,
+      profileRegistryPath: profileRegistry.specs,
+      configPath: `${build.sectionId}/workflows/${build.slug}/config.ts`,
+      changedFiles: Object.freeze(changedFiles),
+      checks: Object.freeze([]),
+      builtAt: new Date().toISOString(),
+    });
+    await recordPersistentFactoryBuildArtifact({
+      jobId: started.id,
+      actorId: input.actorId,
+      artifact,
+    });
+
+    const checks: FactoryBuildCheck[] = [];
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: [
+          "--filter",
+          "./mailmypdf",
+          "exec",
+          "tsx",
+          "../scripts/materialize-workflow-spec.ts",
+          specRelative,
+        ],
+        id: "materialization-drift",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: ["--filter", "@mailmypdf/workflows", "test"],
+        id: "workflow-factory-chat",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: ["--filter", "@mailmypdf/workflows", "build"],
+        id: "workflow-package-build",
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: [
+          "--filter",
+          "./mailmypdf",
+          "exec",
+          "tsx",
+          "../scripts/verify-factory-workflow.ts",
+          build.canonicalId,
+        ],
+        id: "generated-workflow-certification",
+      }),
+    );
+    const familyPackage =
+      build.request.startTemplate === "records-request"
+        ? "@mailmypdf/records-request"
+        : "@mailmypdf/notice-respond";
+    const familyCheckPrefix =
+      build.request.startTemplate === "records-request"
+        ? "records-request"
+        : "notice-response";
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: ["--filter", familyPackage, "test"],
+        id: `${familyCheckPrefix}-tests`,
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "pnpm",
+        args: ["--filter", familyPackage, "test:acceptance"],
+        id: `${familyCheckPrefix}-acceptance`,
+      }),
+    );
+    checks.push(
+      await runCommand({
+        cwd: worktree,
+        command: "bash",
+        args: ["-lc", 'test -z "$(git status --porcelain)"'],
+        id: "clean-generated-tree",
+      }),
+    );
+
+    return await recordPersistentFactoryAcceptance({
+      jobId: started.id,
+      actorId: input.actorId,
+      checks,
+    });
+  } catch (cause) {
+    const message =
+      cause instanceof Error ? cause.message : "Factory execution failed.";
+    const latest = await loadPersistentFactoryJob(started.id).catch(() => null);
+    if (latest?.stage === "acceptance" && latest.status === "running") {
+      await failPersistentFactoryAcceptance({
+        jobId: started.id,
+        actorId: input.actorId,
+        code: "FACTORY_ACCEPTANCE_EXECUTION_FAILED",
+        message,
+      }).catch(() => undefined);
+    }
+    throw new Error(message);
+  } finally {
+    if (worktree) {
+      await git(rootDir, ["worktree", "remove", "--force", worktree]).catch(
+        () => undefined,
+      );
+    }
+    if (tempRoot) {
+      await fs.rm(tempRoot, { recursive: true, force: true }).catch(
+        () => undefined,
+      );
+    }
+  }
+}

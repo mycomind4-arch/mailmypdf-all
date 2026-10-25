@@ -261,16 +261,20 @@ test("isEngineImplemented returns true for document-action", () => {
   assert.equal(isEngineImplemented("document-action"), true);
 });
 
-test("isEngineImplemented returns false for unimplemented engines", () => {
+test("isEngineImplemented distinguishes jurisdictional policy from unimplemented engines", () => {
+  assert.equal(isEngineImplemented("jurisdictional"), true);
   assert.equal(isEngineImplemented("dispute"), false);
   assert.equal(isEngineImplemented("records"), false);
   assert.equal(isEngineImplemented("appeal"), false);
-  assert.equal(isEngineImplemented("jurisdictional"), false);
+  const jurisdictional = getEnginePolicy("jurisdictional");
+  assert.ok(jurisdictional);
+  assert.equal(isStageRequired(jurisdictional, "reviewBoundary"), true);
+  assert.equal(stageBlocksOnFailure(jurisdictional, "submissionBoundary"), true);
 });
 
-test("listImplementedEngines returns only document-action", () => {
+test("listImplementedEngines includes both registered policies", () => {
   const engines = listImplementedEngines();
-  assert.deepEqual(engines, ["document-action"]);
+  assert.deepEqual(engines, ["document-action", "jurisdictional"]);
 });
 
 test("getEnginePolicy returns undefined for unknown engine", () => {
@@ -324,14 +328,11 @@ test("getStageDef returns undefined for unknown stage", () => {
 
 // ═══ Engine Extensibility Tests ═══
 
-test("engine dispatch has extension points for 5 engines", () => {
-  // document-action is implemented, the rest are not yet
+test("engine dispatch has extension points for five engine types", () => {
   assert.equal(isEngineImplemented("document-action"), true);
+  assert.equal(isEngineImplemented("jurisdictional"), true);
   assert.equal(isEngineImplemented("dispute"), false);
   assert.equal(isEngineImplemented("appeal"), false);
   assert.equal(isEngineImplemented("records"), false);
-  assert.equal(isEngineImplemented("jurisdictional"), false);
-  // The extension point is the ENGINE_POLICIES record — adding a new
-  // engine policy there makes it available. No code changes needed
-  // in the pipeline executor — it just looks up the policy.
+  // Unknown engine policies are not treated as implemented.
 });

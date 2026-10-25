@@ -35,6 +35,18 @@ export const Route = createFileRoute("/api/internal/scheduled-mailings")({
             ? await processScheduledMailing(scheduleId)
             : await processDueScheduledMailings(limit);
 
+          // A due batch handles individual failures without throwing so other
+          // schedules can continue. Do not report the batch as healthy when
+          // any attempted execution failed: monitoring must retry/escalate.
+          // Explicitly deferred schedules are not failures.
+          if ("results" in result && result.results.some((entry) => entry.error)) {
+            log.error("scheduled mailing batch contained failed executions");
+            return attachRequestId(
+              Response.json({ ok: false, error: "Scheduled mailing processing failed" }, { status: 500 }),
+              requestId,
+            );
+          }
+
           log.info("scheduled mail job processed", {
             scheduleId,
             dueBatch: !scheduleId,

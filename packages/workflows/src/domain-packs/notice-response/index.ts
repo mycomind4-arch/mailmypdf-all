@@ -8,3 +8,5 @@ export * from "./cp2000-evidence.js";
 export * from "./cp2000-research.js";
 export * from "./cp2000-validation.js";
 export * from "./cp2000-strategy.js";
+
+export * from "./factory-artifact.js";

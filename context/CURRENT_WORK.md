@@ -1,6 +1,16 @@
 # Current Work — MailMyPDF migration
 
-Updated: 2026-09-23
+Updated: 2026-10-04
+
+## Active connector slice — saved recovery case app (2026-10-04)
+
+Connector **0.15.0 / 38 tools / 3 static resources**. Existing save/get/list/update case tools now attach `ui://mailmypdf/recovery-case-v1.html`. Users can reopen cases, review owned document labels/deadlines and use revision-bound start/resume/wait/close/outcome controls. Resolution requires selected linked evidence and explicit confirmation. Candidate value remains distinct from confirmed recovery. This is a case result view; certified workflow starts still use `@mailmypdf/step-workflow`.
+
+Author `mailmypdf/src/lib/mcp/recovery-case-client.ts`; regenerate with `node mailmypdf/scripts/build-recovery-case-app.mjs`. Prebuild checks committed generated source. The portable bridge and bounded ChatGPT alias handle uncertain edits, host theme/size/cancellation/teardown. `recovery-case-evidence.server.ts` selects only owned linked metadata and withholds unavailable/deleting records and storage paths.
+
+Verified: **93 focused tests**, 97.58% line/84.15% branch coverage, actual sandboxed Chromium journeys at desktop/tablet/phone widths, build/SSR fixer/root types/new-module lint/shared execution guard pass. Broad tests retain **1 JS and 3 TS baseline failures**, **18 standalone type diagnostics**. Evidence/harness/screenshots: `docs/verification/recovery-case-app-ecc.md`.
+
+Not deployed; hosted migration and real ChatGPT host verification pending. No OAuth/provider/payment/mail activation. Next: hosted migration/advisors, privacy export/retention integration, exact-action human approval, encrypted provider connections and owned worker/receipt plumbing. Deadlines are not automatic reminders.
 
 ## Execution architecture: step-workflow is the standard, not legacy
 

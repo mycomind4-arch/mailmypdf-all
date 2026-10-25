@@ -1,0 +1,306 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+
+const root = path.resolve(import.meta.dirname, "..");
+
+function read(relative: string) {
+  return fs.readFileSync(path.join(root, relative), "utf8");
+}
+
+test("factory job persistence stays admin-only and revision-guarded", () => {
+  const migration = read("supabase/migrations/20260930210000_factory_jobs.sql");
+
+  assert.match(migration, /alter table public\.factory_jobs enable row level security/);
+  assert.match(migration, /alter table public\.factory_job_events enable row level security/);
+  assert.match(migration, /revoke all on table public\.factory_jobs from public, anon, authenticated/);
+  assert.match(migration, /revoke all on table public\.factory_job_events from public, anon, authenticated/);
+  assert.match(migration, /grant execute on function public\.create_factory_job[\s\S]*?to service_role/);
+  assert.match(migration, /grant execute on function public\.transition_factory_job[\s\S]*?to service_role/);
+  assert.match(migration, /and revision = p_expected_revision/);
+  assert.match(migration, /Factory job revision conflict/);
+  assert.match(migration, /unique \(job_id, revision\)/i);
+});
+
+test("factory runner persists every transition through the atomic RPC", () => {
+  const server = read("src/studio/factory-job.server.ts");
+
+  assert.match(server, /rpc\("create_factory_job"/);
+  assert.match(server, /rpc\("transition_factory_job"/);
+  assert.match(server, /restoreFactoryJobSnapshot/);
+  assert.match(server, /current\.revision \+ 1/);
+  assert.match(server, /Factory job changed concurrently/);
+  assert.match(server, /job\.stage === "intake"/);
+  assert.match(server, /job\.stage === "match"/);
+  assert.match(server, /job\.stage === "certify"/);
+  assert.match(server, /job\.stage === "build"/);
+  assert.doesNotMatch(server, /prepare_checkout|charge|submit.*mail|lob/i);
+});
+
+test("persistent factory endpoints require verified administrator access", () => {
+  const routes = [
+    "src/routes/api/studio/workflows/jobs/index.ts",
+    "src/routes/api/studio/workflows/jobs/$id/index.ts",
+    "src/routes/api/studio/workflows/jobs/$id/run.ts",
+    "src/routes/api/studio/workflows/jobs/$id/review.ts",
+    "src/routes/api/studio/workflows/jobs/$id/cancel.ts",
+  ];
+
+  for (const relative of routes) {
+    const source = read(relative);
+    assert.match(source, /adminFactoryAccess\(request\)/, relative);
+    assert.match(source, /if \(access\.error\) return access\.error/, relative);
+    assert.doesNotMatch(source, /studioAccessError\(/, relative);
+  }
+});
+
+test("Studio factory UI creates durable jobs and keeps review explicit", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /\/api\/studio\/workflows\/jobs\//);
+  assert.match(page, /Start factory job/);
+  assert.match(page, /Approve next stage/);
+  assert.match(page, /Canonical workflow ID/);
+  assert.match(page, /Factory family/);
+  assert.match(page, /No code is published automatically/);
+  assert.match(page, /Factory job queue/);
+  assert.doesNotMatch(page, /prepare_checkout|submit_mail_order|charge_card/);
+});
+
+
+test("factory machine executors are local-admin-only and separate from remote orchestration", () => {
+  const buildRoute = read("src/routes/api/studio/workflows/jobs/$id/build.ts");
+  const publishRoute = read("src/routes/api/studio/workflows/jobs/$id/publish.ts");
+  const access = read("src/studio/access.ts");
+
+  assert.match(buildRoute, /localAdminFactoryAccess\(request\)/);
+  assert.match(buildRoute, /executePersistentFactoryAcceptance/);
+  assert.match(publishRoute, /localAdminFactoryAccess\(request\)/);
+  assert.match(publishRoute, /publishPersistentFactoryProposal/);
+  assert.match(access, /Factory machine execution is available only on the local development server/);
+  assert.match(access, /return adminFactoryAccess\(request\)/);
+});
+
+test("supervised executor isolates proposal work and has no publication/provider side effects", () => {
+  const executor = read("src/studio/factory-build-executor.server.ts");
+
+  assert.match(executor, /git\(rootDir, \["fetch", "origin", project\.defaultBranch\]\)/);
+  assert.match(executor, /"worktree",\s*"add",\s*"-b"/);
+  assert.match(executor, /expectedChangedPath/);
+  assert.match(executor, /Factory build produced unexpected paths/);
+  const planner = read("src/studio/factory-proposal-plan.ts");
+  assert.match(planner, /generated-profile-specs\.json/);
+  assert.match(executor, /materialize-workflow-spec\.ts/);
+  assert.match(executor, /verify-factory-workflow\.ts/);
+  assert.match(executor, /@mailmypdf\/workflows", "test"/);
+  assert.match(executor, /@mailmypdf\/records-request/);
+  assert.match(executor, /@mailmypdf\/notice-respond/);
+  assert.match(executor, /test:acceptance/);
+  assert.match(executor, /recordPersistentFactoryBuildArtifact/);
+  assert.match(executor, /recordPersistentFactoryAcceptance/);
+
+  assert.doesNotMatch(executor, /git\([^\n]*\["push"/);
+  assert.doesNotMatch(executor, /merge_pull_request|create_pull_request|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("generated Records Request profiles stay separate from hand-authored core profiles", () => {
+  const profiles = read("../packages/workflows/src/domain-packs/records-request/profiles.ts");
+  const generated = read("../packages/workflows/src/domain-packs/records-request/generated-profiles.ts");
+  const runtime = read("../packages/workflows/src/domain-packs/records-request/runtime-policy.ts");
+
+  assert.match(profiles, /CORE_RECORDS_REQUEST_WORKFLOW_PROFILES/);
+  assert.match(profiles, /GENERATED_RECORDS_REQUEST_WORKFLOW_PROFILES/);
+  assert.match(generated, /machine-owned/);
+  assert.match(runtime, /RECORDS_REQUEST_WORKFLOW_PROFILES\.map/);
+});
+
+test("generated Notice Respond profiles stay separate and reviewer-authored", () => {
+  const profiles = read("../packages/workflows/src/domain-packs/notice-response/profiles.ts");
+  const generated = read("../packages/workflows/src/domain-packs/notice-response/generated-profiles.ts");
+  const executor = read("src/studio/factory-build-executor.server.ts");
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(profiles, /CORE_NOTICE_RESPONSE_WORKFLOW_PROFILES/);
+  assert.match(profiles, /GENERATED_NOTICE_RESPONSE_WORKFLOW_PROFILES/);
+  assert.match(generated, /machine-owned/);
+  assert.match(executor, /reviewer-authored noticeProfile/);
+  assert.match(page, /Reviewed notice profile JSON/);
+  assert.match(page, /does not invent legal authority, deadlines, addresses, remedies, or response modes/);
+  assert.match(page, /Non-tax notice families require a separate generic official-notice runtime/);
+});
+
+test("Studio exposes supervised execution evidence and explicit PR publication", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Run remote build/);
+  assert.match(page, /Run local fallback/);
+  assert.match(page, /Build artifact/);
+  assert.match(page, /Nothing has been pushed or published yet/);
+  assert.match(page, /Create GitHub PR/);
+  assert.match(page, /Publication artifact/);
+  assert.match(page, /Proposal published for review only/);
+  assert.match(page, /Reviewed notice profile JSON/);
+});
+
+
+test("factory publication pushes only the accepted commit and never merges or deploys", () => {
+  const executor = read("src/studio/factory-publication-executor.server.ts");
+
+  assert.match(executor, /refs\/heads\/\$\{branch\}/);
+  assert.match(executor, /Local factory proposal branch moved after acceptance/);
+  assert.match(executor, /default branch moved after factory acceptance/);
+  assert.match(executor, /ls-remote/);
+  assert.match(executor, /"push"/);
+  assert.match(executor, /findOpenPullRequestByHead/);
+  assert.match(executor, /createPullRequest/);
+  assert.match(executor, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(executor, /mergePullRequest|merge_pull_request|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("generated workflow verifier certifies the actual chat-executable field", () => {
+  const verifier = read("../scripts/verify-factory-workflow.ts");
+
+  assert.match(verifier, /!entry\.chatExecutable/);
+  assert.match(verifier, /policyFamily === "records-request"/);
+  assert.match(verifier, /policyFamily === "notice-response"/);
+  assert.doesNotMatch(verifier, /report\.executable/);
+});
+
+
+test("catalog adoption preserves reviewed config and uses materializer adoption guard", () => {
+  const executor = read("src/studio/factory-build-executor.server.ts");
+
+  assert.match(executor, /adoptExisting/);
+  assert.match(executor, /Catalog adoption requires reviewed public config/);
+  assert.match(executor, /preservedConfig/);
+  assert.match(executor, /Catalog adoption changed reviewed public config/);
+  assert.match(executor, /\.\.\.\(adopting \? \["--adopt"\] : \[\]\)/);
+  assert.match(executor, /job\.build\.filePaths\.includes\(changedPath\)/);
+  assert.doesNotMatch(
+    executor,
+    /changedPath\.startsWith\(workflowRoot\)/,
+  );
+});
+
+
+test("Studio makes catalog adoption explicit and candidate-driven", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Existing catalog candidates/);
+  assert.match(page, /Adopt catalog workflow/);
+  assert.match(page, /Adopt existing canonical catalog workflow/);
+  assert.match(page, /adoptExisting/);
+  assert.match(page, /preserves reviewed public config, authority, and legacy metadata/);
+});
+
+
+test("remote factory routes require authenticated administrator access without localhost shell access", () => {
+  const routes = [
+    "src/routes/api/studio/workflows/jobs/$id/remote-build.ts",
+    "src/routes/api/studio/workflows/jobs/$id/remote-sync.ts",
+    "src/routes/api/studio/workflows/jobs/$id/remote-approve.ts",
+  ];
+  for (const relative of routes) {
+    const source = read(relative);
+    assert.match(source, /adminFactoryAccess\(request\)/, relative);
+    assert.doesNotMatch(source, /localAdminFactoryAccess|studioAccessError/, relative);
+  }
+});
+
+test("remote factory executor pins the base, verifies recovery diffs, and never merges or deploys", () => {
+  const executor = read("src/studio/factory-remote-executor.server.ts");
+
+  assert.match(executor, /createBranchAtSha/);
+  assert.match(executor, /compareChangedFiles/);
+  assert.match(executor, /does not exactly match the reviewed proposal plan/);
+  assert.match(executor, /getCommitStatus/);
+  assert.match(executor, /recordPersistentFactoryAcceptance/);
+  assert.match(executor, /findOpenPullRequestByHead/);
+  assert.match(executor, /createPullRequest/);
+  assert.match(executor, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(executor, /mergePullRequest|merge_pull_request|deployProduction|wrangler deploy|publishProjectToCloudflare/);
+  assert.doesNotMatch(executor, /prepare_checkout|paymentIntents\.create|submit.*mail|lob/i);
+});
+
+test("remote factory proposal planning is deterministic and preserves adoption config", () => {
+  const planner = read("src/studio/factory-proposal-plan.ts");
+
+  assert.match(planner, /buildWorkflowMaterializationPlan/);
+  assert.match(planner, /buildCanonicalWorkflowRegistry/);
+  assert.match(planner, /indexable: false/);
+  assert.match(planner, /Catalog adoption requires reviewed public config/);
+  assert.match(planner, /existingConfig/);
+  assert.match(planner, /mailmypdf\/WORKFLOW_INVENTORY\.json/);
+});
+
+test("Studio exposes the remote build, CI sync, and tested-PR approval sequence", () => {
+  const page = read("src/components/WorkflowFactoryPage.tsx");
+
+  assert.match(page, /Run remote build/);
+  assert.match(page, /Check GitHub CI/);
+  assert.match(page, /Approve tested GitHub PR/);
+  assert.match(page, /Remote PR #/);
+});
+
+test("remote publication approval rechecks live base and mandatory GitHub CI", () => {
+  const server = read("src/studio/factory-remote-executor.server.ts");
+  const approval = server.slice(server.indexOf("export async function approveRemoteFactoryPublication"));
+  assert.match(approval, /provider\.getBranchSha\(repository, project\.defaultBranch\)/);
+  assert.match(approval, /provider\.getBranchSha\(repository, job\.buildArtifact\.branch\)/);
+  assert.match(approval, /provider\.getCommitStatus\(repository, job\.buildArtifact\.commitSha\)/);
+  assert.match(approval, /currentBase\.sha !== job\.buildArtifact\.baseSha/);
+  assert.match(approval, /evaluateFactoryRemoteChecks\(/);
+  assert.match(approval, /requiredChecks\(job\)/);
+  assert.match(approval, /if \(!readiness\.ready\)/);
+  assert.match(approval, /recordPersistentFactoryPublication/);
+  assert.doesNotMatch(approval, /mergePullRequest|merge_pull_request|wrangler deploy|submit.*mail/i);
+});
+
+
+test("remote factory CI synchronization pins the reviewed base and proposal head", () => {
+  const server = read("src/studio/factory-remote-executor.server.ts");
+  // CI readiness is called at runtime; importing only the type would make
+  // the final approval handler fail on an otherwise fully passing proposal.
+  assert.match(
+    server,
+    /import \{ evaluateFactoryRemoteChecks \} from "@mailmypdf\/workflows";/,
+  );
+  const sync = server.slice(
+    server.indexOf("export async function syncRemoteFactoryAcceptance"),
+    server.indexOf("export async function approveRemoteFactoryPublication"),
+  );
+  assert.match(sync, /provider\.getBranchSha\(repository, project\.defaultBranch\)/);
+  assert.match(sync, /provider\.getBranchSha\(repository, job\.buildArtifact\.branch\)/);
+  assert.match(sync, /provider\.getCommitStatus\(repository, job\.buildArtifact\.commitSha\)/);
+  assert.match(sync, /currentBase\.sha !== job\.buildArtifact\.baseSha/);
+  assert.match(sync, /remoteHead\.sha !== job\.buildArtifact\.commitSha/);
+  assert.match(sync, /evaluateFactoryRemoteChecks\(required, status\.checks\)\.ready/);
+  assert.match(sync, /if \(failed\.length > 0\)/);
+});
+
+test("background factory CI sweeps use a secret-gated Worker cron and never auto-publish", () => {
+  const route = read("src/routes/api/internal/factory-ci-sync.ts");
+  const cron = read("src/server.ts");
+  const queue = read("src/studio/factory-job.server.ts");
+  const remote = read("src/studio/factory-remote-executor.server.ts");
+  const deploy = read("deploy.sh");
+
+  assert.match(route, /getConfig\(\)\.jobs\.cleanupSecret/);
+  assert.match(route, /request\.headers\.get\("authorization"\)/);
+  assert.match(route, /status: 401/);
+  assert.match(route, /sweepFactoryRemoteCi/);
+  assert.match(route, /listPersistentPendingRemoteFactoryJobs/);
+  assert.match(route, /syncRemoteFactoryAcceptance\(\{ jobId, actorId: null \}\)/);
+  assert.match(route, /summary\.errors === 0 && summary\.failedAcceptance === 0/);
+  assert.match(cron, /"factory-ci-sync"/);
+  assert.match(cron, /Bearer \$\{cleanupSecret\}/);
+  assert.match(deploy, /"\*\/5 \* \* \* \*"/);
+  assert.match(queue, /\.eq\("stage", "acceptance"\)/);
+  assert.match(queue, /\.eq\("status", "running"\)/);
+  assert.match(queue, /job\.buildArtifact\?\.remote/);
+  assert.match(remote, /actorId: string \| null/);
+  assert.doesNotMatch(route, /approveRemoteFactoryPublication|recordPersistentFactoryPublication|mergePullRequest|publishPersistentFactoryProposal|submitOrderToLob|stripe/);
+});

@@ -3,6 +3,7 @@ import type {
   WorkflowMatterDocument,
 } from "../../matter-runtime-client.js";
 import type { WorkflowRuntimePolicy } from "../../matter-runtime-server.js";
+import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 
 /**
  * Runtime policy for SSA reconsideration requests (SSDI and SSI denials).
@@ -96,12 +97,61 @@ function assertRequiredForms(
   }
 }
 
+function chatInputFieldsForProgram(program: SsaReconsiderationProgram) {
+  const shared = [
+    { id: "claimantName", required: true },
+    { id: "claimantAddress", required: true },
+    { id: "phone", required: true },
+    { id: "representativeName", required: false },
+    { id: "responseMode", required: true },
+    { id: "confirmedReconsideration", required: true },
+    { id: "reasonsForDisagreement", required: true },
+    { id: "conditionChanges", required: false },
+    { id: "newConditions", required: false },
+    { id: "treatmentChanges", required: false },
+    { id: "medicationChanges", required: false },
+    { id: "dailyFunctionChanges", required: false },
+  ];
+
+  return [
+    ...shared,
+    ...(program === "SSDI"
+      ? [{ id: "workChanges", required: false }]
+      : [
+          { id: "incomeFacts", required: false },
+          { id: "resourceFacts", required: false },
+          { id: "livingArrangementFacts", required: false },
+          { id: "eligibilityFacts", required: false },
+        ]),
+    { id: "additionalFacts", required: false },
+    { id: "requestedOutcome", required: false },
+  ] as const;
+}
+
 export function createSsaReconsiderationRuntimePolicy(
   workflowId: SsaReconsiderationWorkflowId,
 ): WorkflowRuntimePolicy {
   const program = SSA_RECONSIDERATION_WORKFLOWS[workflowId];
 
   return Object.freeze({
+    chatContract: defineWorkflowRuntimeChatContract({
+      sourceDocument: "required",
+      inputFields: chatInputFieldsForProgram(program),
+      connectorFields: [
+        {
+          id: "recipientAddress",
+          required: true,
+          toolName: "preview_packet",
+          argumentName: "recipient",
+        },
+      ],
+      enforcedGateIds: [
+        "source-document-ready",
+        "facts-confirmed",
+        "exact-packet-review",
+        "mailing-authorization",
+      ],
+    }),
     validateMatter(input) {
       if (input.workflowId !== workflowId || input.verticalId !== VERTICAL_ID) {
         throw new Error(`${program} denial runtime identity does not match this workflow.`);

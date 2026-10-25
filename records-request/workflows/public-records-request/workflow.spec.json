@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "mailmypdf.workflow-materialization/v1",
+  "id": "records-request/public-records-request",
+  "label": "Public Records Request",
+  "execution": {
+    "kind": "platform",
+    "entry": "workspace-start",
+    "policyFamily": "records-request"
+  },
+  "legacyGoldId": "records/public-records-request",
+  "startTemplate": "records-request"
+}

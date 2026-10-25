@@ -1,5 +1,165 @@
 # MailMyPDF factory status
 
+## 2026-10-17 — Studio operational evidence
+
+- Extended the existing admin-only launch-readiness surface with GitHub processing-step evidence and serving-revision comparison. No parallel dashboard or public credential endpoint.
+- A successful workflow with skipped processing cannot pass. Missing, stale, duplicate or unavailable evidence remains review/unknown; GitHub errors are sanitized. Server-side repository/Actions token required.
+- Next explicitly approved deploy stamps its full Git SHA into generated Worker vars. Existing deployments correctly remain revision-unknown until then.
+- Manual canary/telemetry gaps now keep overall launch readiness at needs-review, even when configuration checks pass.
+- Verification: 8 focused pure evidence tests passed under Node 24; added to Workspace UI verification. Full integrated CI and hosted browser/deployment verification remain separate.
+- Remaining: durable Worker heartbeat, hosted Records Request acceptance, bounded discovery-to-job orchestration, SSA remote adapter, verified conversion/margin telemetry and branch reconciliation. No provider execution or deployment performed.
+
+
+## 2026-10-17 — First selective hardening integration from PR #152
+
+- Integrated the three secure-core missing-credential failures from audit-hardening-2026-10-07 into current main; retained all current endpoint and schedule wiring.
+- Replaced the obsolete skip-success expectation with execution of all three Bash configuration guards across four credential combinations (12 passing cases under Node 24 / Bash). Test module syntax checked. Full workspace CI remains separate; no production verification claimed.
+- Deployment now requires explicit manual dispatch from main. This preserves the user-authorized merge/sync scope without automatically releasing code.
+- Preserved factory-ci-sync and all customer mailing boundaries. No branches deleted, provider credentials changed, customer operations executed, or deployment invoked.
+- PR #152 remains partially integrated: cron failure propagation, attachment host restrictions, and other unique changes still require reconciliation. SSA cloud executor remains a separate gap.
+
+
+## 2026-10-08 — Reviewed branch retirement with durable archives
+
+- Audited all 39 remote branches at `3528bc22`. Six histories are superseded: identity foundation (both versions), three README-only verification heads, and the old family planner integrated by #149.
+- Added exact-tip/main-blob review evidence and archive-before-delete support to the existing conservative pruner. Archive tags must be verified remotely; existing tags cannot be overwritten. Open PRs/protected branches remain excluded; changed tips/evidence or archive errors fail closed.
+- Verification: 22 guard tests pass locally; all six evidence entries match fetched main. Remote Action 37831447800 passed all 22 checks, archived/deleted all six heads with zero failures; independent remote-ref verification confirmed all exact archive SHAs and absent heads. Full audit: `docs/verification/branch-consolidation-2026-10-08.md`.
+- The completed batch reduced 39 to **33 verified remote heads**. Thirteen open PRs conflict with current main and still require reconciliation; nineteen other non-PR histories remain preserved. No deployment, payment, mailing or price change.
+
+
+## 2026-10-04 — Interactive saved recovery cases in the connector
+
+- Connector **0.15.0 / 38 tools / 3 MCP App resources**. Existing case tools now return reopening, named evidence, candidate/confirmed values, waiting deadlines, start/resume, explicit closure and evidence-backed outcome confirmation.
+- Server authority retains owned references/exact revisions. Both bridge paths time out; uncertain receipts block edits until reload. Parent-only results, safe text rendering, host theme/size, cancellation and teardown are covered; pending-deletion evidence remains unavailable.
+- Actual Chromium iframe testing found and repaired native forms blocked by host sandboxing. Browser journeys use the real MCP handler/lifecycle with synthetic auth/storage at 1280/768/390px and dark/reduced-motion modes. No page/console/network errors or horizontal overflow. Zero axe violations; one incomplete contrast check is documented with visual/color review.
+- **93/93 focused**, **97.58% lines / 84.15% branches**, **8/8 prompt/transport**, **10/10 launch/schema**; app build/SSR fixer/root types/new-module lint/shared execution guard pass. Full JS **675/676**, TS **382/385**, standalone types **18 existing diagnostics**. Evidence: `docs/verification/recovery-case-app-ecc.md`.
+- Locally verified, not deployed. Hosted migration, real ChatGPT host, OAuth/provider action/payment/mail unverified or pending. `@mailmypdf/step-workflow` remains the workflow execution architecture. Saved deadlines do not schedule external actions.
+
+
+## 2026-10-04 — ECC durable recovery cases and governed-action storage
+
+- Added CLI-generated migration `20261004085640_recovery_goals_and_governed_actions.sql`: owned goals, Gmail connection metadata, immutable approval proposals, atomic owner/key execution claims, and service-only private encrypted-vault references. Public tables have owner-read RLS and no client write grant. Goals, account identities, proposal inputs and terminal receipts are guarded in SQL.
+- Added server Supabase adapters for the existing case lifecycle, `ActionExecutionStore` and `ActionAuthorization`. Reads use verified user/RLS context; service writes retain owner filters, optimistic revisions and sanitized failures. Current Gmail scope/policy is rechecked under a database lock at claim time. Incomplete approval timestamps, a post-review scope removal and overdue evidence updates were found by real SQL regressions and repaired.
+- Added authenticated `save_recovery_case`, `get_recovery_case`, `list_recovery_cases`, `update_recovery_case`; connector **0.14.0 / 38 tools**. Save recomputes the supplied candidate, requires explicit confirmation, snapshots related unverified records and deduplicates identical retry keys. Updates link owned evidence/matters and require exact revisions. Resolution requires explicit confirmation with already-linked evidence; no send approval is issued.
+- Applied ECC TDD/security/PostgreSQL/MCP/verification guidance; preserved five local RED/GREEN checkpoint cycles. Updated private-schema type checking without dropping migrated-table assertions. Added pinned PGlite and host agent-runtime build dependency; pnpm 9 frozen lock check passes without upgrades.
+- Verified: **13/13 real PGlite PostgreSQL 18.3 SQL checks**, **18/18 new service/SDK checks**, **60/60 connector checks**, **6/6 neighboring UI/prompt**, **4/4 launch contract**, **5/5 schema sync**, **53/53 agent runtime**. New module coverage **99.84% lines / 95.65% branches / 94.87% functions**. App build/SSR cycle fixer, root `tsc -b`, new module/test lint and shared step-workflow guard pass.
+- Full app JS **674/675**, TS **355/358**, standalone types **18 existing diagnostics**; same documented scheduler/inventory/typecheck baseline failures. Detailed evidence and activation limits: `docs/verification/recovery-persistence-ecc.md`; updated architecture: `docs/RESOLVE_EXECUTION_SUBSTRATE.md`.
+- Implemented/local verification only: migration not applied to hosted Supabase; PGlite is one connection, so hosted PostgREST and multi-process lock interleavings are unverified. No OAuth, Gmail send, payment, mailing or deployment ran. Next: hosted migration/advisors, exact-action human review and encrypted OAuth/vault provisioning, privacy export/retention integration, then owned worker registration and receipt reconciliation. This closes durable case/storage contracts from the previous entry, not production action activation.
+
+## 2026-10-04 — Recovery review and governed provider substrate
+
+- Added `scan_recovery_candidates` to the existing authenticated MCP catalog/handler and conversational instructions, plus `ui://mailmypdf/recovery-scan-v1.html`. Users can supply transaction records and inspect candidate values, merchant, confidence, and original evidence IDs in a responsive card. This is connected host behavior, not an unused scanner module.
+- Added deterministic recovery screening to `packages/intelligence`: settled-charge groups, verified invoice links, account/currency boundaries, bounded time windows, and explicit full/partial refund handling. Candidate value remains screening evidence, not confirmed money owed. No bank access, persistence, or automatic disputes.
+- Upgraded `packages/document-intelligence/src/docling-provider.ts` to native Docling Serve v1, keeping custom wrappers behind explicit `protocol: "legacy"`. Added API-key support, bounded request/response bytes, response-body timeout, conversion-status checks, sparse/blank page provenance, bounded tables, and unlocated-text preservation.
+- Extended existing `packages/agent-runtime` with exact-request approved actions, owner/scope checks, atomic execution-store contracts, ambiguous-write reconciliation states, native Gmail bindings, private case-goal transitions, and a Trigger REST binding for the existing client contract. No new execution engine or registry. Package bindings need durable production storage, OAuth/token handling, host registration, and a deployed worker before activation.
+- Verified package tests: agent-runtime **53/53**, document-intelligence **23/23**, intelligence **539/539**. Focused MCP/card/transport/readiness/prompt tests **66/66**. Root `tsc -b` and affected package typechecks clean. App Vite build and SSR cycle fixer clean.
+- Rendered the actual recovery card in Chromium at 840px and 390px; inspected both screenshots, expanded evidence, checked $378.99 synthetic candidate total, zero page errors and no phone horizontal overflow. Screenshots and implementation/activation details: `docs/RESOLVE_EXECUTION_SUBSTRATE.md`, `docs/verification/recovery-review-{desktop,mobile}.png`.
+- Broader verification: app JS **674/675**, app TS **333/336**. Remaining scheduler-gap and workflow inventory/registry failures reproduced on unchanged `4439147`. Standalone host typecheck reports **18 existing diagnostics**, identical to unchanged main with the same dependency environment. Restored the missing checkout-is-not-payment/mailing prompt instruction, closing one baseline test failure without weakening assertions.
+- No live provider action, payment, mailing, or deployment performed. Next: durable action/approval/connection/case storage and exact-action review UI, then owned Trigger worker activation; reconcile host-wide baseline acceptance failures. The recovery scan can deploy separately from activating external actions.
+
+## 2026-10-02 — Remote GitHub factory acceptance executor
+
+- Added a server-side remote executor for reviewed Records Request and tax Notice Respond recipes, including catalog adoption. Studio no longer needs a local Git worktree to create a supervised proposal.
+- Extracted proposal generation into one deterministic plan shared with the local executor: scaffold/config where appropriate, reviewed workflow spec, family generated profile registries, materializer-owned wrappers, canonical registry, and generated inventory.
+- The remote executor reads the live canonical/profile/config state at one exact `main` SHA, creates the proposal branch at that SHA, writes only the actual changed subset, and opens or reuses the matching GitHub pull request.
+- Retry recovery is fail-closed: an existing remote branch is reused only when its exact changed-file set and desired file contents match the reviewed deterministic plan.
+- Added an exact-commit CI synchronization path. Required acceptance includes generated-workflow chat certification, shared capability verification, public landing gate, Workspace UI verification, and the relevant Records Request or Notice Respond suite.
+- Durable Factory Job build evidence can now retain the remote repository and PR identity without breaking older `mailmypdf.factory-job/v1` snapshots.
+- Studio exposes **Run remote build → Check GitHub CI → Approve tested GitHub PR** as the primary path while retaining the localhost worktree flow as a fallback.
+- Remote approval records the already-open tested PR as the publication artifact. It does not merge, deploy, charge, or submit mail.
+- Remaining autonomy gap after this slice: automatically synchronize pending remote CI jobs rather than requiring the explicit **Check GitHub CI** action, then expand safe family adapters.
+
+
+## 2026-10-01 — Existing catalog adoption path
+
+- Added explicit reviewed adoption for catalog-only canonical workflows so the 400+ registry can be upgraded in place instead of cloned under replacement IDs.
+- Ranked factory candidates now mark catalog-only entries as `adoptable`; bound-but-not-chat-certified workflows are not offered as adoption candidates.
+- Adoption preserves the canonical label, authority metadata, legacy-gold identity, and existing reviewed public `config.ts`.
+- The isolated executor re-verifies the live base, refuses already-executable or partially adopted IDs, and uses the materializer's explicit `--adopt` guard only for deterministic standard wrappers.
+- The changed-file allowlist is exact and excludes legacy domain files, assets, extraction schemas, definitions, and other workflow-local files.
+- New workflow creation now refuses existing canonical IDs and points reviewers to catalog adoption.
+- Adoption currently applies only to the factory-supported Records Request and reviewed tax Notice Respond families; non-tax Notice Respond still requires a generic official-notice runtime.
+- Accepted adoption proposals still stop at the tested GitHub PR boundary; no automatic merge or deployment is introduced.
+
+## 2026-10-01 — Notice Respond family adapter
+
+- Added a reviewer-authored tax-notice Notice Respond profile contract so authority-sensitive generated workflows can be built without the factory inventing legal rules.
+- Added machine-owned generated Notice Respond profile registries alongside the five hand-authored IRS profiles. Non-tax notice families remain blocked until a generic official-notice runtime exists.
+- Extended the isolated supervised executor to build and test both Records Request and Notice Respond proposals.
+- Notice Respond proposals run the shared workflow/chat certification plus Notice Respond unit and acceptance suites before publication review.
+- Studio now requires reviewed Notice Respond profile JSON before template approval and exposes the same local build → GitHub PR path after acceptance.
+- Removed IRS-only fallback issuer/recipient labels from the shared Notice Respond UI so generated state/local notice workflows remain source-grounded.
+- Generated landing copy remains non-indexable scaffold content.
+- No merge, deployment, payment, or mailing behavior was added to the factory.
+
+# MailMyPDF factory status
+
+## 2026-09-30 — Accepted factory proposals can publish a GitHub PR
+
+- Fixed the generated-workflow verifier so it gates on the actual canonical `chatExecutable` result instead of a nonexistent report field.
+- Added durable publication evidence to Factory Jobs: repository, branch, accepted commit, PR number/URL, and publication timestamp.
+- Added a localhost + verified-admin publication executor that pushes only the exact locally accepted proposal commit and creates or reuses the matching GitHub pull request.
+- Publication fails closed if the local proposal branch moved, the remote proposal branch points elsewhere, acceptance evidence is incomplete, or `main` advanced after acceptance. In the latter case the workflow must be rebuilt and retested against current `main`.
+- Studio now exposes **Create GitHub PR** after successful generated-workflow acceptance and displays the resulting PR artifact.
+- The publication step does not merge, deploy, charge, or mail.
+
+# MailMyPDF factory status
+
+## 2026-09-30 — Reviewed build planner + supervised Records Request executor
+
+- PR #139 established the canonical reviewed build recipe: template review persists a deterministic `ReviewedFactoryBuildPlan` and the runner advances the recipe to the acceptance boundary without claiming filesystem work.
+- Added an additive `buildArtifact` evidence record to `mailmypdf.factory-job/v1`; existing durable snapshots without it remain readable. Acceptance transitions persist the local branch, base/commit SHA, changed files, generated paths, check results, and timestamp through the same optimistic revision guard.
+- Added a local-host + verified-admin machine executor for reviewed **Records Request** builds. It fetches fresh `origin/main`, refuses duplicate local/remote proposal branches and existing workflow/canonical/profile identities, uses an isolated temporary worktree, and commits only allow-listed proposal files to a local `factory/job-…` branch.
+- Added a machine-owned generated Records Request profile registry. Core hand-authored profiles remain isolated; runtime IDs derive from the combined registry so a generated profile receives the same shared manifest/runtime/chat family contract.
+- Generated proposals contain a non-indexable scaffold `config.ts`, reviewed recipe-derived `workflow.spec.json`, generated profile entry, canonical enrollment/inventory, and materializer-owned static wrappers.
+- Acceptance runs materialization drift, shared workflow factory/chat tests, exact generated-workflow chat certification against the live MCP catalog, Records Request unit/acceptance tests, and a clean-tree check. Any failure is persisted and blocks publication review.
+- Passing builds stop at `publication_review`. The executor does **not** push, open a PR, merge, deploy, charge, or mail. Notice Response recipes remain planner-only until a safe structured profile adapter is added.
+- Next blocker: publication/PR executor, followed by end-to-end recovery/idempotency hardening.
+
+## 2026-09-30 — Persistent supervised Factory Job orchestrator
+
+- Added a versioned `mailmypdf.factory-job/v1` state machine with explicit stages for intake, matching, certification, template review, build, acceptance, publication review, and completion. The runner only advances stages the repository can currently prove and fails/stops rather than inventing build or test results.
+- Added durable admin-only `factory_jobs` and append-only `factory_job_events` persistence. RLS is enabled with no anon/authenticated client policies; service-role-only RPCs create jobs and apply optimistic revision-checked transitions atomically.
+- Added a server runner that can resume a job and automatically advance `intake → match → certify` until it reaches a human-review or unimplemented build boundary. Concurrent stale transitions fail closed.
+- Added authenticated Studio APIs to create/list jobs, inspect event history, resume deterministic execution, approve a review boundary, or cancel. Verified admin identity is attached to durable factory audit events.
+- Updated Studio Factory to create durable jobs and show a resumable queue instead of using only the one-shot problem planner. No route added here publishes code, charges, or mails.
+- The next true self-running blocker is now narrow: implement the reviewed `build` executor that converts an approved new-template job into a family/profile/workflow spec proposal, materializes it on an isolated branch, runs factory/chat/acceptance checks, and returns the job to explicit publication review.
+
+## 2026-09-30 — SSA reconsideration becomes the third factory-artifact family
+
+- Added one shared SSA reconsideration profile registry and manifest generator for SSDI and SSI denial appeals. The generated manifest now uses the same camelCase field identifiers enforced by the shared runtime instead of maintaining separate kebab-case workflow contracts.
+- Added a family factory artifact joining canonical identity, program profile, generated manifest, runtime policy/chat contract, and start configuration. The canonical chat-execution registry now resolves both `appeal-ssdi-denial` and `appeal-ssi-denial` through that artifact.
+- Added the missing SSA runtime chat contract, including required source-document analysis, claimant facts, explicit reconsideration confirmation, recipient-address binding, and the existing source/fact/review/mailing gates. Canonical chat readiness therefore moves from 21 to 23 executable workflows when the full connector tool surface is present.
+- Replaced both local SSA manifest modules and runtime-policy modules with projections of the shared artifact so the legacy workflow folders no longer own divergent execution contracts.
+- Added shared SSA factory/chat certification tests plus MCP registration coverage for both SSDI and SSI. CI verification is required before treating this branch as merged/production-ready.
+- Remaining SSA factory boundary: the web start implementations are still large workflow-specific components. The next slice is a shared SSA reconsideration start shell driven by `startConfig`; only after that should the materializer gain a family-level `ssa-reconsideration` template and adopt the static route wrappers.
+
+## 2026-09-29 — Records Request becomes the second factory-artifact family
+
+- Added one shared Records Request profile registry for the five currently executable request workflows. Workflow title, records-sought guidance, and optional context-document labels no longer need to be repeated independently by web start wrappers and chat binding.
+- Added a Records Request factory artifact joining canonical identity, shared profile, generated manifest, runtime policy/chat contract, and web start configuration. The canonical chat-execution registry now resolves Records Request through that artifact rather than separately rebuilding a manifest and policy.
+- Extended the workflow materializer with a family-level `records-request` start template. Public Records Request is the second-family proof: its colocated spec owns canonical enrollment plus six generated landing/SEO/schema/start wrappers, and its local `manifest.ts` projects the same factory artifact.
+- Added shared artifact/chat-certification tests, Public Records Request parity tests, and cross-family materializer tests. Request-first behavior remains explicit: a source document is optional and analysis can be created deterministically from confirmed request facts.
+- Cross-family inspection also identified the next true factory blocker: SSDI/SSI reconsideration still has large workflow-specific start UIs and a hand-authored manifest/runtime field contract that is not chat-certified. The next step is to unify SSA reconsideration behind a shared profile/manifest/artifact/chat contract before giving it a materializer start template; the route generator should not encode an SSDI exception.
+
+## 2026-09-29 — Reviewed workflow-spec materializer
+
+- Added a generic workflow materialization plan in `@mailmypdf/workflows`. One colocated `workflow.spec.json` now deterministically projects canonical registry metadata plus materializer-owned TanStack/SEO/schema/start wrappers while leaving substantive `config.ts` copy outside generation.
+- Added `scripts/materialize-workflow-spec.ts` with repository-safe spec discovery, check/write modes, canonical enrollment, section-local insertion, generated-file ownership markers, hand-authored overwrite protection, and automatic `WORKFLOW_INVENTORY.json` regeneration when canonical enrollment changes.
+- Added root commands `pnpm workflow:materialize` and `pnpm workflow:materialize:check`. Workspace registry CI now fails on materialization drift.
+- CP2000 is the first route set adopted by the materializer: top-level landing/SEO/schema/start and MailMyPDF host landing/start are generated from its colocated spec. Both start routes resolve the same Notice Respond factory artifact used by chat execution.
+- Added shared materializer tests and CP2000 landing/factory parity coverage. The materializer currently supports the `notice-response` start template only; insurance/SSDI and Records Request family templates are the next expansion targets.
+- This closes the manual canonical-enrollment + route-boilerplate gap for supported families. Human-reviewed authority/marketing copy and family-specific domain profile/rules remain intentionally outside blind generation.
+
+## 2026-09-29 — CP14 factory vertical slice
+
+- Added a family-level Notice Respond **factory artifact** that joins the canonical workflow registry record, authored notice profile, generated manifest, runtime policy, and generated start-UI configuration into one side-effect-free contract.
+- CP14's ChatGPT execution binding now consumes that factory artifact instead of independently rebuilding the notice manifest/runtime pair.
+- The CP14 top-level start component now consumes the same generated `startConfig`; its workflow id, back path, and subtitle are no longer separately authored there.
+- Factory validation fails closed on canonical section/id drift, public start-route drift, runtime-policy-family drift, primary-document/extraction-schema drift, missing chat contract, or ordinary capability-composition errors.
+- Added CP14 parity tests at both shared-workflow and host/runtime levels. They bind the public landing config's `id`, `sectionId`, `path`, and `startPath` to the same artifact and explicitly prove the canonical CP14 execution path does not depend on the older core `/notice/$` runtime.
+- This is not yet a claim that a new workflow is config-only. Remaining manual surfaces for a new Notice Respond workflow include canonical registry enrollment, public landing/authority copy, and filesystem route materialization. The next factory step is to make those materializable from one reviewed workflow spec while retaining static TanStack routes and SEO review.
+
 Updated: 2026-09-27. This is the active repair queue, not a readiness certification.
 
 ## Objective and current focus

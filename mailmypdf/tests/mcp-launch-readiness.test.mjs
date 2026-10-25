@@ -14,7 +14,7 @@ test("launch required tools match the canonical tool catalog",()=>{
   const requiredBlock=readiness.match(/const requiredTools=\[([\s\S]*?)\];/)?.[1];
   assert.ok(requiredBlock);
   const required=[...requiredBlock.matchAll(/"([^"]+)"/g)].map(match=>match[1]);
-  assert.equal(names.length,30);
+  assert.equal(names.length,38);
   assert.deepEqual(required.sort(),names.sort());
 });
 
@@ -51,4 +51,12 @@ test("smoke test follows the current stateless discovery response",()=>{
   assert.match(smoke,/io\.modelcontextprotocol\/serverInfo/);
   assert.doesNotMatch(smoke,/result\?\.protocolVersion/);
   assert.doesNotMatch(smoke,/result\?\.serverInfo/);
+});
+
+test("launch readiness verifies both recovery apps without changing a private case",()=>{
+  assert.ok(readiness.includes("ui://mailmypdf/recovery-scan-v1.html"));
+  assert.ok(readiness.includes("ui://mailmypdf/recovery-case-v1.html"));
+  assert.ok(readiness.includes("Confirm and save outcome"));
+  assert.ok(readiness.includes("recoveryResources"));
+  assert.doesNotMatch(readiness,/callTool\("(?:save|update)_recovery_case"/);
 });

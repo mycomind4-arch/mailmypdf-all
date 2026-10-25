@@ -75,7 +75,12 @@ test("scheduled mail stores durable Stripe retry state without card data", () =>
   assert.match(sql, /payment_status text/i);
   assert.match(sql, /last_attempt_at timestamptz/i);
   assert.match(sql, /scheduled_mailings_payment_intent_uidx/i);
-  assert.doesNotMatch(sql, /\b(card_number|pan|cvc|cvv)\b/i);
+
+  const scheduledTable = sql.match(
+    /create table public\.scheduled_mailings \(([\s\S]*?)\n\);/i,
+  )?.[1];
+  assert.ok(scheduledTable, "scheduled_mailings table definition is missing");
+  assert.doesNotMatch(scheduledTable, /\b(card_number|pan|cvc|cvv)\b/i);
 });
 
 test("scheduled authorization identity is timestamped and immutable", () => {

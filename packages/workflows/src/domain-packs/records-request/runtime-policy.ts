@@ -8,19 +8,15 @@ import type {
 } from "../../matter-runtime-server.js";
 import { recordRecordsResponse } from "./tracking.js";
 import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
+import { RECORDS_REQUEST_WORKFLOW_PROFILES } from "./profiles.js";
 
 export const RECORDS_REQUEST_VERTICAL_ID = "records-request";
 
-export const RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS = [
-  "agency-records-request",
-  "public-records-request",
-  "open-records-request",
-  "government-documents-request",
-  "public-information-request",
-] as const;
+export const RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS = Object.freeze(
+  RECORDS_REQUEST_WORKFLOW_PROFILES.map((profile) => profile.workflowId),
+);
 
-export type RecordsRequestRuntimeWorkflowId =
-  (typeof RECORDS_REQUEST_RUNTIME_WORKFLOW_IDS)[number];
+export type RecordsRequestRuntimeWorkflowId = string;
 
 function text(value: unknown, label: string, max: number, required = false): string {
   if (value === undefined || value === null) {

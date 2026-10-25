@@ -46,6 +46,9 @@ describe("Secured Transactions section registry", () => {
       "name-capacity-resolution",
       "obligation-value",
     ]);
+    const eligibilityCapabilities = new Set([
+      "matterState", "findings", "requirements", "validation", "blockingGate", "humanReview",
+    ]);
     for (const item of securedTransactionWorkflowCatalog) {
       const module = await import(`../workflows/${item.slug}/manifest`);
       const defined = module.workflowManifest;
@@ -54,6 +57,11 @@ describe("Secured Transactions section registry", () => {
       assert.equal(defined.manifest.pipeline, "P11_SECURED_TRANSACTION");
       assert.deepEqual(defined.manifest.adapters, ["secured-transactions"]);
       assert.equal(defined.manifest.maturity, wiredIntakes.has(item.slug) ? "wired" : "placeholder");
+      if (item.slug === "secured-transaction-eligibility") {
+        assert.deepEqual(new Set(defined.manifest.requiredCapabilities), eligibilityCapabilities);
+        assert.equal(defined.manifest.requiredCapabilities.includes("approval"), false);
+        assert.equal(defined.manifest.requiredCapabilities.includes("proofAudit"), false);
+      }
       assert.equal(defined.manifest.requiresHumanReview, true);
       assert.equal(defined.manifest.allowsConsequentialAction, false);
     }

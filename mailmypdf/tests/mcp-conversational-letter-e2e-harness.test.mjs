@@ -31,14 +31,18 @@ test("conversational-letter E2E exercises resume and exact PDF review",()=>{
   }
 });
 
-test("conversational-letter E2E never creates checkout, charges, or submits mail",()=>{
+test("conversational-letter E2E gates checkout separately and never charges or submits mail",()=>{
+  assert.match(source,/MCP_E2E_ALLOW_CHECKOUT/);
+  assert.match(source,/MCP_E2E_ALLOW_CHECKOUT=true requires MCP_E2E_ALLOW_APPROVAL=true/);
+  assert.match(source,/callTool\("prepare_direct_pdf_checkout"/);
   for(const forbidden of [
-    'callTool("prepare_direct_pdf_checkout"',
     'callTool("prepare_checkout"',
     'callTool("submit_mail_order"',
     'callTool("charge_card"',
+    'paymentIntents.confirm',
+    'submitOrderToLob',
   ]){
     assert.equal(source.includes(forbidden),false,`harness must not execute ${forbidden}`);
   }
-  assert.match(source,/stops before prepare_direct_pdf_checkout/);
+  assert.match(source,/No payment credentials were entered and no charge or Lob submission was performed/);
 });

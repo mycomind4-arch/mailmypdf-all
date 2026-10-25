@@ -1,10 +1,14 @@
-// The SSI reconsideration policy is defined once in the shared platform
-// registry (@mailmypdf/workflows ssa-reconsideration-runtime-policy) so the
-// server enforces exactly the rules this workflow's UI is built around.
-import { getSsaReconsiderationRuntimePolicy } from "@mailmypdf/workflows";
-import { SSI_REQUIRED_FORMS, SSI_WORKFLOW_ID } from "./start/workflow";
+// The SSI reconsideration policy and manifest are projected from the shared
+// SSA factory artifact so web and ChatGPT execution use one runtime contract.
+import { getSsaReconsiderationFactoryArtifact } from "@mailmypdf/workflows";
+import { SSI_REQUIRED_FORMS } from "./start/workflow";
 
-export const ssiDenialRuntimePolicy = getSsaReconsiderationRuntimePolicy(SSI_WORKFLOW_ID)!;
+const factoryArtifact = getSsaReconsiderationFactoryArtifact("appeal-ssi-denial");
 
+if (!factoryArtifact || !factoryArtifact.factoryReady) {
+  throw new Error("SSI reconsideration factory artifact is not ready");
+}
+
+export const ssiDenialRuntimePolicy = factoryArtifact.runtimePolicy;
 export const ssiOfficialFormKinds = SSI_REQUIRED_FORMS.map((form) => form.kind);
 export default ssiDenialRuntimePolicy;

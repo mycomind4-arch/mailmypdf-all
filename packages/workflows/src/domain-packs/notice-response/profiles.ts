@@ -1,3 +1,5 @@
+import { GENERATED_NOTICE_RESPONSE_WORKFLOW_PROFILES } from "./generated-profiles.js";
+
 export type NoticeResponseMode = Readonly<{
   value: string;
   label: string;
@@ -9,12 +11,7 @@ export type NoticeEvidenceKind = Readonly<{
 }>;
 
 export interface NoticeResponseWorkflowProfile {
-  workflowId:
-    | "cp14-response"
-    | "cp2000-response"
-    | "cp504-response"
-    | "irs-balance-due-notice-response"
-    | "irs-penalty-notice-response";
+  workflowId: string;
   title: string;
   noticeLabel: string;
   primaryDocumentId: string;
@@ -199,16 +196,20 @@ export const irsPenaltyNoticeResponseProfile: NoticeResponseWorkflowProfile = Ob
     "Prepare a factual penalty-relief request using only verified notice facts, user-confirmed facts, the selected mode, and records actually included. Identify each penalty by type, period, and amount as shown on the notice. For first-time abatement, state the user's compliance history only as the user confirmed it; do not assert eligibility beyond those facts. For reasonable cause, describe the facts, their timing, and the user's subsequent compliance without exaggeration. Do not claim that accuracy-related penalties qualify for first-time abatement, do not describe the letter as Form 843, do not promise abatement, and never invent tax figures, dates, payments, medical or other circumstances, authorities, addresses, or outcomes.",
 });
 
-export const NOTICE_RESPONSE_WORKFLOW_PROFILES = Object.freeze([
+const CORE_NOTICE_RESPONSE_WORKFLOW_PROFILES = Object.freeze([
   cp14NoticeResponseProfile,
   cp2000NoticeResponseProfile,
   cp504NoticeResponseProfile,
   irsBalanceDueNoticeResponseProfile,
   irsPenaltyNoticeResponseProfile,
-] as const);
+] as const satisfies readonly NoticeResponseWorkflowProfile[]);
 
-export type NoticeResponseWorkflowId =
-  (typeof NOTICE_RESPONSE_WORKFLOW_PROFILES)[number]["workflowId"];
+export const NOTICE_RESPONSE_WORKFLOW_PROFILES = Object.freeze([
+  ...CORE_NOTICE_RESPONSE_WORKFLOW_PROFILES,
+  ...GENERATED_NOTICE_RESPONSE_WORKFLOW_PROFILES,
+] as const satisfies readonly NoticeResponseWorkflowProfile[]);
+
+export type NoticeResponseWorkflowId = string;
 
 export function getNoticeResponseWorkflowProfile(
   workflowId: string,

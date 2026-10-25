@@ -76,3 +76,16 @@ export function deriveCategoryKeywords(description: string, limit = 20): string[
   }
   return keywords
 }
+
+/** Read a supplied workflow scope field without treating incidental prose as an identifier. */
+export function hasScopedValue(scope: string | undefined, field: string): boolean {
+  if (!scope) return false
+  try {
+    const parsed: unknown = JSON.parse(scope)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false
+    const value = (parsed as Record<string, unknown>)[field]
+    return typeof value === 'string' && value.trim().length > 0
+  } catch {
+    return false
+  }
+}

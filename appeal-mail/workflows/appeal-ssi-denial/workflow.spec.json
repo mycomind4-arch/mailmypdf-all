@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "mailmypdf.workflow-materialization/v1",
+  "id": "appeal-mail/appeal-ssi-denial",
+  "label": "Appeal SSI Denial",
+  "execution": {
+    "kind": "platform",
+    "entry": "workspace-start",
+    "policyFamily": "ssa-reconsideration"
+  },
+  "legacyGoldId": "appeal/ssi-denial",
+  "startTemplate": "ssa-reconsideration"
+}

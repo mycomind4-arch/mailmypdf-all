@@ -31,11 +31,15 @@ test("owner context is synchronized from authenticated sessions", async () => {
   assert.match(auth, /autoRefreshToken:\s*true/);
 });
 
-test("MailMyPDF document uploads preserve multipart boundaries", async () => {
+test("MailMyPDF document uploads preserve multipart boundaries in the shared client", async () => {
   const adapter = await read("src/platform/mailing-client/index.ts");
-  assert.match(adapter, /new FormData/);
-  assert.match(adapter, /\/api\/documents/);
-  assert.match(adapter, /fetch/);
+  const shared = await read("../../../packages/mailing-client/src/index.ts");
+  assert.match(adapter, /from "@mailmypdf\/mailing-client"/);
+  assert.match(shared, /new FormData\(\)/);
+  assert.match(shared, /\/api\/v1\/documents/);
+  assert.match(shared, /fetch\(/);
+  assert.match(shared, /init\.body instanceof FormData/);
+  assert.match(shared, /Only set Content-Type for non-FormData bodies/);
 });
 
 test("server auth endpoints use native TanStack server handlers", async () => {

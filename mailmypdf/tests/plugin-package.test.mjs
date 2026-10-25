@@ -11,13 +11,13 @@ const skill=fs.readFileSync(
   "utf8",
 );
 
-test("portable plugin package points at the canonical MailMyPDF MCP endpoint",()=>{
+test("portable plugin package points at the live MailMyPDF Worker MCP endpoint",()=>{
   assert.equal(plugin.$schema,"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
   assert.equal(plugin.name,"mailmypdf");
   assert.equal(plugin.version,"0.1.0");
   assert.equal(mcp.$schema,"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
   assert.equal(mcp.mcpServers?.mailmypdf?.type,"streamable-http");
-  assert.equal(mcp.mcpServers?.mailmypdf?.url,"https://mailmypdf.ai/api/mcp");
+  assert.equal(mcp.mcpServers?.mailmypdf?.url,"https://mailmypdf.mycomind4.workers.dev/api/mcp");
 });
 
 test("document execution skill has valid frontmatter and required safe workflow steps",()=>{

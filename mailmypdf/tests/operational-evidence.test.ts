@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { assessDeployment, assessExecution } from "../src/lib/operational-evidence";
+const now = Date.parse("2026-10-18T00:00:00Z");
+const run = { status: "completed", conclusion: "success", updated_at: "2026-10-17T23:59:00Z" };
+const jobs = (conclusion: string | null) => [{ name: "worker", conclusion: "success", steps: [{ name: "execute", conclusion }] }];
+test("green run with skipped processing is not healthy", () => assert.equal(assessExecution(run, jobs("skipped"), "execute", now), "warning"));
+test("actual fresh execution passes", () => assert.equal(assessExecution(run, jobs("success"), "execute", now), "pass"));
+test("failed or cancelled processing fails", () => { for (const value of ["failure", "cancelled"]) assert.equal(assessExecution(run, jobs(value), "execute", now), "fail"); });
+test("missing or duplicate steps cannot prove execution", () => { assert.equal(assessExecution(run, [], "execute", now), "manual"); assert.equal(assessExecution(run, [...jobs("success"), ...jobs("success")], "execute", now), "manual"); });
+test("stale and future evidence cannot pass", () => { for (const updated_at of ["2026-10-01T00:00:00Z", "2027-01-01T00:00:00Z", "invalid"]) assert.equal(assessExecution({ ...run, updated_at }, jobs("success"), "execute", now), "warning"); });
+test("pending run and failed overall run cannot pass", () => { assert.equal(assessExecution({ ...run, status: "in_progress" }, jobs("success"), "execute", now), "warning"); assert.equal(assessExecution({ ...run, conclusion: "failure" }, jobs("success"), "execute", now), "fail"); });
+test("unknown deployment revision stays unknown", () => { assert.equal(assessDeployment("a".repeat(40), null).status, "manual"); assert.equal(assessDeployment(null, "a".repeat(40)).status, "manual"); });
+test("deployment match requires exact full SHA", () => { assert.equal(assessDeployment("a".repeat(40), "a".repeat(40)).status, "pass"); assert.equal(assessDeployment("a".repeat(40), "b".repeat(40)).status, "warning"); assert.equal(assessDeployment("a".repeat(40), "aaaaaaa").status, "manual"); });

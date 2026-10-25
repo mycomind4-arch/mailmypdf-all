@@ -47,14 +47,119 @@ type ScheduledMailingRow = {
   released_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string;
 }
 
+type FactoryJobRow = {
+  id: string; schema_version: string; revision: number; status: string; stage: string;
+  selected_workflow_id: string | null; problem: string; job_json: Json;
+  created_by: string | null; reviewed_by: string | null; reviewed_at: string | null;
+  created_at: string; updated_at: string;
+}
+
+type FactoryJobEventRow = {
+  id: string; job_id: string; revision: number; event_type: string;
+  from_stage: string | null; to_stage: string; data: Json; actor_id: string | null;
+  created_at: string;
+}
+
+type RecoveryGoalRow = {
+  id: string; owner_id: string; creation_key: string; request_sha256: string; source: Json; goal: Json;
+  state: string; revision: number; created_at: string;
+}
+type RecoveryConnectionRow = {
+  id: string; owner_id: string; provider: string; account_subject: string; email: string; scopes: string[];
+  status: string; revision: number; created_at: string; updated_at: string;
+}
+type RecoveryApprovalRow = {
+  id: string; owner_id: string; case_id: string; connection_id: string; request_sha256: string; review: Json; input: Json;
+  status: string; approved_by: string | null; approved_at: string | null; expires_at: string | null; created_at: string;
+}
+type RecoveryExecutionRow = {
+  owner_id: string; idempotency_key: string; case_id: string; connection_id: string; approval_id: string | null;
+  request_sha256: string; record: Json; state: string; revision: number;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  private: {
+    Tables: {
+      recovery_provider_credentials: {
+        Row: { connection_id: string; owner_id: string; credential_ref: string }
+        Insert: { connection_id: string; owner_id: string; credential_ref: string }
+        Update: { credential_ref?: string }
+        Relationships: []
+      }
+    }
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
+  }
   public: {
     Tables: {
+      recovery_case_goals: {
+        Row: RecoveryGoalRow
+        Insert: Omit<RecoveryGoalRow, 'state' | 'revision' | 'created_at'> & { created_at?: string }
+        Update: { goal?: Json }
+        Relationships: []
+      }
+      recovery_provider_connections: {
+        Row: RecoveryConnectionRow
+        Insert: Omit<RecoveryConnectionRow, 'status' | 'revision' | 'created_at' | 'updated_at'> & Partial<Pick<RecoveryConnectionRow, 'status' | 'revision' | 'created_at' | 'updated_at'>>
+        Update: Partial<Pick<RecoveryConnectionRow, 'scopes' | 'status' | 'revision' | 'updated_at'>>
+        Relationships: []
+      }
+      recovery_action_approvals: {
+        Row: RecoveryApprovalRow
+        Insert: Omit<RecoveryApprovalRow, 'status' | 'approved_by' | 'approved_at' | 'expires_at' | 'created_at'>
+        Update: Partial<Pick<RecoveryApprovalRow, 'status' | 'approved_by' | 'approved_at' | 'expires_at'>>
+        Relationships: []
+      }
+      recovery_action_executions: {
+        Row: RecoveryExecutionRow
+        Insert: Omit<RecoveryExecutionRow, 'state' | 'revision'>
+        Update: { record?: Json }
+        Relationships: []
+      }
+      factory_jobs: {
+        Row: FactoryJobRow
+        Insert: {
+          id?: string; schema_version?: string; revision?: number; status: string; stage: string;
+          selected_workflow_id?: string | null; problem: string; job_json: Json;
+          created_by?: string | null; reviewed_by?: string | null; reviewed_at?: string | null;
+          created_at?: string; updated_at?: string
+        }
+        Update: {
+          schema_version?: string; revision?: number; status?: string; stage?: string;
+          selected_workflow_id?: string | null; problem?: string; job_json?: Json;
+          created_by?: string | null; reviewed_by?: string | null; reviewed_at?: string | null;
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      factory_job_events: {
+        Row: FactoryJobEventRow
+        Insert: {
+          id?: string; job_id: string; revision: number; event_type: string;
+          from_stage?: string | null; to_stage: string; data?: Json; actor_id?: string | null;
+          created_at?: string
+        }
+        Update: {
+          revision?: number; event_type?: string; from_stage?: string | null;
+          to_stage?: string; data?: Json; actor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factory_job_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "factory_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_billing_profiles: {
         Row: AccountBillingProfileRow
         Insert: { owner_id: string; provider?: string; stripe_customer_id?: string | null;
@@ -2042,6 +2147,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_factory_job: {
+        Args: {
+          p_job_id: string
+          p_status: string
+          p_stage: string
+          p_problem: string
+          p_job_json: Json
+          p_actor_id?: string | null
+        }
+        Returns: FactoryJobRow
+      }
+      transition_factory_job: {
+        Args: {
+          p_job_id: string
+          p_expected_revision: number
+          p_status: string
+          p_stage: string
+          p_selected_workflow_id: string | null
+          p_job_json: Json
+          p_event_type: string
+          p_from_stage: string
+          p_to_stage: string
+          p_event_data: Json
+          p_actor_id?: string | null
+        }
+        Returns: FactoryJobRow
+      }
       write_saved_mailing_address: {
         Args: { p_owner: string; p_id: string; p_revision: number; p_kind: string; p_label: string;
           p_address: Json; p_verification: Json; p_default: boolean; p_archive: boolean }

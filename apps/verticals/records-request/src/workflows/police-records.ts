@@ -1,6 +1,6 @@
 import type { ValidatedRequest } from '../request-service'
 import { createRecordsWorkflow, type RecordsWorkflow } from '../workflow-factory'
-import { deriveCategoryKeywords } from './shared-capabilities'
+import { deriveCategoryKeywords, hasScopedValue } from './shared-capabilities'
 import { analyzePoliceProduction, type PoliceProductionRecord, type PoliceProductionIdentifiers } from './police-records-analysis'
 import { buildPoliceRecordsTimeline } from './police-records-timeline'
 import type { RecordsDomainCapability } from './domain-pack'
@@ -102,7 +102,7 @@ function validatePolice(request: ValidatedRequest): readonly { field: string; me
   if (!request.jurisdiction?.trim()) issues.push({ field:'jurisdiction', message:'Identify the relevant jurisdiction.' })
   if (!descriptions.includes('incident description supplied by requester:')) issues.push({ field:'subjectMatter', message:'Describe the incident or subject matter in plain language.' })
   if (!descriptions.includes('cover ')) issues.push({ field:'dateRange', message:'Provide the relevant incident or search period.' })
-  const hasIdentifier = ['incident/report/cad identifier','arrest/booking/citation identifier','location ','requester-supplied person/entity identifier','vehicle identifier'].some(marker => descriptions.includes(marker))
+  const hasIdentifier = ['incidentNumber', 'arrestNumber', 'location', 'person', 'vehicle'].some(field => hasScopedValue(request.scope, field))
   if (!hasIdentifier) issues.push({ field:'identifiers', message:'Provide at least one incident/report/CAD number, arrest/booking/citation identifier, location, involved person/entity, or vehicle identifier.' })
   return issues
 }

@@ -1,10 +1,16 @@
-import { createRecordsRequestManifest } from "@mailmypdf/workflows";
+import { getRecordsRequestFactoryArtifact } from "@mailmypdf/workflows";
 
-export const publicRecordsRequestManifest = createRecordsRequestManifest({
-  workflowId: "public-records-request",
-  title: "Public Records Request",
-  contextDocumentLabel: "Optional notice, case, or agency context document",
-  supportingContextLabel: "Supporting public-records context",
-});
+const resolvedFactoryArtifact = getRecordsRequestFactoryArtifact("public-records-request");
+
+if (!resolvedFactoryArtifact) {
+  throw new Error("Public Records Request factory artifact is missing");
+}
+if (!resolvedFactoryArtifact.factoryReady) {
+  throw new Error("Public Records Request factory artifact is not ready");
+}
+
+const factoryArtifact = resolvedFactoryArtifact;
+
+export const publicRecordsRequestManifest = factoryArtifact.definition;
 
 export default publicRecordsRequestManifest;

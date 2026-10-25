@@ -30,7 +30,6 @@ on:
       - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
       - '.github/workflows/deploy-mailmypdf.yml'
-      - '.github/workflows/deploy-mailmypdf.yml'
   pull_request:
     paths:
       - 'packages/design-system/**'
@@ -58,6 +57,7 @@ on:
       - 'scripts/*workflow*'
       - 'docs/migrations/legacy-workflow-inventory.json'
       - '.github/workflows/workspace-ui-ci.yml'
+      - '.github/workflows/deploy-mailmypdf.yml'
   workflow_dispatch:
 
 permissions:
@@ -85,8 +85,12 @@ jobs:
       - run: pnpm --filter ./mailmypdf run prebuild
       - run: node scripts/verify-product-topology.mjs
       - run: node --test scripts/workflow-registry-topology.test.mjs
+      - name: Verify reviewed workflow specs materialize without drift
+        run: pnpm workflow:materialize:check
       - run: pnpm registry:check
       - run: pnpm --filter @mailmypdf/workflows test
+      - name: Verify CP14 host parity against the factory family renderer
+        run: node --test mailmypdf/tests/factory-cp14-host-parity.test.mjs
       - name: Verify every projection and preserve existing executable workflows
         run: |
           pnpm --filter ./mailmypdf exec tsx --test \
@@ -161,14 +165,20 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build MCP document-ingress and canonical registry dependencies
         run: pnpm --filter ./mailmypdf run prebuild
+      - name: Verify authenticated Studio and admin navigation
+        run: node --test mailmypdf/tests/admin-navigation-integrity.test.mjs mailmypdf/tests/workflow-start-bridge-parity.test.mjs
+      - name: Test Studio shared engine bindings and blocked-action safeguards
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/studio-engine-integration.test.ts
+      - name: Test Ruthless Investigator Studio service boundary
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/studio-ruthless-integration.test.ts
       - name: Verify MCP transport, review UI, approval, and checkout behavior
         run: pnpm --filter ./mailmypdf exec node --experimental-test-module-mocks --import tsx --test tests/mcp*.test.ts
       - name: Test Authority Gate and catalog topology invariants
-        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/workflow-authority-gate.test.ts tests/workflow-seo-topology.test.ts tests/mcp-connector.test.ts tests/factory-graduation-wiring.test.ts tests/factory-ci-polling.test.ts tests/factory-ci-scheduler.test.ts tests/factory-job-orchestrator.test.ts tests/operational-evidence.test.ts
       - name: Validate MailMyPDF plugin submission bundle
         run: pnpm plugin:mailmypdf:submission:validate
       - name: Verify MCP E2E safety interlocks
-        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs mailmypdf/tests/mcp-conversational-letter-e2e-harness.test.mjs
+        run: node --test mailmypdf/tests/mcp-document-e2e-harness.test.mjs mailmypdf/tests/mcp-conversational-letter-e2e-harness.test.mjs mailmypdf/tests/mcp-order-resume-e2e-harness.test.mjs
       - name: Verify MCP launch diagnostics stay read-only
         run: node --test mailmypdf/tests/mcp-launch-readiness.test.mjs
       - name: Verify portable MailMyPDF plugin package
@@ -221,11 +231,11 @@ jobs:
         run: |
           node --check mailmypdf/scripts/verify-canary.mjs
           node --check mailmypdf/scripts/verify-deployment.mjs
-          pnpm --filter @mailmypdf/core build
+          pnpm --filter ./mailmypdf run prebuild
           pnpm --filter @mailmypdf/mailing-client build
           pnpm --filter @mailmypdf/fulfillment test
           pnpm --filter @mailmypdf/payment-fulfillment test
-          node --test mailmypdf/tests/lob-hardening.test.mjs mailmypdf/tests/stripe-production.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/webhook-security.test.mjs mailmypdf/tests/security-headers-wiring.test.mjs mailmypdf/tests/mailing-orchestration-schema.test.mjs
+          node --test mailmypdf/tests/lob-hardening.test.mjs mailmypdf/tests/stripe-production.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/immediate-saved-payment.test.mjs mailmypdf/tests/webhook-security.test.mjs mailmypdf/tests/security-headers-wiring.test.mjs mailmypdf/tests/mailing-orchestration-schema.test.mjs mailmypdf/tests/jobs-are-scheduled.test.mjs
           pnpm --filter ./mailmypdf exec tsx --test tests/mailing-record.test.ts tests/order-state-machine-guards.test.ts tests/scheduled-mail-execution.test.ts
       - name: Build core app
         run: pnpm --filter ./mailmypdf build
@@ -275,3 +285,30 @@ jobs:
           package_name=$(node -p "require('./${section}/package.json').name")
           pnpm --filter "${package_name}^..." --workspace-concurrency=2 run build
           pnpm --filter "${package_name}" run build
+
+  private-office-legacy-compatibility:
+    name: Private Office donor compound runtime regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Build shared dependencies for the retained donor runtime
+        run: pnpm --filter mailmypdf-private-office run build:shared
+      - name: Verify Private Office compound workflow and authority logic
+        run: |
+          pnpm --filter mailmypdf-private-office exec vitest run \
+            src/domain/compound-workflows.test.ts \
+            src/domain/compound-workflow-runtime.test.ts \
+            src/domain/compound-phase-readiness.test.ts \
+            src/platform/authority-provider.test.ts \
+            src/services/compound-workflow-service.test.ts \
+            src/services/compound-capability-executor.test.ts
