@@ -243,22 +243,34 @@ export const MAIL_CLASS_PRICES: Record<MailClass, number> = {
 // $2.99 Standard, $10.99 Certified, $29.99 Registered.
 // Premium workflow prices can include Standard and add only the upgrade delta.
 
+function assertValidMailClass(mailClass: MailClass): void {
+  // Runtime inputs may bypass TypeScript. Reject unknown and inherited keys
+  // before they can produce NaN or non-numeric prices and margins.
+  if (!Object.prototype.hasOwnProperty.call(MAIL_CLASS_PRICES, mailClass)) {
+    throw new RangeError("Unsupported mail class");
+  }
+}
+
 export function getMailPrice(mailClass: MailClass): number {
+  assertValidMailClass(mailClass);
   if (mailClass === "standard") return PRICES.standard;
   return PRICES.standard + MAIL_CLASS_PRICES[mailClass];
 }
 
 export function getMailSurcharge(mailClass: MailClass): number {
+  assertValidMailClass(mailClass);
   if (mailClass === "standard") return 0;
   return MAIL_CLASS_PRICES[mailClass];
 }
 
 export function getMailCost(mailClass: MailClass): number {
+  assertValidMailClass(mailClass);
   switch (mailClass) {
     case "standard": return FULFILLMENT_COSTS.standardCostCents;
     case "certified": return FULFILLMENT_COSTS.certifiedCostCents;
     case "registered": return FULFILLMENT_COSTS.registeredCostCents;
   }
+  throw new RangeError("Unsupported mail class");
 }
 
 export function getMailMargin(mailClass: MailClass): number {
