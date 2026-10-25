@@ -376,6 +376,47 @@ it("quote matching ignores only the noncommercial timestamp", () => {
   assert.equal(quotesMatch(original, { ...original, quotedAt: "2000-01-01T00:00:00.000Z" }), true);
 });
 
+// ── Quote input integrity ─────────────────────────────────────────────────
+
+it("rejects invalid response page counts instead of silently rounding or clamping", () => {
+  const input = { workflowId: "cp2000-response", verticalId: "notice-respond", mailClass: "standard" as const };
+  for (const actualPages of [-1, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(
+      () => calculateQuote({ ...input, actualPages }),
+      /actualPages must be a non-negative safe integer/,
+      `invalid actualPages: ${String(actualPages)}`,
+    );
+  }
+});
+
+it("rejects invalid supporting page counts before generating a monetary quote", () => {
+  const input = { workflowId: "cp2000-response", verticalId: "notice-respond", actualPages: 1 };
+  for (const supportingPages of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(
+      () => calculateQuote({ ...input, supportingPages }),
+      /supportingPages must be a non-negative safe integer/,
+      `invalid supportingPages: ${String(supportingPages)}`,
+    );
+  }
+});
+
+it("rejects unsafe cent totals even when page counts themselves are safe integers", () => {
+  assert.throws(
+    () => calculateQuote({ workflowId: "cp2000-response", verticalId: "notice-respond", actualPages: Number.MAX_SAFE_INTEGER }),
+    /Quote subtotal exceeds safe integer range/,
+  );
+});
+
+it("preserves valid zero-page digital quotes and supporting-page charges", () => {
+  const digital = calculateQuote({ workflowId: "templates", verticalId: "mailmypdf", actualPages: 0 });
+  assert.equal(digital.actualPages, 0);
+  assert.equal(digital.totalCents, 0);
+
+  const supported = calculateQuote({ workflowId: "cp2000-response", verticalId: "notice-respond", actualPages: 1, supportingPages: 2, mailClass: "standard" });
+  assert.equal(supported.supportingPageCost, 20);
+  assert.equal(supported.totalCents, 719);
+});
+
 // ── Margin Analysis ───────────────────────────────────────────────────────
 
 describe("Margin analysis", () => {
