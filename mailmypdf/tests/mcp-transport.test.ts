@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { MAILMYPDF_MCP_TOOLS } from "../src/lib/mcp/tool-catalog";
 import { handleMailMyPdfMcpRequest as handle } from "../src/lib/mcp/mcp-handler.server";
 
 const url = "https://mailmypdf.mycomind4.workers.dev/api/mcp";
@@ -16,7 +17,15 @@ test("legacy ChatGPT/Claude handshake negotiates supported revisions only", asyn
 });
 test("legacy discovery returns the full catalog and OAuth errors preserve request id", async () => {
   const response = await handle(request({ jsonrpc: "2.0", id: 9, method: "tools/list" }));
-  assert.equal((await response.json()).result.tools.length, 38);
+  const payload = await response.json();
+  const discovered = payload.result.tools as Array<{ name: string }>;
+  const names = discovered.map((tool) => tool.name);
+  // The transport must expose the entire current catalog, not a stale hard-coded
+  // count: adding a tool must not break discovery while hiding one must fail.
+  assert.equal(names.length, MAILMYPDF_MCP_TOOLS.length);
+  assert.deepEqual([...names].sort(), MAILMYPDF_MCP_TOOLS.map((tool) => tool.name).sort());
+  assert.equal(new Set(names).size, names.length, "tool names must be unique");
+  assert.ok(names.includes("get_workflow_state"), "workflow state must be discoverable");
   const protectedCall = await handle(request({ jsonrpc: "2.0", id: 42, method: "tools/call", params: { name: "get_profile", arguments: {} } }));
   assert.equal(protectedCall.status, 401);
   assert.equal((await protectedCall.json()).id, 42);
