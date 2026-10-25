@@ -1117,8 +1117,18 @@ export function getPricingProfilesByVertical(verticalId: string): readonly Workf
 
 const discountRegistry = new Map<string, DiscountConfig>();
 
+function isValidDiscountValue(config: DiscountConfig): boolean {
+  if (config.type === "percentage") {
+    return Number.isFinite(config.value) && config.value >= 0 && config.value <= 100;
+  }
+  return config.type === "fixed" && Number.isSafeInteger(config.value) && config.value >= 0;
+}
+
 export function registerDiscount(config: DiscountConfig): void {
-  discountRegistry.set(config.code.toLowerCase(), config);
+  if (typeof config.code !== "string" || !config.code.trim() || !isValidDiscountValue(config)) {
+    throw new RangeError("Invalid discount configuration");
+  }
+  discountRegistry.set(config.code.toLowerCase(), { ...config });
 }
 
 export function getDiscount(code: string): DiscountConfig | undefined {
@@ -1131,6 +1141,7 @@ export function validateDiscount(
 ): { valid: boolean; config?: DiscountConfig; error?: string } {
   const config = getDiscount(code);
   if (!config) return { valid: false, error: "Discount code not found." };
+  if (!isValidDiscountValue(config)) return { valid: false, error: "Discount configuration is invalid." };
   if (!config.active) return { valid: false, error: "Discount code is no longer active." };
   if (config.expiresAt && new Date(config.expiresAt) < new Date()) {
     return { valid: false, error: "Discount code has expired." };
@@ -1241,7 +1252,10 @@ export function calculateQuote(input: QuoteInput): Quote {
     }
   }
 
-  const totalCents = Math.max(0, subtotalCents - discountCents);
+  if (!Number.isSafeInteger(discountCents) || discountCents < 0 || discountCents > subtotalCents) {
+    throw new RangeError("Quote discount exceeds safe integer range");
+  }
+  const totalCents = subtotalCents - discountCents;
 
   return {
     workflowId: input.workflowId,
