@@ -353,6 +353,17 @@ it("quote matching rejects changed page or discount terms with the same total", 
   assert.equal(quotesMatch(original, { ...original, supportingPageCost: 10 }), false);
 });
 
+it("quote matching rejects malformed snapshots without crashing", () => {
+  const original = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+  });
+  const malformed = { ...original, capabilities: undefined } as unknown as typeof original;
+  assert.equal(quotesMatch(malformed, original), false);
+});
+
 it("quote matching ignores only the noncommercial timestamp", () => {
   const original = calculateQuote({
     workflowId: "cp2000-response",
