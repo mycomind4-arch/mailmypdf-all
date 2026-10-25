@@ -7,6 +7,9 @@ export interface BatchDiscountPolicy {
   tiers: readonly BatchDiscountTier[];
 }
 
+// Conservative default: registered-mail fulfillment is costly, and a 20%+
+// discount on its $29.99 price would fall below the $24.50 estimated cost.
+// Higher discounts require a separately verified, service-specific policy.
 export const DEFAULT_BATCH_DISCOUNT_POLICY: BatchDiscountPolicy = {
   tiers: [
     { minPieces: 2, discountBps: 500 },

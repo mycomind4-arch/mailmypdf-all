@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PRICES } from '@mailmypdf/pricing'
 import {
   buildApprovedArtifact,
   calculateServerPrice,
@@ -48,9 +49,15 @@ describe('Records commerce security primitives', () => {
   })
 
   it('falls back to canonical mailing-only pricing when a workflow has no production pricing profile', () => {
-    expect(calculateServerPrice('unknown-records-workflow', 'first_class', 1).totalCents).toBe(499)
-    expect(calculateServerPrice('unknown-records-workflow', 'certified', 1).totalCents).toBe(1494)
-    expect(calculateServerPrice('unknown-records-workflow', 'registered', 1).totalCents).toBe(3249)
+    for (const [mailClass, pricingKey] of [
+      ['first_class', 'standard'],
+      ['certified', 'certified'],
+      ['registered', 'registered'],
+    ] as const) {
+      const quote = calculateServerPrice('unknown-records-workflow', mailClass, 1)
+      expect(quote.totalCents).toBe(PRICES[pricingKey])
+      expect(quote.quoteSnapshot).toBeNull()
+    }
   })
 
   it('verifies Stripe signatures and rejects stale or altered payloads', async () => {

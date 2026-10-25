@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { handleMailMyPdfMcpRequest as handle } from "../src/lib/mcp/mcp-handler.server";
+import { MAILMYPDF_MCP_TOOLS } from "../src/lib/mcp/tool-catalog";
 
 const url = "https://mailmypdf.mycomind4.workers.dev/api/mcp";
 function request(body: unknown, headers: Record<string, string> = {}) {
@@ -16,7 +17,14 @@ test("legacy ChatGPT/Claude handshake negotiates supported revisions only", asyn
 });
 test("legacy discovery returns the full catalog and OAuth errors preserve request id", async () => {
   const response = await handle(request({ jsonrpc: "2.0", id: 9, method: "tools/list" }));
-  assert.equal((await response.json()).result.tools.length, 38);
+  const tools = (await response.json()).result.tools as Array<{ name: string }>;
+  const discoveredNames = tools.map((tool) => tool.name);
+  const canonicalNames = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
+  assert.equal(tools.length, MAILMYPDF_MCP_TOOLS.length);
+  assert.deepEqual([...discoveredNames].sort(), [...canonicalNames].sort(), "MCP discovery must match the canonical catalog");
+  assert.equal(new Set(discoveredNames).size, discoveredNames.length, "MCP discovery must not expose duplicate tool names");
+  assert.ok(tools.some((tool) => tool.name === "schedule_direct_pdf_mail"));
+  assert.ok(tools.some((tool) => tool.name === "cancel_scheduled_mail"));
   const protectedCall = await handle(request({ jsonrpc: "2.0", id: 42, method: "tools/call", params: { name: "get_profile", arguments: {} } }));
   assert.equal(protectedCall.status, 401);
   assert.equal((await protectedCall.json()).id, 42);
