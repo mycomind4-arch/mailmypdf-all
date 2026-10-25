@@ -10,6 +10,8 @@ import {
   getWorkflowPricingProfile,
   getProductionPricingProfiles,
   PRICES,
+  isValidPricingKey,
+  getPriceCents,
   getMailPrice,
   getMailSurcharge,
   getMailCost,
@@ -434,4 +436,16 @@ describe("Catalog integrity", () => {
       ids.add(p.workflowId);
     }
   });
+});
+
+// Inherited Object.prototype properties are not valid mailing service keys.
+it("pricing key validation rejects prototype-chain names", () => {
+  for (const key of ["toString", "constructor", "__proto__", "hasOwnProperty"]) {
+    assert.equal(isValidPricingKey(key), false, `${key} must not be accepted`);
+    assert.throws(() => getPriceCents(key as never), /Unknown pricing key/);
+  }
+  for (const key of ["standard", "certified", "registered"]) {
+    assert.equal(isValidPricingKey(key), true);
+    assert.equal(getPriceCents(key as "standard" | "certified" | "registered"), PRICES[key as "standard" | "certified" | "registered"]);
+  }
 });
