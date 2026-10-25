@@ -65,3 +65,22 @@ authorization, public MCP endpoint, webhook signatures, and scheduled-job creden
 
 Do not print or commit secrets; configure them in the deployment and GitHub secret
 stores. Keep production controlled through an explicit, reviewed release gate.
+
+## Reconciliation checkpoint (2026-10-25)
+
+PR #124 was squash-merged into `main` as `eca959bcff29dd567a90ec1863eb20d2d0c256b8`. Before integrating this PR, compare its current head with current `main` again: the earlier branch comparison showed 30 commits ahead and 54 behind, and GitHub marked it conflicted. Do not force-push `main` or replace current production handlers wholesale.
+
+Conflict-sensitive files requiring **semantic**, not ours/theirs, review:
+
+| File | Required invariant before acceptance |
+| --- | --- |
+| `mailmypdf/src/lib/stripe-payment.functions.ts` | Checkout quote ownership, amount/currency binding, idempotency and refund authorization remain intact |
+| `mailmypdf/src/routes/api/public/payments/webhook.ts` | Stripe signature verification, event replay handling and settlement mapping are preserved |
+| `mailmypdf/src/lib/mcp/remote-document.server.ts` | Every remote download and redirect stays on explicitly trusted hosts, with timeout and private-network protection |
+| `mailmypdf/src/routes/api/internal/scheduled-mailings.ts` | Approved packet/recipient binding and `AUTO_SUBMIT_TO_LOB=false` remain enforced |
+| `.github/workflows/deploy-mailmypdf.yml` | Exact-head required checks and nonproduction defaults cannot be bypassed |
+| `.github/workflows/secure-core-jobs.yml` | Missing job credentials fail closed; no false-green scans or reconciliations |
+
+Observed operational failure: Secure Core Jobs run `40223468868` had blank `APP_URL` and `JOB_SECRET` for scan and reconciliation. The owner must configure `MAILMYPDF_APP_URL` and the three job secrets in GitHub Actions and matching runtime environment. These are **not code defects** and must not be replaced by dummy credentials. After configuration, run a synthetic quarantine → scan → clean promotion → connector reconciliation check, verifying actual HTTP execution and outcomes. Do not expose secrets in logs.
+
+Release gate: reconcile on this existing PR branch; run focused payment, MCP remote-host, cron, and mailing regression suites plus all required exact-head checks; obtain security review and verify branch protection before merge. Passing old-head checks does not count. No live Stripe, Lob, or production deployment during reconciliation.
