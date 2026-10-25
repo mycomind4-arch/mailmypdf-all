@@ -1193,6 +1193,14 @@ export function calculateQuote(input: QuoteInput): Quote {
   if (!Number.isSafeInteger(supportingPages) || supportingPages < 0) {
     throw new RangeError("supportingPages must be a non-negative safe integer");
   }
+  // An explicitly selected unknown service must not silently become digital
+  // delivery or the included standard class. Valid but unavailable services
+  // retain the existing capability-based fallback behavior.
+  if (input.mailClass !== undefined &&
+      (typeof input.mailClass !== "string" ||
+       !Object.prototype.hasOwnProperty.call(MAIL_CLASS_PRICES, input.mailClass))) {
+    throw new RangeError("Unsupported mail class");
+  }
 
   // Base price from profile
   const basePriceCents = profile.basePriceCents;
