@@ -267,6 +267,24 @@ describe("Capabilities", () => {
   });
 });
 
+it("rejects unknown explicitly selected mail classes instead of silently downgrading quotes", () => {
+  for (const workflowId of ["cp2000-response", "mail-a-pdf"]) {
+    const verticalId = workflowId === "mail-a-pdf" ? "mailmypdf" : "notice-respond";
+    for (const invalid of ["priority", "constructor", "__proto__", "", null, 123, { toString: () => "standard" }]) {
+      assert.throws(
+        () => calculateQuote({
+          workflowId,
+          verticalId,
+          actualPages: 1,
+          mailClass: invalid as QuoteInput["mailClass"],
+        }),
+        /Unsupported mail class/,
+        `${workflowId} silently accepted ${String(invalid)}`,
+      );
+    }
+  }
+});
+
 // ── Discounts ────────────────────────────────────────────────────────────
 
 describe("Discounts", () => {
