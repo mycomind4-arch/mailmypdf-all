@@ -1274,6 +1274,10 @@ export function deserializeQuote(json: string): Quote {
  * Used to detect price changes after checkout.
  */
 export function quotesMatch(persisted: Quote, fresh: Quote): boolean {
+  // Persisted snapshots are JSON and may be malformed or predate this schema.
+  // Missing capabilities must fail closed rather than throwing during checkout.
+  if (!persisted?.capabilities || !fresh?.capabilities) return false;
+
   // Quoted timestamps differ between calculations, but all commercial and
   // fulfillment terms must match. Equal totals alone cannot authorize a
   // different mail service, page count, or discount.
