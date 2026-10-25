@@ -1160,8 +1160,16 @@ export function calculateQuote(input: QuoteInput): Quote {
     throw new Error(`Workflow ${input.workflowId} is not available for purchase (status: ${profile.commercialStatus}).`);
   }
 
-  const actualPages = Math.max(0, Math.floor(input.actualPages));
-  const supportingPages = Math.max(0, Math.floor(input.supportingPages ?? 0));
+  // Page counts come from server-side document analysis. Do not silently
+  // round, clamp, or persist non-finite values in a payment quote.
+  if (!Number.isSafeInteger(input.actualPages) || input.actualPages < 0) {
+    throw new RangeError("actualPages must be a non-negative safe integer");
+  }
+  const actualPages = input.actualPages;
+  const supportingPages = input.supportingPages ?? 0;
+  if (!Number.isSafeInteger(supportingPages) || supportingPages < 0) {
+    throw new RangeError("supportingPages must be a non-negative safe integer");
+  }
 
   // Base price from profile
   const basePriceCents = profile.basePriceCents;
@@ -1211,6 +1219,11 @@ export function calculateQuote(input: QuoteInput): Quote {
 
   // Subtotal before discount
   const subtotalCents = basePriceCents + extraPageCost + supportingPageCost + mailServiceCost;
+  if (!Number.isSafeInteger(extraPageCost) ||
+      !Number.isSafeInteger(supportingPageCost) ||
+      !Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
+    throw new RangeError("Quote subtotal exceeds safe integer range");
+  }
 
   // Discount
   let discountCents = 0;
