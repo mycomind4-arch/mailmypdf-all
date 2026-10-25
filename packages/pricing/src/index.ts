@@ -192,7 +192,9 @@ export function getPriceForMailType(mailType: MailType): number {
 }
 
 export function getLabel(key: PricingKey): string {
-  return LABELS[key] ?? key;
+  // Runtime inputs can bypass PricingKey. Never return an inherited prototype
+  // function as a customer-facing label for an unknown mail class.
+  return Object.prototype.hasOwnProperty.call(LABELS, key) ? LABELS[key] : key;
 }
 
 export function isValidPricingKey(key: string): key is PricingKey {
