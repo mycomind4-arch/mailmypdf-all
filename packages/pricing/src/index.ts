@@ -1274,11 +1274,33 @@ export function deserializeQuote(json: string): Quote {
  * Used to detect price changes after checkout.
  */
 export function quotesMatch(persisted: Quote, fresh: Quote): boolean {
+  // Quoted timestamps differ between calculations, but all commercial and
+  // fulfillment terms must match. Equal totals alone cannot authorize a
+  // different mail service, page count, or discount.
   return (
     persisted.workflowId === fresh.workflowId &&
-    persisted.totalCents === fresh.totalCents &&
+    persisted.verticalId === fresh.verticalId &&
+    persisted.band === fresh.band &&
     persisted.basePriceCents === fresh.basePriceCents &&
-    persisted.mailServiceCost === fresh.mailServiceCost
+    persisted.includedPages === fresh.includedPages &&
+    persisted.actualPages === fresh.actualPages &&
+    persisted.includedMailValue === fresh.includedMailValue &&
+    persisted.extraPageCost === fresh.extraPageCost &&
+    persisted.supportingPageCost === fresh.supportingPageCost &&
+    persisted.mailService === fresh.mailService &&
+    persisted.mailServiceCost === fresh.mailServiceCost &&
+    persisted.mailUpgradeCost === fresh.mailUpgradeCost &&
+    persisted.discountCents === fresh.discountCents &&
+    persisted.discountCode === fresh.discountCode &&
+    persisted.subtotalCents === fresh.subtotalCents &&
+    persisted.totalCents === fresh.totalCents &&
+    persisted.currency === fresh.currency &&
+    persisted.commercialStatus === fresh.commercialStatus &&
+    persisted.capabilities.digitalDelivery === fresh.capabilities.digitalDelivery &&
+    persisted.capabilities.basicMail === fresh.capabilities.basicMail &&
+    persisted.capabilities.certifiedMail === fresh.capabilities.certifiedMail &&
+    persisted.capabilities.returnReceipt === fresh.capabilities.returnReceipt &&
+    persisted.capabilities.registeredMail === fresh.capabilities.registeredMail
   );
 }
 
