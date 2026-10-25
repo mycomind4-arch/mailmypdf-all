@@ -12,6 +12,7 @@ import {
   PRICES,
   isValidPricingKey,
   getPriceCents,
+  getLabel,
   getMailPrice,
   getMailSurcharge,
   getMailCost,
@@ -595,5 +596,16 @@ it("pricing key validation rejects prototype-chain names", () => {
   for (const key of ["standard", "certified", "registered"]) {
     assert.equal(isValidPricingKey(key), true);
     assert.equal(getPriceCents(key as "standard" | "certified" | "registered"), PRICES[key as "standard" | "certified" | "registered"]);
+  }
+});
+
+// Unknown runtime keys must never resolve through Object.prototype into UI labels.
+it("mail label lookup returns only own catalog labels or the unknown key", () => {
+  for (const key of ["standard", "certified", "registered"] as const) {
+    assert.equal(typeof getLabel(key), "string");
+    assert.ok(getLabel(key).length > 0);
+  }
+  for (const key of ["toString", "constructor", "__proto__", "hasOwnProperty", "priority"]) {
+    assert.equal(getLabel(key as never), key, `${key} resolved to an inherited property`);
   }
 });
