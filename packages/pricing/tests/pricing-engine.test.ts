@@ -20,6 +20,7 @@ import {
   BAND_RANGES,
   estimateMargin,
   registerDiscount,
+  getDiscount,
   serializeQuote,
   deserializeQuote,
   quotesMatch,
@@ -296,6 +297,76 @@ describe("Discounts", () => {
     });
     assert.equal(quote.totalCents, 0);
   });
+});
+
+it("rejects invalid discount configuration before registration", () => {
+  const invalidValues: Array<{ type: "fixed" | "percentage"; value: number }> = [
+    { type: "percentage", value: -1 },
+    { type: "percentage", value: 101 },
+    { type: "percentage", value: NaN },
+    { type: "percentage", value: Infinity },
+    { type: "fixed", value: -1 },
+    { type: "fixed", value: 1.5 },
+    { type: "fixed", value: NaN },
+    { type: "fixed", value: Number.MAX_SAFE_INTEGER + 1 },
+  ];
+  invalidValues.forEach(({ type, value }, index) => {
+    assert.throws(
+      () => registerDiscount({ code: `INVALID_DISCOUNT_${index}`, type, value, active: true }),
+      /Invalid discount configuration/,
+    );
+  });
+  assert.throws(
+    () => registerDiscount({ code: "  ", type: "fixed", value: 0, active: true }),
+    /Invalid discount configuration/,
+  );
+});
+
+it("a mutated registered discount fails closed instead of producing a NaN quote", () => {
+  registerDiscount({ code: "MUTATED_QA_DISCOUNT", type: "percentage", value: 10, active: true });
+  const stored = getDiscount("MUTATED_QA_DISCOUNT");
+  assert.ok(stored);
+  stored.value = NaN;
+  const quote = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+    discountCode: "MUTATED_QA_DISCOUNT",
+  });
+  assert.equal(quote.discountCode, null);
+  assert.equal(quote.discountCents, 0);
+  assert.equal(quote.totalCents, 699);
+  assert.ok(Number.isSafeInteger(quote.totalCents));
+});
+
+it("discount registration copies caller data to prevent later price mutation", () => {
+  const discount = { code: "COPIED_QA_DISCOUNT", type: "fixed" as const, value: 200, active: true };
+  registerDiscount(discount);
+  discount.value = -100;
+  const quote = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+    discountCode: "COPIED_QA_DISCOUNT",
+  });
+  assert.equal(quote.discountCents, 200);
+  assert.equal(quote.totalCents, 499);
+});
+
+it("valid fractional percentage discounts produce safe integer-cent totals", () => {
+  registerDiscount({ code: "VALID_12_5_PERCENT_QA", type: "percentage", value: 12.5, active: true });
+  const quote = calculateQuote({
+    workflowId: "cp2000-response",
+    verticalId: "notice-respond",
+    actualPages: 5,
+    mailClass: "standard",
+    discountCode: "VALID_12_5_PERCENT_QA",
+  });
+  assert.equal(quote.discountCents, 87);
+  assert.equal(quote.totalCents, 612);
+  assert.ok(Number.isSafeInteger(quote.totalCents));
 });
 
 // ── Quote Snapshot ────────────────────────────────────────────────────────
