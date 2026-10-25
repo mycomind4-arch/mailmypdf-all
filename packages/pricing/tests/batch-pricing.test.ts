@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PRICES, FULFILLMENT_COSTS } from "../src/index.js";
 import {
   calculateBatchMailingPrice,
   DEFAULT_BATCH_DISCOUNT_POLICY,
@@ -18,10 +19,10 @@ test("single-piece mailing receives no batch discount", () => {
 
 test("default batch policy applies the highest reached tier", () => {
   const quote = calculateBatchMailingPrice({ unitPriceCents: 299, quantity: 10 });
-  assert.equal(quote.discountBps, 2500);
+  assert.equal(quote.discountBps, 1000);
   assert.equal(quote.subtotalCents, 2990);
-  assert.equal(quote.discountCents, 747);
-  assert.equal(quote.totalCents, 2243);
+  assert.equal(quote.discountCents, 299);
+  assert.equal(quote.totalCents, 2691);
   assert.equal(DEFAULT_BATCH_DISCOUNT_POLICY.tiers.length, 3);
 });
 
@@ -41,4 +42,25 @@ test("invalid discount tiers fail closed", () => {
     quantity: 2,
     policy: { tiers: [{ minPieces: 2, discountBps: 10001 }] },
   }), /Invalid batch discount tier/);
+});
+
+test("default batch tiers never undercut estimated mailing fulfillment costs", () => {
+  const costs = {
+    standard: FULFILLMENT_COSTS.standardCostCents,
+    certified: FULFILLMENT_COSTS.certifiedCostCents,
+    registered: FULFILLMENT_COSTS.registeredCostCents,
+  } as const;
+
+  for (const mailClass of ["standard", "certified", "registered"] as const) {
+    for (const quantity of [2, 10, 50]) {
+      const quote = calculateBatchMailingPrice({
+        unitPriceCents: PRICES[mailClass],
+        quantity,
+      });
+      assert.ok(
+        quote.totalCents >= costs[mailClass] * quantity,
+        `${mailClass} x${quantity} costs ${costs[mailClass] * quantity} cents but quotes ${quote.totalCents} cents`,
+      );
+    }
+  }
 });
