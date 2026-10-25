@@ -52,6 +52,24 @@ describe("Mail pricing", () => {
     assert.ok(getMailMargin("certified") > 0);
     assert.ok(getMailMargin("registered") > 0);
   });
+
+  it("rejects unsupported runtime mail classes in every price and cost helper", () => {
+    const malformed = ["constructor", "toString", "__proto__", "priority", ""];
+    for (const value of malformed) {
+      const mailClass = value as Parameters<typeof getMailPrice>[0];
+      for (const helper of [getMailPrice, getMailSurcharge, getMailCost, getMailMargin]) {
+        assert.throws(() => helper(mailClass), /Unsupported mail class/, `${helper.name} accepted ${value}`);
+      }
+    }
+  });
+
+  it("returns integer-cent prices, costs, surcharges and margins for supported classes", () => {
+    for (const mailClass of ["standard", "certified", "registered"] as const) {
+      for (const helper of [getMailPrice, getMailSurcharge, getMailCost, getMailMargin]) {
+        assert.ok(Number.isSafeInteger(helper(mailClass)), `${helper.name} returned invalid cents`);
+      }
+    }
+  });
 });
 
 // ── Quote Determinism ─────────────────────────────────────────────────────
