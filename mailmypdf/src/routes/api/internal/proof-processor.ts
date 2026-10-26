@@ -14,7 +14,7 @@ import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/li
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 import { requireProofWindowRows, UNNOTIFIED_PROOF_WINDOW_FILTER } from "@/lib/proof-of-service/proof-window-query";
-import { completeExpiryNotification, requireExpiryTenant } from "@/lib/proof-of-service/expiry-notification";
+import { completeExpiryNotification, requireExpiryTenant, processExpiryBatch } from "@/lib/proof-of-service/expiry-notification";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -64,10 +64,9 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
             .limit(100);
 
           const rows = requireProofWindowRows({ data: expiredComms, error });
-          if (rows.length > 0) {
-            for (const comm of rows) {
+          const batch = await processExpiryBatch(rows, async (comm) => {
               const metadata = (comm.metadata as Record<string, unknown>) ?? {};
-              if (metadata.window_expiry_notified === true) continue;
+              if (metadata.window_expiry_notified === true) return false;
 
               const { data: tenant, error: tenantError } = await supabaseAdmin
                 .from("proof_tenants")
@@ -86,7 +85,7 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
 
               if (!verifiedTenant.webhook_url) {
                 await completeExpiryNotification({ markNotified });
-                continue;
+                return true;
               }
 
               await completeExpiryNotification({
@@ -106,8 +105,11 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
                 markNotified,
               });
 
-              results.window_expiries++;
-            }
+              return true;
+          });
+          results.window_expiries += batch.completed;
+          for (const error of batch.errors) {
+            results.errors.push(`window_expiries: ${error.message}`);
           }
         } catch (e) {
           results.errors.push(`window_expiries: ${e instanceof Error ? e.message : String(e)}`);
