@@ -14,7 +14,7 @@ import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/li
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 import { requireProofWindowRows } from "@/lib/proof-of-service/proof-window-query";
-import { completeExpiryNotification } from "@/lib/proof-of-service/expiry-notification";
+import { completeExpiryNotification, requireExpiryTenant } from "@/lib/proof-of-service/expiry-notification";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -72,9 +72,7 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
                 .eq("id", comm.tenant_id)
                 .maybeSingle();
 
-              if (tenantError) {
-                throw new Error(`Proof tenant lookup failed: ${tenantError.message}`);
-              }
+              const verifiedTenant = requireExpiryTenant({ data: tenant, error: tenantError });
 
               const markNotified = () => supabaseAdmin
                 .from("proof_communications")
@@ -83,7 +81,7 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
                 .select("id")
                 .maybeSingle();
 
-              if (!tenant?.webhook_url) {
+              if (!verifiedTenant.webhook_url) {
                 await completeExpiryNotification({ markNotified });
                 continue;
               }
@@ -97,8 +95,8 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
                     data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
                   },
                   comm.tenant_id,
-                  tenant.webhook_url,
-                  tenant.webhook_secret,
+                  verifiedTenant.webhook_url,
+                  verifiedTenant.webhook_secret,
                   { supabaseAdmin },
                   comm.id,
                 ),
