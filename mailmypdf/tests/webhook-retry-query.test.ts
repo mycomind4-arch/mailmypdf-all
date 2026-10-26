@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget } from "../src/lib/proof-of-service/webhook-retry-query.ts";
+import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "../src/lib/proof-of-service/webhook-retry-query.ts";
 
 test("successful empty webhook retry scan returns no work", () => {
   assert.deepEqual(requireWebhookRetryRows({ data: [], error: null }), []);
@@ -94,4 +94,36 @@ test("invalid retry signing secret fails instead of sending unsigned", () => {
     () => requireWebhookRetryTarget({ webhook_url: "https://example.test/hook", webhook_secret: 42 }),
     /invalid webhook secret/,
   );
+});
+
+
+test("duplicate webhook is idempotent only for the same durable event", () => {
+  const expected = { tenantId: "tenant_1", communicationId: "comm_1", eventType: "response_window.expired" };
+  for (const status of ["pending", "retrying", "delivered"]) {
+    assert.doesNotThrow(() => assertIdempotentWebhookDelivery({
+      tenant_id: "tenant_1", communication_id: "comm_1",
+      event_type: "response_window.expired", status,
+    }, expected));
+  }
+});
+
+test("duplicate event ID cannot suppress another tenant or communication", () => {
+  const expected = { tenantId: "tenant_1", communicationId: "comm_1", eventType: "response_window.expired" };
+  const original = { tenant_id: "tenant_1", communication_id: "comm_1", event_type: "response_window.expired", status: "delivered" };
+  for (const change of [{ tenant_id: "tenant_2" }, { communication_id: "comm_2" }, { event_type: "communication.delivered" }]) {
+    assert.throws(() => assertIdempotentWebhookDelivery({ ...original, ...change }, expected), /different delivery/);
+  }
+});
+
+test("duplicate terminal failure must not masquerade as delivered or retrying", () => {
+  assert.throws(() => assertIdempotentWebhookDelivery({
+    tenant_id: "tenant_1", communication_id: "comm_1",
+    event_type: "response_window.expired", status: "failed",
+  }, { tenantId: "tenant_1", communicationId: "comm_1", eventType: "response_window.expired" }), /non-retriable status: failed/);
+});
+
+test("unique conflict without a matching event record fails closed", () => {
+  assert.throws(() => assertIdempotentWebhookDelivery(null, {
+    tenantId: "tenant_1", communicationId: "comm_1", eventType: "response_window.expired",
+  }), /no matching delivery record/);
 });
