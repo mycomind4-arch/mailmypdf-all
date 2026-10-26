@@ -15,16 +15,18 @@ function fakeDeliveryStore(options: {
   retryAttempts?: number;
   stalePending?: boolean;
   pendingQueryError?: string;
+  retryEventIds?: string[];
+  failUpdateForEventId?: string;
 } = {}) {
   const statuses: string[] = [];
-  const retryRows = options.retryAttempts === undefined ? [] : [{
-    event_id: event.event_id,
+  const retryRows = (options.retryEventIds ?? (options.retryAttempts === undefined ? [] : [event.event_id])).map((id) => ({
+    event_id: id,
     event_type: event.event_type,
-    payload: event,
-    attempts: options.retryAttempts,
+    payload: { ...event, event_id: id },
+    attempts: options.retryAttempts ?? 1,
     tenant_id: "tenant_1",
     proof_tenants: [{ webhook_url: "https://example.test/webhook", webhook_secret: null }],
-  }];
+  }));
 
   const pendingRows = options.stalePending ? [{
     event_id: event.event_id,
@@ -43,7 +45,8 @@ function fakeDeliveryStore(options: {
         update: (values: { status: string }) => ({
           eq: (column: string, value: string) => {
             assert.equal(column, "event_id");
-            assert.equal(value, event.event_id);
+            if (options.retryEventIds) assert.ok(options.retryEventIds.includes(value));
+            else assert.equal(value, event.event_id);
             statuses.push(values.status);
             return {
               select: (columns: string) => {
@@ -51,7 +54,9 @@ function fakeDeliveryStore(options: {
                 return {
                   maybeSingle: async () => ({
                     data: options.missingUpdateRow ? null : { id: "delivery_1" },
-                    error: options.updateError ? { message: options.updateError } : null,
+                    error: options.updateError && (!options.failUpdateForEventId || options.failUpdateForEventId === value)
+                      ? { message: options.updateError }
+                      : null,
                   }),
                 };
               },
@@ -196,4 +201,24 @@ test("failed stale-pending scan propagates instead of silently losing delivery w
     /Pending proof webhook retries query failed: database unavailable/,
   );
   assert.equal(requests, 0);
+});
+
+test("failed retry status write does not starve a later webhook delivery", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(null, { status: 200 });
+  });
+  const store = fakeDeliveryStore({
+    retryEventIds: ["evt_first", "evt_second"],
+    retryAttempts: 1,
+    updateError: "write denied",
+    failUpdateForEventId: "evt_first",
+  });
+  await assert.rejects(
+    processPendingRetries(store.deps),
+    /Proof webhook retry batch failed.*write denied/,
+  );
+  assert.equal(requests, 2, "second delivery must still be attempted");
+  assert.deepEqual(store.statuses, ["delivered", "delivered"]);
 });
