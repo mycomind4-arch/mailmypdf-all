@@ -38,13 +38,17 @@ async function persistWebhookDeliveryStatus(
     next_retry_at?: string;
   },
 ): Promise<void> {
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("proof_webhook_deliveries")
     .update(values)
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    throw new Error(`Failed to persist proof webhook ${values.status} status: ${error.message}`);
+  if (error || !data) {
+    throw new Error(
+      `Failed to persist proof webhook ${values.status} status: ${error?.message ?? "no matching delivery record"}`,
+    );
   }
 }
 
