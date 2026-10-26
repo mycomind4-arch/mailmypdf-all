@@ -79,7 +79,9 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
               const markNotified = () => supabaseAdmin
                 .from("proof_communications")
                 .update({ metadata: { ...metadata, window_expiry_notified: true } })
-                .eq("id", comm.id);
+                .eq("id", comm.id)
+                .select("id")
+                .maybeSingle();
 
               if (!tenant?.webhook_url) {
                 await completeExpiryNotification({ markNotified });
