@@ -25,6 +25,30 @@ interface WebhookDeliveryRecord {
 const MAX_ATTEMPTS = 5;
 
 /**
+ * A webhook delivery is only durable when its status transition is persisted.
+ * Never treat a failed status write as a successful delivery or queued retry.
+ */
+async function persistWebhookDeliveryStatus(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient,
+  eventId: string,
+  values: {
+    status: "delivered" | "failed" | "retrying";
+    attempts: number;
+    response_code: number | null;
+    next_retry_at?: string;
+  },
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("proof_webhook_deliveries")
+    .update(values)
+    .eq("event_id", eventId);
+
+  if (error) {
+    throw new Error(`Failed to persist proof webhook ${values.status} status: ${error.message}`);
+  }
+}
+
+/**
  * Dispatch a webhook event to the tenant's webhook URL.
  * Creates a delivery record for retry tracking.
  */
@@ -87,8 +111,11 @@ async function attemptWebhookDelivery(
 
   const signatureHeader = `t=${timestamp},v1=${signature}`;
 
+  // Only network failures are retriable here. A database write failure after
+  // HTTP 2xx must propagate, not be mistaken for a network failure.
+  let response: Response;
   try {
-    const response = await fetch(webhookUrl, {
+    response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -98,24 +125,19 @@ async function attemptWebhookDelivery(
       body,
       signal: AbortSignal.timeout(10000), // 10s timeout
     });
-
-    if (response.ok) {
-      // Success
-      await supabaseAdmin
-        .from("proof_webhook_deliveries")
-        .update({
-          status: "delivered",
-          attempts: attempt,
-          response_code: response.status,
-        })
-        .eq("event_id", eventId);
-    } else {
-      // Non-2xx response — treat as failure
-      await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, response.status);
-    }
-  } catch (err) {
-    // Network error or timeout
+  } catch {
     await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, null);
+    return;
+  }
+
+  if (response.ok) {
+    await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+      status: "delivered",
+      attempts: attempt,
+      response_code: response.status,
+    });
+  } else {
+    await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, response.status);
   }
 }
 
@@ -136,14 +158,11 @@ async function handleWebhookFailure(
 
   if (attempt >= MAX_ATTEMPTS) {
     // Give up
-    await supabaseAdmin
-      .from("proof_webhook_deliveries")
-      .update({
-        status: "failed",
-        attempts: attempt,
-        response_code: responseCode,
-      })
-      .eq("event_id", eventId);
+    await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+      status: "failed",
+      attempts: attempt,
+      response_code: responseCode,
+    });
     return;
   }
 
@@ -152,15 +171,12 @@ async function handleWebhookFailure(
   const backoffMs = [60_000, 300_000, 1_800_000, 7_200_000][attempt - 1] ?? 7_200_000;
   const nextRetry = new Date(Date.now() + backoffMs).toISOString();
 
-  await supabaseAdmin
-    .from("proof_webhook_deliveries")
-    .update({
-      status: "retrying",
-      attempts: attempt,
-      next_retry_at: nextRetry,
-      response_code: responseCode,
-    })
-    .eq("event_id", eventId);
+  await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+    status: "retrying",
+    attempts: attempt,
+    next_retry_at: nextRetry,
+    response_code: responseCode,
+  });
 
   // Note: actual retry execution would be handled by a scheduled job
   // that picks up records with status='retrying' and next_retry_at <= now
