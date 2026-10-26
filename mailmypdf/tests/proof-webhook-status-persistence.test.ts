@@ -11,6 +11,7 @@ const event: Parameters<typeof dispatchWebhook>[0] = {
 
 function fakeDeliveryStore(options: {
   updateError?: string;
+  missingUpdateRow?: boolean;
   retryAttempts?: number;
 } = {}) {
   const statuses: string[] = [];
@@ -29,12 +30,20 @@ function fakeDeliveryStore(options: {
       return {
         insert: async () => ({ error: null }),
         update: (values: { status: string }) => ({
-          eq: async (column: string, value: string) => {
+          eq: (column: string, value: string) => {
             assert.equal(column, "event_id");
             assert.equal(value, event.event_id);
             statuses.push(values.status);
             return {
-              error: options.updateError ? { message: options.updateError } : null,
+              select: (columns: string) => {
+                assert.equal(columns, "id");
+                return {
+                  maybeSingle: async () => ({
+                    data: options.missingUpdateRow ? null : { id: "delivery_1" },
+                    error: options.updateError ? { message: options.updateError } : null,
+                  }),
+                };
+              },
             };
           },
         }),
@@ -73,6 +82,13 @@ test("failed delivered-status write propagates without incorrectly scheduling a 
   assert.deepEqual(store.statuses, ["delivered"]);
 });
 
+test("HTTP 2xx does not report delivered when no delivery row matched the update", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 200 }));
+  const store = fakeDeliveryStore({ missingUpdateRow: true });
+  await assert.rejects(dispatch(store.deps), /Failed to persist proof webhook delivered status: no matching delivery record/);
+  assert.deepEqual(store.statuses, ["delivered"]);
+});
+
 test("non-2xx response persists retrying status", async (t) => {
   t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 503 }));
   const store = fakeDeliveryStore();
@@ -84,6 +100,13 @@ test("failed retry-status write propagates instead of pretending a retry is queu
   t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 503 }));
   const store = fakeDeliveryStore({ updateError: "database unavailable" });
   await assert.rejects(dispatch(store.deps), /Failed to persist proof webhook retrying status: database unavailable/);
+  assert.deepEqual(store.statuses, ["retrying"]);
+});
+
+test("HTTP 503 does not report a queued retry when no delivery row matched", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 503 }));
+  const store = fakeDeliveryStore({ missingUpdateRow: true });
+  await assert.rejects(dispatch(store.deps), /Failed to persist proof webhook retrying status: no matching delivery record/);
   assert.deepEqual(store.statuses, ["retrying"]);
 });
 
