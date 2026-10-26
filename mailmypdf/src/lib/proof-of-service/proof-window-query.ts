@@ -1,3 +1,11 @@
+/**
+ * Exclude already-notified windows before applying the scan limit.
+ * A missing metadata key yields SQL NULL, so both NULL and values other than
+ * true must be included. Filtering after LIMIT can starve later windows forever.
+ */
+export const UNNOTIFIED_PROOF_WINDOW_FILTER =
+  "metadata->>window_expiry_notified.is.null,metadata->>window_expiry_notified.neq.true";
+
 /** Fail closed when the proof-of-service expiry scan cannot read its rows. */
 export function requireProofWindowRows<T>(query: {
   data: T[] | null;
