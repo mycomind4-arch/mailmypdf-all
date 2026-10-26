@@ -167,6 +167,30 @@ test("terminal fifth-attempt failure requires a durable failed-status write", as
   assert.deepEqual(store.statuses, ["failed"]);
 });
 
+test("terminal fifth-attempt HTTP failure is persisted and reported as a failed batch", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 503 }));
+  const store = fakeDeliveryStore({ retryAttempts: 4 });
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 1);
+    assert.match(error.message, /Proof webhook delivery exhausted 5 attempts/);
+    return true;
+  });
+  assert.deepEqual(store.statuses, ["failed"], "terminal failure must be durable before the cron reports failure");
+});
+
+test("terminal fifth-attempt network failure is persisted and reported as a failed batch", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => { throw new Error("connection reset"); });
+  const store = fakeDeliveryStore({ retryAttempts: 4 });
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 1);
+    assert.match(error.message, /Proof webhook delivery exhausted 5 attempts/);
+    return true;
+  });
+  assert.deepEqual(store.statuses, ["failed"]);
+});
+
 test("stale pending delivery is recovered after an interrupted initial attempt", async (t) => {
   let requests = 0;
   t.mock.method(globalThis, "fetch", async () => {
