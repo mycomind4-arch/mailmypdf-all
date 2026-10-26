@@ -522,6 +522,32 @@ test("remote attachment URLs reject local/private/nonstandard targets", () => {
   assert.equal(accepted.hostname, "files.example.com");
 });
 
+test("remote attachment host wildcards match only one provider-controlled label", () => {
+  const trusted = ["*.cdn.provider.example"];
+  assert.equal(
+    validateRemoteDocumentUrl("https://one.cdn.provider.example/file.pdf", trusted).hostname,
+    "one.cdn.provider.example",
+  );
+  for (const host of [
+    "cdn.provider.example",
+    "one.two.cdn.provider.example",
+    "one.cdn.provider.example.evil.net",
+  ]) {
+    assert.throws(
+      () => validateRemoteDocumentUrl(`https://${host}/file.pdf`, trusted),
+      /not allowed/i,
+      `wildcard must not authorize ${host}`,
+    );
+  }
+  for (const pattern of ["*.com", "*.co.uk"]) {
+    assert.throws(
+      () => validateRemoteDocumentUrl("https://files.example.com/file.pdf", [pattern]),
+      /not allowed/i,
+      `broad wildcard ${pattern} must fail closed without a deployment preflight`,
+    );
+  }
+});
+
 test("document source metadata is provenance-only and does not accept credentials or source URLs", () => {
   const ingest = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "ingest_document");
   assert.ok(ingest);
