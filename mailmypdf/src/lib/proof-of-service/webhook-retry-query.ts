@@ -12,6 +12,20 @@ export function requireWebhookRetryRows<T>(query: {
   return query.data;
 }
 
+/** Preserve completed work when a retry batch partially fails. */
+export class WebhookRetryBatchError extends AggregateError {
+  readonly processed: number;
+
+  constructor(errors: Error[], processed: number) {
+    super(
+      errors,
+      `Proof webhook retry batch failed for ${errors.length} delivery(s) after ${processed} processed: ${errors.map((error) => error.message).join("; ")}`,
+    );
+    this.name = "WebhookRetryBatchError";
+    this.processed = processed;
+  }
+}
+
 /**
  * A broken webhook delivery must not starve independent retries later in the
  * batch. Keep processing, but fail the cron run if any delivery failed.
@@ -30,10 +44,7 @@ export async function processWebhookRetryBatch<T>(
     }
   }
   if (errors.length) {
-    throw new AggregateError(
-      errors,
-      `Proof webhook retry batch failed for ${errors.length} delivery(s) after ${processed} processed: ${errors.map((error) => error.message).join("; ")}`,
-    );
+    throw new WebhookRetryBatchError(errors, processed);
   }
   return processed;
 }
