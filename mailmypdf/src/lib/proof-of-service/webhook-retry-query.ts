@@ -37,3 +37,20 @@ export async function processWebhookRetryBatch<T>(
   }
   return processed;
 }
+
+/** A queued delivery without a valid tenant destination must not disappear as a zero-work retry. */
+export function requireWebhookRetryTarget(tenant: Record<string, unknown> | null | undefined): {
+  webhookUrl: string;
+  webhookSecret: string | null;
+} {
+  if (!tenant) throw new Error("Proof webhook retry tenant record is missing");
+  const webhookUrl = tenant.webhook_url;
+  if (typeof webhookUrl !== "string" || webhookUrl.trim() === "") {
+    throw new Error("Proof webhook retry tenant has no configured webhook URL");
+  }
+  const secret = tenant.webhook_secret;
+  if (secret != null && typeof secret !== "string") {
+    throw new Error("Proof webhook retry tenant has an invalid webhook secret");
+  }
+  return { webhookUrl, webhookSecret: (secret ?? null) as string | null };
+}
