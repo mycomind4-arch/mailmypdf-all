@@ -18,3 +18,20 @@ export async function completeExpiryNotification(options: {
     );
   }
 }
+
+/**
+ * An absent tenant is not the same as a tenant with no webhook configured.
+ * Never silently mark an expiry notified when its tenant lookup failed.
+ */
+export function requireExpiryTenant<T>(result: {
+  data: T | null;
+  error: { message: string } | null;
+}): T {
+  if (result.error) {
+    throw new Error(`Proof tenant lookup failed: ${result.error.message}`);
+  }
+  if (!result.data) {
+    throw new Error("Proof tenant lookup returned no matching tenant");
+  }
+  return result.data;
+}
