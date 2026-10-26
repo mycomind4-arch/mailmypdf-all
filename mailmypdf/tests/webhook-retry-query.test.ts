@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requireWebhookRetryRows, processWebhookRetryBatch } from "../src/lib/proof-of-service/webhook-retry-query.ts";
+import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget } from "../src/lib/proof-of-service/webhook-retry-query.ts";
 
 test("successful empty webhook retry scan returns no work", () => {
   assert.deepEqual(requireWebhookRetryRows({ data: [], error: null }), []);
@@ -71,4 +71,27 @@ test("webhook retry batch preserves non-Error failures without dropping later wo
     },
   );
   assert.deepEqual(visited, [1, 2, 3]);
+});
+
+test("missing tenant for queued webhook delivery fails closed", () => {
+  assert.throws(() => requireWebhookRetryTarget(null), /tenant record is missing/);
+});
+
+test("disabled or empty tenant webhook destination fails closed", () => {
+  assert.throws(() => requireWebhookRetryTarget({ webhook_url: null }), /no configured webhook URL/);
+  assert.throws(() => requireWebhookRetryTarget({ webhook_url: "   " }), /no configured webhook URL/);
+});
+
+test("valid retry tenant preserves URL and signing secret", () => {
+  assert.deepEqual(
+    requireWebhookRetryTarget({ webhook_url: "https://example.test/hook", webhook_secret: "secret" }),
+    { webhookUrl: "https://example.test/hook", webhookSecret: "secret" },
+  );
+});
+
+test("invalid retry signing secret fails instead of sending unsigned", () => {
+  assert.throws(
+    () => requireWebhookRetryTarget({ webhook_url: "https://example.test/hook", webhook_secret: 42 }),
+    /invalid webhook secret/,
+  );
 });
