@@ -35,3 +35,24 @@ export function requireExpiryTenant<T>(result: {
   }
   return result.data;
 }
+
+/**
+ * A single malformed communication or failed webhook must not starve every
+ * later expired response window in the same cron batch. Preserve an error for
+ * the overall HTTP 500 while still attempting independent communications.
+ */
+export async function processExpiryBatch<T>(
+  rows: readonly T[],
+  handle: (row: T) => Promise<boolean>,
+): Promise<{ completed: number; errors: Error[] }> {
+  let completed = 0;
+  const errors: Error[] = [];
+  for (const row of rows) {
+    try {
+      if (await handle(row)) completed++;
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+  return { completed, errors };
+}
