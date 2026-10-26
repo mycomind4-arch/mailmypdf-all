@@ -183,7 +183,10 @@ async function handleWebhookFailure(
       attempts: attempt,
       response_code: responseCode,
     });
-    return;
+    // The terminal failure is durable, but it is not successful delivery.
+    // Surface it to the batch processor so the maintenance run cannot return
+    // HTTP 200 while a tenant's webhook is permanently undelivered.
+    throw new Error(`Proof webhook delivery exhausted ${attempt} attempts`);
   }
 
   // Schedule retry with exponential backoff
