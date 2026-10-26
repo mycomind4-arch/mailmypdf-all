@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { completeExpiryNotification } from "../src/lib/proof-of-service/expiry-notification.ts";
+import { completeExpiryNotification, requireExpiryTenant } from "../src/lib/proof-of-service/expiry-notification.ts";
 
 test("successful expiry dispatch is followed by marking the communication notified", async () => {
   const calls: string[] = [];
@@ -66,5 +66,32 @@ test("an update response without a communication ID cannot be treated as success
       markNotified: async () => ({ data: { id: "" }, error: null }),
     }),
     /no matching communication row/,
+  );
+});
+
+
+test("missing proof tenant cannot be treated as a tenant without a webhook", () => {
+  assert.throws(
+    () => requireExpiryTenant({ data: null, error: null }),
+    /Proof tenant lookup returned no matching tenant/,
+  );
+});
+
+test("proof tenant database lookup errors fail closed", () => {
+  assert.throws(
+    () => requireExpiryTenant({ data: null, error: { message: "database unavailable" } }),
+    /Proof tenant lookup failed: database unavailable/,
+  );
+});
+
+test("valid proof tenant with no webhook remains a supported configuration", () => {
+  const tenant = { webhook_url: null, webhook_secret: null };
+  assert.strictEqual(requireExpiryTenant({ data: tenant, error: null }), tenant);
+});
+
+test("proof tenant query error takes precedence over stale returned data", () => {
+  assert.throws(
+    () => requireExpiryTenant({ data: { webhook_url: null }, error: { message: "stale read" } }),
+    /Proof tenant lookup failed: stale read/,
   );
 });
