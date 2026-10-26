@@ -9,7 +9,7 @@
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
 import { embeddedOne } from "./embedded";
-import { requireWebhookRetryRows, processWebhookRetryBatch } from "./webhook-retry-query";
+import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget } from "./webhook-retry-query";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -205,7 +205,7 @@ export async function processPendingRetries(
       payload,
       attempts,
       tenant_id,
-      proof_tenants!inner (webhook_url, webhook_secret)
+      proof_tenants (webhook_url, webhook_secret)
     `)
     .eq("status", "retrying")
     .lte("next_retry_at", now)
@@ -226,7 +226,7 @@ export async function processPendingRetries(
       payload,
       attempts,
       tenant_id,
-      proof_tenants!inner (webhook_url, webhook_secret)
+      proof_tenants (webhook_url, webhook_secret)
     `)
     .eq("status", "pending")
     .lte("created_at", staleCutoff)
@@ -239,10 +239,9 @@ export async function processPendingRetries(
     ...pendingRows.map((row) => ({ row, attempt: 1 })),
   ], async ({ row, attempt }) => {
     const tenant = embeddedOne<Record<string, unknown>>(row.proof_tenants);
-    const webhookUrl = tenant?.webhook_url as string | undefined;
-    const webhookSecret = (tenant?.webhook_secret ?? null) as string | null;
-
-    if (!webhookUrl) return false;
+    // A missing tenant or disabled webhook must be reported, not silently
+    // skipped forever. Left joins keep orphaned delivery rows visible.
+    const { webhookUrl, webhookSecret } = requireWebhookRetryTarget(tenant);
 
     const event = row.payload as WebhookEvent;
     await attemptWebhookDelivery(
