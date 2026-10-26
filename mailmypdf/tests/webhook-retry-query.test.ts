@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "../src/lib/proof-of-service/webhook-retry-query.ts";
+import { readFileSync } from "node:fs";
+import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery, WebhookRetryBatchError } from "../src/lib/proof-of-service/webhook-retry-query.ts";
 
 test("successful empty webhook retry scan returns no work", () => {
   assert.deepEqual(requireWebhookRetryRows({ data: [], error: null }), []);
@@ -126,4 +127,40 @@ test("unique conflict without a matching event record fails closed", () => {
   assert.throws(() => assertIdempotentWebhookDelivery(null, {
     tenantId: "tenant_1", communicationId: "comm_1", eventType: "response_window.expired",
   }), /no matching delivery record/);
+});
+
+
+test("partially failed webhook retry batch exposes completed count for maintenance reporting", async () => {
+  await assert.rejects(
+    processWebhookRetryBatch(["failed", "completed", "skipped"], async (row) => {
+      if (row === "failed") throw new Error("status write denied");
+      return row === "completed";
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof WebhookRetryBatchError);
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.processed, 1);
+      assert.equal(error.errors.length, 1);
+      assert.match(error.message, /after 1 processed/);
+      return true;
+    },
+  );
+});
+
+test("webhook retry batch with only failures reports zero completed deliveries", async () => {
+  await assert.rejects(
+    processWebhookRetryBatch(["failed"], async () => { throw new Error("tenant missing"); }),
+    (error: unknown) => {
+      assert.ok(error instanceof WebhookRetryBatchError);
+      assert.equal(error.processed, 0);
+      return true;
+    },
+  );
+});
+
+test("proof processor preserves partial retry progress while reporting HTTP failure", () => {
+  const route = readFileSync(new URL("../src/routes/api/internal/proof-processor.ts", import.meta.url), "utf8");
+  assert.match(route, /if \(e instanceof WebhookRetryBatchError\)\s*\{\s*results\.webhook_retries = e\.processed;/);
+  assert.match(route, /const ok = results\.errors\.length === 0;/);
+  assert.match(route, /status: ok \? 200 : 500/);
 });
