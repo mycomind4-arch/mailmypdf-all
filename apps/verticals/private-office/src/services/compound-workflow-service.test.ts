@@ -297,8 +297,8 @@ describe("CompoundWorkflowService", () => {
       sourceRunId: "authority-run-grounding",
       contentHash: "b".repeat(64),
       verified: true,
-    }, 15_000);
-  });
+    });
+  }, 15_000);
 
   it("does not ground a deadline to a URL that was not in the confirmed authority run", async () => {
     const repository = new MemoryRepository();
