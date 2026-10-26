@@ -19,6 +19,7 @@ function fakeDeliveryStore(options: {
   failUpdateForEventId?: string;
   missingTenant?: boolean;
   missingWebhookUrl?: boolean;
+  missingWebhookForEventId?: string;
 } = {}) {
   const statuses: string[] = [];
   const retryRows = (options.retryEventIds ?? (options.retryAttempts === undefined ? [] : [event.event_id])).map((id) => ({
@@ -27,7 +28,7 @@ function fakeDeliveryStore(options: {
     payload: { ...event, event_id: id },
     attempts: options.retryAttempts ?? 1,
     tenant_id: "tenant_1",
-    proof_tenants: options.missingTenant ? null : [{ webhook_url: options.missingWebhookUrl ? null : "https://example.test/webhook", webhook_secret: null }],
+    proof_tenants: options.missingTenant ? null : [{ webhook_url: options.missingWebhookUrl || options.missingWebhookForEventId === id ? null : "https://example.test/webhook", webhook_secret: null }],
   }));
 
   const pendingRows = options.stalePending ? [{
@@ -66,7 +67,7 @@ function fakeDeliveryStore(options: {
           },
         }),
         select: (selection: string) => {
-          if (options.missingTenant || options.missingWebhookUrl) {
+          if (options.missingTenant || options.missingWebhookUrl || options.missingWebhookForEventId) {
             assert.doesNotMatch(selection, /!inner/, "missing tenants must not disappear through an inner join");
           }
           return {
@@ -249,13 +250,12 @@ test("retry with removed webhook URL is not silently skipped", async (t) => {
 test("bad retry tenant does not starve another independent delivery", async (t) => {
   let requests = 0;
   t.mock.method(globalThis, "fetch", async () => { requests++; return new Response(null, { status: 200 }); });
-  const store = fakeDeliveryStore({ retryEventIds: ["evt_missing", "evt_valid"], retryAttempts: 1, missingWebhookUrl: true });
-  // Both rows intentionally have no URL in this fake store: neither may be sent,
-  // and the batch must report both failures instead of returning zero processed.
+  const store = fakeDeliveryStore({ retryEventIds: ["evt_missing", "evt_valid"], retryAttempts: 1, missingWebhookForEventId: "evt_missing" });
   await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
     assert.ok(error instanceof AggregateError);
-    assert.equal(error.errors.length, 2);
+    assert.equal(error.errors.length, 1);
+    assert.match(error.message, /after 1 processed/);
     return true;
   });
-  assert.equal(requests, 0);
+  assert.equal(requests, 1, "valid delivery still proceeds despite the missing first destination");
 });
