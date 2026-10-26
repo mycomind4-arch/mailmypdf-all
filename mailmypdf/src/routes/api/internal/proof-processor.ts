@@ -15,6 +15,7 @@ import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 import { requireProofWindowRows, UNNOTIFIED_PROOF_WINDOW_FILTER } from "@/lib/proof-of-service/proof-window-query";
 import { completeExpiryNotification, requireExpiryTenant, processExpiryBatch } from "@/lib/proof-of-service/expiry-notification";
+import { WebhookRetryBatchError } from "@/lib/proof-of-service/webhook-retry-query";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -44,6 +45,11 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
           const { processPendingRetries } = await import("@/lib/proof-of-service/webhooks");
           results.webhook_retries = await processPendingRetries({ supabaseAdmin });
         } catch (e) {
+          // A partial batch is an HTTP 500, but successfully completed retries
+          // must still be counted in the maintenance report.
+          if (e instanceof WebhookRetryBatchError) {
+            results.webhook_retries = e.processed;
+          }
           results.errors.push(`webhook_retries: ${e instanceof Error ? e.message : String(e)}`);
         }
 
