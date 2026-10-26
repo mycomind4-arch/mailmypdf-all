@@ -11,3 +11,29 @@ export function requireWebhookRetryRows<T>(query: {
   }
   return query.data;
 }
+
+/**
+ * A broken webhook delivery must not starve independent retries later in the
+ * batch. Keep processing, but fail the cron run if any delivery failed.
+ */
+export async function processWebhookRetryBatch<T>(
+  rows: readonly T[],
+  handle: (row: T) => Promise<boolean>,
+): Promise<number> {
+  let processed = 0;
+  const errors: Error[] = [];
+  for (const row of rows) {
+    try {
+      if (await handle(row)) processed++;
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+  if (errors.length) {
+    throw new AggregateError(
+      errors,
+      `Proof webhook retry batch failed for ${errors.length} delivery(s) after ${processed} processed: ${errors.map((error) => error.message).join("; ")}`,
+    );
+  }
+  return processed;
+}
