@@ -97,8 +97,14 @@ function configuredHostPatterns(raw = process.env.MCP_REMOTE_FILE_HOSTS ?? ""): 
 
 function hostnameMatchesPattern(hostname: string, pattern: string): boolean {
   if (pattern.startsWith("*.")) {
-    const suffix = pattern.slice(1);
-    return hostname.endsWith(suffix) && hostname.length > suffix.length;
+    // Match exactly one subdomain label, never an entire public suffix or
+    // an arbitrary depth of descendants. Keep this fail-closed even when
+    // a deployment skips the separate configuration preflight.
+    const suffix = pattern.slice(2);
+    if (suffix.split(".").length < 3) return false;
+    if (!hostname.endsWith(`.${suffix}`)) return false;
+    const label = hostname.slice(0, -(suffix.length + 1));
+    return label.length > 0 && !label.includes(".");
   }
   return hostname === pattern;
 }
