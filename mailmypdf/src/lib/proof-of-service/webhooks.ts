@@ -9,6 +9,7 @@
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
 import { embeddedOne } from "./embedded";
+import { requireWebhookRetryRows } from "./webhook-retry-query";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -190,10 +191,10 @@ export async function processPendingRetries(
     .lte("next_retry_at", now)
     .limit(50);
 
-  if (error || !pending) return 0;
+  const rows = requireWebhookRetryRows({ data: pending, error });
 
   let processed = 0;
-  for (const record of pending) {
+  for (const record of rows) {
     const tenant = embeddedOne<Record<string, unknown>>(record.proof_tenants);
     const webhookUrl = tenant?.webhook_url as string | undefined;
     const webhookSecret = (tenant?.webhook_secret ?? null) as string | null;
