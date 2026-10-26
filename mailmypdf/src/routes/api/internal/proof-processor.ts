@@ -13,7 +13,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/lib/request-id";
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
-import { requireProofWindowRows } from "@/lib/proof-of-service/proof-window-query";
+import { requireProofWindowRows, UNNOTIFIED_PROOF_WINDOW_FILTER } from "@/lib/proof-of-service/proof-window-query";
 import { completeExpiryNotification, requireExpiryTenant } from "@/lib/proof-of-service/expiry-notification";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
@@ -58,6 +58,9 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
             .eq("status", "delivered")
             .not("legal_reference->>response_window_ends", "is", null)
             .lt("legal_reference->>response_window_ends", now)
+            // Filter in SQL, before LIMIT: otherwise 100 previously notified rows
+            // can indefinitely starve later, still-unnotified communications.
+            .or(UNNOTIFIED_PROOF_WINDOW_FILTER)
             .limit(100);
 
           const rows = requireProofWindowRows({ data: expiredComms, error });
