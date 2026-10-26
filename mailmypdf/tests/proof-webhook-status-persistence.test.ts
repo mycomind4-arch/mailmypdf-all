@@ -259,3 +259,77 @@ test("bad retry tenant does not starve another independent delivery", async (t) 
   });
   assert.equal(requests, 1, "valid delivery still proceeds despite the missing first destination");
 });
+
+
+function duplicateEventStore(options: {
+  existing?: { tenant_id: string; communication_id: string | null; event_type: string; status: string } | null;
+  lookupError?: string;
+}) {
+  let lookups = 0;
+  const db = {
+    from(table: string) {
+      assert.equal(table, "proof_webhook_deliveries");
+      return {
+        insert: async () => ({ error: { code: "23505", message: "unique event id" } }),
+        select: (columns: string) => {
+          assert.equal(columns, "tenant_id, communication_id, event_type, status");
+          return {
+            eq: (column: string, value: string) => {
+              assert.equal(column, "event_id");
+              assert.equal(value, event.event_id);
+              return {
+                maybeSingle: async () => {
+                  lookups++;
+                  return { data: options.existing ?? null, error: options.lookupError ? { message: options.lookupError } : null };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+  return { deps: { supabaseAdmin: db as unknown as Parameters<typeof dispatchWebhook>[4]["supabaseAdmin"] }, getLookups: () => lookups };
+}
+
+test("existing delivered event is idempotent only after ownership verification", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; throw new Error("unexpected network request"); });
+  const store = duplicateEventStore({ existing: {
+    tenant_id: "tenant_1", communication_id: "comm_1",
+    event_type: event.event_type, status: "delivered",
+  } });
+  await dispatch(store.deps);
+  assert.equal(store.getLookups(), 1);
+  assert.equal(requests, 0);
+});
+
+test("duplicate event ID from another tenant fails before any webhook request", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; throw new Error("unexpected network request"); });
+  const store = duplicateEventStore({ existing: {
+    tenant_id: "tenant_2", communication_id: "comm_1",
+    event_type: event.event_type, status: "delivered",
+  } });
+  await assert.rejects(dispatch(store.deps), /different delivery/);
+  assert.equal(requests, 0);
+});
+
+test("duplicate permanently failed event cannot falsely complete notification", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; throw new Error("unexpected network request"); });
+  const store = duplicateEventStore({ existing: {
+    tenant_id: "tenant_1", communication_id: "comm_1",
+    event_type: event.event_type, status: "failed",
+  } });
+  await assert.rejects(dispatch(store.deps), /non-retriable status: failed/);
+  assert.equal(requests, 0);
+});
+
+test("duplicate event lookup error fails closed without attempting delivery", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; throw new Error("unexpected network request"); });
+  const store = duplicateEventStore({ lookupError: "database unavailable" });
+  await assert.rejects(dispatch(store.deps), /Failed to verify duplicate proof webhook event: database unavailable/);
+  assert.equal(requests, 0);
+});
