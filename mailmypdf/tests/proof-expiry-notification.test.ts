@@ -6,7 +6,7 @@ test("successful expiry dispatch is followed by marking the communication notifi
   const calls: string[] = [];
   await completeExpiryNotification({
     dispatch: async () => { calls.push("dispatch"); },
-    markNotified: async () => { calls.push("mark"); return { error: null }; },
+    markNotified: async () => { calls.push("mark"); return { data: { id: "comm_1" }, error: null }; },
   });
   assert.deepEqual(calls, ["dispatch", "mark"]);
 });
@@ -16,7 +16,7 @@ test("failed dispatch does not mark an expiry as notified", async () => {
   await assert.rejects(
     completeExpiryNotification({
       dispatch: async () => { throw new Error("delivery record insert failed"); },
-      markNotified: async () => { marked = true; return { error: null }; },
+      markNotified: async () => { marked = true; return { data: { id: "comm_1" }, error: null }; },
     }),
     /delivery record insert failed/,
   );
@@ -27,7 +27,7 @@ test("failed metadata update surfaces an error to the processor", async () => {
   await assert.rejects(
     completeExpiryNotification({
       dispatch: async () => {},
-      markNotified: async () => ({ error: { message: "database unavailable" } }),
+      markNotified: async () => ({ data: null, error: { message: "database unavailable" } }),
     }),
     /Failed to mark proof response window notification: database unavailable/,
   );
@@ -36,7 +36,7 @@ test("failed metadata update surfaces an error to the processor", async () => {
 test("no webhook still requires a successful notification-state update", async () => {
   let marked = false;
   await completeExpiryNotification({
-    markNotified: async () => { marked = true; return { error: null }; },
+    markNotified: async () => { marked = true; return { data: { id: "comm_1" }, error: null }; },
   });
   assert.equal(marked, true);
 });
@@ -47,5 +47,24 @@ test("missing database update result fails closed", async () => {
       markNotified: async () => null as never,
     }),
     /no update result/,
+  );
+});
+
+test("zero matching communication rows cannot be reported as notified", async () => {
+  await assert.rejects(
+    completeExpiryNotification({
+      dispatch: async () => {},
+      markNotified: async () => ({ data: null, error: null }),
+    }),
+    /Failed to mark proof response window notification: no matching communication row/,
+  );
+});
+
+test("an update response without a communication ID cannot be treated as success", async () => {
+  await assert.rejects(
+    completeExpiryNotification({
+      markNotified: async () => ({ data: { id: "" }, error: null }),
+    }),
+    /no matching communication row/,
   );
 });
