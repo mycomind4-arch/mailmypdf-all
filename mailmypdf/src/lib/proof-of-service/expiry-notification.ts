@@ -5,16 +5,16 @@
  */
 export async function completeExpiryNotification(options: {
   dispatch?: () => Promise<void>;
-  markNotified: () => PromiseLike<{ error: { message: string } | null }>;
+  markNotified: () => PromiseLike<{ data: { id: string } | null; error: { message: string } | null }>;
 }): Promise<void> {
   if (options.dispatch) {
     await options.dispatch();
   }
 
   const result = await options.markNotified();
-  if (!result || result.error) {
+  if (!result || result.error || !result.data?.id) {
     throw new Error(
-      `Failed to mark proof response window notification: ${result?.error?.message ?? "no update result"}`,
+      `Failed to mark proof response window notification: ${result?.error?.message ?? (result ? "no matching communication row" : "no update result")}`,
     );
   }
 }
