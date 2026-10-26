@@ -14,6 +14,7 @@ import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/li
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
 import { requireProofWindowRows } from "@/lib/proof-of-service/proof-window-query";
+import { completeExpiryNotification } from "@/lib/proof-of-service/expiry-notification";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -65,38 +66,42 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
               const metadata = (comm.metadata as Record<string, unknown>) ?? {};
               if (metadata.window_expiry_notified === true) continue;
 
-              const { data: tenant } = await supabaseAdmin
+              const { data: tenant, error: tenantError } = await supabaseAdmin
                 .from("proof_tenants")
                 .select("webhook_url, webhook_secret")
                 .eq("id", comm.tenant_id)
                 .maybeSingle();
 
-              if (!tenant?.webhook_url) {
-                await supabaseAdmin
-                  .from("proof_communications")
-                  .update({ metadata: { ...metadata, window_expiry_notified: true } })
-                  .eq("id", comm.id);
-                continue;
+              if (tenantError) {
+                throw new Error(`Proof tenant lookup failed: ${tenantError.message}`);
               }
 
-              await dispatchWebhook(
-                {
-                  event_id: `evt_${comm.id}_window_expired`,
-                  event_type: "response_window.expired",
-                  timestamp: now,
-                  data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
-                },
-                comm.tenant_id,
-                tenant.webhook_url,
-                tenant.webhook_secret,
-                { supabaseAdmin },
-                comm.id,
-              ).catch(() => {});
-
-              await supabaseAdmin
+              const markNotified = () => supabaseAdmin
                 .from("proof_communications")
                 .update({ metadata: { ...metadata, window_expiry_notified: true } })
                 .eq("id", comm.id);
+
+              if (!tenant?.webhook_url) {
+                await completeExpiryNotification({ markNotified });
+                continue;
+              }
+
+              await completeExpiryNotification({
+                dispatch: () => dispatchWebhook(
+                  {
+                    event_id: `evt_${comm.id}_window_expired`,
+                    event_type: "response_window.expired",
+                    timestamp: now,
+                    data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
+                  },
+                  comm.tenant_id,
+                  tenant.webhook_url,
+                  tenant.webhook_secret,
+                  { supabaseAdmin },
+                  comm.id,
+                ),
+                markNotified,
+              });
 
               results.window_expiries++;
             }
