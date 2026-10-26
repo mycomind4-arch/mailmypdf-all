@@ -5,7 +5,7 @@
  */
 export async function completeExpiryNotification(options: {
   dispatch?: () => Promise<void>;
-  markNotified: () => Promise<{ error: { message: string } | null }>;
+  markNotified: () => PromiseLike<{ error: { message: string } | null }>;
 }): Promise<void> {
   if (options.dispatch) {
     await options.dispatch();
