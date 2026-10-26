@@ -54,3 +54,28 @@ export function requireWebhookRetryTarget(tenant: Record<string, unknown> | null
   }
   return { webhookUrl, webhookSecret: (secret ?? null) as string | null };
 }
+
+
+/**
+ * A unique event ID is global across tenants. A 23505 conflict is only
+ * idempotent when the existing delivery belongs to this same event and has
+ * either been delivered or remains durably eligible for retry.
+ */
+export function assertIdempotentWebhookDelivery(
+  existing: { tenant_id: string; communication_id: string | null; event_type: string; status: string } | null,
+  expected: { tenantId: string; communicationId: string; eventType: string },
+): void {
+  if (!existing) {
+    throw new Error("Duplicate proof webhook event ID has no matching delivery record");
+  }
+  if (
+    existing.tenant_id !== expected.tenantId ||
+    existing.communication_id !== expected.communicationId ||
+    existing.event_type !== expected.eventType
+  ) {
+    throw new Error("Duplicate proof webhook event ID belongs to a different delivery");
+  }
+  if (!["pending", "retrying", "delivered"].includes(existing.status)) {
+    throw new Error(`Duplicate proof webhook event ID has non-retriable status: ${existing.status}`);
+  }
+}
