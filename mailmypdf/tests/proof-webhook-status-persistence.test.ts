@@ -17,6 +17,8 @@ function fakeDeliveryStore(options: {
   pendingQueryError?: string;
   retryEventIds?: string[];
   failUpdateForEventId?: string;
+  missingTenant?: boolean;
+  missingWebhookUrl?: boolean;
 } = {}) {
   const statuses: string[] = [];
   const retryRows = (options.retryEventIds ?? (options.retryAttempts === undefined ? [] : [event.event_id])).map((id) => ({
@@ -25,7 +27,7 @@ function fakeDeliveryStore(options: {
     payload: { ...event, event_id: id },
     attempts: options.retryAttempts ?? 1,
     tenant_id: "tenant_1",
-    proof_tenants: [{ webhook_url: "https://example.test/webhook", webhook_secret: null }],
+    proof_tenants: options.missingTenant ? null : [{ webhook_url: options.missingWebhookUrl ? null : "https://example.test/webhook", webhook_secret: null }],
   }));
 
   const pendingRows = options.stalePending ? [{
@@ -34,7 +36,7 @@ function fakeDeliveryStore(options: {
     payload: event,
     attempts: 0,
     tenant_id: "tenant_1",
-    proof_tenants: [{ webhook_url: "https://example.test/webhook", webhook_secret: null }],
+    proof_tenants: options.missingTenant ? null : [{ webhook_url: options.missingWebhookUrl ? null : "https://example.test/webhook", webhook_secret: null }],
   }] : [];
 
   const db = {
@@ -63,7 +65,11 @@ function fakeDeliveryStore(options: {
             };
           },
         }),
-        select: () => ({
+        select: (selection: string) => {
+          if (options.missingTenant || options.missingWebhookUrl) {
+            assert.doesNotMatch(selection, /!inner/, "missing tenants must not disappear through an inner join");
+          }
+          return {
           eq: (column: string, status: string) => {
             assert.equal(column, "status");
             assert.ok(status === "retrying" || status === "pending");
@@ -85,7 +91,8 @@ function fakeDeliveryStore(options: {
               },
             };
           },
-        }),
+        };
+        },
       };
     },
   };
@@ -221,4 +228,34 @@ test("failed retry status write does not starve a later webhook delivery", async
   );
   assert.equal(requests, 2, "second delivery must still be attempted");
   assert.deepEqual(store.statuses, ["delivered", "delivered"]);
+});
+
+test("retry with missing tenant fails cron visibly instead of reporting zero work", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; return new Response(null, { status: 200 }); });
+  const store = fakeDeliveryStore({ retryAttempts: 1, missingTenant: true });
+  await assert.rejects(processPendingRetries(store.deps), /Proof webhook retry batch failed.*tenant record is missing/);
+  assert.equal(requests, 0);
+});
+
+test("retry with removed webhook URL is not silently skipped", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; return new Response(null, { status: 200 }); });
+  const store = fakeDeliveryStore({ retryAttempts: 1, missingWebhookUrl: true });
+  await assert.rejects(processPendingRetries(store.deps), /Proof webhook retry batch failed.*no configured webhook URL/);
+  assert.equal(requests, 0);
+});
+
+test("bad retry tenant does not starve another independent delivery", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => { requests++; return new Response(null, { status: 200 }); });
+  const store = fakeDeliveryStore({ retryEventIds: ["evt_missing", "evt_valid"], retryAttempts: 1, missingWebhookUrl: true });
+  // Both rows intentionally have no URL in this fake store: neither may be sent,
+  // and the batch must report both failures instead of returning zero processed.
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 2);
+    return true;
+  });
+  assert.equal(requests, 0);
 });
