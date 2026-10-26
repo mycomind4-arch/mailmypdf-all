@@ -13,6 +13,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/lib/request-id";
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
+import { requireProofWindowRows } from "@/lib/proof-of-service/proof-window-query";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -58,8 +59,9 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
             .lt("legal_reference->>response_window_ends", now)
             .limit(100);
 
-          if (!error && expiredComms) {
-            for (const comm of expiredComms) {
+          const rows = requireProofWindowRows({ data: expiredComms, error });
+          if (rows.length > 0) {
+            for (const comm of rows) {
               const metadata = (comm.metadata as Record<string, unknown>) ?? {};
               if (metadata.window_expiry_notified === true) continue;
 
