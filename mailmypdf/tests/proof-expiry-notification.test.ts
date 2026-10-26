@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { completeExpiryNotification, requireExpiryTenant } from "../src/lib/proof-of-service/expiry-notification.ts";
+import { completeExpiryNotification, requireExpiryTenant, processExpiryBatch } from "../src/lib/proof-of-service/expiry-notification.ts";
 
 test("successful expiry dispatch is followed by marking the communication notified", async () => {
   const calls: string[] = [];
@@ -94,4 +94,34 @@ test("proof tenant query error takes precedence over stale returned data", () =>
     () => requireExpiryTenant({ data: { webhook_url: null }, error: { message: "stale read" } }),
     /Proof tenant lookup failed: stale read/,
   );
+});
+
+
+test("one failed expiry notification does not starve later independent communications", async () => {
+  const attempted: string[] = [];
+  const result = await processExpiryBatch(["broken", "good", "also-good"], async (id) => {
+    attempted.push(id);
+    if (id === "broken") throw new Error("webhook delivery failed");
+    return true;
+  });
+  assert.deepEqual(attempted, ["broken", "good", "also-good"]);
+  assert.equal(result.completed, 2);
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0]!.message, /webhook delivery failed/);
+});
+
+test("already-notified defensive skips are not counted as completed expiry work", async () => {
+  const result = await processExpiryBatch(["already-notified", "new"], async (id) => id === "new");
+  assert.equal(result.completed, 1);
+  assert.deepEqual(result.errors, []);
+});
+
+test("non-Error row failures remain visible while subsequent expiry work continues", async () => {
+  const result = await processExpiryBatch([1, 2], async (id) => {
+    if (id === 1) throw "tenant lookup unavailable";
+    return true;
+  });
+  assert.equal(result.completed, 1);
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0]!.message, /tenant lookup unavailable/);
 });
