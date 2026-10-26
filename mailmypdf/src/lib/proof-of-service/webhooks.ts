@@ -211,25 +211,50 @@ export async function processPendingRetries(
     .lte("next_retry_at", now)
     .limit(50);
 
-  const rows = requireWebhookRetryRows({ data: pending, error });
+  const retryRows = requireWebhookRetryRows({ data: pending, error });
+
+  // A crash or failed status write after inserting a delivery can leave it
+  // permanently "pending". The retrying-only scan never recovers those rows.
+  // Give in-flight first attempts five minutes to finish before replaying.
+  // Webhooks are at-least-once; consumers must deduplicate by event_id.
+  const staleCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+  const { data: stalePending, error: pendingError } = await supabaseAdmin
+    .from("proof_webhook_deliveries")
+    .select(`
+      event_id,
+      event_type,
+      payload,
+      attempts,
+      tenant_id,
+      proof_tenants!inner (webhook_url, webhook_secret)
+    `)
+    .eq("status", "pending")
+    .lte("created_at", staleCutoff)
+    .limit(50);
+
+  const pendingRows = requireWebhookRetryRows({ data: stalePending, error: pendingError });
 
   let processed = 0;
-  for (const record of rows) {
-    const tenant = embeddedOne<Record<string, unknown>>(record.proof_tenants);
+  for (const record of [
+    ...retryRows.map((row) => ({ row, attempt: (row.attempts as number) + 1 })),
+    ...pendingRows.map((row) => ({ row, attempt: 1 })),
+  ]) {
+    const { row, attempt } = record;
+    const tenant = embeddedOne<Record<string, unknown>>(row.proof_tenants);
     const webhookUrl = tenant?.webhook_url as string | undefined;
     const webhookSecret = (tenant?.webhook_secret ?? null) as string | null;
 
     if (!webhookUrl) continue;
 
-    const event = record.payload as WebhookEvent;
+    const event = row.payload as WebhookEvent;
     await attemptWebhookDelivery(
       event,
-      record.tenant_id as string,
+      row.tenant_id as string,
       webhookUrl,
       webhookSecret,
       deps,
-      record.event_id as string,
-      (record.attempts as number) + 1,
+      row.event_id as string,
+      attempt,
     );
     processed++;
   }
