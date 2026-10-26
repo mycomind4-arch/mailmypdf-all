@@ -9,7 +9,7 @@
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
 import { embeddedOne } from "./embedded";
-import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget } from "./webhook-retry-query";
+import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "./webhook-retry-query";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -80,8 +80,24 @@ export async function dispatchWebhook(
     });
 
   if (insertError) {
-    // If duplicate event_id, skip — already delivered or in progress
-    if (insertError.code === "23505") return;
+    if (insertError.code === "23505") {
+      // A global unique event_id can collide with a different tenant or an
+      // irrecoverably failed event. Neither is safe to treat as delivered.
+      const { data: existing, error: lookupError } = await supabaseAdmin
+        .from("proof_webhook_deliveries")
+        .select("tenant_id, communication_id, event_type, status")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (lookupError) {
+        throw new Error(`Failed to verify duplicate proof webhook event: ${lookupError.message}`);
+      }
+      assertIdempotentWebhookDelivery(existing, {
+        tenantId,
+        communicationId,
+        eventType: event.event_type,
+      });
+      return;
+    }
     throw new Error(`Failed to create webhook delivery: ${insertError.message}`);
   }
 
