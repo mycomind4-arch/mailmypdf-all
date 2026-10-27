@@ -113,6 +113,25 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state().nextActions[0]?.toolName, "get_order_status");
 });
 
+test("stale draft basis never advertises packet preview or checkout", () => {
+  // A historical approval can remain persisted after the input or analysis
+  // changes. A stale draft must not authorize the next consequential step.
+  const stale = { draftIsCurrent: false, orderPresent: false } as
+    Partial<Parameters<typeof deriveWorkflowProtocolState>[0]>;
+  for (const approvalPresent of [false, true]) {
+    const result = state({ ...stale, approvalPresent });
+    assert.equal(result.progress.draftReady, false);
+    assert.equal(result.progress.approvalReady, false);
+    assert.equal(result.nextActions[0]?.toolName, "generate_draft");
+    assert.ok(!result.nextActions.some((action) =>
+      action.toolName === "preview_packet" || action.toolName === "prepare_checkout"));
+  }
+  assert.equal(
+    state({ ...stale, inputPresent: false }).nextActions[0]?.toolName,
+    "save_matter_input",
+  );
+});
+
 test("abandoned matters never recommend MCP workflow mutations", () => {
   for (const overrides of [
     {
