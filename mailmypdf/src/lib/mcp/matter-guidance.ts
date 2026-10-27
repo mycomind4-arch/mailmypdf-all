@@ -1,3 +1,44 @@
+import {
+  createWorkflowDraftBasis,
+  workflowDraftBasisMatches,
+  type WorkflowDraftBasis,
+  type WorkflowMatterDocument,
+} from "@mailmypdf/workflows";
+
+/**
+ * Compare the saved draft against the runtime's canonical versioned basis.
+ * A historical approval cannot make a stale draft current.
+ */
+export function isCurrentMatterDraft(input: {
+  storedInput: unknown;
+  analysis: unknown;
+  draft: unknown;
+  documents: readonly WorkflowMatterDocument[];
+}): boolean {
+  const { storedInput, analysis, draft, documents } = input;
+  if (!storedInput || typeof storedInput !== "object" || Array.isArray(storedInput) ||
+      !analysis || typeof analysis !== "object" || Array.isArray(analysis) ||
+      !draft || typeof draft !== "object" || Array.isArray(draft)) return false;
+  const saved = storedInput as Record<string, unknown>;
+  const analyzed = analysis as Record<string, unknown>;
+  const reviewed = draft as Record<string, unknown>;
+  if (!Number.isSafeInteger(saved.version) ||
+      !Number.isSafeInteger(analyzed.version) ||
+      typeof analyzed.documentId !== "string") return false;
+  try {
+    return workflowDraftBasisMatches(
+      reviewed.basis as WorkflowDraftBasis | undefined,
+      createWorkflowDraftBasis({
+        analysis: { version: analyzed.version as number, documentId: analyzed.documentId },
+        inputVersion: saved.version as number,
+        documents,
+      }),
+    );
+  } catch {
+    return false;
+  }
+}
+
 type MatterRecord = {
   id: string;
   workflowId: string;
@@ -85,6 +126,7 @@ export function deriveMatterGuidance(input: {
   analysis: unknown | null;
   hasInput: boolean;
   hasDraft: boolean;
+  draftIsCurrent: boolean;
   approvalId: string | null;
 }): MatterGuidance {
   const { matter, documents } = input;
@@ -165,30 +207,6 @@ export function deriveMatterGuidance(input: {
     return { progress, requiredFacts, nextAction: next };
   }
 
-  if (input.approvalId) {
-    const next = action(
-      matter.id,
-      "prepare_checkout",
-      "The exact packet is approved. Prepare or resume hosted checkout only when the user wants to continue to payment.",
-      ["idempotency_key", "approval_id", "sender"],
-    );
-    next.arguments.approval_id = input.approvalId;
-    return { progress, requiredFacts, nextAction: next };
-  }
-
-  if (input.hasDraft) {
-    return {
-      progress,
-      requiredFacts,
-      nextAction: action(
-        matter.id,
-        "preview_packet",
-        "A saved draft is ready for exact packet and price review. Previewing does not approve, charge, or mail it.",
-        ["idempotency_key", "recipient", "mail_class"],
-      ),
-    };
-  }
-
   if (input.requiresSourceDocument && !input.analysis) {
     return {
       progress,
@@ -213,6 +231,45 @@ export function deriveMatterGuidance(input: {
           ? "Collect the listed missing facts from the user, then save only confirmed values."
           : "Collect and save the workflow's required user-confirmed facts.",
         ["idempotency_key", "input"],
+      ),
+    };
+  }
+
+  // A stored approval is historical. Checkout requires the current analysis,
+  // confirmed input and an unchanged reviewed draft basis.
+  if (input.hasDraft && !input.draftIsCurrent) {
+    return {
+      progress,
+      requiredFacts,
+      nextAction: action(
+        matter.id,
+        "generate_draft",
+        "The saved draft no longer matches the current workflow facts, analysis, or documents. Generate a new draft for user review.",
+        ["idempotency_key"],
+      ),
+    };
+  }
+
+  if (input.approvalId && input.hasDraft && input.draftIsCurrent) {
+    const next = action(
+      matter.id,
+      "prepare_checkout",
+      "The exact packet is approved. Prepare or resume hosted checkout only when the user wants to continue to payment.",
+      ["idempotency_key", "approval_id", "sender"],
+    );
+    next.arguments.approval_id = input.approvalId;
+    return { progress, requiredFacts, nextAction: next };
+  }
+
+  if (input.hasDraft && input.draftIsCurrent) {
+    return {
+      progress,
+      requiredFacts,
+      nextAction: action(
+        matter.id,
+        "preview_packet",
+        "A saved draft is ready for exact packet and price review. Previewing does not approve, charge, or mail it.",
+        ["idempotency_key", "recipient", "mail_class"],
       ),
     };
   }
