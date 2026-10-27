@@ -183,6 +183,7 @@ export function deriveWorkflowProtocolState(input: {
   analysisPresent: boolean;
   inputPresent: boolean;
   draftPresent: boolean;
+  draftIsCurrent: boolean;
   approvalPresent: boolean;
   orderPresent: boolean;
 }): WorkflowProtocolState {
@@ -190,7 +191,11 @@ export function deriveWorkflowProtocolState(input: {
   const sourceReady = sourceIsReady(source);
   const analysisReady = input.analysisPresent || !input.definition.analysisRequired;
   const inputReady = input.inputPresent || !input.definition.inputRequired;
-  const draftReady = input.draftPresent || !input.definition.requiresDraft;
+  // A persisted draft and approval are historical until the saved draft basis
+  // matches the current analysis, facts, and document fingerprint.
+  const draftReady = !input.definition.requiresDraft ||
+    (input.draftPresent && input.draftIsCurrent);
+  const approvalReady = input.approvalPresent && draftReady;
   const blockers: string[] = [];
   let nextActions: WorkflowProtocolAction[] = [];
 
@@ -288,7 +293,7 @@ export function deriveWorkflowProtocolState(input: {
         arguments: { matter_id: input.matter.id },
       }),
     ];
-  } else if (!input.approvalPresent && input.definition.requiresMailing) {
+  } else if (!approvalReady && input.definition.requiresMailing) {
     nextActions = [
       action({
         id: "preview-packet",
@@ -307,7 +312,7 @@ export function deriveWorkflowProtocolState(input: {
           : {}),
       }),
     ];
-  } else if (input.approvalPresent && input.definition.requiresMailing && !input.orderPresent) {
+  } else if (approvalReady && input.definition.requiresMailing && !input.orderPresent) {
     nextActions = [
       action({
         id: "prepare-checkout",
@@ -369,7 +374,7 @@ export function deriveWorkflowProtocolState(input: {
       analysisReady,
       inputReady,
       draftReady,
-      approvalReady: input.approvalPresent,
+      approvalReady,
       orderReady: input.orderPresent,
     }),
     blockers: Object.freeze(blockers),
