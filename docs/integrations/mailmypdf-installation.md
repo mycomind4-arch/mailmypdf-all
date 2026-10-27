@@ -11,8 +11,10 @@ present but their values were not inspected or verified. Local environment
 preflight failures must not be interpreted as a live Worker secret inventory.
 No production settings, database schema, payment or mail were changed by this check.
 
-The launch checker now requires all 27 tools, including owner-scoped recent
-matter discovery and conversational resume guidance. Production preflight also verifies
+As of the October 27, 2026 source check, the MCP smoke checker verifies 28 named tools
+and the full 38-tool catalog, including owner-scoped recent matter discovery and
+conversational resume guidance. This is a source-level expectation, not proof of
+production discovery. Production preflight also verifies
 saved-address/connector schema and the connector job secret, and refuses to send
 database credentials unless the configured project origin is confirmed exactly.
 
@@ -95,7 +97,7 @@ real client OAuth flow has been completed; the old Worker remains live.
 
    Public checks do not prove account linking. Complete OAuth through the client
    and call `get_profile` with the resulting user-scoped access token. Verify
-   the 27-tool catalog, owner isolation, exact PDF review, and negative approval
+   the 38-tool catalog, owner isolation, exact PDF review, and negative approval
    cases. Never use a real payment or mail submission as an automated smoke test.
 
 ## ChatGPT custom connection
