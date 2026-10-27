@@ -12,6 +12,22 @@ export function requireWebhookRetryRows<T>(query: {
   return query.data;
 }
 
+/**
+ * A failed scan must be visible to cron, but must not suppress independent
+ * deliveries returned by another successful scan.
+ */
+export async function collectWebhookRetryRows<T>(
+  query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  errors: Error[],
+): Promise<T[]> {
+  try {
+    return requireWebhookRetryRows(await query);
+  } catch (error) {
+    errors.push(error instanceof Error ? error : new Error(String(error)));
+    return [];
+  }
+}
+
 /** Preserve completed work when a retry batch partially fails. */
 export class WebhookRetryBatchError extends AggregateError {
   readonly processed: number;
@@ -33,9 +49,10 @@ export class WebhookRetryBatchError extends AggregateError {
 export async function processWebhookRetryBatch<T>(
   rows: readonly T[],
   handle: (row: T) => Promise<boolean>,
+  priorErrors: readonly Error[] = [],
 ): Promise<number> {
   let processed = 0;
-  const errors: Error[] = [];
+  const errors: Error[] = [...priorErrors];
   for (const row of rows) {
     try {
       if (await handle(row)) processed++;
