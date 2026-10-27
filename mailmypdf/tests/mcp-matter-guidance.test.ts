@@ -193,3 +193,46 @@ test("MCP matter guidance blocks packet and checkout suggestions when document r
     }
   }
 });
+
+test("MCP guidance never recommends checkout or packet preview from stale or missing draft prerequisites", () => {
+  const readySource = {
+    documentId: "source-1", role: "subject_notice", included: false,
+    securityStatus: "clean", usable: true,
+  };
+  const scenarios = [
+    {
+      label: "approval persists after workflow facts disappear",
+      analysis: { result: {} }, hasInput: false, hasDraft: true,
+      draftIsCurrent: true, expected: "save_matter_input",
+    },
+    {
+      label: "approval persists after draft disappears",
+      analysis: { result: {} }, hasInput: true, hasDraft: false,
+      draftIsCurrent: false, expected: "generate_draft",
+    },
+    {
+      label: "approval persists after source analysis disappears",
+      analysis: null, hasInput: true, hasDraft: true,
+      draftIsCurrent: false, expected: "analyze_matter",
+    },
+    {
+      label: "approval persists after saved draft basis changes",
+      analysis: { result: {} }, hasInput: true, hasDraft: true,
+      draftIsCurrent: false, expected: "generate_draft",
+    },
+  ];
+  for (const scenario of scenarios) {
+    const guidance = deriveMatterGuidance({
+      matter,
+      documents: [readySource],
+      requiresSourceDocument: true,
+      analysis: scenario.analysis,
+      hasInput: scenario.hasInput,
+      hasDraft: scenario.hasDraft,
+      approvalId: "old-approval",
+      draftIsCurrent: scenario.draftIsCurrent,
+    });
+    assert.equal(guidance.nextAction.toolName, scenario.expected, scenario.label);
+    assert.equal(guidance.nextAction.arguments.approval_id, undefined, scenario.label);
+  }
+});
