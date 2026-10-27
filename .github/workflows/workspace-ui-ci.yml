@@ -239,6 +239,8 @@ jobs:
           pnpm --filter ./mailmypdf exec tsx --test tests/mailing-record.test.ts tests/order-state-machine-guards.test.ts tests/scheduled-mail-execution.test.ts
       - name: Verify proof-of-service maintenance queries fail closed
         run: pnpm --filter ./mailmypdf exec tsx --test tests/proof-window-query.test.ts tests/webhook-retry-query.test.ts tests/proof-expiry-notification.test.ts tests/proof-webhook-status-persistence.test.ts
+      - name: Verify vertical build isolation under Turbo
+        run: node --test mailmypdf/tests/vertical-build-isolation.test.mjs
       - name: Build core app
         run: pnpm --filter ./mailmypdf build
 
