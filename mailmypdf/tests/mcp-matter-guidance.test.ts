@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { analysisRequiredFacts, deriveMatterGuidance } from "../src/lib/mcp/matter-guidance";
+import { analysisRequiredFacts, deriveMatterGuidance, isCurrentMatterDraft } from "../src/lib/mcp/matter-guidance";
+import { createWorkflowDraftBasis } from "@mailmypdf/workflows";
 
 const matter = {
   id: "matter-1",
@@ -18,6 +19,7 @@ test("matter guidance advances document-first matters one safe step at a time", 
     analysis: null,
     hasInput: false,
     hasDraft: false,
+    draftIsCurrent: false,
     approvalId: null,
   });
   assert.equal(empty.nextAction.toolName, "ingest_document");
@@ -35,6 +37,7 @@ test("matter guidance advances document-first matters one safe step at a time", 
     analysis: null,
     hasInput: false,
     hasDraft: false,
+    draftIsCurrent: false,
     approvalId: null,
   });
   assert.equal(quarantined.nextAction.toolName, "get_document_status");
@@ -53,6 +56,7 @@ test("matter guidance advances document-first matters one safe step at a time", 
     analysis: null,
     hasInput: false,
     hasDraft: false,
+    draftIsCurrent: false,
     approvalId: null,
   });
   assert.equal(clean.nextAction.toolName, "analyze_matter");
@@ -74,6 +78,7 @@ test("matter guidance exposes bounded missing facts without returning the full a
     analysis,
     hasInput: false,
     hasDraft: false,
+    draftIsCurrent: false,
     approvalId: null,
   });
   assert.equal(guidance.nextAction.toolName, "save_matter_input");
@@ -88,6 +93,7 @@ test("request-first matters skip document ingestion and analysis calls", () => {
     analysis: null,
     hasInput: true,
     hasDraft: false,
+    draftIsCurrent: false,
     approvalId: null,
   });
   assert.equal(guidance.nextAction.toolName, "generate_draft");
@@ -101,6 +107,7 @@ test("matter guidance preserves packet approval and checkout boundaries", () => 
     analysis: { result: {} },
     hasInput: true,
     hasDraft: true,
+    draftIsCurrent: true,
     approvalId: null,
   });
   assert.equal(draft.nextAction.toolName, "preview_packet");
@@ -113,6 +120,7 @@ test("matter guidance preserves packet approval and checkout boundaries", () => 
     analysis: { result: {} },
     hasInput: true,
     hasDraft: true,
+    draftIsCurrent: true,
     approvalId: "approval-1",
   });
   assert.equal(approved.nextAction.toolName, "prepare_checkout");
@@ -124,14 +132,14 @@ test("submitted and abandoned matters do not restart workflow mutations", () => 
   const submitted = deriveMatterGuidance({
     matter: { ...matter, status: "submitted" },
     documents: [], requiresSourceDocument: false, analysis: null,
-    hasInput: false, hasDraft: false, approvalId: null,
+    hasInput: false, hasDraft: false, draftIsCurrent: false, approvalId: null,
   });
   assert.equal(submitted.nextAction.toolName, "get_order_status");
 
   const abandoned = deriveMatterGuidance({
     matter: { ...matter, status: "abandoned" },
     documents: [], requiresSourceDocument: false, analysis: null,
-    hasInput: false, hasDraft: false, approvalId: null,
+    hasInput: false, hasDraft: false, draftIsCurrent: false, approvalId: null,
   });
   assert.equal(abandoned.nextAction.toolName, null);
 });
@@ -235,4 +243,28 @@ test("MCP guidance never recommends checkout or packet preview from stale or mis
     assert.equal(guidance.nextAction.toolName, scenario.expected, scenario.label);
     assert.equal(guidance.nextAction.arguments.approval_id, undefined, scenario.label);
   }
+});
+
+test("MCP draft freshness uses the exact runtime analysis, input and document fingerprint", () => {
+  const documents = [{
+    documentId: "source-1", role: "subject_notice", evidenceKind: null,
+    included: false, position: 0, pageCount: 1,
+    securityStatus: "clean", usable: true,
+  }];
+  const analysis = { version: 2, documentId: "source-1" };
+  const storedInput = { version: 3 };
+  const draft = {
+    basis: createWorkflowDraftBasis({
+      analysis, inputVersion: storedInput.version, documents,
+    }),
+  };
+  const current = { storedInput, analysis, draft, documents };
+  assert.equal(isCurrentMatterDraft(current), true);
+  assert.equal(isCurrentMatterDraft({ ...current, storedInput: { version: 4 } }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, analysis: { ...analysis, version: 3 } }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, analysis: { ...analysis, documentId: "source-2" } }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, draft: { basis: undefined } }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, documents: [{ ...documents[0], included: true }] }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, analysis: null }), false);
+  assert.equal(isCurrentMatterDraft({ ...current, storedInput: null }), false);
 });
