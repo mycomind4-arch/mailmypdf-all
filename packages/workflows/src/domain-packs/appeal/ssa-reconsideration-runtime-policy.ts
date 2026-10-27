@@ -103,7 +103,6 @@ function chatInputFieldsForProgram(program: SsaReconsiderationProgram) {
     { id: "claimantAddress", required: true },
     { id: "phone", required: true },
     { id: "representativeName", required: false },
-    { id: "responseMode", required: true },
     { id: "confirmedReconsideration", required: true },
     { id: "reasonsForDisagreement", required: true },
     { id: "conditionChanges", required: false },
@@ -167,7 +166,7 @@ export function createSsaReconsiderationRuntimePolicy(
     validateInput(input, analysis) {
       if (!analysis) throw new Error(`Analyze the ${program} denial before saving claimant facts.`);
       const basis = assertReconsiderationAnalysis(program, analysis);
-      if (input.responseMode !== "reconsideration" || input.confirmedReconsideration !== true) {
+      if ((input.responseMode !== undefined && input.responseMode !== "reconsideration") || input.confirmedReconsideration !== true) {
         throw new Error("The claimant must explicitly confirm reconsideration before continuing.");
       }
 
