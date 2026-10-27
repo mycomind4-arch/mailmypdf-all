@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { analysisRequiredFacts, deriveMatterGuidance, isCurrentMatterDraft } from "../src/lib/mcp/matter-guidance";
-import { createWorkflowDraftBasis } from "@mailmypdf/workflows";
+import { createWorkflowDraftBasis, type WorkflowMatterDocument } from "@mailmypdf/workflows";
 
 const matter = {
   id: "matter-1",
@@ -247,9 +247,10 @@ test("MCP guidance never recommends checkout or packet preview from stale or mis
 });
 
 test("MCP draft freshness uses the exact runtime analysis, input and document fingerprint", () => {
-  const documents = [{
-    documentId: "source-1", role: "subject_notice", evidenceKind: null,
-    included: false, position: 0, pageCount: 1,
+  const documents: WorkflowMatterDocument[] = [{
+    id: "doc-1", documentId: "source-1", role: "subject_notice",
+    evidenceKind: null, included: false, position: 0, pageCount: 1,
+    filename: "notice.pdf", mimeType: "application/pdf", sizeBytes: 1024,
     securityStatus: "clean", usable: true,
   }];
   const analysis = { version: 2, documentId: "source-1" };
