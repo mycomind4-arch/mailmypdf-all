@@ -186,7 +186,7 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       createdAt: "2026-10-27T00:00:00Z",
       updatedAt: "2026-10-27T00:00:00Z",
     } as never;
-    assertMcpWorkflowStateMatterIdentity(matter, matter.id);
+    assertMcpWorkflowStateMatterIdentity(matter, `test-${workflowId}`);
     const cleanNotice = {
       documentId: "notice-1",
       role: "subject_notice",
