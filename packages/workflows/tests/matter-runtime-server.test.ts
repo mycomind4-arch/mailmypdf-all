@@ -556,12 +556,19 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   // Matching only approvalId and packet hash would allow a mismapped approval
   // to reach the checkout gateway without a fresh user authorization.
   const originalApproval = deps.store.approvals.get(matterId)!;
+  const validRead = await handle(request(`/matters/${matterId}/approval`));
+  assert.equal(validRead.status, 200);
+  assert.equal((await body(validRead)).approval.approvalId, approvalId);
   for (const mismatch of [
     { matterId: "another-matter" },
     { workflowId: "another-workflow" },
     { approvedBy: "user-2" },
   ]) {
     deps.store.approvals.set(matterId, { ...originalApproval, ...mismatch });
+    // MCP get_connector_readiness consumes this GET endpoint to decide whether
+    // approval is present. A mismapped approval must never appear ready.
+    const rejectedRead = await handle(request(`/matters/${matterId}/approval`));
+    assert.equal(rejectedRead.status, 409, `mismatched approval ${Object.keys(mismatch)[0]} must not appear ready`);
     const rejected = await handle(request(`/matters/${matterId}/checkout`, {
       method: "POST",
       headers: { "content-type": "application/json" },
