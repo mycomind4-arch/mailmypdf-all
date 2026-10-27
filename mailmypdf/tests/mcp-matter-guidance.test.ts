@@ -135,3 +135,61 @@ test("submitted and abandoned matters do not restart workflow mutations", () => 
   });
   assert.equal(abandoned.nextAction.toolName, null);
 });
+
+test("MCP matter guidance blocks packet and checkout suggestions when document readiness regresses", () => {
+  const cleanSource = {
+    documentId: "source-1",
+    role: "subject_notice",
+    included: false,
+    securityStatus: "clean",
+    usable: true,
+  };
+  const cases = [
+    {
+      label: "included evidence is quarantined even if its usable flag is stale",
+      documents: [cleanSource, {
+        documentId: "evidence-1",
+        role: "evidence",
+        included: true,
+        securityStatus: "quarantined",
+        usable: true,
+      }],
+      expectedTool: "get_document_status",
+      expectedDocument: "evidence-1",
+    },
+    {
+      label: "source notice is quarantined",
+      documents: [{ ...cleanSource, securityStatus: "quarantined", usable: false }],
+      expectedTool: "get_document_status",
+      expectedDocument: "source-1",
+    },
+    {
+      label: "source notice was removed",
+      documents: [],
+      expectedTool: "ingest_document",
+      expectedDocument: null,
+    },
+  ] as const;
+
+  for (const scenario of cases) {
+    for (const approvalId of [null, "previous-approval"]) {
+      const guidance = deriveMatterGuidance({
+        matter,
+        documents: [...scenario.documents],
+        requiresSourceDocument: true,
+        analysis: { result: {} },
+        hasInput: true,
+        hasDraft: true,
+        approvalId,
+      });
+      assert.equal(guidance.nextAction.toolName, scenario.expectedTool,
+        `${scenario.label}, approval=${Boolean(approvalId)}`);
+      if (scenario.expectedDocument) {
+        assert.equal(guidance.nextAction.arguments.document_id, scenario.expectedDocument);
+      }
+      assert.equal(guidance.progress.sourceDocumentReady,
+        scenario.documents.some((document) =>
+          document.role === "subject_notice" && document.usable && document.securityStatus === "clean"));
+    }
+  }
+});
