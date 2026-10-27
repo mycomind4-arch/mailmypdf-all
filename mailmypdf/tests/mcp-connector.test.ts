@@ -65,6 +65,23 @@ test("MCP tool surface stays focused and separates approval from checkout", () =
   assert.equal(names.length, 38);
 });
 
+test("MCP smoke checks the entire canonical discovery catalog by name", () => {
+  const smoke = fs.readFileSync(
+    path.resolve(import.meta.dirname, "../scripts/mcp-smoke.mjs"),
+    "utf8",
+  );
+  const requiredBlock = smoke.match(/for \\(const required of \\[([\\s\\S]*?)\\]\\)/);
+  assert.ok(requiredBlock, "MCP smoke must enumerate expected discovered tools");
+  const names = [...requiredBlock[1].matchAll(/"([a-z][a-z0-9_]*)"/g)].map((match) => match[1]);
+  const canonical = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
+  assert.equal(new Set(names).size, names.length, "smoke list must not contain duplicate tools");
+  assert.deepEqual(
+    [...names].sort(),
+    [...canonical].sort(),
+    "smoke must reject missing or substituted tools, not only count 38 results",
+  );
+});
+
 test("workflow state tool advertises the universal chat protocol", () => {
   const stateTool = MAILMYPDF_MCP_TOOLS.find((tool) => tool.name === "get_workflow_state");
   assert.ok(stateTool);
