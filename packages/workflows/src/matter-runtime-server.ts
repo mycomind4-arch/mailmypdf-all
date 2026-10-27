@@ -861,6 +861,16 @@ export function createWorkflowRuntimeRequestHandler(
         const approval = await deps.store.loadApproval(actor.id, matterId);
         if (!approval || approval.approvalId !== approvalId) throw new HttpError(409, "Approved packet is required before checkout");
         matter = await requireMatter(deps, actor, matterId);
+        // A stored approval is not valid merely because its ID and packet hash
+        // match. Bind it to this authenticated owner, matter, and workflow
+        // before any payment or order side effect can reach the gateway.
+        if (
+          approval.matterId !== matterId ||
+          approval.workflowId !== matter.matter.workflowId ||
+          approval.approvedBy !== actor.id
+        ) {
+          throw new HttpError(409, "Approval identity does not match the authenticated matter.");
+        }
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
