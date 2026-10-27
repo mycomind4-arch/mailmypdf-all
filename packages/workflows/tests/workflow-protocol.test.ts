@@ -113,6 +113,32 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state().nextActions[0]?.toolName, "get_order_status");
 });
 
+test("abandoned matters never recommend MCP workflow mutations", () => {
+  for (const overrides of [
+    {
+      documents: [],
+      analysisPresent: false,
+      inputPresent: false,
+      draftPresent: false,
+      approvalPresent: false,
+      orderPresent: false,
+    },
+    {
+      documents: [cleanSource],
+      analysisPresent: true,
+      inputPresent: true,
+      draftPresent: true,
+      approvalPresent: true,
+      orderPresent: false,
+    },
+  ]) {
+    const result = state({ ...overrides, matter: { ...matter, status: "abandoned" } });
+    assert.equal(result.matterStatus, "abandoned");
+    assert.deepEqual(result.nextActions, [], "abandoned matters must not offer uploads, drafts, checkout or mailing");
+    assert.match(result.blockers.join(" "), /abandoned/i);
+  }
+});
+
 test("generated draft requires user review before saving and does not carry unreviewed text", () => {
   const next = generatedDraftReviewAction(matter.id);
   assert.equal(next.toolName, "save_draft");
