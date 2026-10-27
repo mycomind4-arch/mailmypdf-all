@@ -14,6 +14,7 @@ import {
   getMcpConnectorContract,
   validateMcpToolCapabilityContracts,
 } from "../src/lib/mcp/tool-catalog";
+import { deriveWorkflowProtocolState } from "@mailmypdf/workflows";
 import { normalizeOrderStatus } from "../src/lib/mcp/order-status.server";
 import {
   downloadAssistantFile,
@@ -137,6 +138,79 @@ test("certified factory families are registered only after chat-readiness certif
   assert.equal(ssi.definition.packetRecipientField?.id, "recipientAddress");
 
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
+});
+
+test("SSDI and SSI connector workflow states retain program-specific facts and review gates", () => {
+  for (const [workflowId, programField] of [
+    ["appeal-ssdi-denial", "workChanges"],
+    ["appeal-ssi-denial", "incomeFacts"],
+  ] as const) {
+    const registration = getMcpWorkflowProtocolRegistration(workflowId);
+    assert.ok(registration?.certification.certified, workflowId);
+    const definition = registration.definition;
+    assert.ok(definition, workflowId);
+
+    const inputFields = definition.inputFields.map((field) => field.id);
+    assert.ok(inputFields.includes("confirmedReconsideration"), workflowId);
+    assert.ok(inputFields.includes(programField), workflowId);
+    assert.equal(inputFields.includes("responseMode"), false, workflowId);
+    assert.equal(inputFields.includes("recipientAddress"), false, workflowId);
+    assert.equal(definition.packetRecipientField?.id, "recipientAddress", workflowId);
+
+    const matter = {
+      id: `test-${workflowId}`,
+      workflowId,
+      verticalId: "benefits-appeal",
+      status: "active",
+      createdAt: "2026-10-27T00:00:00Z",
+      updatedAt: "2026-10-27T00:00:00Z",
+    } as never;
+    const cleanNotice = {
+      documentId: "notice-1",
+      role: "subject_notice",
+      usable: true,
+      securityStatus: "clean",
+    } as never;
+    const base = {
+      matter,
+      documents: [cleanNotice],
+      definition,
+      analysisPresent: true,
+      inputPresent: false,
+      draftPresent: false,
+      approvalPresent: false,
+      orderPresent: false,
+    };
+    const next = (overrides: Partial<typeof base> = {}) =>
+      deriveWorkflowProtocolState({ ...base, ...overrides }).nextActions[0];
+
+    assert.equal(next({ documents: [], analysisPresent: false })?.toolName, "ingest_document", workflowId);
+    assert.equal(
+      next({ documents: [{ ...cleanNotice, usable: false, securityStatus: "quarantined" }] })?.toolName,
+      "get_document_status",
+      workflowId,
+    );
+    assert.equal(next({ analysisPresent: false })?.toolName, "analyze_matter", workflowId);
+
+    const collect = next();
+    assert.equal(collect?.toolName, "save_matter_input", workflowId);
+    assert.deepEqual(collect?.fields?.map((field) => field.id), inputFields, workflowId);
+    assert.equal(next({ inputPresent: true })?.toolName, "generate_draft", workflowId);
+
+    const preview = next({ inputPresent: true, draftPresent: true });
+    assert.equal(preview?.toolName, "preview_packet", workflowId);
+    assert.deepEqual(preview?.fields?.map((field) => field.id), ["recipientAddress"], workflowId);
+    assert.equal(
+      next({ inputPresent: true, draftPresent: true, approvalPresent: true })?.toolName,
+      "prepare_checkout",
+      workflowId,
+    );
+    assert.equal(
+      next({ inputPresent: true, draftPresent: true, approvalPresent: true, orderPresent: true })?.toolName,
+      "get_order_status",
+      workflowId,
+    );
+  }
 });
 
 test("public workflow discovery reports certified chat execution separately", async () => {
