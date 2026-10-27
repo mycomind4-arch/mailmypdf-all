@@ -770,8 +770,17 @@ test("shared runtime persists only policy-approved user events", async () => {
       occurredOn: "2026-09-17",
     }),
   }));
-  assert.equal(response.status, 500);
+  assert.equal(response.status, 400, "a rejected user event is a client validation error, not a retryable server failure");
   assert.match((await body(response)).error, /not user-recordable/i);
+
+  response = await handle(request(`/matters/${matterId}/events`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "user_note", occurredOn: "invalid-date", note: "Do not persist" }),
+  }));
+  assert.equal(response.status, 400, "invalid event dates must fail as client input errors");
+  assert.match((await body(response)).error, /event date is invalid/i);
+  assert.equal(deps.store.events.has(matterId), false, "rejected events must not be persisted");
 
   response = await handle(request(`/matters/${matterId}/events`, {
     method: "POST",
