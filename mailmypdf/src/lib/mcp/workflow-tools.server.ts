@@ -763,9 +763,15 @@ export async function executeMcpTool(
       callRuntime(request, `${base}/approval`, "GET"),
     ]);
 
-    const analysisPresent = Boolean(object(analysisPayload, "analysis response").analysis);
-    const inputPresent = Boolean(object(inputPayload, "input response").input);
-    const draftPresent = Boolean(object(draftPayload, "draft response").draft);
+    const analysis = object(analysisPayload, "analysis response").analysis;
+    const storedInput = object(inputPayload, "input response").input;
+    const draft = object(draftPayload, "draft response").draft;
+    const analysisPresent = Boolean(analysis);
+    const inputPresent = Boolean(storedInput);
+    const draftPresent = Boolean(draft);
+    const draftIsCurrent = isCurrentMatterDraft({
+      storedInput, analysis, draft, documents,
+    });
     const approvalPresent = Boolean(object(approvalPayload, "approval response").approval);
 
     let orderPresent = false;
@@ -786,6 +792,7 @@ export async function executeMcpTool(
         analysisPresent,
         inputPresent,
         draftPresent,
+        draftIsCurrent,
         approvalPresent,
         orderPresent,
       }),
