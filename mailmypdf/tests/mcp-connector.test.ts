@@ -228,6 +228,19 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       "prepare_checkout",
       workflowId,
     );
+    // A stored approval is not sufficient after the saved draft basis changes.
+    const stale = deriveWorkflowProtocolState({
+      ...base,
+      inputPresent: true,
+      draftPresent: true,
+      draftIsCurrent: false,
+      approvalPresent: true,
+    });
+    assert.equal(stale.progress.draftReady, false, workflowId);
+    assert.equal(stale.progress.approvalReady, false, workflowId);
+    assert.equal(stale.nextActions[0]?.toolName, "generate_draft", workflowId);
+    assert.ok(!stale.nextActions.some((step) => step.toolName === "prepare_checkout"), workflowId);
+
     assert.equal(
       next({ inputPresent: true, draftPresent: true, approvalPresent: true, orderPresent: true })?.toolName,
       "get_order_status",
