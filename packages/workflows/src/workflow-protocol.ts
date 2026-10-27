@@ -204,6 +204,28 @@ export function deriveWorkflowProtocolState(input: {
   // The server remains authoritative for any attempted mutation.
   if (input.matter.status === "abandoned") {
     blockers.push("This matter has been abandoned. Start a new matter to continue.");
+  } else if (input.orderPresent && input.definition.requiresMailing) {
+    // Once an order exists, tracking is read-only and must not depend on
+    // historical draft/approval records or a still-present source document.
+    nextActions = [
+      action({
+        id: "track-order",
+        kind: "tracking",
+        toolName: "get_order_status",
+        title: "Track mailing and proof",
+        prompt:
+          "Read the owner-scoped order status, tracking events, and proof records. Do not infer delivery beyond recorded provider facts.",
+        requiresUserInput: false,
+        requiresExplicitConsent: false,
+        idempotencyRequired: false,
+        consequential: false,
+        arguments: { matter_id: input.matter.id },
+      }),
+    ];
+  } else if (input.matter.status === "submitted") {
+    // Never suggest a second checkout or restart intake for a submitted
+    // matter when its owner-scoped order record cannot be found.
+    blockers.push("This matter is marked submitted, but no accessible order was found. Check the order record before taking further action.");
   } else if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
     nextActions = [
       action({
@@ -325,22 +347,6 @@ export function deriveWorkflowProtocolState(input: {
         requiresExplicitConsent: false,
         idempotencyRequired: true,
         consequential: true,
-        arguments: { matter_id: input.matter.id },
-      }),
-    ];
-  } else if (input.orderPresent && input.definition.requiresMailing) {
-    nextActions = [
-      action({
-        id: "track-order",
-        kind: "tracking",
-        toolName: "get_order_status",
-        title: "Track mailing and proof",
-        prompt:
-          "Read the owner-scoped order status, tracking events, and proof records. Do not infer delivery beyond recorded provider facts.",
-        requiresUserInput: false,
-        requiresExplicitConsent: false,
-        idempotencyRequired: false,
-        consequential: false,
         arguments: { matter_id: input.matter.id },
       }),
     ];
