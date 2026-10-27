@@ -577,6 +577,21 @@ export function createWorkflowRuntimeRequestHandler(
       let matter = await requireMatter(deps, actor, matterId);
       const policy = policyFor(deps, matter.matter.workflowId);
 
+      // Persisted identity must still agree with the owner-scoped lookup and
+      // registered policy. Validating only at creation would let a corrupted
+      // or mismapped record bypass the canonical workflow/section boundary.
+      if (matter.matter.id !== matterId) {
+        throw new HttpError(409, "Matter identity does not match its registered workflow.");
+      }
+      try {
+        policy.validateMatter({
+          workflowId: matter.matter.workflowId,
+          verticalId: matter.matter.verticalId,
+        });
+      } catch {
+        throw new HttpError(409, "Matter identity does not match its registered workflow.");
+      }
+
       // Terminal matters remain readable for history and proof, but cannot
       // accept further document, analysis, draft, approval, or checkout writes.
       // Enforce this server-side even when a client bypasses MCP suggestions.
