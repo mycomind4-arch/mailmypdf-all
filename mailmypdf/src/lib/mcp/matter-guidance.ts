@@ -89,8 +89,13 @@ export function deriveMatterGuidance(input: {
 }): MatterGuidance {
   const { matter, documents } = input;
   const source = documents.find((document) => document.role === "subject_notice");
-  const includedNotReady = documents.find((document) => document.included && !document.usable);
-  const sourceReady = input.requiresSourceDocument ? Boolean(source?.usable) : true;
+  // A stale usable flag cannot override quarantine or a failed scan.
+  const includedNotReady = documents.find(
+    (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
+  );
+  const sourceReady = input.requiresSourceDocument
+    ? Boolean(source?.usable && source.securityStatus === "clean")
+    : true;
   const progress: MatterProgress = {
     sourceDocumentRequired: input.requiresSourceDocument,
     sourceDocumentPresent: Boolean(source),
@@ -123,30 +128,8 @@ export function deriveMatterGuidance(input: {
     };
   }
 
-  if (input.approvalId) {
-    const next = action(
-      matter.id,
-      "prepare_checkout",
-      "The exact packet is approved. Prepare or resume hosted checkout only when the user wants to continue to payment.",
-      ["idempotency_key", "approval_id", "sender"],
-    );
-    next.arguments.approval_id = input.approvalId;
-    return { progress, requiredFacts, nextAction: next };
-  }
-
-  if (input.hasDraft) {
-    return {
-      progress,
-      requiredFacts,
-      nextAction: action(
-        matter.id,
-        "preview_packet",
-        "A saved draft is ready for exact packet and price review. Previewing does not approve, charge, or mail it.",
-        ["idempotency_key", "recipient", "mail_class"],
-      ),
-    };
-  }
-
+  // Persisted drafts and approvals are historical records, not permission to
+  // bypass current document security checks. The runtime enforces the same gates.
   if (includedNotReady) {
     const next = action(
       matter.id,
@@ -171,7 +154,7 @@ export function deriveMatterGuidance(input: {
     };
   }
 
-  if (input.requiresSourceDocument && !source?.usable) {
+  if (input.requiresSourceDocument && !sourceReady) {
     const next = action(
       matter.id,
       "get_document_status",
@@ -180,6 +163,30 @@ export function deriveMatterGuidance(input: {
     );
     if (source) next.arguments.document_id = source.documentId;
     return { progress, requiredFacts, nextAction: next };
+  }
+
+  if (input.approvalId) {
+    const next = action(
+      matter.id,
+      "prepare_checkout",
+      "The exact packet is approved. Prepare or resume hosted checkout only when the user wants to continue to payment.",
+      ["idempotency_key", "approval_id", "sender"],
+    );
+    next.arguments.approval_id = input.approvalId;
+    return { progress, requiredFacts, nextAction: next };
+  }
+
+  if (input.hasDraft) {
+    return {
+      progress,
+      requiredFacts,
+      nextAction: action(
+        matter.id,
+        "preview_packet",
+        "A saved draft is ready for exact packet and price review. Previewing does not approve, charge, or mail it.",
+        ["idempotency_key", "recipient", "mail_class"],
+      ),
+    };
   }
 
   if (input.requiresSourceDocument && !input.analysis) {
