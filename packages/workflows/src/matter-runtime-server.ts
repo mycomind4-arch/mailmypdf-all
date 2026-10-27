@@ -577,6 +577,13 @@ export function createWorkflowRuntimeRequestHandler(
       let matter = await requireMatter(deps, actor, matterId);
       const policy = policyFor(deps, matter.matter.workflowId);
 
+      // Terminal matters remain readable for history and proof, but cannot
+      // accept further document, analysis, draft, approval, or checkout writes.
+      // Enforce this server-side even when a client bypasses MCP suggestions.
+      if (matter.matter.status === "abandoned" && request.method !== "GET") {
+        throw new HttpError(409, "This workflow matter has been abandoned.");
+      }
+
       if (request.method === "GET" && parts.length === 2) return json(matter);
 
       if (parts[2] === "documents") {
