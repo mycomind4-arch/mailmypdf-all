@@ -170,10 +170,10 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       role: "subject_notice",
       usable: true,
       securityStatus: "clean",
-    } as never;
-    const base = {
+    };
+    const base: Parameters<typeof deriveWorkflowProtocolState>[0] = {
       matter,
-      documents: [cleanNotice],
+      documents: [cleanNotice as never],
       definition,
       analysisPresent: true,
       inputPresent: false,
@@ -181,12 +181,12 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       approvalPresent: false,
       orderPresent: false,
     };
-    const next = (overrides: Partial<typeof base> = {}) =>
+    const next = (overrides: Partial<Parameters<typeof deriveWorkflowProtocolState>[0]> = {}) =>
       deriveWorkflowProtocolState({ ...base, ...overrides }).nextActions[0];
 
     assert.equal(next({ documents: [], analysisPresent: false })?.toolName, "ingest_document", workflowId);
     assert.equal(
-      next({ documents: [{ ...cleanNotice, usable: false, securityStatus: "quarantined" }] })?.toolName,
+      next({ documents: [{ ...cleanNotice, usable: false, securityStatus: "quarantined" } as never] })?.toolName,
       "get_document_status",
       workflowId,
     );
