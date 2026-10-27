@@ -353,6 +353,37 @@ test("abandoned matters stay readable but reject all runtime mutations", async (
   assert.equal(deps.store.events.has(matterId), false);
 });
 
+test("runtime rejects persisted matter identity mismatches before reads or mutations", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  assert.equal(created.status, 201);
+  const matterId = (await body(created)).matter.id as string;
+  const row = deps.store.matters.get(matterId)!;
+  const original = row.snapshot;
+
+  for (const mismatch of [
+    { id: "different-matter-id" },
+    { verticalId: "another-workflow-section" },
+  ]) {
+    row.snapshot = { ...original, matter: { ...original.matter, ...mismatch } };
+    const read = await handle(request(`/matters/${matterId}`));
+    assert.equal(read.status, 409, "inconsistent persisted identity must not be served as a valid matter");
+
+    const write = await handle(request(`/matters/${matterId}/input`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Do not mutate an inconsistent matter." }),
+    }));
+    assert.equal(write.status, 409, "inconsistent persisted identity must not accept workflow input");
+    assert.equal(deps.store.inputs.has(matterId), false);
+  }
+});
+
 test("another authenticated user cannot load a matter they do not own", async () => {
   const deps = dependencies();
   const handle = createWorkflowRuntimeRequestHandler(deps);
