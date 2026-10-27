@@ -70,7 +70,7 @@ test("MCP smoke checks the entire canonical discovery catalog by name", () => {
     path.resolve(import.meta.dirname, "../scripts/mcp-smoke.mjs"),
     "utf8",
   );
-  const requiredBlock = smoke.match(/for \\(const required of \\[([\\s\\S]*?)\\]\\)/);
+  const requiredBlock = smoke.match(/for \(const required of \[([\s\S]*?)\]\)/);
   assert.ok(requiredBlock, "MCP smoke must enumerate expected discovered tools");
   const names = [...requiredBlock[1].matchAll(/"([a-z][a-z0-9_]*)"/g)].map((match) => match[1]);
   const canonical = MAILMYPDF_MCP_TOOLS.map((tool) => tool.name);
