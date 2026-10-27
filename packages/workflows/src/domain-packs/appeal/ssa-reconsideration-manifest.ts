@@ -3,7 +3,6 @@ import {
   longTextField,
   personNameField,
   postalAddressField,
-  textField,
 } from "../../workflow-fields.js";
 import { defineWorkflow, type DefinedWorkflow } from "../../define-workflow.js";
 import type { WorkflowManifest } from "../../workflow-manifest.js";
@@ -82,13 +81,6 @@ function claimantFields(profile: SsaReconsiderationWorkflowProfile) {
     personNameField({
       id: "representativeName",
       label: "Representative name",
-    }),
-    textField({
-      id: "responseMode",
-      label: "Appeal stage",
-      required: true,
-      maxLength: 64,
-      hint: "This workflow only supports reconsideration.",
     }),
     checkboxField({
       id: "confirmedReconsideration",
