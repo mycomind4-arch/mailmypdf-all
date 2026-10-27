@@ -46,7 +46,7 @@ import {
 import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
 import { listRecentCases } from "@/lib/secure-core/case.server";
-import { deriveMatterGuidance } from "./matter-guidance";
+import { deriveMatterGuidance, isCurrentMatterDraft } from "./matter-guidance";
 import {
   cancelScheduledDirectMail,
   createScheduledDirectMail,
@@ -838,6 +838,12 @@ export async function executeMcpTool(
       analysis: analysis ?? null,
       hasInput: Boolean(storedInput),
       hasDraft: Boolean(draft),
+      draftIsCurrent: isCurrentMatterDraft({
+        storedInput,
+        analysis,
+        draft,
+        documents: documents as WorkflowMatterDocument[],
+      }),
       approvalId,
     });
     return { ...snapshot, ...guidance };
