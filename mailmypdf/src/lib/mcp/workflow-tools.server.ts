@@ -78,6 +78,32 @@ export class McpToolExecutionError extends Error {
   }
 }
 
+/**
+ * Do not advertise workflow actions for a stored matter whose identity differs
+ * from the requested owner-scoped record or the certified canonical section.
+ * This is defense in depth: the runtime also validates mutations.
+ */
+export function assertMcpWorkflowStateMatterIdentity(
+  matter: Pick<WorkflowMatterRecord, "id" | "workflowId" | "verticalId">,
+  expectedMatterId: string,
+): void {
+  const descriptor = getWorkflowDescriptor(matter.workflowId);
+  const policy = platformWorkflowRuntimePolicyFor(matter.workflowId);
+  if (
+    matter.id !== expectedMatterId ||
+    !descriptor ||
+    matter.verticalId !== descriptor.sectionId ||
+    !policy
+  ) {
+    throw new McpToolExecutionError(409, "Matter identity does not match its registered workflow.");
+  }
+  try {
+    policy.validateMatter({ workflowId: matter.workflowId, verticalId: matter.verticalId });
+  } catch {
+    throw new McpToolExecutionError(409, "Matter identity does not match its registered workflow.");
+  }
+}
+
 type ToolArguments = Record<string, unknown>;
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -708,6 +734,7 @@ export async function executeMcpTool(
       "matter response",
     );
     const storedMatter = object(matterPayload.matter, "matter") as unknown as WorkflowMatterRecord;
+    assertMcpWorkflowStateMatterIdentity(storedMatter, matterId);
     const documents = Array.isArray(matterPayload.documents)
       ? matterPayload.documents as WorkflowMatterDocument[]
       : [];
