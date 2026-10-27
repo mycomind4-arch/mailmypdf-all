@@ -420,6 +420,24 @@ function validatePolicyMatter(policy: WorkflowRuntimePolicy, input: { workflowId
   }
 }
 
+/**
+ * Keep readiness reads and checkout aligned: an approval is usable only for
+ * the authenticated owner, exact matter, and registered workflow.
+ */
+function assertStoredApprovalIdentity(
+  approval: ExactPacketApproval,
+  actor: WorkflowRuntimeActor,
+  matter: WorkflowMatterRecord,
+): void {
+  if (
+    approval.matterId !== matter.id ||
+    approval.workflowId !== matter.workflowId ||
+    approval.approvedBy !== actor.id
+  ) {
+    throw new HttpError(409, "Approval identity does not match the authenticated matter.");
+  }
+}
+
 function nextAnalysisVersion(previous: WorkflowMatterAnalysis | null): number {
   return (previous?.version ?? 0) + 1;
 }
@@ -803,6 +821,7 @@ export function createWorkflowRuntimeRequestHandler(
       if (parts[2] === "approval" && parts.length === 3) {
         if (request.method === "GET") {
           const approval = await deps.store.loadApproval(actor.id, matterId);
+          if (approval) assertStoredApprovalIdentity(approval, actor, matter.matter);
           return json({ approval: approval ? {
             approvalId: approval.approvalId,
             packetSha256: approval.packetSha256,
@@ -861,16 +880,8 @@ export function createWorkflowRuntimeRequestHandler(
         const approval = await deps.store.loadApproval(actor.id, matterId);
         if (!approval || approval.approvalId !== approvalId) throw new HttpError(409, "Approved packet is required before checkout");
         matter = await requireMatter(deps, actor, matterId);
-        // A stored approval is not valid merely because its ID and packet hash
-        // match. Bind it to this authenticated owner, matter, and workflow
-        // before any payment or order side effect can reach the gateway.
-        if (
-          approval.matterId !== matterId ||
-          approval.workflowId !== matter.matter.workflowId ||
-          approval.approvedBy !== actor.id
-        ) {
-          throw new HttpError(409, "Approval identity does not match the authenticated matter.");
-        }
+        // Checkout and readiness must enforce the same approval identity.
+        assertStoredApprovalIdentity(approval, actor, matter.matter);
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
