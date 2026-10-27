@@ -895,8 +895,15 @@ export function createWorkflowRuntimeRequestHandler(
         if (!caseInput) throw new HttpError(409, "Saved workflow facts are missing");
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
-        policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-        policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        // The same packet-policy gates are checked during preview/approval.
+        // Treat their rejection as a workflow conflict at checkout too,
+        // rather than a retryable HTTP 500 in the MCP connector.
+        try {
+          policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+          policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        } catch (error) {
+          throw normalizePolicyError(error, "PACKET_NOT_READY");
+        }
         requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
         assertPacketMatchesApproval(approval, current);
