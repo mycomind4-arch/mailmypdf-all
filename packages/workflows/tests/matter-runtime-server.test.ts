@@ -582,6 +582,50 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   }
   deps.store.approvals.set(matterId, originalApproval);
 
+  // Checkout must treat a newly missing required form as a policy conflict,
+  // not an HTTP 500 that MCP will misclassify as retryable infrastructure.
+  const storedRow = deps.store.matters.get(matterId)!;
+  const originalSnapshot = storedRow.snapshot;
+  storedRow.snapshot = {
+    ...originalSnapshot,
+    documents: originalSnapshot.documents.filter((document) => document.evidenceKind !== "required-form"),
+  };
+  const missingFormCheckout = await handle(request(`/matters/${matterId}/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      approvalId,
+      sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+    }),
+  }));
+  assert.equal(missingFormCheckout.status, 409, "missing required forms at checkout are a conflict, not a server error");
+  assert.match((await body(missingFormCheckout)).error, /required form missing/);
+  assert.equal(deps.checkoutCalls.count, 0, "invalid form set must not reach checkout");
+  storedRow.snapshot = originalSnapshot;
+
+  // A policy's workflow-specific before-packet gate has the same error
+  // contract even when the previously approved packet is otherwise intact.
+  const originalPolicyFor = deps.policyFor;
+  deps.policyFor = (workflowId) => {
+    const resolved = originalPolicyFor(workflowId);
+    return resolved ? {
+      ...resolved,
+      validateBeforePacket() { throw new Error("workflow facts no longer permit packet checkout"); },
+    } : null;
+  };
+  const invalidFactsCheckout = await handle(request(`/matters/${matterId}/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      approvalId,
+      sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+    }),
+  }));
+  assert.equal(invalidFactsCheckout.status, 409, "invalid workflow-specific packet facts must be a conflict");
+  assert.match((await body(invalidFactsCheckout)).error, /workflow facts no longer permit/);
+  assert.equal(deps.checkoutCalls.count, 0, "invalid workflow facts must not reach checkout");
+  deps.policyFor = originalPolicyFor;
+
   response = await handle(request(`/matters/${matterId}/checkout`, {
     method: "POST",
     headers: { "content-type": "application/json" },
