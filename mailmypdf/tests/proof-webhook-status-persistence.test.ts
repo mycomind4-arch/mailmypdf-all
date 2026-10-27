@@ -15,6 +15,7 @@ function fakeDeliveryStore(options: {
   retryAttempts?: number;
   stalePending?: boolean;
   pendingQueryError?: string;
+  retryQueryError?: string;
   retryEventIds?: string[];
   failUpdateForEventId?: string;
   missingTenant?: boolean;
@@ -86,7 +87,9 @@ function fakeDeliveryStore(options: {
                     data: status === "retrying" ? retryRows : pendingRows,
                     error: status === "pending" && options.pendingQueryError
                       ? { message: options.pendingQueryError }
-                      : null,
+                      : status === "retrying" && options.retryQueryError
+                        ? { message: options.retryQueryError }
+                        : null,
                   }),
                 };
               },
@@ -232,6 +235,60 @@ test("failed stale-pending scan propagates instead of silently losing delivery w
     processPendingRetries(store.deps),
     /Pending proof webhook retries query failed: database unavailable/,
   );
+  assert.equal(requests, 0);
+});
+
+test("failed stale-pending scan still processes eligible retrying deliveries and reports partial work", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(null, { status: 200 });
+  });
+  const store = fakeDeliveryStore({ retryAttempts: 1, pendingQueryError: "pending scan unavailable" });
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 1);
+    assert.equal((error as { processed: number }).processed, 1);
+    assert.match(error.message, /pending scan unavailable/);
+    return true;
+  });
+  assert.equal(requests, 1, "successful retry scan must not be discarded when pending scan fails");
+  assert.deepEqual(store.statuses, ["delivered"]);
+});
+
+test("failed retrying scan still recovers stale pending deliveries and reports partial work", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(null, { status: 200 });
+  });
+  const store = fakeDeliveryStore({ stalePending: true, retryQueryError: "retry scan unavailable" });
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 1);
+    assert.equal((error as { processed: number }).processed, 1);
+    assert.match(error.message, /retry scan unavailable/);
+    return true;
+  });
+  assert.equal(requests, 1, "stale pending work must continue when retrying scan fails");
+  assert.deepEqual(store.statuses, ["delivered"]);
+});
+
+test("two failed webhook scans report both failures without claiming success", async (t) => {
+  let requests = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    requests++;
+    return new Response(null, { status: 200 });
+  });
+  const store = fakeDeliveryStore({ retryQueryError: "retry scan unavailable", pendingQueryError: "pending scan unavailable" });
+  await assert.rejects(processPendingRetries(store.deps), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 2);
+    assert.equal((error as { processed: number }).processed, 0);
+    assert.match(error.message, /retry scan unavailable/);
+    assert.match(error.message, /pending scan unavailable/);
+    return true;
+  });
   assert.equal(requests, 0);
 });
 
