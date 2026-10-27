@@ -682,11 +682,16 @@ export function createWorkflowRuntimeRequestHandler(
           }
           const body = await readJson(request, maxJsonBytes);
           const existingEvents = await deps.store.loadEvents(actor.id, matterId);
-          const validated = policy.validateUserEvent({
-            event: body,
-            matter,
-            existingEvents,
-          });
+          let validated: ReturnType<NonNullable<WorkflowRuntimePolicy["validateUserEvent"]>>;
+          try {
+            validated = policy.validateUserEvent({
+              event: body,
+              matter,
+              existingEvents,
+            });
+          } catch (error) {
+            throw normalizePolicyError(error, "USER_EVENT_INPUT_INVALID");
+          }
           const event: WorkflowRuntimeStoredEvent = {
             id: id(),
             type: validated.type,
