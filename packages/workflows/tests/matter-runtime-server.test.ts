@@ -313,6 +313,46 @@ test("runtime rejects oversized multipart uploads before the document gateway", 
   assert.equal(response.status, 413);
 });
 
+test("abandoned matters stay readable but reject all runtime mutations", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  assert.equal(created.status, 201);
+  const matterId = (await body(created)).matter.id as string;
+  const row = deps.store.matters.get(matterId)!;
+  row.snapshot = { ...row.snapshot, matter: { ...row.snapshot.matter, status: "abandoned" } };
+
+  const read = await handle(request(`/matters/${matterId}`));
+  assert.equal(read.status, 200, "historical matter must remain readable");
+  assert.equal((await body(read)).matter.status, "abandoned");
+
+  const mutations: Request[] = [
+    request(`/matters/${matterId}/input`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Do not reopen" }),
+    }),
+    request(`/matters/${matterId}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "user_note", occurredOn: "2026-10-27", note: "Do not append" }),
+    }),
+    request(`/matters/${matterId}/documents/nonexistent`, { method: "DELETE" }),
+  ];
+
+  for (const mutation of mutations) {
+    const response = await handle(mutation);
+    assert.equal(response.status, 409, `${mutation.method} ${mutation.url}`);
+    assert.match((await body(response)).error, /abandoned/i);
+  }
+  assert.equal(deps.store.inputs.has(matterId), false);
+  assert.equal(deps.store.events.has(matterId), false);
+});
+
 test("another authenticated user cannot load a matter they do not own", async () => {
   const deps = dependencies();
   const handle = createWorkflowRuntimeRequestHandler(deps);
