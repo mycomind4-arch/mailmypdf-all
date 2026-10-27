@@ -200,6 +200,7 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       analysisPresent: true,
       inputPresent: false,
       draftPresent: false,
+      draftIsCurrent: true,
       approvalPresent: false,
       orderPresent: false,
     };
