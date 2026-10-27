@@ -104,6 +104,11 @@ export function assertMcpWorkflowStateMatterIdentity(
   }
 }
 
+/** A submitted matter must remain trackable even if its approval row is missing. */
+export function shouldLookupMcpMatterOrder(matterStatus: string, approvalPresent: boolean): boolean {
+  return approvalPresent || matterStatus === "submitted";
+}
+
 type ToolArguments = Record<string, unknown>;
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -775,7 +780,7 @@ export async function executeMcpTool(
     const approvalPresent = Boolean(object(approvalPayload, "approval response").approval);
 
     let orderPresent = false;
-    if (approvalPresent) {
+    if (shouldLookupMcpMatterOrder(storedMatter.status, approvalPresent)) {
       try {
         await getOwnedOrderStatus(request, { matterId });
         orderPresent = true;
