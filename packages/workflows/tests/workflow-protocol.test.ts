@@ -57,6 +57,7 @@ function state(
     analysisPresent: true,
     inputPresent: true,
     draftPresent: true,
+    draftIsCurrent: true,
     approvalPresent: true,
     orderPresent: true,
     ...overrides,
@@ -191,6 +192,7 @@ test("fact-first workflows collect input before generating a draft", () => {
     analysisPresent: false,
     inputPresent: false,
     draftPresent: false,
+    draftIsCurrent: false,
     approvalPresent: false,
     orderPresent: false,
   });
