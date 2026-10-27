@@ -232,6 +232,15 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       "get_order_status",
       workflowId,
     );
+
+    const abandoned = deriveWorkflowProtocolState({
+      ...base,
+      matter: { ...matter, status: "abandoned" },
+      documents: [],
+      analysisPresent: false,
+    });
+    assert.deepEqual(abandoned.nextActions, [], `${workflowId}: abandoned matter must not suggest intake or checkout`);
+    assert.match(abandoned.blockers.join(" "), /abandoned/i, workflowId);
   }
 });
 
