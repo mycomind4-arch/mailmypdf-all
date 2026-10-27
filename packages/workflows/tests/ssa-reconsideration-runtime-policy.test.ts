@@ -30,6 +30,10 @@ function form(kind: string, overrides: Partial<WorkflowMatterDocument> = {}): Wo
   } as WorkflowMatterDocument;
 }
 
+import {
+  getSsaReconsiderationFactoryArtifact,
+} from "../src/domain-packs/appeal/ssa-reconsideration-factory-artifact.js";
+
 const claimant = {
   claimantName: "Pat Doe", claimantAddress: "1 Main St", phone: "555-0100",
   responseMode: "reconsideration", confirmedReconsideration: true, reasonsForDisagreement: "My condition worsened.",
@@ -82,4 +86,27 @@ test("claimant facts are validated per program", () => {
   const saved = ssi.validateInput({ ...claimant, incomeFacts: "No income since May." }, nonmedical, matter);
   assert.equal(saved.incomeFacts, "No income since May.");
   assert.equal("workChanges" in saved, false);
+});
+
+
+test("SSA chat inputs derive the fixed reconsideration mode without requiring a redundant client field", () => {
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
+    assert.ok(artifact);
+    const fields = artifact.manifest.steps?.flatMap((step) => step.fields ?? []) ?? [];
+    assert.equal(fields.some((field) => field.id === "responseMode"), false, workflowId);
+    assert.equal(artifact.runtimePolicy.chatContract?.inputFields.some((field) => field.id === "responseMode"), false, workflowId);
+
+    const input = {
+      claimantName: "Pat Doe", claimantAddress: "1 Main St", phone: "555-0100",
+      confirmedReconsideration: true, reasonsForDisagreement: "I disagree.",
+      ...(workflowId === "appeal-ssi-denial" ? { incomeFacts: "No income." } : {}),
+    };
+    const policy = artifact.runtimePolicy;
+    const saved = policy.validateInput(input, nonmedical, {} as never);
+    assert.equal(saved.responseMode, "reconsideration", workflowId);
+    assert.throws(() => policy.validateInput({ ...input, responseMode: "hearing" }, nonmedical, {} as never), /confirm reconsideration/);
+    assert.throws(() => policy.validateInput({ ...input, confirmedReconsideration: false }, nonmedical, {} as never), /confirm reconsideration/);
+  }
 });
