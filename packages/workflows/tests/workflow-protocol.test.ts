@@ -133,6 +133,42 @@ test("stale draft basis never advertises packet preview or checkout", () => {
   );
 });
 
+test("submitted and ordered matters preserve tracking despite stale draft prerequisites", () => {
+  // A historical order must remain trackable even when its original source,
+  // analysis, input, draft or approval can no longer be reconstructed.
+  for (const status of ["active", "submitted"]) {
+    const result = state({
+      matter: { ...matter, status },
+      documents: [],
+      analysisPresent: false,
+      inputPresent: false,
+      draftPresent: false,
+      draftIsCurrent: false,
+      approvalPresent: false,
+      orderPresent: true,
+    });
+    assert.equal(result.progress.orderReady, true, status);
+    assert.equal(result.nextActions[0]?.toolName, "get_order_status", status);
+    assert.equal(result.nextActions[0]?.kind, "tracking", status);
+    assert.equal(result.nextActions.length, 1, status);
+  }
+
+  // A submitted record with no accessible order must not restart intake or
+  // recommend another checkout. Surface the inconsistent state for review.
+  const missingOrder = state({
+    matter: { ...matter, status: "submitted" },
+    documents: [],
+    analysisPresent: false,
+    inputPresent: false,
+    draftPresent: false,
+    draftIsCurrent: false,
+    approvalPresent: false,
+    orderPresent: false,
+  });
+  assert.deepEqual(missingOrder.nextActions, []);
+  assert.match(missingOrder.blockers.join(" "), /order/i);
+});
+
 test("abandoned matters never recommend MCP workflow mutations", () => {
   for (const overrides of [
     {
