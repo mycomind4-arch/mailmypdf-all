@@ -11,7 +11,7 @@ present but their values were not inspected or verified. Local environment
 preflight failures must not be interpreted as a live Worker secret inventory.
 No production settings, database schema, payment or mail were changed by this check.
 
-As of the October 27, 2026 source check, the MCP smoke checker verifies 28 named tools
+As of the October 27, 2026 source check, the MCP smoke checker verifies all 38 named tools
 and the full 38-tool catalog, including owner-scoped recent matter discovery and
 conversational resume guidance. This is a source-level expectation, not proof of
 production discovery. Production preflight also verifies
