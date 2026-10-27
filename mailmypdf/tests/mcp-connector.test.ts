@@ -26,7 +26,7 @@ import {
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
-import { assertMcpWorkflowStateMatterIdentity, connectorOperationRequestSha256, executeMcpTool, McpToolExecutionError } from "../src/lib/mcp/workflow-tools.server";
+import { assertMcpWorkflowStateMatterIdentity, connectorOperationRequestSha256, executeMcpTool, McpToolExecutionError, shouldLookupMcpMatterOrder } from "../src/lib/mcp/workflow-tools.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
 import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
 import {
@@ -161,6 +161,14 @@ test("MCP workflow state fails closed for mismatched SSDI/SSI matter identities"
   }
 });
 
+test("submitted MCP matters probe owner-scoped orders even without historical approval", () => {
+  assert.equal(shouldLookupMcpMatterOrder("submitted", false), true);
+  assert.equal(shouldLookupMcpMatterOrder("submitted", true), true);
+  assert.equal(shouldLookupMcpMatterOrder("active", true), true);
+  assert.equal(shouldLookupMcpMatterOrder("active", false), false);
+  assert.equal(shouldLookupMcpMatterOrder("abandoned", false), false);
+});
+
 test("SSDI and SSI connector workflow states retain program-specific facts and review gates", () => {
   for (const [workflowId, programField] of [
     ["appeal-ssdi-denial", "workChanges"],
@@ -246,6 +254,21 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
       "get_order_status",
       workflowId,
     );
+
+    const submitted = deriveWorkflowProtocolState({
+      ...base,
+      matter: { ...matter, status: "submitted" },
+      documents: [],
+      analysisPresent: false,
+      inputPresent: false,
+      draftPresent: false,
+      draftIsCurrent: false,
+      approvalPresent: false,
+      orderPresent: true,
+    });
+    assert.equal(submitted.nextActions[0]?.toolName, "get_order_status", workflowId);
+    assert.equal(submitted.nextActions[0]?.kind, "tracking", workflowId);
+    assert.equal(submitted.progress.orderReady, true, workflowId);
 
     const abandoned = deriveWorkflowProtocolState({
       ...base,
