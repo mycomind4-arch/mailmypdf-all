@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery, WebhookRetryBatchError } from "../src/lib/proof-of-service/webhook-retry-query.ts";
+import { requireWebhookRetryRows, collectWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery, WebhookRetryBatchError } from "../src/lib/proof-of-service/webhook-retry-query.ts";
 
 test("successful empty webhook retry scan returns no work", () => {
   assert.deepEqual(requireWebhookRetryRows({ data: [], error: null }), []);
@@ -31,6 +31,46 @@ test("webhook retry scan prioritizes an error even when data is present", () => 
     () => requireWebhookRetryRows({ data: [{ event_id: "stale" }], error: { message: "stale read" } }),
     /Pending proof webhook retries query failed: stale read/,
   );
+});
+
+test("independent scan errors are retained while valid rows are collected", async () => {
+  const errors: Error[] = [];
+  const failed = await collectWebhookRetryRows(Promise.resolve({
+    data: null, error: { message: "scan offline" },
+  }), errors);
+  const good = await collectWebhookRetryRows(Promise.resolve({
+    data: [{ event_id: "evt_healthy" }], error: null,
+  }), errors);
+  assert.deepEqual(failed, []);
+  assert.deepEqual(good, [{ event_id: "evt_healthy" }]);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0].message, /scan offline/);
+});
+
+test("rejected scan promises are reported without preventing independent work", async () => {
+  const errors: Error[] = [];
+  const failed = await collectWebhookRetryRows(Promise.reject(new Error("connection dropped")), errors);
+  assert.deepEqual(failed, []);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0].message, /connection dropped/);
+});
+
+test("retry batch includes scan errors and still counts completed deliveries", async () => {
+  const visited: string[] = [];
+  await assert.rejects(
+    processWebhookRetryBatch(["healthy"], async (id) => {
+      visited.push(id);
+      return true;
+    }, [new Error("stale pending scan failed")]),
+    (error: unknown) => {
+      assert.ok(error instanceof WebhookRetryBatchError);
+      assert.equal(error.processed, 1);
+      assert.equal(error.errors.length, 1);
+      assert.match(error.message, /stale pending scan failed/);
+      return true;
+    },
+  );
+  assert.deepEqual(visited, ["healthy"]);
 });
 
 test("failed webhook retry does not prevent later independent deliveries", async () => {
