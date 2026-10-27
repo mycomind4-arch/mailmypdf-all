@@ -552,6 +552,29 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   assert.equal(response.status, 200);
   const approvalId = (await body(response)).approvalId as string;
 
+  // A stored approval must belong to this authenticated matter and workflow.
+  // Matching only approvalId and packet hash would allow a mismapped approval
+  // to reach the checkout gateway without a fresh user authorization.
+  const originalApproval = deps.store.approvals.get(matterId)!;
+  for (const mismatch of [
+    { matterId: "another-matter" },
+    { workflowId: "another-workflow" },
+    { approvedBy: "user-2" },
+  ]) {
+    deps.store.approvals.set(matterId, { ...originalApproval, ...mismatch });
+    const rejected = await handle(request(`/matters/${matterId}/checkout`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        approvalId,
+        sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+      }),
+    }));
+    assert.equal(rejected.status, 409, `mismatched approval ${Object.keys(mismatch)[0]} must be rejected`);
+    assert.equal(deps.checkoutCalls.count, 0, "rejected approval must not reach checkout");
+  }
+  deps.store.approvals.set(matterId, originalApproval);
+
   response = await handle(request(`/matters/${matterId}/checkout`, {
     method: "POST",
     headers: { "content-type": "application/json" },
