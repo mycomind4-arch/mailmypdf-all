@@ -9,7 +9,7 @@
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
 import { embeddedOne } from "./embedded";
-import { requireWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "./webhook-retry-query";
+import { collectWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "./webhook-retry-query";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -215,8 +215,10 @@ export async function processPendingRetries(
   const { supabaseAdmin } = deps;
   const now = new Date().toISOString();
 
-  // Find deliveries that need retry
-  const { data: pending, error } = await supabaseAdmin
+  // Keep scans independent: one failed database query must still fail cron,
+  // but must not suppress deliveries found by the other successful query.
+  const scanErrors: Error[] = [];
+  const retryRows = await collectWebhookRetryRows(supabaseAdmin
     .from("proof_webhook_deliveries")
     .select(`
       event_id,
@@ -228,16 +230,14 @@ export async function processPendingRetries(
     `)
     .eq("status", "retrying")
     .lte("next_retry_at", now)
-    .limit(50);
-
-  const retryRows = requireWebhookRetryRows({ data: pending, error });
+    .limit(50), scanErrors);
 
   // A crash or failed status write after inserting a delivery can leave it
   // permanently "pending". The retrying-only scan never recovers those rows.
   // Give in-flight first attempts five minutes to finish before replaying.
   // Webhooks are at-least-once; consumers must deduplicate by event_id.
   const staleCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
-  const { data: stalePending, error: pendingError } = await supabaseAdmin
+  const pendingRows = await collectWebhookRetryRows(supabaseAdmin
     .from("proof_webhook_deliveries")
     .select(`
       event_id,
@@ -249,9 +249,7 @@ export async function processPendingRetries(
     `)
     .eq("status", "pending")
     .lte("created_at", staleCutoff)
-    .limit(50);
-
-  const pendingRows = requireWebhookRetryRows({ data: stalePending, error: pendingError });
+    .limit(50), scanErrors);
 
   return processWebhookRetryBatch([
     ...retryRows.map((row) => ({ row, attempt: (row.attempts as number) + 1 })),
@@ -273,5 +271,5 @@ export async function processPendingRetries(
       attempt,
     );
     return true;
-  });
+  }, scanErrors);
 }
