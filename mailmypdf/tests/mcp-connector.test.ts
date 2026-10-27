@@ -26,7 +26,7 @@ import {
 } from "../src/lib/mcp/workflow-catalog";
 import { classifyDocumentReadiness } from "../src/lib/mcp/document-readiness";
 import { handleMailMyPdfMcpRequest } from "../src/lib/mcp/mcp-handler.server";
-import { connectorOperationRequestSha256, executeMcpTool } from "../src/lib/mcp/workflow-tools.server";
+import { assertMcpWorkflowStateMatterIdentity, connectorOperationRequestSha256, executeMcpTool, McpToolExecutionError } from "../src/lib/mcp/workflow-tools.server";
 import { recipientReviewSha256 } from "../src/lib/mcp/packet-review";
 import { PACKET_REVIEW_RESOURCE } from "../src/lib/mcp/packet-review-resource";
 import {
@@ -140,6 +140,27 @@ test("certified factory families are registered only after chat-readiness certif
   assert.equal(getMcpWorkflowProtocolDefinition("not-a-real-workflow"), null);
 });
 
+test("MCP workflow state fails closed for mismatched SSDI/SSI matter identities", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const matter = { id: "owned-ssa-matter", workflowId, verticalId: "appeal-mail" };
+    assert.doesNotThrow(() => assertMcpWorkflowStateMatterIdentity(matter, matter.id));
+    for (const inconsistent of [
+      { ...matter, id: "different-matter" },
+      { ...matter, verticalId: "benefits-appeal" },
+      { ...matter, verticalId: "notice-respond" },
+    ]) {
+      assert.throws(
+        () => assertMcpWorkflowStateMatterIdentity(inconsistent, matter.id),
+        (error: unknown) =>
+          error instanceof McpToolExecutionError &&
+          error.status === 409 &&
+          /Matter identity does not match/.test(error.message),
+        `${workflowId}: inconsistent matter must not receive workflow actions`,
+      );
+    }
+  }
+});
+
 test("SSDI and SSI connector workflow states retain program-specific facts and review gates", () => {
   for (const [workflowId, programField] of [
     ["appeal-ssdi-denial", "workChanges"],
@@ -160,11 +181,12 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
     const matter = {
       id: `test-${workflowId}`,
       workflowId,
-      verticalId: "benefits-appeal",
+      verticalId: "appeal-mail",
       status: "active",
       createdAt: "2026-10-27T00:00:00Z",
       updatedAt: "2026-10-27T00:00:00Z",
     } as never;
+    assertMcpWorkflowStateMatterIdentity(matter, matter.id);
     const cleanNotice = {
       documentId: "notice-1",
       role: "subject_notice",
