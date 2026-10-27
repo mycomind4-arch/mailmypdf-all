@@ -188,6 +188,7 @@ test("MCP matter guidance blocks packet and checkout suggestions when document r
         analysis: { result: {} },
         hasInput: true,
         hasDraft: true,
+        draftIsCurrent: true,
         approvalId,
       });
       assert.equal(guidance.nextAction.toolName, scenario.expectedTool,
