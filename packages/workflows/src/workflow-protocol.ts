@@ -194,7 +194,12 @@ export function deriveWorkflowProtocolState(input: {
   const blockers: string[] = [];
   let nextActions: WorkflowProtocolAction[] = [];
 
-  if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
+  // A terminal case may remain readable for history, but must not advertise
+  // actions that could restart intake, generate a new draft, or initiate checkout.
+  // The server remains authoritative for any attempted mutation.
+  if (input.matter.status === "abandoned") {
+    blockers.push("This matter has been abandoned. Start a new matter to continue.");
+  } else if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
     nextActions = [
       action({
         id: "upload-primary-document",
