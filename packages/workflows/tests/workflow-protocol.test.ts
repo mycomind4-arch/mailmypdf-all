@@ -59,7 +59,7 @@ function state(
     draftPresent: true,
     draftIsCurrent: true,
     approvalPresent: true,
-    orderPresent: true,
+    orderPresent: false,
     ...overrides,
   });
 }
@@ -111,7 +111,7 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state({ draftPresent: false }).nextActions[0]?.toolName, "generate_draft");
   assert.equal(state({ approvalPresent: false }).nextActions[0]?.toolName, "preview_packet");
   assert.equal(state({ orderPresent: false }).nextActions[0]?.toolName, "prepare_checkout");
-  assert.equal(state().nextActions[0]?.toolName, "get_order_status");
+  assert.equal(state({ orderPresent: true }).nextActions[0]?.toolName, "get_order_status");
 });
 
 test("stale draft basis never advertises packet preview or checkout", () => {
