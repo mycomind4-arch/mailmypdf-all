@@ -436,6 +436,16 @@ test("SSA MCP guidance requires exactly one included valid official form before 
       assert.equal(duplicate.nextAction.toolName, null, workflowId);
       assert.match(duplicate.nextAction.reason, /duplicate|exactly one/i);
 
+      const reusedMedicalPdf = state([
+        source,
+        officialForm("ssa_561", "one-uploaded-pdf"),
+        officialForm("ssa_3441", "one-uploaded-pdf"),
+        officialForm("ssa_827"),
+      ], "medical");
+      assert.equal(reusedMedicalPdf.nextAction.toolName, null, workflowId);
+      assert.match(reusedMedicalPdf.nextAction.reason, /same uploaded PDF|distinct completed PDFs/i);
+      assert.equal(reusedMedicalPdf.nextAction.arguments.approval_id, undefined);
+
       const invalidPdf = state([
         source, { ...officialForm("ssa_561"), mimeType: "image/jpeg" },
       ], "nonmedical");

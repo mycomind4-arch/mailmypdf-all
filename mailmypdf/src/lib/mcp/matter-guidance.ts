@@ -341,6 +341,7 @@ export function deriveMatterGuidance(input: {
           "The SSA decision basis is not confirmed; review and reanalyze the denial notice before preparing a mailing packet."),
       };
     }
+    const usedFormDocumentIds = new Map<string, string>();
     for (const kind of requiredSsaReconsiderationFormKinds(basis)) {
       const forms = documents.filter((document) =>
         document.role === "evidence" && document.evidenceKind === kind && document.included);
@@ -367,6 +368,17 @@ export function deriveMatterGuidance(input: {
         next.arguments.evidence_kind = kind;
         return { progress, requiredFacts, nextAction: next };
       }
+      // Mirror packet policy: one uploaded file cannot satisfy multiple SSA
+      // official-form slots, even when attached under different evidence kinds.
+      const priorKind = usedFormDocumentIds.get(forms[0].documentId);
+      if (priorKind && priorKind !== kind) {
+        return {
+          progress, requiredFacts,
+          nextAction: action(matter.id, null,
+            `The same uploaded PDF is attached as both ${priorKind} and ${kind}; upload distinct completed PDFs before preparing the mailing packet.`),
+        };
+      }
+      usedFormDocumentIds.set(forms[0].documentId, kind);
     }
   }
 
