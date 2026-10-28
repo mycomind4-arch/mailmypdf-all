@@ -188,6 +188,12 @@ export function deriveWorkflowProtocolState(input: {
   orderPresent: boolean;
 }): WorkflowProtocolState {
   const source = sourceDocument(input.documents);
+  // An old usable flag cannot override a failed or pending security scan.
+  // Only included evidence is part of the packet; excluded documents do not
+  // block checkout guidance.
+  const unsafeIncludedDocument = input.documents.find(
+    (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
+  );
   const sourceReady = sourceIsReady(source);
   const analysisReady = input.analysisPresent || !input.definition.analysisRequired;
   const inputReady = input.inputPresent || !input.definition.inputRequired;
@@ -226,6 +232,26 @@ export function deriveWorkflowProtocolState(input: {
     // Never suggest a second checkout or restart intake for a submitted
     // matter when its owner-scoped order record cannot be found.
     blockers.push("This matter is marked submitted, but no accessible order was found. Check the order record before taking further action.");
+  } else if (unsafeIncludedDocument) {
+    blockers.push("An included document has not cleared secure document scanning.");
+    nextActions = [
+      action({
+        id: "check-included-document",
+        kind: "document_status",
+        toolName: "get_document_status",
+        title: "Check included document readiness",
+        prompt:
+          "Check the included document security state. Do not generate a draft, preview a packet, or prepare checkout until it is clean and usable.",
+        requiresUserInput: false,
+        requiresExplicitConsent: false,
+        idempotencyRequired: false,
+        consequential: false,
+        arguments: {
+          matter_id: input.matter.id,
+          document_id: unsafeIncludedDocument.documentId,
+        },
+      }),
+    ];
   } else if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
     nextActions = [
       action({
