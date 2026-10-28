@@ -74,6 +74,8 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(nonmail?.description).toMatch(/required form, secure upload, telephone, or formal petition/i);
     expect(nonmail?.description).toMatch(/without substituting a generic mailed letter/i);
     expect(recordOnly?.description).toMatch(/without generating outgoing mail/i);
+    expect(workflowConfig.whatYouDo.join(" ")).toMatch(/if the notice permits a mailed reply/i);
+    expect(workflowConfig.whatYouDo.join(" ")).toMatch(/otherwise follow its required nonmail process/i);
   });
 
   it("preserves notice identity, relative deadline wording, and permitted response channel", () => {
