@@ -1,5 +1,6 @@
 import {
   createWorkflowDraftBasis,
+  requiredSsaReconsiderationFormKinds,
   workflowDraftBasisMatches,
   type WorkflowDraftBasis,
   type WorkflowMatterDocument,
@@ -52,6 +53,8 @@ type MatterDocument = {
   included: boolean;
   securityStatus: string;
   usable: boolean;
+  evidenceKind?: string | null;
+  mimeType?: string | null;
 };
 
 export type MatterNextAction = {
@@ -290,6 +293,57 @@ export function deriveMatterGuidance(input: {
         ["idempotency_key"],
       ),
     };
+  }
+
+  // SSA outgoing packet forms must match the runtime's exact required-form
+  // contract before MCP recommends preview or checkout. A draft can be
+  // generated earlier, but a packet cannot be reviewed without these forms.
+  if (input.hasDraft && input.draftIsCurrent &&
+      (matter.workflowId === "appeal-ssdi-denial" || matter.workflowId === "appeal-ssi-denial")) {
+    const analysisRecord = input.analysis && typeof input.analysis === "object" && !Array.isArray(input.analysis)
+      ? input.analysis as Record<string, unknown>
+      : null;
+    const result = analysisRecord?.result;
+    const details = result && typeof result === "object" && !Array.isArray(result)
+      ? (result as Record<string, unknown>).workflowDetails
+      : null;
+    const basis = details && typeof details === "object" && !Array.isArray(details)
+      ? (details as Record<string, unknown>).decisionBasis
+      : null;
+    if (basis !== "medical" && basis !== "nonmedical") {
+      return {
+        progress, requiredFacts,
+        nextAction: action(matter.id, null,
+          "The SSA decision basis is not confirmed; review and reanalyze the denial notice before preparing a mailing packet."),
+      };
+    }
+    for (const kind of requiredSsaReconsiderationFormKinds(basis)) {
+      const forms = documents.filter((document) =>
+        document.role === "evidence" && document.evidenceKind === kind && document.included);
+      if (forms.length > 1) {
+        return {
+          progress, requiredFacts,
+          nextAction: action(matter.id, null,
+            `Duplicate included ${kind} forms prevent packet preparation. Exclude the extra copy so exactly one completed PDF remains.`),
+        };
+      }
+      if (forms.length === 1 &&
+          (forms[0].mimeType !== "application/pdf" || !forms[0].usable || forms[0].securityStatus !== "clean")) {
+        return {
+          progress, requiredFacts,
+          nextAction: action(matter.id, null,
+            `The included ${kind} form is not a clean usable PDF. Replace or exclude it before preparing the mailing packet.`),
+        };
+      }
+      if (forms.length === 0) {
+        const next = action(matter.id, "ingest_document",
+          `Upload one completed ${kind} PDF and include it in the outgoing SSA reconsideration packet.`,
+          ["idempotency_key", "file", "role", "evidence_kind", "processing_consent"]);
+        next.arguments.role = "evidence";
+        next.arguments.evidence_kind = kind;
+        return { progress, requiredFacts, nextAction: next };
+      }
+    }
   }
 
   if (input.approvalId && input.hasDraft && input.draftIsCurrent) {
