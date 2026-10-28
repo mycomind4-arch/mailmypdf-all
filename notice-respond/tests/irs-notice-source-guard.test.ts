@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import workflowConfig from "../workflows/irs-notice-response/config";
 import irsGeneralDomain from "../workflows/irs-notice-response/domain";
+import irsGeneralDefinition from "../workflows/irs-notice-response/definition";
 import irsGeneralExtractionSchema from "../workflows/irs-notice-response/extraction-schema";
 
 describe("general IRS notice primary-source safeguards", () => {
@@ -96,5 +97,73 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(irsGeneralDomain.validationRules[0].description).toMatch(/before mailing/i);
     expect(irsGeneralDomain.responseOptions.some(({ id }) => id === "no_mail_needed")).toBe(true);
     expect(irsGeneralDomain.readinessChecks.find(({ check }) => check === "response_type_determined")?.description).toMatch(/required form, response channel/i);
+  });
+});
+
+
+const verifiedMailPacket = {
+  noticeDocumentId: "notice-v2",
+  analyzedNoticeDocumentId: "notice-v2",
+  noticeStatus: "active",
+  responsePath: "mail",
+  instructionsConfirmed: true,
+  mailPermitted: true,
+  requiresDifferentProcedure: false,
+  recipientAddress: "IRS address printed on the controlling notice",
+  recipientAddressSource: "controlling_notice",
+  recipientAddressConfirmed: true,
+} as const;
+
+describe("general IRS letter packet preflight (no external actions)", () => {
+  it("allows a preview only with the current notice and an explicitly verified mail path", () => {
+    expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket)).toEqual({
+      canPreviewMailPacket: true,
+      blockers: [],
+    });
+  });
+
+  it("does not turn informational, nonmail, or unresolved notices into mail", () => {
+    for (const responsePath of ["record_only", "nonmail", "unresolved"] as const) {
+      const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, responsePath });
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("mail_response_not_selected");
+    }
+  });
+
+  it("rejects stale, absent, excluded, and quarantined source notices", () => {
+    const changed = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, analyzedNoticeDocumentId: "notice-v1" });
+    expect(changed.blockers).toContain("source_notice_changed");
+    const absent = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, noticeDocumentId: null });
+    expect(absent.blockers).toContain("source_notice_missing");
+    for (const noticeStatus of ["excluded", "quarantined", "unknown"] as const) {
+      expect(irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, noticeStatus }).blockers).toContain("source_notice_unusable");
+    }
+  });
+
+  it("does not substitute a generic letter for a required form or petition", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, requiresDifferentProcedure: true });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("different_procedure_required");
+  });
+
+  it("requires explicit notice instructions, mailing permission, and confirmed recipient provenance", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      instructionsConfirmed: false,
+      mailPermitted: false,
+      recipientAddress: "  ",
+      recipientAddressSource: "unverified",
+      recipientAddressConfirmed: false,
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toEqual(expect.arrayContaining([
+      "notice_instructions_unverified", "mail_channel_unverified",
+      "recipient_address_missing", "recipient_source_unverified", "recipient_address_unconfirmed",
+    ]));
+  });
+
+  it("does not require a fabricated response deadline to preview an otherwise verified packet", () => {
+    expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket).canPreviewMailPacket).toBe(true);
+    expect(irsGeneralExtractionSchema.extractionFields.responseDeadline.required).toBe(false);
   });
 });
