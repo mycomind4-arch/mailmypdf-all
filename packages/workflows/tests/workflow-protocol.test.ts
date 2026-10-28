@@ -77,6 +77,7 @@ test("workflow protocol is derived from the canonical CP14 manifest", () => {
 test("workflow protocol rejects contract field IDs missing from the canonical manifest", () => {
   const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
   const chatContract = noticePolicy.chatContract;
+  assert.ok(chatContract, "CP14 must expose a chat contract");
   assert.throws(
     () => workflowProtocolDefinitionFromManifest(manifest, {
       ...chatContract,
