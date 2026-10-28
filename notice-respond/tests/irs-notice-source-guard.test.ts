@@ -248,7 +248,7 @@ describe("general IRS letter packet preflight (no external actions)", () => {
       "Internal Revenue Service\nTBD\nKansas City, MO 64999",
       "Internal Revenue Service\nSee attached notice\nKansas City, MO 64999",
       "Internal Revenue Service\nP.O. Box <number>\nKansas City, MO 64999",
-      "Internal Revenue Service\nP.O. Box 1234\\u0000\nKansas City, MO 64999",
+      "Internal Revenue Service\nP.O. Box 1234\u0000\nKansas City, MO 64999",
     ]) {
       const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, recipientAddress });
       expect(result.canPreviewMailPacket).toBe(false);
