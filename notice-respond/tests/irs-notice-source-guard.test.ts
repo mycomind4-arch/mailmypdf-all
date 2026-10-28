@@ -66,6 +66,29 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(proofStep?.[1]).toMatch(/any required response/i);
   });
 
+  it("distinguishes mailed correspondence from required nonmail IRS actions", () => {
+    const mailed = irsGeneralDomain.responseOptions.find(({ id }) => id === "general_response");
+    const nonmail = irsGeneralDomain.responseOptions.find(({ id }) => id === "notice_directed_nonmail_action");
+    const recordOnly = irsGeneralDomain.responseOptions.find(({ id }) => id === "no_mail_needed");
+    expect(mailed?.description).toMatch(/mail.*notice.*recipient address is confirmed/i);
+    expect(nonmail?.description).toMatch(/required form, secure upload, telephone, or formal petition/i);
+    expect(nonmail?.description).toMatch(/without substituting a generic mailed letter/i);
+    expect(recordOnly?.description).toMatch(/without generating outgoing mail/i);
+  });
+
+  it("preserves notice identity, relative deadline wording, and permitted response channel", () => {
+    const fields = irsGeneralExtractionSchema.extractionFields;
+    expect(fields.noticeNumber.required).toBe(false);
+    expect(fields.responseDeadlineText.required).toBe(false);
+    expect(fields.responseDeadlineText.dataType).toBe("string");
+    expect(fields.responseDeadline.dataType).toBe("date");
+    expect(fields.requiredForm.required).toBe(false);
+    expect(fields.responseChannel.required).toBe(false);
+    expect(fields.mailingAddress.required).toBe(false);
+    expect(irsGeneralExtractionSchema.instructions).toMatch(/never calculate a date from relative wording/i);
+    expect(irsGeneralExtractionSchema.instructions).toMatch(/nonmail action must not be replaced by a generic mailed letter/i);
+  });
+
   it("keeps catalog-only response planning conditional on notice-specific instructions", () => {
     expect(irsGeneralDomain.validationRules.some(({ rule }) => rule === "response_deadline_not_passed")).toBe(false);
     expect(irsGeneralDomain.validationRules[0].description).toMatch(/before mailing/i);
