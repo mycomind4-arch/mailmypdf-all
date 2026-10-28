@@ -114,6 +114,7 @@ const verifiedMailPacket = {
   recipientAddress: "Department of the Treasury\nInternal Revenue Service\nKansas City, MO 64999-0002",
   recipientAddressSource: "controlling_notice",
   recipientAddressConfirmed: true,
+  confirmedRecipientAddress: "Department of the Treasury\nInternal Revenue Service\nKansas City, MO 64999-0002",
 } as const;
 
 describe("general IRS letter packet preflight (no external actions)", () => {
@@ -179,8 +180,38 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     const result = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
       recipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
+      confirmedRecipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
     });
     expect(result.canPreviewMailPacket).toBe(true);
+  });
+
+  it("rejects an address edited after recipient confirmation even if it remains well formed", () => {
+    const changed = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddress: "Department of the Treasury\nInternal Revenue Service\nOgden, UT 84201-0002",
+    });
+    expect(changed.canPreviewMailPacket).toBe(false);
+    expect(changed.blockers).toContain("recipient_confirmation_stale");
+  });
+
+  it("fails closed when a claimed recipient confirmation lacks its exact address snapshot", () => {
+    for (const confirmedRecipientAddress of [null, "", undefined]) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        confirmedRecipientAddress,
+      } as unknown as Parameters<typeof irsGeneralDefinition.mailPacketReadiness>[0]);
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_confirmation_stale");
+    }
+  });
+
+  it("does not accept an unconfirmed address even if a prior address snapshot exists", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddressConfirmed: false,
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("recipient_address_unconfirmed");
   });
 
   it("does not substitute a generic letter for a required form or petition", () => {
@@ -230,6 +261,7 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     const crlf = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
       recipientAddress: "Internal Revenue Service\r\nKansas City, MO 64999-0002",
+      confirmedRecipientAddress: "Internal Revenue Service\nKansas City, MO 64999-0002",
     });
     expect(crlf.canPreviewMailPacket).toBe(true);
 
