@@ -300,7 +300,7 @@ test("SSDI and SSI protocol guidance blocks quarantined included supporting evid
     };
     const quarantined = {
       documentId: "support-1",
-      role: "supporting_evidence",
+      role: "evidence",
       included: true,
       usable: true,
       securityStatus: "quarantined",
