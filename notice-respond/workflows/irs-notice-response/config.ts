@@ -36,7 +36,7 @@ export const workflowConfig = {
   faqs: [
     [
       "How do I understand what the IRS notice is asking?",
-      "Read the notice carefully. Look for: what issue is being addressed, what action is required, what deadline applies, and who to contact with questions.",
+      "Read the notice carefully. Identify the issue, whether the notice requires action, whether a response deadline is stated, and who to contact with questions.",
     ],
     [
       "What if I don't understand the notice?",
@@ -64,7 +64,7 @@ export const workflowConfig = {
     ["Submit and retain proof", "Review and approve any required response and retain proof of the actual submission method; do not assume mailing alone preserves appeal rights."],
   ],
   readyItems: [
-    ["IRS notice", "The complete notice with all instructions and deadline."],
+    ["IRS notice", "The complete notice with all instructions and any printed deadline."],
     ["Tax return", "Tax return(s) for the relevant tax year."],
     ["Supporting documentation", "Any records or information the notice requests."],
     ["Prior correspondence", "Previous notices or letters about this issue."],
