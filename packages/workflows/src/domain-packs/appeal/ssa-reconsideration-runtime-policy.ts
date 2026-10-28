@@ -114,13 +114,14 @@ function assertCurrentSourceAnalysis(
   // The stored analysis is bound to the exact uploaded denial document. If a
   // claimant replaces the notice, a previously confirmed denial must not be
   // reused to draft, preview, approve, or pay for a different source.
-  const activeSources = documents.filter(
-    (document) => document.role === "subject_notice" && document.included,
-  );
-  // An excluded notice is not part of the packet. Multiple included notices
-  // make the analysis-to-source binding ambiguous, even if one ID matches.
-  const source = activeSources[0];
-  if (activeSources.length !== 1 || !source || source.documentId !== analysis.documentId) {
+  // The runtime attaches subject_notice with included=false by default:
+  // source notices are analyzed, not mailed as outgoing evidence. Requiring
+  // included=true here would block every normal SSDI/SSI intake from drafting.
+  const sources = documents.filter((document) => document.role === "subject_notice");
+  // Multiple source notices make the analysis-to-source binding ambiguous,
+  // even if one document ID matches the saved analysis.
+  const source = sources[0];
+  if (sources.length !== 1 || !source || source.documentId !== analysis.documentId) {
     throw new Error("The source notice does not match the analyzed denial notice; analyze the current source notice again.");
   }
   // Apply the same fail-closed security boundary to fact intake, draft, and
