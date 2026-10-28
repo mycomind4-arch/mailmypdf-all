@@ -13,6 +13,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getOrCreateRequestId, attachRequestId, createRequestLogger } from "@/lib/request-id";
 import { getConfig } from "@/config";
 import type { CommunicationStatus } from "@/lib/proof-of-service/types";
+import { requireProofWindowRows, UNNOTIFIED_PROOF_WINDOW_FILTER } from "@/lib/proof-of-service/proof-window-query";
+import { completeExpiryNotification, requireExpiryTenant, processExpiryBatch } from "@/lib/proof-of-service/expiry-notification";
+import { WebhookRetryBatchError } from "@/lib/proof-of-service/webhook-retry-query";
 
 export const Route = createFileRoute("/api/internal/proof-processor")({
   server: {
@@ -42,6 +45,11 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
           const { processPendingRetries } = await import("@/lib/proof-of-service/webhooks");
           results.webhook_retries = await processPendingRetries({ supabaseAdmin });
         } catch (e) {
+          // A partial batch is an HTTP 500, but successfully completed retries
+          // must still be counted in the maintenance report.
+          if (e instanceof WebhookRetryBatchError) {
+            results.webhook_retries = e.processed;
+          }
           results.errors.push(`webhook_retries: ${e instanceof Error ? e.message : String(e)}`);
         }
 
@@ -56,48 +64,58 @@ export const Route = createFileRoute("/api/internal/proof-processor")({
             .eq("status", "delivered")
             .not("legal_reference->>response_window_ends", "is", null)
             .lt("legal_reference->>response_window_ends", now)
+            // Filter in SQL, before LIMIT: otherwise 100 previously notified rows
+            // can indefinitely starve later, still-unnotified communications.
+            .or(UNNOTIFIED_PROOF_WINDOW_FILTER)
             .limit(100);
 
-          if (!error && expiredComms) {
-            for (const comm of expiredComms) {
+          const rows = requireProofWindowRows({ data: expiredComms, error });
+          const batch = await processExpiryBatch(rows, async (comm) => {
               const metadata = (comm.metadata as Record<string, unknown>) ?? {};
-              if (metadata.window_expiry_notified === true) continue;
+              if (metadata.window_expiry_notified === true) return false;
 
-              const { data: tenant } = await supabaseAdmin
+              const { data: tenant, error: tenantError } = await supabaseAdmin
                 .from("proof_tenants")
                 .select("webhook_url, webhook_secret")
                 .eq("id", comm.tenant_id)
                 .maybeSingle();
 
-              if (!tenant?.webhook_url) {
-                await supabaseAdmin
-                  .from("proof_communications")
-                  .update({ metadata: { ...metadata, window_expiry_notified: true } })
-                  .eq("id", comm.id);
-                continue;
-              }
+              const verifiedTenant = requireExpiryTenant({ data: tenant, error: tenantError });
 
-              await dispatchWebhook(
-                {
-                  event_id: `evt_${comm.id}_window_expired`,
-                  event_type: "response_window.expired",
-                  timestamp: now,
-                  data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
-                },
-                comm.tenant_id,
-                tenant.webhook_url,
-                tenant.webhook_secret,
-                { supabaseAdmin },
-                comm.id,
-              ).catch(() => {});
-
-              await supabaseAdmin
+              const markNotified = () => supabaseAdmin
                 .from("proof_communications")
                 .update({ metadata: { ...metadata, window_expiry_notified: true } })
-                .eq("id", comm.id);
+                .eq("id", comm.id)
+                .select("id")
+                .maybeSingle();
 
-              results.window_expiries++;
-            }
+              if (!verifiedTenant.webhook_url) {
+                await completeExpiryNotification({ markNotified });
+                return true;
+              }
+
+              await completeExpiryNotification({
+                dispatch: () => dispatchWebhook(
+                  {
+                    event_id: `evt_${comm.id}_window_expired`,
+                    event_type: "response_window.expired",
+                    timestamp: now,
+                    data: { communication_id: comm.id, status: comm.status as CommunicationStatus },
+                  },
+                  comm.tenant_id,
+                  verifiedTenant.webhook_url,
+                  verifiedTenant.webhook_secret,
+                  { supabaseAdmin },
+                  comm.id,
+                ),
+                markNotified,
+              });
+
+              return true;
+          });
+          results.window_expiries += batch.completed;
+          for (const error of batch.errors) {
+            results.errors.push(`window_expiries: ${error.message}`);
           }
         } catch (e) {
           results.errors.push(`window_expiries: ${e instanceof Error ? e.message : String(e)}`);

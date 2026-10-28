@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run build:shared && vite dev",
-    "build": "pnpm run build:shared && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "pnpm run build:shared && vitest run",
+    "test": "vitest run",
     "verify:launch": "npm test && npm run build",
     "build:shared": "pnpm --filter @mailmypdf/core build && pnpm --filter @mailmypdf/documents build && pnpm --filter @mailmypdf/intelligence build && pnpm --filter @mailmypdf/workflows build && pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },

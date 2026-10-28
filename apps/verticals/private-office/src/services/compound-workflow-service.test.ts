@@ -193,6 +193,9 @@ describe("CompoundWorkflowService", () => {
     expect(gate?.detail).toMatch(/does not establish legal applicability/i);
   });
 
+  // Source-grounding dynamically imports capability adapters; cold imports under
+  // parallel workspace CI load can exceed Vitest's 5s default timeout.
+  // Preserve the provenance assertions and allow a bounded 15s budget.
   it("grounds a deadline only to a citation from the authority run the user confirmed", async () => {
     const repository = new MemoryRepository();
     const service = new CompoundWorkflowService(repository);
@@ -295,7 +298,7 @@ describe("CompoundWorkflowService", () => {
       contentHash: "b".repeat(64),
       verified: true,
     });
-  });
+  }, 15_000);
 
   it("does not ground a deadline to a URL that was not in the confirmed authority run", async () => {
     const repository = new MemoryRepository();
@@ -384,7 +387,7 @@ describe("CompoundWorkflowService", () => {
       authorityVerified: boolean;
     };
     expect(output.authorityVerified).toBe(false);
-  });
+  }, 15_000);
 
   it("requires explicit review before a source-grounded deadline gate can pass", async () => {
     const repository = new MemoryRepository();
