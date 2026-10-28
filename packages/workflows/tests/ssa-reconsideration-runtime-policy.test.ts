@@ -25,7 +25,7 @@ function analysis(details: Record<string, unknown>): WorkflowMatterAnalysis {
 
 function form(kind: string, overrides: Partial<WorkflowMatterDocument> = {}): WorkflowMatterDocument {
   return {
-    documentId: kind, role: "evidence", evidenceKind: kind, included: true, usable: true,
+    documentId: kind, role: "evidence", evidenceKind: kind, mimeType: "application/pdf", included: true, usable: true,
     securityStatus: "clean", position: 1, ...overrides,
   } as WorkflowMatterDocument;
 }
@@ -70,6 +70,33 @@ test("the required SSA forms follow the decision basis", () => {
     /SSA-827/,
   );
   assert.doesNotThrow(() => policy.validateDocumentsBeforePacket!([form("ssa_561"), form("ssa_3441"), form("ssa_827")], medical));
+});
+
+test("SSA official forms must be clean included PDFs for both SSI and SSDI packets", () => {
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const forms = [form("ssa_561"), form("ssa_3441"), form("ssa_827")];
+    assert.doesNotThrow(() => policy.validateDocumentsBeforePacket!(forms, medical));
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([form("ssa_561", { mimeType: "image/jpeg" }), ...forms.slice(1)], medical),
+      /SSA-561/,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([form("ssa_561", { mimeType: null }), ...forms.slice(1)], medical),
+      /SSA-561/,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([form("ssa_561", { included: false }), ...forms.slice(1)], medical),
+      /SSA-561/,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([form("ssa_561", { usable: false }), ...forms.slice(1)], medical),
+      /SSA-561/,
+    );
+    assert.doesNotThrow(() => policy.validateDocumentsBeforePacket!([form("ssa_561")], nonmedical));
+  }
 });
 
 test("claimant facts are validated per program", () => {
