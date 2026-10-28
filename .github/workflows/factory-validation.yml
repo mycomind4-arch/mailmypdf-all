@@ -43,4 +43,4 @@ jobs:
         run: pnpm test
       - name: Build workspace
         if: ${{ success() || failure() }}
-        run: pnpm build
+        # The legacy app build:shared hooks rebuild the same dist packages.\n        # Parallel Turbo app builds can overwrite a package barrel while\n        # another app's Vite/Rolldown bundle is reading it (MISSING_EXPORT).\n        # Serialize this acceptance build until those hooks are deduplicated.\n        run: pnpm exec turbo build --concurrency=1\n
