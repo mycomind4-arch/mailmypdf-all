@@ -74,6 +74,32 @@ test("workflow protocol is derived from the canonical CP14 manifest", () => {
   assert.equal(definition.packetRecipientField?.id, "recipientAddress");
 });
 
+test("workflow protocol rejects contract field IDs missing from the canonical manifest", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const chatContract = noticePolicy.chatContract;
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      inputFields: [
+        ...chatContract.inputFields,
+        { id: "unmappedRequiredFact", required: true },
+      ],
+    }),
+    /unmappedRequiredFact.*not declared in.*manifest/i,
+  );
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      connectorFields: (chatContract.connectorFields ?? []).map((binding) =>
+        binding.toolName === "preview_packet" && binding.argumentName === "recipient"
+          ? { ...binding, id: "unmappedRecipientField" }
+          : binding,
+      ),
+    }),
+    /unmappedRecipientField.*not declared in.*manifest/i,
+  );
+});
+
 test("workflow protocol asks for the primary document first", () => {
   const result = state({
     documents: [],
