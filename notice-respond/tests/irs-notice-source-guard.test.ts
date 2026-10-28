@@ -104,12 +104,14 @@ describe("general IRS notice primary-source safeguards", () => {
 const verifiedMailPacket = {
   noticeDocumentId: "notice-v2",
   analyzedNoticeDocumentId: "notice-v2",
+  noticeSha256: "a".repeat(64),
+  analyzedNoticeSha256: "a".repeat(64),
   noticeStatus: "active",
   responsePath: "mail",
   instructionsConfirmed: true,
   mailPermitted: true,
   requiresDifferentProcedure: false,
-  recipientAddress: "IRS address printed on the controlling notice",
+  recipientAddress: "Department of the Treasury\nInternal Revenue Service\nKansas City, MO 64999-0002",
   recipientAddressSource: "controlling_notice",
   recipientAddressConfirmed: true,
 } as const;
@@ -138,6 +140,47 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     for (const noticeStatus of ["excluded", "quarantined", "unknown"] as const) {
       expect(irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, noticeStatus }).blockers).toContain("source_notice_unusable");
     }
+  });
+
+  it("rejects a replaced notice even when the upload retains the same document ID", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      analyzedNoticeSha256: "b".repeat(64),
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("source_notice_digest_changed");
+  });
+
+  it("requires trusted, well-formed SHA-256 values from the notice and its analysis", () => {
+    for (const value of [null, "", "not-a-sha256", undefined]) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        noticeSha256: value,
+      } as unknown as Parameters<typeof irsGeneralDefinition.mailPacketReadiness>[0]);
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("source_notice_digest_unverified");
+    }
+  });
+
+  it("rejects address placeholders and incomplete US mailing destinations", () => {
+    for (const recipientAddress of [
+      "IRS address printed on the controlling notice",
+      "Internal Revenue Service\\nKansas City",
+      "Internal Revenue Service\\nKansas City, ZZ 64999",
+      "Kansas City, MO 64999",
+    ]) {
+      const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, recipientAddress });
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_address_incomplete");
+    }
+  });
+
+  it("accepts a properly formatted notice-provided PO box for preview preflight", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
+    });
+    expect(result.canPreviewMailPacket).toBe(true);
   });
 
   it("does not substitute a generic letter for a required form or petition", () => {
