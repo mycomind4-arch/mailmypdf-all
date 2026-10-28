@@ -226,7 +226,10 @@ export function deriveMatterGuidance(input: {
   const analyzedDocumentId = input.analysis && typeof input.analysis === "object" && !Array.isArray(input.analysis)
     ? (input.analysis as { documentId?: unknown }).documentId
     : undefined;
-  if (input.requiresSourceDocument && source && typeof analyzedDocumentId === "string" &&
+  // A missing or malformed historical analysis identity is stale too. The
+  // runtime binds SSA reconsideration to the exact source document, so MCP
+  // guidance must not suggest drafting or checkout with an unbound analysis.
+  if (input.requiresSourceDocument && source && input.analysis &&
       analyzedDocumentId !== source.documentId) {
     return {
       progress,
