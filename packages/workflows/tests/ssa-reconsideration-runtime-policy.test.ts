@@ -290,5 +290,29 @@ test("SSDI and SSI reject stale notice analysis when saving claimant facts", () 
     assert.doesNotThrow(() => policy.validateInput(input, nonmedical, matching), workflowId);
     assert.throws(() => policy.validateInput(input, nonmedical, replaced), /source notice.*analy[sz]/i, workflowId);
     assert.throws(() => policy.validateInput(input, nonmedical, missing), /source notice.*analy[sz]/i, workflowId);
+    assert.throws(
+      () => policy.validateInput(input, nonmedical, {
+        documents: [form("notice", { role: "subject_notice", evidenceKind: null, included: false })],
+      } as never),
+      /source notice.*analy[sz]/i,
+      workflowId,
+    );
+    assert.throws(
+      () => policy.validateInput(input, nonmedical, {
+        documents: [
+          form("notice", { role: "subject_notice", evidenceKind: null }),
+          form("other-notice", { role: "subject_notice", evidenceKind: null }),
+        ],
+      } as never),
+      /source notice.*analy[sz]/i,
+      workflowId,
+    );
+    assert.throws(
+      () => policy.validateInput(input, nonmedical, {
+        documents: [form("notice", { role: "subject_notice", evidenceKind: null, securityStatus: "quarantined" })],
+      } as never),
+      /security scanning/i,
+      workflowId,
+    );
   }
 });
