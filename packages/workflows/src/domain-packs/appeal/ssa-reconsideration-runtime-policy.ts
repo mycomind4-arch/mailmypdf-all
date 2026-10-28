@@ -107,6 +107,19 @@ function assertRequiredForms(
   }
 }
 
+function assertCurrentSourceAnalysis(
+  documents: readonly WorkflowMatterDocument[],
+  analysis: WorkflowMatterAnalysis,
+): void {
+  // The stored analysis is bound to the exact uploaded denial document. If a
+  // claimant replaces the notice, a previously confirmed denial must not be
+  // reused to draft, preview, approve, or pay for a different source.
+  const source = documents.find((document) => document.role === "subject_notice");
+  if (!source || source.documentId !== analysis.documentId) {
+    throw new Error("The source notice does not match the analyzed denial notice; analyze the current source notice again.");
+  }
+}
+
 function chatInputFieldsForProgram(program: SsaReconsiderationProgram) {
   const shared = [
     { id: "claimantName", required: true },
@@ -241,6 +254,14 @@ export function createSsaReconsiderationRuntimePolicy(
     validateDocumentsBeforePacket(documents, analysis) {
       const basis = assertReconsiderationAnalysis(program, analysis);
       assertRequiredForms(documents, basis);
+    },
+
+    validateBeforeDraft({ matter, analysis }) {
+      assertCurrentSourceAnalysis(matter.documents, analysis);
+    },
+
+    validateBeforePacket({ matter, analysis }) {
+      assertCurrentSourceAnalysis(matter.documents, analysis);
     },
   } satisfies WorkflowRuntimePolicy);
 }
