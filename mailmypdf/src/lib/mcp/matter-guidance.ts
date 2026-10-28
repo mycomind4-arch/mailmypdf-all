@@ -210,6 +210,22 @@ export function deriveMatterGuidance(input: {
     return { progress, requiredFacts, nextAction: next };
   }
 
+  // SSA reconsideration binds analysis to exactly one denial notice, even
+  // when the source is excluded from outgoing mail. Guidance must not
+  // recommend a draft, packet preview, or checkout that runtime will reject.
+  if ((matter.workflowId === "appeal-ssdi-denial" || matter.workflowId === "appeal-ssi-denial") &&
+      documents.filter((document) => document.role === "subject_notice").length !== 1) {
+    return {
+      progress,
+      requiredFacts,
+      nextAction: action(
+        matter.id,
+        null,
+        "Multiple source notices are attached. SSA reconsideration requires exactly one denial notice; resolve the duplicate notices or start a new matter with one source before continuing.",
+      ),
+    };
+  }
+
   if (input.requiresSourceDocument && !input.analysis) {
     return {
       progress,
