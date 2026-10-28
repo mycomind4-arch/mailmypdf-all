@@ -18,7 +18,7 @@ export const irsGeneralDomain = {
     { id: "no_mail_needed", label: "Record only", description: "Keep an informational notice without generating outgoing mail" },
   ],
   outputPackageContents: [
-    { item: "When correspondence is appropriate, a notice-specific response packet approved before mailing", required: true },
+    { item: "When correspondence is appropriate, a notice-specific response packet approved before mailing", required: false },
     { item: "Supporting documentation as needed", required: false },
   ],
 } as const
