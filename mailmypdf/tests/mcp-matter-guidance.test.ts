@@ -317,6 +317,43 @@ test("MCP guidance requires reanalysis when a required source has malformed hist
 });
 
 
+
+test("MCP guidance refuses to advance SSDI/SSI matters with ambiguous duplicate denial notices", () => {
+  const firstNotice = {
+    documentId: "analyzed-notice", role: "subject_notice",
+    included: false, securityStatus: "clean", usable: true,
+  };
+  const secondNotice = {
+    ...firstNotice, documentId: "another-denial-notice",
+  };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const approvalId of [null, "historical-approval"]) {
+      const state = {
+        matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+        documents: [firstNotice],
+        requiresSourceDocument: true,
+        analysis: { documentId: "analyzed-notice", result: { decision: "denied" } },
+        hasInput: true,
+        hasDraft: true,
+        draftIsCurrent: true,
+        approvalId,
+      };
+      const singleSource = deriveMatterGuidance(state);
+      assert.equal(singleSource.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet",
+        `${workflowId}: a single clean matching source remains eligible for review`);
+
+      const duplicateSource = deriveMatterGuidance({
+        ...state, documents: [firstNotice, secondNotice],
+      });
+      assert.equal(duplicateSource.nextAction.toolName, null,
+        `${workflowId}: duplicate denial notices must not suggest packet preview or checkout`);
+      assert.match(duplicateSource.nextAction.reason, /multiple.*denial notices|multiple.*source notices/i);
+      assert.equal(duplicateSource.nextAction.arguments.approval_id, undefined);
+    }
+  }
+});
+
 test("request-first guidance waits for an optional source notice to clear scanning before checkout", () => {
   const optionalSource = {
     documentId: "optional-source-1", role: "subject_notice",
