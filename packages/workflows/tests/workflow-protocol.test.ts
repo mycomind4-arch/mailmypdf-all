@@ -101,6 +101,39 @@ test("workflow protocol blocks analysis until the source document is clean", () 
   assert.equal(result.blockers.length, 1);
 });
 
+test("workflow protocol blocks checkout guidance for unsafe included supporting evidence", () => {
+  // The source notice is clean, but an included supporting document can be
+  // quarantined after a draft and approval were saved.
+  const unsafeSupport: WorkflowMatterDocument = {
+    ...cleanSource,
+    id: "matter-document-support",
+    documentId: "support-1",
+    role: "supporting_evidence",
+    included: true,
+    position: 1,
+    securityStatus: "quarantined",
+    usable: true, // A stale flag must not override the security scan.
+  };
+  const blocked = state({ documents: [cleanSource, unsafeSupport] });
+  assert.equal(blocked.nextActions[0]?.toolName, "get_document_status");
+  assert.equal(blocked.nextActions[0]?.arguments.document_id, "support-1");
+  assert.ok(blocked.blockers.some((reason) => /security|scan|document/i.test(reason)));
+  assert.ok(!blocked.nextActions.some((step) => step.toolName === "prepare_checkout"));
+
+  // Excluded evidence is not part of the packet, and an existing order is
+  // always tracked rather than restarting pre-checkout security guidance.
+  assert.equal(
+    state({ documents: [cleanSource, { ...unsafeSupport, included: false }] })
+      .nextActions[0]?.toolName,
+    "prepare_checkout",
+  );
+  assert.equal(
+    state({ documents: [cleanSource, unsafeSupport], orderPresent: true })
+      .nextActions[0]?.toolName,
+    "get_order_status",
+  );
+});
+
 test("workflow protocol advances through analysis, facts, drafting, approval, and tracking", () => {
   assert.equal(state({ analysisPresent: false }).nextActions[0]?.toolName, "analyze_matter");
 
