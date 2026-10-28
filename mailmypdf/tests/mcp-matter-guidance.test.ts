@@ -270,3 +270,26 @@ test("MCP draft freshness uses the exact runtime analysis, input and document fi
   assert.equal(isCurrentMatterDraft({ ...current, analysis: null }), false);
   assert.equal(isCurrentMatterDraft({ ...current, storedInput: null }), false);
 });
+
+
+test("MCP guidance reanalyzes a replaced SSA denial notice before draft or checkout", () => {
+  const replacement = {
+    documentId: "replacement-notice", role: "subject_notice",
+    included: false, securityStatus: "clean", usable: true,
+  };
+  for (const approvalId of [null, "old-approval"]) {
+    const guidance = deriveMatterGuidance({
+      matter: { ...matter, workflowId: "appeal-ssi-denial", verticalId: "appeal-mail" },
+      documents: [replacement],
+      requiresSourceDocument: true,
+      analysis: { documentId: "original-notice", result: { decision: "denied" } },
+      hasInput: true,
+      hasDraft: true,
+      draftIsCurrent: false,
+      approvalId,
+    });
+    assert.equal(guidance.nextAction.toolName, "analyze_matter",
+      "replacing a denial notice invalidates the previous analysis before any new draft");
+    assert.equal(guidance.nextAction.arguments.approval_id, undefined);
+  }
+});
