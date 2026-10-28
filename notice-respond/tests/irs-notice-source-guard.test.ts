@@ -58,11 +58,12 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(workflowConfig.outputs.join(" ")).toMatch(/when a response is actually submitted/i);
   });
 
-  it("does not require a mailed packet when the notice needs no reply", () => {
-    const noMail = irsGeneralDomain.responseOptions.find(({ id }) => id === "no_mail_needed");
-    expect(noMail?.description).toMatch(/without generating outgoing mail/i);
-    const packet = irsGeneralDomain.outputPackageContents.find(({ item }) => /response packet/i.test(item));
-    expect(packet?.required).toBe(false);
+  it("keeps drafting and fulfillment steps conditional for record-only notices", () => {
+    const draftStep = workflowConfig.workflowSteps.find(([label]) => /Prepare response/i.test(label));
+    expect(draftStep?.[0]).toMatch(/if needed/i);
+    expect(draftStep?.[1]).toMatch(/only when the notice-specific instructions support correspondence/i);
+    const proofStep = workflowConfig.workflowSteps.find(([label]) => /Submit and retain proof/i.test(label));
+    expect(proofStep?.[1]).toMatch(/any required response/i);
   });
 
   it("keeps catalog-only response planning conditional on notice-specific instructions", () => {
