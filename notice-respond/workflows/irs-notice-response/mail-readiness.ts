@@ -56,9 +56,11 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
   if (input.responsePath !== "mail") blockers.push("mail_response_not_selected");
   if (!input.instructionsConfirmed) blockers.push("notice_instructions_unverified");
   if (!input.mailPermitted) blockers.push("mail_channel_unverified");
-  if (input.requiresDifferentProcedure) blockers.push("different_procedure_required");
+  if (input.requiresDifferentProcedure !== false) blockers.push("different_procedure_required");
   if (!input.recipientAddress?.trim()) blockers.push("recipient_address_missing");
-  if (input.recipientAddressSource === "unverified") blockers.push("recipient_source_unverified");
+  if (input.recipientAddressSource !== "controlling_notice" && input.recipientAddressSource !== "current_irs_instructions") {
+    blockers.push("recipient_source_unverified");
+  }
   if (!input.recipientAddressConfirmed) blockers.push("recipient_address_unconfirmed");
 
   return { canPreviewMailPacket: blockers.length === 0, blockers };

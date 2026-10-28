@@ -162,6 +162,17 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     ]));
   });
 
+  it("fails closed when untyped runtime data omits recipient provenance or formal-process classification", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddressSource: undefined as unknown as typeof verifiedMailPacket.recipientAddressSource,
+      requiresDifferentProcedure: undefined as unknown as false,
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("recipient_source_unverified");
+    expect(result.blockers).toContain("different_procedure_required");
+  });
+
   it("does not require a fabricated response deadline to preview an otherwise verified packet", () => {
     expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket).canPreviewMailPacket).toBe(true);
     expect(irsGeneralExtractionSchema.extractionFields.responseDeadline.required).toBe(false);
