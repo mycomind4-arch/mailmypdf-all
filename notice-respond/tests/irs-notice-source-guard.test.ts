@@ -393,7 +393,7 @@ describe("general IRS letter packet preflight (no external actions)", () => {
   it("rejects conflicting city/state/ZIP destination lines in the confirmed recipient", () => {
     // Two independently plausible destinations make an envelope ambiguous.
     // A matching user-confirmation snapshot must not override that ambiguity.
-    const recipientAddress = "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714\\nOgden, UT 84201";
+    const recipientAddress = "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714\nOgden, UT 84201";
     const result = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
       recipientAddress,
