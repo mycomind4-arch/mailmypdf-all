@@ -74,7 +74,10 @@ function hasUsPostalDestination(address: string): boolean {
   const normalizedAddress = address.replace(/\r\n/g, "\n");
   if (normalizedAddress.includes("\r") || UNRESOLVED_ADDRESS_MARKERS.test(address) || UNSAFE_ADDRESS_CONTROLS.test(address)) return false;
   const lines = normalizedAddress.split("\n").map((line) => line.trim()).filter(Boolean);
+  // Conflicting city/state/ZIP lines are ambiguous on a physical envelope.
+  // The final line must be the only postal destination in the block.
   return lines.length >= 2 &&
+    lines.filter((line) => cityStateZip.test(line)).length === 1 &&
     cityStateZip.test(lines[lines.length - 1]) &&
     lines.slice(0, -1).some((line) => /[A-Za-z]{2,}/.test(line));
 }
