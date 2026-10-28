@@ -315,3 +315,41 @@ test("MCP guidance requires reanalysis when a required source has malformed hist
     }
   }
 });
+
+
+test("request-first guidance waits for an optional source notice to clear scanning before checkout", () => {
+  const optionalSource = {
+    documentId: "optional-source-1", role: "subject_notice",
+    included: false, usable: false, securityStatus: "quarantined",
+  };
+  for (const approvalId of [null, "old-approval"]) {
+    const input = {
+      matter: { ...matter, workflowId: "public-records-request", verticalId: "records-request" },
+      documents: [optionalSource],
+      requiresSourceDocument: false,
+      analysis: { result: {} },
+      hasInput: true, hasDraft: true, draftIsCurrent: true, approvalId,
+    };
+    const pending = deriveMatterGuidance(input);
+    assert.equal(pending.progress.sourceDocumentRequired, false);
+    assert.equal(pending.progress.sourceDocumentPresent, true);
+    assert.equal(pending.progress.sourceDocumentReady, false);
+    assert.equal(pending.nextAction.toolName, "get_document_status");
+    assert.equal(pending.nextAction.arguments.document_id, "optional-source-1");
+
+    const ready = deriveMatterGuidance({
+      ...input,
+      documents: [{ ...optionalSource, usable: true, securityStatus: "clean" }],
+    });
+    assert.equal(ready.progress.sourceDocumentReady, true);
+    assert.equal(ready.nextAction.toolName, approvalId ? "prepare_checkout" : "preview_packet");
+  }
+
+  const noSource = deriveMatterGuidance({
+    matter: { ...matter, workflowId: "public-records-request", verticalId: "records-request" },
+    documents: [], requiresSourceDocument: false, analysis: null,
+    hasInput: true, hasDraft: false, draftIsCurrent: false, approvalId: null,
+  });
+  assert.equal(noSource.progress.sourceDocumentReady, true);
+  assert.equal(noSource.nextAction.toolName, "generate_draft");
+});
