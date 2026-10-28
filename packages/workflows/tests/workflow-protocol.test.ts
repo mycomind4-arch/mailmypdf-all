@@ -101,6 +101,38 @@ test("workflow protocol rejects contract field IDs missing from the canonical ma
   );
 });
 
+test("workflow protocol rejects requiredness drift between runtime chat contract and manifest", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const chatContract = noticePolicy.chatContract;
+  assert.ok(chatContract, "CP14 must expose a chat contract");
+
+  for (const [fieldId, required] of [
+    ["taxpayerName", false],
+    ["responseExplanation", true],
+  ] as const) {
+    assert.throws(
+      () => workflowProtocolDefinitionFromManifest(manifest, {
+        ...chatContract,
+        inputFields: chatContract.inputFields.map((field) =>
+          field.id === fieldId ? { ...field, required } : field,
+        ),
+      }),
+      new RegExp(`${fieldId}.*required.*manifest`, "i"),
+      `requiredness drift for ${fieldId} must fail closed`,
+    );
+  }
+
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      connectorFields: (chatContract.connectorFields ?? []).map((field) =>
+        field.id === "recipientAddress" ? { ...field, required: false } : field,
+      ),
+    }),
+    /recipientAddress.*required.*manifest/i,
+  );
+});
+
 test("workflow protocol asks for the primary document first", () => {
   const result = state({
     documents: [],
