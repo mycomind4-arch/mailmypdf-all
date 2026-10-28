@@ -281,6 +281,47 @@ test("SSDI and SSI connector workflow states retain program-specific facts and r
   }
 });
 
+test("SSDI and SSI protocol guidance blocks quarantined included supporting evidence", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const definition = getMcpWorkflowProtocolRegistration(workflowId)?.definition;
+    assert.ok(definition, workflowId);
+    const matter = {
+      id: `evidence-${workflowId}`,
+      workflowId,
+      verticalId: "appeal-mail",
+      status: "active",
+    } as never;
+    const source = {
+      documentId: "notice-1",
+      role: "subject_notice",
+      included: true,
+      usable: true,
+      securityStatus: "clean",
+    };
+    const quarantined = {
+      documentId: "support-1",
+      role: "supporting_evidence",
+      included: true,
+      usable: true,
+      securityStatus: "quarantined",
+    };
+    const state = deriveWorkflowProtocolState({
+      matter,
+      documents: [source, quarantined] as never,
+      definition,
+      analysisPresent: true,
+      inputPresent: true,
+      draftPresent: true,
+      draftIsCurrent: true,
+      approvalPresent: true,
+      orderPresent: false,
+    });
+    assert.equal(state.nextActions[0]?.toolName, "get_document_status", workflowId);
+    assert.equal(state.nextActions[0]?.arguments.document_id, "support-1", workflowId);
+    assert.ok(!state.nextActions.some((step) => step.toolName === "prepare_checkout"), workflowId);
+  }
+});
+
 test("public workflow discovery reports certified chat execution separately", async () => {
   const request = new Request("https://mailmypdf.ai/api/mcp");
 
