@@ -165,8 +165,8 @@ describe("general IRS letter packet preflight (no external actions)", () => {
   it("rejects address placeholders and incomplete US mailing destinations", () => {
     for (const recipientAddress of [
       "IRS address printed on the controlling notice",
-      "Internal Revenue Service\\nKansas City",
-      "Internal Revenue Service\\nKansas City, ZZ 64999",
+      "Internal Revenue Service\nKansas City",
+      "Internal Revenue Service\nKansas City, ZZ 64999",
       "Kansas City, MO 64999",
     ]) {
       const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, recipientAddress });
@@ -178,7 +178,7 @@ describe("general IRS letter packet preflight (no external actions)", () => {
   it("accepts a properly formatted notice-provided PO box for preview preflight", () => {
     const result = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
-      recipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
+      recipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
     });
     expect(result.canPreviewMailPacket).toBe(true);
   });
