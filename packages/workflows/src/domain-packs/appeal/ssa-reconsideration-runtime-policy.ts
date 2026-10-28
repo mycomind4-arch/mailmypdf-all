@@ -119,12 +119,13 @@ function assertCurrentSourceAnalysis(
   );
   // An excluded notice is not part of the packet. Multiple included notices
   // make the analysis-to-source binding ambiguous, even if one ID matches.
-  if (activeSources.length !== 1 || activeSources[0].documentId !== analysis.documentId) {
+  const source = activeSources[0];
+  if (activeSources.length !== 1 || !source || source.documentId !== analysis.documentId) {
     throw new Error("The source notice does not match the analyzed denial notice; analyze the current source notice again.");
   }
   // Apply the same fail-closed security boundary to fact intake, draft, and
   // packet review. A previously analyzed notice may later be quarantined.
-  if (!activeSources[0].usable || activeSources[0].securityStatus !== "clean") {
+  if (!source.usable || source.securityStatus !== "clean") {
     throw new Error("The current denial notice must clear security scanning before continuing.");
   }
 }
