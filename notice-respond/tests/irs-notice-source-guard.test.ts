@@ -229,13 +229,13 @@ describe("general IRS letter packet preflight (no external actions)", () => {
   it("requires real postal line breaks instead of literal escaped separators", () => {
     const crlf = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
-      recipientAddress: "Internal Revenue Service\\r\\nKansas City, MO 64999-0002",
+      recipientAddress: "Internal Revenue Service\r\nKansas City, MO 64999-0002",
     });
     expect(crlf.canPreviewMailPacket).toBe(true);
 
     const escaped = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
-      recipientAddress: String.raw`Internal Revenue Service\\nKansas City, MO 64999-0002`,
+      recipientAddress: String.raw`Internal Revenue Service\nKansas City, MO 64999-0002`,
     });
     expect(escaped.canPreviewMailPacket).toBe(false);
     expect(escaped.blockers).toContain("recipient_address_incomplete");
