@@ -326,13 +326,20 @@ test("MCP guidance refuses to advance SSDI/SSI matters with ambiguous duplicate 
   const secondNotice = {
     ...firstNotice, documentId: "another-denial-notice",
   };
+  const completedForm = {
+    documentId: "ssa-561", role: "evidence", evidenceKind: "ssa_561",
+    mimeType: "application/pdf", included: true, securityStatus: "clean", usable: true,
+  };
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
     for (const approvalId of [null, "historical-approval"]) {
       const state = {
         matter: { ...matter, workflowId, verticalId: "appeal-mail" },
-        documents: [firstNotice],
+        documents: [firstNotice, completedForm],
         requiresSourceDocument: true,
-        analysis: { documentId: "analyzed-notice", result: { decision: "denied" } },
+        analysis: { documentId: "analyzed-notice", result: {
+          decision: "denied",
+          workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
+        } },
         hasInput: true,
         hasDraft: true,
         draftIsCurrent: true,
@@ -344,7 +351,7 @@ test("MCP guidance refuses to advance SSDI/SSI matters with ambiguous duplicate 
         `${workflowId}: a single clean matching source remains eligible for review`);
 
       const duplicateSource = deriveMatterGuidance({
-        ...state, documents: [firstNotice, secondNotice],
+        ...state, documents: [firstNotice, secondNotice, completedForm],
       });
       assert.equal(duplicateSource.nextAction.toolName, null,
         `${workflowId}: duplicate denial notices must not suggest packet preview or checkout`);
