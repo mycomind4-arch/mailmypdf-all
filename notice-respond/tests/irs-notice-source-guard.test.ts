@@ -17,4 +17,17 @@ describe("general IRS notice primary-source safeguards", () => {
       "https://www.irs.gov/newsroom/tax-relief-in-disaster-situations",
     ]));
   });
+
+  it("does not recommend a generic letter for disputes that require a formal IRS process", () => {
+    const disagreement = workflowConfig.faqs.find(([question]) => question === "What if I think the notice is an error?")?.[1] ?? "";
+    expect(disagreement).toMatch(/notice-specific (?:disagreement|response|instructions)/i);
+    expect(disagreement).toMatch(/required form|formal appeal/i);
+    expect(disagreement).toMatch(/general (?:letter|response)/i);
+  });
+
+  it("does not assume every clarification request has a response deadline", () => {
+    const clarification = workflowConfig.faqs.find(([question]) => question === "What if I don't understand the notice?")?.[1] ?? "";
+    expect(clarification).toMatch(/if the notice specifies a (?:response )?deadline/i);
+    expect(clarification).not.toMatch(/before the deadline\./i);
+  });
 });
