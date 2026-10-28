@@ -86,6 +86,7 @@ function assertRequiredForms(
       (document) =>
         document.role === "evidence" &&
         document.evidenceKind === kind &&
+        document.mimeType === "application/pdf" &&
         document.included &&
         document.usable &&
         document.securityStatus === "clean",
