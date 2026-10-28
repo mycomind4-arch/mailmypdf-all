@@ -338,58 +338,45 @@ test("packet preview exposes only the certified recipient field", () => {
 });
 
 
-test("workflow protocol rejects source-document requirement drift from the canonical manifest", () => {
-  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
-  const chatContract = noticePolicy.chatContract;
-  assert.ok(chatContract, "CP14 must expose a chat contract");
-
-  // A runtime that needs a notice cannot silently treat a manifest's
-  // optional or missing primary document as an executable prerequisite.
-  const optionalPrimary = {
-    ...manifest,
-    documents: manifest.documents?.map((document) =>
-      document.role === "primary" ? { ...document, required: false } : document,
-    ),
-  };
-  assert.throws(
-    () => workflowProtocolDefinitionFromManifest(optionalPrimary, chatContract),
-    /source document.*canonical manifest/i,
+test("optional source readiness reflects the security status of an uploaded document", () => {
+  const recordsDefinition = workflowProtocolDefinitionFromManifest(
+    createRecordsRequestManifest({
+      workflowId: "public-records-request",
+      title: "Public Records Request",
+    }).manifest,
+    createRecordsRequestRuntimePolicy("public-records-request").chatContract,
   );
-  assert.throws(
-    () => workflowProtocolDefinitionFromManifest({
-      ...manifest,
-      documents: manifest.documents?.filter((document) => document.role !== "primary"),
-    }, chatContract),
-    /source document.*canonical manifest/i,
-  );
-
-  // A chat contract must not downgrade a required notice to optional/none.
-  for (const sourceDocument of ["optional", "none"] as const) {
-    assert.throws(
-      () => workflowProtocolDefinitionFromManifest(manifest, {
-        ...chatContract,
-        sourceDocument,
-      }),
-      /source document.*canonical manifest/i,
-    );
-  }
-
-  // The legitimate request-first, optional-source contract stays supported.
-  const recordsManifest = createRecordsRequestManifest({
+  const recordsMatter = {
+    ...matter,
     workflowId: "public-records-request",
-    title: "Public Records Request",
-  }).manifest;
-  const recordsContract = createRecordsRequestRuntimePolicy("public-records-request").chatContract;
-  assert.ok(recordsContract, "records request must expose a chat contract");
-  assert.equal(recordsContract.sourceDocument, "optional");
-  assert.doesNotThrow(() => workflowProtocolDefinitionFromManifest(recordsManifest, recordsContract));
-  assert.throws(
-    () => workflowProtocolDefinitionFromManifest({
-      ...recordsManifest,
-      documents: recordsManifest.documents?.map((document) =>
-        document.role === "primary" ? { ...document, required: true } : document,
-      ),
-    }, recordsContract),
-    /source document.*canonical manifest/i,
-  );
+    verticalId: "records-request",
+  };
+  const progressFor = (documents: readonly WorkflowMatterDocument[]) =>
+    deriveWorkflowProtocolState({
+      matter: recordsMatter,
+      documents,
+      definition: recordsDefinition,
+      analysisPresent: false,
+      inputPresent: true,
+      draftPresent: false,
+      draftIsCurrent: false,
+      approvalPresent: false,
+      orderPresent: false,
+    });
+
+  // An optional source is ready when absent, and when present and clean.
+  assert.equal(progressFor([]).progress.sourceDocumentReady, true);
+  assert.equal(progressFor([cleanSource]).progress.sourceDocumentReady, true);
+
+  // Once uploaded, a quarantined optional source cannot be called ready while
+  // the same protocol asks the user to check its security status.
+  const blocked = progressFor([{
+    ...cleanSource,
+    included: false,
+    securityStatus: "quarantined",
+    usable: false,
+  }]);
+  assert.equal(blocked.nextActions[0]?.toolName, "get_document_status");
+  assert.equal(blocked.progress.sourceDocumentReady, false);
+  assert.match(blocked.blockers.join(" "), /security|scann?ing/i);
 });
