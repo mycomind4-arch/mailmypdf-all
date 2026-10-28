@@ -1,4 +1,4 @@
-import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { generatePlainTextPdf, validatePdfForMailing } from "@mailmypdf/packet-builder";
 import {
   prepareIrsGeneralLetterPreview,
   type IrsGeneralLetterPreviewBlocker,
@@ -23,6 +23,7 @@ export type IrsGeneralPdfPreviewResult =
       preview: Readonly<{
         pdfBytes: Uint8Array;
         pdfSha256: string;
+        pageCount: number;
         sourceNoticeSha256: string;
         recipientAddress: string;
         status: "draft_pdf_preview_only";
@@ -59,6 +60,7 @@ export async function prepareIrsGeneralPdfPreview(
     // Reuse the production PDF builder; no test-only PDF implementation.
     // This does not merge enclosures, approve the packet, or contact providers.
     const pdfBytes = await generatePlainTextPdf(letter.preview.letterText);
+    const { pageCount } = await validatePdfForMailing(pdfBytes);
     // Copy to a concrete ArrayBuffer to satisfy WebCrypto's BufferSource type
     // across Node, browser, and Worker runtimes.
     const hashInput = new Uint8Array(pdfBytes.length);
@@ -72,6 +74,7 @@ export async function prepareIrsGeneralPdfPreview(
       preview: {
         pdfBytes,
         pdfSha256,
+        pageCount,
         sourceNoticeSha256: letter.preview.sourceNoticeSha256,
         recipientAddress: letter.preview.recipientAddress,
         status: "draft_pdf_preview_only",
