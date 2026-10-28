@@ -424,9 +424,11 @@ export function deriveWorkflowProtocolState(input: {
     sectionId: input.matter.verticalId,
     matterStatus: input.matter.status,
     progress: Object.freeze({
+      // An optional source satisfies intake when absent, not when an
+      // uploaded document is quarantined or otherwise unusable.
       sourceDocumentReady:
         sourceReady ||
-        !input.definition.primaryDocumentRequired,
+        (!input.definition.primaryDocumentRequired && source === null),
       analysisReady,
       inputReady,
       draftReady,
