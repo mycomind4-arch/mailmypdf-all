@@ -186,8 +186,11 @@ export function createSsaReconsiderationRuntimePolicy(
       assertReconsiderationAnalysis(program, analysis);
     },
 
-    validateInput(input, analysis) {
+    validateInput(input, analysis, matter) {
       if (!analysis) throw new Error(`Analyze the ${program} denial before saving claimant facts.`);
+      // A replaced denial notice invalidates the prior analysis even before
+      // draft generation. Do not persist facts under the wrong source decision.
+      assertCurrentSourceAnalysis(matter.documents, analysis);
       const basis = assertReconsiderationAnalysis(program, analysis);
       if ((input.responseMode !== undefined && input.responseMode !== "reconsideration") || input.confirmedReconsideration !== true) {
         throw new Error("The claimant must explicitly confirm reconsideration before continuing.");
