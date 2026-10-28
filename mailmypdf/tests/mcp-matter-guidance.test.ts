@@ -390,3 +390,57 @@ test("request-first guidance waits for an optional source notice to clear scanni
   assert.equal(noSource.progress.sourceDocumentReady, true);
   assert.equal(noSource.nextAction.toolName, "generate_draft");
 });
+
+
+test("SSA MCP guidance requires exactly one included valid official form before packet preview or checkout", () => {
+  const source = {
+    documentId: "ssa-denial", role: "subject_notice", included: false,
+    securityStatus: "clean", usable: true,
+  };
+  const officialForm = (kind: string, documentId = kind) => ({
+    documentId, role: "evidence", evidenceKind: kind, mimeType: "application/pdf",
+    included: true, securityStatus: "clean", usable: true,
+  });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const approvalId of [null, "historical-approval"]) {
+      const state = (documents: Array<typeof source | ReturnType<typeof officialForm>>, basis: string) =>
+        deriveMatterGuidance({
+          matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+          documents,
+          requiresSourceDocument: true,
+          analysis: {
+            documentId: "ssa-denial",
+            result: {
+              decision: "denied",
+              workflowDetails: { appealStage: "reconsideration", decisionBasis: basis },
+            },
+          },
+          hasInput: true, hasDraft: true, draftIsCurrent: true, approvalId,
+        });
+
+      const missingMedical = state([source, officialForm("ssa_561")], "medical");
+      assert.equal(missingMedical.nextAction.toolName, "ingest_document", workflowId);
+      assert.equal(missingMedical.nextAction.arguments.evidence_kind, "ssa_3441", workflowId);
+      assert.equal(missingMedical.nextAction.arguments.approval_id, undefined);
+
+      const duplicate = state([
+        source, officialForm("ssa_561"), officialForm("ssa_561", "second-ssa-561"),
+      ], "nonmedical");
+      assert.equal(duplicate.nextAction.toolName, null, workflowId);
+      assert.match(duplicate.nextAction.reason, /duplicate|exactly one/i);
+
+      const invalidPdf = state([
+        source, { ...officialForm("ssa_561"), mimeType: "image/jpeg" },
+      ], "nonmedical");
+      assert.notEqual(invalidPdf.nextAction.toolName, "preview_packet");
+      assert.notEqual(invalidPdf.nextAction.toolName, "prepare_checkout");
+
+      const valid = state([
+        source, officialForm("ssa_561"),
+        { ...officialForm("ssa_561", "excluded-old-561"), included: false },
+      ], "nonmedical");
+      assert.equal(valid.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet", workflowId);
+    }
+  }
+});
