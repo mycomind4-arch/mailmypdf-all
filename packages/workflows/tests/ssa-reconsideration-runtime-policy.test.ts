@@ -115,6 +115,42 @@ test("SSA official forms must be clean included PDFs for both SSI and SSDI packe
   }
 });
 
+test("SSA packet rejects duplicate included official forms without blocking excluded history", () => {
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const first561 = form("ssa_561");
+    const duplicate561 = form("ssa_561", { documentId: "another-ssa-561" });
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([first561, duplicate561], nonmedical),
+      /SSA-561.*duplicate/i,
+      workflowId,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforePacket!([first561, { ...duplicate561, included: false }], nonmedical),
+      workflowId,
+    );
+
+    const requiredMedical = [form("ssa_561"), form("ssa_3441"), form("ssa_827")];
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([
+        ...requiredMedical,
+        form("ssa_3441", { documentId: "second-ssa-3441" }),
+      ], medical),
+      /SSA-3441.*duplicate/i,
+      workflowId,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforePacket!([
+        ...requiredMedical,
+        form("ssa_3441", { documentId: "excluded-old-ssa-3441", included: false }),
+      ], medical),
+      workflowId,
+    );
+  }
+});
+
 test("non-medical SSI and SSDI packets require an included clean SSA-561 PDF", () => {
   const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
