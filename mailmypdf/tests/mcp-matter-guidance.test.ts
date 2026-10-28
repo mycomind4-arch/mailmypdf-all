@@ -451,3 +451,61 @@ test("SSA MCP guidance requires exactly one included valid official form before 
     }
   }
 });
+
+
+test("MCP SSA guidance fails closed when the analyzed notice is not a confirmed reconsideration denial", () => {
+  const source = {
+    documentId: "ssa-notice", role: "subject_notice", included: false,
+    securityStatus: "clean", usable: true,
+  };
+  const form = {
+    documentId: "ssa-561", role: "evidence", evidenceKind: "ssa_561",
+    mimeType: "application/pdf", included: true, securityStatus: "clean", usable: true,
+  };
+  const confirmed = {
+    documentId: "ssa-notice",
+    result: {
+      decision: "Denied",
+      workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
+    },
+  };
+  const invalid = [
+    { label: "approval notice", result: { ...confirmed.result, decision: "approved" } },
+    { label: "unconfirmed decision", result: { ...confirmed.result, decision: null } },
+    { label: "hearing appeal", result: {
+      ...confirmed.result, workflowDetails: { appealStage: "hearing", decisionBasis: "nonmedical" },
+    } },
+    { label: "unknown basis", result: {
+      ...confirmed.result, workflowDetails: { appealStage: "reconsideration", decisionBasis: "unknown" },
+    } },
+    { label: "missing analysis result", result: undefined },
+  ];
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const approvalId of [null, "old-approval"]) {
+      const base = {
+        matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+        documents: [source, form],
+        requiresSourceDocument: true,
+        hasInput: true, hasDraft: true, draftIsCurrent: true, approvalId,
+      };
+      const ready = deriveMatterGuidance({ ...base, analysis: confirmed });
+      assert.equal(ready.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet", workflowId);
+      for (const scenario of invalid) {
+        const blocked = deriveMatterGuidance({
+          ...base, analysis: { ...confirmed, result: scenario.result },
+        });
+        assert.equal(blocked.nextAction.toolName, null,
+          `${workflowId}: ${scenario.label} must not recommend preview or checkout`);
+        assert.match(blocked.nextAction.reason, /denial.*reconsideration/i);
+        assert.equal(blocked.nextAction.arguments.approval_id, undefined);
+        const beforeIntake = deriveMatterGuidance({
+          ...base, hasInput: false, hasDraft: false, draftIsCurrent: false,
+          analysis: { ...confirmed, result: scenario.result },
+        });
+        assert.equal(beforeIntake.nextAction.toolName, null,
+          `${workflowId}: ${scenario.label} must not recommend saving claimant facts`);
+      }
+    }
+  }
+});
