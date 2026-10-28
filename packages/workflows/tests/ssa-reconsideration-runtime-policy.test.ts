@@ -257,6 +257,23 @@ test("SSA reconsideration refuses a stale notice analysis before drafting or pac
       assert.doesNotThrow(() => invoke([matchingSource]), workflowId);
       assert.throws(() => invoke([replacedSource]), /source notice.*analy[sz]/i, workflowId);
       assert.throws(() => invoke([]), /source notice.*analy[sz]/i, workflowId);
+      // A previously analyzed notice must not authorize a packet when it was
+      // deselected, when a second active notice exists, or while quarantined.
+      assert.throws(
+        () => invoke([{ ...matchingSource, included: false }]),
+        /source notice.*analy[sz]/i,
+        workflowId,
+      );
+      assert.throws(
+        () => invoke([matchingSource, replacedSource]),
+        /source notice.*analy[sz]/i,
+        workflowId,
+      );
+      assert.throws(
+        () => invoke([{ ...matchingSource, securityStatus: "quarantined" }]),
+        /security scanning/i,
+        workflowId,
+      );
     }
   }
 });
