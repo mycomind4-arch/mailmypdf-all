@@ -241,6 +241,21 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     expect(escaped.blockers).toContain("recipient_address_incomplete");
   });
 
+  it("rejects unresolved address placeholders despite a plausible ZIP", () => {
+    for (const recipientAddress of [
+      "Internal Revenue Service\n[IRS street address]\nKansas City, MO 64999",
+      "Internal Revenue Service\nAddress on notice\nKansas City, MO 64999",
+      "Internal Revenue Service\nTBD\nKansas City, MO 64999",
+      "Internal Revenue Service\nSee attached notice\nKansas City, MO 64999",
+      "Internal Revenue Service\nP.O. Box <number>\nKansas City, MO 64999",
+      "Internal Revenue Service\nP.O. Box 1234\\u0000\nKansas City, MO 64999",
+    ]) {
+      const result = irsGeneralDefinition.mailPacketReadiness({ ...verifiedMailPacket, recipientAddress });
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_address_incomplete");
+    }
+  });
+
   it("does not require a fabricated response deadline to preview an otherwise verified packet", () => {
     expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket).canPreviewMailPacket).toBe(true);
     expect(irsGeneralExtractionSchema.extractionFields.responseDeadline.required).toBe(false);
