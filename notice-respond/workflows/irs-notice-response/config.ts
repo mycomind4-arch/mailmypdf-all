@@ -19,7 +19,7 @@ export const workflowConfig = {
     "Start from the actual IRS notice you received, not a generic document.",
     "Identify whether action is requested and confirm the notice-specific instructions and printed dates; do not assume every notice requires a reply.",
     "If action is required, determine the notice-specific response channel and any formal appeal process separately from general correspondence.",
-    "Prepare your response with supporting documentation and review the exact packet before mailing.",
+    "If the notice permits a mailed reply, prepare and review the exact packet; otherwise follow its required nonmail process or retain the notice without sending mail.",
   ],
   whatYouNeed: [
     "The complete IRS notice with all details and instructions.",
