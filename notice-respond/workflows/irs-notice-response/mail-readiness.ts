@@ -29,6 +29,8 @@ export interface IrsGeneralMailPacketInput {
   recipientAddress: string | null;
   recipientAddressSource: IrsRecipientAddressSource;
   recipientAddressConfirmed: boolean;
+  /** Server-persisted snapshot of the exact recipient address the user confirmed. */
+  confirmedRecipientAddress: string | null;
 }
 
 export type IrsGeneralMailBlocker =
@@ -44,7 +46,8 @@ export type IrsGeneralMailBlocker =
   | "recipient_address_missing"
   | "recipient_address_incomplete"
   | "recipient_source_unverified"
-  | "recipient_address_unconfirmed";
+  | "recipient_address_unconfirmed"
+  | "recipient_confirmation_stale";
 
 // A plausible city/state/ZIP must not make a template placeholder mail-ready.
 // These are document-preparation checks only; USPS deliverability and the actual
@@ -96,6 +99,14 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
     blockers.push("recipient_source_unverified");
   }
   if (input.recipientAddressConfirmed !== true) blockers.push("recipient_address_unconfirmed");
+  // A confirmation boolean alone must not authorize a destination edited later.
+  // Normalize transport CRLF only; changes to recipient, street, city, or ZIP
+  // require the user to review and confirm the exact new destination.
+  if (input.recipientAddressConfirmed === true && (
+    !input.confirmedRecipientAddress?.trim() ||
+    !input.recipientAddress ||
+    input.confirmedRecipientAddress.replace(/\r\n/g, "\n") !== input.recipientAddress.replace(/\r\n/g, "\n")
+  )) blockers.push("recipient_confirmation_stale");
 
   return { canPreviewMailPacket: blockers.length === 0, blockers };
 }
