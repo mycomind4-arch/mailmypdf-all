@@ -115,6 +115,9 @@ const verifiedMailPacket = {
   recipientAddressSource: "controlling_notice",
   recipientAddressConfirmed: true,
   confirmedRecipientAddress: "Department of the Treasury\nInternal Revenue Service\nKansas City, MO 64999-0002",
+  confirmedRecipientNoticeSha256: "a".repeat(64),
+  confirmedRecipientAddressSource: "controlling_notice",
+  confirmedRecipientResponsePath: "mail",
 } as const;
 
 describe("general IRS letter packet preflight (no external actions)", () => {
@@ -212,6 +215,51 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     });
     expect(result.canPreviewMailPacket).toBe(false);
     expect(result.blockers).toContain("recipient_address_unconfirmed");
+  });
+
+  it("invalidates address confirmation when the controlling notice changes, even if the destination stays identical", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      noticeSha256: "b".repeat(64),
+      analyzedNoticeSha256: "b".repeat(64),
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("recipient_confirmation_stale");
+    expect(result.blockers).not.toContain("source_notice_digest_changed");
+  });
+
+  it("invalidates address confirmation when the verified recipient source changes", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddressSource: "current_irs_instructions",
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("recipient_confirmation_stale");
+    expect(result.blockers).not.toContain("recipient_source_unverified");
+  });
+
+  it("invalidates address confirmation when the selected response channel changes", () => {
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      responsePath: "nonmail",
+    });
+    expect(result.blockers).toContain("recipient_confirmation_stale");
+    expect(result.blockers).toContain("mail_response_not_selected");
+  });
+
+  it("fails closed when server-side recipient confirmation context is missing", () => {
+    for (const field of [
+      "confirmedRecipientNoticeSha256",
+      "confirmedRecipientAddressSource",
+      "confirmedRecipientResponsePath",
+    ] as const) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        [field]: null,
+      } as unknown as Parameters<typeof irsGeneralDefinition.mailPacketReadiness>[0]);
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_confirmation_stale");
+    }
   });
 
   it("does not substitute a generic letter for a required form or petition", () => {
