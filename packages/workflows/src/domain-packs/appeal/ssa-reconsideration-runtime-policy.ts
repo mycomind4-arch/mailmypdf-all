@@ -91,17 +91,21 @@ function assertRequiredForms(
   if (!required.length) throw new Error("The required SSA form set cannot be chosen until the denial basis is confirmed.");
 
   for (const kind of required) {
-    const found = documents.find(
+    const label = SSA_RECONSIDERATION_FORMS.find((form) => form.kind === kind)?.label ?? kind;
+    const includedForms = documents.filter(
       (document) =>
         document.role === "evidence" &&
         document.evidenceKind === kind &&
-        document.mimeType === "application/pdf" &&
-        document.included &&
-        document.usable &&
-        document.securityStatus === "clean",
+        document.included,
     );
-    if (!found) {
-      const label = SSA_RECONSIDERATION_FORMS.find((form) => form.kind === kind)?.label ?? kind;
+    // The mailing packet must contain exactly one completed copy of each
+    // required official form. Retained but excluded historical uploads do not
+    // count; multiple included copies make the outgoing packet ambiguous.
+    if (includedForms.length > 1) {
+      throw new Error(`${label} has duplicate included attachments; keep exactly one for mailing.`);
+    }
+    const found = includedForms[0];
+    if (!found || found.mimeType !== "application/pdf" || !found.usable || found.securityStatus !== "clean") {
       throw new Error(`${label} must be completed, uploaded, included, and clear security scanning.`);
     }
   }
