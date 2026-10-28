@@ -29,9 +29,9 @@ export const workflowConfig = {
   ],
   outputs: [
     "A draft based on the notice and facts you confirm, only when a response is appropriate.",
-    "A reviewed, exact PDF packet with supporting documentation.",
+    "When correspondence is appropriate, a reviewed exact PDF packet with supporting documentation.",
     "Notice-specific dates and submission instructions presented for your verification, not a calculated or guaranteed deadline.",
-    "Mailing or submission proof retained with the matter.",
+    "When a response is actually submitted, retain mailing or submission proof with the matter.",
   ],
   faqs: [
     [
@@ -52,15 +52,15 @@ export const workflowConfig = {
     ],
   ],
   workspaceHighlights: [
-    ["Notice analysis", "Understand the specific issue and required action."],
-    ["Response planning", "Determine the appropriate type of response."],
-    ["Documentation assembly", "Gather supporting information and submit on time."],
+    ["Notice analysis", "Understand the issue and whether action is requested."],
+    ["Response planning", "Determine whether a reply, required form, formal appeal, or no action applies."],
+    ["Documentation assembly", "Gather supporting information if needed and verify any printed date."],
   ],
   workflowSteps: [
     ["Upload the notice", "Add the IRS notice you received."],
     ["Analyze and understand", "Identify whether a response is required, preserve the printed dates, and check the notice-specific submission instructions."],
     ["Gather information", "Collect supporting documentation as needed."],
-    ["Prepare response", "Draft your response appropriate to the notice type."],
+    ["Prepare response if needed", "Draft only when the notice-specific instructions support correspondence."],
     ["Submit and retain proof", "Review and approve any required response and retain proof of the actual submission method; do not assume mailing alone preserves appeal rights."],
   ],
   readyItems: [
