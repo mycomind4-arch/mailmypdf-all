@@ -220,6 +220,26 @@ export function deriveMatterGuidance(input: {
     };
   }
 
+  // Analysis is bound to the exact uploaded source document. After a notice
+  // replacement the saved denial analysis is historical, not permission to
+  // generate a draft or continue toward payment. Mirror the runtime policy.
+  const analyzedDocumentId = input.analysis && typeof input.analysis === "object" && !Array.isArray(input.analysis)
+    ? (input.analysis as { documentId?: unknown }).documentId
+    : undefined;
+  if (input.requiresSourceDocument && source && typeof analyzedDocumentId === "string" &&
+      analyzedDocumentId !== source.documentId) {
+    return {
+      progress,
+      requiredFacts,
+      nextAction: action(
+        matter.id,
+        "analyze_matter",
+        "The source document has changed since the saved analysis. Analyze the current notice before drafting or checkout.",
+        ["idempotency_key"],
+      ),
+    };
+  }
+
   if (!input.hasInput) {
     return {
       progress,
