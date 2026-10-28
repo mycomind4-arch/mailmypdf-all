@@ -46,61 +46,13 @@ export type IrsGeneralMailBlocker =
   | "recipient_source_unverified"
   | "recipient_address_unconfirmed";
 
-// This is a conservative US-format preflight, not USPS deliverability validation.
-// IRS processing centers can use a city/state/ZIP address without a street or PO box.
+// Conservative US-format preflight, not USPS deliverability validation.
+// IRS processing centers may use a city/state/ZIP without a street or PO box.
 const US_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|AS|GU|MP|PR|VI";
-const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+,\\s*(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?/**
- * Conservative preflight for a generic IRS *letter* packet.
- *
- * This does not establish a legal deadline, approve a PDF, authorize a charge,
- * or permit Lob submission. The authenticated packet/approval runtime must
- * independently enforce its own gates before any external action.
- */
-export type IrsGeneralResponsePath = "mail" | "nonmail" | "record_only" | "unresolved";
-export type IrsNoticeDocumentStatus = "active" | "excluded" | "quarantined" | "unknown";
-export type IrsRecipientAddressSource = "controlling_notice" | "current_irs_instructions" | "unverified";
-
-export interface IrsGeneralMailPacketInput {
-  /** Identity of the currently included, controlling IRS notice. */
-  noticeDocumentId: string | null;
-  /** Identity of the document used for the response analysis. */
-  analyzedNoticeDocumentId: string | null;
-  /** Trusted server-computed SHA-256 of the current notice PDF bytes. */
-  noticeSha256: string | null;
-  /** SHA-256 of the notice bytes used to produce the analysis. */
-  analyzedNoticeSha256: string | null;
-  noticeStatus: IrsNoticeDocumentStatus;
-  responsePath: IrsGeneralResponsePath;
-  /** Human verification of the actual notice's response instructions. */
-  instructionsConfirmed: boolean;
-  /** Mail must be explicitly permitted by those instructions, not inferred. */
-  mailPermitted: boolean;
-  /** A generic letter cannot replace a required form, petition, or other procedure. */
-  requiresDifferentProcedure: boolean;
-  recipientAddress: string | null;
-  recipientAddressSource: IrsRecipientAddressSource;
-  recipientAddressConfirmed: boolean;
-}
-
-export type IrsGeneralMailBlocker =
-  | "source_notice_missing"
-  | "source_notice_changed"
-  | "source_notice_digest_unverified"
-  | "source_notice_digest_changed"
-  | "source_notice_unusable"
-  | "mail_response_not_selected"
-  | "notice_instructions_unverified"
-  | "mail_channel_unverified"
-  | "different_procedure_required"
-  | "recipient_address_missing"
-  | "recipient_address_incomplete"
-  | "recipient_source_unverified"
-  | "recipient_address_unconfirmed";
-
-, "i");
+const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+,\\s*(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
 
 function hasUsPostalDestination(address: string): boolean {
-  const lines = address.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = address.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length >= 2 &&
     cityStateZip.test(lines[lines.length - 1]) &&
     lines.slice(0, -1).some((line) => /[A-Za-z]{2,}/.test(line));
