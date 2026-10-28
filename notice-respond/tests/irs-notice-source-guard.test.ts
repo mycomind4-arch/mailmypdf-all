@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import workflowConfig from "../workflows/irs-notice-response/config";
+import irsGeneralDomain from "../workflows/irs-notice-response/domain";
+import irsGeneralExtractionSchema from "../workflows/irs-notice-response/extraction-schema";
 
 describe("general IRS notice primary-source safeguards", () => {
   it("does not imply every IRS notice requires a reply or promise a confirmed deadline", () => {
@@ -37,4 +39,20 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(noticeChecklist).toMatch(/any printed deadline/i);
   });
 
+  it("represents informational notices without inventing required action, dates, or recipients", () => {
+    const fields = irsGeneralExtractionSchema.extractionFields;
+    expect(fields.issueDescription.required).toBe(true);
+    expect(fields.requiredAction.required).toBe(false);
+    expect(fields.responseDeadline.required).toBe(false);
+    expect(fields.submissionInstructions.required).toBe(false);
+    expect(fields.mailingAddress.required).toBe(false);
+    expect(irsGeneralExtractionSchema.instructions).toMatch(/never invent a response deadline, extension, or recipient/i);
+  });
+
+  it("keeps catalog-only response planning conditional on notice-specific instructions", () => {
+    expect(irsGeneralDomain.validationRules.some(({ rule }) => rule === "response_deadline_not_passed")).toBe(false);
+    expect(irsGeneralDomain.validationRules[0].description).toMatch(/before mailing/i);
+    expect(irsGeneralDomain.responseOptions.some(({ id }) => id === "no_mail_needed")).toBe(true);
+    expect(irsGeneralDomain.readinessChecks.find(({ check }) => check === "response_type_determined")?.description).toMatch(/required form, response channel/i);
+  });
 });
