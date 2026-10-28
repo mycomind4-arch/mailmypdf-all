@@ -336,3 +336,60 @@ test("packet preview exposes only the certified recipient field", () => {
   assert.equal(preview?.toolName, "preview_packet");
   assert.deepEqual(preview?.fields?.map((field) => field.id), ["recipientAddress"]);
 });
+
+
+test("workflow protocol rejects source-document requirement drift from the canonical manifest", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const chatContract = noticePolicy.chatContract;
+  assert.ok(chatContract, "CP14 must expose a chat contract");
+
+  // A runtime that needs a notice cannot silently treat a manifest's
+  // optional or missing primary document as an executable prerequisite.
+  const optionalPrimary = {
+    ...manifest,
+    documents: manifest.documents?.map((document) =>
+      document.role === "primary" ? { ...document, required: false } : document,
+    ),
+  };
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(optionalPrimary, chatContract),
+    /source document.*canonical manifest/i,
+  );
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest({
+      ...manifest,
+      documents: manifest.documents?.filter((document) => document.role !== "primary"),
+    }, chatContract),
+    /source document.*canonical manifest/i,
+  );
+
+  // A chat contract must not downgrade a required notice to optional/none.
+  for (const sourceDocument of ["optional", "none"] as const) {
+    assert.throws(
+      () => workflowProtocolDefinitionFromManifest(manifest, {
+        ...chatContract,
+        sourceDocument,
+      }),
+      /source document.*canonical manifest/i,
+    );
+  }
+
+  // The legitimate request-first, optional-source contract stays supported.
+  const recordsManifest = createRecordsRequestManifest({
+    workflowId: "public-records-request",
+    title: "Public Records Request",
+  }).manifest;
+  const recordsContract = createRecordsRequestRuntimePolicy("public-records-request").chatContract;
+  assert.ok(recordsContract, "records request must expose a chat contract");
+  assert.equal(recordsContract.sourceDocument, "optional");
+  assert.doesNotThrow(() => workflowProtocolDefinitionFromManifest(recordsManifest, recordsContract));
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest({
+      ...recordsManifest,
+      documents: recordsManifest.documents?.map((document) =>
+        document.role === "primary" ? { ...document, required: true } : document,
+      ),
+    }, recordsContract),
+    /source document.*canonical manifest/i,
+  );
+});
