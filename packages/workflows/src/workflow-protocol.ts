@@ -93,6 +93,22 @@ export function workflowProtocolDefinitionFromManifest(
   const primaryDocument =
     manifest.documents?.find((document) => document.role === "primary") ?? null;
   const allFields = flattenFields(manifest);
+  // A chat contract is a binding to the canonical manifest, not an alternate
+  // field registry. Silently dropping an unknown required field can make the
+  // connector report inputReady and skip facts the runtime requires.
+  if (runtimeContract) {
+    const declaredIds = new Set(allFields.map((field) => field.id));
+    for (const field of runtimeContract.inputFields) {
+      if (!declaredIds.has(field.id)) {
+        throw new Error(`Workflow ${manifest.id} chat input field ${field.id} is not declared in the canonical manifest`);
+      }
+    }
+    for (const field of runtimeContract.connectorFields ?? []) {
+      if (!declaredIds.has(field.id)) {
+        throw new Error(`Workflow ${manifest.id} connector field ${field.id} is not declared in the canonical manifest`);
+      }
+    }
+  }
   const inputIds = runtimeContract
     ? new Set(runtimeContract.inputFields.map((field) => field.id))
     : null;
