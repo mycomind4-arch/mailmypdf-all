@@ -40,7 +40,7 @@ export const workflowConfig = {
     ],
     [
       "What if I don't understand the notice?",
-      "The notice will have a phone number for the IRS office that sent it. Contact them to ask for clarification before the deadline.",
+      "Use the contact information on the notice to ask the IRS for clarification promptly, especially if the notice specifies a response deadline. Do not assume a deadline or extension from general guidance.",
     ],
     [
       "Should I respond to every notice?",
@@ -48,7 +48,7 @@ export const workflowConfig = {
     ],
     [
       "What if I think the notice is an error?",
-      "Explain your position clearly in your response, with supporting documentation. If unresolved, you may have rights to protest or appeal.",
+      "Check the notice-specific disagreement instructions and whether a required form or formal appeal applies. A general response letter may not preserve appeal rights; follow the stated procedure and include supporting documentation when appropriate.",
     ],
   ],
   workspaceHighlights: [
