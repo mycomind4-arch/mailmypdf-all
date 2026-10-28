@@ -228,11 +228,13 @@ export function createSsaReconsiderationRuntimePolicy(
 
     validateDocumentsBeforeDraft(documents, analysis) {
       assertReconsiderationAnalysis(program, analysis);
+      // The source denial notice is untrusted input too: fail closed for every
+      // included document, not only those classified as supporting evidence.
       const blockedIncluded = documents.filter(
-        (document) => document.role === "evidence" && document.included && (!document.usable || document.securityStatus !== "clean"),
+        (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
       );
       if (blockedIncluded.length) {
-        throw new Error(`Every included ${program} evidence document must clear security scanning before drafting.`);
+        throw new Error(`Every included ${program} document must clear security scanning before drafting.`);
       }
     },
 
