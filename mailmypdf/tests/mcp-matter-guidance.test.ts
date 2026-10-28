@@ -211,12 +211,12 @@ test("MCP guidance never recommends checkout or packet preview from stale or mis
   const scenarios = [
     {
       label: "approval persists after workflow facts disappear",
-      analysis: { result: {} }, hasInput: false, hasDraft: true,
+      analysis: { documentId: "source-1", result: {} }, hasInput: false, hasDraft: true,
       draftIsCurrent: true, expected: "save_matter_input",
     },
     {
       label: "approval persists after draft disappears",
-      analysis: { result: {} }, hasInput: true, hasDraft: false,
+      analysis: { documentId: "source-1", result: {} }, hasInput: true, hasDraft: false,
       draftIsCurrent: false, expected: "generate_draft",
     },
     {
@@ -226,7 +226,7 @@ test("MCP guidance never recommends checkout or packet preview from stale or mis
     },
     {
       label: "approval persists after saved draft basis changes",
-      analysis: { result: {} }, hasInput: true, hasDraft: true,
+      analysis: { documentId: "source-1", result: {} }, hasInput: true, hasDraft: true,
       draftIsCurrent: false, expected: "generate_draft",
     },
   ];
