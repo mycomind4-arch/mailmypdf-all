@@ -140,6 +140,46 @@ test("non-medical SSI and SSDI packets require an included clean SSA-561 PDF", (
   }
 });
 
+test("SSA packet form identity and pre-draft security gates reject misclassified or unsafe evidence", () => {
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const invalidForm of [
+      form("ssa_561", { role: "subject_notice" }),
+      form("ssa_561", { evidenceKind: "ssa_827" }),
+    ]) {
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!([invalidForm], nonmedical),
+        /SSA-561/,
+        workflowId,
+      );
+    }
+
+    const medicalForms = [form("ssa_561"), form("ssa_3441"), form("ssa_827")];
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!(
+        [medicalForms[0], form("ssa_3441", { role: "subject_notice" }), medicalForms[2]],
+        medical,
+      ),
+      /SSA-3441/,
+      workflowId,
+    );
+
+    const unsafeExtra = form("extra-evidence", { evidenceKind: "other", securityStatus: "quarantined" });
+    assert.throws(
+      () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), unsafeExtra], nonmedical),
+      /security scanning/,
+      workflowId,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), { ...unsafeExtra, included: false }], nonmedical),
+      workflowId,
+    );
+  }
+});
+
 test("claimant facts are validated per program", () => {
   const ssdi = getSsaReconsiderationRuntimePolicy("appeal-ssdi-denial")!;
   const ssi = getSsaReconsiderationRuntimePolicy("appeal-ssi-denial")!;
