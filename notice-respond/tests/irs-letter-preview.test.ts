@@ -123,12 +123,13 @@ describe("general IRS notice printable PDF preview", () => {
     expect(result.preview.recipientAddress).toBe(valid.mail.recipientAddress);
     expect(new TextDecoder().decode(result.preview.pdfBytes.subarray(0, 5))).toBe("%PDF-");
     expect(result.preview.pdfBytes.length).toBeGreaterThan(500);
+    expect(result.preview.pageCount).toBeGreaterThanOrEqual(1);
     const { createHash } = await import("node:crypto");
     expect(result.preview.pdfSha256).toBe(
       createHash("sha256").update(result.preview.pdfBytes).digest("hex"),
     );
     expect(Object.keys(result.preview).sort()).toEqual([
-      "pdfBytes", "pdfSha256", "recipientAddress", "sourceNoticeSha256", "status",
+      "pageCount", "pdfBytes", "pdfSha256", "recipientAddress", "sourceNoticeSha256", "status",
     ]);
   });
 
