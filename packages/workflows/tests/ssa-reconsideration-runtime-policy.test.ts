@@ -57,6 +57,22 @@ test("the appeal level and basis must come from the analysed notice", () => {
   assert.doesNotThrow(() => policy.validateAnalysis!(analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" })));
 });
 
+test("SSDI and SSI reconsideration reject non-denial and unconfirmed decisions", () => {
+  const details = { appealStage: "reconsideration", decisionBasis: "medical" };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const approved = analysis(details);
+    approved.result.decision = "approved";
+    assert.throws(() => policy.validateAnalysis!(approved), /denial/i, workflowId);
+
+    const unconfirmed = analysis(details);
+    unconfirmed.result.decision = null;
+    assert.throws(() => policy.validateAnalysis!(unconfirmed), /denial/i, workflowId);
+
+    assert.doesNotThrow(() => policy.validateAnalysis!(analysis(details)), workflowId);
+  }
+});
+
 test("the required SSA forms follow the decision basis", () => {
   assert.deepEqual(requiredSsaReconsiderationFormKinds("medical"), ["ssa_561", "ssa_3441", "ssa_827"]);
   assert.deepEqual(requiredSsaReconsiderationFormKinds("nonmedical"), ["ssa_561"]);
