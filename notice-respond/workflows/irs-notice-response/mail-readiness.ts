@@ -46,12 +46,19 @@ export type IrsGeneralMailBlocker =
   | "recipient_source_unverified"
   | "recipient_address_unconfirmed";
 
+// A plausible city/state/ZIP must not make a template placeholder mail-ready.
+// These are document-preparation checks only; USPS deliverability and the actual
+// notice-specific recipient still require independent server-side verification.
+const UNRESOLVED_ADDRESS_MARKERS = /\[[^\]\r\n]*\]|\{[^}\r\n]*\}|<[^>\r\n]*>|\b(?:tbd|to be determined|placeholder|address (?:on|from|per) (?:the )?notice|see (?:the )?(?:attached )?notice|insert (?:the )?(?:irs )?address)\b/i;
+const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
 // Conservative US-format preflight, not USPS deliverability validation.
 // IRS processing centers may use a city/state/ZIP without a street or PO box.
 const US_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|AS|GU|MP|PR|VI";
 const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+,\\s*(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
 
 function hasUsPostalDestination(address: string): boolean {
+  if (UNRESOLVED_ADDRESS_MARKERS.test(address) || UNSAFE_ADDRESS_CONTROLS.test(address)) return false;
   const lines = address.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length >= 2 &&
     cityStateZip.test(lines[lines.length - 1]) &&
