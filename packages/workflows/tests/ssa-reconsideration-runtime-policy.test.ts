@@ -177,6 +177,25 @@ test("SSA packet form identity and pre-draft security gates reject misclassified
       () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), { ...unsafeExtra, included: false }], nonmedical),
       workflowId,
     );
+    // The denial notice itself is also untrusted uploaded content. Do not
+    // permit drafting from a quarantined or unusable included source notice.
+    const unsafeNotice = form("source-notice", {
+      role: "subject_notice", evidenceKind: null, securityStatus: "quarantined",
+    });
+    assert.throws(
+      () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), unsafeNotice], nonmedical),
+      /security scanning/,
+      workflowId,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), { ...unsafeNotice, securityStatus: "clean", usable: false }], nonmedical),
+      /security scanning/,
+      workflowId,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforeDraft!([form("ssa_561"), { ...unsafeNotice, included: false }], nonmedical),
+      workflowId,
+    );
   }
 });
 
