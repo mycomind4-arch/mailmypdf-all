@@ -76,6 +76,11 @@ describe("general IRS notice draft-only letter preview", () => {
       { responseBody: "A".repeat(6001) },
       { returnAddress: "100 Example St" },
       { returnAddress: "100 Example St\rEureka, CA 95501" },
+      { returnAddress: "100 Example St\nEureka, CA" },
+      { returnAddress: "Not a delivery address\nEureka, CA 95501" },
+      { returnAddress: "100 Example St\nEureka, ZZ 95501" },
+      { returnAddress: "100 Example St\nEureka, CA 95501\nInjected footer" },
+      { responseBody: "I dispute {amount} for {tax_year}." },
       { verifiedNoticeNumber: "CP14\nForged second line" },
     ];
     for (const change of invalid) {
@@ -84,6 +89,17 @@ describe("general IRS notice draft-only letter preview", () => {
       expect(result.preview).toBeNull();
       expect(result.blockers.length).toBeGreaterThan(0);
     }
+  });
+
+  it("accepts a concrete PO Box return address while preserving draft-only status", () => {
+    const result = irsGeneralDefinition.prepareLetterPreview({
+      ...valid,
+      returnAddress: "P.O. Box 120\nEureka, CA 95502",
+    });
+    expect(result.ready).toBe(true);
+    if (!result.ready) throw new Error("Expected a draft preview");
+    expect(result.preview.letterText).toContain("P.O. Box 120\nEureka, CA 95502");
+    expect(result.preview.status).toBe("draft_preview_only");
   });
 
   it("omits optional references when not verified instead of fabricating them", () => {
