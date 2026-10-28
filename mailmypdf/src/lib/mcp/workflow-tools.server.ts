@@ -844,6 +844,8 @@ export async function executeMcpTool(
           included: document.included === true,
           securityStatus: typeof document.securityStatus === "string" ? document.securityStatus : "unknown",
           usable: document.usable === true,
+          evidenceKind: typeof document.evidenceKind === "string" ? document.evidenceKind : null,
+          mimeType: typeof document.mimeType === "string" ? document.mimeType : null,
         }];
       }),
       requiresSourceDocument: policy?.requiresSourceDocument !== false,
