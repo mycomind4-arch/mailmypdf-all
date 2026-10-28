@@ -237,3 +237,25 @@ test("SSA chat inputs derive the fixed reconsideration mode without requiring a 
     assert.throws(() => policy.validateInput({ ...input, confirmedReconsideration: false }, nonmedical, {} as never), /confirm reconsideration/);
   }
 });
+
+
+test("SSA reconsideration refuses a stale notice analysis before drafting or packet approval", () => {
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+  const matchingSource = form("notice", { role: "subject_notice", evidenceKind: null });
+  const replacedSource = form("replacement-notice", { role: "subject_notice", evidenceKind: null });
+  const caseInput = {} as never;
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const gate of [policy.validateBeforeDraft!, policy.validateBeforePacket!]) {
+      assert.ok(gate, `${workflowId} must bind source analysis at both gates`);
+      const invoke = (documents: WorkflowMatterDocument[]) => gate({
+        matter: { matter: {} as never, documents },
+        caseInput,
+        analysis: medical,
+      });
+      assert.doesNotThrow(() => invoke([matchingSource]), workflowId);
+      assert.throws(() => invoke([replacedSource]), /source notice.*analy[sz]/i, workflowId);
+      assert.throws(() => invoke([]), /source notice.*analy[sz]/i, workflowId);
+    }
+  }
+});
