@@ -14,7 +14,8 @@ export const irsGeneralDomain = {
     { id: "respond_appropriately", label: "Respond Appropriately", description: "Provide response appropriate to notice type" },
   ],
   responseOptions: [
-    { id: "general_response", label: "General Response", description: "Prepare a mailed reply only when notice-specific instructions support one" },
+    { id: "general_response", label: "Mail a notice-directed reply", description: "Prepare a mailed reply only when the notice permits correspondence by mail and the recipient address is confirmed from that notice" },
+    { id: "notice_directed_nonmail_action", label: "Follow another required channel", description: "Follow the notice-specific required form, secure upload, telephone, or formal petition process without substituting a generic mailed letter" },
     { id: "no_mail_needed", label: "Record only", description: "Keep an informational notice without generating outgoing mail" },
   ],
   outputPackageContents: [
