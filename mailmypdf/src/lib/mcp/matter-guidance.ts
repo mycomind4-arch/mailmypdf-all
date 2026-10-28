@@ -1,8 +1,10 @@
 import {
   createWorkflowDraftBasis,
+  getSsaReconsiderationRuntimePolicy,
   requiredSsaReconsiderationFormKinds,
   workflowDraftBasisMatches,
   type WorkflowDraftBasis,
+  type WorkflowMatterAnalysis,
   type WorkflowMatterDocument,
 } from "@mailmypdf/workflows";
 
@@ -263,6 +265,28 @@ export function deriveMatterGuidance(input: {
         ["idempotency_key"],
       ),
     };
+  }
+
+  // Reuse the same SSA denial/appeal-stage/basis policy as the runtime.
+  // A stored analysis and historical approval do not make an approval notice,
+  // hearing decision, or unknown basis eligible for claimant intake or mail.
+  // This is guidance only: the runtime remains the authoritative gate.
+  if ((matter.workflowId === "appeal-ssdi-denial" || matter.workflowId === "appeal-ssi-denial") && input.analysis) {
+    try {
+      const policy = getSsaReconsiderationRuntimePolicy(matter.workflowId);
+      if (!policy?.validateAnalysis) throw new Error("SSA validation unavailable");
+      policy.validateAnalysis(input.analysis as WorkflowMatterAnalysis);
+    } catch {
+      return {
+        progress,
+        requiredFacts,
+        nextAction: action(
+          matter.id,
+          null,
+          "The analyzed notice does not confirm an SSA denial at the reconsideration stage with a medical or non-medical basis. Verify the source notice and its analysis before continuing.",
+        ),
+      };
+    }
   }
 
   if (!input.hasInput) {
