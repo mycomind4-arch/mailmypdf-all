@@ -69,8 +69,11 @@ const US_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA
 const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+,\\s*(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
 
 function hasUsPostalDestination(address: string): boolean {
-  if (UNRESOLVED_ADDRESS_MARKERS.test(address) || UNSAFE_ADDRESS_CONTROLS.test(address)) return false;
-  const lines = address.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  // A bare CR can render as a new postal line without being recognized by
+  // the LF/CRLF parser. Normalize CRLF but reject any remaining CR.
+  const normalizedAddress = address.replace(/\r\n/g, "\n");
+  if (normalizedAddress.includes("\r") || UNRESOLVED_ADDRESS_MARKERS.test(address) || UNSAFE_ADDRESS_CONTROLS.test(address)) return false;
+  const lines = normalizedAddress.split("\n").map((line) => line.trim()).filter(Boolean);
   return lines.length >= 2 &&
     cityStateZip.test(lines[lines.length - 1]) &&
     lines.slice(0, -1).some((line) => /[A-Za-z]{2,}/.test(line));
