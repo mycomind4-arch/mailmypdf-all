@@ -1,5 +1,12 @@
 # MailMyPDF factory status
 
+## 2026-10-27 — Automation and hosted release audit
+
+- The existing Cloud Agent workflow now prioritizes owner-authored workflow tasks, checks independently approved and CI-green PRs every three hours, and has a daily evidence-led pass that can adjust existing GitHub automations directly on `main` after bounded validation. No duplicate workflow was added.
+- Local verification of the automation change: seven merge-gate decision tests passed, the workflow YAML parsed, all embedded shell steps passed syntax checks, and the diff passed whitespace checks. Hosted CI for this commit remains separate.
+- The current public Worker passed the repository's read-only deployment smoke with zero failures and two intentionally skipped authenticated/token probes. This does not prove an end-to-end paid or mailed customer journey.
+- Live blockers observed: `main` has no branch protection or ruleset; the production environment has no protection rules; recent secure-core scheduled runs fail at configuration because job secrets/URL are absent; the Cloud Agent run failed with `Invalid API key`; and required deployment secrets are missing. No PR was merged, no Cloudflare deployment was attempted, and no physical mail or real payment was initiated.
+
 ## 2026-10-17 — Studio operational evidence
 
 - Extended the existing admin-only launch-readiness surface with GitHub processing-step evidence and serving-revision comparison. No parallel dashboard or public credential endpoint.

@@ -14,6 +14,9 @@ them before editing. Prefer small, targeted reads and tests to a full monorepo s
 2. **Implementer:** fix that gap using existing packages and routes. Use
    `@mailmypdf/step-workflow` for execution UI; do not duplicate app shells, shared
    payment infrastructure, or established workflow engines.
+   For a workflow task, begin with the user's concrete problem and a useful
+   reviewed output. Reuse existing capabilities and prove the real start route,
+   matter flow, and generated artifact; workflow count alone is not value.
 3. **Verifier:** run the relevant focused tests or checks, record exact commands and
    outputs, and critically inspect the resulting diff. Never invent test results.
 4. **Reporter:** write a concise verification note in the issue's requested artifact.
@@ -46,6 +49,8 @@ them before editing. Prefer small, targeted reads and tests to a full monorepo s
 
 A small diff that meets the selected issue's acceptance criteria, has no unrelated
 changes, and includes evidence of whichever local tests were actually executed.
-GitHub automation will create a **review-only pull request**; an owner or reviewer
-must independently approve merging. Real customer payment and mailing continue to
-require the exact documented authorization boundaries.
+GitHub automation will create a pull request. A separate deterministic gate may
+merge it into `main` only after an independent fresh approval, strict passing CI,
+and enforced branch protection. The implementation agent cannot approve or merge
+its own work. Production deployment, real customer payment, and mailing retain
+their separate documented authorization boundaries.
