@@ -99,6 +99,31 @@ test("SSA official forms must be clean included PDFs for both SSI and SSDI packe
   }
 });
 
+test("non-medical SSI and SSDI packets require an included clean SSA-561 PDF", () => {
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    assert.throws(() => policy.validateDocumentsBeforePacket!([], nonmedical), /SSA-561/, workflowId);
+    for (const overrides of [
+      { mimeType: "image/jpeg" },
+      { mimeType: null },
+      { included: false },
+      { usable: false },
+      { securityStatus: "quarantined" },
+    ] as Partial<WorkflowMatterDocument>[]) {
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!([form("ssa_561", overrides)], nonmedical),
+        /SSA-561/,
+        workflowId,
+      );
+    }
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforePacket!([form("ssa_561")], nonmedical),
+      workflowId,
+    );
+  }
+});
+
 test("claimant facts are validated per program", () => {
   const ssdi = getSsaReconsiderationRuntimePolicy("appeal-ssdi-denial")!;
   const ssi = getSsaReconsiderationRuntimePolicy("appeal-ssi-denial")!;
