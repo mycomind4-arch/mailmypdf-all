@@ -13,6 +13,6 @@ export const irsGeneralExtractionSchema = {
     submissionInstructions: { description: "Notice-specific submission instructions, if stated", required: false, dataType: "string" },
     mailingAddress: { description: "Mailing address printed on the controlling notice, if any; user must confirm before mailing", required: false, dataType: "string" },
   },
-  instructions: "Classify whether the notice requests action and whether a mailed letter is an allowed response. Extract the printed notice number, exact deadline wording, required form, permitted response channel, instructions, and address with provenance. Leave missing values absent; never calculate a date from relative wording or invent a response deadline, extension, or recipient. A required upload, formal petition, or other nonmail action must not be replaced by a generic mailed letter.",
+  instructions: "Classify whether the notice requests action and whether a mailed letter is an allowed response. Extract the printed notice number, exact deadline wording, required form, permitted response channel, instructions, and address with provenance. Leave missing values absent; never calculate a date from relative wording. Never invent a response deadline, extension, or recipient. A required upload, formal petition, or other nonmail action must not be replaced by a generic mailed letter.",
 } as const
 export default irsGeneralExtractionSchema
