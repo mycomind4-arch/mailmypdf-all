@@ -75,6 +75,22 @@ test("SSDI policy accepts only its canonical new-architecture identity", () => {
   }), /identity/i);
 });
 
+test("SSDI policy accepts a confirmed denial regardless of notice capitalization, but rejects non-denials", () => {
+  const denial = analysis("reconsideration", "medical");
+  assert.equal(denial.result.decision, "Denied");
+  assert.doesNotThrow(() => ssdiDenialRuntimePolicy.validateAnalysis?.(denial));
+
+  for (const decision of ["approved", "pending", null]) {
+    assert.throws(
+      () => ssdiDenialRuntimePolicy.validateAnalysis?.({
+        ...denial,
+        result: { ...denial.result, decision },
+      }),
+      /confirm a denial/i,
+    );
+  }
+});
+
 test("SSDI policy fails closed on wrong or unknown appeal level", () => {
   assert.throws(() => ssdiDenialRuntimePolicy.validateAnalysis?.(analysis("hearing", "medical")), /reconsideration/i);
   assert.throws(() => ssdiDenialRuntimePolicy.validateAnalysis?.(analysis("unknown", "medical")), /not confirmed/i);
