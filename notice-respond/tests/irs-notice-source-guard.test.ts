@@ -30,4 +30,11 @@ describe("general IRS notice primary-source safeguards", () => {
     expect(clarification).toMatch(/if the notice specifies a (?:response )?deadline/i);
     expect(clarification).not.toMatch(/before the deadline\./i);
   });
+  it("treats notice response dates as conditional in the FAQ and intake checklist", () => {
+    const understanding = workflowConfig.faqs.find(([question]) => question === "How do I understand what the IRS notice is asking?")?.[1] ?? "";
+    expect(understanding).toMatch(/whether a response deadline is stated/i);
+    const noticeChecklist = workflowConfig.readyItems.find(([label]) => label === "IRS notice")?.[1] ?? "";
+    expect(noticeChecklist).toMatch(/any printed deadline/i);
+  });
+
 });
