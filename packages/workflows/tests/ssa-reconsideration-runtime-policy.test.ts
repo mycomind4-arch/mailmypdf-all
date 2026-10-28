@@ -257,11 +257,10 @@ test("SSA reconsideration refuses a stale notice analysis before drafting or pac
       assert.doesNotThrow(() => invoke([matchingSource]), workflowId);
       assert.throws(() => invoke([replacedSource]), /source notice.*analy[sz]/i, workflowId);
       assert.throws(() => invoke([]), /source notice.*analy[sz]/i, workflowId);
-      // A previously analyzed notice must not authorize a packet when it was
-      // deselected, when a second active notice exists, or while quarantined.
-      assert.throws(
+      // Source notices are analyzed but are not outgoing packet attachments.
+      // The runtime attaches subject_notice with included=false by default.
+      assert.doesNotThrow(
         () => invoke([{ ...matchingSource, included: false }]),
-        /source notice.*analy[sz]/i,
         workflowId,
       );
       assert.throws(
@@ -290,11 +289,10 @@ test("SSDI and SSI reject stale notice analysis when saving claimant facts", () 
     assert.doesNotThrow(() => policy.validateInput(input, nonmedical, matching), workflowId);
     assert.throws(() => policy.validateInput(input, nonmedical, replaced), /source notice.*analy[sz]/i, workflowId);
     assert.throws(() => policy.validateInput(input, nonmedical, missing), /source notice.*analy[sz]/i, workflowId);
-    assert.throws(
+    assert.doesNotThrow(
       () => policy.validateInput(input, nonmedical, {
         documents: [form("notice", { role: "subject_notice", evidenceKind: null, included: false })],
       } as never),
-      /source notice.*analy[sz]/i,
       workflowId,
     );
     assert.throws(
