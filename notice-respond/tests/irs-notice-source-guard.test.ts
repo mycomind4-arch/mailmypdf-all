@@ -173,6 +173,16 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     expect(result.blockers).toContain("different_procedure_required");
   });
 
+  it("rejects truthy string confirmations from untyped intake data", () => {
+    for (const flag of ["instructionsConfirmed", "mailPermitted", "recipientAddressConfirmed"] as const) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        [flag]: "false",
+      } as unknown as Parameters<typeof irsGeneralDefinition.mailPacketReadiness>[0]);
+      expect(result.canPreviewMailPacket).toBe(false);
+    }
+  });
+
   it("does not require a fabricated response deadline to preview an otherwise verified packet", () => {
     expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket).canPreviewMailPacket).toBe(true);
     expect(irsGeneralExtractionSchema.extractionFields.responseDeadline.required).toBe(false);
