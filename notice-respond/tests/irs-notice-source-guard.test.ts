@@ -241,8 +241,8 @@ describe("general IRS letter packet preflight (no external actions)", () => {
   it("accepts a newly confirmed current IRS instruction address without reusing the notice-address confirmation", () => {
     const currentInstructions = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
-      recipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
-      confirmedRecipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
+      recipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
+      confirmedRecipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
       recipientAddressSource: "current_irs_instructions",
       confirmedRecipientAddressSource: "current_irs_instructions",
     });
@@ -250,8 +250,8 @@ describe("general IRS letter packet preflight (no external actions)", () => {
 
     const oldNoticeConfirmation = irsGeneralDefinition.mailPacketReadiness({
       ...verifiedMailPacket,
-      recipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
-      confirmedRecipientAddress: "Internal Revenue Service\\nP.O. Box 1234\\nAustin, TX 78714",
+      recipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
+      confirmedRecipientAddress: "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714",
       recipientAddressSource: "current_irs_instructions",
       // The previous notice-address provenance must not authorize the updated destination.
       confirmedRecipientAddressSource: "controlling_notice",
