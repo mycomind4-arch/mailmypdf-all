@@ -112,3 +112,44 @@ describe("general IRS notice draft-only letter preview", () => {
     expect(result.preview.letterText).not.toContain("Tax period:");
   });
 });
+
+describe("general IRS notice printable PDF preview", () => {
+  it("renders a real PDF with a hash of its exact bytes, without approval or mailing", async () => {
+    const result = await irsGeneralDefinition.preparePdfPreview(valid);
+    expect(result.ready).toBe(true);
+    if (!result.ready) throw new Error("Expected PDF preview");
+    expect(result.preview.status).toBe("draft_pdf_preview_only");
+    expect(result.preview.sourceNoticeSha256).toBe(valid.mail.noticeSha256);
+    expect(result.preview.recipientAddress).toBe(valid.mail.recipientAddress);
+    expect(new TextDecoder().decode(result.preview.pdfBytes.subarray(0, 5))).toBe("%PDF-");
+    expect(result.preview.pdfBytes.length).toBeGreaterThan(500);
+    const { createHash } = await import("node:crypto");
+    expect(result.preview.pdfSha256).toBe(
+      createHash("sha256").update(result.preview.pdfBytes).digest("hex"),
+    );
+    expect(Object.keys(result.preview).sort()).toEqual([
+      "pdfBytes", "pdfSha256", "recipientAddress", "sourceNoticeSha256", "status",
+    ]);
+  });
+
+  it("never renders when the notice, response channel, or recipient confirmation is stale", async () => {
+    for (const mail of [
+      { ...valid.mail, noticeSha256: "b".repeat(64) },
+      { ...valid.mail, responsePath: "nonmail" as const },
+      { ...valid.mail, recipientAddressConfirmed: false },
+    ]) {
+      const result = await irsGeneralDefinition.preparePdfPreview({ ...valid, mail });
+      expect(result.ready).toBe(false);
+      expect(result.preview).toBeNull();
+      expect(result.blockers.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("refuses characters the production PDF font would silently replace", async () => {
+    for (const responseBody of ["Please review the snowman ☃.", "A tab\tinside the response."]) {
+      const result = await irsGeneralDefinition.preparePdfPreview({ ...valid, responseBody });
+      expect(result.ready).toBe(false);
+      expect(result.blockers).toContain("pdf_font_unsupported_characters");
+    }
+  });
+});
