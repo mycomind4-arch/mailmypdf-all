@@ -135,9 +135,12 @@ export function deriveMatterGuidance(input: {
   const includedNotReady = documents.find(
     (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
   );
-  const sourceReady = input.requiresSourceDocument
-    ? Boolean(source?.usable && source.securityStatus === "clean")
-    : true;
+  // A request-first workflow may omit its source, but an optional source
+  // that was uploaded must pass the same scan gate as the runtime before
+  // draft, packet preview, approval, or checkout.
+  const sourceReady = source
+    ? Boolean(source.usable && source.securityStatus === "clean")
+    : !input.requiresSourceDocument;
   const progress: MatterProgress = {
     sourceDocumentRequired: input.requiresSourceDocument,
     sourceDocumentPresent: Boolean(source),
@@ -196,7 +199,7 @@ export function deriveMatterGuidance(input: {
     };
   }
 
-  if (input.requiresSourceDocument && !sourceReady) {
+  if (!sourceReady) {
     const next = action(
       matter.id,
       "get_document_status",
