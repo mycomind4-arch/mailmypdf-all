@@ -31,6 +31,12 @@ export interface IrsGeneralMailPacketInput {
   recipientAddressConfirmed: boolean;
   /** Server-persisted snapshot of the exact recipient address the user confirmed. */
   confirmedRecipientAddress: string | null;
+  /** Trusted digest of the controlling notice at the time of recipient confirmation. */
+  confirmedRecipientNoticeSha256: string | null;
+  /** Recipient provenance the user confirmed, not just its rendered address text. */
+  confirmedRecipientAddressSource: IrsRecipientAddressSource | null;
+  /** Response channel at confirmation; a reclassified notice needs fresh review. */
+  confirmedRecipientResponsePath: IrsGeneralResponsePath | null;
 }
 
 export type IrsGeneralMailBlocker =
@@ -102,12 +108,18 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
   }
   if (input.recipientAddressConfirmed !== true) blockers.push("recipient_address_unconfirmed");
   // A confirmation boolean alone must not authorize a destination edited later.
-  // Normalize transport CRLF only; changes to recipient, street, city, or ZIP
-  // require the user to review and confirm the exact new destination.
+  // Bind the server-side confirmation to notice bytes, address provenance, and
+  // response route as well as the rendered address. Normalize CRLF only; any
+  // material change requires a fresh recipient review.
   if (input.recipientAddressConfirmed === true && (
     !input.confirmedRecipientAddress?.trim() ||
     !input.recipientAddress ||
-    input.confirmedRecipientAddress.replace(/\r\n/g, "\n") !== input.recipientAddress.replace(/\r\n/g, "\n")
+    input.confirmedRecipientAddress.replace(/\r\n/g, "\n") !== input.recipientAddress.replace(/\r\n/g, "\n") ||
+    !input.confirmedRecipientNoticeSha256 ||
+    !/^[a-f0-9]{64}$/i.test(input.confirmedRecipientNoticeSha256) ||
+    input.confirmedRecipientNoticeSha256.toLowerCase() !== noticeDigest?.toLowerCase() ||
+    input.confirmedRecipientAddressSource !== input.recipientAddressSource ||
+    input.confirmedRecipientResponsePath !== input.responsePath
   )) blockers.push("recipient_confirmation_stale");
 
   return { canPreviewMailPacket: blockers.length === 0, blockers };
