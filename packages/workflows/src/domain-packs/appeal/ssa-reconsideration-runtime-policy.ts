@@ -62,7 +62,10 @@ function assertReconsiderationAnalysis(
   // A confirmed appeal level and decision basis do not, by themselves, prove
   // that the source notice denied benefits. Never construct a denial appeal
   // from an approval or an unclassified decision.
-  if (analysis.result.decision !== "denied") {
+  // The analyzer may return "Denied" or "denied"; accept only that
+  // decision after case/whitespace normalization, never an approval or
+  // an unknown decision.
+  if (typeof analysis.result.decision !== "string" || analysis.result.decision.trim().toLowerCase() !== "denied") {
     throw new Error(`The source ${program} notice must confirm a denial before reconsideration.`);
   }
   const stage = analysis.result.workflowDetails?.appealStage;
