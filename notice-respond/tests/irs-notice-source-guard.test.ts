@@ -288,6 +288,21 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     }
   });
 
+  it("rejects invisible Unicode controls in the confirmed postal destination", () => {
+    // A matching confirmation snapshot alone cannot make text with bidi or
+    // zero-width controls safe to render on the outgoing envelope PDF.
+    for (const hiddenControl of ["\\u202e", "\\u200b", "\\u2066"] as const) {
+      const recipientAddress = `Internal Revenue Service${hiddenControl}\\nKansas City, MO 64999`;
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        recipientAddress,
+        confirmedRecipientAddress: recipientAddress,
+      });
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_address_incomplete");
+    }
+  });
+
   it("does not require a fabricated response deadline to preview an otherwise verified packet", () => {
     expect(irsGeneralDefinition.mailPacketReadiness(verifiedMailPacket).canPreviewMailPacket).toBe(true);
     expect(irsGeneralExtractionSchema.extractionFields.responseDeadline.required).toBe(false);
