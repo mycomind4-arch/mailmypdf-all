@@ -59,6 +59,12 @@ function assertReconsiderationAnalysis(
   program: SsaReconsiderationProgram,
   analysis: WorkflowMatterAnalysis,
 ): Exclude<SsaDecisionBasis, "unknown"> {
+  // A confirmed appeal level and decision basis do not, by themselves, prove
+  // that the source notice denied benefits. Never construct a denial appeal
+  // from an approval or an unclassified decision.
+  if (analysis.result.decision !== "denied") {
+    throw new Error(`The source ${program} notice must confirm a denial before reconsideration.`);
+  }
   const stage = analysis.result.workflowDetails?.appealStage;
   if (stage !== "reconsideration") {
     throw new Error(
