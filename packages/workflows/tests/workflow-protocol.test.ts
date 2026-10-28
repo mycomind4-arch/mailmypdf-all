@@ -108,7 +108,7 @@ test("workflow protocol blocks checkout guidance for unsafe included supporting 
     ...cleanSource,
     id: "matter-document-support",
     documentId: "support-1",
-    role: "supporting_evidence",
+    role: "evidence",
     included: true,
     position: 1,
     securityStatus: "quarantined",
