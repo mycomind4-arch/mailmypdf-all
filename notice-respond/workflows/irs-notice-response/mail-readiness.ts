@@ -53,7 +53,9 @@ export type IrsGeneralMailBlocker =
 // These are document-preparation checks only; USPS deliverability and the actual
 // notice-specific recipient still require independent server-side verification.
 const UNRESOLVED_ADDRESS_MARKERS = /\[[^\]\r\n]*\]|\{[^}\r\n]*\}|<[^>\r\n]*>|\b(?:tbd|to be determined|placeholder|address (?:on|from|per) (?:the )?notice|see (?:the )?(?:attached )?notice|insert (?:the )?(?:irs )?address)\b/i;
-const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+// Reject invisible/bidirectional formatting controls that can change how a
+// confirmed recipient appears on the rendered envelope or packet PDF.
+const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
 
 // Conservative US-format preflight, not USPS deliverability validation.
 // IRS processing centers may use a city/state/ZIP without a street or PO box.
