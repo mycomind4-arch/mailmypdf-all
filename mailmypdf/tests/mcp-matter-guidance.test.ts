@@ -293,3 +293,25 @@ test("MCP guidance reanalyzes a replaced SSA denial notice before draft or check
     assert.equal(guidance.nextAction.arguments.approval_id, undefined);
   }
 });
+
+
+test("MCP guidance requires reanalysis when a required source has malformed historical analysis identity", () => {
+  const source = {
+    documentId: "current-ssa-notice", role: "subject_notice",
+    included: false, securityStatus: "clean", usable: true,
+  };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const invalidDocumentId of [undefined, null, 42, "old-ssa-notice"]) {
+      const guidance = deriveMatterGuidance({
+        matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+        documents: [source], requiresSourceDocument: true,
+        analysis: { documentId: invalidDocumentId, result: { decision: "denied" } },
+        hasInput: true, hasDraft: true, draftIsCurrent: true,
+        approvalId: "historical-approval",
+      });
+      assert.equal(guidance.nextAction.toolName, "analyze_matter",
+        `${workflowId}: invalid source analysis id ${String(invalidDocumentId)} must not advance toward checkout`);
+      assert.equal(guidance.nextAction.arguments.approval_id, undefined);
+    }
+  }
+});
