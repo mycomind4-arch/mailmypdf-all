@@ -203,7 +203,7 @@ test("claimant facts are validated per program", () => {
   const ssdi = getSsaReconsiderationRuntimePolicy("appeal-ssdi-denial")!;
   const ssi = getSsaReconsiderationRuntimePolicy("appeal-ssi-denial")!;
   const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
-  const matter = {} as never;
+  const matter = { documents: [form("notice", { role: "subject_notice", evidenceKind: null })] } as never;
 
   assert.throws(() => ssdi.validateInput({ ...claimant, confirmedReconsideration: false }, nonmedical, matter), /confirm reconsideration/);
   assert.throws(() => ssdi.validateInput(claimant, null, matter), /Analyze the SSDI denial/);
@@ -218,6 +218,7 @@ test("claimant facts are validated per program", () => {
 
 test("SSA chat inputs derive the fixed reconsideration mode without requiring a redundant client field", () => {
   const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  const currentMatter = { documents: [form("notice", { role: "subject_notice", evidenceKind: null })] } as never;
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
     const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
     assert.ok(artifact);
@@ -231,10 +232,10 @@ test("SSA chat inputs derive the fixed reconsideration mode without requiring a 
       ...(workflowId === "appeal-ssi-denial" ? { incomeFacts: "No income." } : {}),
     };
     const policy = artifact.runtimePolicy;
-    const saved = policy.validateInput(input, nonmedical, {} as never);
+    const saved = policy.validateInput(input, nonmedical, currentMatter);
     assert.equal(saved.responseMode, "reconsideration", workflowId);
-    assert.throws(() => policy.validateInput({ ...input, responseMode: "hearing" }, nonmedical, {} as never), /confirm reconsideration/);
-    assert.throws(() => policy.validateInput({ ...input, confirmedReconsideration: false }, nonmedical, {} as never), /confirm reconsideration/);
+    assert.throws(() => policy.validateInput({ ...input, responseMode: "hearing" }, nonmedical, currentMatter), /confirm reconsideration/);
+    assert.throws(() => policy.validateInput({ ...input, confirmedReconsideration: false }, nonmedical, currentMatter), /confirm reconsideration/);
   }
 });
 
@@ -257,5 +258,20 @@ test("SSA reconsideration refuses a stale notice analysis before drafting or pac
       assert.throws(() => invoke([replacedSource]), /source notice.*analy[sz]/i, workflowId);
       assert.throws(() => invoke([]), /source notice.*analy[sz]/i, workflowId);
     }
+  }
+});
+
+
+test("SSDI and SSI reject stale notice analysis when saving claimant facts", () => {
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  const matching = { documents: [form("notice", { role: "subject_notice", evidenceKind: null })] } as never;
+  const replaced = { documents: [form("new-notice", { role: "subject_notice", evidenceKind: null })] } as never;
+  const missing = { documents: [] } as never;
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const input = { ...claimant, ...(workflowId === "appeal-ssi-denial" ? { incomeFacts: "Income stopped." } : {}) };
+    assert.doesNotThrow(() => policy.validateInput(input, nonmedical, matching), workflowId);
+    assert.throws(() => policy.validateInput(input, nonmedical, replaced), /source notice.*analy[sz]/i, workflowId);
+    assert.throws(() => policy.validateInput(input, nonmedical, missing), /source notice.*analy[sz]/i, workflowId);
   }
 });
