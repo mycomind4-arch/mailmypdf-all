@@ -102,6 +102,22 @@ describe("general IRS notice draft-only letter preview", () => {
     expect(result.preview.status).toBe("draft_preview_only");
   });
 
+  it("rejects conflicting sender city/state/ZIP lines in letter and PDF previews", async () => {
+    // The original parser accepted this because it only checked the final
+    // destination line, despite two different return destinations.
+    const returnAddress = "100 Example St\nEureka, CA 95501\nReno, NV 89501";
+    const input = { ...valid, returnAddress };
+    const letter = irsGeneralDefinition.prepareLetterPreview(input);
+    expect(letter.ready).toBe(false);
+    expect(letter.preview).toBeNull();
+    expect(letter.blockers).toContain("return_address_missing_or_unsafe");
+
+    const pdf = await irsGeneralDefinition.preparePdfPreview(input);
+    expect(pdf.ready).toBe(false);
+    expect(pdf.preview).toBeNull();
+    expect(pdf.blockers).toContain("return_address_missing_or_unsafe");
+  });
+
   it("omits optional references when not verified instead of fabricating them", () => {
     const result = irsGeneralDefinition.prepareLetterPreview({
       ...valid, verifiedNoticeNumber: null, verifiedTaxPeriod: null,

@@ -63,7 +63,10 @@ function cleanReturnAddress(value: string | null): string | null {
   if (!address) return null;
   const lines = address.split("\n").map((line) => line.trim());
   if (lines.length < 2 || lines.length > 6 || lines.some((line) => !line || line.length > 80)) return null;
-  if (!senderCityStateZip.test(lines[lines.length - 1]!) ||
+  // A return address with two city/state/ZIP lines is ambiguous on a physical letter.
+  // Require exactly one destination, at the end, even when a delivery line exists.
+  if (lines.filter((line) => senderCityStateZip.test(line)).length !== 1 ||
+      !senderCityStateZip.test(lines[lines.length - 1]!) ||
       !lines.slice(0, -1).some((line) => senderDeliveryLine.test(line))) return null;
   return lines.join("\n");
 }
