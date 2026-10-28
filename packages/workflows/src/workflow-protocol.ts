@@ -97,15 +97,23 @@ export function workflowProtocolDefinitionFromManifest(
   // field registry. Silently dropping an unknown required field can make the
   // connector report inputReady and skip facts the runtime requires.
   if (runtimeContract) {
-    const declaredIds = new Set(allFields.map((field) => field.id));
+    const declaredFields = new Map(allFields.map((field) => [field.id, field] as const));
     for (const field of runtimeContract.inputFields) {
-      if (!declaredIds.has(field.id)) {
+      const declared = declaredFields.get(field.id);
+      if (!declared) {
         throw new Error(`Workflow ${manifest.id} chat input field ${field.id} is not declared in the canonical manifest`);
+      }
+      if (field.required !== declared.required) {
+        throw new Error(`Workflow ${manifest.id} chat input field ${field.id} requiredness does not match canonical manifest (chat: ${field.required}, manifest: ${declared.required})`);
       }
     }
     for (const field of runtimeContract.connectorFields ?? []) {
-      if (!declaredIds.has(field.id)) {
+      const declared = declaredFields.get(field.id);
+      if (!declared) {
         throw new Error(`Workflow ${manifest.id} connector field ${field.id} is not declared in the canonical manifest`);
+      }
+      if (field.required !== declared.required) {
+        throw new Error(`Workflow ${manifest.id} connector field ${field.id} requiredness does not match canonical manifest (chat: ${field.required}, manifest: ${declared.required})`);
       }
     }
   }
