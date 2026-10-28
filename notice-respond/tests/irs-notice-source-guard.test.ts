@@ -321,6 +321,19 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     expect(escaped.blockers).toContain("recipient_address_incomplete");
   });
 
+  it("rejects bare carriage returns inside a confirmed recipient address", () => {
+    // A lone CR can be interpreted as a line break by an envelope renderer
+    // even though the preflight only splits on LF/CRLF.
+    const recipientAddress = "Internal Revenue Service\\rP.O. Box 9999\\nKansas City, MO 64999";
+    const result = irsGeneralDefinition.mailPacketReadiness({
+      ...verifiedMailPacket,
+      recipientAddress,
+      confirmedRecipientAddress: recipientAddress,
+    });
+    expect(result.canPreviewMailPacket).toBe(false);
+    expect(result.blockers).toContain("recipient_address_incomplete");
+  });
+
   it("rejects unresolved address placeholders despite a plausible ZIP", () => {
     for (const recipientAddress of [
       "Internal Revenue Service\n[IRS street address]\nKansas City, MO 64999",
