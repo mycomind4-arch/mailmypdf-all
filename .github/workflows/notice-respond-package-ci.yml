@@ -50,8 +50,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
-        run: pnpm install --frozen-lockfile
+      - name: Install Notice Respond and its workspace dependencies
+        # Full-workspace installation executes unrelated onnxruntime-node\n        # postinstall downloads, which can time out before these tests run.\n        # Install only this package and its transitive workspace dependencies.\n        run: pnpm --filter @mailmypdf/notice-respond... install --frozen-lockfile
       - name: Build Notice Respond dependencies
         run: |
           pnpm --filter @mailmypdf/core build
