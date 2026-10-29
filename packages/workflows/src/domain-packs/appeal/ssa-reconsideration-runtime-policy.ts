@@ -55,6 +55,17 @@ function text(value: unknown, label: string, max: number, required = false): str
   return normalized;
 }
 
+/**
+ * Do not treat a denial from an unrelated agency as an SSA reconsideration.
+ * The notice analyzer must identify the issuing agency; an unknown issuer
+ * requires review instead of generating or mailing SSA forms.
+ */
+function isSsaIssuingAgency(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const issuer = value.trim().replace(/\\s+/g, " ").replace(/\\./g, "").toLowerCase();
+  return /^(?:ssa|(?:us )?social security(?: administration)?(?: \\(ssa\\))?)$/.test(issuer);
+}
+
 function assertReconsiderationAnalysis(
   program: SsaReconsiderationProgram,
   analysis: WorkflowMatterAnalysis,
@@ -65,6 +76,9 @@ function assertReconsiderationAnalysis(
   // The analyzer may return "Denied" or "denied"; accept only that
   // decision after case/whitespace normalization, never an approval or
   // an unknown decision.
+  if (!isSsaIssuingAgency(analysis.result.issuer)) {
+    throw new Error(`The source ${program} notice must identify the Social Security Administration as the issuer.`);
+  }
   if (typeof analysis.result.decision !== "string" || analysis.result.decision.trim().toLowerCase() !== "denied") {
     throw new Error(`The source ${program} notice must confirm a denial before reconsideration.`);
   }
