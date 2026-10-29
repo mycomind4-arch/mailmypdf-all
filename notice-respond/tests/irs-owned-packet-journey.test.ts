@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import { inspectPacketPdfPageCount } from "@mailmypdf/packet-builder";
 import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import irsGeneralDefinition from "../workflows/irs-notice-response/definition";
 import type { IrsGeneralLetterPreviewInput } from "../workflows/irs-notice-response/letter-preview";
@@ -117,6 +118,9 @@ function setup() {
   return {
     caseStore, documentStore, draftStore, approvalStore, drafts, approvals,
     persistDraftIfCurrent, approveDraftIfCurrent, readRecordedApproval,
+    setResponseBody(responseBody: string) {
+      currentLetter = { ...currentLetter, responseBody };
+    },
     advanceRevision() { revision = "rev-2"; },
     changeRecipient() {
       currentLetter = { ...currentLetter, mail: {
@@ -174,6 +178,36 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       expect(Object.keys(result.approval)).not.toContain("paymentId");
       expect(Object.keys(result.approval)).not.toContain("mailingId");
     }
+  });
+
+  it("preserves multi-page physical-mail PDF integrity from draft through exact approval", async () => {
+    const state = setup();
+    // A long but valid IRS response must flow through the real page-wrapping
+    // renderer, immutable draft readback and owner-scoped approval boundary.
+    // No provider is called; approval alone must never authorize a mailing.
+    state.setResponseBody(
+      Array.from({ length: 160 }, (_, index) =>
+        `Detailed supporting explanation ${index + 1}.`).join("\n"),
+    );
+    const review = await persistAndReview(state);
+    const pages = await inspectPacketPdfPageCount(review.pdfBytes);
+    expect(pages).toBeGreaterThanOrEqual(3);
+    expect(createHash("sha256").update(review.pdfBytes).digest("hex"))
+      .toBe(review.packetSha256);
+    expect(state.approvals.size).toBe(0);
+
+    const approved = await irsGeneralDefinition.approveOwnedDraft({
+      ownerId, matterId, draftId: review.draftId,
+      reviewedPacketSha256: review.packetSha256,
+      reviewedRecipientAddress: review.recipientAddress,
+      caseStore: state.caseStore, documentStore: state.documentStore,
+      draftStore: state.draftStore, approvalStore: state.approvalStore,
+    });
+    expect(approved.approved).toBe(true);
+    if (!approved.approved) throw new Error("Expected exact-PDF approval");
+    expect(approved.approval.packetSha256).toBe(review.packetSha256);
+    expect(approved.approval.status).toBe("recorded_approval_no_payment_or_mailing");
+    expect(state.approvals.size).toBe(1);
   });
 
   it("keeps the exact reviewed packet approvable after the wall clock advances", async () => {
