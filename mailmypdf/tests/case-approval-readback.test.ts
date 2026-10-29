@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   assertRecordedCaseApproval,
+  assertMailableDraftText,
   type Recipient,
   type PacketPreview,
 } from "../src/lib/secure-core/case-approval.server";
@@ -105,5 +106,31 @@ describe("owner-scoped exact-document approval readback", () => {
     assert.throws(() => assertRecordedCaseApproval({
       ...recorded, manifest: [],
     }, expected), /persistence/);
+  });
+});
+
+
+describe("direct v2 case packet and approval draft gate (no provider calls)", () => {
+  test("permits complete correspondence and ordinary bracketed prose", () => {
+    assert.doesNotThrow(() => assertMailableDraftText(
+      "Dear IRS,\\nI dispute the amount on the notice. [see attached return]\\nSincerely, Example Taxpayer",
+    ));
+  });
+
+  test("blocks all-caps and title-case template slots before PDF assembly", () => {
+    for (const text of [
+      "Dear IRS,\\n[YOUR NAME] requests reconsideration.",
+      "Sincerely, [Your Name]",
+      "Please respond by [DATE].",
+      "Send the letter to [RECIPIENT ADDRESS].",
+    ]) {
+      assert.throws(() => assertMailableDraftText(text), /unfilled placeholders/);
+    }
+  });
+
+  test("rejects empty, whitespace-only and malformed persisted draft bodies", () => {
+    for (const value of ["", "   ", null, undefined, 123]) {
+      assert.throws(() => assertMailableDraftText(value), /draft is empty/);
+    }
   });
 });
