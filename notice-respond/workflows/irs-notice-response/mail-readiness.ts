@@ -92,17 +92,22 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
   canPreviewMailPacket: boolean;
   blockers: readonly IrsGeneralMailBlocker[];
 } {
+  // Persisted JSON and connector payloads can be untyped at runtime.
+  // Reject malformed values without throwing or permitting a packet.
+  if (!input || typeof input !== "object") {
+    return { canPreviewMailPacket: false, blockers: ["source_notice_missing"] };
+  }
   const blockers: IrsGeneralMailBlocker[] = [];
-  const noticeId = input.noticeDocumentId?.trim();
-  const analyzedId = input.analyzedNoticeDocumentId?.trim();
+  const noticeId = typeof input.noticeDocumentId === "string" ? input.noticeDocumentId.trim() : null;
+  const analyzedId = typeof input.analyzedNoticeDocumentId === "string" ? input.analyzedNoticeDocumentId.trim() : null;
 
   if (!noticeId || !analyzedId) {
     blockers.push("source_notice_missing");
   } else if (noticeId !== analyzedId) {
     blockers.push("source_notice_changed");
   }
-  const noticeDigest = input.noticeSha256?.trim();
-  const analyzedDigest = input.analyzedNoticeSha256?.trim();
+  const noticeDigest = typeof input.noticeSha256 === "string" ? input.noticeSha256.trim() : null;
+  const analyzedDigest = typeof input.analyzedNoticeSha256 === "string" ? input.analyzedNoticeSha256.trim() : null;
   if (!noticeDigest || !analyzedDigest || !/^[a-f0-9]{64}$/i.test(noticeDigest) || !/^[a-f0-9]{64}$/i.test(analyzedDigest)) {
     blockers.push("source_notice_digest_unverified");
   } else if (noticeDigest.toLowerCase() !== analyzedDigest.toLowerCase()) {
@@ -113,8 +118,9 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
   if (input.instructionsConfirmed !== true) blockers.push("notice_instructions_unverified");
   if (input.mailPermitted !== true) blockers.push("mail_channel_unverified");
   if (input.requiresDifferentProcedure !== false) blockers.push("different_procedure_required");
-  if (!input.recipientAddress?.trim()) blockers.push("recipient_address_missing");
-  else if (!hasUsPostalDestination(input.recipientAddress)) blockers.push("recipient_address_incomplete");
+  const recipientAddress = typeof input.recipientAddress === "string" ? input.recipientAddress : null;
+  if (!recipientAddress?.trim()) blockers.push("recipient_address_missing");
+  else if (!hasUsPostalDestination(recipientAddress)) blockers.push("recipient_address_incomplete");
   if (input.recipientAddressSource !== "controlling_notice" && input.recipientAddressSource !== "current_irs_instructions") {
     blockers.push("recipient_source_unverified");
   }
@@ -123,13 +129,17 @@ export function assessIrsGeneralMailPacketReadiness(input: IrsGeneralMailPacketI
   // Bind the server-side confirmation to notice bytes, address provenance, and
   // response route as well as the rendered address. Normalize CRLF only; any
   // material change requires a fresh recipient review.
+  const confirmedRecipientAddress = typeof input.confirmedRecipientAddress === "string"
+    ? input.confirmedRecipientAddress : null;
+  const confirmedNoticeDigest = typeof input.confirmedRecipientNoticeSha256 === "string"
+    ? input.confirmedRecipientNoticeSha256 : null;
   if (input.recipientAddressConfirmed === true && (
-    !input.confirmedRecipientAddress?.trim() ||
-    !input.recipientAddress ||
-    input.confirmedRecipientAddress.replace(/\r\n/g, "\n") !== input.recipientAddress.replace(/\r\n/g, "\n") ||
-    !input.confirmedRecipientNoticeSha256 ||
-    !/^[a-f0-9]{64}$/i.test(input.confirmedRecipientNoticeSha256) ||
-    input.confirmedRecipientNoticeSha256.toLowerCase() !== noticeDigest?.toLowerCase() ||
+    !confirmedRecipientAddress?.trim() ||
+    !recipientAddress ||
+    confirmedRecipientAddress.replace(/\r\n/g, "\n") !== recipientAddress.replace(/\r\n/g, "\n") ||
+    !confirmedNoticeDigest ||
+    !/^[a-f0-9]{64}$/i.test(confirmedNoticeDigest) ||
+    confirmedNoticeDigest.toLowerCase() !== noticeDigest?.toLowerCase() ||
     input.confirmedRecipientAddressSource !== input.recipientAddressSource ||
     input.confirmedRecipientResponsePath !== input.responsePath
   )) blockers.push("recipient_confirmation_stale");
