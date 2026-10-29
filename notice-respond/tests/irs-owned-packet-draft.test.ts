@@ -48,6 +48,8 @@ function setup() {
     persistMeasuredPageCount: vi.fn(async () => { throw new Error("Draft only"); }),
   };
   const persistDraftIfCurrent = vi.fn(async (request: IrsGeneralDraftPersistenceRequest) => ({
+    ownerId: request.ownerId,
+    matterId: request.matterId,
     draftId: "draft-1",
     packetSha256: request.packetSha256,
     caseRevision: request.expectedCaseRevision,
@@ -118,10 +120,17 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
   });
 
-  it("refuses a persisted receipt with a different digest or revision", async () => {
-    for (const mismatch of [{ packetSha256: "b".repeat(64) }, { caseRevision: "rev-2" }]) {
+  it("refuses a receipt for another owner, matter, digest, or revision", async () => {
+    for (const mismatch of [
+      { ownerId: "owner-b" },
+      { matterId: "matter-b" },
+      { packetSha256: "b".repeat(64) },
+      { caseRevision: "rev-2" },
+    ]) {
       const state = setup();
       state.persistDraftIfCurrent.mockImplementationOnce(async (request) => ({
+        ownerId: request.ownerId,
+        matterId: request.matterId,
         draftId: "draft-1",
         packetSha256: request.packetSha256,
         caseRevision: request.expectedCaseRevision,
@@ -130,6 +139,17 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
       const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
       expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
     }
+  });
+
+  it("refuses a receipt that omits owner/matter identity", async () => {
+    const state = setup();
+    state.persistDraftIfCurrent.mockImplementationOnce(async (request) => ({
+      draftId: "draft-1",
+      packetSha256: request.packetSha256,
+      caseRevision: request.expectedCaseRevision,
+    } as never));
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
   });
 
   it("does not persist a PDF if the owner-scoped response changes during assembly", async () => {
