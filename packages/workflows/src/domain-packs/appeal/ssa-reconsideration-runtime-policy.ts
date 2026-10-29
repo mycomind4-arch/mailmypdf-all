@@ -107,6 +107,12 @@ function assertRequiredForms(
   // Each required form must be a distinct uploaded PDF. The matter attachment
   // API permits one owned document to be attached under multiple evidence kinds.
   const usedDocumentIds = new Map<string, SsaReconsiderationFormKind>();
+  // An uploaded denial notice is evidence of the decision, not a completed
+  // SSA-561/3441/827 form. The matter API can attach the same owned PDF under
+  // multiple roles; reject that alias before constructing a mailing packet.
+  const sourceDocumentIds = new Set(
+    documents.filter((document) => document.role === "subject_notice").map((document) => document.documentId),
+  );
   for (const kind of required) {
     const label = SSA_RECONSIDERATION_FORMS.find((form) => form.kind === kind)?.label ?? kind;
     const includedForms = documents.filter(
@@ -124,6 +130,9 @@ function assertRequiredForms(
     const found = includedForms[0];
     if (!found || found.mimeType !== "application/pdf" || !found.usable || found.securityStatus !== "clean") {
       throw new Error(`${label} must be completed, uploaded, included, and clear security scanning.`);
+    }
+    if (sourceDocumentIds.has(found.documentId)) {
+      throw new Error(`${label} reuses the analyzed denial notice PDF; upload the completed SSA form separately.`);
     }
     const priorKind = usedDocumentIds.get(found.documentId);
     if (priorKind && priorKind !== kind) {
