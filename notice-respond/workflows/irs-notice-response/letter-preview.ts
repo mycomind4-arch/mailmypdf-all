@@ -55,7 +55,9 @@ function cleanText(value: string | null | undefined, maxLength: number, multilin
 // A return address must have a concrete delivery line and a US city/state/ZIP.
 // An arbitrary two-line string must not be printed as a verified sender.
 const SENDER_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|AS|GU|MP|PR|VI";
-const senderCityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]*,\\s*(?:${SENDER_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
+// USPS Publication 28 permits city/state/ZIP lines without commas. Keep
+// return-address delivery-line and destination-count requirements unchanged.
+const senderCityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]*(?:,\\s*|\\s+)(?:${SENDER_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
 const senderDeliveryLine = /^(?:P\.?\s*O\.?\s*Box\s+\d+[A-Za-z0-9-]*|\d+[A-Za-z]?(?:[-/]\d+[A-Za-z]?)?\s+[^\r\n]{2,75})$/i;
 
 function cleanReturnAddress(value: string | null): string | null {
