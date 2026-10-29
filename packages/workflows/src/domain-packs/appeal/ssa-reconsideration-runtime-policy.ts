@@ -62,8 +62,8 @@ function text(value: unknown, label: string, max: number, required = false): str
  */
 function isSsaIssuingAgency(value: unknown): boolean {
   if (typeof value !== "string") return false;
-  const issuer = value.trim().replace(/\\s+/g, " ").replace(/\\./g, "").toLowerCase();
-  return /^(?:ssa|(?:us )?social security(?: administration)?(?: \\(ssa\\))?)$/.test(issuer);
+  const issuer = value.trim().replace(/\s+/g, " ").replace(/\./g, "").toLowerCase();
+  return /^(?:ssa|(?:us )?social security(?: administration)?(?: \(ssa\))?)$/.test(issuer);
 }
 
 function assertReconsiderationAnalysis(
