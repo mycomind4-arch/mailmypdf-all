@@ -146,6 +146,51 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
     });
   });
 
+  it("rejects forged or extra enclosure labels even when the PDF hash is valid", async () => {
+    const state = await setup();
+    const forged = {
+      documentId: "not-selected", role: "evidence" as const,
+      evidenceKind: "correspondence", filename: "not-enclosed.pdf",
+      sha256: "b".repeat(64), pageCount: 1,
+    };
+    for (const manifest of [[forged], [forged, forged], [null]]) {
+      state.readPersistedDraft.mockResolvedValueOnce({
+        ...state.stored, manifest,
+      } as never);
+      expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+        ready: false, blockers: ["draft_packet_changed"], review: null,
+      });
+    }
+  });
+
+  it("rejects malformed or mismatched metadata for selected enclosures", async () => {
+    const state = await setup();
+    state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
+      ...state.snapshot, selectedEnclosureDocumentIds: ["doc-a"],
+    }));
+    const valid = {
+      documentId: "doc-a", role: "evidence" as const,
+      evidenceKind: "correspondence", filename: "evidence.pdf",
+      sha256: "b".repeat(64), pageCount: 1,
+    };
+    for (const entry of [
+      { ...valid, documentId: "doc-b" },
+      { ...valid, role: "subject_notice" },
+      { ...valid, filename: "" },
+      { ...valid, sha256: "not-a-digest" },
+      { ...valid, pageCount: 0 },
+      { ...valid, evidenceKind: undefined },
+    ]) {
+      state.readPersistedDraft.mockResolvedValueOnce({
+        ...state.stored, selectedEnclosureDocumentIds: ["doc-a"],
+        manifest: [entry],
+      } as never);
+      expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+        ready: false, blockers: ["draft_packet_changed"], review: null,
+      });
+    }
+  });
+
   it("rejects a case whose notice no longer permits mailed correspondence", async () => {
     const state = await setup();
     state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
