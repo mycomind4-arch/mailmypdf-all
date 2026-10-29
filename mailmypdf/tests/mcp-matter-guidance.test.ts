@@ -337,6 +337,7 @@ test("MCP guidance refuses to advance SSDI/SSI matters with ambiguous duplicate 
         documents: [firstNotice, completedForm],
         requiresSourceDocument: true,
         analysis: { documentId: "analyzed-notice", result: {
+          issuer: "Social Security Administration",
           decision: "denied",
           workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
         } },
@@ -418,6 +419,7 @@ test("SSA MCP guidance requires exactly one included valid official form before 
           analysis: {
             documentId: "ssa-denial",
             result: {
+              issuer: "Social Security Administration",
               decision: "denied",
               workflowDetails: { appealStage: "reconsideration", decisionBasis: basis },
             },
@@ -475,11 +477,14 @@ test("MCP SSA guidance fails closed when the analyzed notice is not a confirmed 
   const confirmed = {
     documentId: "ssa-notice",
     result: {
+      issuer: "Social Security Administration",
       decision: "Denied",
       workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
     },
   };
   const invalid = [
+    { label: "unrelated issuer", result: { ...confirmed.result, issuer: "Private Insurance Company" } },
+    { label: "unidentified issuer", result: { ...confirmed.result, issuer: null } },
     { label: "approval notice", result: { ...confirmed.result, decision: "approved" } },
     { label: "unconfirmed decision", result: { ...confirmed.result, decision: null } },
     { label: "hearing appeal", result: {
