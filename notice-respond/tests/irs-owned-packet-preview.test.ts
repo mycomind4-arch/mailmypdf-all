@@ -157,6 +157,26 @@ describe("general IRS owner-scoped draft packet preparation", () => {
     expect(state.createSignedReadUrl).not.toHaveBeenCalled();
   });
 
+  it("rejects separate scanned-clean uploads of identical PDF bytes before signed reads", async () => {
+    const bytes = await generatePlainTextPdf("Duplicated supporting record");
+    const state = setup(bytes, ["record-a", "record-b"]);
+    const first = record(bytes);
+    const second = record(bytes, {
+      document_id: "record-b",
+      storage_path: "owner-a/record-b.pdf",
+      safe_filename: "record-b.pdf",
+      position: 1,
+    });
+    expect(first.storage_path).not.toBe(second.storage_path);
+    expect(first.sha256).toBe(second.sha256);
+    state.loadEligibleDocuments.mockResolvedValueOnce([first, second]);
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("enclosure_duplicate");
+    expect(state.createSignedReadUrl).not.toHaveBeenCalled();
+    expect(state.fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("does not read attachments after a controlling notice change", async () => {
     const bytes = await generatePlainTextPdf("Record");
     const state = setup(bytes);
