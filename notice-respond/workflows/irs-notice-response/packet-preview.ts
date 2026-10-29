@@ -91,6 +91,7 @@ export async function prepareIrsGeneralPacketPreview(
   const letter = await prepareIrsGeneralPdfPreview(input);
   const blockers: IrsGeneralPacketPreviewBlocker[] = letter.ready ? [] : [...letter.blockers];
   const ids = new Set<string>();
+  const storagePaths = new Set<string>();
   const positions = new Set<number>();
   if (!Array.isArray(enclosures) || typeof readBytes !== "function") {
     blockers.push("enclosure_metadata_invalid");
@@ -103,8 +104,13 @@ export async function prepareIrsGeneralPacketPreview(
         blockers.push("enclosure_metadata_invalid");
         continue;
       }
-      if (ids.has(row.document_id) || positions.has(row.position)) blockers.push("enclosure_duplicate");
+      // Two distinct document IDs may alias one stored PDF. Do not enclose
+      // the same object twice or let direct preview callers bypass this guard.
+      if (ids.has(row.document_id) || storagePaths.has(row.storage_path) || positions.has(row.position)) {
+        blockers.push("enclosure_duplicate");
+      }
       ids.add(row.document_id);
+      storagePaths.add(row.storage_path);
       positions.add(row.position);
     }
   }
