@@ -4,6 +4,7 @@ import irsGeneralManifest from "./manifest"
 import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness"
 import { prepareIrsGeneralLetterPreview } from "./letter-preview"
 import { prepareIrsGeneralPdfPreview } from "./pdf-preview"
+import { prepareIrsGeneralPacketPreview } from "./packet-preview"
 export const irsGeneralDefinition = {
   manifest: irsGeneralManifest,
   domain: irsGeneralDomain,
@@ -11,5 +12,6 @@ export const irsGeneralDefinition = {
   mailPacketReadiness: assessIrsGeneralMailPacketReadiness,
   prepareLetterPreview: prepareIrsGeneralLetterPreview,
   preparePdfPreview: prepareIrsGeneralPdfPreview,
+  preparePacketPreview: prepareIrsGeneralPacketPreview,
 } as const
 export default irsGeneralDefinition
