@@ -129,6 +129,25 @@ describe("general IRS notice selected-evidence packet preview", () => {
     expect(vaultReads).toBe(0);
   });
 
+  it("rejects duplicate PDF content stored under distinct IDs and paths before vault access", async () => {
+    // Different uploads can have unique object keys but identical bytes.
+    // Mailing the same selected PDF twice would inflate the packet and postage.
+    const bytes = await generatePlainTextPdf("Repeated supporting record");
+    const first = enclosure("record-a", 0, bytes);
+    const second = enclosure("record-b", 1, bytes);
+    expect(first.document.storage_path).not.toBe(second.document.storage_path);
+    expect(first.document.sha256).toBe(second.document.sha256);
+    let reads = 0;
+    const result = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [first, second],
+      async () => { reads += 1; return bytes; },
+    );
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("enclosure_duplicate");
+    expect(reads).toBe(0);
+  });
+
   it("refuses stale notice or recipient confirmation before fetching attachments", async () => {
     const bytes = await generatePlainTextPdf("Evidence");
     const result = await irsGeneralDefinition.preparePacketPreview(
