@@ -205,7 +205,8 @@ describe("general IRS notice selected-evidence packet preview", () => {
     // The packet builder stamps the filename onto the physical PDF. A stored
     // filename must not visually reverse or hide its true extension in that label.
     const bytes = await generatePlainTextPdf("Supporting evidence");
-    for (const unsafeName of ["statement\u202Efdp.exe", "record\u200B.pdf", "form\u2066.pdf"]) {
+    // C1 controls (U+0080-U+009F) are also invisible/non-printing PDF label content.
+    for (const unsafeName of ["statement\u202Efdp.exe", "record\u200B.pdf", "form\u2066.pdf", "record\u0085.pdf", "record\u009F.pdf"]) {
       const selected = enclosure("record", 0, bytes);
       let vaultReads = 0;
       const result = await irsGeneralDefinition.preparePacketPreview(
