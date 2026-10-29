@@ -73,6 +73,27 @@ test("SSDI and SSI reconsideration reject non-denial and unconfirmed decisions",
   }
 });
 
+test("SSDI and SSI reconsideration reject non-SSA or unverified issuing agencies", () => {
+  const details = { appealStage: "reconsideration", decisionBasis: "medical" };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const issuer of ["Private Insurance Company", "Internal Revenue Service", "SSA and Another Agency", null]) {
+      const wrongAgency = analysis(details);
+      wrongAgency.result.issuer = issuer;
+      assert.throws(
+        () => policy.validateAnalysis!(wrongAgency),
+        /Social Security Administration.*issuer/i,
+        `${workflowId}: ${String(issuer)} must not be treated as an SSA denial`,
+      );
+    }
+    for (const issuer of ["SSA", "Social Security", "Social Security Administration", "U.S. Social Security Administration"]) {
+      const ssaNotice = analysis(details);
+      ssaNotice.result.issuer = issuer;
+      assert.doesNotThrow(() => policy.validateAnalysis!(ssaNotice), `${workflowId}: ${issuer}`);
+    }
+  }
+});
+
 test("the required SSA forms follow the decision basis", () => {
   assert.deepEqual(requiredSsaReconsiderationFormKinds("medical"), ["ssa_561", "ssa_3441", "ssa_827"]);
   assert.deepEqual(requiredSsaReconsiderationFormKinds("nonmedical"), ["ssa_561"]);
