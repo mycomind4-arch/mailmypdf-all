@@ -1,4 +1,5 @@
 import type { PacketManifestEntry } from "@mailmypdf/packet-builder";
+import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness";
 import type { IrsGeneralOwnedDraftStore, IrsGeneralVersionedCaseStore } from "./owned-packet-draft";
 
 /** Authenticated server-only read of a persisted PDF for explicit human review.
@@ -83,9 +84,7 @@ export async function loadIrsGeneralOwnedDraftForReview(
   const originalBasis = basis(snapshot);
   if (!originalBasis) return blocked("owned_draft_unavailable");
   const mail = snapshot.letterInput?.mail;
-  if (!mail || mail.responsePath !== "mail" || mail.mailPermitted !== true ||
-      mail.instructionsConfirmed !== true || mail.recipientAddressConfirmed !== true ||
-      mail.requiresDifferentProcedure === true ||
+  if (!mail || !assessIrsGeneralMailPacketReadiness(mail).canPreviewMailPacket ||
       !SHA256.test(stored.noticeSha256 ?? "") ||
       stored.noticeSha256 !== mail.noticeSha256 ||
       stored.noticeSha256 !== mail.confirmedRecipientNoticeSha256 ||
