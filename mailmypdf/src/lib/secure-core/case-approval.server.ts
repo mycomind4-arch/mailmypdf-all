@@ -272,6 +272,55 @@ function normalizedManifest(value: unknown): Array<{
 }
 
 /**
+ * Verify an approval through an independent, owner-scoped read after the
+ * service-role RPC writes it. An RPC receipt is not durable proof of consent.
+ * This is a readback guard, NOT permission to charge or mail.
+ */
+export function assertRecordedCaseApproval(
+  recorded: unknown,
+  expected: {
+    approvalId: string;
+    caseId: string;
+    ownerId: string;
+    packetSha256: string;
+    manifest: PacketManifestEntry[];
+    responsePages: number;
+    supportingPages: number;
+    recipient: Recipient;
+    mailClass: MailClass;
+    totalCents: number;
+  },
+): void {
+  const invalid = () => new PacketError("Approval persistence could not be verified");
+  if (!recorded || typeof recorded !== "object") throw invalid();
+  const row = recorded as Record<string, unknown>;
+  if (
+    row.id !== expected.approvalId ||
+    row.case_id !== expected.caseId ||
+    row.owner_id !== expected.ownerId ||
+    row.packet_sha256 !== expected.packetSha256 ||
+    row.response_pages !== expected.responsePages ||
+    row.supporting_pages !== expected.supportingPages ||
+    row.mail_class !== expected.mailClass
+  ) throw invalid();
+
+  const quote = row.quote as Record<string, unknown> | null;
+  if (!quote || !Number.isSafeInteger(quote.totalCents) ||
+      quote.totalCents !== expected.totalCents) throw invalid();
+
+  try {
+    // JSONB may reorder object keys and older records may use snake_case.
+    // Compare canonical attachment fields, not raw JSON serialization.
+    if (JSON.stringify(normalizedManifest(row.manifest)) !==
+        JSON.stringify(normalizedManifest(expected.manifest))) throw invalid();
+    if (JSON.stringify(assertRecipient(row.recipient)) !==
+        JSON.stringify(assertRecipient(expected.recipient))) throw invalid();
+  } catch {
+    throw invalid();
+  }
+}
+
+/**
  * Rebuild the exact approved packet immediately before order creation.
  *
  * Approval is not treated as permission to mail arbitrary later state: the
@@ -388,7 +437,33 @@ export async function approvePacket(
 
   if (error) throw new PacketError(error.message);
   const approval = data as unknown as { id: string } | null;
-  if (!approval?.id) throw new PacketError("Approval was not recorded");
+  if (!approval?.id || (input.approvalId && approval.id !== input.approvalId)) {
+    throw new PacketError("Approval was not recorded");
+  }
+
+  // Read through the authenticated RLS client, not the service-role writer.
+  // A plausible RPC receipt alone cannot establish that the correct owner's
+  // exact packet, destination and reviewed price were durably recorded.
+  const { data: recorded, error: readError } = await context.supabase
+    .from("case_approvals")
+    .select("id, case_id, owner_id, packet_sha256, manifest, response_pages, supporting_pages, recipient, mail_class, quote")
+    .eq("id", approval.id)
+    .eq("case_id", input.caseId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+  if (readError) throw new PacketError("Approval persistence could not be verified");
+  assertRecordedCaseApproval(recorded, {
+    approvalId: approval.id,
+    caseId: input.caseId,
+    ownerId: context.user.id,
+    packetSha256: preview.packetSha256,
+    manifest: preview.manifest,
+    responsePages: preview.responsePages,
+    supportingPages: preview.supportingPages,
+    recipient: input.recipient,
+    mailClass: input.mailClass,
+    totalCents: preview.quote.totalCents,
+  });
 
   return { approvalId: approval.id, preview };
 }
