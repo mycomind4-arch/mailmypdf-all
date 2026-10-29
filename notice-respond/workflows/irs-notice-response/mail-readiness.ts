@@ -66,7 +66,10 @@ const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u
 // Conservative US-format preflight, not USPS deliverability validation.
 // IRS processing centers may use a city/state/ZIP without a street or PO box.
 const US_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|AS|GU|MP|PR|VI";
-const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+,\\s*(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
+// USPS Publication 28 permits omission of punctuation on the city/state/ZIP line.
+// Accept both "Austin TX 78714" and "Austin, TX 78714" without relaxing
+// state/ZIP, address-window, or explicit-recipient-confirmation checks.
+const cityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]+(?:,\\s*|\\s+)(?:${US_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
 
 function hasUsPostalDestination(address: string): boolean {
   // A bare CR can render as a new postal line without being recognized by
