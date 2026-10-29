@@ -147,6 +147,12 @@ export async function generatePlainTextPdf(text: string): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
 
   const doc = await PDFDocument.create();
+  // A preview and its later approval may be assembled hours apart. pdf-lib
+  // otherwise embeds the current clock time, changing the standalone PDF's
+  // bytes and SHA-256 even when the reviewed letter text has not changed.
+  // The packet assembler already fixes its own metadata to this epoch.
+  doc.setCreationDate(new Date(0));
+  doc.setModificationDate(new Date(0));
   const font = await doc.embedFont(StandardFonts.TimesRoman);
   const safeText = normalizeForStandardPdfFont(text);
   const sourceLines = splitIntoLines(safeText);
