@@ -42,6 +42,39 @@ describe("general IRS notice draft-only letter preview", () => {
     expect(irsGeneralDefinition.prepareLetterPreview(valid)).toEqual(result);
   });
 
+  it("accepts USPS-standard comma-free city/state/ZIP lines for confirmed IRS and sender addresses", async () => {
+    // USPS Publication 28 section 222 permits omission of punctuation.
+    // A real notice-provided destination must not be blocked merely because
+    // its final postal line is AUSTIN TX 78714 instead of Austin, TX 78714.
+    const recipientAddress = "Internal Revenue Service\nP.O. Box 1234\nAustin TX 78714";
+    const input = {
+      ...valid,
+      mail: { ...valid.mail, recipientAddress, confirmedRecipientAddress: recipientAddress },
+      returnAddress: "100 Example St\nEureka CA 95501",
+    };
+    expect(irsGeneralDefinition.mailPacketReadiness(input.mail)).toEqual({
+      canPreviewMailPacket: true, blockers: [],
+    });
+    const letter = irsGeneralDefinition.prepareLetterPreview(input);
+    expect(letter.ready).toBe(true);
+    if (!letter.ready) throw new Error("Expected comma-free postal lines to be valid");
+    expect(letter.preview.recipientAddress).toBe(recipientAddress);
+    expect(letter.preview.letterText).toContain("Eureka CA 95501");
+
+    const pdf = await irsGeneralDefinition.preparePdfPreview(input);
+    expect(pdf.ready).toBe(true);
+    if (!pdf.ready) throw new Error("Expected a printable IRS PDF");
+    expect(new TextDecoder().decode(pdf.preview.pdfBytes.subarray(0, 5))).toBe("%PDF-");
+
+    const invalid = irsGeneralDefinition.mailPacketReadiness({
+      ...input.mail,
+      recipientAddress: "Internal Revenue Service\nAustin ZZ 78714",
+      confirmedRecipientAddress: "Internal Revenue Service\nAustin ZZ 78714",
+    });
+    expect(invalid.canPreviewMailPacket).toBe(false);
+    expect(invalid.blockers).toContain("recipient_address_incomplete");
+  });
+
   it("refuses to draft for informational, nonmail, and unverified-response notices", () => {
     for (const responsePath of ["record_only", "nonmail", "unresolved"] as const) {
       const result = irsGeneralDefinition.prepareLetterPreview({
