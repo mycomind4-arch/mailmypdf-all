@@ -106,7 +106,7 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
     expect(state.readPersistedDraft).toHaveBeenCalledWith({
       ownerId: "owner-a", matterId: "matter-a", draftId: "draft-1",
     });
-    expect(state.loadOwnedCaseSnapshot).toHaveBeenCalledTimes(3);
+    expect(state.loadOwnedCaseSnapshot).toHaveBeenCalledTimes(4);
     expect(state.approveDraftIfCurrent).toHaveBeenCalledWith(expect.objectContaining({
       ownerId: "owner-a",
       matterId: "matter-a",
@@ -155,6 +155,7 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
   it("rejects a revision advanced after the packet was reassembled", async () => {
     const state = await setup();
     state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
       .mockResolvedValueOnce(state.snapshot)
       .mockResolvedValueOnce(state.snapshot)
       .mockResolvedValueOnce({ ...state.snapshot, revision: "rev-2" });
