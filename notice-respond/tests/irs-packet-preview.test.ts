@@ -147,6 +147,17 @@ describe("general IRS notice selected-evidence packet preview", () => {
     expect(result.ready).toBe(false);
     expect(result.preview).toBeNull();
     expect(result.blockers).toContain("enclosure_metadata_invalid");
+
+    // Legitimate page removal still works: compare the measured included
+    // pages to original metadata minus explicitly excluded original pages.
+    const selected = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [{ ...stale, document: { ...stale.document, page_count: measured.pageCount, excluded_pages: [1] } }],
+      async () => bytes,
+    );
+    expect(selected.ready).toBe(true);
+    if (!selected.ready) throw new Error("Expected page-exclusion packet preview");
+    expect(selected.preview.supportingPages).toBe(measured.pageCount - 1);
   });
 
 });
