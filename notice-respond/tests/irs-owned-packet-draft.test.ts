@@ -54,9 +54,26 @@ function setup() {
     packetSha256: request.packetSha256,
     caseRevision: request.expectedCaseRevision,
   }));
-  const draftStore: IrsGeneralOwnedDraftStore = { persistDraftIfCurrent };
+  const makeReadback = (query: { ownerId: string; matterId: string; draftId: string }) => {
+    const request = persistDraftIfCurrent.mock.calls[0]?.[0];
+    if (!request) throw new Error("No persisted PDF to read");
+    return {
+      ownerId: query.ownerId,
+      matterId: query.matterId,
+      draftId: query.draftId,
+      packetSha256: request.packetSha256,
+      caseRevision: request.expectedCaseRevision,
+      pdfBytes: request.pdfBytes.slice(),
+    };
+  };
+  const readPersistedDraft = vi.fn(async (query: {
+    ownerId: string; matterId: string; draftId: string;
+  }) => makeReadback(query));
+  const draftStore: IrsGeneralOwnedDraftStore = { persistDraftIfCurrent, readPersistedDraft };
   return {
     snapshot,
+    makeReadback,
+    readPersistedDraft,
     loadOwnedCaseSnapshot,
     loadEligibleDocuments,
     persistDraftIfCurrent,
@@ -79,6 +96,9 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     expect(result.draft.status).toBe("persisted_draft_requires_explicit_approval");
     expect(result.draft.caseRevision).toBe("rev-1");
     expect(state.persistDraftIfCurrent).toHaveBeenCalledTimes(1);
+    expect(state.readPersistedDraft).toHaveBeenCalledExactlyOnceWith({
+      ownerId: "owner-a", matterId: "matter-a", draftId: "draft-1",
+    });
     const request = state.persistDraftIfCurrent.mock.calls[0]![0];
     expect(request.ownerId).toBe("owner-a");
     expect(request.matterId).toBe("matter-a");
@@ -203,6 +223,81 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
     expect(result).toEqual({ persisted: false, blockers: ["draft_case_changed"], draft: null });
     expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("requires a trusted owner-scoped PDF readback adapter", async () => {
+    const state = setup();
+    const result = await prepareAndPersistIrsGeneralOwnedDraft({
+      ...state.input,
+      draftStore: { persistDraftIfCurrent: state.persistDraftIfCurrent } as never,
+    });
+    expect(result).toEqual({ persisted: false, blockers: ["owned_case_unavailable"], draft: null });
+    expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("refuses a receipt without independently readable persisted bytes", async () => {
+    const state = setup();
+    state.readPersistedDraft.mockResolvedValueOnce(null as never);
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+    expect(state.readPersistedDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed if the immutable PDF readback fails", async () => {
+    const state = setup();
+    state.readPersistedDraft.mockRejectedValueOnce(new Error("Object store timeout"));
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+  });
+
+  it("rejects wrong owner, matter, draft, revision, or digest on stored readback", async () => {
+    for (const mismatch of [
+      { ownerId: "owner-b" },
+      { matterId: "matter-b" },
+      { draftId: "draft-b" },
+      { caseRevision: "rev-2" },
+      { packetSha256: "b".repeat(64) },
+    ]) {
+      const state = setup();
+      state.readPersistedDraft.mockImplementationOnce(async (query) => ({
+        ...state.makeReadback(query),
+        ...mismatch,
+      }));
+      const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+      expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+    }
+  });
+
+  it("rejects corrupted or missing stored PDF bytes despite a matching receipt", async () => {
+    for (const pdfBytes of [new Uint8Array([1, 2, 3]), null]) {
+      const state = setup();
+      state.readPersistedDraft.mockImplementationOnce(async (query) => ({
+        ...state.makeReadback(query),
+        pdfBytes,
+      } as never));
+      const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+      expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+    }
+  });
+
+  it("rejects same-length tampered PDF bytes with a matching stored hash claim", async () => {
+    const state = setup();
+    state.readPersistedDraft.mockImplementationOnce(async (query) => {
+      const readback = state.makeReadback(query);
+      const pdfBytes = readback.pdfBytes.slice();
+      pdfBytes[0] = pdfBytes[0] === 0x25 ? 0x26 : 0x25;
+      return { ...readback, pdfBytes };
+    });
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+  });
+
+  it("does not read a draft after a failed compare-and-set write", async () => {
+    const state = setup();
+    state.persistDraftIfCurrent.mockResolvedValueOnce(null as never);
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result.persisted).toBe(false);
+    expect(state.readPersistedDraft).not.toHaveBeenCalled();
   });
 
   it("exposes persisted draft through the canonical IRS workflow definition", async () => {
