@@ -50,7 +50,10 @@ export type IrsGeneralPacketPreviewResult =
 const SHA256 = /^[a-f0-9]{64}$/i;
 // Filename labels are stamped on the outgoing PDF. Reject invisible and
 // bidirectional controls before reading evidence or rendering its label.
-// The shared PDF builder stamps `Enclosure: <filename>` in an 8pt footer.\n// Keep even wide-glyph filenames short enough to avoid clipping or colliding\n// with the right-aligned `Page N of M` stamp on a US-letter sheet.\nconst SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
+// The shared PDF builder stamps `Enclosure: <filename>` in an 8pt footer.
+// Keep even wide-glyph filenames short enough to avoid clipping or colliding
+// with the right-aligned `Page N of M` stamp on a US-letter sheet.
+const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
 
 function validEnclosure(row: PacketDocumentRow): boolean {
   if (!row || row.role !== "evidence" || !row.document_id?.trim() ||
