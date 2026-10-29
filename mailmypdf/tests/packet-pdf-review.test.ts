@@ -76,6 +76,24 @@ describe("authenticated packet PDF review response (no provider calls)", () => {
     }), /Invalid packet/);
   });
 
+  test("wraps an unbroken case reference across physical PDF pages instead of clipping it", async () => {
+    // Before this regression, a single token wider than the printable area
+    // was emitted as one PDF text draw and extended beyond the page boundary.
+    // 5,000 wide glyphs require multiple pages when each line is bounded.
+    const bytes = await renderResponseLetter("W".repeat(5000));
+    const pdf = await PDFDocument.load(bytes);
+    assert.ok(pdf.getPageCount() > 1, "Long unbroken tokens must wrap into multiple pages");
+
+    // Preview integrity and measured page counts must still agree after wrapping.
+    const response = await packetPdfReviewResponse({
+      bytes, packetSha256: sha256(bytes),
+      responsePages: pdf.getPageCount(), supportingPages: 0,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-response-pages"), String(pdf.getPageCount()));
+    assert.equal(sha256(new Uint8Array(await response.arrayBuffer())), sha256(bytes));
+  });
+
   test("accepts a parsed two-page packet with correct response/supporting split", async () => {
     const letter = await renderResponseLetter("Synthetic IRS notice response.");
     const pdf = await PDFDocument.load(letter);
