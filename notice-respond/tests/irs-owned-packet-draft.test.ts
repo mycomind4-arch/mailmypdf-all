@@ -91,7 +91,7 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     expect(result.draft.packetSha256).toBe(request.packetSha256);
     expect(Object.keys(result.draft)).not.toContain("approvalId");
     expect(Object.keys(result.draft)).not.toContain("mailingId");
-    expect(state.loadOwnedCaseSnapshot).toHaveBeenCalledTimes(3);
+    expect(state.loadOwnedCaseSnapshot).toHaveBeenCalledTimes(4);
   });
 
   it("refuses to build a draft without a trusted case revision", async () => {
@@ -163,6 +163,45 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
       });
     const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
     expect(result).toEqual({ persisted: false, blockers: ["owned_case_changed"], draft: null });
+    expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a revision change after packet assembly even if the letter is identical", async () => {
+    const state = setup();
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce({ ...state.snapshot, revision: "rev-2" });
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_case_changed"], draft: null });
+    expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a packet-relevant edit after the preview's last read", async () => {
+    const state = setup();
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce({
+        ...state.snapshot,
+        letterInput: { ...letterInput, responseBody: "New text after preview." },
+      });
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_case_changed"], draft: null });
+    expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the final revision check is unavailable", async () => {
+    const state = setup();
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce(state.snapshot)
+      .mockRejectedValueOnce(new Error("Database read failed"));
+    const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+    expect(result).toEqual({ persisted: false, blockers: ["draft_case_changed"], draft: null });
     expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
   });
 
