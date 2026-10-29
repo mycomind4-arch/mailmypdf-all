@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import { inspectPacketPdfPageCount } from "@mailmypdf/packet-builder";
 import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import irsGeneralDefinition from "../workflows/irs-notice-response/definition";
 import { prepareIrsGeneralOwnedPacketPreview } from "../workflows/irs-notice-response/owned-packet-preview";
@@ -125,6 +127,37 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
       }
       expect((await loadIrsGeneralOwnedDraftForReview(state.input)).ready).toBe(false);
     }
+  });
+
+  it("rejects a malformed PDF even when its stored digest matches its bytes", async () => {
+    const state = await setup();
+    const pdfBytes = new TextEncoder().encode("%PDF-1.4\\nnot a readable PDF");
+    const packetSha256 = createHash("sha256").update(pdfBytes).digest("hex");
+    state.readPersistedDraft.mockResolvedValueOnce({
+      ...state.stored, pdfBytes, packetSha256,
+    });
+    expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+      ready: false, blockers: ["draft_integrity_failed"], review: null,
+    });
+  });
+
+  it("rejects a packet with no room for the claimed enclosure pages", async () => {
+    const state = await setup();
+    state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
+      ...state.snapshot, selectedEnclosureDocumentIds: ["doc-a"],
+    }));
+    const pageCount = await inspectPacketPdfPageCount(state.preview.pdfBytes);
+    state.readPersistedDraft.mockResolvedValueOnce({
+      ...state.stored,
+      selectedEnclosureDocumentIds: ["doc-a"],
+      manifest: [{
+        documentId: "doc-a", role: "evidence", evidenceKind: "correspondence",
+        filename: "evidence.pdf", sha256: "b".repeat(64), pageCount,
+      }],
+    });
+    expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+      ready: false, blockers: ["draft_integrity_failed"], review: null,
+    });
   });
 
   it("rejects stale revisions, changed notices, destinations and enclosures", async () => {

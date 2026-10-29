@@ -1,4 +1,4 @@
-import type { PacketManifestEntry } from "@mailmypdf/packet-builder";
+import { inspectPacketPdfPageCount, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness";
 import type { IrsGeneralOwnedDraftStore, IrsGeneralVersionedCaseStore } from "./owned-packet-draft";
 
@@ -146,6 +146,21 @@ export async function loadIrsGeneralOwnedDraftForReview(
       byte.toString(16).padStart(2, "0")).join("");
     if (digest !== stored.packetSha256) return blocked("draft_integrity_failed");
   } catch { return blocked("draft_integrity_failed"); }
+
+  // Verify PDF structure and page budget, not just the stored digest.
+  // There must be at least one response-letter page in addition to all
+  // enclosure pages listed in the independently persisted manifest.
+  const supportingPages = stored.manifest.reduce((sum, entry) => sum + entry.pageCount, 0);
+  if (!Number.isSafeInteger(supportingPages) || supportingPages >= 400) {
+    return blocked("draft_packet_changed");
+  }
+  try {
+    if (await inspectPacketPdfPageCount(pdfBytes) <= supportingPages) {
+      return blocked("draft_integrity_failed");
+    }
+  } catch {
+    return blocked("draft_integrity_failed");
+  }
 
   try {
     const latest = await input.caseStore.loadOwnedCaseSnapshot({

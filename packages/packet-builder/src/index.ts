@@ -272,6 +272,34 @@ const MAX_PACKET_PAGES = 400;
 
 export class PacketError extends Error {}
 
+/**
+ * Parse a persisted packet before presenting it for exact-document review.
+ * A matching digest alone does not establish a readable, unencrypted PDF.
+ * This performs no approval, payment, or mailing.
+ */
+export async function inspectPacketPdfPageCount(bytes: Uint8Array): Promise<number> {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 5 ||
+      bytes.length > 20 * 1024 * 1024) {
+    throw new PacketError("Stored packet PDF is invalid");
+  }
+  try {
+    const { PDFDocument } = await loadPdfLib();
+    const pdf = await PDFDocument.load(bytes, {
+      ignoreEncryption: false,
+      throwOnInvalidObject: true,
+      updateMetadata: false,
+    });
+    const pages = pdf.getPageCount();
+    if (pdf.isEncrypted || !Number.isSafeInteger(pages) ||
+        pages < 1 || pages > MAX_PACKET_PAGES) {
+      throw new Error("Invalid PDF page count");
+    }
+    return pages;
+  } catch {
+    throw new PacketError("Stored packet PDF is not readable");
+  }
+}
+
 export interface PacketDocumentRow {
   document_id: string;
   role: "subject_notice" | "evidence";
