@@ -284,4 +284,35 @@ describe("general IRS notice selected-evidence packet preview", () => {
     expect(ordinary.ready).toBe(true);
   });
 
+  it("fails closed on malformed persisted enclosure identity and filename metadata before storage reads", async () => {
+    // A document-store adapter may return malformed JSON despite the TypeScript
+    // contract. Never throw or stamp coerced values onto a physical-mail PDF.
+    const bytes = await generatePlainTextPdf("Supporting record");
+    const selected = enclosure("record", 0, bytes);
+    const malformed = [
+      { document_id: 42 },
+      { document_id: {} },
+      { storage_path: 42 },
+      { storage_path: {} },
+      { safe_filename: 42 },
+      { safe_filename: {} },
+    ];
+    for (const change of malformed) {
+      let reads = 0;
+      const document = {
+        ...selected.document,
+        ...change,
+      } as unknown as IrsGeneralSelectedEnclosure["document"];
+      const result = await irsGeneralDefinition.preparePacketPreview(
+        input,
+        [{ ...selected, document }],
+        async () => { reads += 1; return bytes; },
+      );
+      expect(result.ready).toBe(false);
+      expect(result.preview).toBeNull();
+      expect(result.blockers).toContain("enclosure_metadata_invalid");
+      expect(reads).toBe(0);
+    }
+  });
+
 });
