@@ -93,6 +93,7 @@ export async function prepareIrsGeneralPacketPreview(
   const ids = new Set<string>();
   const storagePaths = new Set<string>();
   const contentSelections = new Set<string>();
+  const selectedPagesByHash = new Map<string, PacketDocumentRow[]>();
   const positions = new Set<number>();
   if (!Array.isArray(enclosures) || typeof readBytes !== "function") {
     blockers.push("enclosure_metadata_invalid");
@@ -110,14 +111,31 @@ export async function prepareIrsGeneralPacketPreview(
       // Different storage paths can still hold byte-for-byte identical PDFs.
       // Reject duplicate included page selections before signing or reading.
       // Distinct excluded-page selections remain valid when intentionally split.
-      const contentSelection = `${row.sha256.toLowerCase()}:${[...(row.excluded_pages ?? [])].sort((a, b) => a - b).join(",")}`;
+      const contentHash = row.sha256.toLowerCase();
+      const contentSelection = `${contentHash}:${[...(row.excluded_pages ?? [])].sort((a, b) => a - b).join(",")}`;
+      const priorSelections = selectedPagesByHash.get(contentHash) ?? [];
+      // Different exclusion lists can still include the same original page.
+      // For identical bytes, only permit splits proven disjoint by trusted
+      // page-count metadata. Unknown or conflicting counts fail closed.
+      const overlappingPages = priorSelections.some((prior) => {
+        if (row.page_count == null || prior.page_count == null ||
+            row.page_count !== prior.page_count) return true;
+        const excludedUnion = new Set([
+          ...(prior.excluded_pages ?? []),
+          ...(row.excluded_pages ?? []),
+        ]);
+        return excludedUnion.size < row.page_count;
+      });
       if (ids.has(row.document_id) || storagePaths.has(row.storage_path) ||
-          contentSelections.has(contentSelection) || positions.has(row.position)) {
+          contentSelections.has(contentSelection) || overlappingPages ||
+          positions.has(row.position)) {
         blockers.push("enclosure_duplicate");
       }
       ids.add(row.document_id);
       storagePaths.add(row.storage_path);
       contentSelections.add(contentSelection);
+      priorSelections.push(row);
+      selectedPagesByHash.set(contentHash, priorSelections);
       positions.add(row.position);
     }
   }
