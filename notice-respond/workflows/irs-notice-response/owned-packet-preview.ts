@@ -54,7 +54,7 @@ export interface IrsGeneralOwnedPacketPreviewInput {
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function ownerScopedPath(ownerId: string, path: string): boolean {
-  if (!path.startsWith(ownerId + "/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
+  if (typeof path !== "string" || !path.startsWith(ownerId + "/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
     return false;
   }
   return path.slice(ownerId.length + 1).split("/").every(
@@ -71,7 +71,8 @@ function ownerScopedPath(ownerId: string, path: string): boolean {
 export async function prepareIrsGeneralOwnedPacketPreview(
   input: IrsGeneralOwnedPacketPreviewInput,
 ): Promise<IrsGeneralOwnedPacketPreviewResult> {
-  if (!SAFE_ID.test(input?.ownerId ?? "") || !SAFE_ID.test(input?.matterId ?? "") ||
+  if (typeof input?.ownerId !== "string" || typeof input?.matterId !== "string" ||
+      !SAFE_ID.test(input.ownerId) || !SAFE_ID.test(input.matterId) ||
       !input.caseStore || !input.documentStore) {
     return { ready: false, blockers: ["owned_case_unavailable"], preview: null };
   }
