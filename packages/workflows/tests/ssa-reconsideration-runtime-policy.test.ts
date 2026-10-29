@@ -223,6 +223,34 @@ test("SSDI and SSI packets reject duplicate included supplemental evidence while
   }
 });
 
+test("SSDI and SSI official forms cannot reuse the analyzed denial notice PDF", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const basis of ["medical", "nonmedical"] as const) {
+      const source = form("notice", {
+        role: "subject_notice", evidenceKind: null, included: false,
+      });
+      const requiredKinds = requiredSsaReconsiderationFormKinds(basis);
+      const currentAnalysis = analysis({ appealStage: "reconsideration", decisionBasis: basis });
+      const separateForms = requiredKinds.map((kind) => form(kind));
+      assert.doesNotThrow(
+        () => policy.validateDocumentsBeforePacket!([source, ...separateForms], currentAnalysis),
+        `${workflowId}: distinct completed forms are valid`,
+      );
+      for (const reusedKind of requiredKinds) {
+        const attachments = separateForms.map((document) =>
+          document.evidenceKind === reusedKind ? { ...document, documentId: source.documentId } : document,
+        );
+        assert.throws(
+          () => policy.validateDocumentsBeforePacket!([source, ...attachments], currentAnalysis),
+          /denial notice/i,
+          `${workflowId}: ${reusedKind} must not be the denial notice PDF`,
+        );
+      }
+    }
+  }
+});
+
 test("non-medical SSI and SSDI packets require an included clean SSA-561 PDF", () => {
   const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
