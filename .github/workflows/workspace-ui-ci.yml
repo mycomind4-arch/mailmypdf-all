@@ -279,6 +279,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install section dependencies
+        # Section builds do not execute local ONNX inference. Avoid an unrelated
+        # GPU binary postinstall download that can time out before compilation.
+        env:
+          npm_config_onnxruntime_node_install: skip
         shell: bash
         run: |
           # The legal-defense section needs only its own package and design-system.
