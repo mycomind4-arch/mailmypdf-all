@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import irsGeneralDefinition from "../workflows/irs-notice-response/definition";
 import { describe, expect, it, vi } from "vitest";
 import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import type { IrsGeneralLetterPreviewInput } from "../workflows/irs-notice-response/letter-preview";
@@ -144,4 +145,18 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     expect(result).toEqual({ persisted: false, blockers: ["owned_case_changed"], draft: null });
     expect(state.persistDraftIfCurrent).not.toHaveBeenCalled();
   });
+
+  it("exposes persisted draft through the canonical IRS workflow definition", async () => {
+    // The factory/host must be able to reach the real persistence boundary
+    // through the registered workflow definition, not just a direct import.
+    const state = setup();
+    const result = await irsGeneralDefinition.prepareAndPersistOwnedDraft(state.input);
+    expect(result.persisted).toBe(true);
+    if (!result.persisted) throw new Error("Expected a persisted draft");
+    expect(result.draft.status).toBe("persisted_draft_requires_explicit_approval");
+    expect(state.persistDraftIfCurrent).toHaveBeenCalledTimes(1);
+    expect(Object.keys(result.draft)).not.toContain("approvalId");
+    expect(Object.keys(result.draft)).not.toContain("mailingId");
+  });
+
 });
