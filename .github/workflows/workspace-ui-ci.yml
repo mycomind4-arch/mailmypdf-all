@@ -191,6 +191,8 @@ jobs:
         run: pnpm --filter ./mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
         run: node --test mailmypdf/tests/secure-workflow-fulfillment.test.mjs
+      - name: Verify authenticated exact PDF packet review without provider actions
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/packet-pdf-review.test.ts
       - name: Build secure workflow package dependencies
         run: pnpm --filter ./mailmypdf run prebuild
       - name: Verify executable notice workflow runtimes
