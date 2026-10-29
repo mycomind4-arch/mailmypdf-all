@@ -55,6 +55,13 @@ const SHA256 = /^[a-f0-9]{64}$/i;
 // with the right-aligned `Page N of M` stamp on a US-letter sheet.
 const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
 
+/** Shared guard for filenames stamped onto the mailed PDF and displayed in
+ * independently stored customer-review manifests. Never trust a persisted
+ * label merely because its PDF digest matches. */
+export function isSafeIrsEnclosureFilename(value: unknown): value is string {
+  return typeof value === "string" && !!value.trim() && SAFE_FILENAME.test(value);
+}
+
 function validEnclosure(row: PacketDocumentRow): boolean {
   // Persisted document rows cross a runtime trust boundary. Optional chaining
   // does not protect .trim() on numbers/objects, and RegExp.test coerces a
@@ -62,7 +69,7 @@ function validEnclosure(row: PacketDocumentRow): boolean {
   if (!row || row.role !== "evidence" ||
       typeof row.document_id !== "string" || !row.document_id.trim() ||
       typeof row.storage_path !== "string" || !row.storage_path.trim() ||
-      typeof row.safe_filename !== "string" || !SAFE_FILENAME.test(row.safe_filename) ||
+      !isSafeIrsEnclosureFilename(row.safe_filename) ||
       typeof row.sha256 !== "string" || !SHA256.test(row.sha256) ||
       !Number.isSafeInteger(row.position) || row.position < 0 ||
       !["application/pdf", "image/png", "image/jpeg"].includes(row.mime_type)) return false;
