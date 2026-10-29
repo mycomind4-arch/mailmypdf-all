@@ -176,6 +176,27 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
     }
   });
 
+  it("keeps the exact reviewed packet approvable after the wall clock advances", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-29T10:00:00.000Z"));
+      const state = setup();
+      const review = await persistAndReview(state);
+      vi.setSystemTime(new Date("2026-11-02T10:00:00.000Z"));
+      const result = await irsGeneralDefinition.approveOwnedDraft({
+        ownerId, matterId, draftId: review.draftId,
+        reviewedPacketSha256: review.packetSha256,
+        reviewedRecipientAddress: review.recipientAddress,
+        caseStore: state.caseStore, documentStore: state.documentStore,
+        draftStore: state.draftStore, approvalStore: state.approvalStore,
+      });
+      expect(result.approved).toBe(true);
+      expect(state.approvals.size).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects approval if the case revision changes after review", async () => {
     const state = setup();
     const review = await persistAndReview(state);
