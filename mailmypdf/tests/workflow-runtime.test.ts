@@ -217,13 +217,15 @@ test("SSA reconsideration workflows resolve under the ids their start pages send
 
 test("stored analysis keeps the SSA appeal level and basis the runtime policy gates on", () => {
   const policy = platformWorkflowRuntimePolicyFor("appeal-ssdi-denial")!;
-  const stored = (details: Record<string, unknown>) => ({
+  const stored = (details: Record<string, unknown>, issuer: string | null = "Social Security Administration") => ({
     version: 1, documentId: "d", model: "m", createdAt: "2026-09-22T00:00:00Z",
-    result: validateNoticeAnalysis({ ...analysis, workflowDetails: details }),
+    result: validateNoticeAnalysis({ ...analysis, issuer, workflowDetails: details }),
   });
   const reloaded = stored({ appealStage: "reconsideration", decisionBasis: "medical" });
   assert.equal(reloaded.result.workflowDetails.appealStage, "reconsideration");
   assert.doesNotThrow(() => policy.validateAnalysis?.(reloaded as never));
+  assert.throws(() => policy.validateAnalysis?.(stored({ appealStage: "reconsideration", decisionBasis: "medical" }, null) as never), /Social Security Administration/);
+  assert.throws(() => policy.validateAnalysis?.(stored({ appealStage: "reconsideration", decisionBasis: "medical" }, "Private Insurance Company") as never), /Social Security Administration/);
   assert.throws(() => policy.validateAnalysis?.(stored({ appealStage: "hearing", decisionBasis: "medical" }) as never), /not hearing/);
   assert.throws(() => policy.validateAnalysis?.(stored({}) as never), /appeal level is not confirmed/);
   assert.throws(() => validateNoticeAnalysis({ ...analysis, workflowDetails: { appealStage: "supreme_court" } }), /invalid/);
