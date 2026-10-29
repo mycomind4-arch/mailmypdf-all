@@ -73,7 +73,13 @@ function hasUsPostalDestination(address: string): boolean {
   // the LF/CRLF parser. Normalize CRLF but reject any remaining CR.
   const normalizedAddress = address.replace(/\r\n/g, "\n");
   if (normalizedAddress.includes("\r") || UNRESOLVED_ADDRESS_MARKERS.test(address) || UNSAFE_ADDRESS_CONTROLS.test(address)) return false;
-  const lines = normalizedAddress.split("\n").map((line) => line.trim()).filter(Boolean);
+  // A postal block must fit a physical address window. Filtering blank lines
+  // previously let arbitrarily tall blocks pass; oversized lines could also
+  // overflow the envelope/PDF even after the exact address was confirmed.
+  const rawLines = normalizedAddress.split("\n");
+  if (normalizedAddress.length > 600 || rawLines.length < 2 || rawLines.length > 8 ||
+      rawLines.some((line) => !line.trim() || line.length > 100)) return false;
+  const lines = rawLines.map((line) => line.trim());
   // Conflicting city/state/ZIP lines are ambiguous on a physical envelope.
   // The final line must be the only postal destination in the block.
   return lines.length >= 2 &&
