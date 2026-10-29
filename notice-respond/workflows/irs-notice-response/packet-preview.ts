@@ -48,7 +48,9 @@ export type IrsGeneralPacketPreviewResult =
     };
 
 const SHA256 = /^[a-f0-9]{64}$/i;
-const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f]{1,120}$/;
+// Filename labels are stamped on the outgoing PDF. Reject invisible and
+// bidirectional controls before reading evidence or rendering its label.
+const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,120}$/;
 
 function validEnclosure(row: PacketDocumentRow): boolean {
   if (!row || row.role !== "evidence" || !row.document_id?.trim() ||
