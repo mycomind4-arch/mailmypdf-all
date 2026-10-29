@@ -272,8 +272,17 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
-        run: pnpm install --frozen-lockfile
+      - name: Install section dependencies
+        shell: bash
+        run: |
+          # The legal-defense section needs only its own package and design-system.
+          # A full install also runs unrelated onnxruntime-node postinstall downloads,
+          # which have timed out before legal-defense compilation can start.
+          if [[ "${{ matrix.app }}" == "legal-defense" ]]; then
+            pnpm --filter @mailmypdf/legal-defense... install --frozen-lockfile
+          else
+            pnpm install --frozen-lockfile
+          fi
       - name: Build root section package when present
         shell: bash
         run: |
