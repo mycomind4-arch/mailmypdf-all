@@ -237,4 +237,31 @@ describe("general IRS owner-scoped draft packet preparation", () => {
     expect(result.preview.manifest).toEqual([]);
     expect(state.fetchImpl).not.toHaveBeenCalled();
   });
+  it("discards an assembled packet when selected evidence becomes ineligible during storage reads", async () => {
+    const bytes = await generatePlainTextPdf("Previously clean record");
+    const state = setup(bytes);
+    // The initial scan-cleared lookup succeeds; a quarantine/revocation happens
+    // while the signed PDF bytes are being assembled.
+    state.loadEligibleDocuments
+      .mockResolvedValueOnce([record(bytes)])
+      .mockResolvedValueOnce([]);
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["enclosure_not_eligible"], preview: null });
+    expect(state.fetchImpl).toHaveBeenCalledTimes(1);
+    expect(state.loadEligibleDocuments).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards an assembled packet when eligible evidence metadata changes mid-preview", async () => {
+    const bytes = await generatePlainTextPdf("Original supporting record");
+    const state = setup(bytes);
+    // A changed digest or storage object must invalidate the in-flight draft,
+    // even when the case's selected document IDs remain unchanged.
+    state.loadEligibleDocuments
+      .mockResolvedValueOnce([record(bytes)])
+      .mockResolvedValueOnce([record(bytes, { sha256: "b".repeat(64) })]);
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["enclosure_not_eligible"], preview: null });
+    expect(state.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
 });
