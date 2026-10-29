@@ -151,12 +151,28 @@ export async function renderResponseLetter(bodyText: string): Promise<Uint8Array
     let current = "";
     for (const word of paragraph.split(/\s+/)) {
       const candidate = current ? `${current} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, FONT_SIZE) > usableWidth && current) {
-        lines.push(current);
-        current = word;
-      } else {
+      if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= usableWidth) {
         current = candidate;
+        continue;
       }
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      // A single long URL, reference number or unbroken token can exceed the
+      // printable width. Split it at glyph boundaries rather than drawing it
+      // off the right edge of the physical page.
+      let segment = "";
+      for (const glyph of word) {
+        const next = segment + glyph;
+        if (segment && font.widthOfTextAtSize(next, FONT_SIZE) > usableWidth) {
+          lines.push(segment);
+          segment = glyph;
+        } else {
+          segment = next;
+        }
+      }
+      current = segment;
     }
     lines.push(current);
   }
