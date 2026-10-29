@@ -131,6 +131,19 @@ function assertRequiredForms(
     }
     usedDocumentIds.set(found.documentId, kind);
   }
+
+  // The matter API can attach the same owned PDF under different evidence
+  // kinds. Checking only the required SSA forms misses an included copy
+  // relabeled as supplemental evidence, which would mail the PDF twice.
+  // Historical excluded uploads do not contribute to the outgoing packet.
+  const includedEvidenceIds = new Set<string>();
+  for (const document of documents) {
+    if (document.role !== "evidence" || !document.included) continue;
+    if (includedEvidenceIds.has(document.documentId)) {
+      throw new Error("The same uploaded PDF appears in duplicate included SSA attachments; remove the extra selection.");
+    }
+    includedEvidenceIds.add(document.documentId);
+  }
 }
 
 function assertCurrentSourceAnalysis(
