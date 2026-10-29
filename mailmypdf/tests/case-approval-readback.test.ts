@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   assertRecordedCaseApproval,
+  assertRecipient,
   assertMailableDraftText,
   type Recipient,
   type PacketPreview,
@@ -132,5 +133,42 @@ describe("direct v2 case packet and approval draft gate (no provider calls)", ()
     for (const value of ["", "   ", null, undefined, 123]) {
       assert.throws(() => assertMailableDraftText(value), /draft is empty/);
     }
+  });
+});
+
+describe("direct v2 case recipient mailing boundary (no provider calls)", () => {
+  test("preserves valid US, territory, and military postal destinations", () => {
+    assert.deepEqual(assertRecipient({
+      ...recipient, state: " tx ", postal: "78714-1234", line2: "Suite 5",
+    }), { ...recipient, state: "TX", postal: "78714-1234", line2: "Suite 5" });
+    for (const state of ["CA", "PR", "DC", "AE", "AP", "AA"]) {
+      assert.equal(assertRecipient({ ...recipient, state }).state, state);
+    }
+  });
+
+  test("rejects forged envelope lines and invisible formatting in every recipient field", () => {
+    for (const field of ["name", "line1", "city", "state", "postal", "line2"] as const) {
+      for (const injection of ["\nFORGED ADDRESS", "\rFORGED ADDRESS", "\u202eFORGED", "\u0085FORGED"]) {
+        assert.throws(
+          () => assertRecipient({ ...recipient, [field]: injection }),
+          /unsafe or unfinished/,
+          `${field}: ${JSON.stringify(injection)}`,
+        );
+      }
+    }
+  });
+
+  test("rejects placeholders, invalid state codes and malformed optional suite lines", () => {
+    for (const field of ["name", "line1", "city", "line2"] as const) {
+      assert.throws(() => assertRecipient({ ...recipient, [field]: "[YOUR ADDRESS]" }), /unsafe or unfinished/);
+    }
+    for (const state of ["ZZ", "XX", "UK", "C1"]) {
+      assert.throws(() => assertRecipient({ ...recipient, state }), /state is not a supported/);
+    }
+    for (const line2 of [123, { suite: "5" }, ["Suite 5"]]) {
+      assert.throws(() => assertRecipient({ ...recipient, line2 }), /line2 must be text/);
+    }
+    assert.throws(() => assertRecipient({ ...recipient, line2: "A".repeat(201) }), /line2 contains unsafe/);
+    assert.equal(assertRecipient({ ...recipient, line2: "" }).line2, null);
   });
 });
