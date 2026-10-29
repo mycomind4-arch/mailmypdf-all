@@ -196,6 +196,33 @@ test("SSA medical packets reject one PDF relabeled as different required officia
   }
 });
 
+test("SSDI and SSI packets reject duplicate included supplemental evidence while allowing excluded history", () => {
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const [basis, required] of [
+      [nonmedical, [form("ssa_561")]],
+      [medical, [form("ssa_561"), form("ssa_3441"), form("ssa_827")]],
+    ] as const) {
+      const repeatedForm = form("other-evidence", {
+        documentId: "ssa_561", evidenceKind: "other", position: 4,
+      });
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!([...required, repeatedForm], basis),
+        /duplicate included|same uploaded PDF/i,
+        `${workflowId}: a required form must not be mailed twice under another evidence kind`,
+      );
+      assert.doesNotThrow(
+        () => policy.validateDocumentsBeforePacket!([
+          ...required, { ...repeatedForm, included: false },
+        ], basis),
+        `${workflowId}: excluded historical evidence must not block a valid packet`,
+      );
+    }
+  }
+});
+
 test("non-medical SSI and SSDI packets require an included clean SSA-561 PDF", () => {
   const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
