@@ -456,6 +456,10 @@ export async function approvePacket(
   },
   context: AuthenticatedUserContext,
 ): Promise<{ approvalId: string; preview: PacketPreview }> {
+  // The generic workflow-runtime host also calls this function directly.
+  // Validate before the service-role approval RPC, not only in the v2 route
+  // or during the later durable-record readback.
+  const recipient = assertRecipient(input.recipient);
   const preview = await previewPacket(input.caseId, input.mailClass, context);
   assertReviewedPacket(input.reviewed, {
     packetSha256: preview.packetSha256,
@@ -469,7 +473,7 @@ export async function approvePacket(
     p_manifest: preview.manifest as unknown as never,
     p_response_pages: preview.responsePages,
     p_supporting_pages: preview.supportingPages,
-    p_recipient: input.recipient as unknown as never,
+    p_recipient: recipient as unknown as never,
     p_mail_class: input.mailClass,
     p_quote: preview.quote as unknown as never,
     p_approval_id: input.approvalId ?? null,
@@ -500,7 +504,7 @@ export async function approvePacket(
     manifest: preview.manifest,
     responsePages: preview.responsePages,
     supportingPages: preview.supportingPages,
-    recipient: input.recipient,
+    recipient,
     mailClass: input.mailClass,
     totalCents: preview.quote.totalCents,
   });
