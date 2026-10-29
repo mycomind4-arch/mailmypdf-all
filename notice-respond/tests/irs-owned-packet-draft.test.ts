@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
+import type { IrsGeneralLetterPreviewInput } from "../workflows/irs-notice-response/letter-preview";
 import {
   prepareAndPersistIrsGeneralOwnedDraft,
   type IrsGeneralDraftPersistenceRequest,
@@ -8,7 +9,7 @@ import {
 } from "../workflows/irs-notice-response/owned-packet-draft";
 
 const recipient = "Internal Revenue Service\nP.O. Box 1234\nAustin, TX 78714";
-const letterInput = {
+const letterInput: IrsGeneralLetterPreviewInput = {
   mail: {
     noticeDocumentId: "notice-current",
     analyzedNoticeDocumentId: "notice-current",
@@ -30,7 +31,7 @@ const letterInput = {
   taxpayerName: "Example Taxpayer",
   returnAddress: "100 Example St\nEureka, CA 95501",
   responseBody: "Please review this IRS notice response.",
-} as const;
+};
 
 function setup() {
   const snapshot = {
