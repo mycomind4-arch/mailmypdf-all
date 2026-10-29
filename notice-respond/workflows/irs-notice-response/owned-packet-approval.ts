@@ -123,8 +123,9 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 export async function approveIrsGeneralOwnedDraft(
   input: IrsGeneralOwnedApprovalInput,
 ): Promise<IrsGeneralOwnedApprovalResult> {
-  if (!input || !SAFE_ID.test(input.ownerId ?? "") || !SAFE_ID.test(input.matterId ?? "") ||
-      !SAFE_ID.test(input.draftId ?? "") ||
+  if (!input || typeof input.ownerId !== "string" || !SAFE_ID.test(input.ownerId) ||
+      typeof input.matterId !== "string" || !SAFE_ID.test(input.matterId) ||
+      typeof input.draftId !== "string" || !SAFE_ID.test(input.draftId) ||
       typeof input.caseStore?.loadOwnedCaseSnapshot !== "function" ||
       typeof input.draftStore?.readPersistedDraft !== "function" ||
       typeof input.approvalStore?.approveDraftIfCurrent !== "function" ||
@@ -132,7 +133,8 @@ export async function approveIrsGeneralOwnedDraft(
       !input.documentStore) {
     return { approved: false, blockers: ["approval_unavailable"], approval: null };
   }
-  if (!SHA256.test(input.reviewedPacketSha256 ?? "") ||
+  if (typeof input.reviewedPacketSha256 !== "string" ||
+      !SHA256.test(input.reviewedPacketSha256) ||
       typeof input.reviewedRecipientAddress !== "string" || !input.reviewedRecipientAddress.trim()) {
     return { approved: false, blockers: ["explicit_packet_review_required"], approval: null };
   }
@@ -152,9 +154,10 @@ export async function approveIrsGeneralOwnedDraft(
     return { approved: false, blockers: ["owned_draft_unavailable"], approval: null };
   }
   if (!stored || stored.ownerId !== input.ownerId || stored.matterId !== input.matterId ||
-      stored.draftId !== input.draftId || !SHA256.test(stored.packetSha256 ?? "") ||
+      stored.draftId !== input.draftId ||
+      typeof stored.packetSha256 !== "string" || !SHA256.test(stored.packetSha256) ||
       !(stored.pdfBytes instanceof Uint8Array) || stored.pdfBytes.length === 0 ||
-      !initial || !SAFE_ID.test(initial.revision ?? "") ||
+      !initial || typeof initial.revision !== "string" || !SAFE_ID.test(initial.revision) ||
       !Array.isArray(initial.selectedEnclosureDocumentIds)) {
     return { approved: false, blockers: ["owned_draft_unavailable"], approval: null };
   }
