@@ -92,6 +92,7 @@ export async function prepareIrsGeneralPacketPreview(
   const blockers: IrsGeneralPacketPreviewBlocker[] = letter.ready ? [] : [...letter.blockers];
   const ids = new Set<string>();
   const storagePaths = new Set<string>();
+  const contentSelections = new Set<string>();
   const positions = new Set<number>();
   if (!Array.isArray(enclosures) || typeof readBytes !== "function") {
     blockers.push("enclosure_metadata_invalid");
@@ -106,11 +107,17 @@ export async function prepareIrsGeneralPacketPreview(
       }
       // Two distinct document IDs may alias one stored PDF. Do not enclose
       // the same object twice or let direct preview callers bypass this guard.
-      if (ids.has(row.document_id) || storagePaths.has(row.storage_path) || positions.has(row.position)) {
+      // Different storage paths can still hold byte-for-byte identical PDFs.
+      // Reject duplicate included page selections before signing or reading.
+      // Distinct excluded-page selections remain valid when intentionally split.
+      const contentSelection = `${row.sha256.toLowerCase()}:${[...(row.excluded_pages ?? [])].sort((a, b) => a - b).join(",")}`;
+      if (ids.has(row.document_id) || storagePaths.has(row.storage_path) ||
+          contentSelections.has(contentSelection) || positions.has(row.position)) {
         blockers.push("enclosure_duplicate");
       }
       ids.add(row.document_id);
       storagePaths.add(row.storage_path);
+      contentSelections.add(contentSelection);
       positions.add(row.position);
     }
   }
