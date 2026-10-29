@@ -1,5 +1,6 @@
 import { inspectPacketPdfPageCount, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness";
+import { isSafeIrsEnclosureFilename } from "./packet-preview";
 import type { IrsGeneralOwnedDraftStore, IrsGeneralVersionedCaseStore } from "./owned-packet-draft";
 
 /** Authenticated server-only read of a persisted PDF for explicit human review.
@@ -66,7 +67,7 @@ function validReviewManifest(
     if (typeof entry.documentId !== "string" ||
         !selected.has(entry.documentId) || seen.has(entry.documentId) ||
         entry.role !== "evidence" ||
-        typeof entry.filename !== "string" || !entry.filename.trim() ||
+        !isSafeIrsEnclosureFilename(entry.filename) ||
         typeof entry.sha256 !== "string" || !SHA256.test(entry.sha256) ||
         !Number.isSafeInteger(entry.pageCount) || (entry.pageCount ?? 0) < 1 ||
         !(entry.evidenceKind === null ||
