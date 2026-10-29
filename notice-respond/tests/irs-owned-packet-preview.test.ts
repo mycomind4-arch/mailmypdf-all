@@ -264,4 +264,20 @@ describe("general IRS owner-scoped draft packet preparation", () => {
     expect(state.fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+
+  it("rejects two selected evidence IDs that alias the same stored PDF before signing a read", async () => {
+    // Distinct document IDs must not allow the same physical enclosure to be
+    // inserted twice (or billed twice) under a single owner-scoped packet.
+    const bytes = await generatePlainTextPdf("One stored record");
+    const state = setup(bytes, ["record-a", "record-b"]);
+    state.loadEligibleDocuments.mockResolvedValueOnce([
+      record(bytes),
+      record(bytes, { document_id: "record-b", position: 1 }),
+    ]);
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["enclosure_not_eligible"], preview: null });
+    expect(state.createSignedReadUrl).not.toHaveBeenCalled();
+    expect(state.fetchImpl).not.toHaveBeenCalled();
+  });
+
 });
