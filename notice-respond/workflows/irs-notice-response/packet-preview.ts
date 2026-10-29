@@ -53,7 +53,7 @@ const SHA256 = /^[a-f0-9]{64}$/i;
 // The shared PDF builder stamps `Enclosure: <filename>` in an 8pt footer.
 // Keep even wide-glyph filenames short enough to avoid clipping or colliding
 // with the right-aligned `Page N of M` stamp on a US-letter sheet.
-const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
+const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
 
 function validEnclosure(row: PacketDocumentRow): boolean {
   if (!row || row.role !== "evidence" || !row.document_id?.trim() ||
