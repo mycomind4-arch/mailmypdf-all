@@ -178,4 +178,30 @@ describe("general IRS notice selected-evidence packet preview", () => {
     }
   });
 
+
+  it("rejects enclosure labels too wide for the physical PDF footer before reading storage", async () => {
+    // The shared packet builder stamps "Enclosure: <filename>" at x=36.
+    // A 100-character wide-glyph filename fits the old 120-character metadata
+    // limit but extends beyond the letter page and can overlap "Page N of M".
+    const bytes = await generatePlainTextPdf("Supporting evidence");
+    const selected = enclosure("record", 0, bytes);
+    let reads = 0;
+    const tooWide = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [{ ...selected, document: { ...selected.document, safe_filename: "W".repeat(100) + ".pdf" } }],
+      async () => { reads += 1; return bytes; },
+    );
+    expect(tooWide.ready).toBe(false);
+    expect(tooWide.blockers).toContain("enclosure_metadata_invalid");
+    expect(reads).toBe(0);
+
+    // A normal, readable enclosure filename remains printable and accepted.
+    const ordinary = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [{ ...selected, document: { ...selected.document, safe_filename: "supporting-record.pdf" } }],
+      async () => bytes,
+    );
+    expect(ordinary.ready).toBe(true);
+  });
+
 });
