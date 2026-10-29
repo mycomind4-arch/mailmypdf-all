@@ -148,6 +148,44 @@ describe("general IRS notice selected-evidence packet preview", () => {
     expect(reads).toBe(0);
   });
 
+  it("rejects overlapping page selections from identical PDF bytes before reading storage", async () => {
+    // Different exclusion lists are not necessarily disjoint. Overlapping
+    // pages would be printed twice and could inflate the real mailing cost.
+    const bytes = await generatePlainTextPdf(
+      Array.from({ length: 130 }, (_, index) => `Evidence line ${index + 1}`).join("\n"),
+    );
+    const { pageCount } = await validatePdfForMailing(bytes);
+    expect(pageCount).toBeGreaterThan(2);
+    const first = enclosure("record-a", 0, bytes);
+    const second = enclosure("record-b", 1, bytes);
+    const firstPages = { ...first, document: {
+      ...first.document, page_count: pageCount, excluded_pages: [pageCount - 1],
+    } };
+    const overlappingPages = { ...second, document: {
+      ...second.document, page_count: pageCount, excluded_pages: [0],
+    } };
+    let reads = 0;
+    const overlap = await irsGeneralDefinition.preparePacketPreview(
+      input, [firstPages, overlappingPages], async () => { reads += 1; return bytes; },
+    );
+    expect(overlap.ready).toBe(false);
+    expect(overlap.blockers).toContain("enclosure_duplicate");
+    expect(reads).toBe(0);
+
+    // A deliberate, nonoverlapping split of one uploaded PDF remains valid.
+    const lastPageOnly = { ...second, document: {
+      ...second.document,
+      page_count: pageCount,
+      excluded_pages: Array.from({ length: pageCount - 1 }, (_, index) => index),
+    } };
+    const split = await irsGeneralDefinition.preparePacketPreview(
+      input, [firstPages, lastPageOnly], async () => bytes,
+    );
+    expect(split.ready).toBe(true);
+    if (!split.ready) throw new Error("Expected disjoint page selections to be printable");
+    expect(split.preview.supportingPages).toBe(pageCount);
+  });
+
   it("refuses stale notice or recipient confirmation before fetching attachments", async () => {
     const bytes = await generatePlainTextPdf("Evidence");
     const result = await irsGeneralDefinition.preparePacketPreview(
