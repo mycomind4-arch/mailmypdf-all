@@ -68,17 +68,40 @@ export function assertReviewedPacket(expected: unknown, actual: ReviewedPacket):
     throw new PacketError("The packet or price changed. Review the updated preview before approving.");
 }
 
+// Postal fields cross an untrusted JSON boundary. A newline or invisible
+// direction-control character can change the envelope's visible destination
+// even when the reviewed recipient object appears unchanged.
+const UNSAFE_RECIPIENT_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
+const USPS_STATE_CODES = new Set(
+  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI AA AE AP".split(" "),
+);
+
 export function assertRecipient(value: unknown): Recipient {
-  const r = value as Partial<Recipient> | null;
-  if (!r) throw new CaseError("A recipient is required");
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new CaseError("A recipient is required");
+  }
+  const r = value as Partial<Recipient>;
   for (const field of ["name", "line1", "city", "state", "postal"] as const) {
     const v = r[field];
     if (typeof v !== "string" || !v.trim()) throw new CaseError(`Recipient ${field} is required`);
     if (v.length > 200) throw new CaseError(`Recipient ${field} is too long`);
+    if (UNSAFE_RECIPIENT_CHARACTER.test(v) || unresolvedPlaceholderMessage(v)) {
+      throw new CaseError(`Recipient ${field} contains unsafe or unfinished text`);
+    }
+  }
+  // Do not silently drop an invalid apartment/suite line: that could turn a
+  // complete address into an undeliverable one without the customer's review.
+  if (r.line2 != null && typeof r.line2 !== "string") {
+    throw new CaseError("Recipient line2 must be text");
+  }
+  if (typeof r.line2 === "string" &&
+      (r.line2.length > 200 || UNSAFE_RECIPIENT_CHARACTER.test(r.line2) ||
+       unresolvedPlaceholderMessage(r.line2))) {
+    throw new CaseError("Recipient line2 contains unsafe or unfinished text");
   }
   const state = r.state!.trim().toUpperCase();
   const postal = r.postal!.trim();
-  if (!/^[A-Z]{2}$/.test(state)) throw new CaseError("Recipient state must be a 2-letter code");
+  if (!USPS_STATE_CODES.has(state)) throw new CaseError("Recipient state is not a supported US postal code");
   if (!/^\d{5}(-\d{4})?$/.test(postal)) throw new CaseError("Recipient ZIP code is invalid");
 
   return {
