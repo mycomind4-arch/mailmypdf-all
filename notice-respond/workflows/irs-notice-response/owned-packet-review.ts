@@ -46,6 +46,38 @@ function basis(value: {
   } catch { return null; }
 }
 
+/**
+ * A stored PDF digest protects its bytes, not the separately persisted list
+ * of enclosures shown beside it in the review UI. Fail closed when that list
+ * contains a missing, extra, duplicate, or malformed attachment. The actual
+ * PDF/attachment equivalence is checked again by the approval reassembly.
+ */
+function validReviewManifest(
+  manifest: unknown,
+  selectedIds: readonly string[],
+): boolean {
+  if (!Array.isArray(manifest) || manifest.length !== selectedIds.length ||
+      new Set(selectedIds).size !== selectedIds.length) return false;
+  const selected = new Set(selectedIds);
+  const seen = new Set<string>();
+  for (const item of manifest) {
+    if (!item || typeof item !== "object") return false;
+    const entry = item as Partial<PacketManifestEntry>;
+    if (typeof entry.documentId !== "string" ||
+        !selected.has(entry.documentId) || seen.has(entry.documentId) ||
+        entry.role !== "evidence" ||
+        typeof entry.filename !== "string" || !entry.filename.trim() ||
+        typeof entry.sha256 !== "string" || !SHA256.test(entry.sha256) ||
+        !Number.isSafeInteger(entry.pageCount) || (entry.pageCount ?? 0) < 1 ||
+        !(entry.evidenceKind === null ||
+          (typeof entry.evidenceKind === "string" && !!entry.evidenceKind.trim()))) {
+      return false;
+    }
+    seen.add(entry.documentId);
+  }
+  return seen.size === selected.size;
+}
+
 /** Read back immutable PDF bytes and current notice facts; never accept a
  * write receipt as evidence of a reviewable draft. Approval separately
  * reassembles and atomically validates the exact packet before recording consent.
@@ -96,7 +128,7 @@ export async function loadIrsGeneralOwnedDraftForReview(
       !Array.isArray(stored.selectedEnclosureDocumentIds) ||
       stored.selectedEnclosureDocumentIds.length !== snapshot.selectedEnclosureDocumentIds.length ||
       stored.selectedEnclosureDocumentIds.some((id, i) => id !== snapshot.selectedEnclosureDocumentIds[i]) ||
-      !Array.isArray(stored.manifest)) {
+      !validReviewManifest(stored.manifest, snapshot.selectedEnclosureDocumentIds)) {
     return blocked("draft_packet_changed");
   }
   if (!(stored.pdfBytes instanceof Uint8Array) ||
