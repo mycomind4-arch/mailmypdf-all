@@ -73,7 +73,7 @@ export function assertReviewedPacket(expected: unknown, actual: ReviewedPacket):
 // even when the reviewed recipient object appears unchanged.
 const UNSAFE_RECIPIENT_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
 const USPS_STATE_CODES = new Set(
-  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI AA AE AP".split(" "),
+  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI FM MH PW AA AE AP".split(" "),
 );
 
 export function assertRecipient(value: unknown): Recipient {
