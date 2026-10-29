@@ -76,6 +76,18 @@ async function setup() {
     caseRevision: request.expectedCaseRevision,
     packetSha256: request.expectedPacketSha256,
   }));
+  const readRecordedApproval = vi.fn(async (query:
+    Parameters<IrsGeneralOwnedApprovalStore["readRecordedApproval"]>[0],
+  ) => ({
+    ...query,
+    caseRevision: "rev-1",
+    packetSha256: preview.packetSha256,
+    reviewedPacketSha256: preview.packetSha256,
+    noticeSha256: preview.sourceNoticeSha256,
+    recipientAddress: recipient,
+    selectedEnclosureDocumentIds: [] as readonly string[],
+    manifest: [...preview.manifest],
+  }));
   const input = {
     ownerId: "owner-a",
     matterId: "matter-a",
@@ -85,12 +97,12 @@ async function setup() {
     caseStore: { loadOwnedCaseSnapshot },
     documentStore,
     draftStore: { readPersistedDraft },
-    approvalStore: { approveDraftIfCurrent },
+    approvalStore: { approveDraftIfCurrent, readRecordedApproval },
   };
   loadOwnedCaseSnapshot.mockClear();
   loadEligibleDocuments.mockClear();
   return { input, snapshot, stored, preview, loadOwnedCaseSnapshot,
-    loadEligibleDocuments, readPersistedDraft, approveDraftIfCurrent };
+    loadEligibleDocuments, readPersistedDraft, approveDraftIfCurrent, readRecordedApproval };
 }
 
 describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", () => {
@@ -119,6 +131,11 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
       expectedPacketSha256: state.preview.packetSha256,
       reviewedPacketSha256: state.preview.packetSha256,
     }));
+    expect(state.readRecordedApproval).toHaveBeenCalledTimes(1);
+    expect(state.readRecordedApproval).toHaveBeenCalledWith({
+      ownerId: "owner-a", matterId: "matter-a",
+      draftId: "draft-1", approvalId: "approval-1",
+    });
   });
 
   it("rejects a changed reviewed digest or recipient before approval", async () => {
@@ -203,6 +220,93 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
     expect(await approveIrsGeneralOwnedDraft(wrongOwner.input)).toEqual({
       approved: false, blockers: ["approval_persistence_unverified"], approval: null,
     });
+  });
+
+  it("requires an independently readable owner-scoped approval store", async () => {
+    const state = await setup();
+    const result = await approveIrsGeneralOwnedDraft({
+      ...state.input,
+      approvalStore: { approveDraftIfCurrent: state.approveDraftIfCurrent } as never,
+    });
+    expect(result).toEqual({ approved: false, blockers: ["approval_unavailable"], approval: null });
+    expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing or unreadable durable approval records", async () => {
+    for (const failure of ["missing", "read-error"]) {
+      const state = await setup();
+      if (failure === "missing") {
+        state.readRecordedApproval.mockResolvedValueOnce(null as never);
+      } else {
+        state.readRecordedApproval.mockRejectedValueOnce(new Error("Approval storage unavailable"));
+      }
+      expect(await approveIrsGeneralOwnedDraft(state.input)).toEqual({
+        approved: false, blockers: ["approval_persistence_unverified"], approval: null,
+      });
+      expect(state.approveDraftIfCurrent).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("rejects wrong owner, matter, draft, approval ID, revision, or PDF digest on readback", async () => {
+    for (const mismatch of [
+      { ownerId: "owner-b" },
+      { matterId: "matter-b" },
+      { draftId: "draft-b" },
+      { approvalId: "approval-b" },
+      { caseRevision: "rev-2" },
+      { packetSha256: "b".repeat(64) },
+      { reviewedPacketSha256: "b".repeat(64) },
+    ]) {
+      const state = await setup();
+      state.readRecordedApproval.mockImplementationOnce(async (query) => ({
+        ...query,
+        caseRevision: "rev-1",
+        packetSha256: state.preview.packetSha256,
+        reviewedPacketSha256: state.preview.packetSha256,
+        noticeSha256: state.preview.sourceNoticeSha256,
+        recipientAddress: recipient,
+        selectedEnclosureDocumentIds: [] as readonly string[],
+        manifest: [...state.preview.manifest],
+        ...mismatch,
+      }));
+      expect(await approveIrsGeneralOwnedDraft(state.input)).toEqual({
+        approved: false, blockers: ["approval_persistence_unverified"], approval: null,
+      });
+    }
+  });
+
+  it("rejects persisted approval for a different notice, recipient, selection, or manifest", async () => {
+    for (const mismatch of [
+      { noticeSha256: "b".repeat(64) },
+      { recipientAddress: "Different IRS destination" },
+      { selectedEnclosureDocumentIds: ["unreviewed"] },
+      { selectedEnclosureDocumentIds: null },
+      { manifest: [{ documentId: "unreviewed" }] },
+      { manifest: null },
+    ]) {
+      const state = await setup();
+      state.readRecordedApproval.mockImplementationOnce(async (query) => ({
+        ...query,
+        caseRevision: "rev-1",
+        packetSha256: state.preview.packetSha256,
+        reviewedPacketSha256: state.preview.packetSha256,
+        noticeSha256: state.preview.sourceNoticeSha256,
+        recipientAddress: recipient,
+        selectedEnclosureDocumentIds: [] as readonly string[],
+        manifest: [...state.preview.manifest],
+        ...mismatch,
+      } as never));
+      expect(await approveIrsGeneralOwnedDraft(state.input)).toEqual({
+        approved: false, blockers: ["approval_persistence_unverified"], approval: null,
+      });
+    }
+  });
+
+  it("does not query approval readback when atomic approval fails", async () => {
+    const state = await setup();
+    state.approveDraftIfCurrent.mockResolvedValueOnce(null as never);
+    expect((await approveIrsGeneralOwnedDraft(state.input)).approved).toBe(false);
+    expect(state.readRecordedApproval).not.toHaveBeenCalled();
   });
 
   it("is discoverable through the canonical IRS definition, without provider calls", async () => {
