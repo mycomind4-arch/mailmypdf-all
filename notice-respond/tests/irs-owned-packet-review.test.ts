@@ -224,6 +224,34 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
     }
   });
 
+  it("rejects unsafe enclosure labels in persisted customer-review metadata", async () => {
+    const state = await setup();
+    state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
+      ...state.snapshot, selectedEnclosureDocumentIds: ["doc-a"],
+    }));
+    const validEntry = {
+      documentId: "doc-a", role: "evidence" as const,
+      evidenceKind: "correspondence", filename: "evidence.pdf",
+      sha256: "b".repeat(64), pageCount: 1,
+    };
+    // A matching PDF hash does not authenticate separately stored labels.
+    // The exact PDF approval reassembly happens later; review must also
+    // refuse deceptive labels before displaying them to a customer.
+    for (const filename of [
+      "bad\\nname.pdf", "../../escape.pdf", "folder\\\\name.pdf",
+      "file\\u202Efdp", "name\\u200b.pdf", "a".repeat(49), "   ",
+    ]) {
+      state.readPersistedDraft.mockResolvedValueOnce({
+        ...state.stored,
+        selectedEnclosureDocumentIds: ["doc-a"],
+        manifest: [{ ...validEntry, filename }],
+      });
+      expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+        ready: false, blockers: ["draft_packet_changed"], review: null,
+      });
+    }
+  });
+
   it("rejects a case whose notice no longer permits mailed correspondence", async () => {
     const state = await setup();
     state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
