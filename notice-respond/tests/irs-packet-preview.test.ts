@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { generatePlainTextPdf, validatePdfForMailing } from "@mailmypdf/packet-builder";
 import irsGeneralDefinition from "../workflows/irs-notice-response/definition";
 import type { IrsGeneralSelectedEnclosure } from "../workflows/irs-notice-response/packet-preview";
 
@@ -129,4 +129,24 @@ describe("general IRS notice selected-evidence packet preview", () => {
       expect(result.blockers).toEqual(["packet_assembly_failed"]);
     }
   });
+  it("refuses enclosure page-count metadata that disagrees with the stored PDF", async () => {
+    // A stale one-page database record must not silently enclose two real pages.
+    // This also protects approval/pricing from trusting a different page count
+    // than the packet builder actually merged into the outgoing PDF.
+    const bytes = await generatePlainTextPdf(
+      Array.from({ length: 70 }, (_, index) => `Evidence line ${index + 1}`).join("\n"),
+    );
+    const measured = await validatePdfForMailing(bytes);
+    expect(measured.pageCount).toBeGreaterThan(1);
+    const stale = enclosure("record", 0, bytes);
+    const result = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [{ ...stale, document: { ...stale.document, page_count: 1 } }],
+      async () => bytes,
+    );
+    expect(result.ready).toBe(false);
+    expect(result.preview).toBeNull();
+    expect(result.blockers).toContain("enclosure_metadata_invalid");
+  });
+
 });
