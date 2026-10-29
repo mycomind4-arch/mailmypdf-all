@@ -107,6 +107,28 @@ describe("general IRS notice selected-evidence packet preview", () => {
     }
   });
 
+  it("rejects two selected document IDs pointing to one stored PDF before any vault read", async () => {
+    // The direct packet-preview API must protect physical-mail integrity even
+    // when callers do not use the additional owner-scoped case-store wrapper.
+    const bytes = await generatePlainTextPdf("Shared supporting record");
+    const first = enclosure("record-a", 0, bytes);
+    const second = enclosure("record-b", 1, bytes);
+    const aliased = {
+      ...second,
+      document: { ...second.document, storage_path: first.document.storage_path },
+    };
+    let vaultReads = 0;
+    const result = await irsGeneralDefinition.preparePacketPreview(
+      input,
+      [first, aliased],
+      async () => { vaultReads += 1; return bytes; },
+    );
+    expect(result.ready).toBe(false);
+    expect(result.preview).toBeNull();
+    expect(result.blockers).toContain("enclosure_duplicate");
+    expect(vaultReads).toBe(0);
+  });
+
   it("refuses stale notice or recipient confirmation before fetching attachments", async () => {
     const bytes = await generatePlainTextPdf("Evidence");
     const result = await irsGeneralDefinition.preparePacketPreview(
