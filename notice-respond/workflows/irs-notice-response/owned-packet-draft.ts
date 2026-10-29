@@ -37,10 +37,24 @@ export interface IrsGeneralDraftPersistenceRequest {
  * under the same SHA-256. Return null on any conflict. This is NOT approval,
  * payment, fulfillment, or authorization to invoke Lob.
  */
+/**
+ * An atomic persistence receipt must identify the same owner and matter as
+ * the server-side request. A digest/revision alone is not enough to detect
+ * an adapter returning another customer's otherwise identical draft.
+ * The adapter must still enforce ownership in the transaction itself.
+ */
+export interface IrsGeneralDraftPersistenceReceipt {
+  readonly ownerId: string;
+  readonly matterId: string;
+  readonly draftId: string;
+  readonly packetSha256: string;
+  readonly caseRevision: string;
+}
+
 export interface IrsGeneralOwnedDraftStore {
   persistDraftIfCurrent(
     request: IrsGeneralDraftPersistenceRequest,
-  ): Promise<{ readonly draftId: string; readonly packetSha256: string; readonly caseRevision: string } | null>;
+  ): Promise<IrsGeneralDraftPersistenceReceipt | null>;
 }
 
 export interface IrsGeneralOwnedDraftInput extends Omit<IrsGeneralOwnedPacketPreviewInput, "caseStore"> {
@@ -131,6 +145,8 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
       return { persisted: false, blockers: ["draft_case_changed"], draft: null };
     }
     if (typeof persisted.draftId !== "string" || !SAFE_ID.test(persisted.draftId) ||
+        persisted.ownerId !== input.ownerId ||
+        persisted.matterId !== input.matterId ||
         persisted.packetSha256 !== actualHash ||
         persisted.caseRevision !== expectedCaseRevision) {
       return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
