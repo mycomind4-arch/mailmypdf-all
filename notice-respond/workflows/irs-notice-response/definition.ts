@@ -7,6 +7,7 @@ import { prepareIrsGeneralPdfPreview } from "./pdf-preview"
 import { prepareIrsGeneralPacketPreview } from "./packet-preview"
 import { prepareIrsGeneralOwnedPacketPreview } from "./owned-packet-preview"
 import { prepareAndPersistIrsGeneralOwnedDraft } from "./owned-packet-draft"
+import { approveIrsGeneralOwnedDraft } from "./owned-packet-approval"
 export const irsGeneralDefinition = {
   manifest: irsGeneralManifest,
   domain: irsGeneralDomain,
@@ -17,5 +18,6 @@ export const irsGeneralDefinition = {
   preparePacketPreview: prepareIrsGeneralPacketPreview,
   prepareOwnedPacketPreview: prepareIrsGeneralOwnedPacketPreview,
   prepareAndPersistOwnedDraft: prepareAndPersistIrsGeneralOwnedDraft,
+  approveOwnedDraft: approveIrsGeneralOwnedDraft,
 } as const
 export default irsGeneralDefinition
