@@ -96,7 +96,8 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
     expect(result.draft.status).toBe("persisted_draft_requires_explicit_approval");
     expect(result.draft.caseRevision).toBe("rev-1");
     expect(state.persistDraftIfCurrent).toHaveBeenCalledTimes(1);
-    expect(state.readPersistedDraft).toHaveBeenCalledExactlyOnceWith({
+    expect(state.readPersistedDraft).toHaveBeenCalledTimes(1);
+    expect(state.readPersistedDraft).toHaveBeenCalledWith({
       ownerId: "owner-a", matterId: "matter-a", draftId: "draft-1",
     });
     const request = state.persistDraftIfCurrent.mock.calls[0]![0];
