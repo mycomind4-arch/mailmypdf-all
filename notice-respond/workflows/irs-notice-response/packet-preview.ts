@@ -110,6 +110,17 @@ export async function prepareIrsGeneralPacketPreview(
   try {
     const ordered = enclosures.map((item) => item.document).sort((a, b) => a.position - b.position);
     const packet = await assemblePacket(letter.preview.pdfBytes, ordered, readBytes);
+    // The shared builder measures the real included pages, but it does not
+    // compare them with the stored document's original page-count metadata.
+    // Refuse a preview if a changed or misclassified PDF would silently add
+    // pages the user did not expect to enclose (or omit expected pages).
+    // Exclusions are zero-based indices into the original PDF.
+    if (packet.manifest.length !== ordered.length || ordered.some((row, index) =>
+      row.page_count != null &&
+      packet.manifest[index]?.pageCount !== row.page_count - (row.excluded_pages?.length ?? 0)
+    )) {
+      return { ready: false, blockers: ["enclosure_metadata_invalid"], preview: null };
+    }
     return {
       ready: true,
       blockers: [],
