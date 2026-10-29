@@ -77,6 +77,21 @@ export type IrsGeneralOwnedDraftResult =
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 
+/** Bind the initial revision to all facts used for packet assembly. */
+function draftBasisSignature(
+  snapshot: IrsGeneralOwnedPacketSnapshot & { readonly revision: string },
+): string | null {
+  try {
+    return JSON.stringify({
+      revision: snapshot.revision,
+      letterInput: snapshot.letterInput,
+      selectedEnclosureDocumentIds: snapshot.selectedEnclosureDocumentIds,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Produce an owner-scoped PDF and persist its EXACT bytes for subsequent
  * human review. Even a successful result carries no approval or provider
@@ -107,6 +122,10 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
   }
   const expectedCaseRevision = snapshot.revision;
   const expectedEnclosureDocumentIds = [...snapshot.selectedEnclosureDocumentIds];
+  const initialBasis = draftBasisSignature(snapshot);
+  if (!initialBasis) {
+    return { persisted: false, blockers: ["case_revision_unavailable"], draft: null };
+  }
 
   const result = await prepareIrsGeneralOwnedPacketPreview(input);
   if (!result.ready) {
@@ -127,6 +146,25 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
   }
   if (actualHash !== preview.packetSha256.toLowerCase()) {
     return { persisted: false, blockers: ["draft_integrity_failed"], draft: null };
+  }
+
+  // The preview validates case contents, but it intentionally does not check
+  // the revision. A concurrent edit can advance the revision while leaving
+  // identical text, or arrive just after the preview's last read. Reject
+  // both before invoking storage. The store's atomic CAS is still mandatory
+  // because the case can change again after this read.
+  let current: Awaited<ReturnType<IrsGeneralVersionedCaseStore["loadOwnedCaseSnapshot"]>>;
+  try {
+    current = await input.caseStore.loadOwnedCaseSnapshot({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+    });
+  } catch {
+    return { persisted: false, blockers: ["draft_case_changed"], draft: null };
+  }
+  if (!current || current.revision !== expectedCaseRevision ||
+      draftBasisSignature(current) !== initialBasis) {
+    return { persisted: false, blockers: ["draft_case_changed"], draft: null };
   }
 
   try {
