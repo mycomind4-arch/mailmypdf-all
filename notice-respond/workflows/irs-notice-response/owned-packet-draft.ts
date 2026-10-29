@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { PacketManifestEntry } from "@mailmypdf/packet-builder";
 import {
   prepareIrsGeneralOwnedPacketPreview,
@@ -100,7 +99,18 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
     return { persisted: false, blockers: result.blockers, draft: null };
   }
   const preview = result.preview;
-  const actualHash = createHash("sha256").update(preview.pdfBytes).digest("hex");
+  let actualHash: string;
+  try {
+    // Use the same WebCrypto digest contract as the PDF preview; do not add
+    // Node-only crypto imports to a definition shared with the host UI.
+    const hashInput = new Uint8Array(preview.pdfBytes.length);
+    hashInput.set(preview.pdfBytes);
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", hashInput.buffer);
+    actualHash = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return { persisted: false, blockers: ["draft_integrity_failed"], draft: null };
+  }
   if (actualHash !== preview.packetSha256.toLowerCase()) {
     return { persisted: false, blockers: ["draft_integrity_failed"], draft: null };
   }
