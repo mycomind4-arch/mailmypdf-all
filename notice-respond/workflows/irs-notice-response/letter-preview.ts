@@ -40,7 +40,7 @@ export type IrsGeneralLetterPreviewResult =
       }>;
     };
 
-const UNSAFE_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
+const UNSAFE_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
 const UNRESOLVED = /\[[^\]\r\n]*\]|\{[^}\r\n]*\}|<[^>\r\n]*>|\b(?:tbd|todo|insert (?:your|the)|placeholder)\b/i;
 
 function cleanText(value: string | null | undefined, maxLength: number, multiline: boolean): string | null {
