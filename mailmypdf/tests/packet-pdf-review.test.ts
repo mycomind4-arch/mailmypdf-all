@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { PDFDocument } from "pdf-lib";
 import { renderResponseLetter } from "../src/lib/secure-core/case-approval.server";
 import {
   acceptsPacketPdf,
@@ -61,5 +62,31 @@ describe("authenticated packet PDF review response (no provider calls)", () => {
     await assert.rejects(() => packetPdfReviewResponse({
       ...valid, supportingPages: -1,
     }), /Invalid packet/);
+    // A correct digest does not make an incorrect page-count claim safe.
+    await assert.rejects(() => packetPdfReviewResponse({
+      ...valid, responsePages: 2,
+    }), /Invalid packet/);
+    await assert.rejects(() => packetPdfReviewResponse({
+      ...valid, supportingPages: 1,
+    }), /Invalid packet/);
+    // A forged digest of syntactically broken PDF bytes must also be rejected.
+    const truncated = bytes.slice(0, 5);
+    await assert.rejects(() => packetPdfReviewResponse({
+      ...valid, bytes: truncated, packetSha256: sha256(truncated),
+    }), /Invalid packet/);
+  });
+
+  test("accepts a parsed two-page packet with correct response/supporting split", async () => {
+    const letter = await renderResponseLetter("Synthetic IRS notice response.");
+    const pdf = await PDFDocument.load(letter);
+    pdf.addPage([612, 792]);
+    const bytes = await pdf.save();
+    const response = await packetPdfReviewResponse({
+      bytes, packetSha256: sha256(bytes), responsePages: 1, supportingPages: 1,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-response-pages"), "1");
+    assert.equal(response.headers.get("x-supporting-pages"), "1");
+    assert.equal(sha256(new Uint8Array(await response.arrayBuffer())), sha256(bytes));
   });
 });
