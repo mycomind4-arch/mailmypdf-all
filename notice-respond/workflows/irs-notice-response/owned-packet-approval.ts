@@ -14,6 +14,25 @@ import type {
  * notice/recipient/enclosure/scan-eligibility and immutable-PDF comparison.
  * Recording approval does not authorize payment or Lob submission.
  */
+/**
+ * Independently readable approval record. A successful CAS receipt is not
+ * proof that the approval was durably recorded for this owner and document.
+ * This read must enforce owner/matter scope, independent of the write.
+ */
+export interface IrsGeneralRecordedApproval {
+  readonly ownerId: string;
+  readonly matterId: string;
+  readonly draftId: string;
+  readonly approvalId: string;
+  readonly caseRevision: string;
+  readonly packetSha256: string;
+  readonly reviewedPacketSha256: string;
+  readonly noticeSha256: string;
+  readonly recipientAddress: string;
+  readonly selectedEnclosureDocumentIds: readonly string[];
+  readonly manifest: readonly IrsGeneralOwnedPacketPreviewResultManifestEntry[];
+}
+
 export interface IrsGeneralOwnedApprovalStore {
   approveDraftIfCurrent(request: {
     readonly ownerId: string;
@@ -34,6 +53,12 @@ export interface IrsGeneralOwnedApprovalStore {
     readonly caseRevision: string;
     readonly packetSha256: string;
   } | null>;
+  readRecordedApproval(input: {
+    readonly ownerId: string;
+    readonly matterId: string;
+    readonly draftId: string;
+    readonly approvalId: string;
+  }): Promise<IrsGeneralRecordedApproval | null>;
 }
 
 type IrsGeneralOwnedPacketPreviewResultManifestEntry =
@@ -103,6 +128,7 @@ export async function approveIrsGeneralOwnedDraft(
       typeof input.caseStore?.loadOwnedCaseSnapshot !== "function" ||
       typeof input.draftStore?.readPersistedDraft !== "function" ||
       typeof input.approvalStore?.approveDraftIfCurrent !== "function" ||
+      typeof input.approvalStore?.readRecordedApproval !== "function" ||
       !input.documentStore) {
     return { approved: false, blockers: ["approval_unavailable"], approval: null };
   }
@@ -196,6 +222,30 @@ export async function approveIrsGeneralOwnedDraft(
     if (receipt.ownerId !== input.ownerId || receipt.matterId !== input.matterId ||
         receipt.draftId !== input.draftId || !SAFE_ID.test(receipt.approvalId ?? "") ||
         receipt.caseRevision !== initial.revision || receipt.packetSha256 !== stored.packetSha256) {
+      return { approved: false, blockers: ["approval_persistence_unverified"], approval: null };
+    }
+    // Verify the approval record through an independently owner-scoped read.
+    // A write receipt alone cannot establish durable, exact-document consent.
+    const recorded = await input.approvalStore.readRecordedApproval({
+      ownerId: input.ownerId,
+      matterId: input.matterId,
+      draftId: input.draftId,
+      approvalId: receipt.approvalId,
+    });
+    if (!recorded || recorded.ownerId !== input.ownerId ||
+        recorded.matterId !== input.matterId || recorded.draftId !== input.draftId ||
+        recorded.approvalId !== receipt.approvalId ||
+        recorded.caseRevision !== initial.revision ||
+        recorded.packetSha256 !== stored.packetSha256 ||
+        recorded.reviewedPacketSha256 !== input.reviewedPacketSha256 ||
+        recorded.noticeSha256 !== stored.noticeSha256 ||
+        recorded.recipientAddress !== input.reviewedRecipientAddress ||
+        !Array.isArray(recorded.selectedEnclosureDocumentIds) ||
+        recorded.selectedEnclosureDocumentIds.length !== initial.selectedEnclosureDocumentIds.length ||
+        recorded.selectedEnclosureDocumentIds.some((id, index) =>
+          id !== initial.selectedEnclosureDocumentIds[index]) ||
+        !Array.isArray(recorded.manifest) ||
+        JSON.stringify(recorded.manifest) !== JSON.stringify(preview.manifest)) {
       return { approved: false, blockers: ["approval_persistence_unverified"], approval: null };
     }
     return {
