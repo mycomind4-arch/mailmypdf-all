@@ -44,6 +44,20 @@ export async function packetPdfReviewResponse(packet: PacketPdfReview): Promise<
     throw new Error("Packet PDF integrity check failed");
   }
 
+  // A valid digest only proves agreement with the adapter's claimed bytes.
+  // Parse the PDF and independently count its pages before displaying the
+  // reviewed packet/price. A corrupt PDF or false page count must fail closed.
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    const pdf = await PDFDocument.load(copy, { updateMetadata: false });
+    if (pdf.isEncrypted ||
+        pdf.getPageCount() !== packet.responsePages + packet.supportingPages) {
+      throw new Error("Invalid packet PDF preview");
+    }
+  } catch {
+    throw new Error("Invalid packet PDF preview");
+  }
+
   return new Response(copy.buffer, {
     status: 200,
     headers: {
