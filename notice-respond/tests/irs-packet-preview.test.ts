@@ -160,4 +160,22 @@ describe("general IRS notice selected-evidence packet preview", () => {
     expect(selected.preview.supportingPages).toBe(measured.pageCount - 1);
   });
 
+  it("rejects invisible or bidirectional enclosure filename controls before vault access", async () => {
+    // The packet builder stamps the filename onto the physical PDF. A stored
+    // filename must not visually reverse or hide its true extension in that label.
+    const bytes = await generatePlainTextPdf("Supporting evidence");
+    for (const unsafeName of ["statement\\u202Efdp.exe", "record\\u200B.pdf", "form\\u2066.pdf"]) {
+      const selected = enclosure("record", 0, bytes);
+      let vaultReads = 0;
+      const result = await irsGeneralDefinition.preparePacketPreview(
+        input,
+        [{ ...selected, document: { ...selected.document, safe_filename: unsafeName } }],
+        async () => { vaultReads += 1; return bytes; },
+      );
+      expect(result.ready).toBe(false);
+      expect(result.blockers).toContain("enclosure_metadata_invalid");
+      expect(vaultReads).toBe(0);
+    }
+  });
+
 });
