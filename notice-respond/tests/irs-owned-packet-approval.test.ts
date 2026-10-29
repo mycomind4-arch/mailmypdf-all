@@ -315,3 +315,46 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
     expect(result.approved).toBe(true);
   });
 });
+
+
+describe("IRS approval runtime boundary rejects malformed persisted identities", () => {
+  it("rejects non-string owner, matter, draft and reviewed digest before any owner-scoped store read", async () => {
+    const cases: Array<{ change: Record<string, unknown>; blocker: string }> = [
+      { change: { ownerId: 123 }, blocker: "approval_unavailable" },
+      { change: { matterId: 123 }, blocker: "approval_unavailable" },
+      { change: { draftId: 123 }, blocker: "approval_unavailable" },
+      { change: { ownerId: Symbol("owner") }, blocker: "approval_unavailable" },
+      { change: { matterId: Symbol("matter") }, blocker: "approval_unavailable" },
+      { change: { draftId: Symbol("draft") }, blocker: "approval_unavailable" },
+      { change: { reviewedPacketSha256: Symbol("digest") }, blocker: "explicit_packet_review_required" },
+    ];
+    for (const { change, blocker } of cases) {
+      const state = await setup();
+      const result = await approveIrsGeneralOwnedDraft({ ...state.input, ...change } as never);
+      expect(result).toEqual({ approved: false, blockers: [blocker], approval: null });
+      expect(state.loadOwnedCaseSnapshot).not.toHaveBeenCalled();
+      expect(state.readPersistedDraft).not.toHaveBeenCalled();
+      expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects non-string persisted revision and PDF digest without attempting approval", async () => {
+    const revision = await setup();
+    revision.loadOwnedCaseSnapshot.mockResolvedValueOnce({
+      ...revision.snapshot, revision: Symbol("revision"),
+    } as never);
+    expect(await approveIrsGeneralOwnedDraft(revision.input)).toEqual({
+      approved: false, blockers: ["owned_draft_unavailable"], approval: null,
+    });
+    expect(revision.approveDraftIfCurrent).not.toHaveBeenCalled();
+
+    const digest = await setup();
+    digest.readPersistedDraft.mockResolvedValueOnce({
+      ...digest.stored, packetSha256: Symbol("digest"),
+    } as never);
+    expect(await approveIrsGeneralOwnedDraft(digest.input)).toEqual({
+      approved: false, blockers: ["owned_draft_unavailable"], approval: null,
+    });
+    expect(digest.approveDraftIfCurrent).not.toHaveBeenCalled();
+  });
+});
