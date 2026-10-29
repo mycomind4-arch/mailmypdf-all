@@ -317,6 +317,31 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     expect(result.blockers).toContain("different_procedure_required");
   });
 
+  it("fails closed on malformed persisted notice and recipient fields instead of throwing", () => {
+    // Persisted JSON and connector payloads can be untyped at runtime.
+    // A malformed value must block packet preparation, not crash the server.
+    for (const { field, blocker } of [
+      { field: "noticeDocumentId", blocker: "source_notice_missing" },
+      { field: "analyzedNoticeDocumentId", blocker: "source_notice_missing" },
+      { field: "noticeSha256", blocker: "source_notice_digest_unverified" },
+      { field: "analyzedNoticeSha256", blocker: "source_notice_digest_unverified" },
+      { field: "recipientAddress", blocker: "recipient_address_missing" },
+      { field: "confirmedRecipientAddress", blocker: "recipient_confirmation_stale" },
+      { field: "confirmedRecipientNoticeSha256", blocker: "recipient_confirmation_stale" },
+    ] as const) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        [field]: 42,
+      } as unknown as Parameters<typeof irsGeneralDefinition.mailPacketReadiness>[0]);
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain(blocker);
+    }
+    expect(irsGeneralDefinition.mailPacketReadiness(null as never)).toEqual({
+      canPreviewMailPacket: false,
+      blockers: ["source_notice_missing"],
+    });
+  });
+
   it("rejects truthy string confirmations from untyped intake data", () => {
     for (const flag of ["instructionsConfirmed", "mailPermitted", "recipientAddressConfirmed"] as const) {
       const result = irsGeneralDefinition.mailPacketReadiness({
