@@ -33,6 +33,7 @@ export interface IrsGeneralOwnedCaseStore {
 
 export type IrsGeneralOwnedPacketBlocker =
   | "owned_case_unavailable"
+  | "owned_case_changed"
   | "enclosure_selection_invalid"
   | "enclosure_not_eligible"
   | "owned_packet_storage_unavailable";
@@ -52,6 +53,24 @@ export interface IrsGeneralOwnedPacketPreviewInput {
 }
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+
+/**
+ * Capture the persisted facts used to render a packet before asynchronous
+ * storage reads. The second owner-scoped read must match these exact facts;
+ * a changed notice, recipient, letter, or enclosure selection requires a new
+ * draft instead of returning an already-stale packet. Any serialization
+ * failure is treated as an unavailable case, never as an approval signal.
+ */
+function snapshotSignature(snapshot: IrsGeneralOwnedPacketSnapshot): string | null {
+  try {
+    return JSON.stringify({
+      letterInput: snapshot.letterInput,
+      selectedEnclosureDocumentIds: snapshot.selectedEnclosureDocumentIds,
+    });
+  } catch {
+    return null;
+  }
+}
 
 function ownerScopedPath(ownerId: string, path: string): boolean {
   if (typeof path !== "string" || !path.startsWith(ownerId + "/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
@@ -87,6 +106,11 @@ export async function prepareIrsGeneralOwnedPacketPreview(
     return { ready: false, blockers: ["owned_case_unavailable"], preview: null };
   }
   if (!snapshot?.letterInput || !Array.isArray(snapshot.selectedEnclosureDocumentIds)) {
+    return { ready: false, blockers: ["owned_case_unavailable"], preview: null };
+  }
+
+  const originalSnapshotSignature = snapshotSignature(snapshot);
+  if (!originalSnapshotSignature) {
     return { ready: false, blockers: ["owned_case_unavailable"], preview: null };
   }
 
@@ -136,11 +160,30 @@ export async function prepareIrsGeneralOwnedPacketPreview(
 
   try {
     const storage = createSecurePacketStorageAdapter(input.documentStore, input.storageOptions);
-    return await prepareIrsGeneralPacketPreview(
+    const result = await prepareIrsGeneralPacketPreview(
       snapshot.letterInput,
       selected,
       (row) => storage.readBytes(input.ownerId, row),
     );
+    if (!result.ready) return result;
+
+    // A packet is only a draft; nevertheless, never return a preview based on
+    // a case that changed while its PDFs were being assembled. The store must
+    // enforce owner and matter scope on *both* reads.
+    let latest: IrsGeneralOwnedPacketSnapshot | null;
+    try {
+      latest = await input.caseStore.loadOwnedCaseSnapshot({
+        ownerId: input.ownerId,
+        matterId: input.matterId,
+      });
+    } catch {
+      return { ready: false, blockers: ["owned_case_changed"], preview: null };
+    }
+    if (!latest?.letterInput || !Array.isArray(latest.selectedEnclosureDocumentIds) ||
+        snapshotSignature(latest) !== originalSnapshotSignature) {
+      return { ready: false, blockers: ["owned_case_changed"], preview: null };
+    }
+    return result;
   } catch {
     return { ready: false, blockers: ["owned_packet_storage_unavailable"], preview: null };
   }
