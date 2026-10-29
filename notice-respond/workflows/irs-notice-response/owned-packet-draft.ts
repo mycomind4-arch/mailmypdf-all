@@ -51,10 +51,29 @@ export interface IrsGeneralDraftPersistenceReceipt {
   readonly caseRevision: string;
 }
 
+/**
+ * Read back the immutable draft from trusted owner-scoped storage. A receipt
+ * alone does not prove that the PDF bytes were actually saved. The host must
+ * enforce owner/matter scope on this read independently of the write.
+ */
+export interface IrsGeneralPersistedDraftReadback {
+  readonly ownerId: string;
+  readonly matterId: string;
+  readonly draftId: string;
+  readonly packetSha256: string;
+  readonly caseRevision: string;
+  readonly pdfBytes: Uint8Array;
+}
+
 export interface IrsGeneralOwnedDraftStore {
   persistDraftIfCurrent(
     request: IrsGeneralDraftPersistenceRequest,
   ): Promise<IrsGeneralDraftPersistenceReceipt | null>;
+  readPersistedDraft(input: {
+    ownerId: string;
+    matterId: string;
+    draftId: string;
+  }): Promise<IrsGeneralPersistedDraftReadback | null>;
 }
 
 export interface IrsGeneralOwnedDraftInput extends Omit<IrsGeneralOwnedPacketPreviewInput, "caseStore"> {
@@ -76,6 +95,16 @@ export type IrsGeneralOwnedDraftResult =
     };
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+
+async function digestPdfBytes(bytes: Uint8Array): Promise<string> {
+  // Copy into an owned ArrayBuffer to avoid platform-dependent BufferSource
+  // typing and prevent an adapter from mutating the digest input mid-read.
+  const hashInput = new Uint8Array(bytes.length);
+  hashInput.set(bytes);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", hashInput.buffer);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")).join("");
+}
 
 /** Bind the initial revision to all facts used for packet assembly. */
 function draftBasisSignature(
@@ -102,6 +131,7 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
   input: IrsGeneralOwnedDraftInput,
 ): Promise<IrsGeneralOwnedDraftResult> {
   if (!input?.draftStore || typeof input.draftStore.persistDraftIfCurrent !== "function" ||
+      typeof input.draftStore.readPersistedDraft !== "function" ||
       !input.caseStore || typeof input.caseStore.loadOwnedCaseSnapshot !== "function" ||
       !SAFE_ID.test(input.ownerId ?? "") || !SAFE_ID.test(input.matterId ?? "")) {
     return { persisted: false, blockers: ["owned_case_unavailable"], draft: null };
@@ -134,13 +164,8 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
   const preview = result.preview;
   let actualHash: string;
   try {
-    // Use the same WebCrypto digest contract as the PDF preview; do not add
-    // Node-only crypto imports to a definition shared with the host UI.
-    const hashInput = new Uint8Array(preview.pdfBytes.length);
-    hashInput.set(preview.pdfBytes);
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", hashInput.buffer);
-    actualHash = Array.from(new Uint8Array(digest), (byte) =>
-      byte.toString(16).padStart(2, "0")).join("");
+    // Same WebCrypto contract as the PDF preview, with no Node-only imports.
+    actualHash = await digestPdfBytes(preview.pdfBytes);
   } catch {
     return { persisted: false, blockers: ["draft_integrity_failed"], draft: null };
   }
@@ -187,6 +212,35 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
         persisted.matterId !== input.matterId ||
         persisted.packetSha256 !== actualHash ||
         persisted.caseRevision !== expectedCaseRevision) {
+      return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
+    }
+    // Do not report a persisted PDF merely because the write returned a
+    // plausible receipt. Verify the actual bytes under an independently
+    // owner-scoped read before exposing a reviewable draft.
+    let readback: IrsGeneralPersistedDraftReadback | null;
+    try {
+      readback = await input.draftStore.readPersistedDraft({
+        ownerId: input.ownerId,
+        matterId: input.matterId,
+        draftId: persisted.draftId,
+      });
+    } catch {
+      return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
+    }
+    if (!readback || readback.ownerId !== input.ownerId ||
+        readback.matterId !== input.matterId ||
+        readback.draftId !== persisted.draftId ||
+        readback.caseRevision !== expectedCaseRevision ||
+        readback.packetSha256 !== actualHash ||
+        !(readback.pdfBytes instanceof Uint8Array) ||
+        readback.pdfBytes.length !== preview.pdfBytes.length) {
+      return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
+    }
+    try {
+      if (await digestPdfBytes(readback.pdfBytes) !== actualHash) {
+        return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
+      }
+    } catch {
       return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
     }
     return {
