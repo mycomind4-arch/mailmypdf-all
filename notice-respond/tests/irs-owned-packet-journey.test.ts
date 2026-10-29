@@ -231,6 +231,25 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
     }
   });
 
+  it("refuses exact-PDF approval when response text changes without a revision bump", async () => {
+    const state = setup();
+    const review = await persistAndReview(state);
+    // A broken or delayed revision writer must not let edited letter content
+    // inherit the user's approval of the previously rendered physical packet.
+    state.setResponseBody("This replacement response was never reviewed or approved.");
+    const result = await irsGeneralDefinition.approveOwnedDraft({
+      ownerId, matterId, draftId: review.draftId,
+      reviewedPacketSha256: review.packetSha256,
+      reviewedRecipientAddress: review.recipientAddress,
+      caseStore: state.caseStore, documentStore: state.documentStore,
+      draftStore: state.draftStore, approvalStore: state.approvalStore,
+    });
+    expect(result.approved).toBe(false);
+    expect(result.blockers).toContain("draft_packet_changed");
+    expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
+    expect(state.approvals.size).toBe(0);
+  });
+
   it("rejects approval if the case revision changes after review", async () => {
     const state = setup();
     const review = await persistAndReview(state);
