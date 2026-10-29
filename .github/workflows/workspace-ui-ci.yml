@@ -161,8 +161,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
-        run: pnpm install --frozen-lockfile
+      - name: Install core app dependency closure (exclude unrelated voice native downloads)
+        run: pnpm --filter ./mailmypdf... install --frozen-lockfile
       - name: Build MCP document-ingress and canonical registry dependencies
         run: pnpm --filter ./mailmypdf run prebuild
       - name: Verify authenticated Studio and admin navigation
@@ -225,8 +225,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
-        run: pnpm install --frozen-lockfile
+      - name: Install core app dependency closure (exclude unrelated voice native downloads)
+        run: pnpm --filter ./mailmypdf... install --frozen-lockfile
       - name: Verify production payment, fulfillment, and evidence rails
         run: |
           node --check mailmypdf/scripts/verify-canary.mjs
