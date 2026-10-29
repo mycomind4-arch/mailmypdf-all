@@ -64,6 +64,10 @@ function setup() {
       packetSha256: request.packetSha256,
       caseRevision: request.expectedCaseRevision,
       pdfBytes: request.pdfBytes.slice(),
+      noticeSha256: request.expectedNoticeSha256,
+      recipientAddress: request.expectedRecipientAddress,
+      selectedEnclosureDocumentIds: [...request.expectedEnclosureDocumentIds],
+      manifest: request.manifest.map((entry) => ({ ...entry })),
     };
   };
   const readPersistedDraft = vi.fn(async (query: {
@@ -264,6 +268,25 @@ describe("general IRS exact-PDF draft persistence (no approval or mailing)", () 
         ...state.makeReadback(query),
         ...mismatch,
       }));
+      const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
+      expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
+    }
+  });
+
+  it("rejects persisted approval metadata that differs from the exact reviewed packet", async () => {
+    for (const mismatch of [
+      { noticeSha256: "b".repeat(64) },
+      { recipientAddress: "Other office\\n123 Wrong St\\nDenver, CO 80202" },
+      { selectedEnclosureDocumentIds: ["unreviewed-enclosure"] },
+      { manifest: [{ documentId: "unreviewed-enclosure" }] },
+      { manifest: null },
+      { selectedEnclosureDocumentIds: null },
+    ]) {
+      const state = setup();
+      state.readPersistedDraft.mockImplementationOnce(async (query) => ({
+        ...state.makeReadback(query),
+        ...mismatch,
+      } as never));
       const result = await prepareAndPersistIrsGeneralOwnedDraft(state.input);
       expect(result).toEqual({ persisted: false, blockers: ["draft_persistence_unverified"], draft: null });
     }

@@ -63,6 +63,11 @@ export interface IrsGeneralPersistedDraftReadback {
   readonly packetSha256: string;
   readonly caseRevision: string;
   readonly pdfBytes: Uint8Array;
+  /** Persisted approval context, read independently from the write receipt. */
+  readonly noticeSha256: string;
+  readonly recipientAddress: string;
+  readonly selectedEnclosureDocumentIds: readonly string[];
+  readonly manifest: readonly PacketManifestEntry[];
 }
 
 export interface IrsGeneralOwnedDraftStore {
@@ -215,8 +220,10 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
       return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
     }
     // Do not report a persisted PDF merely because the write returned a
-    // plausible receipt. Verify the actual bytes under an independently
-    // owner-scoped read before exposing a reviewable draft.
+    // plausible receipt. Verify the actual bytes AND the approval-relevant
+    // notice, recipient, selection and ordered manifest under an independently
+    // owner-scoped read. An intact PDF with mismatched stored metadata is not
+    // safe to present for exact-document approval.
     let readback: IrsGeneralPersistedDraftReadback | null;
     try {
       readback = await input.draftStore.readPersistedDraft({
@@ -233,7 +240,14 @@ export async function prepareAndPersistIrsGeneralOwnedDraft(
         readback.caseRevision !== expectedCaseRevision ||
         readback.packetSha256 !== actualHash ||
         !(readback.pdfBytes instanceof Uint8Array) ||
-        readback.pdfBytes.length !== preview.pdfBytes.length) {
+        readback.pdfBytes.length !== preview.pdfBytes.length ||
+        readback.noticeSha256 !== preview.sourceNoticeSha256 ||
+        readback.recipientAddress !== preview.recipientAddress ||
+        !Array.isArray(readback.selectedEnclosureDocumentIds) ||
+        readback.selectedEnclosureDocumentIds.length !== expectedEnclosureDocumentIds.length ||
+        readback.selectedEnclosureDocumentIds.some((id, index) => id !== expectedEnclosureDocumentIds[index]) ||
+        !Array.isArray(readback.manifest) ||
+        JSON.stringify(readback.manifest) !== JSON.stringify(preview.manifest)) {
       return { persisted: false, blockers: ["draft_persistence_unverified"], draft: null };
     }
     try {
