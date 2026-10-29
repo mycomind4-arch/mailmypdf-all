@@ -183,6 +183,51 @@ describe("general IRS owner-scoped draft packet preparation", () => {
     expect(result).toEqual({ ready: false, blockers: ["packet_assembly_failed"], preview: null });
   });
 
+  it("rechecks the owned case after assembling a packet", async () => {
+    const state = setup(await generatePlainTextPdf("Record"));
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result.ready).toBe(true);
+    expect(state.loadOwnedCaseSnapshot).toHaveBeenCalledTimes(2);
+    expect(state.loadOwnedCaseSnapshot).toHaveBeenNthCalledWith(2, {
+      ownerId: "owner-a",
+      matterId: "matter-a",
+    });
+  });
+
+  it("discards a completed PDF when the persisted response changes during assembly", async () => {
+    const state = setup(await generatePlainTextPdf("Record"));
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce({
+        ...state.snapshot,
+        letterInput: { ...letterInput, responseBody: "A newly edited response." },
+      });
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["owned_case_changed"], preview: null });
+    expect(state.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards a packet when the persisted enclosure selection changes", async () => {
+    const state = setup(await generatePlainTextPdf("Record"));
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockResolvedValueOnce({
+        ...state.snapshot,
+        selectedEnclosureDocumentIds: [],
+      });
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["owned_case_changed"], preview: null });
+  });
+
+  it("fails closed if the final owner-scoped case recheck fails", async () => {
+    const state = setup(await generatePlainTextPdf("Record"));
+    state.loadOwnedCaseSnapshot
+      .mockResolvedValueOnce(state.snapshot)
+      .mockRejectedValueOnce(new Error("Database temporarily unavailable"));
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["owned_case_changed"], preview: null });
+  });
+
   it("supports a persisted letter-only selection without reading any attachment", async () => {
     const state = setup(await generatePlainTextPdf("Unused"), []);
     const result = await irsGeneralDefinition.prepareOwnedPacketPreview(state.input);
