@@ -56,9 +56,14 @@ const SHA256 = /^[a-f0-9]{64}$/i;
 const SAFE_FILENAME = /^[^\\/\u0000-\u001f\u007f\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]{1,48}$/;
 
 function validEnclosure(row: PacketDocumentRow): boolean {
-  if (!row || row.role !== "evidence" || !row.document_id?.trim() ||
-      !row.storage_path?.trim() || !SAFE_FILENAME.test(row.safe_filename ?? "") ||
-      !SHA256.test(row.sha256 ?? "") ||
+  // Persisted document rows cross a runtime trust boundary. Optional chaining
+  // does not protect .trim() on numbers/objects, and RegExp.test coerces a
+  // numeric filename into printable text. Reject wrong types before parsing.
+  if (!row || row.role !== "evidence" ||
+      typeof row.document_id !== "string" || !row.document_id.trim() ||
+      typeof row.storage_path !== "string" || !row.storage_path.trim() ||
+      typeof row.safe_filename !== "string" || !SAFE_FILENAME.test(row.safe_filename) ||
+      typeof row.sha256 !== "string" || !SHA256.test(row.sha256) ||
       !Number.isSafeInteger(row.position) || row.position < 0 ||
       !["application/pdf", "image/png", "image/jpeg"].includes(row.mime_type)) return false;
 
