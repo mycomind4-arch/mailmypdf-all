@@ -403,4 +403,24 @@ describe("general IRS letter packet preflight (no external actions)", () => {
     expect(result.blockers).toContain("recipient_address_incomplete");
   });
 
+
+  it("rejects recipient address blocks that exceed physical envelope layout limits", () => {
+    const addresses = [
+      "Internal Revenue Service\\n" + "A".repeat(200) + "\\nAustin, TX 78714",
+      "Internal Revenue Service\\n" +
+        Array.from({ length: 9 }, (_, index) => `Processing unit ${index + 1}`).join("\\n") +
+        "\\nAustin, TX 78714",
+      "Internal Revenue Service\\n\\nAustin, TX 78714",
+    ];
+    for (const recipientAddress of addresses) {
+      const result = irsGeneralDefinition.mailPacketReadiness({
+        ...verifiedMailPacket,
+        recipientAddress,
+        confirmedRecipientAddress: recipientAddress,
+      });
+      expect(result.canPreviewMailPacket).toBe(false);
+      expect(result.blockers).toContain("recipient_address_incomplete");
+    }
+  });
+
 });
