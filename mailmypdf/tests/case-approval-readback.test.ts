@@ -141,7 +141,7 @@ describe("direct v2 case recipient mailing boundary (no provider calls)", () => 
     assert.deepEqual(assertRecipient({
       ...recipient, state: " tx ", postal: "78714-1234", line2: "Suite 5",
     }), { ...recipient, state: "TX", postal: "78714-1234", line2: "Suite 5" });
-    for (const state of ["CA", "PR", "DC", "AE", "AP", "AA"]) {
+    for (const state of ["CA", "PR", "DC", "FM", "MH", "PW", "AE", "AP", "AA"]) {
       assert.equal(assertRecipient({ ...recipient, state }).state, state);
     }
   });
