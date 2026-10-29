@@ -6,6 +6,7 @@
 // enclosed pages before it will record an approval.
 
 import { calculateQuote, type MailClass, type Quote } from "@mailmypdf/pricing";
+import { unresolvedPlaceholderMessage } from "@mailmypdf/workflows";
 import type { AuthenticatedUserContext } from "./auth.server";
 import { CaseError, CaseNotFoundError, loadCase } from "./case.server";
 import {
@@ -95,6 +96,21 @@ export function assertMailClass(value: unknown): MailClass {
   throw new CaseError("Select a mailing method");
 }
 
+/**
+ * The generic workflow runtime blocks unresolved placeholders, but the
+ * authenticated /api/v2/cases routes can be called directly. Enforce the same
+ * rule at their shared packet materialization boundary so an incomplete
+ * response cannot be previewed as mail-ready, approved, or fulfilled.
+ * Saving an unfinished draft remains allowed.
+ */
+export function assertMailableDraftText(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new PacketError("The response draft is empty. Complete it before preparing a mailing packet.");
+  }
+  const unresolved = unresolvedPlaceholderMessage(value);
+  if (unresolved) throw new PacketError(unresolved);
+}
+
 /** Renders the approved draft text into the response letter that leads the packet. */
 export async function renderResponseLetter(bodyText: string): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts } = await import("pdf-lib");
@@ -155,6 +171,7 @@ async function loadCurrentDraft(
     .maybeSingle();
   if (error) throw new CaseError(error.message);
   if (!data) throw new CaseNotFoundError("This case has no drafted response yet");
+  assertMailableDraftText(data.body_text);
   return { version: data.version, body: data.body_text };
 }
 
