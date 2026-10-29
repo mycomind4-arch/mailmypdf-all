@@ -40,7 +40,10 @@ jobs:
       - name: Build shared pricing package for runtime imports
         run: pnpm --filter @mailmypdf/pricing build
       - name: Run tests
-        run: pnpm test
+        # Workspace test tasks may rebuild @mailmypdf/workflows/dist while
+        # app tests import its ESM barrel. Serialize to prevent partial-export
+        # races (e.g. missing getSsaReconsiderationWorkflowProfile).
+        run: pnpm exec turbo test --concurrency=1
       - name: Build workspace
         if: ${{ success() || failure() }}
         # The legacy app build:shared hooks rebuild the same dist packages.
