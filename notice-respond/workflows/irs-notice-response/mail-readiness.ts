@@ -61,7 +61,7 @@ export type IrsGeneralMailBlocker =
 const UNRESOLVED_ADDRESS_MARKERS = /\[[^\]\r\n]*\]|\{[^}\r\n]*\}|<[^>\r\n]*>|\b(?:tbd|to be determined|placeholder|address (?:on|from|per) (?:the )?notice|see (?:the )?(?:attached )?notice|insert (?:the )?(?:irs )?address)\b/i;
 // Reject invisible/bidirectional formatting controls that can change how a
 // confirmed recipient appears on the rendered envelope or packet PDF.
-const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
+const UNSAFE_ADDRESS_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
 
 // Conservative US-format preflight, not USPS deliverability validation.
 // IRS processing centers may use a city/state/ZIP without a street or PO box.
