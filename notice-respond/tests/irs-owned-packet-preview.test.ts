@@ -146,6 +146,17 @@ describe("general IRS owner-scoped draft packet preparation", () => {
     }
   });
 
+  it("fails closed on untyped storage metadata instead of throwing or signing", async () => {
+    const bytes = await generatePlainTextPdf("Record");
+    const state = setup(bytes);
+    state.loadEligibleDocuments.mockResolvedValueOnce([
+      record(bytes, { storage_path: 123 as unknown as string }),
+    ]);
+    const result = await prepareIrsGeneralOwnedPacketPreview(state.input);
+    expect(result).toEqual({ ready: false, blockers: ["enclosure_not_eligible"], preview: null });
+    expect(state.createSignedReadUrl).not.toHaveBeenCalled();
+  });
+
   it("does not read attachments after a controlling notice change", async () => {
     const bytes = await generatePlainTextPdf("Record");
     const state = setup(bytes);
