@@ -91,6 +91,25 @@ describe("general IRS notice draft-only letter preview", () => {
     }
   });
 
+  it("rejects C1 control characters in recipient and letter fields before drafting", () => {
+    // C1 control bytes are not visible postal characters and can be rendered
+    // inconsistently by PDF/envelope consumers despite matching confirmations.
+    for (const control of ["\\u0085", "\\u009f"]) {
+      const recipientAddress = `Internal Revenue Service${control}\\nP.O. Box 1234\\nAustin, TX 78714`;
+      const mail = { ...valid.mail, recipientAddress, confirmedRecipientAddress: recipientAddress };
+      expect(irsGeneralDefinition.mailPacketReadiness(mail).blockers).toContain("recipient_address_incomplete");
+      expect(irsGeneralDefinition.prepareLetterPreview({ ...valid, mail }).ready).toBe(false);
+      for (const change of [
+        { taxpayerName: `Example${control} Taxpayer` },
+        { returnAddress: `100 Example${control} St\\nEureka, CA 95501` },
+        { responseBody: `Please review${control} this notice.` },
+        { verifiedNoticeNumber: `CP${control}14` },
+      ]) {
+        expect(irsGeneralDefinition.prepareLetterPreview({ ...valid, ...change }).ready).toBe(false);
+      }
+    }
+  });
+
   it("accepts a concrete PO Box return address while preserving draft-only status", () => {
     const result = irsGeneralDefinition.prepareLetterPreview({
       ...valid,
