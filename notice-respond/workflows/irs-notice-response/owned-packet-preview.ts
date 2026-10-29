@@ -72,6 +72,22 @@ function snapshotSignature(snapshot: IrsGeneralOwnedPacketSnapshot): string | nu
   }
 }
 
+/** Capture immutable, packet-relevant metadata before asynchronous storage reads. */
+function enclosureSignature(row: PacketDocumentRow): string {
+  return JSON.stringify({
+    documentId: row.document_id,
+    role: row.role,
+    evidenceKind: row.evidence_kind,
+    storagePath: row.storage_path,
+    safeFilename: row.safe_filename,
+    sha256: row.sha256,
+    mimeType: row.mime_type,
+    pageCount: row.page_count ?? null,
+    position: row.position,
+    excludedPages: row.excluded_pages ?? [],
+  });
+}
+
 function ownerScopedPath(ownerId: string, path: string): boolean {
   if (typeof path !== "string" || !path.startsWith(ownerId + "/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
     return false;
@@ -147,6 +163,7 @@ export async function prepareIrsGeneralOwnedPacketPreview(
 
   const selected: IrsGeneralSelectedEnclosure[] = [];
   const selectedPaths = new Set<string>();
+  const selectedSignatures = new Map<string, string>();
   for (const id of ids) {
     const row = byId.get(id);
     if (!row || row.role !== "evidence" ||
@@ -155,6 +172,7 @@ export async function prepareIrsGeneralOwnedPacketPreview(
       return { ready: false, blockers: ["enclosure_not_eligible"], preview: null };
     }
     selectedPaths.add(row.storage_path);
+    selectedSignatures.set(id, enclosureSignature(row));
     selected.push({ document: row, explicitlySelected: true, securityCleared: true });
   }
 
@@ -182,6 +200,42 @@ export async function prepareIrsGeneralOwnedPacketPreview(
     if (!latest?.letterInput || !Array.isArray(latest.selectedEnclosureDocumentIds) ||
         snapshotSignature(latest) !== originalSnapshotSignature) {
       return { ready: false, blockers: ["owned_case_changed"], preview: null };
+    }
+
+    // The original scanned-clean document lookup can become stale while PDFs
+    // are fetched and merged. Recheck selected evidence after assembly so a
+    // newly quarantined, revoked, or replaced object cannot leave this draft
+    // with an apparently eligible enclosure. This is still NOT an approval or
+    // mailing gate; the host must revalidate again before fulfillment.
+    if (ids.length > 0) {
+      let currentEligible: readonly PacketDocumentRow[];
+      try {
+        currentEligible = await input.documentStore.loadEligibleDocuments({
+          ownerId: input.ownerId,
+          matterId: input.matterId,
+        });
+      } catch {
+        return { ready: false, blockers: ["owned_packet_storage_unavailable"], preview: null };
+      }
+      if (!Array.isArray(currentEligible)) {
+        return { ready: false, blockers: ["owned_packet_storage_unavailable"], preview: null };
+      }
+      const currentById = new Map<string, PacketDocumentRow>();
+      for (const row of currentEligible) {
+        if (!row || typeof row.document_id !== "string") continue;
+        if (currentById.has(row.document_id)) {
+          return { ready: false, blockers: ["enclosure_not_eligible"], preview: null };
+        }
+        currentById.set(row.document_id, row);
+      }
+      for (const id of ids) {
+        const row = currentById.get(id);
+        if (!row || row.role !== "evidence" ||
+            !ownerScopedPath(input.ownerId, row.storage_path ?? "") ||
+            enclosureSignature(row) !== selectedSignatures.get(id)) {
+          return { ready: false, blockers: ["enclosure_not_eligible"], preview: null };
+        }
+      }
     }
     return result;
   } catch {
