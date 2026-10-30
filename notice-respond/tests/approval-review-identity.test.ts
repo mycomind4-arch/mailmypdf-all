@@ -52,8 +52,8 @@ describe("Notice Respond exact-mailing approval confirmation identity", () => {
       new URL("../shared/NoticeResponseWorkflow.tsx", import.meta.url),
       "utf8",
     );
-    expect(source).toMatch(
-      /<ApprovalChecklist\\s+key=\\{noticeResponseApprovalReviewIdentity\\(\\{ packet, recipient, mailClass \\}\\)\\}/,
+    expect(source).toContain(
+      "key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass })}",
     );
     // This guards against preserving checked boxes across a second preview
     // while the existing ApprovalChecklist component remains mounted.
