@@ -168,8 +168,8 @@ test("debt-validation approval: printable mailing-address edits invalidate the r
   const originalDigest = debtValidationIntakeSha256(original.intake);
 
   for (const change of [
-    { consumerMailingAddress: "123 EXAMPLE ST\\nSACRAMENTO, CA 95814" },
-    { collectorResponseAddress: "EXAMPLE COLLECTIONS\\nPO BOX 456\\nAUSTIN, TX 78701" },
+    { consumerMailingAddress: "123 EXAMPLE ST\nSACRAMENTO, CA 95814" },
+    { collectorResponseAddress: "EXAMPLE COLLECTIONS\nPO BOX 456\nAUSTIN, TX 78701" },
   ]) {
     const edited = { ...original.intake, ...change };
     assert.notEqual(draftDebtValidationLetter(edited, "2026-10-30"), originalLetter);
