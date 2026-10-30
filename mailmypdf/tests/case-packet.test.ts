@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import {
   assemblePacket,
@@ -234,9 +235,8 @@ describe("authenticated packet-document selection", () => {
   const caseId = "11111111-1111-4111-8111-111111111111";
   const ownerId = "22222222-2222-4222-8222-222222222222";
 
-  function scopedCase(owned: boolean, rpcError: Error | null = null) {
+  function scopedCase(owned: boolean, databaseError = false) {
     const filters: Array<[string, string]> = [];
-    const calls: Array<{ name: string; args: unknown }> = [];
     const query = {
       select: (_columns: string) => query,
       eq: (column: string, value: string) => {
@@ -245,10 +245,9 @@ describe("authenticated packet-document selection", () => {
       },
       maybeSingle: async () => ({
         data: owned ? { id: caseId, workflow_id: "cp14-response", vertical_id: "notice-respond" } : null,
-        error: null,
+        error: databaseError ? { message: "Database read unavailable" } : null,
       }),
     };
-    const rows = [{ document_id: "33333333-3333-4333-8333-333333333333", role: "evidence" }];
     const context = {
       user: { id: ownerId },
       supabase: {
@@ -256,41 +255,48 @@ describe("authenticated packet-document selection", () => {
           assert.equal(table, "workflow_cases");
           return query;
         },
-        rpc: async (name: string, args: unknown) => {
-          calls.push({ name, args });
-          return { data: rows, error: rpcError };
-        },
+        // The storage-path RPC must NOT run through the authenticated client:
+        // the migration grants EXECUTE only to service_role.
+        rpc: () => { throw new Error("Unexpected user-scoped packet RPC"); },
       },
     } as never;
-    return { context, filters, calls, rows };
+    return { context, filters };
   }
 
-  test("requires an owned case and calls the RPC with the user's authenticated client", async () => {
-    const state = scopedCase(true);
-    const documents = await loadPacketDocuments(caseId, state.context);
-    assert.deepEqual(documents, state.rows);
-    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
-    assert.deepEqual(state.calls, [{
-      name: "case_packet_documents", args: { p_case_id: caseId },
-    }]);
-  });
-
-  test("never invokes the packet RPC when the case is not owned by the session", async () => {
+  test("refuses cross-owner packet lookup before privileged document selection", async () => {
     const state = scopedCase(false);
     await assert.rejects(
       () => loadPacketDocuments(caseId, state.context),
       CaseNotFoundError,
     );
     assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
-    assert.equal(state.calls.length, 0);
   });
 
-  test("fails closed when the owner-scoped database packet gate rejects evidence", async () => {
-    const state = scopedCase(true, new Error("Evidence not scanned"));
+  test("fails closed if the owner-scoped case lookup is unavailable", async () => {
+    const state = scopedCase(true, true);
     await assert.rejects(
       () => loadPacketDocuments(caseId, state.context),
-      PacketError,
+      CaseError,
     );
-    assert.equal(state.calls.length, 1);
+    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
+  });
+
+  test("keeps the privileged storage-path RPC behind the owner preflight", () => {
+    const source = readFileSync(
+      new URL("../src/lib/secure-core/packet.server.ts", import.meta.url), "utf8",
+    );
+    const preflight = source.indexOf("await loadCase(caseId, context)");
+    const privilegedRpc = source.indexOf('supabaseAdmin.rpc("case_packet_documents"');
+    assert.ok(preflight >= 0 && privilegedRpc > preflight,
+      "owner verification must precede the service-role packet RPC");
+    assert.ok(!source.includes('context.supabase.rpc("case_packet_documents"'),
+      "authenticated clients must not request private storage paths");
+
+    const migration = readFileSync(
+      new URL("../supabase/migrations/20260924110000_case_document_ownership_hardening.sql", import.meta.url),
+      "utf8",
+    );
+    assert.match(migration, /revoke all on function public\.case_packet_documents\(uuid\) from public, anon, authenticated;/);
+    assert.match(migration, /grant execute on function public\.case_packet_documents\(uuid\)\s+to service_role;/);
   });
 });
