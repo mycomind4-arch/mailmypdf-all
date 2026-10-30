@@ -380,6 +380,25 @@ export function deriveMatterGuidance(input: {
       }
       usedFormDocumentIds.set(forms[0].documentId, kind);
     }
+
+    // The runtime's packet policy also checks supplemental evidence formats,
+    // duplicate included attachments, and source-notice/form aliasing. Reuse
+    // that authoritative gate so chat guidance cannot recommend checkout for
+    // a packet that the physical-mail runtime would reject.
+    try {
+      const policy = getSsaReconsiderationRuntimePolicy(matter.workflowId);
+      if (!policy?.validateDocumentsBeforePacket) throw new Error("SSA packet validation unavailable");
+      policy.validateDocumentsBeforePacket(
+        documents as WorkflowMatterDocument[],
+        input.analysis as WorkflowMatterAnalysis,
+      );
+    } catch {
+      return {
+        progress, requiredFacts,
+        nextAction: action(matter.id, null,
+          "The included SSA evidence is not ready for mailing. Check supported PDF or image formats, duplicate attachments, and distinct completed forms before packet review or checkout."),
+      };
+    }
   }
 
   if (input.approvalId && input.hasDraft && input.draftIsCurrent) {
