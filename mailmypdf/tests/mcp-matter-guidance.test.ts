@@ -524,3 +524,54 @@ test("MCP SSA guidance fails closed when the analyzed notice is not a confirmed 
     }
   }
 });
+
+test("SSA MCP guidance does not recommend packet preview or checkout with unsupported included evidence", () => {
+  const source = {
+    documentId: "denial-notice", role: "subject_notice", included: false,
+    securityStatus: "clean", usable: true,
+  };
+  const form = {
+    documentId: "completed-561", role: "evidence", evidenceKind: "ssa_561",
+    mimeType: "application/pdf", included: true, securityStatus: "clean", usable: true,
+  };
+  const supplemental = {
+    documentId: "supporting-file", role: "evidence", evidenceKind: "other",
+    mimeType: "application/zip", included: true, securityStatus: "clean", usable: true,
+  };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const approvalId of [null, "historical-approval"]) {
+      const input = {
+        matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+        documents: [source, form, supplemental],
+        requiresSourceDocument: true,
+        analysis: {
+          documentId: "denial-notice",
+          result: {
+            issuer: "Social Security Administration", decision: "denied",
+            workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
+          },
+        },
+        hasInput: true, hasDraft: true, draftIsCurrent: true, approvalId,
+      };
+      const blocked = deriveMatterGuidance(input);
+      assert.equal(blocked.nextAction.toolName, null,
+        `${workflowId}: unsupported ZIP must not advance toward packet preview or payment`);
+      assert.match(blocked.nextAction.reason, /unsupported|supported PDF or image/i);
+      assert.equal(blocked.nextAction.arguments.approval_id, undefined);
+
+      const excluded = deriveMatterGuidance({
+        ...input, documents: [source, form, { ...supplemental, included: false }],
+      });
+      assert.equal(excluded.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet",
+        `${workflowId}: excluded historical evidence must not block mailing`);
+
+      const supported = deriveMatterGuidance({
+        ...input, documents: [source, form, { ...supplemental, mimeType: "image/png" }],
+      });
+      assert.equal(supported.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet",
+        `${workflowId}: included supported images remain eligible`);
+    }
+  }
+});
