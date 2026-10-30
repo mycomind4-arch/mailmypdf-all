@@ -162,6 +162,7 @@ export async function checkoutDebtValidationMatter<Result>(input: {
     .update(JSON.stringify([
       ownerId, matterId, binding.matterVersion, binding.pdfSha256,
       binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
     ]), "utf8").digest("hex");
   const verified = { binding, idempotencyKey, expectedMatterVersion: binding.matterVersion };
   // The earlier snapshot read is only preflight: the matter can change while
