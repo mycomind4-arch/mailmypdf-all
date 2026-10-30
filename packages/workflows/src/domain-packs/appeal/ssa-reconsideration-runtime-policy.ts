@@ -159,10 +159,23 @@ const SSA_SUPPORTED_EVIDENCE_MIME_TYPES = new Set([
   "application/pdf", "image/png", "image/jpeg", "image/tiff",
 ]);
 
+function assertSupportedSourceNoticeFormat(document: WorkflowMatterDocument): void {
+  // Source notices are analyzed rather than mailed, so they are commonly
+  // included=false. Still enforce the manifest's upload format contract.
+  if (!SSA_SUPPORTED_EVIDENCE_MIME_TYPES.has(document.mimeType ?? "")) {
+    throw new Error("The source denial notice must be a supported PDF or image file.");
+  }
+}
+
 function assertSupportedIncludedEvidenceFormats(
   documents: readonly WorkflowMatterDocument[],
   program: SsaReconsiderationProgram,
 ): void {
+  // Source notices are excluded from outgoing mail by default, but must
+  // still be valid inputs for analysis and reconsideration preparation.
+  for (const document of documents) {
+    if (document.role === "subject_notice") assertSupportedSourceNoticeFormat(document);
+  }
   // The manifest accepts PDFs and these image formats for supporting
   // evidence. A clean security scan alone does not make a ZIP or other
   // unsupported upload suitable for outgoing PDF packet assembly.
@@ -192,6 +205,7 @@ function assertCurrentSourceAnalysis(
   if (sources.length !== 1 || !source || source.documentId !== analysis.documentId) {
     throw new Error("The source notice does not match the analyzed denial notice; analyze the current source notice again.");
   }
+  assertSupportedSourceNoticeFormat(source);
   // Apply the same fail-closed security boundary to fact intake, draft, and
   // packet review. A previously analyzed notice may later be quarantined.
   if (!source.usable || source.securityStatus !== "clean") {
