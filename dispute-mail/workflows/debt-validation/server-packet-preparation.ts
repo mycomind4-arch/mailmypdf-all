@@ -73,6 +73,18 @@ export async function prepareDebtValidationMatterPacket(input: {
     throw new Error("debt_validation_unexpected_enclosure");
   }
 
+  // The source notice is checked above, but the generated letter is the
+  // actual PDF that could be mailed. Apply the same final-packet constraints
+  // (including the ten-page limit) before making an approvable snapshot.
+  try {
+    const validated = await validatePdfForMailing(assembled.bytes);
+    if (validated.pageCount !== assembled.responsePages + assembled.supportingPages) {
+      throw new Error("generated_packet_page_mismatch");
+    }
+  } catch {
+    throw new Error("debt_validation_invalid_generated_pdf");
+  }
+
   const packet: DebtValidationPacketSnapshot = {
     ownerId,
     matterId,
