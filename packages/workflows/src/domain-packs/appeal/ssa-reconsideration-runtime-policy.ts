@@ -315,6 +315,15 @@ export function createSsaReconsiderationRuntimePolicy(
 
     validateDocumentsBeforePacket(documents, analysis) {
       const basis = assertReconsiderationAnalysis(program, analysis);
+      // Draft-time scanning is not sufficient: supplemental evidence can be
+      // quarantined or revoked before preview, approval, or checkout. The
+      // shared host enforces this too, but policy consumers must fail closed.
+      const blockedIncluded = documents.filter(
+        (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
+      );
+      if (blockedIncluded.length) {
+        throw new Error(`Every included ${program} document must clear security scanning before packet review.`);
+      }
       assertRequiredForms(documents, basis);
     },
 
