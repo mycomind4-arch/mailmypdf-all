@@ -47,6 +47,7 @@ function trustedNotice(): TrustedDebtValidationNotice {
 function packet(i: DebtValidationIntake): DebtValidationPacketSnapshot {
   return {
     ownerId: "owner-1", matterId: "matter-1", matterVersion: 2,
+    totalCents: 1499, mailClass: "certified",
     pdfSha256: b, enclosureManifestSha256: c,
     intakeSha256: debtValidationIntakeSha256(i),
     recipientAddress: address,
