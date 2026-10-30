@@ -13,6 +13,7 @@ import {
   TextField,
 } from "@mailmypdf/workflow-ui";
 import "@mailmypdf/workflow-ui/workflow-ui.css";
+import { noticeResponseApprovalReviewIdentity } from "./approval-review-identity";
 import {
   NOTICE_RESPONSE_STEPS,
   completedNoticeResponseSteps,
@@ -1046,6 +1047,7 @@ export default function NoticeResponseWorkflow({
           </SectionCard>
           {packet && (
             <ApprovalChecklist
+              key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass })}
               reviewItems={[
                 {
                   id: "hash",
