@@ -28,19 +28,27 @@ export interface DebtValidationMatterSnapshot {
 export interface DebtValidationMatterRepository {
   /** One consistent read from authenticated owner-scoped persistence. */
   loadCurrent(ownerId: string, matterId: string): Promise<DebtValidationMatterSnapshot | null>;
-  /** Atomic compare-and-insert: recheck the entire current owner-scoped binding via assertDebtValidationApprovalCommit inside the approval transaction; a matterVersion-only compare is insufficient. */
+  /** Atomic compare-and-insert: recheck the owner-scoped binding with assertDebtValidationApprovalCommit AND rehash the persisted PDF with assertDebtValidationPersistedPdf inside the same approval transaction. A matterVersion-only compare is insufficient. */
   persistApproval(
     ownerId: string,
     matterId: string,
     binding: DebtValidationApprovalBinding,
     expectedMatterVersion: number,
   ): Promise<void>;
+  /**
+   * Read the exact persisted, owner-scoped PDF bytes. A packet SHA in metadata
+   * is NOT proof that the bytes to be mailed still match the reviewed packet.
+   * The adapter must also rehash these bytes inside persistApproval and
+   * claimCheckout's atomic transactions before committing either operation.
+   */
+  loadPacketPdfBytes(ownerId: string, matterId: string): Promise<Uint8Array | null>;
   /** Return only the persisted approval for this authenticated owner/matter. */
   loadApproval(ownerId: string, matterId: string): Promise<DebtValidationApprovalBinding | null>;
   /**
    * Atomic, idempotent order claim BEFORE any payment or mailing callback.
    * In one transaction, reload the current owner-scoped notice, intake, packet
-   * and persisted approval; re-run the exact checkout binding check; compare
+   * and persisted approval AND the stored PDF bytes; re-run the exact checkout
+   * binding and assertDebtValidationPersistedPdf checks; compare
    * expectedMatterVersion; and reserve idempotencyKey. A changed or missing
    * record MUST reject without invoking a provider. Retrying the identical
    * approved packet/key must reuse the existing claim.
@@ -86,6 +94,22 @@ export function assertDebtValidationApprovalCommit(input: {
   }
 }
 
+/**
+ * Fail closed if the PDF bytes in owner-scoped storage are absent or differ
+ * from the reviewed packet digest. Must be rerun at each atomic approval/order
+ * claim boundary: a preflight hash alone cannot prevent concurrent replacement.
+ */
+export function assertDebtValidationPersistedPdf(
+  bytes: Uint8Array | null,
+  expectedSha256: string,
+): void {
+  if (!(bytes instanceof Uint8Array)
+    || !/^[a-f0-9]{64}$/i.test(expectedSha256)
+    || createHash("sha256").update(bytes).digest("hex") !== expectedSha256.toLowerCase()) {
+    throw new Error("debt_validation_persisted_pdf_changed");
+  }
+}
+
 function identity(ownerId: string, matterId: string): void {
   if (!ownerId?.trim() || !matterId?.trim()) {
     throw new Error("debt_validation_owner_scope");
@@ -117,6 +141,10 @@ export async function approveDebtValidationMatter(input: {
     throw new Error("debt_validation_explicit_approval_required");
   }
   const snapshot = requireSnapshot(await repository.loadCurrent(ownerId, matterId));
+  assertDebtValidationPersistedPdf(
+    await repository.loadPacketPdfBytes(ownerId, matterId),
+    snapshot.packet.pdfSha256,
+  );
   const binding = createDebtValidationApprovalBinding({
     ownerId,
     matterId,
@@ -150,6 +178,10 @@ export async function checkoutDebtValidationMatter<Result>(input: {
   const binding = await repository.loadApproval(ownerId, matterId);
   if (!binding) throw new Error("debt_validation_approval_missing");
   const snapshot = requireSnapshot(await repository.loadCurrent(ownerId, matterId));
+  assertDebtValidationPersistedPdf(
+    await repository.loadPacketPdfBytes(ownerId, matterId),
+    snapshot.packet.pdfSha256,
+  );
   assertDebtValidationCheckoutBinding({
     ownerId,
     matterId,
