@@ -118,3 +118,9 @@ test("debt-validation: negative cases never reach a mocked checkout handoff", as
   assert.equal(checkoutCalls, 0);
   // Pure preflight only: this test does not exercise the production approval or checkout route.
 });
+
+test("debt-validation: malformed JSON cannot bypass validation or crash the preflight", () => {
+  assert.deepEqual(validateDebtValidationIntake(null as unknown as DebtValidationIntake).map((x) => x.code), ["invalid_text"]);
+  assert.deepEqual(codes({ ...fixture(), confirmedNoticeSha256: null } as unknown as DebtValidationIntake), ["invalid_text"]);
+  assert.deepEqual(codes({ ...fixture(), recipientConfirmed: "yes" } as unknown as DebtValidationIntake), ["invalid_text"]);
+});
