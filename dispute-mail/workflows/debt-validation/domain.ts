@@ -90,8 +90,8 @@ export function validateDebtValidationIntake(input: DebtValidationIntake): DebtV
   if (requiredStrings.some((key) => typeof record[key] !== "string")
     || typeof record.recipientConfirmed !== "boolean"
     || typeof record.requestOriginalCreditor !== "boolean"
-    || !Number.isSafeInteger(record.noticeVersion)
-    || !Number.isSafeInteger(record.confirmedNoticeVersion)
+    || typeof record.noticeVersion !== "number" || !Number.isSafeInteger(record.noticeVersion)
+    || typeof record.confirmedNoticeVersion !== "number" || !Number.isSafeInteger(record.confirmedNoticeVersion)
     || (record.noticeDate !== null && typeof record.noticeDate !== "string")
     || (record.noticeDisputeDeadline !== null && typeof record.noticeDisputeDeadline !== "string")) {
     return [{ code: "invalid_text", message: "Malformed or incomplete intake fields must be corrected." }];
