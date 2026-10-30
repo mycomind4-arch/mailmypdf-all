@@ -1504,6 +1504,9 @@ importers:
       '@mailmypdf/document-intelligence':
         specifier: workspace:*
         version: link:../packages/document-intelligence
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../packages/packet-builder
       '@mailmypdf/seo':
         specifier: workspace:*
         version: link:../packages/seo
@@ -1523,9 +1526,6 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
-      '@mailmypdf/packet-builder':
-        specifier: workspace:*
-        version: link:../packages/packet-builder
       '@mailmypdf/payment-fulfillment':
         specifier: workspace:*
         version: link:../packages/payment-fulfillment

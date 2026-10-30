@@ -2,9 +2,12 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import {
   assemblePacket,
+  loadPacketDocuments,
+  requirePacketDocumentRows,
   PacketError,
   type PacketDocumentRow,
 } from "../src/lib/secure-core/packet.server";
@@ -14,7 +17,7 @@ import {
   renderResponseLetter,
   assertReviewedPacket,
 } from "../src/lib/secure-core/case-approval.server";
-import { CaseError } from "../src/lib/secure-core/case.server";
+import { CaseError, CaseNotFoundError } from "../src/lib/secure-core/case.server";
 
 /* ═══════════════════════════════════════════════════════════
    Packet assembly
@@ -225,5 +228,115 @@ describe("approval input validation", () => {
     assert.equal(assertMailClass("certified"), "certified");
     assert.throws(() => assertMailClass("carrier-pigeon"), CaseError);
     assert.throws(() => assertMailClass(undefined), CaseError);
+  });
+});
+
+
+describe("privileged packet document RPC result integrity", () => {
+  test("accepts a real empty list and well-formed selected evidence", () => {
+    assert.deepEqual(requirePacketDocumentRows([]), []);
+    const evidence = row({ sha256: "a".repeat(64) });
+    assert.deepEqual(requirePacketDocumentRows([evidence]), [evidence]);
+  });
+
+  test("does not mistake a missing RPC result for a letter-only packet", () => {
+    for (const result of [null, undefined, {}, { data: [] }, ""]) {
+      assert.throws(() => requirePacketDocumentRows(result), PacketError);
+    }
+  });
+
+  test("rejects incomplete or corrupt rows instead of silently dropping evidence", () => {
+    const evidence = row({ sha256: "a".repeat(64) });
+    for (const result of [
+      [null],
+      [{ ...evidence, document_id: "" }],
+      [{ ...evidence, role: "unknown" }],
+      [{ ...evidence, storage_path: null }],
+      [{ ...evidence, sha256: null }],
+      [{ ...evidence, sha256: "not-a-digest" }],
+      [{ ...evidence, mime_type: null }],
+      [{ ...evidence, position: -1 }],
+      [{ ...evidence, page_count: 0 }],
+    ]) {
+      assert.throws(() => requirePacketDocumentRows(result), PacketError);
+    }
+  });
+
+  test("requires RPC result validation at the production selection boundary", () => {
+    const source = readFileSync(
+      new URL("../src/lib/secure-core/packet.server.ts", import.meta.url), "utf8",
+    );
+    assert.match(source, /return requirePacketDocumentRows\(data\);/);
+    assert.ok(!source.includes("return (data ?? []) as PacketDocumentRow[];"));
+  });
+});
+
+describe("authenticated packet-document selection", () => {
+  const caseId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "22222222-2222-4222-8222-222222222222";
+
+  function scopedCase(owned: boolean, databaseError = false) {
+    const filters: Array<[string, string]> = [];
+    const query = {
+      select: (_columns: string) => query,
+      eq: (column: string, value: string) => {
+        filters.push([column, value]);
+        return query;
+      },
+      maybeSingle: async () => ({
+        data: owned ? { id: caseId, workflow_id: "cp14-response", vertical_id: "notice-respond" } : null,
+        error: databaseError ? { message: "Database read unavailable" } : null,
+      }),
+    };
+    const context = {
+      user: { id: ownerId },
+      supabase: {
+        from: (table: string) => {
+          assert.equal(table, "workflow_cases");
+          return query;
+        },
+        // The storage-path RPC must NOT run through the authenticated client:
+        // the migration grants EXECUTE only to service_role.
+        rpc: () => { throw new Error("Unexpected user-scoped packet RPC"); },
+      },
+    } as never;
+    return { context, filters };
+  }
+
+  test("refuses cross-owner packet lookup before privileged document selection", async () => {
+    const state = scopedCase(false);
+    await assert.rejects(
+      () => loadPacketDocuments(caseId, state.context),
+      CaseNotFoundError,
+    );
+    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
+  });
+
+  test("fails closed if the owner-scoped case lookup is unavailable", async () => {
+    const state = scopedCase(true, true);
+    await assert.rejects(
+      () => loadPacketDocuments(caseId, state.context),
+      CaseError,
+    );
+    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
+  });
+
+  test("keeps the privileged storage-path RPC behind the owner preflight", () => {
+    const source = readFileSync(
+      new URL("../src/lib/secure-core/packet.server.ts", import.meta.url), "utf8",
+    );
+    const preflight = source.indexOf("await loadCase(caseId, context)");
+    const privilegedRpc = source.indexOf('supabaseAdmin.rpc("case_packet_documents"');
+    assert.ok(preflight >= 0 && privilegedRpc > preflight,
+      "owner verification must precede the service-role packet RPC");
+    assert.ok(!source.includes('context.supabase.rpc("case_packet_documents"'),
+      "authenticated clients must not request private storage paths");
+
+    const migration = readFileSync(
+      new URL("../supabase/migrations/20260924110000_case_document_ownership_hardening.sql", import.meta.url),
+      "utf8",
+    );
+    assert.match(migration, /revoke all on function public\.case_packet_documents\(uuid\) from public, anon, authenticated;/);
+    assert.match(migration, /grant execute on function public\.case_packet_documents\(uuid\)\s+to service_role;/);
   });
 });

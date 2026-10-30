@@ -161,7 +161,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
+      - name: Install workspace without optional ONNX CUDA download
+        env:
+          npm_config_onnxruntime_node_install: skip
         run: pnpm install --frozen-lockfile
       - name: Build MCP document-ingress and canonical registry dependencies
         run: pnpm --filter ./mailmypdf run prebuild
@@ -189,6 +191,8 @@ jobs:
         run: pnpm --filter ./mailmypdf seo:authority:validate
       - name: Verify secure workflow payment-to-mailing invariants
         run: node --test mailmypdf/tests/secure-workflow-fulfillment.test.mjs
+      - name: Verify authenticated exact PDF packet review without provider actions
+        run: pnpm --filter ./mailmypdf exec tsx --test tests/packet-pdf-review.test.ts tests/case-approval-readback.test.ts tests/case-packet.test.ts tests/case-packet-storage-adapter.test.ts
       - name: Build secure workflow package dependencies
         run: pnpm --filter ./mailmypdf run prebuild
       - name: Verify executable notice workflow runtimes
@@ -225,7 +229,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
+      - name: Install workspace without optional ONNX CUDA download
+        env:
+          npm_config_onnxruntime_node_install: skip
         run: pnpm install --frozen-lockfile
       - name: Verify production payment, fulfillment, and evidence rails
         run: |
@@ -272,8 +278,21 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
-        run: pnpm install --frozen-lockfile
+      - name: Install section dependencies
+        # Section builds do not execute local ONNX inference. Avoid an unrelated
+        # GPU binary postinstall download that can time out before compilation.
+        env:
+          npm_config_onnxruntime_node_install: skip
+        shell: bash
+        run: |
+          # The legal-defense section needs only its own package and design-system.
+          # A full install also runs unrelated onnxruntime-node postinstall downloads,
+          # which have timed out before legal-defense compilation can start.
+          if [[ "${{ matrix.app }}" == "legal-defense" ]]; then
+            pnpm --filter @mailmypdf/legal-defense... install --frozen-lockfile
+          else
+            pnpm install --frozen-lockfile
+          fi
       - name: Build root section package when present
         shell: bash
         run: |
