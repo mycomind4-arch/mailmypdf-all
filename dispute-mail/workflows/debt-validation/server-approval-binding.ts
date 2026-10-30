@@ -72,14 +72,14 @@ function sameAddress(left: string, right: string): boolean {
   return normalizeMailingAddress(left) === normalizeMailingAddress(right);
 }
 
-/** Stable field order; address formatting differences do not change the digest. */
+/** Stable field order; hash address text as rendered in the letter.\n * Postal-equivalent case/spacing edits may change the reviewed PDF bytes and\n * therefore must invalidate the approval intake fingerprint. */
 export function debtValidationIntakeSha256(intake: DebtValidationIntake): string {
   if (validateDebtValidationIntake(intake).length) fail("invalid_intake");
   return digest(JSON.stringify([
     intake.consumerName.trim(),
-    normalizeMailingAddress(intake.consumerMailingAddress),
+    intake.consumerMailingAddress.trim(),
     intake.collectorName.trim(),
-    normalizeMailingAddress(intake.collectorResponseAddress),
+    intake.collectorResponseAddress.trim(),
     intake.accountReference.trim(),
     intake.disputeExplanation.trim(),
     intake.requestOriginalCreditor,
