@@ -99,13 +99,16 @@ const SHA256 = /^[a-f0-9]{64}$/;
 function matchesReviewedManifest(reviewed: unknown, stored: unknown): boolean {
   if (!Array.isArray(reviewed) || !Array.isArray(stored) ||
       reviewed.length !== stored.length || reviewed.length > 100) return false;
-  return reviewed.every((entry, index) => {
+  for (let index = 0; index < reviewed.length; index += 1) {
+    const entry = reviewed[index];
     const actual = stored[index];
-    return entry && typeof entry === "object" && actual && typeof actual === "object" &&
-      entry.documentId === actual.documentId && entry.role === actual.role &&
-      entry.evidenceKind === actual.evidenceKind && entry.filename === actual.filename &&
-      entry.sha256 === actual.sha256 && entry.pageCount === actual.pageCount;
-  });
+    // An Array.every() check would skip holes in a sparse array.
+    if (!entry || typeof entry !== "object" || !actual || typeof actual !== "object" ||
+        entry.documentId !== actual.documentId || entry.role !== actual.role ||
+        entry.evidenceKind !== actual.evidenceKind || entry.filename !== actual.filename ||
+        entry.sha256 !== actual.sha256 || entry.pageCount !== actual.pageCount) return false;
+  }
+  return true;
 }
 
 function caseBasis(value: {
