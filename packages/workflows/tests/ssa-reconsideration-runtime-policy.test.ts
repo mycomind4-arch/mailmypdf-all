@@ -620,7 +620,7 @@ test("SSDI and SSI require notice-confirmed destination and explicit packet/mail
     assert.equal(recipient.origin, "extracted_confirmation", `${workflowId}: destination needs source confirmation`);
     assert.match(recipient.hint ?? "", /controlling denial notice|verified SSA instructions/i);
 
-    const connectorRecipient = runtimePolicy.chatContract?.connectorFields.find(
+    const connectorRecipient = runtimePolicy.chatContract?.connectorFields?.find(
       (field) => field.id === "recipientAddress",
     );
     assert.ok(connectorRecipient, `${workflowId}: chat must request the same destination`);
