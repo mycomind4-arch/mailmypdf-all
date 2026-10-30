@@ -142,6 +142,8 @@ export interface WorkflowMatterClient {
     preview: WorkflowPacketPreview;
     recipient: WorkflowMailingAddress;
     mailClass: "standard" | "certified" | "registered";
+    /** CP2000: affirmative checklist action for the controlling notice destination. */
+    recipientConfirmedFromNotice?: boolean;
   }): Promise<{ approvalId: string; packetSha256: string; quote: WorkflowPacketPreview["quote"] }>;
 
   loadApproval(matterId: string): Promise<{
@@ -305,6 +307,7 @@ export function createHttpWorkflowMatterClient(input: {
           expectedTotalCents: value.preview.quote.totalCents,
           recipient: value.recipient,
           mailClass: value.mailClass,
+          recipientConfirmedFromNotice: value.recipientConfirmedFromNotice,
         }),
       });
     },
