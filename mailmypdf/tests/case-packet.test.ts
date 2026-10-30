@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   assemblePacket,
   loadPacketDocuments,
+  requirePacketDocumentRows,
   PacketError,
   type PacketDocumentRow,
 } from "../src/lib/secure-core/packet.server";
@@ -230,6 +231,45 @@ describe("approval input validation", () => {
   });
 });
 
+
+describe("privileged packet document RPC result integrity", () => {
+  test("accepts a real empty list and well-formed selected evidence", () => {
+    assert.deepEqual(requirePacketDocumentRows([]), []);
+    const evidence = row({ sha256: "a".repeat(64) });
+    assert.deepEqual(requirePacketDocumentRows([evidence]), [evidence]);
+  });
+
+  test("does not mistake a missing RPC result for a letter-only packet", () => {
+    for (const result of [null, undefined, {}, { data: [] }, ""]) {
+      assert.throws(() => requirePacketDocumentRows(result), PacketError);
+    }
+  });
+
+  test("rejects incomplete or corrupt rows instead of silently dropping evidence", () => {
+    const evidence = row({ sha256: "a".repeat(64) });
+    for (const result of [
+      [null],
+      [{ ...evidence, document_id: "" }],
+      [{ ...evidence, role: "unknown" }],
+      [{ ...evidence, storage_path: null }],
+      [{ ...evidence, sha256: null }],
+      [{ ...evidence, sha256: "not-a-digest" }],
+      [{ ...evidence, mime_type: null }],
+      [{ ...evidence, position: -1 }],
+      [{ ...evidence, page_count: 0 }],
+    ]) {
+      assert.throws(() => requirePacketDocumentRows(result), PacketError);
+    }
+  });
+
+  test("requires RPC result validation at the production selection boundary", () => {
+    const source = readFileSync(
+      new URL("../src/lib/secure-core/packet.server.ts", import.meta.url), "utf8",
+    );
+    assert.match(source, /return requirePacketDocumentRows\(data\);/);
+    assert.ok(!source.includes("return (data ?? []) as PacketDocumentRow[];"));
+  });
+});
 
 describe("authenticated packet-document selection", () => {
   const caseId = "11111111-1111-4111-8111-111111111111";
