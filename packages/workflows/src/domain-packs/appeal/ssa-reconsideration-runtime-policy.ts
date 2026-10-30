@@ -155,14 +155,19 @@ function assertRequiredForms(
   }
 }
 
-const SSA_SUPPORTED_EVIDENCE_MIME_TYPES = new Set([
+// TIFF is useful as a scanned *source* notice for analysis, but the shared
+// physical-mail packet builder can only enclose PDF, PNG and JPEG bytes.
+const SSA_SUPPORTED_SOURCE_MIME_TYPES = new Set([
   "application/pdf", "image/png", "image/jpeg", "image/tiff",
+]);
+const SSA_SUPPORTED_PACKET_MIME_TYPES = new Set([
+  "application/pdf", "image/png", "image/jpeg",
 ]);
 
 function assertSupportedSourceNoticeFormat(document: WorkflowMatterDocument): void {
   // Source notices are analyzed rather than mailed, so they are commonly
   // included=false. Still enforce the manifest's upload format contract.
-  if (!SSA_SUPPORTED_EVIDENCE_MIME_TYPES.has(document.mimeType ?? "")) {
+  if (!SSA_SUPPORTED_SOURCE_MIME_TYPES.has(document.mimeType ?? "")) {
     throw new Error("The source denial notice must be a supported PDF or image file.");
   }
 }
@@ -176,15 +181,14 @@ function assertSupportedIncludedEvidenceFormats(
   for (const document of documents) {
     if (document.role === "subject_notice") assertSupportedSourceNoticeFormat(document);
   }
-  // The manifest accepts PDFs and these image formats for supporting
-  // evidence. A clean security scan alone does not make a ZIP or other
-  // unsupported upload suitable for outgoing PDF packet assembly.
+  // The shared physical-mail packet builder only renders PDF, PNG and JPEG.
+  // An analyzed TIFF notice may remain excluded, but including it (or a TIFF
+  // supplemental upload) must not be reported as ready for mailed PDF assembly.
   if (documents.some((document) =>
-    document.role === "evidence" &&
     document.included &&
-    !SSA_SUPPORTED_EVIDENCE_MIME_TYPES.has(document.mimeType ?? "")
+    !SSA_SUPPORTED_PACKET_MIME_TYPES.has(document.mimeType ?? "")
   )) {
-    throw new Error(`Included ${program} evidence must be a supported PDF or image file.`);
+    throw new Error(`Included ${program} documents must be a supported PDF or image (PNG or JPEG) file; convert TIFF to PDF, PNG or JPEG before mailing.`);
   }
 }
 
