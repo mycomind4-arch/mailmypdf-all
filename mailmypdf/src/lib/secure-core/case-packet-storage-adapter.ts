@@ -59,7 +59,14 @@ export function createScopedCasePacketStorageAdapter(deps: {
       const rows = await currentRows();
       if (!rows.some((row) => row.storage_path === storagePath)) throw invalid();
       const url = await deps.signUrl(storagePath, expiresInSeconds);
-      if (typeof url !== "string" || !url.startsWith("https://")) throw invalid();
+      // Hosted storage must use TLS. Supabase's local development emulator
+      // uses loopback HTTP; never permit an arbitrary cleartext remote host.
+      let parsed: URL;
+      try { parsed = new URL(url); } catch { throw invalid(); }
+      const local = parsed.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+      if ((!local && parsed.protocol !== "https:") ||
+          parsed.username || parsed.password) throw invalid();
       return url;
     },
     async persistMeasuredPageCount({ ownerId, matterId, documentId, pageCount }) {
