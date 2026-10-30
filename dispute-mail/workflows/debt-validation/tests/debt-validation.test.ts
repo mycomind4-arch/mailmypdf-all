@@ -194,3 +194,36 @@ test("debt-validation: account numbers and suite-only lines are not postal deliv
     assert.deepEqual(codes(valid), [], validAddress);
   }
 });
+
+test("debt-validation: destination requires a city, not just a state and ZIP", () => {
+  const base = fixture();
+  for (const missingCity of [
+    "Sample Collections\nPO Box 456\nTX 78701",
+    "Sample Collections\n123 Example Street\nTX 78701",
+    "Sample Collections\n123 Example Street\n123, TX 78701",
+  ]) {
+    const changed = {
+      ...base,
+      collectorResponseAddress: missingCity,
+      noticeResponseAddress: missingCity,
+      confirmedRecipientAddress: missingCity,
+    };
+    assert.ok(codes(changed).includes("missing_collector"), missingCity);
+    assert.ok(codes(changed).includes("missing_notice"), missingCity);
+    assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"));
+  }
+
+  for (const complete of [
+    "Sample Collections\nPO Box 456\nAustin, TX 78701",
+    "Sample Collections\n123 Example Street\nSt. Louis, MO 63101",
+    "Sample Collections\n123 Example Street\nRio Rancho NM 87124",
+  ]) {
+    const changed = {
+      ...base,
+      collectorResponseAddress: complete,
+      noticeResponseAddress: complete,
+      confirmedRecipientAddress: complete,
+    };
+    assert.deepEqual(codes(changed), [], complete);
+  }
+});
