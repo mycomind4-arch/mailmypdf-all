@@ -262,6 +262,49 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
     }
   });
 
+  it("uses the packet assembler's owner-path rules for stored evidence review", async () => {
+    const state = await setup();
+    state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
+      ...state.snapshot, selectedEnclosureDocumentIds: ["doc-a"],
+    }));
+    const manifest = [{
+      documentId: "doc-a", role: "evidence" as const,
+      evidenceKind: "correspondence", filename: "evidence.pdf",
+      sha256: "b".repeat(64), pageCount: 1,
+    }];
+    const check = async (storagePath: string) => {
+      state.readPersistedDraft.mockResolvedValueOnce({
+        ...state.stored, selectedEnclosureDocumentIds: ["doc-a"], manifest,
+      });
+      return loadIrsGeneralOwnedDraftForReview({
+        ...state.input,
+        documentStore: {
+          loadEligibleDocuments: vi.fn(async () => [{
+            document_id: "doc-a", role: "evidence" as const,
+            evidence_kind: "correspondence", storage_path: storagePath,
+            safe_filename: "evidence.pdf", sha256: "b".repeat(64),
+            page_count: 1, position: 0, mime_type: "application/pdf",
+            excluded_pages: [],
+          }]),
+        },
+      });
+    };
+    for (const path of [
+      "owner-a/doc-a\\n.pdf", "owner-a/doc-a\\u0000.pdf",
+      "owner-a/doc-a\\u007f.pdf", "owner-b/doc-a.pdf",
+      "owner-a/../doc-a.pdf", "owner-a\\\\doc-a.pdf",
+    ]) {
+      expect(await check(path)).toEqual({
+        ready: false, blockers: ["enclosure_not_eligible"], review: null,
+      });
+    }
+    // Valid paths pass the evidence gate and reach the independent PDF
+    // page-budget check (this fixture contains only the response letter).
+    expect(await check("owner-a/doc-a.pdf")).toEqual({
+      ready: false, blockers: ["draft_integrity_failed"], review: null,
+    });
+  });
+
   it("rejects a case whose notice no longer permits mailed correspondence", async () => {
     const state = await setup();
     state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
