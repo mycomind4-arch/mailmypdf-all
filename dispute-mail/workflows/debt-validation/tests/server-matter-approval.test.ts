@@ -192,3 +192,19 @@ test("debt-validation matter: optimistic matter revision conflict prevents durab
   }), /debt_validation_concurrent_change/);
   assert.equal(state.saves, 0);
 });
+
+test("debt-validation matter: explicit exact-packet approval is required before any durable approval", async () => {
+  for (const approvalSignal of [undefined, false, "true", 1]) {
+    const { state, repository } = fakeStore();
+    const explicitApproval = approvalSignal === undefined ? {} : { userApprovedExactPacket: approvalSignal };
+    await assert.rejects(
+      approveDebtValidationMatter({
+        ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b,
+        repository, ...explicitApproval,
+      }),
+      /debt_validation_explicit_approval_required/,
+      "a reviewed PDF hash alone is not an explicit instruction to approve mailing",
+    );
+    assert.equal(state.saves, 0, "unconfirmed requests must never persist approval");
+  }
+});
