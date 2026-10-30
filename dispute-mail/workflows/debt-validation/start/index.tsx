@@ -177,7 +177,7 @@ export function DebtValidationStart() {
           <>
             <h2 className="wf-intake-heading">Controlling collection notice</h2>
             <p className="wf-intake-description">
-              Select the actual PDF notice for a local SHA-256 fingerprint. Manually transcribe its
+              Select a readable, mail-safe PDF notice (up to 10 MB and 10 pages) for a local SHA-256 fingerprint. Manually transcribe its
               postal response destination; this page does not extract or verify the address from the PDF.
             </p>
             <Field label="Collection notice PDF (local only)">
