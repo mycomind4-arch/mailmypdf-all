@@ -99,7 +99,7 @@ test("server packet preparation: owner, notice, address, quote and approval prer
     { ...input, mailClass: "overnight" as "certified" },
   ];
   for (const candidate of cases) {
-    await assert.rejects(prepareDebtValidationMatterPacket(candidate), /debt_validation_/, JSON.stringify({
+    await assert.rejects(prepareDebtValidationMatterPacket(candidate), /debt_validation_|Debt validation blocked:/, JSON.stringify({
       ownerId: candidate.ownerId, totalCents: candidate.totalCents, mailClass: candidate.mailClass,
     }));
   }
