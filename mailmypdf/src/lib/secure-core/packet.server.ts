@@ -36,6 +36,30 @@ const FETCH_TTL_SECONDS = 60;
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
 /**
+ * A successful RPC call must return an actual document list. In particular,
+ * null is NOT equivalent to an empty enclosure selection: treating a missing
+ * result as [] could produce a letter-only PDF while the case still contains
+ * selected evidence. A legitimate empty list is represented by [].
+ */
+export function requirePacketDocumentRows(data: unknown): PacketDocumentRow[] {
+  if (!Array.isArray(data) || data.some((row) =>
+    !row || typeof row !== "object" ||
+    typeof row.document_id !== "string" || !row.document_id ||
+    (row.role !== "evidence" && row.role !== "subject_notice") ||
+    typeof row.storage_path !== "string" || !row.storage_path ||
+    typeof row.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(row.sha256) ||
+    typeof row.safe_filename !== "string" || !row.safe_filename ||
+    typeof row.mime_type !== "string" || !row.mime_type ||
+    !Number.isSafeInteger(row.position) || row.position < 0 ||
+    (row.page_count !== null && row.page_count !== undefined &&
+      (!Number.isSafeInteger(row.page_count) || row.page_count < 1))
+  )) {
+    throw new PacketError("Packet document selection could not be verified");
+  }
+  return data as PacketDocumentRow[];
+}
+
+/**
  * Lists the documents that may enter the packet. The database refuses the whole
  * case if any included document has not cleared malware scanning, so there is
  * no path that assembles a packet around unscanned content.
@@ -53,7 +77,7 @@ export async function loadPacketDocuments(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.rpc("case_packet_documents", { p_case_id: caseId });
   if (error) throw new PacketError(error.message);
-  return (data ?? []) as PacketDocumentRow[];
+  return requirePacketDocumentRows(data);
 }
 
 /** Reads a stored document through a short-lived signed URL and verifies it. */
