@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { calculateQuote } from "@mailmypdf/pricing";
 import type { DebtValidationIntake } from "../domain";
 import { createDebtValidationApprovalBinding } from "../server-approval-binding";
 import { prepareDebtValidationMatterPacket } from "../server-packet-preparation";
@@ -36,7 +37,7 @@ async function fixture() {
     ownerId: "owner-1",
     matterId: "matter-1",
     matterVersion: 2,
-    totalCents: 1499,
+    totalCents: 2993,
     mailClass: "certified" as const,
     letterDate: "2026-10-30",
     intake,
@@ -65,7 +66,7 @@ test("server packet preparation: real vault notice yields exact letter PDF and r
     intake: input.intake, trustedNotice: input.trustedNotice,
     packet: result.packet, reviewedPdfSha256: result.packet.pdfSha256,
   });
-  assert.equal(binding.totalCents, 1499);
+  assert.equal(binding.totalCents, 2993);
   assert.equal(binding.mailClass, "certified");
 });
 
@@ -120,4 +121,25 @@ test("server packet preparation: a letter exceeding the mailing PDF page limit c
     }),
     /debt_validation_invalid_generated_pdf/,
   );
+});
+
+
+test("server packet preparation: canonical measured-page quote rejects client price spoofing", async () => {
+  const input = await fixture();
+  const prepared = await prepareDebtValidationMatterPacket(input);
+  const canonical = calculateQuote({
+    workflowId: "debt-validation", verticalId: "dispute-mail",
+    actualPages: prepared.responsePages,
+    supportingPages: prepared.supportingPages,
+    mailClass: input.mailClass,
+  });
+  assert.equal(prepared.packet.totalCents, canonical.totalCents);
+  assert.equal(prepared.packet.totalCents, input.totalCents);
+  for (const totalCents of [0, 1, input.totalCents - 1, input.totalCents + 1, Number.NaN]) {
+    await assert.rejects(
+      prepareDebtValidationMatterPacket({ ...input, totalCents }),
+      /debt_validation_quote_mismatch/,
+      "An arbitrary client-provided quote must never enter an approvable packet",
+    );
+  }
 });
