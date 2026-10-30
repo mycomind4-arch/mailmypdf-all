@@ -65,8 +65,12 @@ export interface ReviewedPacket {
 export function assertGenericCaseExecutionAllowed(
   workflowCase: Pick<WorkflowCase, "workflow_id" | "vertical_id">,
 ): void {
-  if (workflowCase.workflow_id === "debt-validation"
-    && workflowCase.vertical_id === "dispute-mail") {
+  // The case API stores caller-provided workflow IDs. Both the legacy
+  // short ID plus vertical and the canonical qualified registry ID must be
+  // blocked until the notice-bound, atomic debt-validation adapter is wired.
+  if ((workflowCase.workflow_id === "debt-validation"
+      && workflowCase.vertical_id === "dispute-mail")
+    || workflowCase.workflow_id === "dispute-mail/debt-validation") {
     throw new PacketError("Debt validation approval and checkout are not yet enabled.");
   }
 }
