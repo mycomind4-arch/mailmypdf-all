@@ -104,3 +104,34 @@ test("generic execution gate leaves existing other workflows unaffected", () => 
     /Debt validation approval and checkout are not yet enabled/,
   );
 });
+
+test("canonical qualified debt-validation ID also blocks generic approval and checkout", async () => {
+  // createCase accepts a workflowId string and the canonical registry uses
+  // dispute-mail/debt-validation; neither representation may reach generic
+  // approval/checkout before the notice-bound adapter is implemented.
+  const { context, calls } = fakeContext("dispute-mail/debt-validation", "dispute-mail");
+  await assert.rejects(
+    approvePacket({
+      caseId: "synthetic-case",
+      recipient: {
+        name: "Synthetic Collector",
+        line1: "PO Box 456",
+        city: "Austin",
+        state: "TX",
+        postal: "78701",
+      },
+      mailClass: "standard",
+      reviewed: { packetSha256: "a".repeat(64), totalCents: 999 },
+    }, context),
+    /Debt validation approval and checkout are not yet enabled/,
+  );
+  await assert.rejects(
+    materializeApprovedPacket("synthetic-case", "synthetic-approval", context),
+    /Debt validation approval and checkout are not yet enabled/,
+  );
+  assert.equal(calls.caseReads, 2);
+  assert.equal(calls.otherReads, 0, "qualified ID must be rejected before approval rows or packet reads");
+  assert.equal(calls.orderClaims, 0);
+  assert.equal(calls.stripeSubmissions, 0);
+  assert.equal(calls.lobSubmissions, 0);
+});
