@@ -273,7 +273,7 @@ test("debt-validation approval rejects malformed server-authoritative quote meta
   ]) {
     assert.throws(() => createDebtValidationApprovalBinding({
       ...request,
-      packet: { ...request.packet, ...invalid },
+      packet: { ...request.packet, ...invalid } as DebtValidationPacketSnapshot,
     }), /debt_validation_invalid_packet/,
     "Malformed prices and unsupported mailing classes cannot be approved");
   }
