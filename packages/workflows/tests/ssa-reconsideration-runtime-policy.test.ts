@@ -512,12 +512,26 @@ test("SSDI and SSI reject unsupported included supplemental formats before draft
       () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, included: false }], nonmedical),
       `${workflowId}: excluded historical uploads are not outgoing evidence`,
     );
-    for (const mimeType of ["application/pdf", "image/png", "image/jpeg", "image/tiff"]) {
+    for (const mimeType of ["application/pdf", "image/png", "image/jpeg"]) {
       assert.doesNotThrow(
         () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, mimeType }], nonmedical),
-        `${workflowId}: manifest-supported ${mimeType} evidence must remain valid`,
+        `${workflowId}: mail-renderable ${mimeType} evidence must remain valid`,
       );
     }
+    assert.throws(
+      () => policy.validateDocumentsBeforeDraft!([required, { ...supplemental, mimeType: "image/tiff" }], nonmedical),
+      /convert TIFF/i,
+      `${workflowId}: TIFF supplemental evidence must be converted before drafting an outgoing packet`,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, mimeType: "image/tiff" }], nonmedical),
+      /convert TIFF/i,
+      `${workflowId}: a clean TIFF must not be marked packet-ready when the PDF builder cannot render it`,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, mimeType: "image/tiff", included: false }], nonmedical),
+      `${workflowId}: excluded TIFF evidence must not block outgoing mail`,
+    );
   }
 });
 
@@ -567,6 +581,26 @@ test("SSDI and SSI reject unsupported clean denial-notice formats even when the 
         () => policy.validateBeforePacket!({ matter: matter as never, caseInput: {} as never, analysis: current }),
         `${workflowId}: manifest-supported source ${mimeType} passes source validation`,
       );
+      if (mimeType === "image/tiff") {
+        assert.throws(
+          () => policy.validateDocumentsBeforePacket!([
+            { ...matter.documents[0]!, included: true }, officialForm,
+          ], current),
+          /convert TIFF/i,
+          `${workflowId}: a TIFF notice is valid for analysis but cannot be enclosed in the mailed PDF`,
+        );
+      }
     }
+  }
+});
+
+test("SSDI and SSI evidence manifests match the shared physical-mail packet renderer", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
+    assert.ok(artifact, `${workflowId}: canonical factory artifact exists`);
+    const evidence = artifact.manifest.documents.find((document) => document.id === "supporting-evidence");
+    const source = artifact.manifest.documents.find((document) => document.role === "primary");
+    assert.deepEqual(evidence?.acceptedKinds, ["application/pdf", "image/png", "image/jpeg"]);
+    assert.ok(source?.acceptedKinds.includes("image/tiff"), "TIFF denial notices remain analyzable");
   }
 });
