@@ -10,7 +10,9 @@ import type {
  * the new packet hash or quoted price differs.
  */
 export function noticeResponseApprovalReviewIdentity(input: {
-  packet: Pick<WorkflowPacketPreview, "packetSha256" | "quote">;
+  packet: Pick<WorkflowPacketPreview, "packetSha256"> & {
+    quote: Pick<WorkflowPacketPreview["quote"], "totalCents">;
+  };
   recipient: WorkflowMailingAddress;
   mailClass: "standard" | "certified" | "registered";
 }): string {
