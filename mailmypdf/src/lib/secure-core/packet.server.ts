@@ -44,13 +44,14 @@ export async function loadPacketDocuments(
   caseId: string,
   context: AuthenticatedUserContext,
 ): Promise<PacketDocumentRow[]> {
-  // The database function is SECURITY DEFINER and intentionally permits
-  // service-role callers. Never invoke it with the admin client here: that
-  // would bypass its auth.uid() ownership check for a supplied case ID.
-  // Verify the owner first, then invoke it with the request's verified
-  // user-scoped client so the database independently enforces ownership.
+  // The case_packet_documents function is intentionally service-role-only:
+  // it returns private storage paths, and the latest ownership-hardening
+  // migration revokes EXECUTE from authenticated users. The privileged RPC
+  // itself permits a null auth.uid(), so an owner-scoped case read MUST
+  // succeed before it is called. Never accept a case ID as authorization.
   await loadCase(caseId, context);
-  const { data, error } = await context.supabase.rpc("case_packet_documents", { p_case_id: caseId });
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("case_packet_documents", { p_case_id: caseId });
   if (error) throw new PacketError(error.message);
   return (data ?? []) as PacketDocumentRow[];
 }
