@@ -321,7 +321,7 @@ test("MCP guidance requires reanalysis when a required source has malformed hist
 test("MCP guidance refuses to advance SSDI/SSI matters with ambiguous duplicate denial notices", () => {
   const firstNotice = {
     documentId: "analyzed-notice", role: "subject_notice",
-    included: false, securityStatus: "clean", usable: true,
+    included: false, mimeType: "application/pdf", securityStatus: "clean", usable: true,
   };
   const secondNotice = {
     ...firstNotice, documentId: "another-denial-notice",
@@ -403,7 +403,7 @@ test("request-first guidance waits for an optional source notice to clear scanni
 test("SSA MCP guidance requires exactly one included valid official form before packet preview or checkout", () => {
   const source = {
     documentId: "ssa-denial", role: "subject_notice", included: false,
-    securityStatus: "clean", usable: true,
+    mimeType: "application/pdf", securityStatus: "clean", usable: true,
   };
   const officialForm = (kind: string, documentId = kind) => ({
     documentId, role: "evidence", evidenceKind: kind, mimeType: "application/pdf",
@@ -468,7 +468,7 @@ test("SSA MCP guidance requires exactly one included valid official form before 
 test("MCP SSA guidance fails closed when the analyzed notice is not a confirmed reconsideration denial", () => {
   const source = {
     documentId: "ssa-notice", role: "subject_notice", included: false,
-    securityStatus: "clean", usable: true,
+    mimeType: "application/pdf", securityStatus: "clean", usable: true,
   };
   const form = {
     documentId: "ssa-561", role: "evidence", evidenceKind: "ssa_561",
@@ -528,7 +528,7 @@ test("MCP SSA guidance fails closed when the analyzed notice is not a confirmed 
 test("SSA MCP guidance does not recommend packet preview or checkout with unsupported included evidence", () => {
   const source = {
     documentId: "denial-notice", role: "subject_notice", included: false,
-    securityStatus: "clean", usable: true,
+    mimeType: "application/pdf", securityStatus: "clean", usable: true,
   };
   const form = {
     documentId: "completed-561", role: "evidence", evidenceKind: "ssa_561",
@@ -606,6 +606,15 @@ test("SSA MCP guidance blocks unsupported source notice formats before preview o
         `${workflowId}: clean ZIP source cannot authorize packet preview or checkout`);
       assert.match(blocked.nextAction.reason, /source|evidence|supported PDF or image/i);
       assert.equal(blocked.nextAction.arguments.approval_id, undefined);
+
+      // A clean source with missing MIME metadata is not an eligible analyzed notice.
+      // This protects against fixture drift and fail-open packet guidance.
+      const missingFormat = deriveMatterGuidance({
+        ...input, documents: [{ ...source, mimeType: "" }, form],
+      });
+      assert.equal(missingFormat.nextAction.toolName, null,
+        `${workflowId}: missing source MIME must not recommend preview or checkout`);
+      assert.equal(missingFormat.nextAction.arguments.approval_id, undefined);
 
       const supported = deriveMatterGuidance({
         ...input, documents: [{ ...source, mimeType: "image/png" }, form],
