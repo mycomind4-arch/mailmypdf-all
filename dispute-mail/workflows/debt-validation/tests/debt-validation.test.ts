@@ -165,9 +165,9 @@ test("debt-validation: mailing addresses require a deliverable line and a real p
 test("debt-validation: account numbers and suite-only lines are not postal delivery addresses", () => {
   const base = fixture();
   for (const invalidAddress of [
-    "Sample Collections 123\\nAustin, TX 78701",
-    "Sample Collections\\nAccount 123\\nAustin, TX 78701",
-    "Sample Collections\\nSuite 200\\nAustin, TX 78701",
+    "Sample Collections 123\nAustin, TX 78701",
+    "Sample Collections\nAccount 123\nAustin, TX 78701",
+    "Sample Collections\nSuite 200\nAustin, TX 78701",
   ]) {
     const invalid = {
       ...base,
@@ -180,10 +180,10 @@ test("debt-validation: account numbers and suite-only lines are not postal deliv
     assert.throws(() => draftDebtValidationLetter(invalid, "2026-10-30"));
   }
   for (const validAddress of [
-    "Sample Collections\\n123 Example Street Suite 200\\nAustin, TX 78701",
-    "Sample Collections\\nP.O. Box 456\\nAustin, TX 78701",
-    "Sample Collections\\nRR 2 BOX 152\\nAustin, TX 78701",
-    "Sample Collections\\nGENERAL DELIVERY\\nAustin, TX 78701",
+    "Sample Collections\n123 Example Street Suite 200\nAustin, TX 78701",
+    "Sample Collections\nP.O. Box 456\nAustin, TX 78701",
+    "Sample Collections\nRR 2 BOX 152\nAustin, TX 78701",
+    "Sample Collections\nGENERAL DELIVERY\nAustin, TX 78701",
   ]) {
     const valid = {
       ...base,
