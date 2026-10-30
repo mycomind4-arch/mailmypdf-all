@@ -25,6 +25,16 @@ export interface DebtValidationMatterSnapshot {
   packet: DebtValidationPacketSnapshot;
 }
 
+/** Durable owner-scoped checkout claim returned only after the atomic order reservation. */
+export interface DebtValidationCheckoutClaim {
+  ownerId: string;
+  matterId: string;
+  idempotencyKey: string;
+  pdfSha256: string;
+  matterVersion: number;
+  status: "claimed" | "reused";
+}
+
 export interface DebtValidationMatterRepository {
   /** One consistent read from authenticated owner-scoped persistence. */
   loadCurrent(ownerId: string, matterId: string): Promise<DebtValidationMatterSnapshot | null>;
@@ -61,7 +71,7 @@ export interface DebtValidationMatterRepository {
       idempotencyKey: string;
       expectedMatterVersion: number;
     },
-  ): Promise<void>;
+  ): Promise<DebtValidationCheckoutClaim>;
 }
 
 /**
@@ -200,6 +210,16 @@ export async function checkoutDebtValidationMatter<Result>(input: {
   // The earlier snapshot read is only preflight: the matter can change while
   // awaiting it. No provider callback is reachable until the repository's
   // durable, owner-scoped compare-and-claim succeeds.
-  await repository.claimCheckout(ownerId, matterId, verified);
+  const claim = await repository.claimCheckout(ownerId, matterId, verified);
+  // A resolved Promise<void> is not evidence of a durable order reservation.
+  // Refuse any missing, malformed, or different claim before provider handoff.
+  // The production adapter must return this receipt from its atomic transaction.
+  if (!claim || claim.ownerId !== ownerId || claim.matterId !== matterId
+    || claim.idempotencyKey !== idempotencyKey
+    || claim.pdfSha256 !== binding.pdfSha256
+    || claim.matterVersion !== binding.matterVersion
+    || (claim.status !== "claimed" && claim.status !== "reused")) {
+    throw new Error("debt_validation_checkout_claim_invalid");
+  }
   return checkout(verified);
 }
