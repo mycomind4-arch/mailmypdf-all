@@ -861,8 +861,8 @@ async function cp2000ApprovalFixture() {
     expectedPacketSha256: preview.packetSha256,
     expectedTotalCents: preview.quote.totalCents,
     mailClass: "certified",
-    recipient: { ...CP2000_RECIPIENT },
-    recipientConfirmedFromNotice: true,
+    recipient: { ...CP2000_RECIPIENT, line1: String(CP2000_RECIPIENT.line1) },
+    recipientConfirmedFromNotice: true as boolean,
   };
   return { deps, matterId, source, analysis, policy, handle, post, approvalBody };
 }
