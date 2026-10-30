@@ -129,7 +129,7 @@ test("debt-validation: malformed JSON cannot bypass validation or crash the pref
 test("debt-validation: mailing addresses require a deliverable line and a real postal state", () => {
   const base = fixture();
   // A collector name followed by city/state/ZIP is not a complete destination.
-  const noDeliveryLine = "Sample Collections\\nAustin, TX 78701";
+  const noDeliveryLine = "Sample Collections\nAustin, TX 78701";
   const invalidCollector = {
     ...base,
     collectorResponseAddress: noDeliveryLine,
@@ -138,9 +138,9 @@ test("debt-validation: mailing addresses require a deliverable line and a real p
   };
   assert.ok(codes(invalidCollector).includes("missing_collector"));
   assert.ok(codes(invalidCollector).includes("missing_notice"));
-  assert.ok(codes({ ...base, consumerMailingAddress: "Synthetic Consumer\\nSacramento, CA 95814" }).includes("missing_consumer"));
+  assert.ok(codes({ ...base, consumerMailingAddress: "Synthetic Consumer\nSacramento, CA 95814" }).includes("missing_consumer"));
 
-  const invalidState = "Sample Collections\\nPO Box 456\\nAustin, ZZ 78701";
+  const invalidState = "Sample Collections\nPO Box 456\nAustin, ZZ 78701";
   const invalidStateIntake = {
     ...base,
     collectorResponseAddress: invalidState,
@@ -151,7 +151,7 @@ test("debt-validation: mailing addresses require a deliverable line and a real p
 
   // Do not break legitimate USPS rural/highway routes or General Delivery.
   for (const delivery of ["RR 2 BOX 152", "HC 68 BOX 23A", "GENERAL DELIVERY"]) {
-    const destination = `Sample Collections\\n${delivery}\\nAustin, TX 78701`;
+    const destination = `Sample Collections\n${delivery}\nAustin, TX 78701`;
     const valid = {
       ...base,
       collectorResponseAddress: destination,
