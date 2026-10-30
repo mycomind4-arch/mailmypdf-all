@@ -450,3 +450,41 @@ test("SSDI and SSI reject stale notice analysis when saving claimant facts", () 
     );
   }
 });
+
+
+test("SSDI and SSI packet policy rechecks included supplemental evidence after drafting", () => {
+  // A document can become quarantined or unusable after the draft was saved.
+  // Required SSA forms alone are not the complete outgoing packet: optional
+  // included evidence must also be clean at packet review/approval time.
+  const medical = analysis({ appealStage: "reconsideration", decisionBasis: "medical" });
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    for (const [decision, required] of [
+      [medical, [form("ssa_561"), form("ssa_3441"), form("ssa_827")]],
+      [nonmedical, [form("ssa_561")]],
+    ] as const) {
+      const supplemental = form("supporting-record", {
+        evidenceKind: "other", position: 10, securityStatus: "quarantined",
+      });
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!([...required, supplemental], decision),
+        /security scanning/i,
+        `${workflowId}: a quarantined supplemental PDF cannot be packet-ready`,
+      );
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!([
+          ...required, { ...supplemental, securityStatus: "clean", usable: false },
+        ], decision),
+        /security scanning/i,
+        `${workflowId}: an unusable supplemental PDF cannot be packet-ready`,
+      );
+      assert.doesNotThrow(
+        () => policy.validateDocumentsBeforePacket!([
+          ...required, { ...supplemental, included: false },
+        ], decision),
+        `${workflowId}: excluded historical evidence must not block a packet`,
+      );
+    }
+  }
+});
