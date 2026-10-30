@@ -868,7 +868,7 @@ async function cp2000ApprovalFixture() {
 }
 
 test("CP2000 notice-bound recipient confirmation: missing affirmation and changed destination fail before checkout", async () => {
-  for (const scenario of ["unconfirmed", "changed recipient", "missing notice address"] as const) {
+  for (const scenario of ["unconfirmed", "changed recipient", "missing notice address", "non-IRS issuer"] as const) {
     const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
     if (scenario === "unconfirmed") approvalBody.recipientConfirmedFromNotice = false;
     if (scenario === "changed recipient") approvalBody.recipient.line1 = "999 Wrong IRS Office";
@@ -879,9 +879,14 @@ test("CP2000 notice-bound recipient confirmation: missing affirmation and change
         },
       });
     }
+    if (scenario === "non-IRS issuer") {
+      await deps.store.saveAnalysis("user-1", matterId, {
+        ...analysis, result: { ...analysis.result, issuer: "Social Security Administration" },
+      });
+    }
     const response = await post("approval", approvalBody);
     assert.equal(response.status, 409, scenario);
-    assert.match((await body(response)).code, /CP2000_RECIPIENT_CONFIRMATION_REQUIRED|CP2000_RECIPIENT_MISMATCH|CP2000_NOTICE_ADDRESS_MISSING/);
+    assert.match((await body(response)).code, /CP2000_RECIPIENT_CONFIRMATION_REQUIRED|CP2000_RECIPIENT_MISMATCH|CP2000_NOTICE_ADDRESS_MISSING|CP2000_NOTICE_ISSUER_MISMATCH/);
     assert.equal(deps.store.approvals.size, 0, scenario);
     assert.equal(deps.checkoutCalls.count, 0, scenario);
   }
