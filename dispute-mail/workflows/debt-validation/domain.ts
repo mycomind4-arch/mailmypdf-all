@@ -60,12 +60,12 @@ export function normalizeMailingAddress(value: string): string {
 function isMailingAddress(value: string): boolean {
   const lines = normalizeMailingAddress(value).split("\n");
   const region = (lines.at(-1) ?? "").match(ADDRESS_LAST_LINE)?.[1]?.toUpperCase();
-  // A recipient/company name plus a city/state/ZIP is not a delivery address.
-  // Street numbers, PO Boxes, rural/highway routes and military boxes have
-  // numeric delivery identifiers; USPS General Delivery is the exception.
-  const hasDeliveryLine = lines.slice(0, -1).some(
-    (line) => /\d/.test(line) || /^GENERAL DELIVERY$/i.test(line),
-  );
+  // Digits in a collector name, account reference or suite number are not
+  // evidence of a street/box delivery destination. Require an actual delivery
+  // line, while preserving street, PO Box, rural/highway, military and General
+  // Delivery formats. This is syntax screening, not USPS deliverability proof.
+  const deliveryLine = /^(?:\d+[A-Z]?(?:[-/]\d+)?\s+\S+.*|P\.?\s*O\.?\s*BOX\s+\S+|POST OFFICE BOX\s+\S+|(?:RR|RURAL ROUTE|HC|HIGHWAY CONTRACT ROUTE)\s+\d+(?:\s+BOX\s+\S+)?|(?:PSC|CMR|UNIT)\s+\d+\s+BOX\s+\S+|GENERAL DELIVERY)$/i;
+  const hasDeliveryLine = lines.slice(0, -1).some((line) => deliveryLine.test(line));
   return lines.length >= 2 && lines.length <= 6
     && value.length <= 500 && !FORBIDDEN.test(value)
     && Boolean(region && US_POSTAL_REGIONS.has(region))
