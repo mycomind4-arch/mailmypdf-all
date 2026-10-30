@@ -145,12 +145,15 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
   const issues = validateDebtValidationIntake(input);
   if (issues.length) throw new Error("Debt validation blocked: " + issues.map((issue) => issue.code).join(", "));
   if (!isRealDate(letterDate)) throw new Error("A real letter date is required.");
+  const recipientLines = input.collectorResponseAddress.trim().split(/\\r?\\n/);
+  const recipientAlreadyNamed = cleanLine(recipientLines[0] ?? "").toUpperCase()
+    === cleanLine(input.collectorName).toUpperCase();
   const lines = [
     letterDate,
     input.consumerName.trim(),
     input.consumerMailingAddress.trim(),
     "",
-    input.collectorName.trim(),
+    ...(!recipientAlreadyNamed ? [input.collectorName.trim()] : []),
     input.collectorResponseAddress.trim(),
     "",
     "Re: Written dispute and request for debt verification",
