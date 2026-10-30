@@ -50,6 +50,7 @@ function fixture(): DebtValidationMatterSnapshot {
     },
     packet: {
       ownerId: "owner-1", matterId: "matter-1", matterVersion: 2,
+      totalCents: 1499, mailClass: "certified",
       pdfSha256: b, enclosureManifestSha256: c,
       intakeSha256: debtValidationIntakeSha256(currentIntake),
       recipientAddress: address,
