@@ -313,6 +313,77 @@ test("runtime rejects oversized multipart uploads before the document gateway", 
   assert.equal(response.status, 413);
 });
 
+test("abandoned matters stay readable but reject all runtime mutations", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  assert.equal(created.status, 201);
+  const matterId = (await body(created)).matter.id as string;
+  const row = deps.store.matters.get(matterId)!;
+  row.snapshot = { ...row.snapshot, matter: { ...row.snapshot.matter, status: "abandoned" } };
+
+  const read = await handle(request(`/matters/${matterId}`));
+  assert.equal(read.status, 200, "historical matter must remain readable");
+  assert.equal((await body(read)).matter.status, "abandoned");
+
+  const mutations: Request[] = [
+    request(`/matters/${matterId}/input`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Do not reopen" }),
+    }),
+    request(`/matters/${matterId}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "user_note", occurredOn: "2026-10-27", note: "Do not append" }),
+    }),
+    request(`/matters/${matterId}/documents/nonexistent`, { method: "DELETE" }),
+  ];
+
+  for (const mutation of mutations) {
+    const response = await handle(mutation);
+    assert.equal(response.status, 409, `${mutation.method} ${mutation.url}`);
+    assert.match((await body(response)).error, /abandoned/i);
+  }
+  assert.equal(deps.store.inputs.has(matterId), false);
+  assert.equal(deps.store.events.has(matterId), false);
+});
+
+test("runtime rejects persisted matter identity mismatches before reads or mutations", async () => {
+  const deps = dependencies();
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const created = await handle(request("/matters", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workflowId: "test-workflow", verticalId: "test-vertical" }),
+  }));
+  assert.equal(created.status, 201);
+  const matterId = (await body(created)).matter.id as string;
+  const row = deps.store.matters.get(matterId)!;
+  const original = row.snapshot;
+
+  for (const mismatch of [
+    { id: "different-matter-id" },
+    { verticalId: "another-workflow-section" },
+  ]) {
+    row.snapshot = { ...original, matter: { ...original.matter, ...mismatch } };
+    const read = await handle(request(`/matters/${matterId}`));
+    assert.equal(read.status, 409, "inconsistent persisted identity must not be served as a valid matter");
+
+    const write = await handle(request(`/matters/${matterId}/input`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "Do not mutate an inconsistent matter." }),
+    }));
+    assert.equal(write.status, 409, "inconsistent persisted identity must not accept workflow input");
+    assert.equal(deps.store.inputs.has(matterId), false);
+  }
+});
+
 test("another authenticated user cannot load a matter they do not own", async () => {
   const deps = dependencies();
   const handle = createWorkflowRuntimeRequestHandler(deps);
@@ -480,6 +551,80 @@ test("shared runtime drives matter -> source -> analysis -> facts -> draft -> fo
   }));
   assert.equal(response.status, 200);
   const approvalId = (await body(response)).approvalId as string;
+
+  // A stored approval must belong to this authenticated matter and workflow.
+  // Matching only approvalId and packet hash would allow a mismapped approval
+  // to reach the checkout gateway without a fresh user authorization.
+  const originalApproval = deps.store.approvals.get(matterId)!;
+  const validRead = await handle(request(`/matters/${matterId}/approval`));
+  assert.equal(validRead.status, 200);
+  assert.equal((await body(validRead)).approval.approvalId, approvalId);
+  for (const mismatch of [
+    { matterId: "another-matter" },
+    { workflowId: "another-workflow" },
+    { approvedBy: "user-2" },
+  ]) {
+    deps.store.approvals.set(matterId, { ...originalApproval, ...mismatch });
+    // MCP get_connector_readiness consumes this GET endpoint to decide whether
+    // approval is present. A mismapped approval must never appear ready.
+    const rejectedRead = await handle(request(`/matters/${matterId}/approval`));
+    assert.equal(rejectedRead.status, 409, `mismatched approval ${Object.keys(mismatch)[0]} must not appear ready`);
+    const rejected = await handle(request(`/matters/${matterId}/checkout`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        approvalId,
+        sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+      }),
+    }));
+    assert.equal(rejected.status, 409, `mismatched approval ${Object.keys(mismatch)[0]} must be rejected`);
+    assert.equal(deps.checkoutCalls.count, 0, "rejected approval must not reach checkout");
+  }
+  deps.store.approvals.set(matterId, originalApproval);
+
+  // Checkout must treat a newly missing required form as a policy conflict,
+  // not an HTTP 500 that MCP will misclassify as retryable infrastructure.
+  const storedRow = deps.store.matters.get(matterId)!;
+  const originalSnapshot = storedRow.snapshot;
+  storedRow.snapshot = {
+    ...originalSnapshot,
+    documents: originalSnapshot.documents.filter((document) => document.evidenceKind !== "required-form"),
+  };
+  const missingFormCheckout = await handle(request(`/matters/${matterId}/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      approvalId,
+      sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+    }),
+  }));
+  assert.equal(missingFormCheckout.status, 409, "missing required forms at checkout are a conflict, not a server error");
+  assert.match((await body(missingFormCheckout)).error, /required form missing/);
+  assert.equal(deps.checkoutCalls.count, 0, "invalid form set must not reach checkout");
+  storedRow.snapshot = originalSnapshot;
+
+  // A policy's workflow-specific before-packet gate has the same error
+  // contract even when the previously approved packet is otherwise intact.
+  const originalPolicyFor = deps.policyFor;
+  deps.policyFor = (workflowId) => {
+    const resolved = originalPolicyFor(workflowId);
+    return resolved ? {
+      ...resolved,
+      validateBeforePacket() { throw new Error("workflow facts no longer permit packet checkout"); },
+    } : null;
+  };
+  const invalidFactsCheckout = await handle(request(`/matters/${matterId}/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      approvalId,
+      sender: { name: "Test User", line1: "2 Main St", city: "Town", state: "CA", postal: "95502" },
+    }),
+  }));
+  assert.equal(invalidFactsCheckout.status, 409, "invalid workflow-specific packet facts must be a conflict");
+  assert.match((await body(invalidFactsCheckout)).error, /workflow facts no longer permit/);
+  assert.equal(deps.checkoutCalls.count, 0, "invalid workflow facts must not reach checkout");
+  deps.policyFor = originalPolicyFor;
 
   response = await handle(request(`/matters/${matterId}/checkout`, {
     method: "POST",
@@ -669,8 +814,17 @@ test("shared runtime persists only policy-approved user events", async () => {
       occurredOn: "2026-09-17",
     }),
   }));
-  assert.equal(response.status, 500);
+  assert.equal(response.status, 400, "a rejected user event is a client validation error, not a retryable server failure");
   assert.match((await body(response)).error, /not user-recordable/i);
+
+  response = await handle(request(`/matters/${matterId}/events`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "user_note", occurredOn: "invalid-date", note: "Do not persist" }),
+  }));
+  assert.equal(response.status, 400, "invalid event dates must fail as client input errors");
+  assert.match((await body(response)).error, /event date is invalid/i);
+  assert.equal(deps.store.events.has(matterId), false, "rejected events must not be persisted");
 
   response = await handle(request(`/matters/${matterId}/events`, {
     method: "POST",

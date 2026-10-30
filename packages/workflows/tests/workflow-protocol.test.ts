@@ -57,8 +57,9 @@ function state(
     analysisPresent: true,
     inputPresent: true,
     draftPresent: true,
+    draftIsCurrent: true,
     approvalPresent: true,
-    orderPresent: true,
+    orderPresent: false,
     ...overrides,
   });
 }
@@ -71,6 +72,65 @@ test("workflow protocol is derived from the canonical CP14 manifest", () => {
   assert.ok(definition.inputFields.some((field) => field.id === "responseMode"));
   assert.equal(definition.inputFields.some((field) => field.id === "recipientAddress"), false);
   assert.equal(definition.packetRecipientField?.id, "recipientAddress");
+});
+
+test("workflow protocol rejects contract field IDs missing from the canonical manifest", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const chatContract = noticePolicy.chatContract;
+  assert.ok(chatContract, "CP14 must expose a chat contract");
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      inputFields: [
+        ...chatContract.inputFields,
+        { id: "unmappedRequiredFact", required: true },
+      ],
+    }),
+    /unmappedRequiredFact.*not declared in.*manifest/i,
+  );
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      connectorFields: (chatContract.connectorFields ?? []).map((binding) =>
+        binding.toolName === "preview_packet" && binding.argumentName === "recipient"
+          ? { ...binding, id: "unmappedRecipientField" }
+          : binding,
+      ),
+    }),
+    /unmappedRecipientField.*not declared in.*manifest/i,
+  );
+});
+
+test("workflow protocol rejects requiredness drift between runtime chat contract and manifest", () => {
+  const manifest = createNoticeResponseManifest({ profile: cp14NoticeResponseProfile });
+  const chatContract = noticePolicy.chatContract;
+  assert.ok(chatContract, "CP14 must expose a chat contract");
+
+  for (const [fieldId, required] of [
+    ["taxpayerName", false],
+    ["responseExplanation", true],
+  ] as const) {
+    assert.throws(
+      () => workflowProtocolDefinitionFromManifest(manifest, {
+        ...chatContract,
+        inputFields: chatContract.inputFields.map((field) =>
+          field.id === fieldId ? { ...field, required } : field,
+        ),
+      }),
+      new RegExp(`${fieldId}.*required.*manifest`, "i"),
+      `requiredness drift for ${fieldId} must fail closed`,
+    );
+  }
+
+  assert.throws(
+    () => workflowProtocolDefinitionFromManifest(manifest, {
+      ...chatContract,
+      connectorFields: (chatContract.connectorFields ?? []).map((field) =>
+        field.id === "recipientAddress" ? { ...field, required: false } : field,
+      ),
+    }),
+    /recipientAddress.*required.*manifest/i,
+  );
 });
 
 test("workflow protocol asks for the primary document first", () => {
@@ -100,6 +160,39 @@ test("workflow protocol blocks analysis until the source document is clean", () 
   assert.equal(result.blockers.length, 1);
 });
 
+test("workflow protocol blocks checkout guidance for unsafe included supporting evidence", () => {
+  // The source notice is clean, but an included supporting document can be
+  // quarantined after a draft and approval were saved.
+  const unsafeSupport: WorkflowMatterDocument = {
+    ...cleanSource,
+    id: "matter-document-support",
+    documentId: "support-1",
+    role: "evidence",
+    included: true,
+    position: 1,
+    securityStatus: "quarantined",
+    usable: true, // A stale flag must not override the security scan.
+  };
+  const blocked = state({ documents: [cleanSource, unsafeSupport] });
+  assert.equal(blocked.nextActions[0]?.toolName, "get_document_status");
+  assert.equal(blocked.nextActions[0]?.arguments.document_id, "support-1");
+  assert.ok(blocked.blockers.some((reason) => /security|scan|document/i.test(reason)));
+  assert.ok(!blocked.nextActions.some((step) => step.toolName === "prepare_checkout"));
+
+  // Excluded evidence is not part of the packet, and an existing order is
+  // always tracked rather than restarting pre-checkout security guidance.
+  assert.equal(
+    state({ documents: [cleanSource, { ...unsafeSupport, included: false }] })
+      .nextActions[0]?.toolName,
+    "prepare_checkout",
+  );
+  assert.equal(
+    state({ documents: [cleanSource, unsafeSupport], orderPresent: true })
+      .nextActions[0]?.toolName,
+    "get_order_status",
+  );
+});
+
 test("workflow protocol advances through analysis, facts, drafting, approval, and tracking", () => {
   assert.equal(state({ analysisPresent: false }).nextActions[0]?.toolName, "analyze_matter");
 
@@ -110,7 +203,88 @@ test("workflow protocol advances through analysis, facts, drafting, approval, an
   assert.equal(state({ draftPresent: false }).nextActions[0]?.toolName, "generate_draft");
   assert.equal(state({ approvalPresent: false }).nextActions[0]?.toolName, "preview_packet");
   assert.equal(state({ orderPresent: false }).nextActions[0]?.toolName, "prepare_checkout");
-  assert.equal(state().nextActions[0]?.toolName, "get_order_status");
+  assert.equal(state({ orderPresent: true }).nextActions[0]?.toolName, "get_order_status");
+});
+
+test("stale draft basis never advertises packet preview or checkout", () => {
+  // A historical approval can remain persisted after the input or analysis
+  // changes. A stale draft must not authorize the next consequential step.
+  const stale = { draftIsCurrent: false, orderPresent: false } as
+    Partial<Parameters<typeof deriveWorkflowProtocolState>[0]>;
+  for (const approvalPresent of [false, true]) {
+    const result = state({ ...stale, approvalPresent });
+    assert.equal(result.progress.draftReady, false);
+    assert.equal(result.progress.approvalReady, false);
+    assert.equal(result.nextActions[0]?.toolName, "generate_draft");
+    assert.ok(!result.nextActions.some((action) =>
+      action.toolName === "preview_packet" || action.toolName === "prepare_checkout"));
+  }
+  assert.equal(
+    state({ ...stale, inputPresent: false }).nextActions[0]?.toolName,
+    "save_matter_input",
+  );
+});
+
+test("submitted and ordered matters preserve tracking despite stale draft prerequisites", () => {
+  // A historical order must remain trackable even when its original source,
+  // analysis, input, draft or approval can no longer be reconstructed.
+  for (const status of ["active", "submitted"]) {
+    const result = state({
+      matter: { ...matter, status },
+      documents: [],
+      analysisPresent: false,
+      inputPresent: false,
+      draftPresent: false,
+      draftIsCurrent: false,
+      approvalPresent: false,
+      orderPresent: true,
+    });
+    assert.equal(result.progress.orderReady, true, status);
+    assert.equal(result.nextActions[0]?.toolName, "get_order_status", status);
+    assert.equal(result.nextActions[0]?.kind, "tracking", status);
+    assert.equal(result.nextActions.length, 1, status);
+  }
+
+  // A submitted record with no accessible order must not restart intake or
+  // recommend another checkout. Surface the inconsistent state for review.
+  const missingOrder = state({
+    matter: { ...matter, status: "submitted" },
+    documents: [],
+    analysisPresent: false,
+    inputPresent: false,
+    draftPresent: false,
+    draftIsCurrent: false,
+    approvalPresent: false,
+    orderPresent: false,
+  });
+  assert.deepEqual(missingOrder.nextActions, []);
+  assert.match(missingOrder.blockers.join(" "), /order/i);
+});
+
+test("abandoned matters never recommend MCP workflow mutations", () => {
+  for (const overrides of [
+    {
+      documents: [],
+      analysisPresent: false,
+      inputPresent: false,
+      draftPresent: false,
+      approvalPresent: false,
+      orderPresent: false,
+    },
+    {
+      documents: [cleanSource],
+      analysisPresent: true,
+      inputPresent: true,
+      draftPresent: true,
+      approvalPresent: true,
+      orderPresent: false,
+    },
+  ]) {
+    const result = state({ ...overrides, matter: { ...matter, status: "abandoned" } });
+    assert.equal(result.matterStatus, "abandoned");
+    assert.deepEqual(result.nextActions, [], "abandoned matters must not offer uploads, drafts, checkout or mailing");
+    assert.match(result.blockers.join(" "), /abandoned/i);
+  }
 });
 
 test("generated draft requires user review before saving and does not carry unreviewed text", () => {
@@ -146,6 +320,7 @@ test("fact-first workflows collect input before generating a draft", () => {
     analysisPresent: false,
     inputPresent: false,
     draftPresent: false,
+    draftIsCurrent: false,
     approvalPresent: false,
     orderPresent: false,
   });
@@ -160,4 +335,48 @@ test("packet preview exposes only the certified recipient field", () => {
   const preview = result.nextActions[0];
   assert.equal(preview?.toolName, "preview_packet");
   assert.deepEqual(preview?.fields?.map((field) => field.id), ["recipientAddress"]);
+});
+
+
+test("optional source readiness reflects the security status of an uploaded document", () => {
+  const recordsDefinition = workflowProtocolDefinitionFromManifest(
+    createRecordsRequestManifest({
+      workflowId: "public-records-request",
+      title: "Public Records Request",
+    }).manifest,
+    createRecordsRequestRuntimePolicy("public-records-request").chatContract,
+  );
+  const recordsMatter = {
+    ...matter,
+    workflowId: "public-records-request",
+    verticalId: "records-request",
+  };
+  const progressFor = (documents: readonly WorkflowMatterDocument[]) =>
+    deriveWorkflowProtocolState({
+      matter: recordsMatter,
+      documents,
+      definition: recordsDefinition,
+      analysisPresent: false,
+      inputPresent: true,
+      draftPresent: false,
+      draftIsCurrent: false,
+      approvalPresent: false,
+      orderPresent: false,
+    });
+
+  // An optional source is ready when absent, and when present and clean.
+  assert.equal(progressFor([]).progress.sourceDocumentReady, true);
+  assert.equal(progressFor([cleanSource]).progress.sourceDocumentReady, true);
+
+  // Once uploaded, a quarantined optional source cannot be called ready while
+  // the same protocol asks the user to check its security status.
+  const blocked = progressFor([{
+    ...cleanSource,
+    included: false,
+    securityStatus: "quarantined",
+    usable: false,
+  }]);
+  assert.equal(blocked.nextActions[0]?.toolName, "get_document_status");
+  assert.equal(blocked.progress.sourceDocumentReady, false);
+  assert.match(blocked.blockers.join(" "), /security|scann?ing/i);
 });

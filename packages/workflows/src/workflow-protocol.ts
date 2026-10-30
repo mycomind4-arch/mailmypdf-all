@@ -93,6 +93,30 @@ export function workflowProtocolDefinitionFromManifest(
   const primaryDocument =
     manifest.documents?.find((document) => document.role === "primary") ?? null;
   const allFields = flattenFields(manifest);
+  // A chat contract is a binding to the canonical manifest, not an alternate
+  // field registry. Silently dropping an unknown required field can make the
+  // connector report inputReady and skip facts the runtime requires.
+  if (runtimeContract) {
+    const declaredFields = new Map(allFields.map((field) => [field.id, field] as const));
+    for (const field of runtimeContract.inputFields) {
+      const declared = declaredFields.get(field.id);
+      if (!declared) {
+        throw new Error(`Workflow ${manifest.id} chat input field ${field.id} is not declared in the canonical manifest`);
+      }
+      if (field.required !== declared.required) {
+        throw new Error(`Workflow ${manifest.id} chat input field ${field.id} requiredness does not match canonical manifest (chat: ${field.required}, manifest: ${declared.required})`);
+      }
+    }
+    for (const field of runtimeContract.connectorFields ?? []) {
+      const declared = declaredFields.get(field.id);
+      if (!declared) {
+        throw new Error(`Workflow ${manifest.id} connector field ${field.id} is not declared in the canonical manifest`);
+      }
+      if (field.required !== declared.required) {
+        throw new Error(`Workflow ${manifest.id} connector field ${field.id} requiredness does not match canonical manifest (chat: ${field.required}, manifest: ${declared.required})`);
+      }
+    }
+  }
   const inputIds = runtimeContract
     ? new Set(runtimeContract.inputFields.map((field) => field.id))
     : null;
@@ -183,18 +207,76 @@ export function deriveWorkflowProtocolState(input: {
   analysisPresent: boolean;
   inputPresent: boolean;
   draftPresent: boolean;
+  draftIsCurrent: boolean;
   approvalPresent: boolean;
   orderPresent: boolean;
 }): WorkflowProtocolState {
   const source = sourceDocument(input.documents);
+  // An old usable flag cannot override a failed or pending security scan.
+  // Only included evidence is part of the packet; excluded documents do not
+  // block checkout guidance.
+  const unsafeIncludedDocument = input.documents.find(
+    (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
+  );
   const sourceReady = sourceIsReady(source);
   const analysisReady = input.analysisPresent || !input.definition.analysisRequired;
   const inputReady = input.inputPresent || !input.definition.inputRequired;
-  const draftReady = input.draftPresent || !input.definition.requiresDraft;
+  // A persisted draft and approval are historical until the saved draft basis
+  // matches the current analysis, facts, and document fingerprint.
+  const draftReady = !input.definition.requiresDraft ||
+    (input.draftPresent && input.draftIsCurrent);
+  const approvalReady = input.approvalPresent && draftReady;
   const blockers: string[] = [];
   let nextActions: WorkflowProtocolAction[] = [];
 
-  if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
+  // A terminal case may remain readable for history, but must not advertise
+  // actions that could restart intake, generate a new draft, or initiate checkout.
+  // The server remains authoritative for any attempted mutation.
+  if (input.matter.status === "abandoned") {
+    blockers.push("This matter has been abandoned. Start a new matter to continue.");
+  } else if (input.orderPresent && input.definition.requiresMailing) {
+    // Once an order exists, tracking is read-only and must not depend on
+    // historical draft/approval records or a still-present source document.
+    nextActions = [
+      action({
+        id: "track-order",
+        kind: "tracking",
+        toolName: "get_order_status",
+        title: "Track mailing and proof",
+        prompt:
+          "Read the owner-scoped order status, tracking events, and proof records. Do not infer delivery beyond recorded provider facts.",
+        requiresUserInput: false,
+        requiresExplicitConsent: false,
+        idempotencyRequired: false,
+        consequential: false,
+        arguments: { matter_id: input.matter.id },
+      }),
+    ];
+  } else if (input.matter.status === "submitted") {
+    // Never suggest a second checkout or restart intake for a submitted
+    // matter when its owner-scoped order record cannot be found.
+    blockers.push("This matter is marked submitted, but no accessible order was found. Check the order record before taking further action.");
+  } else if (unsafeIncludedDocument) {
+    blockers.push("An included document has not cleared secure document scanning.");
+    nextActions = [
+      action({
+        id: "check-included-document",
+        kind: "document_status",
+        toolName: "get_document_status",
+        title: "Check included document readiness",
+        prompt:
+          "Check the included document security state. Do not generate a draft, preview a packet, or prepare checkout until it is clean and usable.",
+        requiresUserInput: false,
+        requiresExplicitConsent: false,
+        idempotencyRequired: false,
+        consequential: false,
+        arguments: {
+          matter_id: input.matter.id,
+          document_id: unsafeIncludedDocument.documentId,
+        },
+      }),
+    ];
+  } else if (input.definition.primaryDocumentRequired && input.definition.primaryDocument && !source) {
     nextActions = [
       action({
         id: "upload-primary-document",
@@ -283,7 +365,7 @@ export function deriveWorkflowProtocolState(input: {
         arguments: { matter_id: input.matter.id },
       }),
     ];
-  } else if (!input.approvalPresent && input.definition.requiresMailing) {
+  } else if (!approvalReady && input.definition.requiresMailing) {
     nextActions = [
       action({
         id: "preview-packet",
@@ -302,7 +384,7 @@ export function deriveWorkflowProtocolState(input: {
           : {}),
       }),
     ];
-  } else if (input.approvalPresent && input.definition.requiresMailing && !input.orderPresent) {
+  } else if (approvalReady && input.definition.requiresMailing && !input.orderPresent) {
     nextActions = [
       action({
         id: "prepare-checkout",
@@ -315,22 +397,6 @@ export function deriveWorkflowProtocolState(input: {
         requiresExplicitConsent: false,
         idempotencyRequired: true,
         consequential: true,
-        arguments: { matter_id: input.matter.id },
-      }),
-    ];
-  } else if (input.orderPresent && input.definition.requiresMailing) {
-    nextActions = [
-      action({
-        id: "track-order",
-        kind: "tracking",
-        toolName: "get_order_status",
-        title: "Track mailing and proof",
-        prompt:
-          "Read the owner-scoped order status, tracking events, and proof records. Do not infer delivery beyond recorded provider facts.",
-        requiresUserInput: false,
-        requiresExplicitConsent: false,
-        idempotencyRequired: false,
-        consequential: false,
         arguments: { matter_id: input.matter.id },
       }),
     ];
@@ -358,13 +424,15 @@ export function deriveWorkflowProtocolState(input: {
     sectionId: input.matter.verticalId,
     matterStatus: input.matter.status,
     progress: Object.freeze({
+      // An optional source satisfies intake when absent, not when an
+      // uploaded document is quarantined or otherwise unusable.
       sourceDocumentReady:
         sourceReady ||
-        !input.definition.primaryDocumentRequired,
+        (!input.definition.primaryDocumentRequired && source === null),
       analysisReady,
       inputReady,
       draftReady,
-      approvalReady: input.approvalPresent,
+      approvalReady,
       orderReady: input.orderPresent,
     }),
     blockers: Object.freeze(blockers),

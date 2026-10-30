@@ -420,6 +420,24 @@ function validatePolicyMatter(policy: WorkflowRuntimePolicy, input: { workflowId
   }
 }
 
+/**
+ * Keep readiness reads and checkout aligned: an approval is usable only for
+ * the authenticated owner, exact matter, and registered workflow.
+ */
+function assertStoredApprovalIdentity(
+  approval: ExactPacketApproval,
+  actor: WorkflowRuntimeActor,
+  matter: WorkflowMatterRecord,
+): void {
+  if (
+    approval.matterId !== matter.id ||
+    approval.workflowId !== matter.workflowId ||
+    approval.approvedBy !== actor.id
+  ) {
+    throw new HttpError(409, "Approval identity does not match the authenticated matter.");
+  }
+}
+
 function nextAnalysisVersion(previous: WorkflowMatterAnalysis | null): number {
   return (previous?.version ?? 0) + 1;
 }
@@ -577,6 +595,28 @@ export function createWorkflowRuntimeRequestHandler(
       let matter = await requireMatter(deps, actor, matterId);
       const policy = policyFor(deps, matter.matter.workflowId);
 
+      // Persisted identity must still agree with the owner-scoped lookup and
+      // registered policy. Validating only at creation would let a corrupted
+      // or mismapped record bypass the canonical workflow/section boundary.
+      if (matter.matter.id !== matterId) {
+        throw new HttpError(409, "Matter identity does not match its registered workflow.");
+      }
+      try {
+        policy.validateMatter({
+          workflowId: matter.matter.workflowId,
+          verticalId: matter.matter.verticalId,
+        });
+      } catch {
+        throw new HttpError(409, "Matter identity does not match its registered workflow.");
+      }
+
+      // Terminal matters remain readable for history and proof, but cannot
+      // accept further document, analysis, draft, approval, or checkout writes.
+      // Enforce this server-side even when a client bypasses MCP suggestions.
+      if (matter.matter.status === "abandoned" && request.method !== "GET") {
+        throw new HttpError(409, "This workflow matter has been abandoned.");
+      }
+
       if (request.method === "GET" && parts.length === 2) return json(matter);
 
       if (parts[2] === "documents") {
@@ -642,11 +682,16 @@ export function createWorkflowRuntimeRequestHandler(
           }
           const body = await readJson(request, maxJsonBytes);
           const existingEvents = await deps.store.loadEvents(actor.id, matterId);
-          const validated = policy.validateUserEvent({
-            event: body,
-            matter,
-            existingEvents,
-          });
+          let validated: ReturnType<NonNullable<WorkflowRuntimePolicy["validateUserEvent"]>>;
+          try {
+            validated = policy.validateUserEvent({
+              event: body,
+              matter,
+              existingEvents,
+            });
+          } catch (error) {
+            throw normalizePolicyError(error, "USER_EVENT_INPUT_INVALID");
+          }
           const event: WorkflowRuntimeStoredEvent = {
             id: id(),
             type: validated.type,
@@ -781,6 +826,7 @@ export function createWorkflowRuntimeRequestHandler(
       if (parts[2] === "approval" && parts.length === 3) {
         if (request.method === "GET") {
           const approval = await deps.store.loadApproval(actor.id, matterId);
+          if (approval) assertStoredApprovalIdentity(approval, actor, matter.matter);
           return json({ approval: approval ? {
             approvalId: approval.approvalId,
             packetSha256: approval.packetSha256,
@@ -839,6 +885,8 @@ export function createWorkflowRuntimeRequestHandler(
         const approval = await deps.store.loadApproval(actor.id, matterId);
         if (!approval || approval.approvalId !== approvalId) throw new HttpError(409, "Approved packet is required before checkout");
         matter = await requireMatter(deps, actor, matterId);
+        // Checkout and readiness must enforce the same approval identity.
+        assertStoredApprovalIdentity(approval, actor, matter.matter);
         const draft = await deps.store.loadDraft(actor.id, matterId);
         if (!draft) throw new HttpError(409, "Saved draft is missing");
         const analysis = await deps.store.loadAnalysis(actor.id, matterId);
@@ -847,8 +895,15 @@ export function createWorkflowRuntimeRequestHandler(
         if (!caseInput) throw new HttpError(409, "Saved workflow facts are missing");
         requireSourceForPolicy(policy, matter.documents);
         const included = requireIncludedDocumentsReady(matter.documents);
-        policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
-        policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        // The same packet-policy gates are checked during preview/approval.
+        // Treat their rejection as a workflow conflict at checkout too,
+        // rather than a retryable HTTP 500 in the MCP connector.
+        try {
+          policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
+          policy.validateBeforePacket?.({ matter, caseInput, analysis });
+        } catch (error) {
+          throw normalizePolicyError(error, "PACKET_NOT_READY");
+        }
         requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
         assertPacketMatchesApproval(approval, current);

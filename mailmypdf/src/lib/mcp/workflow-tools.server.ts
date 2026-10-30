@@ -46,7 +46,7 @@ import {
 import { getMcpWorkflowProtocolRegistration } from "./workflow-protocol.server";
 import { bindConnectorCheckoutCorrelation } from "./connector-runtime-correlation.server";
 import { listRecentCases } from "@/lib/secure-core/case.server";
-import { deriveMatterGuidance } from "./matter-guidance";
+import { deriveMatterGuidance, isCurrentMatterDraft } from "./matter-guidance";
 import {
   cancelScheduledDirectMail,
   createScheduledDirectMail,
@@ -76,6 +76,37 @@ export class McpToolExecutionError extends Error {
   ) {
     super(message);
   }
+}
+
+/**
+ * Do not advertise workflow actions for a stored matter whose identity differs
+ * from the requested owner-scoped record or the certified canonical section.
+ * This is defense in depth: the runtime also validates mutations.
+ */
+export function assertMcpWorkflowStateMatterIdentity(
+  matter: Pick<WorkflowMatterRecord, "id" | "workflowId" | "verticalId">,
+  expectedMatterId: string,
+): void {
+  const descriptor = getWorkflowDescriptor(matter.workflowId);
+  const policy = platformWorkflowRuntimePolicyFor(matter.workflowId);
+  if (
+    matter.id !== expectedMatterId ||
+    !descriptor ||
+    matter.verticalId !== descriptor.sectionId ||
+    !policy
+  ) {
+    throw new McpToolExecutionError(409, "Matter identity does not match its registered workflow.");
+  }
+  try {
+    policy.validateMatter({ workflowId: matter.workflowId, verticalId: matter.verticalId });
+  } catch {
+    throw new McpToolExecutionError(409, "Matter identity does not match its registered workflow.");
+  }
+}
+
+/** A submitted matter must remain trackable even if its approval row is missing. */
+export function shouldLookupMcpMatterOrder(matterStatus: string, approvalPresent: boolean): boolean {
+  return approvalPresent || matterStatus === "submitted";
 }
 
 type ToolArguments = Record<string, unknown>;
@@ -708,6 +739,7 @@ export async function executeMcpTool(
       "matter response",
     );
     const storedMatter = object(matterPayload.matter, "matter") as unknown as WorkflowMatterRecord;
+    assertMcpWorkflowStateMatterIdentity(storedMatter, matterId);
     const documents = Array.isArray(matterPayload.documents)
       ? matterPayload.documents as WorkflowMatterDocument[]
       : [];
@@ -736,13 +768,19 @@ export async function executeMcpTool(
       callRuntime(request, `${base}/approval`, "GET"),
     ]);
 
-    const analysisPresent = Boolean(object(analysisPayload, "analysis response").analysis);
-    const inputPresent = Boolean(object(inputPayload, "input response").input);
-    const draftPresent = Boolean(object(draftPayload, "draft response").draft);
+    const analysis = object(analysisPayload, "analysis response").analysis;
+    const storedInput = object(inputPayload, "input response").input;
+    const draft = object(draftPayload, "draft response").draft;
+    const analysisPresent = Boolean(analysis);
+    const inputPresent = Boolean(storedInput);
+    const draftPresent = Boolean(draft);
+    const draftIsCurrent = isCurrentMatterDraft({
+      storedInput, analysis, draft, documents,
+    });
     const approvalPresent = Boolean(object(approvalPayload, "approval response").approval);
 
     let orderPresent = false;
-    if (approvalPresent) {
+    if (shouldLookupMcpMatterOrder(storedMatter.status, approvalPresent)) {
       try {
         await getOwnedOrderStatus(request, { matterId });
         orderPresent = true;
@@ -759,6 +797,7 @@ export async function executeMcpTool(
         analysisPresent,
         inputPresent,
         draftPresent,
+        draftIsCurrent,
         approvalPresent,
         orderPresent,
       }),
@@ -805,12 +844,20 @@ export async function executeMcpTool(
           included: document.included === true,
           securityStatus: typeof document.securityStatus === "string" ? document.securityStatus : "unknown",
           usable: document.usable === true,
+          evidenceKind: typeof document.evidenceKind === "string" ? document.evidenceKind : null,
+          mimeType: typeof document.mimeType === "string" ? document.mimeType : null,
         }];
       }),
       requiresSourceDocument: policy?.requiresSourceDocument !== false,
       analysis: analysis ?? null,
       hasInput: Boolean(storedInput),
       hasDraft: Boolean(draft),
+      draftIsCurrent: isCurrentMatterDraft({
+        storedInput,
+        analysis,
+        draft,
+        documents: documents as WorkflowMatterDocument[],
+      }),
       approvalId,
     });
     return { ...snapshot, ...guidance };
