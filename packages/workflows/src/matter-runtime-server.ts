@@ -216,6 +216,19 @@ export interface WorkflowRuntimePolicy {
     caseInput: WorkflowRuntimeStoredInput;
     analysis: WorkflowMatterAnalysis;
   }): void;
+  /** Called after exact preview verification, before storing approval. */
+  confirmRecipientForApproval?(input: {
+    matter: WorkflowMatterSnapshot;
+    analysis: WorkflowMatterAnalysis;
+    recipient: WorkflowMailingAddress;
+    confirmedFromNotice: unknown;
+  }): ExactPacketApproval["recipientConfirmation"];
+  /** Recheck persisted source/address binding before opening checkout. */
+  validateApprovedRecipient?(input: {
+    matter: WorkflowMatterSnapshot;
+    analysis: WorkflowMatterAnalysis;
+    approval: ExactPacketApproval;
+  }): void;
   /**
    * Validate an event submitted by the authenticated matter owner. Policies
    * must reject provider/system-only events such as actual-send confirmation.
@@ -817,6 +830,12 @@ export function createWorkflowRuntimeRequestHandler(
           if (current.packetSha256 !== expectedPacketSha256 || current.quote.totalCents !== expectedTotalCents) {
             throw new HttpError(409, "Packet or price changed after preview; review the new packet");
           }
+          const recipientConfirmation = policy.confirmRecipientForApproval?.({
+            matter,
+            analysis,
+            recipient,
+            confirmedFromNotice: body.recipientConfirmedFromNotice,
+          });
           const approval = createExactPacketApproval({
             approvalId: id(),
             matterId,
@@ -826,6 +845,7 @@ export function createWorkflowRuntimeRequestHandler(
             mailClass: selectedMailClass,
             approvedBy: actor.id,
             approvedAt: now(),
+            recipientConfirmation,
           });
           await deps.store.saveApproval(actor.id, matterId, approval);
           return json({ approvalId: approval.approvalId, packetSha256: approval.packetSha256, quote: current.quote });
@@ -850,6 +870,7 @@ export function createWorkflowRuntimeRequestHandler(
         policy.validateDocumentsBeforePacket?.(matter.documents, analysis);
         policy.validateBeforePacket?.({ matter, caseInput, analysis });
         requireFreshDraft({ draft, analysis, caseInput, documents: matter.documents });
+        policy.validateApprovedRecipient?.({ matter, analysis, approval });
         const current = await deps.packet.preview({ actor, matter, draft, documents: included, mailClass: approval.mailClass });
         assertPacketMatchesApproval(approval, current);
         return json(await deps.checkout.checkout({ actor, matter, approval, sender }));

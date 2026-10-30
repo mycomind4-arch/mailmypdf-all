@@ -13,6 +13,7 @@ import {
   TextField,
 } from "@mailmypdf/workflow-ui";
 import "@mailmypdf/workflow-ui/workflow-ui.css";
+import { noticeResponseApprovalReviewIdentity } from "./approval-review-identity";
 import {
   NOTICE_RESPONSE_STEPS,
   completedNoticeResponseSteps,
@@ -562,6 +563,7 @@ export default function NoticeResponseWorkflow({
         preview: packet,
         recipient,
         mailClass,
+        recipientConfirmedFromNotice: profile.workflowId === "cp2000-response",
       });
       setApprovalId(result.approvalId);
     } catch (cause) {
@@ -1006,7 +1008,14 @@ export default function NoticeResponseWorkflow({
             title="6. Build the exact packet"
             description="Confirm the response destination against the controlling notice or current official instructions before approval."
           >
-            <AddressFields value={recipient} onChange={setRecipient} />
+            <AddressFields
+              value={recipient}
+              onChange={(next) => {
+                setRecipient(next);
+                setPacket(null);
+                setApprovalId("");
+              }}
+            />
             <Field label="Mailing method">
               <select
                 className="wf-input"
@@ -1038,6 +1047,7 @@ export default function NoticeResponseWorkflow({
           </SectionCard>
           {packet && (
             <ApprovalChecklist
+              key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass })}
               reviewItems={[
                 {
                   id: "hash",

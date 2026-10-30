@@ -278,6 +278,7 @@ async function storeSaveApproval(
       recipient: approval.recipient,
       mailClass: approval.mailClass,
       reviewed: { packetSha256: approval.packetSha256, totalCents: approval.totalCents },
+      recipientConfirmation: approval.recipientConfirmation,
       approvalId: approval.approvalId,
     },
     context,
@@ -300,7 +301,10 @@ async function storeLoadApproval(
   if (!data) return null;
 
   const matter = await loadCase(matterId, context);
-  const quote = data.quote as { totalCents: number };
+  const quote = data.quote as {
+    totalCents: number;
+    cp2000RecipientConfirmation?: ExactPacketApproval["recipientConfirmation"];
+  };
   return {
     approvalId: data.id,
     matterId,
@@ -311,6 +315,7 @@ async function storeLoadApproval(
     mailClass: data.mail_class as ExactPacketApproval["mailClass"],
     approvedBy: context.user.id,
     approvedAt: data.approved_at,
+    recipientConfirmation: quote.cp2000RecipientConfirmation,
   };
 }
 

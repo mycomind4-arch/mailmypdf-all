@@ -14,6 +14,9 @@ import {
   type WorkflowRuntimeStoredEvent,
   type WorkflowRuntimeStoredInput,
 } from "../src/index.js";
+import { createWorkflowDraftBasis } from "../src/draft-basis.js";
+import { getNoticeResponseRuntimePolicy } from "../src/domain-packs/notice-response/runtime-policy.js";
+import { getNoticeResponseWorkflowProfile } from "../src/domain-packs/notice-response/profiles.js";
 
 class MemoryStore implements WorkflowRuntimeStore {
   readonly matters = new Map<string, { ownerId: string; snapshot: WorkflowMatterSnapshot }>();
@@ -780,4 +783,168 @@ test("shared runtime refuses a packet and an approval while the draft still has 
     body: JSON.stringify({ mailClass: "certified" }),
   }));
   assert.equal(response.status, 200, "a resolved draft builds a packet normally");
+});
+
+
+const CP2000_RECIPIENT = {
+  name: "Internal Revenue Service",
+  line1: "100 Synthetic Notice Response Way",
+  line2: null,
+  city: "Fresno",
+  state: "CA",
+  postal: "93725",
+} as const;
+const CP2000_SENDER = {
+  name: "Synthetic Taxpayer", line1: "2 Example St",
+  city: "Eureka", state: "CA", postal: "95501",
+};
+
+async function cp2000ApprovalFixture() {
+  const deps = dependencies();
+  deps.policyFor = (workflowId) => workflowId === "cp2000-response"
+    ? getNoticeResponseRuntimePolicy(workflowId)
+    : null;
+  const matter = await deps.store.createMatter({
+    ownerId: "user-1", workflowId: "cp2000-response",
+    verticalId: "notice-respond", createdAt: "2026-09-17T00:00:00.000Z",
+  });
+  const matterId = matter.id;
+  const source: WorkflowMatterDocument = {
+    id: "attachment-1", documentId: "synthetic-cp2000-page-one",
+    role: "subject_notice", evidenceKind: null, pageCount: 3,
+    included: true, position: 0, filename: "cp2000-notice.pdf",
+    mimeType: "application/pdf", sizeBytes: 1200,
+    securityStatus: "clean", usable: true,
+  };
+  await deps.store.replaceDocuments("user-1", matterId, [source]);
+  const analysis: WorkflowMatterAnalysis = {
+    version: 1, documentId: source.documentId, model: "synthetic-offline",
+    createdAt: "2026-09-17T00:00:00.000Z",
+    result: {
+      decision: "Proposed CP2000 adjustment", issuer: "IRS",
+      referenceNumber: "CP2000-SYNTHETIC", decisionDate: "2026-09-01",
+      deadline: "2026-10-01", confidence: "high",
+      summary: "Synthetic controlling CP2000 notice with a first-page mailing address.",
+      reasons: [], missingInformation: [], suggestedEvidence: [],
+      promptInjectionObserved: false,
+      workflowDetails: { responseAddress: { ...CP2000_RECIPIENT } },
+    },
+  };
+  await deps.store.saveAnalysis("user-1", matterId, analysis);
+  const policy = getNoticeResponseRuntimePolicy("cp2000-response")!;
+  const profile = getNoticeResponseWorkflowProfile("cp2000-response")!;
+  const input = policy.validateInput({
+    taxpayerName: "Synthetic Taxpayer",
+    taxpayerAddress: "2 Example St, Eureka CA 95501",
+    noticeNumber: "CP2000-SYNTHETIC", taxPeriod: "2025",
+    responseMode: profile.responseModes[0]!.value,
+    requestedAction: "Review the proposed adjustment.",
+    evidenceReviewComplete: true, factsConfirmed: true,
+    mailingAppropriateConfirmed: true,
+  }, analysis, (await deps.store.loadMatter("user-1", matterId))!);
+  const savedInput = await deps.store.saveInput("user-1", matterId, input);
+  await deps.store.saveDraft("user-1", matterId, {
+    bodyText: "Synthetic CP2000 response with reviewed notice and evidence.",
+    basis: createWorkflowDraftBasis({
+      analysis, inputVersion: savedInput.version, documents: [source],
+    }),
+  });
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const post = (path: string, data: Record<string, unknown>) => handle(request(
+    `/matters/${matterId}/${path}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  ));
+  const preview = (await body(await post("packet", { mailClass: "certified" }))).packet;
+  const approvalBody = {
+    expectedPacketSha256: preview.packetSha256,
+    expectedTotalCents: preview.quote.totalCents,
+    mailClass: "certified",
+    recipient: { ...CP2000_RECIPIENT, line1: String(CP2000_RECIPIENT.line1) },
+    recipientConfirmedFromNotice: true as boolean,
+  };
+  return { deps, matterId, source, analysis, policy, handle, post, approvalBody };
+}
+
+test("CP2000 notice-bound recipient confirmation: missing affirmation and changed destination fail before checkout", async () => {
+  for (const scenario of ["unconfirmed", "changed recipient", "missing notice address", "non-IRS issuer"] as const) {
+    const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+    if (scenario === "unconfirmed") approvalBody.recipientConfirmedFromNotice = false;
+    if (scenario === "changed recipient") approvalBody.recipient.line1 = "999 Wrong IRS Office";
+    if (scenario === "missing notice address") {
+      await deps.store.saveAnalysis("user-1", matterId, {
+        ...analysis, result: {
+          ...analysis.result, workflowDetails: { responseAddress: null },
+        },
+      });
+    }
+    if (scenario === "non-IRS issuer") {
+      await deps.store.saveAnalysis("user-1", matterId, {
+        ...analysis, result: { ...analysis.result, issuer: "Social Security Administration" },
+      });
+    }
+    const response = await post("approval", approvalBody);
+    assert.equal(response.status, 409, scenario);
+    assert.match((await body(response)).code, /CP2000_RECIPIENT_CONFIRMATION_REQUIRED|CP2000_RECIPIENT_MISMATCH|CP2000_NOTICE_ADDRESS_MISSING|CP2000_NOTICE_ISSUER_MISMATCH/);
+    assert.equal(deps.store.approvals.size, 0, scenario);
+    assert.equal(deps.checkoutCalls.count, 0, scenario);
+  }
+});
+
+test("CP2000 notice-bound recipient confirmation: exact packet and controlling notice approve and reach mocked checkout", async () => {
+  const { deps, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+  const response = await post("approval", approvalBody);
+  assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
+  const approvalId = (await body(response)).approvalId as string;
+  const stored = deps.store.approvals.get(matterId)!;
+  assert.equal(stored.recipientConfirmation?.sourceDocumentId, "synthetic-cp2000-page-one");
+  assert.equal(stored.recipientConfirmation?.analysisVersion, 1);
+  const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(checkout.status, 200);
+  assert.equal(deps.checkoutCalls.count, 1);
+});
+
+test("CP2000 notice-bound recipient confirmation: source replacement or recipient mutation blocks checkout", async () => {
+  for (const scenario of ["replaced notice", "mutated approved recipient", "reanalyzed notice"] as const) {
+    const { deps, post, approvalBody, matterId, source, analysis, policy } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200);
+    const approvalId = (await body(approved)).approvalId as string;
+    if (scenario === "mutated approved recipient") {
+      const existing = deps.store.approvals.get(matterId)!;
+      deps.store.approvals.set(matterId, {
+        ...existing, recipient: { ...existing.recipient, line1: "999 Wrong IRS Office" },
+      });
+    } else {
+      const nextSource = scenario === "replaced notice"
+        ? { ...source, documentId: "replacement-cp2000-notice", filename: "replacement.pdf" }
+        : source;
+      const nextAnalysis = {
+        ...analysis, version: 2, documentId: nextSource.documentId,
+      };
+      await deps.store.replaceDocuments("user-1", matterId, [nextSource]);
+      await deps.store.saveAnalysis("user-1", matterId, nextAnalysis);
+      const input = policy.validateInput({
+        taxpayerName: "Synthetic Taxpayer",
+        taxpayerAddress: "2 Example St, Eureka CA 95501",
+        noticeNumber: "CP2000-SYNTHETIC", taxPeriod: "2025",
+        responseMode: getNoticeResponseWorkflowProfile("cp2000-response")!.responseModes[0]!.value,
+        requestedAction: "Review the proposed adjustment.",
+        evidenceReviewComplete: true, factsConfirmed: true,
+        mailingAppropriateConfirmed: true,
+      }, nextAnalysis, (await deps.store.loadMatter("user-1", matterId))!);
+      const saved = await deps.store.saveInput("user-1", matterId, input);
+      await deps.store.saveDraft("user-1", matterId, {
+        bodyText: "Synthetic CP2000 response with reviewed notice and evidence.",
+        basis: createWorkflowDraftBasis({
+          analysis: nextAnalysis, inputVersion: saved.version, documents: [nextSource],
+        }),
+      });
+    }
+    const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+    assert.equal(checkout.status, 409, scenario);
+    assert.match((await body(checkout)).code, /CP2000_RECIPIENT_CONFIRMATION_STALE|CP2000_RECIPIENT_MISMATCH/);
+    assert.equal(deps.checkoutCalls.count, 0, scenario);
+  }
 });
