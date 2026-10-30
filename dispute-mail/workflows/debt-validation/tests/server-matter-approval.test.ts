@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   approveDebtValidationMatter,
+  assertDebtValidationApprovalCommit,
   checkoutDebtValidationMatter,
   type DebtValidationMatterRepository,
   type DebtValidationMatterSnapshot,
@@ -77,6 +78,12 @@ function fakeStore() {
       if (!state.snapshot || state.snapshot.packet.matterVersion !== expectedMatterVersion) {
         throw new Error("debt_validation_concurrent_change");
       }
+      // Emulate a fresh, owner-scoped read and exact binding comparison inside
+      // the same transaction that inserts the approval. No version bump alone
+      // is assumed to protect recipient, notice or PDF changes.
+      assertDebtValidationApprovalCommit({
+        ownerId, matterId, binding, current: state.snapshot,
+      });
       state.approval = structuredClone(binding);
       state.saves++;
     },
@@ -206,6 +213,44 @@ test("debt-validation matter: no stored approval or no current snapshot blocks c
     ownerId: "owner-1", matterId: "matter-1", repository, checkout,
   }), /debt_validation_missing_trusted_state/);
   assert.equal(providerCalls, 0);
+});
+
+test("debt-validation matter: same-version notice or packet edits during approval fail closed", async () => {
+  const mutations: Array<(snapshot: DebtValidationMatterSnapshot) => void> = [
+    (snapshot) => { snapshot.currentIntake.recipientConfirmed = false; },
+    (snapshot) => { snapshot.currentIntake.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.currentIntake.disputeExplanation = "Changed after review."; },
+    (snapshot) => { snapshot.trustedNotice.sha256 = d; },
+    (snapshot) => { snapshot.trustedNotice.responseMailingAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.packet.recipientAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.packet.pdfSha256 = d; },
+    (snapshot) => { snapshot.packet.enclosureManifestSha256 = d; },
+  ];
+  let paymentCalls = 0;
+  let mailingCalls = 0;
+  for (const mutate of mutations) {
+    const { state, repository } = fakeStore();
+    const load = repository.loadCurrent;
+    repository.loadCurrent = async (ownerId, matterId) => {
+      const reviewed = await load(ownerId, matterId);
+      mutate(state.snapshot!); // Same matterVersion, but state changed before atomic persist.
+      return reviewed;
+    };
+    await assert.rejects(approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository,
+    }), /debt_validation_/);
+    assert.equal(state.saves, 0, "A stale binding must never be persisted");
+    assert.equal(state.approval, null);
+    assert.equal(state.snapshot!.packet.matterVersion, 2, "Regression does not rely on a version bump");
+    // Checkout is not reachable without a persisted approval.
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository,
+      checkout: async () => { paymentCalls++; mailingCalls++; },
+    }), /debt_validation_approval_missing/);
+  }
+  assert.equal(paymentCalls, 0);
+  assert.equal(mailingCalls, 0);
 });
 
 test("debt-validation matter: optimistic matter revision conflict prevents durable approval", async () => {
