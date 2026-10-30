@@ -176,6 +176,32 @@ async function fixture() {
 }
 
 describe("IRS physical-mail evidence packet: persisted PDF to explicit approval", () => {
+  it("requires explicit confirmation of the exact enclosure labels and measured pages", async () => {
+    const state = await fixture();
+    const review = await state.persistAndReview();
+    const original = review.manifest[0];
+    expect(original).toBeDefined();
+    for (const reviewedManifest of [
+      [],
+      [{ ...original, filename: "unreviewed-attachment.pdf" }],
+      [{ ...original, pageCount: original.pageCount + 1 }],
+      [{ ...original, documentId: "unreviewed-document" }],
+    ]) {
+      const result = await irsGeneralDefinition.approveOwnedDraft({
+        ...state.shared, draftStore: state.draftStore, approvalStore: state.approvalStore,
+        draftId: review.draftId, reviewedPacketSha256: review.packetSha256,
+        reviewedRecipientAddress: review.recipientAddress,
+        reviewedCaseRevision: review.caseRevision,
+        reviewedNoticeSha256: review.noticeSha256,
+        reviewedManifest,
+      });
+      expect(result).toEqual({
+        approved: false, blockers: ["explicit_packet_review_required"], approval: null,
+      });
+    }
+    expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
   it("preserves measured enclosure pages, ordered manifest and exact approved bytes", async () => {
     const state = await fixture();
     const review = await state.persistAndReview();
@@ -191,6 +217,9 @@ describe("IRS physical-mail evidence packet: persisted PDF to explicit approval"
       ...state.shared, draftStore: state.draftStore, approvalStore: state.approvalStore,
       draftId: review.draftId, reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
     });
     expect(approved.approved).toBe(true);
     if (!approved.approved) throw new Error("Expected explicit exact-packet approval");
@@ -211,6 +240,9 @@ describe("IRS physical-mail evidence packet: persisted PDF to explicit approval"
       ...state.shared, draftStore: state.draftStore, approvalStore: state.approvalStore,
       draftId: review.draftId, reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
     });
     expect(approved.approved).toBe(false);
     expect(approved.blockers).toContain("enclosure_not_eligible");

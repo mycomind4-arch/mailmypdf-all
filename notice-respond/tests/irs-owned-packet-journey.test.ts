@@ -167,6 +167,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });
@@ -200,6 +203,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });
@@ -221,6 +227,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
         ownerId, matterId, draftId: review.draftId,
         reviewedPacketSha256: review.packetSha256,
         reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
         caseStore: state.caseStore, documentStore: state.documentStore,
         draftStore: state.draftStore, approvalStore: state.approvalStore,
       });
@@ -241,6 +250,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });
@@ -258,6 +270,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });
@@ -279,6 +294,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });
@@ -294,6 +312,9 @@ describe("IRS full draft → stored PDF review → explicit approval (mock stora
       ownerId, matterId, draftId: review.draftId,
       reviewedPacketSha256: review.packetSha256,
       reviewedRecipientAddress: review.recipientAddress,
+      reviewedCaseRevision: review.caseRevision,
+      reviewedNoticeSha256: review.noticeSha256,
+      reviewedManifest: review.manifest,
       caseStore: state.caseStore, documentStore: state.documentStore,
       draftStore: state.draftStore, approvalStore: state.approvalStore,
     });

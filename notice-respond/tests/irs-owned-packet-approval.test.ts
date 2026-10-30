@@ -94,6 +94,9 @@ async function setup() {
     draftId: "draft-1",
     reviewedPacketSha256: preview.packetSha256,
     reviewedRecipientAddress: recipient,
+    reviewedCaseRevision: "rev-1",
+    reviewedNoticeSha256: preview.sourceNoticeSha256,
+    reviewedManifest: [...preview.manifest],
     caseStore: { loadOwnedCaseSnapshot },
     documentStore,
     draftStore: { readPersistedDraft },
@@ -143,6 +146,10 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
       { reviewedPacketSha256: "b".repeat(64) },
       { reviewedRecipientAddress: "Wrong destination" },
       { reviewedPacketSha256: "" },
+      { reviewedCaseRevision: "rev-2" },
+      { reviewedNoticeSha256: "b".repeat(64) },
+      { reviewedManifest: [{ documentId: "unreviewed" }] },
+      { reviewedManifest: null },
     ]) {
       const state = await setup();
       const result = await approveIrsGeneralOwnedDraft({ ...state.input, ...mismatch });

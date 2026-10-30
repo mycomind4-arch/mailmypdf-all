@@ -72,6 +72,10 @@ export interface IrsGeneralOwnedApprovalInput extends Omit<IrsGeneralOwnedPacket
   /** Exact digest and destination explicitly reviewed by the authenticated user. */
   readonly reviewedPacketSha256: string;
   readonly reviewedRecipientAddress: string;
+  /** Exact facts shown in the authenticated customer review, not client-chosen replacements. */
+  readonly reviewedCaseRevision: string;
+  readonly reviewedNoticeSha256: string;
+  readonly reviewedManifest: readonly IrsGeneralOwnedPacketPreviewResultManifestEntry[];
 }
 
 export type IrsGeneralOwnedApprovalResult =
@@ -90,6 +94,19 @@ export type IrsGeneralOwnedApprovalResult =
 
 const SAFE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
+
+/** Compare ordered, customer-visible enclosure facts without depending on JSON key order. */
+function matchesReviewedManifest(reviewed: unknown, stored: unknown): boolean {
+  if (!Array.isArray(reviewed) || !Array.isArray(stored) ||
+      reviewed.length !== stored.length || reviewed.length > 100) return false;
+  return reviewed.every((entry, index) => {
+    const actual = stored[index];
+    return entry && typeof entry === "object" && actual && typeof actual === "object" &&
+      entry.documentId === actual.documentId && entry.role === actual.role &&
+      entry.evidenceKind === actual.evidenceKind && entry.filename === actual.filename &&
+      entry.sha256 === actual.sha256 && entry.pageCount === actual.pageCount;
+  });
+}
 
 function caseBasis(value: {
   readonly revision: string;
@@ -135,7 +152,10 @@ export async function approveIrsGeneralOwnedDraft(
   }
   if (typeof input.reviewedPacketSha256 !== "string" ||
       !SHA256.test(input.reviewedPacketSha256) ||
-      typeof input.reviewedRecipientAddress !== "string" || !input.reviewedRecipientAddress.trim()) {
+      typeof input.reviewedRecipientAddress !== "string" || !input.reviewedRecipientAddress.trim() ||
+      typeof input.reviewedCaseRevision !== "string" || !SAFE_ID.test(input.reviewedCaseRevision) ||
+      typeof input.reviewedNoticeSha256 !== "string" || !SHA256.test(input.reviewedNoticeSha256) ||
+      !Array.isArray(input.reviewedManifest)) {
     return { approved: false, blockers: ["explicit_packet_review_required"], approval: null };
   }
 
@@ -166,7 +186,10 @@ export async function approveIrsGeneralOwnedDraft(
     return { approved: false, blockers: ["draft_case_changed"], approval: null };
   }
   if (stored.packetSha256 !== input.reviewedPacketSha256 ||
-      stored.recipientAddress !== input.reviewedRecipientAddress) {
+      stored.recipientAddress !== input.reviewedRecipientAddress ||
+      stored.caseRevision !== input.reviewedCaseRevision ||
+      stored.noticeSha256 !== input.reviewedNoticeSha256 ||
+      !matchesReviewedManifest(input.reviewedManifest, stored.manifest)) {
     return { approved: false, blockers: ["explicit_packet_review_required"], approval: null };
   }
   try {
