@@ -1,4 +1,4 @@
-import { assemblePacket, generatePlainTextPdf, type AssembledPacket } from "@mailmypdf/packet-builder";
+import { assemblePacket, generatePlainTextPdf, validatePdfForMailing, type AssembledPacket } from "@mailmypdf/packet-builder";
 import { draftDebtValidationLetter, type DebtValidationIntake } from "./domain";
 
 /**
@@ -23,6 +23,17 @@ export async function createLocalDebtValidationPdfPreview(
   });
   if (packet.responsePages < 1 || packet.supportingPages !== 0 || packet.manifest.length !== 0) {
     throw new Error("Local debt-validation preview must contain only the reviewed letter.");
+  }
+  // The browser preview must meet the same canonical page, size and safety
+  // limits as the final server-prepared physical-mailing packet. Otherwise a
+  // customer can review a PDF that can never pass the server approval gate.
+  try {
+    const validated = await validatePdfForMailing(packet.bytes);
+    if (validated.pageCount !== packet.responsePages + packet.supportingPages) {
+      throw new Error("generated_packet_page_mismatch");
+    }
+  } catch {
+    throw new Error("Debt validation PDF exceeds mailing limits or cannot be validated.");
   }
   return packet;
 }
