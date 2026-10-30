@@ -330,11 +330,12 @@ export function createSsaReconsiderationManifest(
         label: "Supporting evidence",
         role: "evidence",
         required: false,
+        // Packet assembly supports PDF, PNG and JPEG. TIFF source notices
+        // remain supported for analysis, but cannot be mailed as enclosures.
         acceptedKinds: [
           "application/pdf",
           "image/png",
           "image/jpeg",
-          "image/tiff",
         ],
       },
       {
