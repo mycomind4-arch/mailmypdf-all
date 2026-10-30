@@ -155,7 +155,17 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
         filename: "evidence.pdf", sha256: "b".repeat(64), pageCount,
       }],
     });
-    expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+    // Supply an otherwise eligible owner-scoped enclosure so the test
+    // reaches the independent PDF page-budget check, not the new scan gate.
+    const documentStore = {
+      loadEligibleDocuments: vi.fn(async () => [{
+        document_id: "doc-a", role: "evidence", evidence_kind: "correspondence",
+        storage_path: "owner-a/doc-a.pdf", safe_filename: "evidence.pdf",
+        sha256: "b".repeat(64), page_count: pageCount, position: 0,
+        mime_type: "application/pdf",
+      }]),
+    };
+    expect(await loadIrsGeneralOwnedDraftForReview({ ...state.input, documentStore })).toEqual({
       ready: false, blockers: ["draft_integrity_failed"], review: null,
     });
   });
