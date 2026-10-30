@@ -605,3 +605,38 @@ test("SSDI and SSI evidence manifests match the shared physical-mail packet rend
     assert.ok(source?.acceptedKinds?.includes("image/tiff"), "TIFF denial notices remain analyzable");
   }
 });
+
+
+test("SSDI and SSI require notice-confirmed destination and explicit packet/mailing authorization contracts", () => {
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
+    assert.ok(artifact, `${workflowId}: canonical factory artifact must exist`);
+    const { manifest, runtimePolicy } = artifact;
+
+    const review = manifest.steps?.find((step) => step.id === "review");
+    const recipient = review?.fields?.find((field) => field.id === "recipientAddress");
+    assert.ok(recipient, `${workflowId}: packet review must collect the SSA destination`);
+    assert.equal(recipient.required, true, `${workflowId}: destination cannot be optional`);
+    assert.equal(recipient.origin, "extracted_confirmation", `${workflowId}: destination needs source confirmation`);
+    assert.match(recipient.hint ?? "", /controlling denial notice|verified SSA instructions/i);
+
+    const connectorRecipient = runtimePolicy.chatContract?.connectorFields.find(
+      (field) => field.id === "recipientAddress",
+    );
+    assert.ok(connectorRecipient, `${workflowId}: chat must request the same destination`);
+    assert.equal(connectorRecipient.required, true);
+    assert.equal(connectorRecipient.toolName, "preview_packet");
+    assert.equal(connectorRecipient.argumentName, "recipient");
+
+    for (const gateId of ["source-document-ready", "facts-confirmed", "exact-packet-review", "mailing-authorization"]) {
+      assert.ok(manifest.gates?.some((gate) => gate.id === gateId && gate.required),
+        `${workflowId}: manifest must require ${gateId}`);
+      assert.ok(runtimePolicy.chatContract?.enforcedGateIds.includes(gateId),
+        `${workflowId}: chat must enforce ${gateId}`);
+    }
+    assert.equal(manifest.gates?.find((gate) => gate.id === "exact-packet-review")?.beforeCapability, "approval");
+    assert.equal(manifest.gates?.find((gate) => gate.id === "mailing-authorization")?.beforeCapability, "mailing");
+    assert.ok(manifest.steps?.find((step) => step.id === "mail")?.requires?.includes("exact_packet_approved"),
+      `${workflowId}: physical mailing cannot precede exact packet approval`);
+  }
+});
