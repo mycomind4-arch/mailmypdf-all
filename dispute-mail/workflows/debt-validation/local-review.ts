@@ -1,3 +1,4 @@
+import { validatePdfForMailing } from "@mailmypdf/packet-builder";
 import {
   normalizeMailingAddress,
   validateDebtValidationIntake,
@@ -93,9 +94,9 @@ export async function readLocalDebtValidationNoticePdf(
   file: Pick<File, "name" | "type" | "size" | "arrayBuffer">,
 ): Promise<ArrayBuffer> {
   if (!file || !Number.isSafeInteger(file.size) || file.size < 14
-    || file.size > 12 * 1024 * 1024
+    || file.size > 10 * 1024 * 1024
     || !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
-    throw new Error("Choose a nonempty PDF notice no larger than 12 MB.");
+    throw new Error("Choose a nonempty PDF notice no larger than 10 MB.");
   }
   const bytes = await file.arrayBuffer();
   if (bytes.byteLength !== file.size || bytes.byteLength < 8) {
@@ -110,6 +111,14 @@ export async function readLocalDebtValidationNoticePdf(
   );
   if (!tail.includes("%%EOF")) {
     throw new Error("The selected notice is missing its PDF end marker.");
+  }
+  // A PDF header and %%EOF can be forged without a single parseable page.
+  // Use the canonical mail-safe parser, which also rejects encrypted, active,
+  // oversized or zero-page documents before the local source is fingerprinted.
+  try {
+    await validatePdfForMailing(new Uint8Array(bytes));
+  } catch {
+    throw new Error("The selected notice is not a safe, readable PDF with pages (maximum 10 pages).");
   }
   return bytes;
 }
