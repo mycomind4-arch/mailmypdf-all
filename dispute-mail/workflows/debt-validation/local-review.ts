@@ -102,7 +102,7 @@ export async function readLocalDebtValidationNoticePdf(
     throw new Error("The selected notice could not be read completely.");
   }
   const header = new TextDecoder("ascii").decode(new Uint8Array(bytes, 0, 8));
-  if (!/^%PDF-[12]\\.[0-9]$/.test(header)) {
+  if (!/^%PDF-[12]\.[0-9]$/.test(header)) {
     throw new Error("The selected notice does not have a recognized PDF header.");
   }
   const tail = new TextDecoder("ascii").decode(
