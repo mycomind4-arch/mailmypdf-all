@@ -19,6 +19,7 @@ import {
   confirmLocalRecipient,
   emptyDebtValidationIntake,
   replaceLocalNotice,
+  readLocalDebtValidationNoticePdf,
   revokeLocalRecipientConfirmation,
 } from "../local-review";
 import { debtValidationStepWorkflow } from "../step-workflow";
@@ -106,13 +107,8 @@ export function DebtValidationStart() {
     setNoticeFileName("");
     setIntake((current) => replaceLocalNotice(current, { documentId: "", sha256: "" }));
     if (!file) return;
-    if (file.size === 0 || file.size > 12 * 1024 * 1024
-      || !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
-      setFileError("Choose a nonempty PDF notice no larger than 12 MB.");
-      return;
-    }
     try {
-      const bytes = await file.arrayBuffer();
+      const bytes = await readLocalDebtValidationNoticePdf(file);
       const hash = await crypto.subtle.digest("SHA-256", bytes);
       if (generation !== fileGeneration.current) return;
       const sha256 = Array.from(new Uint8Array(hash))
@@ -122,8 +118,10 @@ export function DebtValidationStart() {
         sha256,
       }));
       setNoticeFileName(file.name);
-    } catch {
-      if (generation === fileGeneration.current) setFileError("The notice could not be read. Select it again.");
+    } catch (error) {
+      if (generation === fileGeneration.current) {
+        setFileError(error instanceof Error ? error.message : "The notice could not be read. Select it again.");
+      }
     }
   }
 
