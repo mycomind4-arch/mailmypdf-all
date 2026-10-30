@@ -154,6 +154,43 @@ describe("general IRS notice draft-only letter preview", () => {
     expect(result.preview.status).toBe("draft_preview_only");
   });
 
+  it("accepts USPS rural-route and highway-contract return addresses for physical IRS replies", async () => {
+    // USPS Publication 28 sections 241 and 251 recognize RR # BOX # and
+    // HC # BOX # as delivery lines. Rejecting them blocks legitimate senders
+    // from reviewing and mailing an otherwise valid IRS response.
+    for (const deliveryLine of [
+      "RR 2 BOX 152",
+      "RR 9 BOX 23A",
+      "RR 4 BOX 19-1A",
+      "HC 68 BOX 23A",
+    ]) {
+      const returnAddress = `${deliveryLine}\nEureka CA 95501`;
+      const letter = irsGeneralDefinition.prepareLetterPreview({ ...valid, returnAddress });
+      expect(letter.ready, deliveryLine).toBe(true);
+      if (!letter.ready) throw new Error(`Expected USPS delivery line: ${deliveryLine}`);
+      expect(letter.preview.letterText).toContain(returnAddress);
+    }
+
+    const pdf = await irsGeneralDefinition.preparePdfPreview({
+      ...valid, returnAddress: "RR 2 BOX 152\nEureka CA 95501",
+    });
+    expect(pdf.ready).toBe(true);
+    if (!pdf.ready) throw new Error("Expected printable rural-route sender PDF");
+    expect(new TextDecoder().decode(pdf.preview.pdfBytes.subarray(0, 5))).toBe("%PDF-");
+    expect(pdf.preview.status).toBe("draft_pdf_preview_only");
+
+    // Route/box numbers and a valid city/state/ZIP are still mandatory.
+    for (const returnAddress of [
+      "RR 2 BOX\nEureka CA 95501",
+      "HC BOX 23A\nEureka CA 95501",
+      "RR 2 BOX 152 BRYAN DAIRY RD\nEureka CA 95501",
+    ]) {
+      const invalid = irsGeneralDefinition.prepareLetterPreview({ ...valid, returnAddress });
+      expect(invalid.ready, returnAddress).toBe(false);
+      expect(invalid.blockers).toContain("return_address_missing_or_unsafe");
+    }
+  });
+
   it("rejects conflicting sender city/state/ZIP lines in letter and PDF previews", async () => {
     // The original parser accepted this because it only checked the final
     // destination line, despite two different return destinations.
