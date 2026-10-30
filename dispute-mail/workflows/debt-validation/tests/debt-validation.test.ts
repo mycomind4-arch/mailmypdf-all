@@ -39,7 +39,7 @@ test("debt-validation: confirmed controlling notice permits a factual letter", (
   assert.deepEqual(codes(input), []);
   const letter = draftDebtValidationLetter(input, "2026-10-30");
   assert.match(letter, /Sample Collections\nPO Box 456\nAustin, TX 78701/);
-  assert.doesNotMatch(letter, /Sample Collections\\nSample Collections/);
+  assert.doesNotMatch(letter, /Sample Collections\nSample Collections/);
   assert.match(letter, /I dispute the debt/);
   assert.match(letter, /name and mailing address of the original creditor/);
   assert.match(letter, /not an admission/);
