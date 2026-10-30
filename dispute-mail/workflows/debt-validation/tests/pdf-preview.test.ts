@@ -69,3 +69,16 @@ test("debt-validation: invalid date and unsupported glyphs fail closed", async (
     }, "2026-10-30"), /cannot represent all letter characters/,
   );
 });
+
+test("debt-validation: browser PDF preview rejects packets beyond the actual mailing page limit", async () => {
+  // The same valid intake must not produce a browser preview that the server
+  // later refuses to prepare as a physical-mailing packet.
+  const disputeExplanation = "x\\n".repeat(450).replace(/\\n/g, "\n");
+  assert.ok(disputeExplanation.length < 3000);
+  await assert.rejects(
+    createLocalDebtValidationPdfPreview({
+      ...confirmedIntake(), disputeExplanation,
+    }, "2026-10-30"),
+    /Debt validation PDF exceeds mailing limits or cannot be validated/,
+  );
+});
