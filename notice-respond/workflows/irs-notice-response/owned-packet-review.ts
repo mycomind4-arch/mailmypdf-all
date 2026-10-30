@@ -1,6 +1,7 @@
 import { inspectPacketPdfPageCount, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness";
 import { isSafeIrsEnclosureFilename } from "./packet-preview";
+import { isIrsOwnedEnclosureStoragePath } from "./owned-packet-preview";
 import type { PacketDocumentRow } from "@mailmypdf/packet-builder";
 import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import type { IrsGeneralOwnedDraftStore, IrsGeneralVersionedCaseStore } from "./owned-packet-draft";
@@ -162,11 +163,7 @@ export async function loadIrsGeneralOwnedDraftForReview(
       const row = byId.get(entry.documentId);
       const excluded = row?.excluded_pages ?? [];
       const path = row?.storage_path;
-      const ownerPathValid = typeof path === "string" &&
-        path.startsWith(input.ownerId + "/") && !path.includes("\\") &&
-        path.slice(input.ownerId.length + 1).split("/").every(
-          segment => segment.length > 0 && segment !== "." && segment !== "..",
-        );
+      const ownerPathValid = isIrsOwnedEnclosureStoragePath(input.ownerId, path ?? "");
       if (!row || row.role !== "evidence" || !ownerPathValid ||
           row.safe_filename !== entry.filename ||
           typeof row.sha256 !== "string" || row.sha256.toLowerCase() !== entry.sha256 ||
