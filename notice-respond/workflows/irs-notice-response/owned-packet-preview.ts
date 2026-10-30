@@ -88,7 +88,9 @@ function enclosureSignature(row: PacketDocumentRow): string {
   });
 }
 
-function ownerScopedPath(ownerId: string, path: string): boolean {
+/** Shared owner-scoped storage-path guard for both packet assembly and
+ * persisted human review. Control characters must not become storage keys. */
+export function isIrsOwnedEnclosureStoragePath(ownerId: string, path: string): boolean {
   if (typeof path !== "string" || !path.startsWith(ownerId + "/") || path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
     return false;
   }
@@ -167,7 +169,7 @@ export async function prepareIrsGeneralOwnedPacketPreview(
   for (const id of ids) {
     const row = byId.get(id);
     if (!row || row.role !== "evidence" ||
-        !ownerScopedPath(input.ownerId, row.storage_path ?? "") ||
+        !isIrsOwnedEnclosureStoragePath(input.ownerId, row.storage_path ?? "") ||
         selectedPaths.has(row.storage_path)) {
       return { ready: false, blockers: ["enclosure_not_eligible"], preview: null };
     }
@@ -231,7 +233,7 @@ export async function prepareIrsGeneralOwnedPacketPreview(
       for (const id of ids) {
         const row = currentById.get(id);
         if (!row || row.role !== "evidence" ||
-            !ownerScopedPath(input.ownerId, row.storage_path ?? "") ||
+            !isIrsOwnedEnclosureStoragePath(input.ownerId, row.storage_path ?? "") ||
             enclosureSignature(row) !== selectedSignatures.get(id)) {
           return { ready: false, blockers: ["enclosure_not_eligible"], preview: null };
         }
