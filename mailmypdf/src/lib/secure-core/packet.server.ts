@@ -95,6 +95,7 @@ export function createCasePacketStorageAdapter(
   return createScopedCasePacketStorageAdapter({
     ownerId: context.user.id,
     matterId: caseId,
+    expectedSignedUrlOrigin: process.env.SUPABASE_URL ?? "",
     loadDocuments: () => loadPacketDocuments(caseId, context),
     async signUrl(path, expiresInSeconds) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

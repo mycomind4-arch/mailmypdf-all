@@ -5,6 +5,7 @@ import { createScopedCasePacketStorageAdapter } from "../src/lib/secure-core/cas
 
 const ownerId = "owner-a";
 const matterId = "matter-a";
+const storageOrigin = "https://storage.example.test";
 const row = {
   document_id: "document-a", role: "evidence" as const,
   evidence_kind: "tax_return", page_count: null, position: 0,
@@ -17,11 +18,11 @@ function fixture() {
   const signed: string[] = [];
   const measured: Array<[string, number]> = [];
   const adapter = createScopedCasePacketStorageAdapter({
-    ownerId, matterId,
+    ownerId, matterId, expectedSignedUrlOrigin: storageOrigin,
     loadDocuments: async () => rows,
     signUrl: async (path, ttl) => {
       signed.push(`${path}:${ttl}`);
-      return `https://storage.example.test/${path}`;
+      return `${storageOrigin}/storage/v1/object/sign/secure-documents/${path}?token=fixture`;
     },
     savePageCount: async (id, pages) => { measured.push([id, pages]); },
   });
@@ -34,7 +35,7 @@ describe("owner/matter-bound packet storage (no provider side effects)", () => {
     assert.deepEqual(await state.adapter.loadEligibleDocuments({ ownerId, matterId }), [row]);
     assert.equal(await state.adapter.createSignedReadUrl({
       ownerId, storagePath: row.storage_path, expiresInSeconds: 60,
-    }), `https://storage.example.test/${row.storage_path}`);
+    }), `${storageOrigin}/storage/v1/object/sign/secure-documents/${row.storage_path}?token=fixture`);
     assert.deepEqual(state.signed, [`${row.storage_path}:60`]);
   });
   test("rejects cross-owner/cross-matter access without touching storage", async () => {
@@ -82,7 +83,8 @@ describe("owner/matter-bound packet storage (no provider side effects)", () => {
     state.setRows(null as unknown as typeof row[]);
     await assert.rejects(() => state.adapter.loadEligibleDocuments({ ownerId, matterId }));
     const invalidUrl = createScopedCasePacketStorageAdapter({
-      ownerId, matterId, loadDocuments: async () => [row],
+      ownerId, matterId, expectedSignedUrlOrigin: storageOrigin,
+      loadDocuments: async () => [row],
       signUrl: async () => "http://unsafe.example.test", savePageCount: async () => {},
     });
     await assert.rejects(() => invalidUrl.createSignedReadUrl({
@@ -91,13 +93,48 @@ describe("owner/matter-bound packet storage (no provider side effects)", () => {
   });
   test("allows the local Supabase emulator but not remote HTTP signed URLs", async () => {
     const local = createScopedCasePacketStorageAdapter({
-      ownerId, matterId, loadDocuments: async () => [row],
+      ownerId, matterId, expectedSignedUrlOrigin: "http://127.0.0.1:54321",
+      loadDocuments: async () => [row],
       signUrl: async () => "http://127.0.0.1:54321/storage/v1/object/sign/example",
       savePageCount: async () => {},
     });
     assert.match(await local.createSignedReadUrl({
       ownerId, storagePath: row.storage_path, expiresInSeconds: 60,
     }), /^http:\/\/127\.0\.0\.1/);
+  });
+
+  test("pins signed PDF reads to the configured Storage origin and endpoint", async () => {
+    for (const signedUrl of [
+      "https://evil.example.test/storage/v1/object/sign/secure-documents/owner-a/document-a.pdf",
+      "https://storage.example.test.evil.test/storage/v1/object/sign/secure-documents/owner-a/document-a.pdf",
+      "https://storage.example.test/api/private",
+      "https://storage.example.test/storage/v1/object/public/secure-documents/owner-a/document-a.pdf",
+      "https://user:pass@storage.example.test/storage/v1/object/sign/secure-documents/owner-a/document-a.pdf",
+    ]) {
+      const adapter = createScopedCasePacketStorageAdapter({
+        ownerId, matterId, expectedSignedUrlOrigin: storageOrigin,
+        loadDocuments: async () => [row],
+        signUrl: async () => signedUrl,
+        savePageCount: async () => {},
+      });
+      await assert.rejects(() => adapter.createSignedReadUrl({
+        ownerId, storagePath: row.storage_path, expiresInSeconds: 60,
+      }), signedUrl);
+    }
+  });
+
+  test("rejects missing or unsafe configured storage origins", () => {
+    for (const origin of [
+      "", "http://storage.example.test", "https://user:pass@storage.example.test",
+      "https://storage.example.test/path", "https://storage.example.test/?token=secret",
+    ]) {
+      assert.throws(() => createScopedCasePacketStorageAdapter({
+        ownerId, matterId, expectedSignedUrlOrigin: origin,
+        loadDocuments: async () => [row],
+        signUrl: async () => "https://storage.example.test/storage/v1/object/sign/example",
+        savePageCount: async () => {},
+      }), origin);
+    }
   });
 
   test("real preview and approval paths both use the scoped storage bridge", () => {

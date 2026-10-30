@@ -10,11 +10,26 @@ import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-ada
 export function createScopedCasePacketStorageAdapter(deps: {
   ownerId: string;
   matterId: string;
+  /** Exact origin of the configured Supabase Storage service, never a request parameter. */
+  expectedSignedUrlOrigin: string;
   loadDocuments(): Promise<readonly PacketDocumentRow[]>;
   signUrl(path: string, expiresInSeconds: number): Promise<string>;
   savePageCount(documentId: string, pageCount: number): Promise<void>;
 }): PacketStorageAdapter {
   const invalid = () => new PacketError("Packet document authorization could not be verified");
+  // The signed URL issuer is privileged, but its response must not turn the
+  // packet renderer into an arbitrary HTTPS fetcher. Pin to the configured
+  // Supabase origin; loopback HTTP is supported only for the local emulator.
+  const expectedOrigin = (() => {
+    try {
+      const url = new URL(deps.expectedSignedUrlOrigin);
+      const local = url.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+      if ((!local && url.protocol !== "https:") || url.username || url.password ||
+          url.search || url.hash || url.pathname !== "/") throw invalid();
+      return url.origin;
+    } catch { throw invalid(); }
+  })();
   const validScope = (ownerId: string, matterId: string) =>
     ownerId === deps.ownerId && matterId === deps.matterId &&
     typeof ownerId === "string" && ownerId.length > 0 &&
@@ -59,13 +74,15 @@ export function createScopedCasePacketStorageAdapter(deps: {
       const rows = await currentRows();
       if (!rows.some((row) => row.storage_path === storagePath)) throw invalid();
       const url = await deps.signUrl(storagePath, expiresInSeconds);
-      // Hosted storage must use TLS. Supabase's local development emulator
-      // uses loopback HTTP; never permit an arbitrary cleartext remote host.
+      // A syntactically valid HTTPS URL can still target an attacker or an
+      // internal service. Accept only this project's Storage signed-object
+      // endpoint on the configured origin; redirects are separately disabled
+      // by createSecurePacketStorageAdapter.
       let parsed: URL;
       try { parsed = new URL(url); } catch { throw invalid(); }
-      const local = parsed.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
-      if ((!local && parsed.protocol !== "https:") ||
+      if (parsed.origin !== expectedOrigin ||
+          !parsed.pathname.startsWith("/storage/v1/object/sign/") ||
+          parsed.pathname === "/storage/v1/object/sign/" ||
           parsed.username || parsed.password) throw invalid();
       return url;
     },
