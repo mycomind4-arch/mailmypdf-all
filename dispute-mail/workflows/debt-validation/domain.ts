@@ -76,6 +76,26 @@ function isRealDate(value: string): boolean {
 }
 
 export function validateDebtValidationIntake(input: DebtValidationIntake): DebtValidationBlocker[] {
+  // TypeScript types are not a trust boundary: malformed JSON must fail closed.
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return [{ code: "invalid_text", message: "A complete debt-validation intake is required." }];
+  }
+  const record = input as unknown as Record<string, unknown>;
+  const requiredStrings = [
+    "consumerName", "consumerMailingAddress", "collectorName", "collectorResponseAddress",
+    "accountReference", "disputeExplanation", "noticeDocumentId", "noticeSha256",
+    "noticeResponseAddress", "confirmedRecipientAddress", "confirmedNoticeSha256",
+    "confirmedNoticeDocumentId",
+  ];
+  if (requiredStrings.some((key) => typeof record[key] !== "string")
+    || typeof record.recipientConfirmed !== "boolean"
+    || typeof record.requestOriginalCreditor !== "boolean"
+    || !Number.isSafeInteger(record.noticeVersion)
+    || !Number.isSafeInteger(record.confirmedNoticeVersion)
+    || (record.noticeDate !== null && typeof record.noticeDate !== "string")
+    || (record.noticeDisputeDeadline !== null && typeof record.noticeDisputeDeadline !== "string")) {
+    return [{ code: "invalid_text", message: "Malformed or incomplete intake fields must be corrected." }];
+  }
   const issues: DebtValidationBlocker[] = [];
   const add = (code: DebtValidationBlockerCode, message: string) => issues.push({ code, message });
   if (!isSingleLine(input.consumerName, 200) || !isMailingAddress(input.consumerMailingAddress)) {
