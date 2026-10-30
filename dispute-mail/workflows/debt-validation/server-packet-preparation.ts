@@ -68,7 +68,18 @@ export async function prepareDebtValidationMatterPacket(input: {
 
   // Use exactly the same canonical PDF builder as the local review. The
   // controlling notice is deliberately not included without enclosure consent.
-  const assembled = await createLocalDebtValidationPdfPreview(intake, input.letterDate);
+  let assembled: Awaited<ReturnType<typeof createLocalDebtValidationPdfPreview>>;
+  try {
+    assembled = await createLocalDebtValidationPdfPreview(intake, input.letterDate);
+  } catch (error) {
+    // Browser preview errors are human-readable; server approval callers
+    // require the stable domain error code for invalid generated PDFs.
+    if (error instanceof Error
+      && error.message === "Debt validation PDF exceeds mailing limits or cannot be validated.") {
+      throw new Error("debt_validation_invalid_generated_pdf");
+    }
+    throw error;
+  }
   if (assembled.supportingPages !== 0 || assembled.manifest.length !== 0) {
     throw new Error("debt_validation_unexpected_enclosure");
   }
