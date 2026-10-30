@@ -180,6 +180,8 @@ test("debt-validation matter: every stale checkout fails before mocked Stripe or
     (s: DebtValidationMatterSnapshot) => { s.trustedNotice.responseMailingAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
     (s: DebtValidationMatterSnapshot) => { s.packet.pdfSha256 = d; },
     (s: DebtValidationMatterSnapshot) => { s.packet.enclosureManifestSha256 = d; },
+    (s: DebtValidationMatterSnapshot) => { s.packet.totalCents = 1999; },
+    (s: DebtValidationMatterSnapshot) => { s.packet.mailClass = "registered"; },
     (s: DebtValidationMatterSnapshot) => { s.packet.matterVersion++; },
   ];
   let stripeCalls = 0;
@@ -226,6 +228,8 @@ test("debt-validation matter: same-version notice or packet edits during approva
     (snapshot) => { snapshot.packet.recipientAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
     (snapshot) => { snapshot.packet.pdfSha256 = d; },
     (snapshot) => { snapshot.packet.enclosureManifestSha256 = d; },
+    (snapshot) => { snapshot.packet.totalCents = 1999; },
+    (snapshot) => { snapshot.packet.mailClass = "registered"; },
   ];
   let paymentCalls = 0;
   let mailingCalls = 0;
