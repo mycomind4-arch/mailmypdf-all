@@ -30,6 +30,9 @@ export interface DebtValidationPacketSnapshot {
   ownerId: string;
   matterId: string;
   matterVersion: number;
+  /** Server-authoritative quote; client-supplied prices are never trusted. */
+  totalCents: number;
+  mailClass: "standard" | "certified" | "registered";
   pdfSha256: string;
   enclosureManifestSha256: string;
   intakeSha256: string;
@@ -43,6 +46,8 @@ export interface DebtValidationApprovalBinding {
   ownerId: string;
   matterId: string;
   matterVersion: number;
+  totalCents: number;
+  mailClass: "standard" | "certified" | "registered";
   pdfSha256: string;
   enclosureManifestSha256: string;
   intakeSha256: string;
@@ -117,6 +122,8 @@ function assertPacket(
 ): void {
   if (!packet || packet.ownerId !== ownerId || packet.matterId !== matterId) fail("packet_scope");
   if (!Number.isSafeInteger(packet.matterVersion) || packet.matterVersion < 1
+    || !Number.isSafeInteger(packet.totalCents) || packet.totalCents < 0
+    || !["standard", "certified", "registered"].includes(packet.mailClass)
     || !validSha(packet.pdfSha256) || !validSha(packet.enclosureManifestSha256)
     || !validSha(packet.intakeSha256)) fail("invalid_packet");
   if (packet.noticeDocumentId !== notice.documentId
@@ -163,6 +170,8 @@ export function createDebtValidationApprovalBinding(args: {
     ownerId,
     matterId,
     matterVersion: packet.matterVersion,
+    totalCents: packet.totalCents,
+    mailClass: packet.mailClass,
     pdfSha256: packet.pdfSha256.toLowerCase(),
     enclosureManifestSha256: packet.enclosureManifestSha256.toLowerCase(),
     intakeSha256: packet.intakeSha256.toLowerCase(),
@@ -203,6 +212,8 @@ export function assertDebtValidationCheckoutBinding(args: {
   }
   if (!binding || binding.ownerId !== ownerId || binding.matterId !== matterId
     || binding.matterVersion !== packet.matterVersion
+    || binding.totalCents !== packet.totalCents
+    || binding.mailClass !== packet.mailClass
     || binding.noticeDocumentId !== trustedNotice.documentId
     || !validSha(binding.noticeSha256) || !sameSha(binding.noticeSha256, trustedNotice.sha256)
     || binding.noticeVersion !== trustedNotice.version
