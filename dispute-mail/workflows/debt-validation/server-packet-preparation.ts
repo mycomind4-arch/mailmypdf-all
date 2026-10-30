@@ -12,6 +12,7 @@
  */
 import { createHash } from "node:crypto";
 import { validatePdfForMailing, type PacketManifestEntry } from "@mailmypdf/packet-builder";
+import { calculateQuote } from "@mailmypdf/pricing";
 import { validateDebtValidationIntake, type DebtValidationIntake } from "./domain";
 import { createLocalDebtValidationPdfPreview } from "./pdf-preview";
 import {
@@ -96,11 +97,27 @@ export async function prepareDebtValidationMatterPacket(input: {
     throw new Error("debt_validation_invalid_generated_pdf");
   }
 
+  // Never make a caller-supplied amount approvable. The server must price the
+  // validated, actually assembled PDF using the shared canonical pricing engine.
+  // This is a quote-integrity check only: it does not enable checkout.
+  const quote = calculateQuote({
+    workflowId: "debt-validation",
+    verticalId: "dispute-mail",
+    actualPages: assembled.responsePages,
+    supportingPages: assembled.supportingPages,
+    mailClass: input.mailClass,
+  });
+  if (quote.mailService !== input.mailClass
+    || !Number.isSafeInteger(input.totalCents)
+    || input.totalCents !== quote.totalCents) {
+    throw new Error("debt_validation_quote_mismatch");
+  }
+
   const packet: DebtValidationPacketSnapshot = {
     ownerId,
     matterId,
     matterVersion: input.matterVersion,
-    totalCents: input.totalCents,
+    totalCents: quote.totalCents,
     mailClass: input.mailClass,
     pdfSha256: digest(assembled.bytes),
     enclosureManifestSha256: digest(new TextEncoder().encode(JSON.stringify(assembled.manifest))),
