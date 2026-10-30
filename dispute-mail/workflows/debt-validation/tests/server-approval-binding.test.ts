@@ -7,7 +7,7 @@ import {
   type DebtValidationPacketSnapshot,
   type TrustedDebtValidationNotice,
 } from "../server-approval-binding";
-import type { DebtValidationIntake } from "../domain";
+import { draftDebtValidationLetter, type DebtValidationIntake } from "../domain";
 
 const a = "a".repeat(64);
 const b = "b".repeat(64);
@@ -160,4 +160,23 @@ test("debt-validation: rejected approval and checkout never call mocked provider
   }
   assert.equal(stripeCalls, 0);
   assert.equal(lobCalls, 0);
+});
+
+test("debt-validation approval: printable mailing-address edits invalidate the reviewed intake", () => {
+  const original = args();
+  const originalLetter = draftDebtValidationLetter(original.intake, "2026-10-30");
+  const originalDigest = debtValidationIntakeSha256(original.intake);
+
+  for (const change of [
+    { consumerMailingAddress: "123 EXAMPLE ST\\nSACRAMENTO, CA 95814" },
+    { collectorResponseAddress: "EXAMPLE COLLECTIONS\\nPO BOX 456\\nAUSTIN, TX 78701" },
+  ]) {
+    const edited = { ...original.intake, ...change };
+    assert.notEqual(draftDebtValidationLetter(edited, "2026-10-30"), originalLetter);
+    assert.notEqual(debtValidationIntakeSha256(edited), originalDigest,
+      "The approval digest must change when the printable letter changes");
+    assert.throws(() => createDebtValidationApprovalBinding({
+      ...original, intake: edited,
+    }), /debt_validation_intake_changed/);
+  }
 });
