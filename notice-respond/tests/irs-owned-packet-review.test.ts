@@ -206,6 +206,40 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
     }
   });
 
+  it("rejects a persisted manifest whose enclosure order differs from the selected PDF order", async () => {
+    const state = await setup();
+    state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
+      ...state.snapshot,
+      selectedEnclosureDocumentIds: ["doc-a", "doc-b"],
+    }));
+    const entries = ["doc-a", "doc-b"].map((documentId, index) => ({
+      documentId, role: "evidence" as const, evidenceKind: "correspondence",
+      filename: `evidence-${index}.pdf`, sha256: "b".repeat(64), pageCount: 1,
+    }));
+    state.readPersistedDraft.mockResolvedValueOnce({
+      ...state.stored,
+      selectedEnclosureDocumentIds: ["doc-a", "doc-b"],
+      manifest: [entries[1]!, entries[0]!],
+    });
+    // The same two IDs are present, but the persisted manifest describes a
+    // different enclosure order from the canonical selection. Fail before
+    // offering the customer a misleading review/approval confirmation.
+    expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+      ready: false, blockers: ["draft_packet_changed"], review: null,
+    });
+
+    state.readPersistedDraft.mockResolvedValueOnce({
+      ...state.stored,
+      selectedEnclosureDocumentIds: ["doc-a", "doc-b"],
+      manifest: entries,
+    });
+    // Correct order passes the manifest gate and reaches the independently
+    // required eligible-document store (not supplied by this fixture).
+    expect(await loadIrsGeneralOwnedDraftForReview(state.input)).toEqual({
+      ready: false, blockers: ["owned_packet_storage_unavailable"], review: null,
+    });
+  });
+
   it("rejects malformed or mismatched metadata for selected enclosures", async () => {
     const state = await setup();
     state.loadOwnedCaseSnapshot.mockImplementation(async () => ({
