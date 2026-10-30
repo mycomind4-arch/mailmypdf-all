@@ -173,17 +173,34 @@ export function createDebtValidationApprovalBinding(args: {
   };
 }
 
-/** Re-read both trusted records immediately before any checkout/provider call. */
+/**
+ * Re-read the current owner-scoped intake as well as the notice and packet.
+ * A persisted approval/packet snapshot must not authorize checkout after
+ * the user edits their dispute or revokes recipient confirmation.
+ * The caller must load currentIntake from authenticated persistence, never
+ * from checkout request JSON.
+ */
 export function assertDebtValidationCheckoutBinding(args: {
   ownerId: string;
   matterId: string;
   binding: DebtValidationApprovalBinding;
   trustedNotice: TrustedDebtValidationNotice;
   packet: DebtValidationPacketSnapshot;
+  currentIntake: DebtValidationIntake;
 }): void {
-  const { ownerId, matterId, binding, trustedNotice, packet } = args;
+  const { ownerId, matterId, binding, trustedNotice, packet, currentIntake } = args;
   assertTrustedNotice(ownerId, matterId, trustedNotice);
   assertPacket(ownerId, matterId, trustedNotice, packet);
+  if (!currentIntake || validateDebtValidationIntake(currentIntake).length
+    || currentIntake.noticeDocumentId !== trustedNotice.documentId
+    || !sameSha(currentIntake.noticeSha256, trustedNotice.sha256)
+    || currentIntake.noticeVersion !== trustedNotice.version
+    || !sameAddress(currentIntake.noticeResponseAddress, trustedNotice.responseMailingAddress)
+    || !sameAddress(currentIntake.collectorResponseAddress, trustedNotice.responseMailingAddress)
+    || !sameAddress(currentIntake.confirmedRecipientAddress, trustedNotice.responseMailingAddress)
+    || !sameSha(debtValidationIntakeSha256(currentIntake), packet.intakeSha256)) {
+    fail("stale_intake");
+  }
   if (!binding || binding.ownerId !== ownerId || binding.matterId !== matterId
     || binding.matterVersion !== packet.matterVersion
     || binding.noticeDocumentId !== trustedNotice.documentId
