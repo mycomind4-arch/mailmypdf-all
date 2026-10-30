@@ -315,6 +315,8 @@ export function createSsaReconsiderationRuntimePolicy(
 
     validateDocumentsBeforePacket(documents, analysis) {
       const basis = assertReconsiderationAnalysis(program, analysis);
+      // Preserve form-specific errors for required SSA-561/3441/827 uploads.
+      assertRequiredForms(documents, basis);
       // Draft-time scanning is not sufficient: supplemental evidence can be
       // quarantined or revoked before preview, approval, or checkout. The
       // shared host enforces this too, but policy consumers must fail closed.
@@ -324,7 +326,6 @@ export function createSsaReconsiderationRuntimePolicy(
       if (blockedIncluded.length) {
         throw new Error(`Every included ${program} document must clear security scanning before packet review.`);
       }
-      assertRequiredForms(documents, basis);
     },
 
     validateBeforeDraft({ matter, analysis }) {
