@@ -357,6 +357,12 @@ export async function approvePacket(
     recipient: Recipient;
     mailClass: MailClass;
     reviewed: ReviewedPacket;
+    /** Source-bound CP2000 recipient attestation, persisted with the immutable quote. */
+    recipientConfirmation?: {
+      sourceDocumentId: string;
+      analysisVersion: number;
+      sourceFingerprint: string;
+    };
     /**
      * Persists the approval under this id instead of an auto-generated one.
      * The generic workflow-runtime host mints the approval id before calling
@@ -382,7 +388,10 @@ export async function approvePacket(
     p_supporting_pages: preview.supportingPages,
     p_recipient: input.recipient as unknown as never,
     p_mail_class: input.mailClass,
-    p_quote: preview.quote as unknown as never,
+    p_quote: {
+      ...preview.quote,
+      ...(input.recipientConfirmation ? { cp2000RecipientConfirmation: input.recipientConfirmation } : {}),
+    } as unknown as never,
     p_approval_id: input.approvalId ?? null,
   });
 
