@@ -56,10 +56,19 @@ export async function approveDebtValidationMatter(input: {
   ownerId: string;
   matterId: string;
   reviewedPdfSha256: string;
+  /**
+   * Must be true only for an authenticated user's explicit approval action.
+   * Possessing or previewing the PDF digest is not approval. The eventual
+   * HTTP route must independently enforce authentication and CSRF defenses.
+   */
+  userApprovedExactPacket?: unknown;
   repository: DebtValidationMatterRepository;
 }): Promise<DebtValidationApprovalBinding> {
-  const { ownerId, matterId, reviewedPdfSha256, repository } = input;
+  const { ownerId, matterId, reviewedPdfSha256, userApprovedExactPacket, repository } = input;
   identity(ownerId, matterId);
+  if (userApprovedExactPacket !== true) {
+    throw new Error("debt_validation_explicit_approval_required");
+  }
   const snapshot = requireSnapshot(await repository.loadCurrent(ownerId, matterId));
   const binding = createDebtValidationApprovalBinding({
     ownerId,
