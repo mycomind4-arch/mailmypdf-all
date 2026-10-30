@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   approveDebtValidationMatter,
   assertDebtValidationApprovalCommit,
+  assertDebtValidationPersistedPdf,
   checkoutDebtValidationMatter,
   type DebtValidationMatterRepository,
   type DebtValidationMatterSnapshot,
@@ -15,7 +17,9 @@ import {
 import type { DebtValidationIntake } from "../domain";
 
 const a = "a".repeat(64);
-const b = "b".repeat(64);
+// Synthetic persisted packet bytes; this test checks identity, not PDF parsing.
+const reviewedPdfBytes = new TextEncoder().encode("%PDF-1.4\\nSynthetic reviewed letter\\n%%EOF");
+const b = createHash("sha256").update(reviewedPdfBytes).digest("hex");
 const c = "c".repeat(64);
 const d = "d".repeat(64);
 const address = "Example Collections\nPO Box 456\nAustin, TX 78701";
@@ -66,12 +70,18 @@ function fakeStore() {
     saves: number;
     claims: number;
     claimedKey: string | null;
-  } = { snapshot: fixture(), approval: null, saves: 0, claims: 0, claimedKey: null };
+    pdfBytes: Uint8Array | null;
+  } = { snapshot: fixture(), approval: null, saves: 0, claims: 0, claimedKey: null, pdfBytes: reviewedPdfBytes.slice() };
   const repository: DebtValidationMatterRepository = {
     async loadCurrent(ownerId, matterId) {
       assert.equal(ownerId, "owner-1");
       assert.equal(matterId, "matter-1");
       return state.snapshot ? structuredClone(state.snapshot) : null;
+    },
+    async loadPacketPdfBytes(ownerId, matterId) {
+      assert.equal(ownerId, "owner-1");
+      assert.equal(matterId, "matter-1");
+      return state.pdfBytes?.slice() ?? null;
     },
     async persistApproval(ownerId, matterId, binding, expectedMatterVersion) {
       assert.equal(ownerId, "owner-1");
@@ -85,6 +95,7 @@ function fakeStore() {
       assertDebtValidationApprovalCommit({
         ownerId, matterId, binding, current: state.snapshot,
       });
+      assertDebtValidationPersistedPdf(state.pdfBytes, state.snapshot.packet.pdfSha256);
       state.approval = structuredClone(binding);
       state.saves++;
     },
@@ -110,6 +121,7 @@ function fakeStore() {
         currentIntake: state.snapshot.currentIntake,
         packet: state.snapshot.packet,
       });
+      assertDebtValidationPersistedPdf(state.pdfBytes, state.snapshot.packet.pdfSha256);
       if (state.claimedKey && state.claimedKey !== idempotencyKey) {
         throw new Error("debt_validation_conflicting_checkout_claim");
       }
@@ -373,4 +385,69 @@ test("debt-validation matter: atomic guards reject a fully readdressed valid not
     assert.equal(stripeCalls, 0);
     assert.equal(lobCalls, 0);
   }
+});
+
+test("debt-validation matter: missing or altered stored PDF bytes fail closed before approval or checkout", async () => {
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  for (const replacement of [null, new TextEncoder().encode("%PDF-1.4\\nChanged letter\\n%%EOF")]) {
+    const beforeApproval = fakeStore();
+    beforeApproval.state.pdfBytes = replacement;
+    await assert.rejects(approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository: beforeApproval.repository,
+    }), /debt_validation_persisted_pdf_changed/);
+    assert.equal(beforeApproval.state.saves, 0);
+
+    const beforeCheckout = fakeStore();
+    await approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository: beforeCheckout.repository,
+    });
+    beforeCheckout.state.pdfBytes = replacement;
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository: beforeCheckout.repository,
+      checkout: async () => { stripeCalls++; lobCalls++; },
+    }), /debt_validation_persisted_pdf_changed/);
+    assert.equal(beforeCheckout.state.claims, 0);
+  }
+  assert.equal(stripeCalls, 0);
+  assert.equal(lobCalls, 0);
+});
+
+test("debt-validation matter: same-version PDF replacement during atomic approval or claim is rejected", async () => {
+  const changed = new TextEncoder().encode("%PDF-1.4\\nConcurrent replacement\\n%%EOF");
+  const beforeApproval = fakeStore();
+  const originalApprovalLoad = beforeApproval.repository.loadPacketPdfBytes;
+  beforeApproval.repository.loadPacketPdfBytes = async (ownerId, matterId) => {
+    const previouslyReviewed = await originalApprovalLoad(ownerId, matterId);
+    beforeApproval.state.pdfBytes = changed;
+    return previouslyReviewed;
+  };
+  await assert.rejects(approveDebtValidationMatter({
+    userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+    reviewedPdfSha256: b, repository: beforeApproval.repository,
+  }), /debt_validation_persisted_pdf_changed/);
+  assert.equal(beforeApproval.state.saves, 0);
+
+  const beforeCheckout = fakeStore();
+  await approveDebtValidationMatter({
+    userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+    reviewedPdfSha256: b, repository: beforeCheckout.repository,
+  });
+  const originalCheckoutLoad = beforeCheckout.repository.loadPacketPdfBytes;
+  beforeCheckout.repository.loadPacketPdfBytes = async (ownerId, matterId) => {
+    const previouslyReviewed = await originalCheckoutLoad(ownerId, matterId);
+    beforeCheckout.state.pdfBytes = changed;
+    return previouslyReviewed;
+  };
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  await assert.rejects(checkoutDebtValidationMatter({
+    ownerId: "owner-1", matterId: "matter-1", repository: beforeCheckout.repository,
+    checkout: async () => { stripeCalls++; lobCalls++; },
+  }), /debt_validation_persisted_pdf_changed/);
+  assert.equal(beforeCheckout.state.claims, 0);
+  assert.equal(stripeCalls, 0);
+  assert.equal(lobCalls, 0);
 });
