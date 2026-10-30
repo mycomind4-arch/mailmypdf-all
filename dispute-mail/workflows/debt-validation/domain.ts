@@ -43,7 +43,9 @@ export interface DebtValidationBlocker {
 const SHA256 = /^[0-9a-f]{64}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FORBIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
-const ADDRESS_LAST_LINE = /\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/i;
+// Require a city as well as a recognized state and ZIP. A bare "TX 78701"
+// must not pass as a complete last line for a physical-mail destination.
+const ADDRESS_LAST_LINE = /^(.+?)(?:,\s*|\s+)([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/i;
 // US states, DC, USPS territories and military/associated-state postal codes.
 const US_POSTAL_REGIONS = new Set(
   "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI AA AE AP FM MH PW".split(" "),
@@ -59,7 +61,9 @@ export function normalizeMailingAddress(value: string): string {
 
 function isMailingAddress(value: string): boolean {
   const lines = normalizeMailingAddress(value).split("\n");
-  const region = (lines.at(-1) ?? "").match(ADDRESS_LAST_LINE)?.[1]?.toUpperCase();
+  const lastLine = (lines.at(-1) ?? "").match(ADDRESS_LAST_LINE);
+  const city = lastLine?.[1]?.trim() ?? "";
+  const region = lastLine?.[2]?.toUpperCase();
   // Digits in a collector name, account reference or suite number are not
   // evidence of a street/box delivery destination. Require an actual delivery
   // line, while preserving street, PO Box, rural/highway, military and General
@@ -68,7 +72,7 @@ function isMailingAddress(value: string): boolean {
   const hasDeliveryLine = lines.slice(0, -1).some((line) => deliveryLine.test(line));
   return lines.length >= 2 && lines.length <= 6
     && value.length <= 500 && !FORBIDDEN.test(value)
-    && Boolean(region && US_POSTAL_REGIONS.has(region))
+    && Boolean(/\p{L}/u.test(city) && region && US_POSTAL_REGIONS.has(region))
     && hasDeliveryLine;
 }
 
