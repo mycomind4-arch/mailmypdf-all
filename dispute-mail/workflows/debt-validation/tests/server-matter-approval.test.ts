@@ -125,10 +125,17 @@ function fakeStore() {
       if (state.claimedKey && state.claimedKey !== idempotencyKey) {
         throw new Error("debt_validation_conflicting_checkout_claim");
       }
-      if (!state.claimedKey) {
+      const newlyClaimed = !state.claimedKey;
+      if (newlyClaimed) {
         state.claimedKey = idempotencyKey;
         state.claims++;
       }
+      return {
+        ownerId, matterId, idempotencyKey,
+        pdfSha256: binding.pdfSha256,
+        matterVersion: binding.matterVersion,
+        status: newlyClaimed ? "claimed" as const : "reused" as const,
+      };
     },
   };
   return { state, repository };
@@ -450,4 +457,40 @@ test("debt-validation matter: same-version PDF replacement during atomic approva
   assert.equal(beforeCheckout.state.claims, 0);
   assert.equal(stripeCalls, 0);
   assert.equal(lobCalls, 0);
+});
+
+test("debt-validation matter: missing or mismatched durable order-claim receipts block provider callbacks", async () => {
+  const corruptions = [
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => undefined,
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, ownerId: "another-owner" }),
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, matterId: "another-matter" }),
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, idempotencyKey: "forged" }),
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, pdfSha256: d }),
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, matterVersion: 999 }),
+    (claim: Awaited<ReturnType<DebtValidationMatterRepository["claimCheckout"]>>) => ({ ...claim, status: "unknown" }),
+  ];
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  for (const corrupt of corruptions) {
+    const { state, repository } = fakeStore();
+    await approveDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b,
+      userApprovedExactPacket: true, repository,
+    });
+    const originalClaim = repository.claimCheckout;
+    repository.claimCheckout = async (ownerId, matterId, verified) =>
+      corrupt(await originalClaim(ownerId, matterId, verified)) as Awaited<
+        ReturnType<DebtValidationMatterRepository["claimCheckout"]>
+      >;
+    await assert.rejects(
+      checkoutDebtValidationMatter({
+        ownerId: "owner-1", matterId: "matter-1", repository,
+        checkout: async () => { stripeCalls++; lobCalls++; },
+      }),
+      /debt_validation_checkout_claim_invalid/,
+    );
+    assert.equal(state.claims, 1, "The mocked repository reached its claim boundary");
+  }
+  assert.equal(stripeCalls, 0, "A missing or mismatched claim cannot initiate payment");
+  assert.equal(lobCalls, 0, "A missing or mismatched claim cannot submit physical mail");
 });
