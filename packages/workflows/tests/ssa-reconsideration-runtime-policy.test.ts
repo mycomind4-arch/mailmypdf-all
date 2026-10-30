@@ -598,9 +598,10 @@ test("SSDI and SSI evidence manifests match the shared physical-mail packet rend
   for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
     const artifact = getSsaReconsiderationFactoryArtifact(workflowId);
     assert.ok(artifact, `${workflowId}: canonical factory artifact exists`);
-    const evidence = artifact.manifest.documents.find((document) => document.id === "supporting-evidence");
-    const source = artifact.manifest.documents.find((document) => document.role === "primary");
+    const documents = artifact.manifest.documents ?? [];
+    const evidence = documents.find((document) => document.id === "supporting-evidence");
+    const source = documents.find((document) => document.role === "primary");
     assert.deepEqual(evidence?.acceptedKinds, ["application/pdf", "image/png", "image/jpeg"]);
-    assert.ok(source?.acceptedKinds.includes("image/tiff"), "TIFF denial notices remain analyzable");
+    assert.ok(source?.acceptedKinds?.includes("image/tiff"), "TIFF denial notices remain analyzable");
   }
 });
