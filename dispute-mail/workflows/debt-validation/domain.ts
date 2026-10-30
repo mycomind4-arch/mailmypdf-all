@@ -43,7 +43,11 @@ export interface DebtValidationBlocker {
 const SHA256 = /^[0-9a-f]{64}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FORBIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
-const ADDRESS_LAST_LINE = /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\s*$/i;
+const ADDRESS_LAST_LINE = /\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/i;
+// US states, DC, USPS territories and military/associated-state postal codes.
+const US_POSTAL_REGIONS = new Set(
+  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI AA AE AP FM MH PW".split(" "),
+);
 
 function cleanLine(value: string): string {
   return value.trim().replace(/\s+/g, " ");
@@ -55,9 +59,17 @@ export function normalizeMailingAddress(value: string): string {
 
 function isMailingAddress(value: string): boolean {
   const lines = normalizeMailingAddress(value).split("\n");
+  const region = (lines.at(-1) ?? "").match(ADDRESS_LAST_LINE)?.[1]?.toUpperCase();
+  // A recipient/company name plus a city/state/ZIP is not a delivery address.
+  // Street numbers, PO Boxes, rural/highway routes and military boxes have
+  // numeric delivery identifiers; USPS General Delivery is the exception.
+  const hasDeliveryLine = lines.slice(0, -1).some(
+    (line) => /\d/.test(line) || /^GENERAL DELIVERY$/i.test(line),
+  );
   return lines.length >= 2 && lines.length <= 6
     && value.length <= 500 && !FORBIDDEN.test(value)
-    && ADDRESS_LAST_LINE.test(lines.at(-1) ?? "");
+    && Boolean(region && US_POSTAL_REGIONS.has(region))
+    && hasDeliveryLine;
 }
 
 function isSingleLine(value: string, limit: number): boolean {
