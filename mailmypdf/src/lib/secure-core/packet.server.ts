@@ -18,6 +18,7 @@
 // chunk and break on Cloudflare Workers. See src/lib/pdf-validation.server.ts.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import { loadCase } from "./case.server";
 import {
   assemblePacket as assemblePacketCore,
   PacketError,
@@ -43,8 +44,13 @@ export async function loadPacketDocuments(
   caseId: string,
   context: AuthenticatedUserContext,
 ): Promise<PacketDocumentRow[]> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.rpc("case_packet_documents", { p_case_id: caseId });
+  // The database function is SECURITY DEFINER and intentionally permits
+  // service-role callers. Never invoke it with the admin client here: that
+  // would bypass its auth.uid() ownership check for a supplied case ID.
+  // Verify the owner first, then invoke it with the request's verified
+  // user-scoped client so the database independently enforces ownership.
+  await loadCase(caseId, context);
+  const { data, error } = await context.supabase.rpc("case_packet_documents", { p_case_id: caseId });
   if (error) throw new PacketError(error.message);
   return (data ?? []) as PacketDocumentRow[];
 }
