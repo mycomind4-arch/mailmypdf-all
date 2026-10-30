@@ -41,6 +41,39 @@ function noticeAddress(analysis: WorkflowMatterAnalysis): WorkflowMailingAddress
   });
 }
 
+/**
+ * A matching address does not establish that an uploaded document is an IRS
+ * notice. Fail closed on an unidentified or different issuing agency before
+ * binding the destination to CP2000 approval or checkout.
+ *
+ * This is an issuer check, not proof that the source is specifically CP2000
+ * or that the address came from page one; those require notice provenance.
+ */
+function assertIrsIssuer(analysis: WorkflowMatterAnalysis): void {
+  const raw = analysis.result.issuer;
+  const normalized = typeof raw === "string"
+    ? raw.trim().toLowerCase().replace(/[.,()\-]/g, " ").replace(/\s+/g, " ")
+    : "";
+  const knownIrsNames = new Set([
+    "irs",
+    "internal revenue service",
+    "internal revenue service irs",
+    "irs internal revenue service",
+    "us internal revenue service",
+    "united states internal revenue service",
+    "department of the treasury internal revenue service",
+    "department of treasury internal revenue service",
+    "us department of the treasury internal revenue service",
+    "united states department of the treasury internal revenue service",
+  ]);
+  if (!knownIrsNames.has(normalized)) {
+    throw new WorkflowRuntimeError(
+      "The controlling CP2000 source is not identified as an IRS notice. Verify the source before approving a recipient.",
+      "CP2000_NOTICE_ISSUER_MISMATCH",
+    );
+  }
+}
+
 function sourceBinding(
   analysis: WorkflowMatterAnalysis,
   documents: readonly WorkflowMatterDocument[],
@@ -48,6 +81,7 @@ function sourceBinding(
   // Normal attachment routes replace an earlier subject notice, but persisted
   // or imported matters may contain conflicting source links. Never bind a
   // mailing recipient to whichever notice happens to appear first.
+  assertIrsIssuer(analysis);
   const sources = documents.filter((document) => document.role === "subject_notice");
   if (sources.length > 1) {
     throw new WorkflowRuntimeError(
