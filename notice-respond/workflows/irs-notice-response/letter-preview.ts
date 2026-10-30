@@ -58,7 +58,10 @@ const SENDER_STATE_CODES = "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|K
 // USPS Publication 28 permits city/state/ZIP lines without commas. Keep
 // return-address delivery-line and destination-count requirements unchanged.
 const senderCityStateZip = new RegExp(`^[A-Za-z][A-Za-z .'-]*(?:,\\s*|\\s+)(?:${SENDER_STATE_CODES})\\s+\\d{5}(?:-\\d{4})?$`, "i");
-const senderDeliveryLine = /^(?:P\.?\s*O\.?\s*Box\s+\d+[A-Za-z0-9-]*|\d+[A-Za-z]?(?:[-/]\d+[A-Za-z]?)?\s+[^\r\n]{2,75})$/i;
+// USPS Publication 28 sections 241 and 251: RR/HC route and box lines are
+// valid sender delivery addresses, alongside street and PO Box addresses.
+// Keep route/box numeric and avoid accepting extra unverified address text.
+const senderDeliveryLine = /^(?:P\.?\s*O\.?\s*Box\s+\d+[A-Za-z0-9-]*|\d+[A-Za-z]?(?:[-/]\d+[A-Za-z]?)?\s+[^\r\n]{2,75}|(?:RR|HC)\s*\d{1,4}\s+BOX\s+\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)$/i;
 
 function cleanReturnAddress(value: string | null): string | null {
   const address = cleanText(value, 400, true);
