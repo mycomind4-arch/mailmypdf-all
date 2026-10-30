@@ -28,7 +28,7 @@ export interface DebtValidationMatterSnapshot {
 export interface DebtValidationMatterRepository {
   /** One consistent read from authenticated owner-scoped persistence. */
   loadCurrent(ownerId: string, matterId: string): Promise<DebtValidationMatterSnapshot | null>;
-  /** Atomic compare-and-insert: reject if matterVersion changed since loadCurrent. */
+  /** Atomic compare-and-insert: recheck the entire current owner-scoped binding via assertDebtValidationApprovalCommit inside the approval transaction; a matterVersion-only compare is insufficient. */
   persistApproval(
     ownerId: string,
     matterId: string,
@@ -54,6 +54,36 @@ export interface DebtValidationMatterRepository {
       expectedMatterVersion: number;
     },
   ): Promise<void>;
+}
+
+/**
+ * Repository-side approval commit guard. The repository MUST invoke this
+ * against freshly loaded owner-scoped state in the SAME atomic transaction as
+ * the approval insert, not against the earlier loadCurrent snapshot. A matter
+ * version alone is insufficient if a document or recipient changes without
+ * incrementing it. This is an adapter contract, not a database transaction.
+ */
+export function assertDebtValidationApprovalCommit(input: {
+  ownerId: string;
+  matterId: string;
+  binding: DebtValidationApprovalBinding;
+  current: DebtValidationMatterSnapshot;
+}): void {
+  const { ownerId, matterId, binding, current } = input;
+  if (!current?.packet || current.packet.matterVersion !== binding.matterVersion) {
+    throw new Error("debt_validation_concurrent_approval_change");
+  }
+  const expected = createDebtValidationApprovalBinding({
+    ownerId, matterId,
+    reviewedPdfSha256: binding.pdfSha256,
+    intake: current.currentIntake,
+    trustedNotice: current.trustedNotice,
+    packet: current.packet,
+  });
+  const keys = Object.keys(expected) as Array<keyof DebtValidationApprovalBinding>;
+  if (keys.some((key) => expected[key] !== binding[key])) {
+    throw new Error("debt_validation_concurrent_approval_change");
+  }
 }
 
 function identity(ownerId: string, matterId: string): void {
