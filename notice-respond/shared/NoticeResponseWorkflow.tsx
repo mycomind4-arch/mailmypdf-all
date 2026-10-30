@@ -562,6 +562,7 @@ export default function NoticeResponseWorkflow({
         preview: packet,
         recipient,
         mailClass,
+        recipientConfirmedFromNotice: profile.workflowId === "cp2000-response",
       });
       setApprovalId(result.approvalId);
     } catch (cause) {
@@ -1006,7 +1007,14 @@ export default function NoticeResponseWorkflow({
             title="6. Build the exact packet"
             description="Confirm the response destination against the controlling notice or current official instructions before approval."
           >
-            <AddressFields value={recipient} onChange={setRecipient} />
+            <AddressFields
+              value={recipient}
+              onChange={(next) => {
+                setRecipient(next);
+                setPacket(null);
+                setApprovalId("");
+              }}
+            />
             <Field label="Mailing method">
               <select
                 className="wf-input"
