@@ -1,3 +1,4 @@
+import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateDebtValidationIntake, draftDebtValidationLetter } from "../domain";
@@ -66,10 +67,11 @@ test("local debt-validation review: a forged destination cannot be confirmed", (
   }), /Review the complete notice/);
 });
 
-test("local debt-validation notice: PDF header is checked before local fingerprint", async () => {
-  const notice = new File(["%PDF-1.7\n%%EOF"], "synthetic.pdf", { type: "application/pdf" });
+test("local debt-validation notice: a genuine printable PDF is accepted and fingerprinted unchanged", async () => {
+  const pdf = await generatePlainTextPdf("Synthetic notice with a real PDF page.");
+  const notice = new File([new Uint8Array(pdf)], "synthetic.pdf", { type: "application/pdf" });
   const bytes = await readLocalDebtValidationNoticePdf(notice);
-  assert.equal(new TextDecoder().decode(bytes), "%PDF-1.7\n%%EOF");
+  assert.deepEqual(new Uint8Array(bytes), pdf);
 });
 
 test("local debt-validation notice: forged PDF header and EOF cannot stand in for readable source pages", async () => {
@@ -110,9 +112,9 @@ test("local debt-validation notice: empty, oversized, non-PDF and truncated read
     new File(["%PDF-1.7"], "not-pdf.txt", { type: "text/plain" }),
   ), /nonempty PDF/);
   await assert.rejects(readLocalDebtValidationNoticePdf({
-    name: "oversized.pdf", type: "application/pdf", size: 12 * 1024 * 1024 + 1,
+    name: "oversized.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1,
     arrayBuffer: async () => { throw new Error("oversized file must not be read"); },
-  }), /no larger than 12 MB/);
+  }), /no larger than 10 MB/);
   await assert.rejects(readLocalDebtValidationNoticePdf({
     name: "truncated.pdf", type: "application/pdf", size: 100,
     arrayBuffer: async () => new TextEncoder().encode("%PDF-1.7").buffer,
