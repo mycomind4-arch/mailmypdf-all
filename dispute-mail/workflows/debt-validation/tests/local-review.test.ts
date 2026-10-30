@@ -6,6 +6,7 @@ import {
   confirmLocalRecipient,
   emptyDebtValidationIntake,
   replaceLocalNotice,
+  readLocalDebtValidationNoticePdf,
 } from "../local-review";
 
 const source = { documentId: "local:synthetic-notice", sha256: "a".repeat(64) };
@@ -63,4 +64,38 @@ test("local debt-validation review: a forged destination cannot be confirmed", (
   assert.throws(() => confirmLocalRecipient({
     ...intake, collectorResponseAddress: "Example Collections\nPO Box 999\nAustin, TX 78701",
   }), /Review the complete notice/);
+});
+
+test("local debt-validation notice: PDF header is checked before local fingerprint", async () => {
+  const notice = new File(["%PDF-1.7"], "synthetic.pdf", { type: "application/pdf" });
+  const bytes = await readLocalDebtValidationNoticePdf(notice);
+  assert.equal(new TextDecoder().decode(bytes), "%PDF-1.7");
+});
+
+test("local debt-validation notice: renamed text and invalid PDF versions fail closed", async () => {
+  for (const [name, contents] of [
+    ["renamed.pdf", "NOT-A-PDF"],
+    ["invalid.pdf", "%PDF-3.0"],
+    ["image.pdf", "\\x89PNGDATA"],
+  ]) {
+    const file = new File([contents], name, { type: "application/pdf" });
+    await assert.rejects(readLocalDebtValidationNoticePdf(file), /recognized PDF header/);
+  }
+});
+
+test("local debt-validation notice: empty, oversized, non-PDF and truncated reads fail closed", async () => {
+  await assert.rejects(readLocalDebtValidationNoticePdf(
+    new File([""], "empty.pdf", { type: "application/pdf" }),
+  ), /nonempty PDF/);
+  await assert.rejects(readLocalDebtValidationNoticePdf(
+    new File(["%PDF-1.7"], "not-pdf.txt", { type: "text/plain" }),
+  ), /nonempty PDF/);
+  await assert.rejects(readLocalDebtValidationNoticePdf({
+    name: "oversized.pdf", type: "application/pdf", size: 12 * 1024 * 1024 + 1,
+    arrayBuffer: async () => { throw new Error("oversized file must not be read"); },
+  }), /no larger than 12 MB/);
+  await assert.rejects(readLocalDebtValidationNoticePdf({
+    name: "truncated.pdf", type: "application/pdf", size: 100,
+    arrayBuffer: async () => new TextEncoder().encode("%PDF-1.7").buffer,
+  }), /read completely/);
 });
