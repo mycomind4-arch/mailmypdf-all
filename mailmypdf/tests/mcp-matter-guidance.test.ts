@@ -575,3 +575,44 @@ test("SSA MCP guidance does not recommend packet preview or checkout with unsupp
     }
   }
 });
+
+
+test("SSA MCP guidance blocks unsupported source notice formats before preview or checkout", () => {
+  const source = {
+    documentId: "denial-notice", role: "subject_notice", included: false,
+    mimeType: "application/zip", securityStatus: "clean", usable: true,
+  };
+  const form = {
+    documentId: "completed-561", role: "evidence", evidenceKind: "ssa_561",
+    mimeType: "application/pdf", included: true, securityStatus: "clean", usable: true,
+  };
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"]) {
+    for (const approvalId of [null, "historical-approval"]) {
+      const input = {
+        matter: { ...matter, workflowId, verticalId: "appeal-mail" },
+        documents: [source, form],
+        requiresSourceDocument: true,
+        analysis: {
+          documentId: "denial-notice",
+          result: {
+            issuer: "Social Security Administration", decision: "denied",
+            workflowDetails: { appealStage: "reconsideration", decisionBasis: "nonmedical" },
+          },
+        },
+        hasInput: true, hasDraft: true, draftIsCurrent: true, approvalId,
+      };
+      const blocked = deriveMatterGuidance(input);
+      assert.equal(blocked.nextAction.toolName, null,
+        `${workflowId}: clean ZIP source cannot authorize packet preview or checkout`);
+      assert.match(blocked.nextAction.reason, /source|evidence|supported PDF or image/i);
+      assert.equal(blocked.nextAction.arguments.approval_id, undefined);
+
+      const supported = deriveMatterGuidance({
+        ...input, documents: [{ ...source, mimeType: "image/png" }, form],
+      });
+      assert.equal(supported.nextAction.toolName,
+        approvalId ? "prepare_checkout" : "preview_packet",
+        `${workflowId}: a clean manifest-supported source remains eligible`);
+    }
+  }
+});
