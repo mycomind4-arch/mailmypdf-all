@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc --noEmit && pnpm run test:debt-validation",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "tsx --test workflows/*/tests/*.test.ts workflows/*/tests/*.test.mjs shared/tests/*.test.ts"
+    "test": "tsx --test workflows/*/tests/*.test.ts workflows/*/tests/*.test.mjs shared/tests/*.test.ts",
+    "test:debt-validation": "tsx --test workflows/debt-validation/tests/debt-validation.test.ts"
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
