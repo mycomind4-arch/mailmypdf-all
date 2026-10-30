@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "tsx --test workflows/*/tests/*.test.ts workflows/*/tests/*.test.mjs shared/tests/*.test.ts",
-    "test:debt-validation": "tsx --test workflows/debt-validation/tests/debt-validation.test.ts"
+    "test:debt-validation": "tsx --test workflows/debt-validation/tests/*.test.ts"
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
