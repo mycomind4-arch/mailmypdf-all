@@ -104,3 +104,20 @@ test("server packet preparation: owner, notice, address, quote and approval prer
     }));
   }
 });
+
+
+test("server packet preparation: a letter exceeding the mailing PDF page limit cannot be approved", async () => {
+  const input = await fixture();
+  // A short line repeated many times fits the intake character limit, but
+  // produces more than ten printed pages. The generated packet must obey the
+  // same final-PDF constraints as uploaded source documents.
+  const longExplanation = "x\\n".repeat(450).replace(/\\n/g, "\n");
+  assert.equal(longExplanation.length < 3000, true);
+  await assert.rejects(
+    prepareDebtValidationMatterPacket({
+      ...input,
+      intake: { ...input.intake, disputeExplanation: longExplanation },
+    }),
+    /debt_validation_invalid_generated_pdf/,
+  );
+});
