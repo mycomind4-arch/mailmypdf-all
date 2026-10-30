@@ -155,6 +155,26 @@ function assertRequiredForms(
   }
 }
 
+const SSA_SUPPORTED_EVIDENCE_MIME_TYPES = new Set([
+  "application/pdf", "image/png", "image/jpeg", "image/tiff",
+]);
+
+function assertSupportedIncludedEvidenceFormats(
+  documents: readonly WorkflowMatterDocument[],
+  program: SsaReconsiderationProgram,
+): void {
+  // The manifest accepts PDFs and these image formats for supporting
+  // evidence. A clean security scan alone does not make a ZIP or other
+  // unsupported upload suitable for outgoing PDF packet assembly.
+  if (documents.some((document) =>
+    document.role === "evidence" &&
+    document.included &&
+    !SSA_SUPPORTED_EVIDENCE_MIME_TYPES.has(document.mimeType ?? "")
+  )) {
+    throw new Error(`Included ${program} evidence must be a supported PDF or image file.`);
+  }
+}
+
 function assertCurrentSourceAnalysis(
   documents: readonly WorkflowMatterDocument[],
   analysis: WorkflowMatterAnalysis,
@@ -311,6 +331,7 @@ export function createSsaReconsiderationRuntimePolicy(
       if (blockedIncluded.length) {
         throw new Error(`Every included ${program} document must clear security scanning before drafting.`);
       }
+      assertSupportedIncludedEvidenceFormats(documents, program);
     },
 
     validateDocumentsBeforePacket(documents, analysis) {
@@ -326,6 +347,7 @@ export function createSsaReconsiderationRuntimePolicy(
       if (blockedIncluded.length) {
         throw new Error(`Every included ${program} document must clear security scanning before packet review.`);
       }
+      assertSupportedIncludedEvidenceFormats(documents, program);
     },
 
     validateBeforeDraft({ matter, analysis }) {
