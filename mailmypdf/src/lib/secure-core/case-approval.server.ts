@@ -7,14 +7,17 @@
 
 import { calculateQuote, type MailClass, type Quote } from "@mailmypdf/pricing";
 import { unresolvedPlaceholderMessage } from "@mailmypdf/workflows";
+import { createSecurePacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import type { AuthenticatedUserContext } from "./auth.server";
 import { CaseError, CaseNotFoundError, loadCase } from "./case.server";
 import {
   assemblePacket,
+  createCasePacketStorageAdapter,
   loadPacketDocuments,
   persistMeasuredPageCounts,
   PacketError,
   type PacketManifestEntry,
+  type PacketDocumentRow,
 } from "./packet.server";
 
 const PAGE_WIDTH = 612;
@@ -215,6 +218,24 @@ async function loadCurrentDraft(
 }
 
 /**
+ * Use the owner-scoped storage adapter in the actual preview and approval
+ * paths, not only in synthetic IRS tests. Signed reads recheck the selected
+ * document list; the canonical packet builder still verifies every SHA-256.
+ * No measured-page write, approval, payment, or mailing happens here.
+ */
+async function assembleOwnedCasePacket(
+  caseId: string,
+  letter: Uint8Array,
+  documents: PacketDocumentRow[],
+  context: AuthenticatedUserContext,
+) {
+  const storage = createSecurePacketStorageAdapter(
+    createCasePacketStorageAdapter(caseId, context),
+  );
+  return assemblePacket(letter, documents, (row) => storage.readBytes(context.user.id, row));
+}
+
+/**
  * Assembles the packet and prices it without recording anything. This is what
  * the review window shows, so the figure the user approves is the figure the
  * server calculated from the same bytes.
@@ -230,7 +251,7 @@ export async function materializePacketPreview(
   const documents = await loadPacketDocuments(caseId, context);
 
   const letter = await renderResponseLetter(draft.body);
-  const packet = await assemblePacket(letter, documents);
+  const packet = await assembleOwnedCasePacket(caseId, letter, documents, context);
   if (options.persistMeasuredPages !== false) {
     await persistMeasuredPageCounts(caseId, packet.manifest, context);
   }
@@ -410,7 +431,7 @@ export async function materializeApprovedPacket(
   const draft = await loadCurrentDraft(caseId, context);
   const documents = await loadPacketDocuments(caseId, context);
   const letter = await renderResponseLetter(draft.body);
-  const packet = await assemblePacket(letter, documents);
+  const packet = await assembleOwnedCasePacket(caseId, letter, documents, context);
   await persistMeasuredPageCounts(caseId, packet.manifest, context);
 
   const quote = calculateQuote({
