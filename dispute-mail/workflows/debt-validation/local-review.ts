@@ -82,3 +82,28 @@ export function confirmLocalRecipient(input: DebtValidationIntake): DebtValidati
   }
   return candidate;
 }
+
+/**
+ * Read a browser-selected controlling notice without accepting an arbitrary
+ * renamed text/image file as a PDF. Header checks are format screening only:
+ * they do not authenticate the collector, address or document contents.
+ * The bytes remain local and must never be treated as a server-owned notice.
+ */
+export async function readLocalDebtValidationNoticePdf(
+  file: Pick<File, "name" | "type" | "size" | "arrayBuffer">,
+): Promise<ArrayBuffer> {
+  if (!file || !Number.isSafeInteger(file.size) || file.size < 8
+    || file.size > 12 * 1024 * 1024
+    || !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
+    throw new Error("Choose a nonempty PDF notice no larger than 12 MB.");
+  }
+  const bytes = await file.arrayBuffer();
+  if (bytes.byteLength !== file.size || bytes.byteLength < 8) {
+    throw new Error("The selected notice could not be read completely.");
+  }
+  const header = new TextDecoder("ascii").decode(new Uint8Array(bytes, 0, 8));
+  if (!/^%PDF-[12]\\.[0-9]$/.test(header)) {
+    throw new Error("The selected notice does not have a recognized PDF header.");
+  }
+  return bytes;
+}
