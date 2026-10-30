@@ -239,3 +239,41 @@ test("debt-validation checkout: changed saved intake blocks mocked checkout with
   assert.equal(paymentCalls, 1, "Unchanged, confirmed intake still reaches mocked checkout");
   assert.equal(mailingCalls, 1);
 });
+
+
+test("debt-validation approval binds the exact quoted price and mail class to checkout", () => {
+  const request = args();
+  const quotedPacket = { ...request.packet, totalCents: 1499, mailClass: "certified" as const };
+  const binding = createDebtValidationApprovalBinding({ ...request, packet: quotedPacket });
+  const approved = binding as unknown as Record<string, unknown>;
+  assert.equal(approved.totalCents, 1499, "Approved packet must include the server-authoritative price");
+  assert.equal(approved.mailClass, "certified", "Approved packet must include the selected physical-mail class");
+
+  for (const changed of [
+    { ...quotedPacket, totalCents: 1999 },
+    { ...quotedPacket, mailClass: "registered" as const },
+  ]) {
+    assert.throws(() => assertDebtValidationCheckoutBinding({
+      ownerId: request.ownerId, matterId: request.matterId,
+      binding, trustedNotice: request.trustedNotice,
+      packet: changed, currentIntake: request.intake,
+    }), /debt_validation_stale_approval/,
+    "Price or mail-class changes must revoke the exact-packet approval before checkout");
+  }
+});
+
+test("debt-validation approval rejects malformed server-authoritative quote metadata", () => {
+  const request = args();
+  for (const invalid of [
+    { totalCents: -1, mailClass: "certified" },
+    { totalCents: 1.5, mailClass: "certified" },
+    { totalCents: Number.NaN, mailClass: "certified" },
+    { totalCents: 1499, mailClass: "overnight" },
+  ]) {
+    assert.throws(() => createDebtValidationApprovalBinding({
+      ...request,
+      packet: { ...request.packet, ...invalid },
+    }), /debt_validation_invalid_packet/,
+    "Malformed prices and unsupported mailing classes cannot be approved");
+  }
+});
