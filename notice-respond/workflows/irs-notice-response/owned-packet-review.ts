@@ -66,10 +66,15 @@ function validReviewManifest(
       new Set(selectedIds).size !== selectedIds.length) return false;
   const selected = new Set(selectedIds);
   const seen = new Set<string>();
-  for (const item of manifest) {
+  // The packet builder assembles enclosures in the case selection order.
+  // A stored manifest with the same IDs in a different order misrepresents
+  // the PDF that the customer is reviewing. Reject it before approval.
+  for (let index = 0; index < manifest.length; index += 1) {
+    const item = manifest[index];
     if (!item || typeof item !== "object") return false;
     const entry = item as Partial<PacketManifestEntry>;
     if (typeof entry.documentId !== "string" ||
+        entry.documentId !== selectedIds[index] ||
         !selected.has(entry.documentId) || seen.has(entry.documentId) ||
         entry.role !== "evidence" ||
         !isSafeIrsEnclosureFilename(entry.filename) ||
