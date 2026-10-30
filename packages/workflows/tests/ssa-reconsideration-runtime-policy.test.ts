@@ -520,3 +520,53 @@ test("SSDI and SSI reject unsupported included supplemental formats before draft
     }
   }
 });
+
+
+test("SSDI and SSI reject unsupported clean denial-notice formats even when the notice is not mailed", () => {
+  const current = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const source = form("notice", { role: "subject_notice", evidenceKind: null, included: false });
+    const officialForm = form("ssa_561");
+    const snapshot = (mimeType: string | null) => ({
+      matter: {} as never,
+      documents: [{ ...source, mimeType }, officialForm],
+    });
+    for (const mimeType of ["application/zip", "application/octet-stream", null]) {
+      const matter = snapshot(mimeType);
+      assert.throws(
+        () => policy.validateInput(claimant, current, matter as never),
+        /denial notice.*supported PDF or image/i,
+        `${workflowId}: unsupported source must not enter claimant fact intake`,
+      );
+      assert.throws(
+        () => policy.validateDocumentsBeforeDraft!(matter.documents, current),
+        /denial notice.*supported PDF or image/i,
+        `${workflowId}: source excluded from outgoing mail still needs a supported input format`,
+      );
+      assert.throws(
+        () => policy.validateDocumentsBeforePacket!(matter.documents, current),
+        /denial notice.*supported PDF or image/i,
+        `${workflowId}: unsupported source must not be packet-ready`,
+      );
+      for (const gate of [policy.validateBeforeDraft!, policy.validateBeforePacket!]) {
+        assert.throws(
+          () => gate({ matter: matter as never, caseInput: {} as never, analysis: current }),
+          /denial notice.*supported PDF or image/i,
+          `${workflowId}: unsupported source cannot advance past a runtime gate`,
+        );
+      }
+    }
+    for (const mimeType of ["application/pdf", "image/png", "image/jpeg", "image/tiff"]) {
+      const matter = snapshot(mimeType);
+      assert.doesNotThrow(
+        () => policy.validateDocumentsBeforePacket!(matter.documents, current),
+        `${workflowId}: manifest-supported source ${mimeType} remains eligible`,
+      );
+      assert.doesNotThrow(
+        () => policy.validateBeforePacket!({ matter: matter as never, caseInput: {} as never, analysis: current }),
+        `${workflowId}: manifest-supported source ${mimeType} passes source validation`,
+      );
+    }
+  }
+});
