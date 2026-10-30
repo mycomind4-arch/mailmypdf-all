@@ -221,11 +221,11 @@ test("debt-validation matter: no stored approval or no current snapshot blocks c
 test("debt-validation matter: same-version notice or packet edits during approval fail closed", async () => {
   const mutations: Array<(snapshot: DebtValidationMatterSnapshot) => void> = [
     (snapshot) => { snapshot.currentIntake.recipientConfirmed = false; },
-    (snapshot) => { snapshot.currentIntake.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.currentIntake.collectorResponseAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
     (snapshot) => { snapshot.currentIntake.disputeExplanation = "Changed after review."; },
     (snapshot) => { snapshot.trustedNotice.sha256 = d; },
-    (snapshot) => { snapshot.trustedNotice.responseMailingAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
-    (snapshot) => { snapshot.packet.recipientAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.trustedNotice.responseMailingAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
+    (snapshot) => { snapshot.packet.recipientAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
     (snapshot) => { snapshot.packet.pdfSha256 = d; },
     (snapshot) => { snapshot.packet.enclosureManifestSha256 = d; },
     (snapshot) => { snapshot.packet.totalCents = 1999; },
@@ -291,7 +291,7 @@ test("debt-validation matter: explicit exact-packet approval is required before 
 test("debt-validation matter: atomic claim rejects edits between preflight and provider handoff", async () => {
   const changes: Array<(state: ReturnType<typeof fakeStore>["state"]) => void> = [
     (state) => { state.snapshot!.currentIntake.disputeExplanation = "Edited during checkout."; },
-    (state) => { state.snapshot!.trustedNotice.responseMailingAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (state) => { state.snapshot!.trustedNotice.responseMailingAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
     (state) => { state.snapshot!.packet.pdfSha256 = d; },
     (state) => { state.snapshot!.packet.matterVersion++; },
     (state) => { state.approval!.pdfSha256 = d; },
@@ -318,4 +318,59 @@ test("debt-validation matter: atomic claim rejects edits between preflight and p
   }
   assert.equal(paymentCalls, 0, "No mocked payment submission after a concurrent edit");
   assert.equal(mailingCalls, 0, "No mocked mailing submission after a concurrent edit");
+});
+
+
+test("debt-validation matter: atomic guards reject a fully readdressed valid notice without a version bump", async () => {
+  const changedAddress = "Example Collections\nPO Box 999\nAustin, TX 78701";
+  const changeAddress = (snapshot: DebtValidationMatterSnapshot) => {
+    // All records are internally consistent and both postal addresses are valid.
+    // Only the previously reviewed/approved binding is stale.
+    snapshot.trustedNotice.responseMailingAddress = changedAddress;
+    snapshot.currentIntake.collectorResponseAddress = changedAddress;
+    snapshot.currentIntake.noticeResponseAddress = changedAddress;
+    snapshot.currentIntake.confirmedRecipientAddress = changedAddress;
+    snapshot.packet.recipientAddress = changedAddress;
+    snapshot.packet.intakeSha256 = debtValidationIntakeSha256(snapshot.currentIntake);
+    assert.equal(snapshot.packet.matterVersion, 2);
+  };
+
+  {
+    const { state, repository } = fakeStore();
+    const load = repository.loadCurrent;
+    repository.loadCurrent = async (ownerId, matterId) => {
+      const previouslyReviewed = await load(ownerId, matterId);
+      changeAddress(state.snapshot!); // Concurrent update before atomic approval insert.
+      return previouslyReviewed;
+    };
+    await assert.rejects(approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository,
+    }), /debt_validation_concurrent_approval_change/);
+    assert.equal(state.saves, 0);
+    assert.equal(state.approval, null);
+  }
+
+  {
+    const { state, repository } = fakeStore();
+    await approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository,
+    });
+    const load = repository.loadCurrent;
+    repository.loadCurrent = async (ownerId, matterId) => {
+      const preflight = await load(ownerId, matterId);
+      changeAddress(state.snapshot!); // Concurrent update before atomic checkout claim.
+      return preflight;
+    };
+    let stripeCalls = 0;
+    let lobCalls = 0;
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository,
+      checkout: async () => { stripeCalls++; lobCalls++; },
+    }), /debt_validation_/);
+    assert.equal(state.claims, 0);
+    assert.equal(stripeCalls, 0);
+    assert.equal(lobCalls, 0);
+  }
 });
