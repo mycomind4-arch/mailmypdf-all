@@ -7,6 +7,7 @@ import {
   type DebtValidationMatterSnapshot,
 } from "../server-matter-approval";
 import {
+  assertDebtValidationCheckoutBinding,
   debtValidationIntakeSha256,
   type DebtValidationApprovalBinding,
 } from "../server-approval-binding";
@@ -61,7 +62,9 @@ function fakeStore() {
     snapshot: DebtValidationMatterSnapshot | null;
     approval: DebtValidationApprovalBinding | null;
     saves: number;
-  } = { snapshot: fixture(), approval: null, saves: 0 };
+    claims: number;
+    claimedKey: string | null;
+  } = { snapshot: fixture(), approval: null, saves: 0, claims: 0, claimedKey: null };
   const repository: DebtValidationMatterRepository = {
     async loadCurrent(ownerId, matterId) {
       assert.equal(ownerId, "owner-1");
@@ -81,6 +84,31 @@ function fakeStore() {
       assert.equal(ownerId, "owner-1");
       assert.equal(matterId, "matter-1");
       return state.approval ? structuredClone(state.approval) : null;
+    },
+    async claimCheckout(ownerId, matterId, verified) {
+      assert.equal(ownerId, "owner-1");
+      assert.equal(matterId, "matter-1");
+      const { binding, expectedMatterVersion, idempotencyKey } = verified;
+      if (!state.snapshot || !state.approval
+        || state.snapshot.packet.matterVersion !== expectedMatterVersion
+        || JSON.stringify(state.approval) !== JSON.stringify(binding)) {
+        throw new Error("debt_validation_concurrent_checkout_change");
+      }
+      // Simulate one atomic owner-scoped DB transaction at the durable order
+      // claim, not a second check against the caller's stale snapshot.
+      assertDebtValidationCheckoutBinding({
+        ownerId, matterId, binding,
+        trustedNotice: state.snapshot.trustedNotice,
+        currentIntake: state.snapshot.currentIntake,
+        packet: state.snapshot.packet,
+      });
+      if (state.claimedKey && state.claimedKey !== idempotencyKey) {
+        throw new Error("debt_validation_conflicting_checkout_claim");
+      }
+      if (!state.claimedKey) {
+        state.claimedKey = idempotencyKey;
+        state.claims++;
+      }
     },
   };
   return { state, repository };
@@ -105,6 +133,7 @@ test("debt-validation matter: confirmed exact reviewed packet persists and uses 
     }), "mock-checkout");
   }
   assert.equal(keys.length, 2);
+  assert.equal(state.claims, 1, "Retries must reuse the same durable order claim");
   assert.equal(keys[0], keys[1], "Retries must use one stable provider idempotency key");
   assert.match(keys[0]!, /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
@@ -207,4 +236,36 @@ test("debt-validation matter: explicit exact-packet approval is required before 
     );
     assert.equal(state.saves, 0, "unconfirmed requests must never persist approval");
   }
+});
+
+test("debt-validation matter: atomic claim rejects edits between preflight and provider handoff", async () => {
+  const changes: Array<(state: ReturnType<typeof fakeStore>["state"]) => void> = [
+    (state) => { state.snapshot!.currentIntake.disputeExplanation = "Edited during checkout."; },
+    (state) => { state.snapshot!.trustedNotice.responseMailingAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (state) => { state.snapshot!.packet.pdfSha256 = d; },
+    (state) => { state.snapshot!.packet.matterVersion++; },
+    (state) => { state.approval!.pdfSha256 = d; },
+  ];
+  let paymentCalls = 0;
+  let mailingCalls = 0;
+  for (const change of changes) {
+    const { state, repository } = fakeStore();
+    await approveDebtValidationMatter({
+      userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, repository,
+    });
+    const load = repository.loadCurrent;
+    repository.loadCurrent = async (ownerId, matterId) => {
+      const preflight = await load(ownerId, matterId);
+      change(state); // A concurrent edit AFTER the preflight snapshot was read.
+      return preflight;
+    };
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository,
+      checkout: async () => { paymentCalls++; mailingCalls++; },
+    }), /debt_validation_/);
+    assert.equal(state.claims, 0, "A stale packet must not reserve an order");
+  }
+  assert.equal(paymentCalls, 0, "No mocked payment submission after a concurrent edit");
+  assert.equal(mailingCalls, 0, "No mocked mailing submission after a concurrent edit");
 });
