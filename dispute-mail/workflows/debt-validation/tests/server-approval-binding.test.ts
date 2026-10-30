@@ -188,13 +188,13 @@ test("debt-validation checkout: current persisted intake must still match approv
   const binding = createDebtValidationApprovalBinding(request);
   const changes: Array<(current: DebtValidationIntake) => void> = [
     (current) => { current.recipientConfirmed = false; },
-    (current) => { current.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
-    (current) => { current.noticeResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (current) => { current.collectorResponseAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
+    (current) => { current.noticeResponseAddress = "Example Collections\nPO Box 999\nAustin, TX 78701"; },
     (current) => { current.noticeDocumentId = "replacement-notice"; },
     (current) => { current.noticeSha256 = d; },
     (current) => { current.noticeVersion = 2; },
     (current) => { current.disputeExplanation = "I now dispute the entire balance."; },
-    (current) => { current.consumerMailingAddress = "456 Other St\\nSacramento, CA 95814"; },
+    (current) => { current.consumerMailingAddress = "456 Other St\nSacramento, CA 95814"; },
   ];
   for (const change of changes) {
     const currentIntake = { ...request.intake };
