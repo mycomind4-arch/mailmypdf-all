@@ -72,6 +72,19 @@ test("local debt-validation notice: PDF header is checked before local fingerpri
   assert.equal(new TextDecoder().decode(bytes), "%PDF-1.7\n%%EOF");
 });
 
+test("local debt-validation notice: forged PDF header and EOF cannot stand in for readable source pages", async () => {
+  // A marker-only upload previously passed and could be fingerprinted as a
+  // controlling notice despite containing no parseable PDF page.
+  const forged = new File(
+    ["%PDF-1.7\\n1 0 obj << /Type /Catalog >> endobj\\n%%EOF"],
+    "forged-notice.pdf", { type: "application/pdf" },
+  );
+  await assert.rejects(
+    readLocalDebtValidationNoticePdf(forged),
+    /safe, readable PDF|malformed|no pages/i,
+  );
+});
+
 test("local debt-validation notice: renamed text and invalid PDF versions fail closed", async () => {
   for (const [name, contents] of [
     ["renamed.pdf", "NOT-A-PDF\n%%EOF"],
