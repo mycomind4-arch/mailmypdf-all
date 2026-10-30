@@ -149,19 +149,25 @@ test("debt-validation matter: confirmed exact reviewed packet persists and uses 
   assert.equal(state.saves, 1);
   assert.equal(binding.pdfSha256, b);
   const keys: string[] = [];
+  const replayKeys: string[] = [];
   const checkout = async (verified: { idempotencyKey: string; expectedMatterVersion: number }) => {
     keys.push(verified.idempotencyKey);
     assert.equal(verified.expectedMatterVersion, 2);
     return "mock-checkout";
   };
+  const replayCheckout = async (verified: { idempotencyKey: string }) => {
+    replayKeys.push(verified.idempotencyKey);
+    return "mock-checkout"; // Read-only retrieval of the already persisted receipt.
+  };
   for (let i = 0; i < 2; i++) {
     assert.equal(await checkoutDebtValidationMatter({
-      ownerId: "owner-1", matterId: "matter-1", repository, checkout,
+      ownerId: "owner-1", matterId: "matter-1", repository, checkout, replayCheckout,
     }), "mock-checkout");
   }
-  assert.equal(keys.length, 2);
+  assert.equal(keys.length, 1, "A reused claim must not submit a second provider request");
+  assert.equal(replayKeys.length, 1, "A reused claim must use the read-only receipt lookup");
   assert.equal(state.claims, 1, "Retries must reuse the same durable order claim");
-  assert.equal(keys[0], keys[1], "Retries must use one stable provider idempotency key");
+  assert.equal(keys[0], replayKeys[0], "Receipt lookup must use the original idempotency key");
   assert.match(keys[0]!, /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
 
