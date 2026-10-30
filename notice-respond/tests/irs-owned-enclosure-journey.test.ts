@@ -180,7 +180,7 @@ describe("IRS physical-mail evidence packet: persisted PDF to explicit approval"
     const state = await fixture();
     const review = await state.persistAndReview();
     const original = review.manifest[0];
-    expect(original).toBeDefined();
+    if (!original) throw new Error("Expected a reviewed enclosure");
     for (const reviewedManifest of [
       [],
       [{ ...original, filename: "unreviewed-attachment.pdf" }],

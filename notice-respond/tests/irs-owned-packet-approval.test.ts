@@ -152,7 +152,7 @@ describe("IRS owner-scoped exact-PDF human approval (no payment or mailing)", ()
       { reviewedManifest: null },
     ]) {
       const state = await setup();
-      const result = await approveIrsGeneralOwnedDraft({ ...state.input, ...mismatch });
+      const result = await approveIrsGeneralOwnedDraft({ ...state.input, ...mismatch } as never);
       expect(result.approved).toBe(false);
       expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
     }
