@@ -177,13 +177,24 @@ export async function checkoutDebtValidationMatter<Result>(input: {
   ownerId: string;
   matterId: string;
   repository: DebtValidationMatterRepository;
+  /** Side-effecting callback: called ONLY for a newly claimed order. */
   checkout: (verified: {
     binding: DebtValidationApprovalBinding;
     idempotencyKey: string;
     expectedMatterVersion: number;
   }) => Promise<Result>;
+  /**
+   * Read-only lookup of an existing order/receipt, never a second provider
+   * submission. Required for a reused claim. If a first attempt is still
+   * pending, the adapter must report pending rather than submit again.
+   */
+  replayCheckout?: (verified: {
+    binding: DebtValidationApprovalBinding;
+    idempotencyKey: string;
+    expectedMatterVersion: number;
+  }) => Promise<Result>;
 }): Promise<Result> {
-  const { ownerId, matterId, repository, checkout } = input;
+  const { ownerId, matterId, repository, checkout, replayCheckout } = input;
   identity(ownerId, matterId);
   const binding = await repository.loadApproval(ownerId, matterId);
   if (!binding) throw new Error("debt_validation_approval_missing");
@@ -220,6 +231,15 @@ export async function checkoutDebtValidationMatter<Result>(input: {
     || claim.matterVersion !== binding.matterVersion
     || (claim.status !== "claimed" && claim.status !== "reused")) {
     throw new Error("debt_validation_checkout_claim_invalid");
+  }
+  // A reused durable order claim is not permission to charge or mail again.
+  // Reconciliation must read an existing receipt (or pending state), never
+  // invoke the side-effecting provider callback a second time.
+  if (claim.status === "reused") {
+    if (!replayCheckout) {
+      throw new Error("debt_validation_checkout_replay_requires_receipt");
+    }
+    return replayCheckout(verified);
   }
   return checkout(verified);
 }
