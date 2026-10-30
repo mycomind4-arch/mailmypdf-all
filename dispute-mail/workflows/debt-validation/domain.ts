@@ -25,6 +25,8 @@ export interface DebtValidationIntake {
   recipientConfirmed: boolean;
   confirmedRecipientAddress: string;
   confirmedNoticeSha256: string;
+  confirmedNoticeDocumentId: string;
+  confirmedNoticeVersion: number;
 }
 
 export type DebtValidationBlockerCode =
@@ -106,7 +108,9 @@ export function validateDebtValidationIntake(input: DebtValidationIntake): DebtV
     add("recipient_mismatch", "The recipient must match the notice's confirmed response mailing address.");
   }
   if (!SHA256.test(input.confirmedNoticeSha256)
-    || input.confirmedNoticeSha256.toLowerCase() !== input.noticeSha256.toLowerCase()) {
+    || input.confirmedNoticeSha256.toLowerCase() !== input.noticeSha256.toLowerCase()
+    || input.confirmedNoticeDocumentId !== input.noticeDocumentId
+    || input.confirmedNoticeVersion !== input.noticeVersion) {
     add("notice_changed", "The controlling notice changed after recipient confirmation.");
   }
   if ([input.consumerName, input.collectorName, input.accountReference, input.disputeExplanation]
