@@ -87,7 +87,7 @@ export function DebtValidationStart() {
 
   function confirm() {
     try {
-      setIntake((current) => confirmLocalRecipient(current));
+      setIntake(confirmLocalRecipient(intake));
       setConfirmError("");
     } catch {
       setConfirmError("Complete all required fields and verify that both collector addresses match the notice.");
