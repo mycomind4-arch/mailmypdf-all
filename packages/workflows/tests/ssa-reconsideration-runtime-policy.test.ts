@@ -488,3 +488,35 @@ test("SSDI and SSI packet policy rechecks included supplemental evidence after d
     }
   }
 });
+
+test("SSDI and SSI reject unsupported included supplemental formats before draft and packet assembly", () => {
+  const nonmedical = analysis({ appealStage: "reconsideration", decisionBasis: "nonmedical" });
+  for (const workflowId of ["appeal-ssdi-denial", "appeal-ssi-denial"] as const) {
+    const policy = getSsaReconsiderationRuntimePolicy(workflowId)!;
+    const required = form("ssa_561");
+    const supplemental = form("supplemental", {
+      evidenceKind: "other", mimeType: "application/zip", position: 9,
+    });
+
+    assert.throws(
+      () => policy.validateDocumentsBeforeDraft!([required, supplemental], nonmedical),
+      /supported PDF or image/i,
+      `${workflowId}: a clean ZIP must not enter draft evidence`,
+    );
+    assert.throws(
+      () => policy.validateDocumentsBeforePacket!([required, supplemental], nonmedical),
+      /supported PDF or image/i,
+      `${workflowId}: a clean ZIP must not enter the outgoing packet`,
+    );
+    assert.doesNotThrow(
+      () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, included: false }], nonmedical),
+      `${workflowId}: excluded historical uploads are not outgoing evidence`,
+    );
+    for (const mimeType of ["application/pdf", "image/png", "image/jpeg", "image/tiff"]) {
+      assert.doesNotThrow(
+        () => policy.validateDocumentsBeforePacket!([required, { ...supplemental, mimeType }], nonmedical),
+        `${workflowId}: manifest-supported ${mimeType} evidence must remain valid`,
+      );
+    }
+  }
+});
