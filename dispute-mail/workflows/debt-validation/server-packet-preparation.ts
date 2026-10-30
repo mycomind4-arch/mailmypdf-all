@@ -12,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 import { validatePdfForMailing, type PacketManifestEntry } from "@mailmypdf/packet-builder";
-import type { DebtValidationIntake } from "./domain";
+import { validateDebtValidationIntake, type DebtValidationIntake } from "./domain";
 import { createLocalDebtValidationPdfPreview } from "./pdf-preview";
 import {
   createDebtValidationApprovalBinding,
@@ -57,6 +57,13 @@ export async function prepareDebtValidationMatterPacket(input: {
     await validatePdfForMailing(noticePdfBytes);
   } catch {
     throw new Error("debt_validation_invalid_source_pdf");
+  }
+
+  // Reject malformed/unconfirmed intake before invoking the PDF builder.
+  // Browser draft errors are not the server approval error contract, and
+  // malformed notice/recipient state must never produce a reviewable packet.
+  if (validateDebtValidationIntake(intake).length) {
+    throw new Error("debt_validation_invalid_intake");
   }
 
   // Use exactly the same canonical PDF builder as the local review. The
