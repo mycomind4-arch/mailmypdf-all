@@ -49,9 +49,9 @@ function sourceBinding(
   // or imported matters may contain conflicting source links. Never bind a
   // mailing recipient to whichever notice happens to appear first.
   const sources = documents.filter((document) => document.role === "subject_notice");
-  if (sources.length !== 1) {
+  if (sources.length > 1) {
     throw new WorkflowRuntimeError(
-      "The controlling CP2000 notice is missing or ambiguous. Keep one source notice and analyze it again.",
+      "Multiple controlling CP2000 notices are attached. Keep one source notice and analyze it again.",
       "CP2000_NOTICE_AMBIGUOUS",
     );
   }
