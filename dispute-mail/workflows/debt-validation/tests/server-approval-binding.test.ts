@@ -70,6 +70,7 @@ test("debt-validation approval: exact confirmed notice and reviewed PDF pass che
     ownerId: request.ownerId, matterId: request.matterId,
     binding: JSON.parse(JSON.stringify(binding)),
     trustedNotice: request.trustedNotice, packet: request.packet,
+    currentIntake: request.intake,
   }));
 });
 
@@ -134,6 +135,7 @@ test("debt-validation checkout: changed notice, recipient, packet, manifest, rev
     assert.throws(() => assertDebtValidationCheckoutBinding({
       ownerId: current.ownerId, matterId: current.matterId,
       binding, trustedNotice: current.trustedNotice, packet: current.packet,
+      currentIntake: current.intake,
     }), /debt_validation_/);
   }
 });
@@ -152,7 +154,7 @@ test("debt-validation: rejected approval and checkout never call mocked provider
     change(request);
     try {
       const binding = createDebtValidationApprovalBinding(request);
-      assertDebtValidationCheckoutBinding({ ...request, binding });
+      assertDebtValidationCheckoutBinding({ ...request, binding, currentIntake: request.intake });
       await mockedCheckout();
     } catch (error) {
       assert.match(String(error), /debt_validation_/);
@@ -179,4 +181,61 @@ test("debt-validation approval: printable mailing-address edits invalidate the r
       ...original, intake: edited,
     }), /debt_validation_intake_changed/);
   }
+});
+
+test("debt-validation checkout: current persisted intake must still match approved notice and packet", () => {
+  const request = args();
+  const binding = createDebtValidationApprovalBinding(request);
+  const changes: Array<(current: DebtValidationIntake) => void> = [
+    (current) => { current.recipientConfirmed = false; },
+    (current) => { current.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (current) => { current.noticeResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701"; },
+    (current) => { current.noticeDocumentId = "replacement-notice"; },
+    (current) => { current.noticeSha256 = d; },
+    (current) => { current.noticeVersion = 2; },
+    (current) => { current.disputeExplanation = "I now dispute the entire balance."; },
+    (current) => { current.consumerMailingAddress = "456 Other St\\nSacramento, CA 95814"; },
+  ];
+  for (const change of changes) {
+    const currentIntake = { ...request.intake };
+    change(currentIntake);
+    assert.throws(() => assertDebtValidationCheckoutBinding({
+      ownerId: request.ownerId, matterId: request.matterId, binding,
+      trustedNotice: request.trustedNotice, packet: request.packet, currentIntake,
+    }), /debt_validation_stale_intake/);
+  }
+  assert.throws(() => assertDebtValidationCheckoutBinding({
+    ownerId: request.ownerId, matterId: request.matterId, binding,
+    trustedNotice: request.trustedNotice, packet: request.packet,
+    currentIntake: undefined as unknown as DebtValidationIntake,
+  }), /debt_validation_stale_intake/);
+});
+
+test("debt-validation checkout: changed saved intake blocks mocked checkout with zero provider calls", async () => {
+  const request = args();
+  const binding = createDebtValidationApprovalBinding(request);
+  let paymentCalls = 0;
+  let mailingCalls = 0;
+  const checkout = async (currentIntake: DebtValidationIntake) => {
+    assertDebtValidationCheckoutBinding({
+      ownerId: request.ownerId, matterId: request.matterId, binding,
+      trustedNotice: request.trustedNotice, packet: request.packet, currentIntake,
+    });
+    paymentCalls++;
+    mailingCalls++;
+  };
+  for (const change of [
+    (current: DebtValidationIntake) => { current.recipientConfirmed = false; },
+    (current: DebtValidationIntake) => { current.disputeExplanation = "Changed after approval."; },
+    (current: DebtValidationIntake) => { current.noticeDocumentId = "replaced"; },
+  ]) {
+    const currentIntake = { ...request.intake };
+    change(currentIntake);
+    await assert.rejects(checkout(currentIntake), /debt_validation_stale_intake/);
+  }
+  assert.equal(paymentCalls, 0);
+  assert.equal(mailingCalls, 0);
+  await checkout(request.intake);
+  assert.equal(paymentCalls, 1, "Unchanged, confirmed intake still reaches mocked checkout");
+  assert.equal(mailingCalls, 1);
 });
