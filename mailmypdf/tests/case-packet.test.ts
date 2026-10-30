@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 
 import {
   assemblePacket,
+  loadPacketDocuments,
   PacketError,
   type PacketDocumentRow,
 } from "../src/lib/secure-core/packet.server";
@@ -14,7 +15,7 @@ import {
   renderResponseLetter,
   assertReviewedPacket,
 } from "../src/lib/secure-core/case-approval.server";
-import { CaseError } from "../src/lib/secure-core/case.server";
+import { CaseError, CaseNotFoundError } from "../src/lib/secure-core/case.server";
 
 /* ═══════════════════════════════════════════════════════════
    Packet assembly
@@ -225,5 +226,71 @@ describe("approval input validation", () => {
     assert.equal(assertMailClass("certified"), "certified");
     assert.throws(() => assertMailClass("carrier-pigeon"), CaseError);
     assert.throws(() => assertMailClass(undefined), CaseError);
+  });
+});
+
+
+describe("authenticated packet-document selection", () => {
+  const caseId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "22222222-2222-4222-8222-222222222222";
+
+  function scopedCase(owned: boolean, rpcError: Error | null = null) {
+    const filters: Array<[string, string]> = [];
+    const calls: Array<{ name: string; args: unknown }> = [];
+    const query = {
+      select: (_columns: string) => query,
+      eq: (column: string, value: string) => {
+        filters.push([column, value]);
+        return query;
+      },
+      maybeSingle: async () => ({
+        data: owned ? { id: caseId, workflow_id: "cp14-response", vertical_id: "notice-respond" } : null,
+        error: null,
+      }),
+    };
+    const rows = [{ document_id: "33333333-3333-4333-8333-333333333333", role: "evidence" }];
+    const context = {
+      user: { id: ownerId },
+      supabase: {
+        from: (table: string) => {
+          assert.equal(table, "workflow_cases");
+          return query;
+        },
+        rpc: async (name: string, args: unknown) => {
+          calls.push({ name, args });
+          return { data: rows, error: rpcError };
+        },
+      },
+    } as never;
+    return { context, filters, calls, rows };
+  }
+
+  test("requires an owned case and calls the RPC with the user's authenticated client", async () => {
+    const state = scopedCase(true);
+    const documents = await loadPacketDocuments(caseId, state.context);
+    assert.deepEqual(documents, state.rows);
+    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
+    assert.deepEqual(state.calls, [{
+      name: "case_packet_documents", args: { p_case_id: caseId },
+    }]);
+  });
+
+  test("never invokes the packet RPC when the case is not owned by the session", async () => {
+    const state = scopedCase(false);
+    await assert.rejects(
+      () => loadPacketDocuments(caseId, state.context),
+      CaseNotFoundError,
+    );
+    assert.deepEqual(state.filters, [["id", caseId], ["owner_id", ownerId]]);
+    assert.equal(state.calls.length, 0);
+  });
+
+  test("fails closed when the owner-scoped database packet gate rejects evidence", async () => {
+    const state = scopedCase(true, new Error("Evidence not scanned"));
+    await assert.rejects(
+      () => loadPacketDocuments(caseId, state.context),
+      PacketError,
+    );
+    assert.equal(state.calls.length, 1);
   });
 });
