@@ -88,7 +88,7 @@ function fakeStore() {
 
 test("debt-validation matter: confirmed exact reviewed packet persists and uses stable checkout idempotency", async () => {
   const { state, repository } = fakeStore();
-  const binding = await approveDebtValidationMatter({
+  const binding = await approveDebtValidationMatter({ userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   });
   assert.equal(state.saves, 1);
@@ -121,13 +121,13 @@ test("debt-validation matter: absent state, unconfirmed recipient and mismatched
   ]) {
     const { state, repository } = fakeStore();
     mutate(state);
-    await assert.rejects(approveDebtValidationMatter({
+    await assert.rejects(approveDebtValidationMatter({ userApprovedExactPacket: true,
       ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
     }), /debt_validation_/);
     assert.equal(state.saves, 0);
   }
   const { state, repository } = fakeStore();
-  await assert.rejects(approveDebtValidationMatter({
+  await assert.rejects(approveDebtValidationMatter({ userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: d, repository,
   }), /debt_validation_unreviewed_packet/);
   assert.equal(state.saves, 0);
@@ -149,7 +149,7 @@ test("debt-validation matter: every stale checkout fails before mocked Stripe or
   let lobCalls = 0;
   for (const mutate of mutations) {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({
+    await approveDebtValidationMatter({ userApprovedExactPacket: true,
       ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
     });
     mutate(state.snapshot!);
@@ -169,7 +169,7 @@ test("debt-validation matter: no stored approval or no current snapshot blocks c
   await assert.rejects(checkoutDebtValidationMatter({
     ownerId: "owner-1", matterId: "matter-1", repository, checkout,
   }), /debt_validation_approval_missing/);
-  await approveDebtValidationMatter({
+  await approveDebtValidationMatter({ userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   });
   state.snapshot = null;
@@ -187,7 +187,7 @@ test("debt-validation matter: optimistic matter revision conflict prevents durab
     state.snapshot!.packet.matterVersion++;
     return result;
   };
-  await assert.rejects(approveDebtValidationMatter({
+  await assert.rejects(approveDebtValidationMatter({ userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   }), /debt_validation_concurrent_change/);
   assert.equal(state.saves, 0);
