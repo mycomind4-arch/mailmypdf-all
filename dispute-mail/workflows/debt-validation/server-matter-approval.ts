@@ -37,6 +37,23 @@ export interface DebtValidationMatterRepository {
   ): Promise<void>;
   /** Return only the persisted approval for this authenticated owner/matter. */
   loadApproval(ownerId: string, matterId: string): Promise<DebtValidationApprovalBinding | null>;
+  /**
+   * Atomic, idempotent order claim BEFORE any payment or mailing callback.
+   * In one transaction, reload the current owner-scoped notice, intake, packet
+   * and persisted approval; re-run the exact checkout binding check; compare
+   * expectedMatterVersion; and reserve idempotencyKey. A changed or missing
+   * record MUST reject without invoking a provider. Retrying the identical
+   * approved packet/key must reuse the existing claim.
+   */
+  claimCheckout(
+    ownerId: string,
+    matterId: string,
+    verified: {
+      binding: DebtValidationApprovalBinding;
+      idempotencyKey: string;
+      expectedMatterVersion: number;
+    },
+  ): Promise<void>;
 }
 
 function identity(ownerId: string, matterId: string): void {
@@ -84,8 +101,9 @@ export async function approveDebtValidationMatter(input: {
 
 /**
  * Does not trust a request-supplied binding or packet. A durable checkout
- * adapter must compare the binding at order claim and use the stable key for
- * provider retries. This function deliberately has no provider implementation.
+ * adapter must atomically recheck the current binding and reserve the stable
+ * key at order claim BEFORE the provider callback. This function deliberately
+ * has no provider implementation.
  */
 export async function checkoutDebtValidationMatter<Result>(input: {
   ownerId: string;
@@ -115,5 +133,10 @@ export async function checkoutDebtValidationMatter<Result>(input: {
       ownerId, matterId, binding.matterVersion, binding.pdfSha256,
       binding.intakeSha256, binding.enclosureManifestSha256,
     ]), "utf8").digest("hex");
-  return checkout({ binding, idempotencyKey, expectedMatterVersion: binding.matterVersion });
+  const verified = { binding, idempotencyKey, expectedMatterVersion: binding.matterVersion };
+  // The earlier snapshot read is only preflight: the matter can change while
+  // awaiting it. No provider callback is reachable until the repository's
+  // durable, owner-scoped compare-and-claim succeeds.
+  await repository.claimCheckout(ownerId, matterId, verified);
+  return checkout(verified);
 }
