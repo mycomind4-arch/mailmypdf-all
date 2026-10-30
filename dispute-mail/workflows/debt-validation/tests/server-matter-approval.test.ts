@@ -494,3 +494,26 @@ test("debt-validation matter: missing or mismatched durable order-claim receipts
   assert.equal(stripeCalls, 0, "A missing or mismatched claim cannot initiate payment");
   assert.equal(lobCalls, 0, "A missing or mismatched claim cannot submit physical mail");
 });
+
+
+test("debt-validation matter: reused durable claim must not submit payment or mail a second time", async () => {
+  const { state, repository } = fakeStore();
+  await approveDebtValidationMatter({
+    userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
+    reviewedPdfSha256: b, repository,
+  });
+  let providerCalls = 0;
+  const checkout = async () => {
+    providerCalls++;
+    return "mock-provider-submission";
+  };
+  assert.equal(await checkoutDebtValidationMatter({
+    ownerId: "owner-1", matterId: "matter-1", repository, checkout,
+  }), "mock-provider-submission");
+  await assert.rejects(checkoutDebtValidationMatter({
+    ownerId: "owner-1", matterId: "matter-1", repository, checkout,
+  }), /debt_validation_checkout_replay_requires_receipt/,
+  "A reused order claim cannot submit a second Stripe/Lob request without a read-only receipt path");
+  assert.equal(state.claims, 1, "Only one durable order may be reserved");
+  assert.equal(providerCalls, 1, "Reused claims must not invoke the side-effecting provider callback");
+});
