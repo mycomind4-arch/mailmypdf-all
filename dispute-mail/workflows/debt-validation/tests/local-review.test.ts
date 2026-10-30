@@ -67,20 +67,26 @@ test("local debt-validation review: a forged destination cannot be confirmed", (
 });
 
 test("local debt-validation notice: PDF header is checked before local fingerprint", async () => {
-  const notice = new File(["%PDF-1.7"], "synthetic.pdf", { type: "application/pdf" });
+  const notice = new File(["%PDF-1.7\n%%EOF"], "synthetic.pdf", { type: "application/pdf" });
   const bytes = await readLocalDebtValidationNoticePdf(notice);
-  assert.equal(new TextDecoder().decode(bytes), "%PDF-1.7");
+  assert.equal(new TextDecoder().decode(bytes), "%PDF-1.7\n%%EOF");
 });
 
 test("local debt-validation notice: renamed text and invalid PDF versions fail closed", async () => {
   for (const [name, contents] of [
-    ["renamed.pdf", "NOT-A-PDF"],
-    ["invalid.pdf", "%PDF-3.0"],
-    ["image.pdf", "\\x89PNGDATA"],
+    ["renamed.pdf", "NOT-A-PDF\n%%EOF"],
+    ["invalid.pdf", "%PDF-3.0\n%%EOF"],
+    ["image.pdf", "\\x89PNGDATA\n%%EOF"],
   ]) {
     const file = new File([contents], name, { type: "application/pdf" });
     await assert.rejects(readLocalDebtValidationNoticePdf(file), /recognized PDF header/);
   }
+});
+
+test("local debt-validation notice: truncated PDF without EOF marker fails closed", async () => {
+  await assert.rejects(readLocalDebtValidationNoticePdf(
+    new File(["%PDF-1.7\\npartial-data"], "truncated.pdf", { type: "application/pdf" }),
+  ), /PDF end marker/);
 });
 
 test("local debt-validation notice: empty, oversized, non-PDF and truncated reads fail closed", async () => {
