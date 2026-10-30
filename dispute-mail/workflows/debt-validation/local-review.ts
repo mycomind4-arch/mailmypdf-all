@@ -92,7 +92,7 @@ export function confirmLocalRecipient(input: DebtValidationIntake): DebtValidati
 export async function readLocalDebtValidationNoticePdf(
   file: Pick<File, "name" | "type" | "size" | "arrayBuffer">,
 ): Promise<ArrayBuffer> {
-  if (!file || !Number.isSafeInteger(file.size) || file.size < 8
+  if (!file || !Number.isSafeInteger(file.size) || file.size < 14
     || file.size > 12 * 1024 * 1024
     || !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))) {
     throw new Error("Choose a nonempty PDF notice no larger than 12 MB.");
@@ -104,6 +104,12 @@ export async function readLocalDebtValidationNoticePdf(
   const header = new TextDecoder("ascii").decode(new Uint8Array(bytes, 0, 8));
   if (!/^%PDF-[12]\\.[0-9]$/.test(header)) {
     throw new Error("The selected notice does not have a recognized PDF header.");
+  }
+  const tail = new TextDecoder("ascii").decode(
+    new Uint8Array(bytes, Math.max(0, bytes.byteLength - 1024)),
+  );
+  if (!tail.includes("%%EOF")) {
+    throw new Error("The selected notice is missing its PDF end marker.");
   }
   return bytes;
 }
