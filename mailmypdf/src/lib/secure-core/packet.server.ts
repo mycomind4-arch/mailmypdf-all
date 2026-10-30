@@ -18,6 +18,8 @@
 // chunk and break on Cloudflare Workers. See src/lib/pdf-validation.server.ts.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import { createScopedCasePacketStorageAdapter } from "./case-packet-storage-adapter";
+import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import { loadCase } from "./case.server";
 import {
   assemblePacket as assemblePacketCore,
@@ -78,6 +80,40 @@ export async function loadPacketDocuments(
   const { data, error } = await supabaseAdmin.rpc("case_packet_documents", { p_case_id: caseId });
   if (error) throw new PacketError(error.message);
   return requirePacketDocumentRows(data);
+}
+
+/**
+ * Production bridge for the canonical packet-storage interface. Every signed
+ * read rechecks the current authenticated case selection through the same
+ * server-only RPC as the secure-core packet runtime. No browser-controlled
+ * owner or storage path is trusted.
+ */
+export function createCasePacketStorageAdapter(
+  caseId: string,
+  context: AuthenticatedUserContext,
+): PacketStorageAdapter {
+  return createScopedCasePacketStorageAdapter({
+    ownerId: context.user.id,
+    matterId: caseId,
+    loadDocuments: () => loadPacketDocuments(caseId, context),
+    async signUrl(path, expiresInSeconds) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin.storage
+        .from(BUCKET)
+        .createSignedUrl(path, expiresInSeconds);
+      if (error || !data?.signedUrl) throw new PacketError("Unable to read an approved document");
+      return data.signedUrl;
+    },
+    async savePageCount(documentId, pageCount) {
+      const { error, count } = await context.supabase
+        .from("case_documents")
+        .update({ page_count: pageCount }, { count: "exact" })
+        .eq("case_id", caseId)
+        .eq("owner_id", context.user.id)
+        .eq("document_id", documentId);
+      if (error || count !== 1) throw new PacketError("Unable to record measured page counts");
+    },
+  });
 }
 
 /** Reads a stored document through a short-lived signed URL and verifies it. */
