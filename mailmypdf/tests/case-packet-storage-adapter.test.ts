@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { readFileSync } from "node:fs";
 import { createScopedCasePacketStorageAdapter } from "../src/lib/secure-core/case-packet-storage-adapter";
 
 const ownerId = "owner-a";
@@ -87,5 +88,27 @@ describe("owner/matter-bound packet storage (no provider side effects)", () => {
     await assert.rejects(() => invalidUrl.createSignedReadUrl({
       ownerId, storagePath: row.storage_path, expiresInSeconds: 60,
     }));
+  });
+  test("allows the local Supabase emulator but not remote HTTP signed URLs", async () => {
+    const local = createScopedCasePacketStorageAdapter({
+      ownerId, matterId, loadDocuments: async () => [row],
+      signUrl: async () => "http://127.0.0.1:54321/storage/v1/object/sign/example",
+      savePageCount: async () => {},
+    });
+    assert.match(await local.createSignedReadUrl({
+      ownerId, storagePath: row.storage_path, expiresInSeconds: 60,
+    }), /^http:\/\/127\.0\.0\.1/);
+  });
+
+  test("real preview and approval paths both use the scoped storage bridge", () => {
+    const approvalSource = readFileSync(new URL(
+      "../src/lib/secure-core/case-approval.server.ts", import.meta.url,
+    ), "utf8");
+    const packetSource = readFileSync(new URL(
+      "../src/lib/secure-core/packet.server.ts", import.meta.url,
+    ), "utf8");
+    assert.equal((approvalSource.match(/await assembleOwnedCasePacket\(caseId, letter, documents, context\)/g) ?? []).length, 2);
+    assert.match(packetSource, /loadDocuments: \(\) => loadPacketDocuments\(caseId, context\)/);
+    assert.match(packetSource, /createScopedCasePacketStorageAdapter/);
   });
 });
