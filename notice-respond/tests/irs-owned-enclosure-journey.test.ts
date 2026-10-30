@@ -183,6 +183,7 @@ describe("IRS physical-mail evidence packet: persisted PDF to explicit approval"
     if (!original) throw new Error("Expected a reviewed enclosure");
     for (const reviewedManifest of [
       [],
+      new Array(1), // Sparse client arrays must not skip confirmation checks.
       [{ ...original, filename: "unreviewed-attachment.pdf" }],
       [{ ...original, pageCount: original.pageCount + 1 }],
       [{ ...original, documentId: "unreviewed-document" }],
