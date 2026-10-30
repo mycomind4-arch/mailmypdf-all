@@ -1,6 +1,8 @@
 import { inspectPacketPdfPageCount, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { assessIrsGeneralMailPacketReadiness } from "./mail-readiness";
 import { isSafeIrsEnclosureFilename } from "./packet-preview";
+import type { PacketDocumentRow } from "@mailmypdf/packet-builder";
+import type { PacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import type { IrsGeneralOwnedDraftStore, IrsGeneralVersionedCaseStore } from "./owned-packet-draft";
 
 /** Authenticated server-only read of a persisted PDF for explicit human review.
@@ -13,6 +15,8 @@ export interface IrsGeneralOwnedDraftReviewInput {
   readonly draftId: string;
   readonly caseStore: IrsGeneralVersionedCaseStore;
   readonly draftStore: Pick<IrsGeneralOwnedDraftStore, "readPersistedDraft">;
+  /** Required for packets with enclosures; must return only currently scanned-clean, owner/matter-eligible documents. */
+  readonly documentStore?: Pick<PacketStorageAdapter, "loadEligibleDocuments">;
 }
 
 export type IrsGeneralOwnedDraftReviewResult =
@@ -132,6 +136,53 @@ export async function loadIrsGeneralOwnedDraftForReview(
       !validReviewManifest(stored.manifest, snapshot.selectedEnclosureDocumentIds)) {
     return blocked("draft_packet_changed");
   }
+  // An intact persisted PDF is not proof that its evidence is still eligible.
+  // Recheck the current owner/matter-scoped scan results before displaying a
+  // packet that contains attachments. Approval performs its own fresh check.
+  if (stored.manifest.length > 0) {
+    if (typeof input.documentStore?.loadEligibleDocuments !== "function") {
+      return blocked("owned_packet_storage_unavailable");
+    }
+    let eligible: readonly PacketDocumentRow[];
+    try {
+      eligible = await input.documentStore.loadEligibleDocuments({
+        ownerId: input.ownerId, matterId: input.matterId,
+      });
+    } catch { return blocked("owned_packet_storage_unavailable"); }
+    if (!Array.isArray(eligible)) return blocked("owned_packet_storage_unavailable");
+    const byId = new Map<string, PacketDocumentRow>();
+    for (const row of eligible) {
+      if (!row || typeof row.document_id !== "string" || byId.has(row.document_id)) {
+        return blocked("enclosure_not_eligible");
+      }
+      byId.set(row.document_id, row);
+    }
+    let previousPosition = -1;
+    for (const entry of stored.manifest) {
+      const row = byId.get(entry.documentId);
+      const excluded = row?.excluded_pages ?? [];
+      const path = row?.storage_path;
+      const ownerPathValid = typeof path === "string" &&
+        path.startsWith(input.ownerId + "/") && !path.includes("\\") &&
+        path.slice(input.ownerId.length + 1).split("/").every(
+          segment => segment.length > 0 && segment !== "." && segment !== "..",
+        );
+      if (!row || row.role !== "evidence" || !ownerPathValid ||
+          row.safe_filename !== entry.filename ||
+          typeof row.sha256 !== "string" || row.sha256.toLowerCase() !== entry.sha256 ||
+          (row.evidence_kind ?? null) !== entry.evidenceKind ||
+          !Number.isSafeInteger(row.position) || row.position <= previousPosition ||
+          !Array.isArray(excluded) || new Set(excluded).size !== excluded.length ||
+          excluded.some(index => !Number.isSafeInteger(index) || index < 0 ||
+            row.page_count == null || index >= row.page_count) ||
+          (row.page_count != null && (!Number.isSafeInteger(row.page_count) ||
+            row.page_count - excluded.length !== entry.pageCount))) {
+        return blocked("enclosure_not_eligible");
+      }
+      previousPosition = row.position;
+    }
+  }
+
   if (!(stored.pdfBytes instanceof Uint8Array) ||
       stored.pdfBytes.length < 5 || stored.pdfBytes.length > MAX_PDF_BYTES) {
     return blocked("draft_integrity_failed");
