@@ -160,7 +160,7 @@ async function fixture() {
     expect(draft.persisted).toBe(true);
     if (!draft.persisted) throw new Error("Expected persisted evidence packet");
     const reviewed = await irsGeneralDefinition.loadOwnedDraftForReview({
-      ownerId, matterId, draftId: draft.draft.draftId, caseStore, draftStore,
+      ownerId, matterId, draftId: draft.draft.draftId, caseStore, draftStore, documentStore,
     });
     expect(reviewed.ready).toBe(true);
     if (!reviewed.ready) throw new Error("Expected reviewable evidence packet");
@@ -231,6 +231,60 @@ describe("IRS physical-mail evidence packet: persisted PDF to explicit approval"
     expect(state.fetchImpl).toHaveBeenCalledTimes(2);
     expect(Object.keys(approved.approval)).not.toContain("mailingId");
     expect(Object.keys(approved.approval)).not.toContain("paymentId");
+  });
+
+  it("refuses to redisplay a persisted packet after its evidence is quarantined", async () => {
+    const state = await fixture();
+    const review = await state.persistAndReview();
+    state.revokeEvidence();
+    const reloaded = await irsGeneralDefinition.loadOwnedDraftForReview({
+      ...state.shared, draftStore: state.draftStore, draftId: review.draftId,
+    });
+    expect(reloaded).toEqual({
+      ready: false, blockers: ["enclosure_not_eligible"], review: null,
+    });
+    expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
+  });
+
+  it("requires current scanned evidence before reviewing a saved enclosure PDF", async () => {
+    const state = await fixture();
+    const review = await state.persistAndReview();
+    const missingAdapter = await irsGeneralDefinition.loadOwnedDraftForReview({
+      ownerId, matterId, caseStore: state.shared.caseStore,
+      draftStore: state.draftStore, draftId: review.draftId,
+    });
+    expect(missingAdapter).toEqual({
+      ready: false, blockers: ["owned_packet_storage_unavailable"], review: null,
+    });
+    state.loadEligibleDocuments.mockRejectedValueOnce(new Error("Scanner unavailable"));
+    const unavailable = await irsGeneralDefinition.loadOwnedDraftForReview({
+      ...state.shared, draftStore: state.draftStore, draftId: review.draftId,
+    });
+    expect(unavailable).toEqual({
+      ready: false, blockers: ["owned_packet_storage_unavailable"], review: null,
+    });
+  });
+
+  it("rejects replaced evidence metadata even when the saved PDF digest is intact", async () => {
+    const state = await fixture();
+    const review = await state.persistAndReview();
+    for (const change of [
+      { sha256: "b".repeat(64) },
+      { safe_filename: "different-evidence.pdf" },
+      { evidence_kind: "different_kind" },
+      { page_count: state.measured.pageCount + 1 },
+      { storage_path: "other-owner/supporting-record.pdf" },
+      { position: -1 },
+    ]) {
+      state.loadEligibleDocuments.mockResolvedValueOnce([{ ...state.row, ...change }]);
+      const result = await irsGeneralDefinition.loadOwnedDraftForReview({
+        ...state.shared, draftStore: state.draftStore, draftId: review.draftId,
+      });
+      expect(result, JSON.stringify(change)).toEqual({
+        ready: false, blockers: ["enclosure_not_eligible"], review: null,
+      });
+    }
+    expect(state.approveDraftIfCurrent).not.toHaveBeenCalled();
   });
 
   it("refuses approval when scanned evidence is revoked after the PDF was reviewed", async () => {
