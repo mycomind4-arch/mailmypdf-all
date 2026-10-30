@@ -45,7 +45,17 @@ function sourceBinding(
   analysis: WorkflowMatterAnalysis,
   documents: readonly WorkflowMatterDocument[],
 ): NonNullable<ExactPacketApproval["recipientConfirmation"]> {
-  const source = documents.find((document) => document.role === "subject_notice");
+  // Normal attachment routes replace an earlier subject notice, but persisted
+  // or imported matters may contain conflicting source links. Never bind a
+  // mailing recipient to whichever notice happens to appear first.
+  const sources = documents.filter((document) => document.role === "subject_notice");
+  if (sources.length !== 1) {
+    throw new WorkflowRuntimeError(
+      "The controlling CP2000 notice is missing or ambiguous. Keep one source notice and analyze it again.",
+      "CP2000_NOTICE_AMBIGUOUS",
+    );
+  }
+  const source = sources[0];
   if (!source || !source.usable || source.securityStatus !== "clean" ||
       source.documentId !== analysis.documentId) {
     throw new WorkflowRuntimeError(
