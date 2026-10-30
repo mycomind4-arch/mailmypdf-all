@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Field,
@@ -22,6 +22,7 @@ import {
   revokeLocalRecipientConfirmation,
 } from "../local-review";
 import { debtValidationStepWorkflow } from "../step-workflow";
+import { createLocalDebtValidationPdfPreview } from "../pdf-preview";
 
 /**
  * Offline, browser-only draft review. This is intentionally NOT a server
@@ -36,6 +37,13 @@ export function DebtValidationStart() {
   const [confirmError, setConfirmError] = useState("");
   const [letterDate, setLetterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const fileGeneration = useRef(0);
+  const pdfGeneration = useRef(0);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState("");
+  const [pdfPreview, setPdfPreview] = useState<{
+    url: string; sha256: string; pages: number;
+    sourceIntake: DebtValidationIntake; letterDate: string;
+  } | null>(null);
   const steps = debtValidationStepWorkflow.steps;
   const step = steps[stepIndex]!;
   const blockers = useMemo(() => validateDebtValidationIntake(intake), [intake]);
@@ -47,6 +55,40 @@ export function DebtValidationStart() {
       return null;
     }
   }, [blockers, intake, letterDate]);
+
+  // Any source, recipient, confirmation, letter or date edit revokes the preview.
+  useEffect(() => {
+    pdfGeneration.current += 1;
+    setPdfPreview(null);
+    setPdfBusy(false);
+    setPdfError("");
+  }, [intake, letterDate]);
+  useEffect(() => () => {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
+  }, [pdfPreview]);
+
+  async function buildPdfPreview() {
+    if (!letter) return;
+    const generation = ++pdfGeneration.current;
+    setPdfBusy(true);
+    setPdfError("");
+    setPdfPreview(null);
+    try {
+      const packet = await createLocalDebtValidationPdfPreview(intake, letterDate);
+      if (generation !== pdfGeneration.current) return;
+      const url = URL.createObjectURL(new Blob([new Uint8Array(packet.bytes)], { type: "application/pdf" }));
+      setPdfPreview({
+        url, sha256: packet.sha256, pages: packet.responsePages,
+        sourceIntake: intake, letterDate,
+      });
+    } catch {
+      if (generation === pdfGeneration.current) {
+        setPdfError("PDF preview failed. Check for unsupported characters and retain the text draft.");
+      }
+    } finally {
+      if (generation === pdfGeneration.current) setPdfBusy(false);
+    }
+  }
 
   function update(patch: Partial<DebtValidationIntake>) {
     setIntake((current) => revokeLocalRecipientConfirmation({ ...current, ...patch }));
@@ -231,9 +273,27 @@ export function DebtValidationStart() {
                 <button type="button" className="wf-btn wf-btn--outline" onClick={saveText}>
                   Save text draft
                 </button>
-                <p className="wf-intake-note">
-                  Text only — not a PDF mailing packet. There is no approval, payment or provider submission.
-                </p>
+                <SectionCard title="Local PDF packet preview — letter only">
+                  <button type="button" className="wf-btn wf-btn--outline"
+                    disabled={pdfBusy} onClick={() => { void buildPdfPreview(); }}>
+                    {pdfBusy ? "Generating PDF…" : "Generate printable PDF preview"}
+                  </button>
+                  {pdfError && <p role="alert">{pdfError}</p>}
+                  {pdfPreview && pdfPreview.sourceIntake === intake && pdfPreview.letterDate === letterDate && (
+                    <>
+                      <p className="wf-intake-note">
+                        {pdfPreview.pages} letter page(s), no enclosures. SHA-256: <code>{pdfPreview.sha256}</code>
+                      </p>
+                      <iframe title="Debt-validation local PDF preview" src={pdfPreview.url}
+                        style={{ width: "100%", height: 520, border: "1px solid #ddd" }} />
+                      <p><a href={pdfPreview.url} download="debt-validation-draft.pdf">Save draft PDF</a></p>
+                    </>
+                  )}
+                  <p className="wf-intake-note">
+                    This PDF is generated only in your browser. It is not stored, approved,
+                    verified for postal delivery, or submitted to a payment or mailing provider.
+                  </p>
+                </SectionCard>
               </SectionCard>
             )}
           </>

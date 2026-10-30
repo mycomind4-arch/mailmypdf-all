@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
+    "@mailmypdf/packet-builder": "workspace:*",
     "@mailmypdf/seo": "workspace:*",
     "@mailmypdf/pricing": "workspace:*",
     "@mailmypdf/step-workflow": "workspace:*",
