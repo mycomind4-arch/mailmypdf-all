@@ -114,3 +114,52 @@ test("CP2000 checkout rejects a second subject notice added after exact approval
     "checkout must not reuse an approval after a conflicting source notice is attached",
   );
 });
+
+test("CP2000 recipient approval rejects non-IRS or unidentified issuers despite matching addresses", () => {
+  for (const issuer of ["Social Security Administration", "", "State Revenue Department"]) {
+    const misclassified = {
+      ...analysis,
+      result: { ...analysis.result, issuer },
+    };
+    assert.throws(
+      () => confirmCp2000Recipient({
+        confirmedFromNotice: true,
+        recipient,
+        analysis: misclassified,
+        documents: [source],
+      }),
+      /CP2000|IRS|issuer|controlling notice/i,
+      "a matching postal address cannot make a non-IRS notice a CP2000",
+    );
+  }
+  assert.doesNotThrow(() => confirmCp2000Recipient({
+    confirmedFromNotice: true,
+    recipient,
+    analysis: { ...analysis, result: { ...analysis.result, issuer: "Internal Revenue Service" } },
+    documents: [source],
+  }));
+});
+
+test("CP2000 checkout revokes recipient binding when issuer classification changes without a version bump", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-issuer", matterId: "matter-1",
+    workflowId: "cp2000-response", packetSha256: "a".repeat(64),
+    totalCents: 299, recipient, mailClass: "certified",
+    approvedBy: "owner-1", approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  const reclassified = {
+    ...analysis,
+    result: { ...analysis.result, issuer: "Social Security Administration" },
+  };
+  assert.throws(
+    () => assertApprovedCp2000Recipient({
+      approval, analysis: reclassified, documents: [source],
+    }),
+    /CP2000|IRS|issuer|controlling notice/i,
+    "checkout must reject a changed issuer even if source, address and analysis version remain the same",
+  );
+});
