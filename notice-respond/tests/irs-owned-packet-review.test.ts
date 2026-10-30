@@ -290,8 +290,8 @@ describe("IRS exact-PDF owner-scoped human review readback", () => {
       });
     };
     for (const path of [
-      "owner-a/doc-a\\n.pdf", "owner-a/doc-a\\u0000.pdf",
-      "owner-a/doc-a\\u007f.pdf", "owner-b/doc-a.pdf",
+      "owner-a/doc-a\n.pdf", "owner-a/doc-a\u0000.pdf",
+      "owner-a/doc-a\u007f.pdf", "owner-b/doc-a.pdf",
       "owner-a/../doc-a.pdf", "owner-a\\\\doc-a.pdf",
     ]) {
       expect(await check(path)).toEqual({
