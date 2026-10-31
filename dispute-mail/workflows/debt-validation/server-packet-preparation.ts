@@ -13,7 +13,7 @@
 import { createHash } from "node:crypto";
 import { validatePdfForMailing, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { calculateQuote } from "@mailmypdf/pricing";
-import { validateDebtValidationIntake, type DebtValidationIntake } from "./domain";
+import { draftDebtValidationEnvelopeAddress, validateDebtValidationIntake, type DebtValidationIntake } from "./domain";
 import { createLocalDebtValidationPdfPreview } from "./pdf-preview";
 import {
   createDebtValidationApprovalBinding,
@@ -122,7 +122,11 @@ export async function prepareDebtValidationMatterPacket(input: {
     pdfSha256: digest(assembled.bytes),
     enclosureManifestSha256: digest(new TextEncoder().encode(JSON.stringify(assembled.manifest))),
     intakeSha256: debtValidationIntakeSha256(intake),
-    recipientAddress: trustedNotice.responseMailingAddress,
+    // Preserve the notice-verified postal lines, but include the collector
+    // addressee exactly as shown in the local envelope preview. A notice may
+    // print only a PO Box and city/state/ZIP; omitting the collector's name
+    // from the persisted mailing destination can make physical mail undeliverable.
+    recipientAddress: draftDebtValidationEnvelopeAddress(intake).recipientAddress,
     noticeDocumentId: trustedNotice.documentId,
     noticeSha256: trustedNotice.sha256,
     noticeVersion: trustedNotice.version,
