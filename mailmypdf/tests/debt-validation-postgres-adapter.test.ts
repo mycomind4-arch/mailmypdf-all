@@ -2257,4 +2257,21 @@ test("PostgreSQL debt validation: pre-mailing payment gate fails closed on missi
   );
   assert.deepEqual(receipts.rows.map((row) => row.kind), ["payment"],
     "pre-mailing verification never invents a mailing receipt");
+
+  // A previously recorded mailing is NOT permission for another provider
+  // handoff. The pre-mailing gate must reject completed orders, while normal
+  // read-only receipt reconciliation remains available and idempotent.
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_premail", evidenceSha256: "b".repeat(64),
+  };
+  await ledger.record(owner, matter, verified, mailing);
+  await assert.rejects(attemptMail(), /debt_validation_mailing_already_recorded/,
+    "recorded mailing must not authorize another mocked Lob handoff");
+  assert.equal(mockedMailSubmissions, 1,
+    "a completed order cannot increment mocked mailing submissions");
+  assert.equal(checkoutSubmissions, 1,
+    "pre-mailing replay checks never resubmit checkout");
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
+    "completed orders remain available for read-only receipt reconciliation");
 });
