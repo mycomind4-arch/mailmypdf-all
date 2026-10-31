@@ -1707,7 +1707,7 @@ test("PostgreSQL debt validation: changed return identity revokes reviewed envel
   // invalidate both the read-only review summary and any mailing claim,
   // even when the collector, controlling notice and PDF bytes are unchanged.
   for (const [label, change] of [
-    ["return mailing address", { consumerMailingAddress: "77 Test Road\\nEureka, CA 95501" }],
+    ["return mailing address", { consumerMailingAddress: "77 Test Road\nEureka, CA 95501" }],
     ["consumer name/signature", { consumerName: "Different Synthetic Consumer" }],
   ] as const) {
     const { db, repository, seed, approve } = await setup();
