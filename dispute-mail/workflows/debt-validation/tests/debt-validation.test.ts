@@ -227,3 +227,20 @@ test("debt-validation: destination requires a city, not just a state and ZIP", (
     assert.deepEqual(codes(changed), [], complete);
   }
 });
+
+test("debt-validation: timing note never presents transcribed or impossible dates as verified notice facts", () => {
+  // A browser-entered deadline is not evidence that anyone independently
+  // verified the printed notice. Invalid dates must not be repeated as facts,
+  // even while intake validation blocks packet generation.
+  const transcribed = debtValidationTimingNote(fixture());
+  assert.match(transcribed, /2026-11-12/);
+  assert.match(transcribed, /not independently verified/i);
+  assert.doesNotMatch(transcribed, /The controlling notice states/i);
+
+  const impossible = debtValidationTimingNote({
+    ...fixture(), noticeDisputeDeadline: "2026-02-30",
+  });
+  assert.match(impossible, /invalid/i);
+  assert.doesNotMatch(impossible, /2026-02-30/);
+  assert.ok(codes({ ...fixture(), noticeDisputeDeadline: "2026-02-30" }).includes("invalid_notice_date"));
+});
