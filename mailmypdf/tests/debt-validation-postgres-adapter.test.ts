@@ -878,3 +878,49 @@ test("debt-validation HTTP checkout: changed recipient or controlling notice fai
     }
   }
 });
+
+test("debt-validation HTTP: request stream failure details never escape approval or checkout", async (t) => {
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  let submissions = 0;
+  const deps = {
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+  };
+  const handlers = [
+    ["approval", createDebtValidationApprovalHttpHandler(deps)],
+    ["checkout", createDebtValidationCheckoutHttpHandler({
+      ...deps,
+      submitNewClaim: async () => { submissions++; return "pending" as const; },
+      reconcileClaim: async () => "pending" as const,
+    })],
+  ] as const;
+  for (const [kind, handle] of handlers) {
+    const internalDetail = "synthetic_internal_transport_secret_" + kind;
+    const brokenStream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.error(new Error(internalDetail)); },
+    });
+    const request = new Request(origin + "/api/debt-validation/" + kind, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: brokenStream,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const result = await handle(request);
+    assert.equal(result.status, 400, kind + ": unreadable body is invalid JSON");
+    const payload = await result.text();
+    assert.deepEqual(JSON.parse(payload), { code: "invalid_json" },
+      kind + ": never return underlying stream/transport exception details");
+    assert.doesNotMatch(payload, /synthetic_internal_transport_secret/);
+  }
+  const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(stored.rows[0]?.approval, null);
+  assert.equal(stored.rows[0]?.checkout_key, null);
+  assert.equal(submissions, 0, "a failed request body never reaches mocked payment or mailing");
+});
