@@ -441,3 +441,53 @@ test("PostgreSQL debt validation: failed first provider callback cannot resubmit
   assert.equal(after.rows[0]?.checkout_key, first.rows[0]?.checkout_key,
     "the original claim remains stable after provider failure and retries");
 });
+
+test("PostgreSQL debt validation: approval transaction rejects same-version source and quote races", async () => {
+  const cases: Array<[string, (db: PGlite) => Promise<unknown>, RegExp]> = [
+    ["controlling notice bytes", (db) => db.query(
+      "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, new TextEncoder().encode("notice swapped after approval preflight")],
+    ), /debt_validation_persisted_notice_changed/],
+    ["server-authoritative price", (db) => {
+      const changed = fixture().packet;
+      changed.totalCents += 100;
+      return db.query(
+        "UPDATE debt_validation_matter_snapshots SET packet=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, JSON.stringify(changed)],
+      );
+    }, /debt_validation_concurrent_approval_change/],
+    ["physical mailing class", (db) => {
+      const changed = fixture().packet;
+      changed.mailClass = "registered";
+      return db.query(
+        "UPDATE debt_validation_matter_snapshots SET packet=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, JSON.stringify(changed)],
+      );
+    }, /debt_validation_concurrent_approval_change/],
+  ];
+
+  for (const [name, change, expected] of cases) {
+    const { db, repository, seed, approve, armBeforeTransaction } = await setup();
+    try {
+      await seed();
+      // The user reviewed the original packet and quote. Mutate the durable
+      // record only after preflight but before the locked approval transaction.
+      armBeforeTransaction(() => change(db));
+      await assert.rejects(approve(), expected, name);
+      const result = await db.query<{ approval: unknown; checkout_key: string | null }>(
+        "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter],
+      );
+      assert.equal(result.rows[0]?.approval, null, name + ": no stale approval");
+      assert.equal(result.rows[0]?.checkout_key, null, name + ": no order claim");
+      let providerCalls = 0;
+      await assert.rejects(checkoutDebtValidationMatter({
+        ownerId: owner, matterId: matter, repository,
+        checkout: async () => { providerCalls++; return "must-not-submit"; },
+      }), /debt_validation_approval_missing/, name);
+      assert.equal(providerCalls, 0, name + ": no payment or mailing handoff");
+    } finally {
+      await db.close();
+    }
+  }
+});
