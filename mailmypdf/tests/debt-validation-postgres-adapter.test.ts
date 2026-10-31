@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { calculateQuote } from "@mailmypdf/pricing";
+import { createLocalDebtValidationPdfPreview } from "../../dispute-mail/workflows/debt-validation/pdf-preview";
+import { prepareDebtValidationMatterPacket } from "../../dispute-mail/workflows/debt-validation/server-packet-preparation";
 import {
   createPostgresDebtValidationMatterRepository,
   type DebtValidationSqlDatabase,
@@ -103,11 +107,11 @@ async function setup() {
     },
   };
   const repository = createPostgresDebtValidationMatterRepository(sql);
-  const seed = async (ownerId = owner, snapshot = fixture(ownerId), bytes = pdf) =>
+  const seed = async (ownerId = owner, snapshot = fixture(ownerId), bytes = pdf, noticeBytes = sourceNoticePdf) =>
     db.query(
       "INSERT INTO debt_validation_matter_snapshots (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea,$7::bytea)",
       [ownerId, matter, JSON.stringify(snapshot.currentIntake),
-        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytes, sourceNoticePdf],
+        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytes, noticeBytes],
     );
   const approve = (ownerId = owner) => approveDebtValidationMatter({
     ownerId, matterId: matter, repository,
@@ -116,6 +120,94 @@ async function setup() {
   });
   return { db, repository, seed, approve, armBeforeTransaction };
 }
+
+test("debt-validation real generated physical-mail packet traverses isolated approval and mocked checkout", async (t) => {
+  // Unlike synthetic %PDF fixtures, this proves the actual canonical PDF
+  // builder, server quote, immutable packet and SQL/HTTP boundaries agree.
+  // PGlite is isolated; no hosted database, Stripe, Lob or mailing is used.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  const noticeBytes = await generatePlainTextPdf(
+    "Synthetic collection notice for offline integration testing. PO Box 456, Austin TX 78701.",
+  );
+  const noticeSha = sha(noticeBytes);
+  const base = fixture();
+  const intake = {
+    ...base.currentIntake,
+    noticeSha256: noticeSha,
+    confirmedNoticeSha256: noticeSha,
+  };
+  const trustedNotice = { ...base.trustedNotice, sha256: noticeSha };
+  const letterDate = "2026-10-30";
+  const preview = await createLocalDebtValidationPdfPreview(intake, letterDate);
+  const quote = calculateQuote({
+    workflowId: "debt-validation",
+    verticalId: "dispute-mail",
+    actualPages: preview.responsePages,
+    supportingPages: preview.supportingPages,
+    mailClass: "certified",
+  });
+  const prepared = await prepareDebtValidationMatterPacket({
+    ownerId: owner, matterId: matter, matterVersion: 2,
+    totalCents: quote.totalCents, mailClass: "certified",
+    letterDate, intake, trustedNotice, noticePdfBytes: noticeBytes,
+  });
+  assert.equal(prepared.packet.totalCents, quote.totalCents);
+  assert.equal(prepared.packet.pdfSha256, sha(prepared.pdfBytes));
+  assert.equal(prepared.packet.noticeSha256, noticeSha);
+  assert.equal(prepared.supportingPages, 0, "source notice is evidence, not an enclosure");
+  assert.deepEqual(prepared.manifest, []);
+  await seed(owner, { currentIntake: intake, trustedNotice, packet: prepared.packet },
+    prepared.pdfBytes, noticeBytes);
+
+  const origin = "https://mailmypdf.example";
+  const authenticate = async (request: Request) =>
+    request.headers.get("authorization") === "Bearer synthetic-owner-a"
+      ? { id: owner } : null;
+  const post = (route: string, body: Record<string, unknown>) =>
+    new Request(origin + route, {
+      method: "POST",
+      headers: {
+        origin, authorization: "Bearer synthetic-owner-a",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const approval = createDebtValidationApprovalHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+  });
+  const reviewed = {
+    matterId: matter,
+    reviewedPdfSha256: prepared.packet.pdfSha256,
+    reviewedTotalCents: quote.totalCents,
+    reviewedMailClass: "certified",
+  };
+  const approved = await approval(post("/api/debt-validation/approval", {
+    ...reviewed, userApprovedExactPacket: true,
+  }));
+  assert.equal(approved.status, 200, "real prepared PDF and quote can be approved");
+
+  let submissions = 0;
+  let reconciliations = 0;
+  const checkout = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+    submitNewClaim: async () => { submissions++; return "pending" as const; },
+    reconcileClaim: async () => { reconciliations++; return "pending" as const; },
+  });
+  const requestCheckout = () => post("/api/debt-validation/checkout", {
+    ...reviewed, userConfirmedCheckout: true,
+  });
+  assert.equal((await checkout(requestCheckout())).status, 202);
+  assert.equal((await checkout(requestCheckout())).status, 202);
+  assert.equal(submissions, 1, "one mocked provider handoff for exact physical packet");
+  assert.equal(reconciliations, 1, "retry only reconciles existing claim");
+  const stored = await db.query<{ checkout_key: string | null; pdf_bytes: Uint8Array }>(
+    "SELECT checkout_key,pdf_bytes FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(sha(stored.rows[0]!.pdf_bytes), prepared.packet.pdfSha256);
+  assert.match(stored.rows[0]!.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+});
 
 test("PostgreSQL debt validation: exact owner-scoped bytes, approval and one durable checkout claim", async (t) => {
   const { db, repository, seed, approve } = await setup();
