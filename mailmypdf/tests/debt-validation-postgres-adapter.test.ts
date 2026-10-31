@@ -9,6 +9,7 @@ import { createLocalDebtValidationPdfPreview } from "../../dispute-mail/workflow
 import { prepareDebtValidationMatterPacket } from "../../dispute-mail/workflows/debt-validation/server-packet-preparation";
 import {
   createPostgresDebtValidationMatterRepository,
+  prepareAndPersistDebtValidationMatter,
   type DebtValidationSqlDatabase,
 } from "../src/lib/secure-core/debt-validation-postgres.server";
 import {
@@ -121,11 +122,19 @@ async function setup() {
   return { db, repository, seed, approve, armBeforeTransaction };
 }
 
+function sqlFromDb(db: PGlite): DebtValidationSqlDatabase {
+  return {
+    query: (statement, parameters = []) => db.query(statement, parameters),
+    transaction: (work) => db.transaction(async (tx) =>
+      work({ query: (statement, parameters = []) => tx.query(statement, parameters) })),
+  };
+}
+
 test("debt-validation real generated physical-mail packet traverses isolated approval and mocked checkout", async (t) => {
   // Unlike synthetic %PDF fixtures, this proves the actual canonical PDF
   // builder, server quote, immutable packet and SQL/HTTP boundaries agree.
   // PGlite is isolated; no hosted database, Stripe, Lob or mailing is used.
-  const { db, repository, seed } = await setup();
+  const { db, repository } = await setup();
   t.after(() => db.close());
   const noticeBytes = await generatePlainTextPdf(
     "Synthetic collection notice for offline integration testing. PO Box 456, Austin TX 78701.",
@@ -157,8 +166,39 @@ test("debt-validation real generated physical-mail packet traverses isolated app
   assert.equal(prepared.packet.noticeSha256, noticeSha);
   assert.equal(prepared.supportingPages, 0, "source notice is evidence, not an enclosure");
   assert.deepEqual(prepared.manifest, []);
-  await seed(owner, { currentIntake: intake, trustedNotice, packet: prepared.packet },
-    prepared.pdfBytes, noticeBytes);
+  // Exercise the actual server-side create-only persistence bridge rather
+  // than seeding the SQL row by hand. Missing confirmation or a replaced
+  // controlling notice must never create a reviewable matter.
+  const input = {
+    ownerId: owner, matterId: matter, matterVersion: 2,
+    totalCents: quote.totalCents, mailClass: "certified" as const,
+    letterDate, intake, trustedNotice, noticePdfBytes: noticeBytes,
+  };
+  await assert.rejects(
+    prepareAndPersistDebtValidationMatter(sqlFromDb(db), {
+      ...input, intake: { ...intake, recipientConfirmed: false },
+    }),
+    /debt_validation_invalid_intake/,
+  );
+  const empty = await db.query<{ count: string }>(
+    "SELECT count(*)::text AS count FROM debt_validation_matter_snapshots",
+  );
+  assert.equal(empty.rows[0]?.count, "0", "invalid recipient confirmation cannot persist a matter");
+  const storedPacket = await prepareAndPersistDebtValidationMatter(sqlFromDb(db), input);
+  assert.equal(storedPacket.totalCents, quote.totalCents);
+  assert.equal(storedPacket.noticeSha256, noticeSha);
+  await assert.rejects(
+    prepareAndPersistDebtValidationMatter(sqlFromDb(db), input),
+    /debt_validation_matter_already_exists/,
+    "a second create cannot overwrite a previously reviewable packet",
+  );
+  const replacedNotice = await generatePlainTextPdf("A different synthetic controlling notice.");
+  await assert.rejects(
+    prepareAndPersistDebtValidationMatter(sqlFromDb(db), {
+      ...input, noticePdfBytes: replacedNotice,
+    }),
+    /debt_validation_source_integrity/,
+  );
 
   const origin = "https://mailmypdf.example";
   const authenticate = async (request: Request) =>
@@ -178,7 +218,7 @@ test("debt-validation real generated physical-mail packet traverses isolated app
   });
   const reviewed = {
     matterId: matter,
-    reviewedPdfSha256: prepared.packet.pdfSha256,
+    reviewedPdfSha256: storedPacket.pdfSha256,
     reviewedTotalCents: quote.totalCents,
     reviewedMailClass: "certified",
   };
@@ -205,7 +245,7 @@ test("debt-validation real generated physical-mail packet traverses isolated app
     "SELECT checkout_key,pdf_bytes FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
     [owner, matter],
   );
-  assert.equal(sha(stored.rows[0]!.pdf_bytes), prepared.packet.pdfSha256);
+  assert.equal(sha(stored.rows[0]!.pdf_bytes), storedPacket.pdfSha256);
   assert.match(stored.rows[0]!.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
 
