@@ -133,7 +133,12 @@ export function createPostgresDebtValidationMatterRepository(
   return {
     async loadCurrent(ownerId, matterId) {
       const row = await readRow(db, ownerId, matterId, false);
-      return row ? current(requireRow(row)) : null;
+      if (!row) return null;
+      // A read-only review must not present a packet as approvable when the
+      // controlling notice's stored bytes have changed behind its metadata.
+      // Approval/checkout also recheck under their own row locks.
+      assertStoredControllingNotice(requireRow(row));
+      return current(row);
     },
 
     async loadPacketPdfBytes(ownerId, matterId) {

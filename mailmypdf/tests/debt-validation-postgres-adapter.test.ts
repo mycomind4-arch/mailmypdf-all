@@ -130,6 +130,52 @@ function sqlFromDb(db: PGlite): DebtValidationSqlDatabase {
   };
 }
 
+test("debt-validation HTTP read-only review rejects silently replaced controlling notice bytes", async (t) => {
+  // The persisted letter may still hash correctly while the controlling
+  // collection notice has been replaced without updating its metadata.
+  // Do not present that letter/quote as review-ready for approval.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const handle = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+  });
+  const request = () => new Request(origin + "/api/debt-validation/review?matterId=" + matter);
+  const original = await handle(request());
+  assert.equal(original.status, 200, "unchanged notice permits exact PDF review");
+  assert.equal(original.headers.get("x-reviewed-pdf-sha256"), sha(pdf));
+
+  // Only bytes change: source SHA, document ID, revision, recipient and
+  // packet metadata are intentionally unchanged to expose a stale-read gap.
+  const replaced = new TextEncoder().encode("%PDF-1.4\\nDifferent synthetic controlling notice\\n%%EOF");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, replaced],
+  );
+  const denied = await handle(request());
+  assert.equal(denied.status, 409, "changed source bytes must block read-only review");
+  assert.deepEqual(await denied.json(), { code: "debt_validation_persisted_notice_changed" });
+  const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(stored.rows[0]?.approval, null, "review never grants approval");
+  assert.equal(stored.rows[0]?.checkout_key, null, "review never claims checkout");
+  // No provider adapter is supplied by this review handler, so it cannot
+  // submit mocked or real payments/mailings in either outcome.
+
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  const restored = await handle(request());
+  assert.equal(restored.status, 200, "restoring exact source bytes permits review");
+  assert.equal(restored.headers.get("x-reviewed-pdf-sha256"), sha(pdf));
+});
+
 test("debt-validation real generated physical-mail packet traverses isolated approval and mocked checkout", async (t) => {
   // Unlike synthetic %PDF fixtures, this proves the actual canonical PDF
   // builder, server quote, immutable packet and SQL/HTTP boundaries agree.
