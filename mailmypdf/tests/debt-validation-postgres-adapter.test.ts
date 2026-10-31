@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
-import { calculateQuote } from "@mailmypdf/pricing";
+import { calculateQuote } from "../../packages/pricing/src/index";
 import { createLocalDebtValidationPdfPreview } from "../../dispute-mail/workflows/debt-validation/pdf-preview";
 import { prepareDebtValidationMatterPacket } from "../../dispute-mail/workflows/debt-validation/server-packet-preparation";
 import {
