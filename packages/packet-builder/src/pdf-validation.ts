@@ -4,6 +4,7 @@
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const MAX_PAGES = 10;
+const MAX_REFERENCE_PAGES = 200;
 const MAX_INDIRECT_OBJECTS = 2_500;
 const MAX_PAGE_POINTS = 14_400;
 const TRAILER_SCAN_BYTES = 4_096;
@@ -81,6 +82,19 @@ function assertStaticPdfStructure(bytes: Uint8Array): void {
  * the same final packet safety contract.
  */
 export async function validatePdfForMailing(bytes: Uint8Array): Promise<ValidatedPdf> {
+  return validatePdfWithPageLimit(bytes, MAX_PAGES);
+}
+
+/**
+ * Validate an evidence-only PDF without applying the 10-page outgoing-letter
+ * limit. Keeps all the same size, active-content, encryption, object-count and
+ * page-dimension checks; it never authorizes including the source in mail.
+ */
+export async function validatePdfForReference(bytes: Uint8Array): Promise<ValidatedPdf> {
+  return validatePdfWithPageLimit(bytes, MAX_REFERENCE_PAGES);
+}
+
+async function validatePdfWithPageLimit(bytes: Uint8Array, maxPages: number): Promise<ValidatedPdf> {
   assertStaticPdfStructure(bytes);
 
   const { PDFDocument } = await import("pdf-lib");
@@ -101,8 +115,8 @@ export async function validatePdfForMailing(bytes: Uint8Array): Promise<Validate
   if (pages.length < 1) {
     throw new PdfValidationError("PDF has no pages.");
   }
-  if (pages.length > MAX_PAGES) {
-    throw new PdfValidationError(`PDFs longer than ${MAX_PAGES} pages are not supported.`);
+  if (pages.length > maxPages) {
+    throw new PdfValidationError(`PDFs longer than ${maxPages} pages are not supported.`);
   }
 
   for (const page of pages) {
