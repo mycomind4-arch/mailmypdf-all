@@ -131,7 +131,7 @@ async function preparedStore() {
 test("full offline debt-validation journey: real generated PDF, exact approval, one mocked checkout and read-only retry", async () => {
   const { state, repository, prepared } = await preparedStore();
   assert.equal(digest(prepared.pdfBytes), prepared.packet.pdfSha256);
-  const approved = await approveDebtValidationMatter({
+  const approved = await approveDebtValidationMatter({ reviewedTotalCents: prepared.packet.totalCents, reviewedMailClass: prepared.packet.mailClass,
     ownerId: "owner-1", matterId: "matter-1", repository,
     reviewedPdfSha256: prepared.packet.pdfSha256, userApprovedExactPacket: true,
   });
@@ -180,7 +180,7 @@ test("full offline debt-validation journey: notice/recipient/PDF changes fail be
   ];
   for (const [name, mutate] of changes) {
     const { state, repository, prepared } = await preparedStore();
-    await approveDebtValidationMatter({
+    await approveDebtValidationMatter({ reviewedTotalCents: prepared.packet.totalCents, reviewedMailClass: prepared.packet.mailClass,
       ownerId: "owner-1", matterId: "matter-1", repository,
       reviewedPdfSha256: prepared.packet.pdfSha256, userApprovedExactPacket: true,
     });
