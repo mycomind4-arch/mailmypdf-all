@@ -18,6 +18,7 @@ import {
   changeLocalRecipient,
   confirmLocalRecipient,
   emptyDebtValidationIntake,
+  localDebtValidationLetterDate,
   replaceLocalNotice,
   readLocalDebtValidationNoticePdf,
   revokeLocalRecipientConfirmation,
@@ -36,7 +37,7 @@ export function DebtValidationStart() {
   const [noticeFileName, setNoticeFileName] = useState("");
   const [fileError, setFileError] = useState("");
   const [confirmError, setConfirmError] = useState("");
-  const [letterDate, setLetterDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [letterDate, setLetterDate] = useState(() => localDebtValidationLetterDate());
   const fileGeneration = useRef(0);
   const pdfGeneration = useRef(0);
   const [pdfBusy, setPdfBusy] = useState(false);
