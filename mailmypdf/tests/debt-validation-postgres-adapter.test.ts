@@ -1,4 +1,4 @@
-import { createDebtValidationHostReviewAndApprovalHandlers } from "../src/lib/secure-core/debt-validation-host-review.server";
+import { createDebtValidationHostCheckoutHandler, createDebtValidationHostReviewAndApprovalHandlers } from "../src/lib/secure-core/debt-validation-host-review.server";
 import { AuthenticationError } from "../src/lib/secure-core/auth.server";
 import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler, createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import assert from "node:assert/strict";
@@ -1566,4 +1566,65 @@ test("debt-validation host auth bridge scopes review and approval to verified be
   assert.equal(state.rows[0]?.checkout_key, null, "review/approval cannot reserve an order");
   assert.deepEqual(Object.keys(handlers).sort(), ["approval", "review"],
     "the host bridge must not expose checkout or a mailing provider");
+});
+
+
+test("debt-validation host checkout bridge binds verified owner, explicit consent and one sandbox-only claim", async (t) => {
+  // Host identity -> HTTP checkout -> isolated PGlite order claim. The only
+  // provider callbacks are local counters; no route, Stripe or Lob is mounted.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const verifyUser = async (request: Request) => {
+    const bearer = request.headers.get("authorization");
+    if (bearer === "Bearer owner-a") return { user: { id: owner } };
+    if (bearer === "Bearer owner-b") return { user: { id: other } };
+    throw new AuthenticationError("Synthetic invalid bearer");
+  };
+  const approval = createDebtValidationHostReviewAndApprovalHandlers(
+    { repository, allowedOrigin: origin }, verifyUser,
+  ).approval;
+  let submissions = 0;
+  let receiptReads = 0;
+  const checkout = createDebtValidationHostCheckoutHandler({
+    repository, allowedOrigin: origin,
+    submitNewClaim: async () => { submissions++; return "pending" as const; },
+    reconcileClaim: async () => { receiptReads++; return "pending" as const; },
+  }, verifyUser);
+  const reviewed = {
+    matterId: matter, reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+  };
+  const post = (handler: (request: Request) => Promise<Response>, body: Record<string, unknown>,
+    authorization = "Bearer owner-a", requestOrigin = origin,
+    route = "/api/debt-validation/checkout") => handler(new Request(origin + route, {
+      method: "POST",
+      headers: { authorization, origin: requestOrigin, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  const checkoutBody = { ...reviewed, userConfirmedCheckout: true };
+  assert.equal((await post(checkout, checkoutBody)).status, 409,
+    "a verified owner cannot checkout before explicit approval");
+  assert.equal((await post(checkout, checkoutBody, "")).status, 401);
+  assert.equal((await post(checkout, checkoutBody, "Bearer owner-b")).status, 409);
+  assert.equal((await post(checkout, checkoutBody, "Bearer owner-a", "https://evil.example")).status, 403);
+  assert.equal((await post(checkout, { ...checkoutBody, userConfirmedCheckout: false })).status, 400);
+  assert.equal((await post(checkout, { ...checkoutBody, ownerId: other })).status, 400);
+  assert.equal(submissions, 0);
+  assert.equal(receiptReads, 0);
+
+  const approved = await post(approval, { ...reviewed, userApprovedExactPacket: true },
+    "Bearer owner-a", origin, "/api/debt-validation/approval");
+  assert.equal(approved.status, 200, "only exact packet and quote may be approved");
+  assert.equal(submissions, 0, "approval is never provider authorization");
+  assert.equal((await post(checkout, checkoutBody)).status, 202);
+  assert.equal((await post(checkout, checkoutBody)).status, 202);
+  assert.equal(submissions, 1, "one durable claim triggers only one sandbox callback");
+  assert.equal(receiptReads, 1, "retries reconcile without submitting again");
+  const state = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.match(state.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
