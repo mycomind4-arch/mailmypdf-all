@@ -11,6 +11,7 @@ import { createLocalDebtValidationPdfPreview } from "../../dispute-mail/workflow
 import { prepareDebtValidationMatterPacket } from "../../dispute-mail/workflows/debt-validation/server-packet-preparation";
 import {
   createPostgresDebtValidationMatterRepository,
+  createPostgresDebtValidationReceiptLedger,
   prepareAndPersistDebtValidationMatter,
   type DebtValidationSqlDatabase,
 } from "../src/lib/secure-core/debt-validation-postgres.server";
@@ -38,6 +39,16 @@ const schema = String.raw`
     approval jsonb,
     checkout_key text,
     PRIMARY KEY (owner_id, matter_id)
+  );
+  CREATE TABLE debt_validation_checkout_receipts (
+    owner_id text NOT NULL,
+    matter_id text NOT NULL,
+    checkout_key text NOT NULL,
+    kind text NOT NULL CHECK (kind IN ('payment','mailing')),
+    provider text NOT NULL,
+    provider_reference text NOT NULL,
+    evidence_sha256 text NOT NULL,
+    PRIMARY KEY (owner_id,matter_id,checkout_key,kind)
   );
 `;
 const owner = "synthetic-owner-a";
@@ -1749,4 +1760,101 @@ test("PostgreSQL debt validation: changed return identity revokes reviewed envel
     );
     assert.equal(stored.rows[0]?.checkout_key, null, label + " cannot reserve checkout");
   }
+});
+
+
+test("PostgreSQL debt validation: durable two-stage mock provider receipts reconcile without resubmission", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_001", evidenceSha256: "a".repeat(64),
+  };
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_001", evidenceSha256: "b".repeat(64),
+  };
+
+  // A provider acknowledgement cannot be invented before an atomic order
+  // reservation, even by a caller that knows the expected idempotency key.
+  await assert.rejects(
+    ledger.record(owner, matter, verified, payment),
+    /debt_validation_receipt_claim_mismatch/,
+  );
+  let mockedProviderSubmissions = 0;
+  const submit = async () => {
+    mockedProviderSubmissions += 1;
+    return "pending" as const;
+  };
+  const reconcile = async (claim: typeof verified) =>
+    (await ledger.reconcile(owner, matter, claim)).status;
+  const first = await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: submit, replayCheckout: reconcile,
+  });
+  assert.equal(first, "pending");
+  assert.equal(mockedProviderSubmissions, 1);
+  assert.deepEqual(await ledger.reconcile(owner, matter, verified), {
+    status: "pending", payment: null, mailing: null,
+  });
+
+  await ledger.record(owner, matter, verified, payment);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "pending",
+    "a payment acknowledgement alone must not be represented as mailing");
+  assert.equal(await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: submit, replayCheckout: reconcile,
+  }), "pending");
+  assert.equal(mockedProviderSubmissions, 1, "retry must not submit to a provider");
+
+  await ledger.record(owner, matter, verified, mailing);
+  const complete = await ledger.reconcile(owner, matter, verified);
+  assert.equal(complete.status, "recorded");
+  assert.deepEqual(complete.payment, payment);
+  assert.deepEqual(complete.mailing, mailing);
+  assert.equal(await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: submit, replayCheckout: reconcile,
+  }), "recorded");
+  assert.equal(mockedProviderSubmissions, 1);
+
+  // Exact receipt retries are idempotent; contradictory receipts, wrong owner
+  // or wrong checkout key must not alter the durable evidence.
+  await ledger.record(owner, matter, verified, payment);
+  await assert.rejects(
+    ledger.record(owner, matter, verified, { ...payment, providerReference: "pi_different" }),
+    /debt_validation_conflicting_provider_receipt/,
+  );
+  await assert.rejects(
+    ledger.record(other, matter, verified, mailing),
+    /debt_validation_receipt_claim_mismatch/,
+  );
+  await assert.rejects(
+    ledger.record(owner, matter, { ...verified, idempotencyKey: "wrong" }, mailing),
+    /debt_validation_receipt_claim_mismatch/,
+  );
+  await assert.rejects(
+    ledger.record(owner, matter, verified, { ...mailing, evidenceSha256: "invalid" }),
+    /debt_validation_invalid_provider_receipt/,
+  );
+  const persisted = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(persisted.rows.map((row) => row.kind).sort(), ["mailing", "payment"]);
+  assert.equal(mockedProviderSubmissions, 1);
 });
