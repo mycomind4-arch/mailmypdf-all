@@ -1,4 +1,4 @@
-import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
+import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler, createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -204,6 +204,56 @@ test("debt-validation real generated physical-mail packet traverses isolated app
   const authenticate = async (request: Request) =>
     request.headers.get("authorization") === "Bearer synthetic-owner-a"
       ? { id: owner } : null;
+  // The authenticated customer must be able to inspect the exact persisted
+  // server PDF, not merely a browser-generated approximation, before consent.
+  // The review boundary is read-only: no approval, order or provider call.
+  const review = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin, repository,
+    authenticate: async (request) => {
+      const authorization = request.headers.get("authorization");
+      return authorization === "Bearer synthetic-owner-a" ? { id: owner }
+        : authorization === "Bearer synthetic-owner-b" ? { id: other } : null;
+    },
+  });
+  const reviewUrl = origin + "/api/debt-validation/review?matterId=" + encodeURIComponent(matter);
+  const reviewRequest = (authorization = "Bearer synthetic-owner-a", headers: Record<string, string> = {}) =>
+    new Request(reviewUrl, { headers: { authorization, ...headers } });
+  assert.equal((await review(new Request(reviewUrl))).status, 401, "unauthenticated PDF review denied");
+  assert.equal((await review(reviewRequest("Bearer synthetic-owner-b"))).status, 404,
+    "other customer cannot read this matter's packet");
+  assert.equal((await review(reviewRequest("Bearer synthetic-owner-a", { "sec-fetch-site": "cross-site" }))).status, 403,
+    "cross-site embedding cannot request private review bytes");
+  assert.equal((await review(new Request(reviewUrl + "&ownerId=" + other, {
+    headers: { authorization: "Bearer synthetic-owner-a" },
+  }))).status, 400, "browser cannot select an owner for review");
+  const previewResponse = await review(reviewRequest());
+  assert.equal(previewResponse.status, 200);
+  assert.equal(previewResponse.headers.get("content-type"), "application/pdf");
+  assert.match(previewResponse.headers.get("cache-control") ?? "", /no-store/);
+  assert.equal(previewResponse.headers.get("x-reviewed-pdf-sha256"), storedPacket.pdfSha256);
+  assert.equal(previewResponse.headers.get("x-reviewed-total-cents"), String(quote.totalCents));
+  assert.equal(previewResponse.headers.get("x-reviewed-mail-class"), "certified");
+  assert.equal(sha(new Uint8Array(await previewResponse.arrayBuffer())), storedPacket.pdfSha256,
+    "the bytes shown to the user are the exact server-persisted approved candidate");
+  const beforeReviewApproval = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(beforeReviewApproval.rows[0]?.approval, null, "preview does not grant consent");
+  assert.equal(beforeReviewApproval.rows[0]?.checkout_key, null, "preview does not reserve checkout");
+
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("tampered packet bytes")],
+  );
+  const tamperedPreview = await review(reviewRequest());
+  assert.equal(tamperedPreview.status, 409, "tampered PDF cannot be presented as the reviewed packet");
+  assert.equal((await tamperedPreview.json()).code, "debt_validation_persisted_pdf_changed");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, prepared.pdfBytes],
+  );
+
   const post = (route: string, body: Record<string, unknown>) =>
     new Request(origin + route, {
       method: "POST",
