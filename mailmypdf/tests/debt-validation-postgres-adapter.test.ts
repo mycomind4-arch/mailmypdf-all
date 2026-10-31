@@ -1860,6 +1860,77 @@ test("PostgreSQL debt validation: durable two-stage mock provider receipts recon
 });
 
 
+test("PostgreSQL debt validation: mailing receipt requires prior payment evidence on the same claim", async (t) => {
+  // All provider evidence and the database are synthetic and offline.
+  // This ledger ordering rule is not a substitute for a pre-Lob payment gate.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  let mockSubmissions = 0;
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { mockSubmissions++; return "pending" as const; },
+  });
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_ordering", evidenceSha256: "a".repeat(64),
+  };
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_ordering", evidenceSha256: "b".repeat(64),
+  };
+  await assert.rejects(
+    ledger.record(owner, matter, verified, mailing),
+    /debt_validation_payment_receipt_required/,
+    "a claimed order without payment evidence cannot record mailing completion",
+  );
+  assert.deepEqual(await ledger.reconcile(owner, matter, verified), {
+    status: "pending", payment: null, mailing: null,
+  });
+  const noPrematureMail = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(noPrematureMail.rows.length, 0);
+
+  // Simulate a legacy/corrupted row that bypassed the write guard. The
+  // read-only reconciliation path must refuse to certify it as progress.
+  await db.query(
+    "INSERT INTO debt_validation_checkout_receipts " +
+      "(owner_id,matter_id,checkout_key,kind,provider,provider_reference,evidence_sha256) " +
+      "VALUES ($1,$2,$3,'mailing',$4,$5,$6)",
+    [owner, matter, verified.idempotencyKey, mailing.provider,
+      mailing.providerReference, mailing.evidenceSha256],
+  );
+  await assert.rejects(
+    ledger.reconcile(owner, matter, verified),
+    /debt_validation_payment_receipt_required/,
+  );
+  await db.query(
+    "DELETE FROM debt_validation_checkout_receipts " +
+      "WHERE owner_id=$1 AND matter_id=$2 AND kind='mailing'",
+    [owner, matter],
+  );
+  await ledger.record(owner, matter, verified, payment);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "pending");
+  await ledger.record(owner, matter, verified, mailing);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
+  assert.equal(mockSubmissions, 1, "ledger reads and writes cannot resubmit providers");
+});
+
 test("debt-validation host checkout isolates identical matter IDs and PDF hashes across owners", async (t) => {
   // Identical matter IDs, source bytes, reviewed PDF and quote must never
   // collapse two authenticated customers into one physical-mailing claim.
