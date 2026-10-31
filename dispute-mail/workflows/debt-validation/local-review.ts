@@ -6,6 +6,25 @@ import {
 } from "./domain";
 
 /**
+ * The date printed on a locally drafted letter must match the customer's
+ * calendar day, not UTC. At 6:55 p.m. Pacific, toISOString() is already
+ * tomorrow; that would misdate the actual letter and PDF packet preview.
+ * An optional IANA zone makes boundary regressions deterministic in CI.
+ */
+export function localDebtValidationLetterDate(now: Date = new Date(), timeZone?: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
+  }).formatToParts(now);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  const year = value("year");
+  const month = value("month");
+  const day = value("day");
+  if (!year || !month || !day) throw new Error("Cannot determine local letter date.");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Local-only drafting state. A browser-selected notice is NOT an authenticated,
  * owner-scoped document and cannot authorize server approval or checkout.
  */
