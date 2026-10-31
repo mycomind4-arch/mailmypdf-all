@@ -169,17 +169,40 @@ test("PostgreSQL debt validation: no confirmation and replaced PDF fail before a
 
 test("PostgreSQL debt validation: changed recipient, controlling notice or PDF blocks checkout and all mocked providers", async (t) => {
   const changes: Array<[string, (db: PGlite) => Promise<unknown>]> = [
-    ["recipient", async (db) => {
+    ["recipient confirmation revoked", async (db) => {
       const modified = fixture().currentIntake;
       modified.recipientConfirmed = false;
       return db.query("UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
         [owner, matter, JSON.stringify(modified)]);
     }],
-    ["controlling notice", async (db) => {
-      const modified = fixture().trustedNotice;
-      modified.sha256 = "c".repeat(64);
-      return db.query("UPDATE debt_validation_matter_snapshots SET trusted_notice=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
-        [owner, matter, JSON.stringify(modified)]);
+    ["recipient replaced with synchronized, valid notice fields", async (db) => {
+      const modified = fixture();
+      const alternate = "Example Collections\nPO Box 999\nAustin, TX 78701";
+      modified.currentIntake.collectorResponseAddress = alternate;
+      modified.currentIntake.noticeResponseAddress = alternate;
+      modified.currentIntake.confirmedRecipientAddress = alternate;
+      modified.trustedNotice.responseMailingAddress = alternate;
+      modified.packet.recipientAddress = alternate;
+      modified.packet.intakeSha256 = debtValidationIntakeSha256(modified.currentIntake);
+      return db.query(
+        "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb,trusted_notice=$4::jsonb,packet=$5::jsonb WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, JSON.stringify(modified.currentIntake),
+          JSON.stringify(modified.trustedNotice), JSON.stringify(modified.packet)],
+      );
+    }],
+    ["controlling notice replaced with synchronized, valid notice fields", async (db) => {
+      const modified = fixture();
+      const replacementSha = "c".repeat(64);
+      modified.currentIntake.noticeSha256 = replacementSha;
+      modified.currentIntake.confirmedNoticeSha256 = replacementSha;
+      modified.trustedNotice.sha256 = replacementSha;
+      modified.packet.noticeSha256 = replacementSha;
+      modified.packet.intakeSha256 = debtValidationIntakeSha256(modified.currentIntake);
+      return db.query(
+        "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb,trusted_notice=$4::jsonb,packet=$5::jsonb WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, JSON.stringify(modified.currentIntake),
+          JSON.stringify(modified.trustedNotice), JSON.stringify(modified.packet)],
+      );
     }],
     ["PDF bytes", async (db) =>
       db.query("UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
