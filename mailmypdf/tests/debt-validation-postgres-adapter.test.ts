@@ -37,6 +37,7 @@ const matter = "synthetic-matter-1";
 const address = "Example Collections\nPO Box 456\nAustin, TX 78701";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const pdf = new TextEncoder().encode("%PDF-1.4\nSynthetic reviewed packet\n%%EOF");
+const bytea = (bytes: Uint8Array) => "\\x" + Buffer.from(bytes).toString("hex");
 
 function fixture(ownerId = owner): DebtValidationMatterSnapshot {
   const noticeSha = "a".repeat(64);
@@ -90,9 +91,9 @@ async function setup() {
   const repository = createPostgresDebtValidationMatterRepository(sql);
   const seed = async (ownerId = owner, snapshot = fixture(ownerId), bytes = pdf) =>
     db.query(
-      "INSERT INTO debt_validation_matter_snapshots (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6)",
+      "INSERT INTO debt_validation_matter_snapshots (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea)",
       [ownerId, matter, JSON.stringify(snapshot.currentIntake),
-        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytes],
+        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytea(bytes)],
     );
   const approve = (ownerId = owner) => approveDebtValidationMatter({
     ownerId, matterId: matter, repository,
@@ -106,7 +107,7 @@ test("PostgreSQL debt validation: exact owner-scoped bytes, approval and one dur
   const { db, repository, seed, approve } = await setup();
   t.after(() => db.close());
   await seed();
-  assert.deepEqual(await repository.loadPacketPdfBytes(owner, matter), pdf);
+  assert.equal(sha((await repository.loadPacketPdfBytes(owner, matter))!), sha(pdf));
   const binding = await approve();
   assert.equal(binding.pdfSha256, sha(pdf));
   let providerSubmissions = 0;
@@ -157,8 +158,8 @@ test("PostgreSQL debt validation: no confirmation and replaced PDF fail before a
   );
   assert.equal(rows.rows[0]?.approval, null);
   await db.query(
-    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb,pdf_bytes=$4 WHERE owner_id=$1 AND matter_id=$2",
-    [owner, matter, JSON.stringify(fixture().currentIntake), new TextEncoder().encode("replaced PDF")],
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb,pdf_bytes=$4::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify(fixture().currentIntake), bytea(new TextEncoder().encode("replaced PDF"))],
   );
   await assert.rejects(approve(), /debt_validation_persisted_pdf_changed/);
   rows = await db.query("SELECT approval FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2", [owner, matter]);
@@ -181,8 +182,8 @@ test("PostgreSQL debt validation: changed recipient, controlling notice or PDF b
         [owner, matter, JSON.stringify(modified)]);
     }],
     ["PDF bytes", async (db) =>
-      db.query("UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
-        [owner, matter, new TextEncoder().encode("changed PDF")])],
+      db.query("UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, bytea(new TextEncoder().encode("changed PDF"))])],
   ];
   for (const [name, change] of changes) {
     const { db, repository, seed, approve } = await setup();
