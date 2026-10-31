@@ -427,6 +427,46 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       });
     },
 
+    /**
+     * Read-only pre-mailing gate for a trusted host adapter. A durable checkout
+     * claim alone is NOT payment: require an actual recorded payment receipt
+     * for the exact owner/order while rechecking source notice, recipient,
+     * reviewed PDF and approval under the same row lock.
+     *
+     * This only validates evidence already accepted into the local ledger.
+     * The future provider adapter must independently authenticate Stripe's
+     * payment event, enforce provider idempotency, and revalidate authorization
+     * immediately before Lob submission. No provider is called here.
+     */
+    async requireRecordedPaymentForMailing(
+      ownerId: string,
+      matterId: string,
+      verified: VerifiedDebtValidationReceiptClaim,
+    ): Promise<DebtValidationProviderReceipt> {
+      requireScope(ownerId, matterId);
+      return db.transaction(async (tx) => {
+        const row = await readRow(tx, ownerId, matterId, true);
+        assertReceiptClaim(row, ownerId, matterId, verified);
+        const paid = await tx.query(
+          "SELECT provider,provider_reference,evidence_sha256 " +
+            "FROM debt_validation_checkout_receipts " +
+            "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='payment'",
+          [ownerId, matterId, verified.idempotencyKey],
+        );
+        if (paid.rows.length !== 1) {
+          throw new Error("debt_validation_payment_receipt_required");
+        }
+        const receipt: DebtValidationProviderReceipt = {
+          kind: "payment",
+          provider: paid.rows[0]!.provider as string,
+          providerReference: paid.rows[0]!.provider_reference as string,
+          evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
+        };
+        validateProviderReceipt(receipt);
+        return normalizeReceipt(receipt);
+      });
+    },
+
     /** Read-only reconciliation; never calls a payment or mailing provider. */
     async reconcile(
       ownerId: string,
