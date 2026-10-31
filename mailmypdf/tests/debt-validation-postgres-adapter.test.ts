@@ -1244,3 +1244,57 @@ test("debt-validation HTTP checkout: in-flight provider submission permits recei
   assert.equal(submissions, 1);
   assert.equal(receiptLookups, 1);
 });
+
+
+test("PostgreSQL debt validation: existing checkout claim cannot reconcile a silently replaced controlling notice", async (t) => {
+  // A receipt-only retry must not bypass the current controlling-notice
+  // integrity check just because a durable checkout key already exists.
+  // Synthetic PGlite bytes only: no payment, mailing, or hosted database.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  let providerSubmissions = 0;
+  let receiptLookups = 0;
+  const checkout = () => checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async ({ idempotencyKey }) => {
+      providerSubmissions++;
+      return idempotencyKey;
+    },
+    replayCheckout: async ({ idempotencyKey }) => {
+      receiptLookups++;
+      return idempotencyKey;
+    },
+  });
+  const originalKey = await checkout();
+  assert.match(originalKey, /^debt_validation_checkout_[a-f0-9]{64}$/);
+  assert.equal(providerSubmissions, 1);
+
+  // Replace only the original notice bytes; leave its SHA, revision, document
+  // ID, approved packet and existing checkout key untouched.
+  const replacedNotice = new TextEncoder().encode("%PDF-1.4\\nDifferent controlling notice\\n%%EOF");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, replacedNotice],
+  );
+  await assert.rejects(checkout(), /debt_validation_persisted_notice_changed/);
+  assert.equal(providerSubmissions, 1, "tampered notice cannot trigger a second provider submission");
+  assert.equal(receiptLookups, 0, "tampered notice cannot even authorize receipt reconciliation");
+  const afterTamper = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(afterTamper.rows[0]?.checkout_key, originalKey,
+    "failed retry cannot replace or clear the durable order claim");
+
+  // Restoring the exact original notice permits receipt-only idempotent retry.
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  assert.equal(await checkout(), originalKey);
+  assert.equal(providerSubmissions, 1, "a valid retry still cannot submit twice");
+  assert.equal(receiptLookups, 1, "valid retry uses the read-only receipt adapter");
+});
