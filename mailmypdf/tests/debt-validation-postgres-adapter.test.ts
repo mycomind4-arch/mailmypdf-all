@@ -1952,6 +1952,20 @@ test("PostgreSQL debt validation: mailing receipt requires prior payment evidenc
     ledger.reconcile(owner, matter, verified),
     /debt_validation_payment_receipt_required/,
   );
+  // A late payment must not launder a legacy/corrupted mailing-only row into
+  // an apparently completed checkout. The ledger must reject before writing.
+  await assert.rejects(
+    ledger.record(owner, matter, verified, payment),
+    /debt_validation_mailing_before_payment/,
+    "a late payment cannot repair a preexisting mailing-only acknowledgement",
+  );
+  const corruptRows = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(corruptRows.rows.map((row) => row.kind), ["mailing"],
+    "rejected payment must leave the corrupt state unchanged");
+  assert.equal(mockSubmissions, 1, "no additional mocked provider submission");
   await db.query(
     "DELETE FROM debt_validation_checkout_receipts " +
       "WHERE owner_id=$1 AND matter_id=$2 AND kind='mailing'",
