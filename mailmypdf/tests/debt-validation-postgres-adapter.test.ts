@@ -186,6 +186,42 @@ test("debt-validation review summary binds the exact physical envelope to the st
   assert.equal(state.rows[0]?.checkout_key, null, "review cannot reserve checkout");
 });
 
+test("debt-validation review requires a single source-and-packet snapshot, never split reads", async (t) => {
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const authenticate = async () => ({ id: owner });
+  const request = new Request(origin + "/api/debt-validation/review?matterId=" + matter);
+
+  // Split reads can observe a new controlling notice paired with an old PDF.
+  // The HTTP review path must not invoke either of these legacy methods.
+  repository.loadCurrent = async () => { throw new Error("split_notice_read_forbidden"); };
+  repository.loadPacketPdfBytes = async () => { throw new Error("split_packet_read_forbidden"); };
+  const handle = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+  });
+  const review = await handle(request);
+  assert.equal(review.status, 200);
+  assert.equal(sha(new Uint8Array(await review.arrayBuffer())), sha(pdf));
+
+  // A repository without a same-row read must fail closed, not fall back to
+  // separate queries or pretend that a preview is approval.
+  const withoutAtomicRead = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin, authenticate,
+    repository: { ...repository, loadReviewArtifact: undefined },
+  });
+  const blocked = await withoutAtomicRead(request);
+  assert.equal(blocked.status, 503);
+  assert.deepEqual(await blocked.json(), { code: "review_snapshot_unavailable" });
+  const rows = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(rows.rows[0]?.approval, null);
+  assert.equal(rows.rows[0]?.checkout_key, null);
+});
+
 test("debt-validation review isolates envelope summaries for owners sharing a matter ID", async (t) => {
   // Matter IDs are only unique within an owner. Even when the same PDF bytes,
   // collector and matter ID are used, the private return address and reviewed

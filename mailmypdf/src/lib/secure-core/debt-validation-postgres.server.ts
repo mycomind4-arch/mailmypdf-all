@@ -131,6 +131,21 @@ export function createPostgresDebtValidationMatterRepository(
   db: DebtValidationSqlDatabase,
 ): DebtValidationMatterRepository {
   return {
+    async loadReviewArtifact(ownerId, matterId) {
+      // Both source and generated packet bytes are selected in ONE statement,
+      // so the review cannot mix a notice from one revision with a PDF from
+      // another. Approval and checkout still recheck under their row locks.
+      const row = await readRow(db, ownerId, matterId, false);
+      if (!row) return null;
+      const stored = requireRow(row);
+      assertStoredControllingNotice(stored);
+      assertDebtValidationPersistedPdf(stored.pdf_bytes, stored.packet.pdfSha256);
+      return {
+        snapshot: current(stored),
+        pdfBytes: Uint8Array.from(stored.pdf_bytes),
+      };
+    },
+
     async loadCurrent(ownerId, matterId) {
       const row = await readRow(db, ownerId, matterId, false);
       if (!row) return null;

@@ -293,8 +293,16 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
       return response(400, "invalid_review_request");
     }
     try {
-      const snapshot = await deps.repository.loadCurrent(actor.id, matterId);
-      if (!snapshot) return response(404, "review_packet_not_found");
+      // A review must use one consistent owner-scoped row containing the
+      // controlling notice AND the exact PDF bytes. Separate reads could
+      // mix different revisions if a document changes between requests.
+      // Domain-only repositories lacking this capability cannot serve review.
+      if (!deps.repository.loadReviewArtifact) {
+        return response(503, "review_snapshot_unavailable");
+      }
+      const artifact = await deps.repository.loadReviewArtifact(actor.id, matterId);
+      if (!artifact) return response(404, "review_packet_not_found");
+      const { snapshot, pdfBytes: bytes } = artifact;
       // Only an internally consistent, notice-bound packet can be presented as
       // the server review artifact. This is NOT the user's approval action.
       createDebtValidationApprovalBinding({
@@ -305,7 +313,6 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
         packet: snapshot.packet,
         reviewedPdfSha256: snapshot.packet.pdfSha256,
       });
-      const bytes = await deps.repository.loadPacketPdfBytes(actor.id, matterId);
       assertDebtValidationPersistedPdf(bytes, snapshot.packet.pdfSha256);
       if (summaryRequested) {
         // The PDF alone does not tell a checkout UI which physical envelope

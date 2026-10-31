@@ -38,6 +38,20 @@ export interface DebtValidationCheckoutClaim {
 export interface DebtValidationMatterRepository {
   /** One consistent read from authenticated owner-scoped persistence. */
   loadCurrent(ownerId: string, matterId: string): Promise<DebtValidationMatterSnapshot | null>;
+  /**
+   * One consistent owner-scoped read of BOTH the controlling notice and
+   * reviewed PDF bytes. The adapter must rehash both stored byte arrays
+   * against their trusted digests before returning this review artifact.
+   * Composing loadCurrent and loadPacketPdfBytes is not a consistent read:
+   * the source notice could be replaced between those two queries.
+   *
+   * Optional for domain-only repositories; the HTTP review boundary MUST
+   * fail closed when this atomic review capability is unavailable.
+   */
+  loadReviewArtifact?(ownerId: string, matterId: string): Promise<{
+    snapshot: DebtValidationMatterSnapshot;
+    pdfBytes: Uint8Array;
+  } | null>;
   /** Atomic compare-and-insert: recheck the owner-scoped binding with assertDebtValidationApprovalCommit AND rehash the persisted PDF with assertDebtValidationPersistedPdf inside the same approval transaction. A matterVersion-only compare is insufficient. */
   persistApproval(
     ownerId: string,
