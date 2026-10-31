@@ -130,6 +130,60 @@ function sqlFromDb(db: PGlite): DebtValidationSqlDatabase {
   };
 }
 
+test("debt-validation review summary binds the exact physical envelope to the stored PDF and quote", async (t) => {
+  // Isolated PGlite; the summary must be useful for a future authenticated
+  // approval UI without trusting any browser-supplied postal or price fields.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const handle = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin, repository,
+    authenticate: async (request) => request.headers.get("authorization") === "Bearer owner-a"
+      ? { id: owner } : request.headers.get("authorization") === "Bearer owner-b"
+        ? { id: other } : null,
+  });
+  const url = origin + "/api/debt-validation/review?view=summary&matterId=" + matter;
+  const request = (authorization = "Bearer owner-a", suffix = "") =>
+    new Request(url + suffix, { headers: { authorization } });
+  assert.equal((await handle(request(""))).status, 401);
+  assert.equal((await handle(request("Bearer owner-b"))).status, 404,
+    "another owner must not see the collector's postal address or quote");
+  assert.equal((await handle(request("Bearer owner-a", "&recipientAddress=attacker"))).status, 400,
+    "browser-selected envelope fields must never be accepted");
+  assert.equal((await handle(request("Bearer owner-a", "&view=summary"))).status, 400,
+    "duplicate query keys must fail closed");
+  const summary = await handle(request());
+  assert.equal(summary.status, 200);
+  assert.match(summary.headers.get("content-type") ?? "", /application\/json/);
+  assert.match(summary.headers.get("cache-control") ?? "", /no-store/);
+  assert.deepEqual(await summary.json(), {
+    code: "review_ready",
+    matterId: matter,
+    pdfSha256: sha(pdf),
+    totalCents: 1499,
+    mailClass: "certified",
+    recipientAddress: address,
+    returnAddress: "Synthetic Consumer\n123 Example St\nSacramento, CA 95814",
+    noticeDocumentId: "notice-1",
+    noticeSha256: sha(sourceNoticePdf),
+    noticeVersion: 1,
+  });
+  // The summary cannot rely on unchanged metadata if the controlling notice
+  // bytes were replaced; neither a false review nor an order is permitted.
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("%PDF-1.4\nDifferent notice\n%%EOF")],
+  );
+  assert.equal((await handle(request())).status, 409);
+  const state = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(state.rows[0]?.approval, null, "review cannot grant approval");
+  assert.equal(state.rows[0]?.checkout_key, null, "review cannot reserve checkout");
+});
+
 test("debt-validation HTTP read-only review rejects silently replaced controlling notice bytes", async (t) => {
   // The persisted letter may still hash correctly while the controlling
   // collection notice has been replaced without updating its metadata.

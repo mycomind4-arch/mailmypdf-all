@@ -280,8 +280,15 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
     }
     if (!actor?.id?.trim()) return response(401, "authentication_required");
     const entries = Array.from(url.searchParams.entries());
-    const matterId = entries.length === 1 && entries[0]?.[0] === "matterId"
-      ? entries[0][1] : "";
+    const matterValues = url.searchParams.getAll("matterId");
+    const viewValues = url.searchParams.getAll("view");
+    const summaryRequested = viewValues.length === 1 && viewValues[0] === "summary";
+    // Accept exactly one owner-scoped matter ID, optionally requesting the
+    // read-only envelope/quote summary. Never accept client-selected recipients,
+    // owners, prices, duplicate keys, or arbitrary review options.
+    const validQuery = matterValues.length === 1
+      && (entries.length === 1 || (entries.length === 2 && summaryRequested));
+    const matterId = validQuery ? matterValues[0] : "";
     if (!matterId.trim() || matterId.length > 200) {
       return response(400, "invalid_review_request");
     }
@@ -300,6 +307,32 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
       });
       const bytes = await deps.repository.loadPacketPdfBytes(actor.id, matterId);
       assertDebtValidationPersistedPdf(bytes, snapshot.packet.pdfSha256);
+      if (summaryRequested) {
+        // The PDF alone does not tell a checkout UI which physical envelope
+        // destination and return address the server will use. Bind those
+        // review facts to the same owner-scoped, verified PDF and quote.
+        // This GET is read-only: it cannot approve, charge, or submit mail.
+        const intake = snapshot.currentIntake;
+        return new Response(JSON.stringify({
+          code: "review_ready",
+          matterId,
+          pdfSha256: snapshot.packet.pdfSha256,
+          totalCents: snapshot.packet.totalCents,
+          mailClass: snapshot.packet.mailClass,
+          recipientAddress: snapshot.packet.recipientAddress,
+          returnAddress: [intake.consumerName.trim(), intake.consumerMailingAddress.trim()].join("\n"),
+          noticeDocumentId: snapshot.packet.noticeDocumentId,
+          noticeSha256: snapshot.packet.noticeSha256,
+          noticeVersion: snapshot.packet.noticeVersion,
+        }), {
+          status: 200,
+          headers: {
+            ...headers,
+            "referrer-policy": "no-referrer",
+            "x-robots-tag": "noindex, nofollow",
+          },
+        });
+      }
       // Copy the bytes to avoid returning a mutable repository buffer.
       const payload = Uint8Array.from(bytes!);
       return new Response(payload.buffer as ArrayBuffer, {
