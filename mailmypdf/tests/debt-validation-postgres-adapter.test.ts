@@ -343,6 +343,49 @@ test("PostgreSQL debt validation: PDF replaced after checkout preflight blocks a
 });
 
 
+test("PostgreSQL debt validation: controlling notice replaced after checkout preflight blocks atomic claim", async (t) => {
+  const { db, repository, seed, approve, armBeforeTransaction } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  // All preflight metadata and original bytes still match. Replace only the
+  // stored controlling notice bytes immediately before the locked transaction,
+  // without changing its declared SHA, document ID, revision or matter version.
+  armBeforeTransaction(async () => {
+    await db.query(
+      "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, new TextEncoder().encode("synthetic notice substituted after checkout preflight")],
+    );
+  });
+
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  let replayCalls = 0;
+  await assert.rejects(checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => {
+      stripeCalls++;
+      lobCalls++;
+      return "must-not-submit";
+    },
+    replayCheckout: async () => {
+      replayCalls++;
+      return "must-not-reconcile";
+    },
+  }), /debt_validation_persisted_notice_changed/);
+
+  assert.equal(stripeCalls, 0, "no mocked payment submission after notice substitution");
+  assert.equal(lobCalls, 0, "no mocked mail submission after notice substitution");
+  assert.equal(replayCalls, 0, "no receipt lookup without a durable claim");
+  const stored = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(stored.rows[0]?.checkout_key, null, "no checkout claim committed");
+});
+
+
 test("PostgreSQL debt validation: failed first provider callback cannot resubmit on retry", async (t) => {
   const { db, repository, seed, approve } = await setup();
   t.after(() => db.close());
