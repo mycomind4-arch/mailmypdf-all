@@ -277,3 +277,161 @@ export async function prepareAndPersistDebtValidationMatter(
   }
   return prepared.packet;
 }
+
+
+/**
+ * Offline-testable, durable provider-receipt reconciliation primitive.
+ *
+ * This does NOT submit a charge or a letter. Only trusted server callbacks
+ * holding the exact durable checkout claim may record immutable provider
+ * acknowledgements. Payment and mailing are separate stages: one receipt
+ * never proves the other, and neither is proof of postal delivery.
+ *
+ * The companion table exists only in the isolated PGlite fixture. There is
+ * deliberately no production migration, HTTP route, Stripe or Lob adapter.
+ */
+export interface DebtValidationProviderReceipt {
+  kind: "payment" | "mailing";
+  provider: string;
+  providerReference: string;
+  evidenceSha256: string;
+}
+
+export interface DebtValidationReceiptReconciliation {
+  status: "pending" | "recorded";
+  payment: DebtValidationProviderReceipt | null;
+  mailing: DebtValidationProviderReceipt | null;
+}
+
+type VerifiedDebtValidationReceiptClaim = {
+  binding: DebtValidationApprovalBinding;
+  idempotencyKey: string;
+  expectedMatterVersion: number;
+};
+
+function assertReceiptClaim(
+  row: StoredRow | null,
+  ownerId: string,
+  matterId: string,
+  verified: VerifiedDebtValidationReceiptClaim,
+): void {
+  if (!row?.approval || !verified?.binding ||
+      row.checkout_key !== verified.idempotencyKey ||
+      !sameBinding(row.approval, verified.binding) ||
+      row.approval.matterVersion !== verified.expectedMatterVersion ||
+      expectedCheckoutKey(ownerId, matterId, row.approval) !== verified.idempotencyKey) {
+    throw new Error("debt_validation_receipt_claim_mismatch");
+  }
+}
+
+function validateProviderReceipt(receipt: DebtValidationProviderReceipt): void {
+  if (!receipt || !["payment", "mailing"].includes(receipt.kind) ||
+      typeof receipt.provider !== "string" ||
+      !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(receipt.provider) ||
+      typeof receipt.providerReference !== "string" ||
+      !receipt.providerReference.trim() ||
+      receipt.providerReference.length > 256 ||
+      /[\u0000-\u001f\u007f]/.test(receipt.providerReference) ||
+      typeof receipt.evidenceSha256 !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(receipt.evidenceSha256)) {
+    throw new Error("debt_validation_invalid_provider_receipt");
+  }
+}
+
+function normalizeReceipt(receipt: DebtValidationProviderReceipt): DebtValidationProviderReceipt {
+  return {
+    kind: receipt.kind,
+    provider: receipt.provider,
+    providerReference: receipt.providerReference,
+    evidenceSha256: receipt.evidenceSha256.toLowerCase(),
+  };
+}
+
+export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlDatabase) {
+  return {
+    /**
+     * Record a trusted provider acknowledgement only for an existing atomic
+     * checkout claim. The row lock serializes competing receipt writes.
+     * Identical replays are read-only; conflicting evidence fails closed.
+     */
+    async record(
+      ownerId: string,
+      matterId: string,
+      verified: VerifiedDebtValidationReceiptClaim,
+      receipt: DebtValidationProviderReceipt,
+    ): Promise<void> {
+      requireScope(ownerId, matterId);
+      validateProviderReceipt(receipt);
+      const normalized = normalizeReceipt(receipt);
+      await db.transaction(async (tx) => {
+        const row = await readRow(tx, ownerId, matterId, true);
+        assertReceiptClaim(row, ownerId, matterId, verified);
+        const existing = await tx.query(
+          "SELECT provider,provider_reference,evidence_sha256 " +
+            "FROM debt_validation_checkout_receipts " +
+            "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind=$4",
+          [ownerId, matterId, verified.idempotencyKey, normalized.kind],
+        );
+        if (existing.rows.length > 1) {
+          throw new Error("debt_validation_duplicate_provider_receipt");
+        }
+        if (existing.rows.length === 1) {
+          const previous = existing.rows[0]!;
+          if (previous.provider !== normalized.provider ||
+              previous.provider_reference !== normalized.providerReference ||
+              previous.evidence_sha256 !== normalized.evidenceSha256) {
+            throw new Error("debt_validation_conflicting_provider_receipt");
+          }
+          return;
+        }
+        await tx.query(
+          "INSERT INTO debt_validation_checkout_receipts " +
+            "(owner_id,matter_id,checkout_key,kind,provider,provider_reference,evidence_sha256) " +
+            "VALUES ($1,$2,$3,$4,$5,$6,$7)",
+          [ownerId, matterId, verified.idempotencyKey, normalized.kind,
+            normalized.provider, normalized.providerReference, normalized.evidenceSha256],
+        );
+      });
+    },
+
+    /** Read-only reconciliation; never calls a payment or mailing provider. */
+    async reconcile(
+      ownerId: string,
+      matterId: string,
+      verified: VerifiedDebtValidationReceiptClaim,
+    ): Promise<DebtValidationReceiptReconciliation> {
+      const row = await readRow(db, ownerId, matterId, false);
+      assertReceiptClaim(row, ownerId, matterId, verified);
+      const results = await db.query(
+        "SELECT kind,provider,provider_reference,evidence_sha256 " +
+          "FROM debt_validation_checkout_receipts " +
+          "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3",
+        [ownerId, matterId, verified.idempotencyKey],
+      );
+      if (results.rows.length > 2) {
+        throw new Error("debt_validation_duplicate_provider_receipt");
+      }
+      const receipts = new Map<string, DebtValidationProviderReceipt>();
+      for (const item of results.rows) {
+        const receipt = {
+          kind: item.kind,
+          provider: item.provider,
+          providerReference: item.provider_reference,
+          evidenceSha256: item.evidence_sha256,
+        } as DebtValidationProviderReceipt;
+        validateProviderReceipt(receipt);
+        if (receipts.has(receipt.kind)) {
+          throw new Error("debt_validation_duplicate_provider_receipt");
+        }
+        receipts.set(receipt.kind, normalizeReceipt(receipt));
+      }
+      const payment = receipts.get("payment") ?? null;
+      const mailing = receipts.get("mailing") ?? null;
+      return {
+        status: payment && mailing ? "recorded" : "pending",
+        payment,
+        mailing,
+      };
+    },
+  };
+}
