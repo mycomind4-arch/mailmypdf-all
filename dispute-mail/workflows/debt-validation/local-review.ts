@@ -1,4 +1,4 @@
-import { validatePdfForMailing } from "@mailmypdf/packet-builder";
+import { validatePdfForReference } from "@mailmypdf/packet-builder";
 import {
   normalizeMailingAddress,
   validateDebtValidationIntake,
@@ -132,12 +132,12 @@ export async function readLocalDebtValidationNoticePdf(
     throw new Error("The selected notice is missing its PDF end marker.");
   }
   // A PDF header and %%EOF can be forged without a single parseable page.
-  // Use the canonical mail-safe parser, which also rejects encrypted, active,
-  // oversized or zero-page documents before the local source is fingerprinted.
+  // Use the canonical reference-PDF parser, which also rejects encrypted, active,
+  // oversized or zero-page documents before the local source is fingerprinted.\n  // Evidence-only source PDFs may exceed the 10-page outgoing-mail limit.
   try {
-    await validatePdfForMailing(new Uint8Array(bytes));
+    await validatePdfForReference(new Uint8Array(bytes));
   } catch {
-    throw new Error("The selected notice is not a safe, readable PDF with pages (maximum 10 pages).");
+    throw new Error("The selected notice is not a safe, readable PDF with pages (maximum 200 pages).");
   }
   return bytes;
 }
