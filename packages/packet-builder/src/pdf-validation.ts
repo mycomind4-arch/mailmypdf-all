@@ -54,7 +54,7 @@ export function findUnsafePdfFeature(bytes: Uint8Array): string | null {
   // them. A raw text scan alone misses /Java#53cript and /Encr#79pt.
   // Match complete PDF name tokens, so a benign /Java#53cripture is not
   // mistaken for the forbidden /JavaScript dictionary name.
-  const pdfName = /\\/(?:#[0-9a-fA-F]{2}|[^\\s()[\\]{}<>\\/%#])+/g;
+  const pdfName = /\/(?:#[0-9a-fA-F]{2}|[^\s()[\]{}<>/%#])+/g;
   for (const match of source.matchAll(pdfName)) {
     const rawName = match[0];
     if (!rawName.includes("#")) continue;
