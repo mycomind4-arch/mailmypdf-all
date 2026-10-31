@@ -50,6 +50,22 @@ export function findUnsafePdfFeature(bytes: Uint8Array): string | null {
     if (source.includes(token)) return `ActiveContent${token.replace("/", ".")}`;
   }
 
+  // PDF names decode #xx hexadecimal escapes before a reader interprets
+  // them. A raw text scan alone misses /Java#53cript and /Encr#79pt.
+  // Match complete PDF name tokens, so a benign /Java#53cripture is not
+  // mistaken for the forbidden /JavaScript dictionary name.
+  const pdfName = /\\/(?:#[0-9a-fA-F]{2}|[^\\s()[\\]{}<>\\/%#])+/g;
+  for (const match of source.matchAll(pdfName)) {
+    const rawName = match[0];
+    if (!rawName.includes("#")) continue;
+    const decodedName = rawName.replace(/#([0-9a-fA-F]{2})/g, (_escape, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)));
+    if (decodedName === "/Encrypt") return "Encrypted";
+    if (FORBIDDEN_PDF_TOKENS.some((token) => token === decodedName)) {
+      return `ActiveContent${decodedName.replace("/", ".")}`;
+    }
+  }
+
   const indirectObjectCount = source.match(/\b\d+\s+\d+\s+obj\b/g)?.length ?? 0;
   if (indirectObjectCount > MAX_INDIRECT_OBJECTS) return "TooManyObjects";
 
