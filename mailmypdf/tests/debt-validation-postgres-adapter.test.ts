@@ -184,6 +184,58 @@ test("debt-validation review summary binds the exact physical envelope to the st
   assert.equal(state.rows[0]?.checkout_key, null, "review cannot reserve checkout");
 });
 
+test("debt-validation review isolates envelope summaries for owners sharing a matter ID", async (t) => {
+  // Matter IDs are only unique within an owner. Even when the same PDF bytes,
+  // collector and matter ID are used, the private return address and reviewed
+  // envelope must come from the authenticated owner's stored intake.
+  // Isolated PGlite only: no production database, approval or provider calls.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed(owner);
+  const second = fixture(other);
+  second.currentIntake.consumerName = "Synthetic Consumer B";
+  second.currentIntake.consumerMailingAddress = "77 Test Road\nEureka, CA 95501";
+  second.packet.intakeSha256 = debtValidationIntakeSha256(second.currentIntake);
+  await seed(other, second);
+
+  const origin = "https://mailmypdf.example";
+  const review = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin, repository,
+    authenticate: async (request) =>
+      request.headers.get("authorization") === "Bearer owner-a" ? { id: owner }
+        : request.headers.get("authorization") === "Bearer owner-b" ? { id: other } : null,
+  });
+  const url = origin + "/api/debt-validation/review?matterId=" + matter + "&view=summary";
+  const read = async (token: string) => review(new Request(url, {
+    headers: { authorization: "Bearer " + token },
+  }));
+  const responseA = await read("owner-a");
+  const responseB = await read("owner-b");
+  assert.equal(responseA.status, 200);
+  assert.equal(responseB.status, 200);
+  const summaryA = await responseA.json();
+  const summaryB = await responseB.json();
+  assert.equal(summaryA.returnAddress, "Synthetic Consumer\n123 Example St\nSacramento, CA 95814");
+  assert.equal(summaryB.returnAddress, "Synthetic Consumer B\n77 Test Road\nEureka, CA 95501");
+  assert.equal(summaryA.recipientAddress, address);
+  assert.equal(summaryB.recipientAddress, address);
+  assert.equal(summaryA.pdfSha256, summaryB.pdfSha256,
+    "identical PDF digests do not collapse distinct owner-scoped review records");
+
+  const denied = await review(new Request(url + "&ownerId=" + other, {
+    headers: { authorization: "Bearer owner-a" },
+  }));
+  assert.equal(denied.status, 400, "the browser cannot select another owner's review");
+  const state = await db.query<{ owner_id: string; approval: unknown; checkout_key: string | null }>(
+    "SELECT owner_id,approval,checkout_key FROM debt_validation_matter_snapshots ORDER BY owner_id",
+  );
+  assert.equal(state.rows.length, 2);
+  for (const row of state.rows) {
+    assert.equal(row.approval, null, row.owner_id + ": review must not grant approval");
+    assert.equal(row.checkout_key, null, row.owner_id + ": review must not reserve mailing");
+  }
+});
+
 test("debt-validation HTTP read-only review rejects silently replaced controlling notice bytes", async (t) => {
   // The persisted letter may still hash correctly while the controlling
   // collection notice has been replaced without updating its metadata.
