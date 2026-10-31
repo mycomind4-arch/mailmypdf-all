@@ -322,6 +322,17 @@ function assertReceiptClaim(
       expectedCheckoutKey(ownerId, matterId, row.approval) !== verified.idempotencyKey) {
     throw new Error("debt_validation_receipt_claim_mismatch");
   }
+  // A durable order key is not sufficient after the source notice, recipient,
+  // or reviewed packet changes. Receipt writes AND read-only reconciliation
+  // must revalidate the exact approval against current owner-scoped bytes.
+  assertDebtValidationCheckoutBinding({
+    ownerId, matterId, binding: row.approval,
+    trustedNotice: row.trusted_notice,
+    packet: row.packet,
+    currentIntake: row.current_intake,
+  });
+  assertDebtValidationPersistedPdf(row.pdf_bytes, row.packet.pdfSha256);
+  assertStoredControllingNotice(row);
 }
 
 function validateProviderReceipt(receipt: DebtValidationProviderReceipt): void {
@@ -422,9 +433,13 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       matterId: string,
       verified: VerifiedDebtValidationReceiptClaim,
     ): Promise<DebtValidationReceiptReconciliation> {
-      const row = await readRow(db, ownerId, matterId, false);
+      // Keep the source/packet read and receipt lookup in one locked
+      // transaction; a concurrent notice replacement cannot turn a stale
+      // preflight into a false "recorded" reconciliation result.
+      return db.transaction(async (tx) => {
+      const row = await readRow(tx, ownerId, matterId, true);
       assertReceiptClaim(row, ownerId, matterId, verified);
-      const results = await db.query(
+      const results = await tx.query(
         "SELECT kind,provider,provider_reference,evidence_sha256 " +
           "FROM debt_validation_checkout_receipts " +
           "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3",
@@ -459,6 +474,7 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
         payment,
         mailing,
       };
+      });
     },
   };
 }
