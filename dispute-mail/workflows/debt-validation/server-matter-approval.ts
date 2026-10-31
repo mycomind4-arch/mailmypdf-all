@@ -143,14 +143,25 @@ export async function approveDebtValidationMatter(input: {
    * HTTP route must independently enforce authentication and CSRF defenses.
    */
   userApprovedExactPacket?: unknown;
+  /** Price and physical mail class shown to the authenticated user with the exact PDF. */
+  reviewedTotalCents?: unknown;
+  reviewedMailClass?: unknown;
   repository: DebtValidationMatterRepository;
 }): Promise<DebtValidationApprovalBinding> {
-  const { ownerId, matterId, reviewedPdfSha256, userApprovedExactPacket, repository } = input;
+  const { ownerId, matterId, reviewedPdfSha256, userApprovedExactPacket,
+    reviewedTotalCents, reviewedMailClass, repository } = input;
   identity(ownerId, matterId);
   if (userApprovedExactPacket !== true) {
     throw new Error("debt_validation_explicit_approval_required");
   }
   const snapshot = requireSnapshot(await repository.loadCurrent(ownerId, matterId));
+  // The PDF digest alone does not prove the customer reviewed the price or
+  // physical mail service. Bind both values to the same explicit approval.
+  if (!Number.isSafeInteger(reviewedTotalCents)
+    || reviewedTotalCents !== snapshot.packet.totalCents
+    || reviewedMailClass !== snapshot.packet.mailClass) {
+    throw new Error("debt_validation_reviewed_quote_mismatch");
+  }
   assertDebtValidationPersistedPdf(
     await repository.loadPacketPdfBytes(ownerId, matterId),
     snapshot.packet.pdfSha256,
