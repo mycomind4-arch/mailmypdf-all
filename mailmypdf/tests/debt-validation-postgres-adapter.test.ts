@@ -480,10 +480,17 @@ test("debt-validation real generated physical-mail packet traverses isolated app
 
   let submissions = 0;
   let reconciliations = 0;
+  // Exercise the same durable two-stage ledger as a future sandbox adapter,
+  // but with the REAL generated letter PDF and the HTTP approval/checkout
+  // boundaries rather than synthetic PDF bytes or direct domain calls.
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
   const checkout = createDebtValidationCheckoutHttpHandler({
     allowedOrigin: origin, repository, authenticate,
     submitNewClaim: async () => { submissions++; return "pending" as const; },
-    reconcileClaim: async () => { reconciliations++; return "pending" as const; },
+    reconcileClaim: async (verified) => {
+      reconciliations++;
+      return (await ledger.reconcile(owner, matter, verified)).status;
+    },
   });
   const requestCheckout = () => post("/api/debt-validation/checkout", {
     ...reviewed, userConfirmedCheckout: true,
@@ -498,6 +505,32 @@ test("debt-validation real generated physical-mail packet traverses isolated app
   );
   assert.equal(sha(stored.rows[0]!.pdf_bytes), storedPacket.pdfSha256);
   assert.match(stored.rows[0]!.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: stored.rows[0]!.checkout_key!,
+    expectedMatterVersion: binding.matterVersion,
+  };
+  await ledger.record(owner, matter, verified, {
+    kind: "payment", provider: "mock_stripe",
+    providerReference: "pi_generated_pdf", evidenceSha256: "a".repeat(64),
+  });
+  assert.equal((await checkout(requestCheckout())).status, 202,
+    "payment acknowledgement alone cannot certify a physical mailing");
+  assert.equal(submissions, 1, "receipt reconciliation cannot resubmit the order");
+  await ledger.record(owner, matter, verified, {
+    kind: "mailing", provider: "mock_lob",
+    providerReference: "letter_generated_pdf", evidenceSha256: "b".repeat(64),
+  });
+  const recorded = await checkout(requestCheckout());
+  assert.equal(recorded.status, 200, "both durable provider acknowledgements reconcile");
+  assert.deepEqual(await recorded.json(), { code: "checkout_claim_recorded" });
+  assert.equal(submissions, 1, "full HTTP journey must submit the mock order only once");
+  assert.equal(reconciliations, 3, "subsequent requests use read-only receipt reconciliation");
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
+  // A recorded mock Lob acknowledgement is not postal acceptance or delivery.
 });
 
 test("PostgreSQL debt validation: exact owner-scoped bytes, approval and one durable checkout claim", async (t) => {
