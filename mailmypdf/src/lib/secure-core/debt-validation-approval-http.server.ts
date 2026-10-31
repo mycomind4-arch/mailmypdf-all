@@ -75,6 +75,11 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
   return parsed as Record<string, unknown>;
 }
 
+const approvalFields = new Set([
+  "matterId", "reviewedPdfSha256", "reviewedTotalCents",
+  "reviewedMailClass", "userApprovedExactPacket",
+]);
+
 export function createDebtValidationApprovalHttpHandler(deps: DebtValidationApprovalHttpDependencies) {
   if (!deps.allowedOrigin || new URL(deps.allowedOrigin).origin !== deps.allowedOrigin) {
     throw new Error("debt_validation_invalid_allowed_origin");
@@ -102,7 +107,7 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
     }
     // Do not accept an owner, trusted notice, approval binding, or packet from
     // the browser. All authoritative values are read from the owner's store.
-    if ("ownerId" in body || "trustedNotice" in body || "binding" in body || "packet" in body) {
+    if (Object.keys(body).some((key) => !approvalFields.has(key))) {
       return response(400, "untrusted_approval_fields");
     }
     if (typeof body.matterId !== "string" || !body.matterId.trim()
