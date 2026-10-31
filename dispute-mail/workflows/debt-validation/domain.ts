@@ -197,8 +197,15 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
 
 /** Timing is always notice-specific; a printed date is not a legal timeliness certification. */
 export function debtValidationTimingNote(input: DebtValidationIntake): string {
-  return input.noticeDisputeDeadline
-    ? "The controlling notice states " + input.noticeDisputeDeadline
-      + " as its dispute deadline. Verify receipt and applicable law before relying on any deadline or collection-pause effect."
+  const deadline = input.noticeDisputeDeadline;
+  // The browser field is manually transcribed, not extracted or independently
+  // verified against the notice. Never present an impossible date as a fact,
+  // including while intake validation is blocking the draft.
+  if (deadline && (typeof deadline !== "string" || !isRealDate(deadline))) {
+    return "The entered dispute deadline is invalid. Recheck the actual notice; do not rely on this date or infer a collection-pause effect.";
+  }
+  return deadline
+    ? "You entered " + deadline
+      + " as the deadline printed on the controlling notice. This date has not been independently verified. Confirm the notice, receipt and applicable law before relying on any deadline or collection-pause effect."
     : "No verified notice-specific dispute deadline is recorded. Do not infer a 30-day deadline or collection-pause effect.";
 }
