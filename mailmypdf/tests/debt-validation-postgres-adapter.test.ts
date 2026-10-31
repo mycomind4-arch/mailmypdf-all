@@ -2157,3 +2157,104 @@ test("debt-validation HTTP checkout: a new claim cannot report mailing recorded 
   assert.equal(submissions, 1, "retry cannot charge or mail a second time");
   assert.equal(receiptReads, 2);
 });
+
+
+test("PostgreSQL debt validation: pre-mailing payment gate fails closed on missing or stale evidence", async (t) => {
+  // Offline PGlite and counters only. No Stripe/Lob calls or production route.
+  // The pre-mailing guard must not confuse a reserved order with payment.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  let checkoutSubmissions = 0;
+  let mockedMailSubmissions = 0;
+  const attemptMail = async () => {
+    const evidence = await ledger.requireRecordedPaymentForMailing(owner, matter, verified);
+    mockedMailSubmissions++;
+    return evidence;
+  };
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { checkoutSubmissions++; return "pending" as const; },
+  });
+  assert.equal(checkoutSubmissions, 1);
+  await assert.rejects(attemptMail(), /debt_validation_payment_receipt_required/,
+    "a checkout reservation is not proof of payment");
+  assert.equal(mockedMailSubmissions, 0);
+
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_premail", evidenceSha256: "a".repeat(64),
+  };
+  await ledger.record(owner, matter, verified, payment);
+  await assert.rejects(
+    ledger.requireRecordedPaymentForMailing(other, matter, verified),
+    /debt_validation_receipt_claim_mismatch/,
+    "an unrelated owner cannot use this payment receipt",
+  );
+  await assert.rejects(
+    ledger.requireRecordedPaymentForMailing(owner, matter, {
+      ...verified, idempotencyKey: "unrelated-order",
+    }),
+    /debt_validation_receipt_claim_mismatch/,
+  );
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify({ ...fixture().currentIntake, recipientConfirmed: false })],
+  );
+  await assert.rejects(attemptMail(), /debt_validation_/,
+    "revoked recipient confirmation must block mailing even after payment");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify(fixture().currentIntake)],
+  );
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("%PDF-1.4\\nReplaced notice\\n%%EOF")],
+  );
+  await assert.rejects(attemptMail(), /debt_validation_persisted_notice_changed/,
+    "replaced controlling notice must block mailing even after payment");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  await db.query(
+    "UPDATE debt_validation_checkout_receipts SET evidence_sha256=$4 " +
+      "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='payment'",
+    [owner, matter, verified.idempotencyKey, "corrupt"],
+  );
+  await assert.rejects(attemptMail(), /debt_validation_invalid_provider_receipt/,
+    "malformed stored payment evidence must fail closed");
+  assert.equal(mockedMailSubmissions, 0, "all negative paths have zero mock mailing submissions");
+  await db.query(
+    "UPDATE debt_validation_checkout_receipts SET evidence_sha256=$4 " +
+      "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='payment'",
+    [owner, matter, verified.idempotencyKey, payment.evidenceSha256],
+  );
+  assert.deepEqual(await attemptMail(), payment,
+    "restored exact notice, recipient and payment evidence allow the mock handoff");
+  assert.equal(mockedMailSubmissions, 1);
+  assert.equal(checkoutSubmissions, 1, "payment verification never resubmits checkout");
+  const receipts = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(receipts.rows.map((row) => row.kind), ["payment"],
+    "pre-mailing verification never invents a mailing receipt");
+});
