@@ -75,6 +75,18 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
   return parsed as Record<string, unknown>;
 }
 
+/**
+ * A request stream can reject with an arbitrary underlying transport error.
+ * Never echo that exception text to an unauthenticated or authenticated client.
+ * Only our explicitly defined size/content-type errors are public codes.
+ */
+function invalidBodyResponse(error: unknown): Response {
+  const code = error instanceof Error ? error.message : "";
+  if (code === "body_too_large") return response(413, code);
+  if (code === "invalid_content_type") return response(415, code);
+  return response(400, "invalid_json");
+}
+
 const approvalFields = new Set([
   "matterId", "reviewedPdfSha256", "reviewedTotalCents",
   "reviewedMailClass", "userApprovedExactPacket",
@@ -102,8 +114,7 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
     try {
       body = await boundedJson(request);
     } catch (error) {
-      const code = error instanceof Error ? error.message : "invalid_json";
-      return response(code === "body_too_large" ? 413 : code === "invalid_content_type" ? 415 : 400, code);
+      return invalidBodyResponse(error);
     }
     // Do not accept an owner, trusted notice, approval binding, or packet from
     // the browser. All authoritative values are read from the owner's store.
@@ -190,8 +201,7 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
     try {
       body = await boundedJson(request);
     } catch (error) {
-      const code = error instanceof Error ? error.message : "invalid_json";
-      return response(code === "body_too_large" ? 413 : code === "invalid_content_type" ? 415 : 400, code);
+      return invalidBodyResponse(error);
     }
     // Do not accept browser-selected owners, notice/packet snapshots, order
     // keys, approval bindings, or receipts. The user confirms only the exact
