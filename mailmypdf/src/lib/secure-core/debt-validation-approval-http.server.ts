@@ -7,8 +7,10 @@
  */
 import {
   approveDebtValidationMatter,
+  checkoutDebtValidationMatter,
   type DebtValidationMatterRepository,
 } from "../../../../dispute-mail/workflows/debt-validation/server-matter-approval";
+import type { DebtValidationApprovalBinding } from "../../../../dispute-mail/workflows/debt-validation/server-approval-binding";
 
 interface AuthenticatedActor { id: string }
 
@@ -131,6 +133,102 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
       const code = error instanceof Error ? error.message : "";
       if (/^debt_validation_[a-z_]+$/.test(code)) return response(409, code);
       return response(500, "approval_unavailable");
+    }
+  };
+}
+
+/**
+ * Unmounted, explicit checkout HTTP boundary. The only side-effecting adapter
+ * is supplied by the host; this module never configures Stripe or Lob.
+ *
+ * A new submission is possible only AFTER the repository atomically reserves
+ * the exact approved order. Retries use the read-only reconciliation adapter,
+ * never the submission callback. Do not mount until persistence/RLS, provider
+ * idempotency and receipt reconciliation have been independently reviewed.
+ */
+interface VerifiedDebtValidationClaim {
+  binding: DebtValidationApprovalBinding;
+  idempotencyKey: string;
+  expectedMatterVersion: number;
+}
+type CheckoutProgress = "pending" | "recorded";
+
+export interface DebtValidationCheckoutHttpDependencies extends DebtValidationApprovalHttpDependencies {
+  /** Called once for a NEW durable claim. Mock-only until release review. */
+  submitNewClaim(verified: VerifiedDebtValidationClaim): Promise<CheckoutProgress>;
+  /** Read-only receipt lookup for an existing claim; MUST NOT resubmit. */
+  reconcileClaim(verified: VerifiedDebtValidationClaim): Promise<CheckoutProgress>;
+}
+
+const checkoutFields = new Set([
+  "matterId", "reviewedPdfSha256", "reviewedTotalCents",
+  "reviewedMailClass", "userConfirmedCheckout",
+]);
+
+export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationCheckoutHttpDependencies) {
+  if (!deps.allowedOrigin || new URL(deps.allowedOrigin).origin !== deps.allowedOrigin) {
+    throw new Error("debt_validation_invalid_allowed_origin");
+  }
+  return async (request: Request): Promise<Response> => {
+    if (request.method !== "POST") return response(405, "method_not_allowed");
+    if (request.headers.get("origin") !== deps.allowedOrigin) {
+      return response(403, "origin_not_allowed");
+    }
+    let actor: AuthenticatedActor | null;
+    try {
+      actor = await deps.authenticate(request);
+    } catch {
+      return response(401, "authentication_required");
+    }
+    if (!actor?.id?.trim()) return response(401, "authentication_required");
+    let body: Record<string, unknown>;
+    try {
+      body = await boundedJson(request);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "invalid_json";
+      return response(code === "body_too_large" ? 413 : code === "invalid_content_type" ? 415 : 400, code);
+    }
+    // Do not accept browser-selected owners, notice/packet snapshots, order
+    // keys, approval bindings, or receipts. The user confirms only the exact
+    // already-approved packet/quote, fetched again from owner-scoped storage.
+    if (Object.keys(body).some((key) => !checkoutFields.has(key))) {
+      return response(400, "untrusted_checkout_fields");
+    }
+    if (typeof body.matterId !== "string" || !body.matterId.trim()
+      || typeof body.reviewedPdfSha256 !== "string"
+      || !/^[a-f0-9]{64}$/i.test(body.reviewedPdfSha256)
+      || !Number.isSafeInteger(body.reviewedTotalCents)
+      || !["standard", "certified", "registered"].includes(String(body.reviewedMailClass))
+      || body.userConfirmedCheckout !== true) {
+      return response(400, "invalid_checkout_request");
+    }
+    try {
+      const approved = await deps.repository.loadApproval(actor.id, body.matterId);
+      if (!approved
+        || approved.pdfSha256.toLowerCase() !== body.reviewedPdfSha256.toLowerCase()
+        || approved.totalCents !== body.reviewedTotalCents
+        || approved.mailClass !== body.reviewedMailClass) {
+        return response(409, "debt_validation_approval_or_quote_changed");
+      }
+      // The domain function independently rechecks the current notice, intake,
+      // PDF bytes and binding, then atomically claims checkout before calling
+      // submitNewClaim. The preflight comparison alone is not authorization.
+      const progress = await checkoutDebtValidationMatter({
+        ownerId: actor.id,
+        matterId: body.matterId,
+        repository: deps.repository,
+        checkout: deps.submitNewClaim,
+        replayCheckout: deps.reconcileClaim,
+      });
+      if (progress !== "pending" && progress !== "recorded") {
+        return response(500, "checkout_status_unavailable");
+      }
+      // A durable claim is NOT proof of a charge, mailing, or delivery.
+      return response(progress === "pending" ? 202 : 200, "checkout_claim_" + progress);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (/^debt_validation_[a-z_]+$/.test(code)) return response(409, code);
+      return response(500, "checkout_unavailable");
     }
   };
 }
