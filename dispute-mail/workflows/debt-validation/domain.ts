@@ -195,6 +195,31 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
   return lines.join("\n");
 }
 
+/**
+ * Browser-only envelope ADDRESS preview, not a mailing label or proof of
+ * deliverability. Reuse the same notice/recipient confirmation gate as the
+ * actual letter: no unconfirmed or stale destination may be displayed as
+ * a ready-to-review envelope destination.
+ */
+export function draftDebtValidationEnvelopeAddress(input: DebtValidationIntake): {
+  returnAddress: string;
+  recipientAddress: string;
+} {
+  const issues = validateDebtValidationIntake(input);
+  if (issues.length) {
+    throw new Error("Debt validation envelope blocked: " + issues.map((issue) => issue.code).join(", "));
+  }
+  const destination = input.collectorResponseAddress.trim();
+  const firstLine = cleanLine(destination.split(/\r?\n/)[0] ?? "").toUpperCase();
+  const collector = cleanLine(input.collectorName);
+  return {
+    returnAddress: [input.consumerName.trim(), input.consumerMailingAddress.trim()].join("\n"),
+    recipientAddress: firstLine === collector.toUpperCase()
+      ? destination
+      : [collector, destination].join("\n"),
+  };
+}
+
 /** Timing is always notice-specific; a printed date is not a legal timeliness certification. */
 export function debtValidationTimingNote(input: DebtValidationIntake): string {
   const deadline = input.noticeDisputeDeadline;
