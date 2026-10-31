@@ -36,6 +36,7 @@ export function DebtValidationStart() {
   const [intake, setIntake] = useState<DebtValidationIntake>(emptyDebtValidationIntake);
   const [stepIndex, setStepIndex] = useState(0);
   const [noticeFileName, setNoticeFileName] = useState("");
+  const [noticePreviewUrl, setNoticePreviewUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [letterDate, setLetterDate] = useState(() => localDebtValidationLetterDate());
@@ -77,6 +78,11 @@ export function DebtValidationStart() {
   useEffect(() => () => {
     if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
   }, [pdfPreview]);
+  // Only a validated, locally selected notice may be shown. Revoke its blob
+  // URL on replacement and unmount; no notice bytes leave the browser.
+  useEffect(() => () => {
+    if (noticePreviewUrl) URL.revokeObjectURL(noticePreviewUrl);
+  }, [noticePreviewUrl]);
 
   async function buildPdfPreview() {
     if (!letter) return;
@@ -115,6 +121,7 @@ export function DebtValidationStart() {
     const generation = ++fileGeneration.current;
     setFileError("");
     setNoticeFileName("");
+    setNoticePreviewUrl(null);
     setIntake((current) => replaceLocalNotice(current, { documentId: "", sha256: "" }));
     if (!file) return;
     try {
@@ -127,6 +134,9 @@ export function DebtValidationStart() {
         documentId: "local:" + sha256,
         sha256,
       }));
+      // The displayed source is created from the SAME validated bytes used
+      // for the fingerprint and is never a remote or user-supplied URL.
+      setNoticePreviewUrl(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })));
       setNoticeFileName(file.name);
     } catch (error) {
       if (generation === fileGeneration.current) {
@@ -253,6 +263,18 @@ export function DebtValidationStart() {
               Compare the destination against the actual controlling notice. Selecting the file
               and typing an address are not independent evidence of its accuracy.
             </p>
+            {noticePreviewUrl && (
+              <SectionCard title="Controlling notice — local PDF reference">
+                <p className="wf-intake-note">
+                  Inspect the postal response address on the actual notice before confirming.
+                  This is the same validated local PDF that was fingerprinted above, not an
+                  extracted or independently verified address. No document is uploaded.
+                </p>
+                <iframe title="Controlling collection notice PDF — local reference"
+                  src={noticePreviewUrl} referrerPolicy="no-referrer"
+                  style={{ width: "100%", height: 520, border: "1px solid #ddd" }} />
+              </SectionCard>
+            )}
             <p className="wf-intake-note"><strong>Destination:</strong><br />
               {intake.collectorResponseAddress || "Not entered"}</p>
             <label className="wf-checkbox-field">
