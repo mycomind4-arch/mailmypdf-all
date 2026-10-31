@@ -42,12 +42,13 @@ interface StoredRow {
   trusted_notice: TrustedDebtValidationNotice;
   packet: DebtValidationPacketSnapshot;
   pdf_bytes: Uint8Array;
+  notice_pdf_bytes: Uint8Array;
   approval: DebtValidationApprovalBinding | null;
   checkout_key: string | null;
 }
 
 const SELECT_ROW =
-  "SELECT current_intake,trusted_notice,packet,pdf_bytes,approval,checkout_key " +
+  "SELECT current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes,approval,checkout_key " +
   "FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2";
 
 function requireScope(ownerId: string, matterId: string): void {
@@ -93,6 +94,20 @@ function sameBinding(left: DebtValidationApprovalBinding, right: DebtValidationA
   const keys = Object.keys(right) as Array<keyof DebtValidationApprovalBinding>;
   return Object.keys(left).length === keys.length &&
     keys.every((key) => left[key] === right[key]);
+}
+
+/**
+ * Rehash the original controlling notice bytes, not merely its JSON metadata.
+ * A replaced source notice must invalidate approval and checkout even if a
+ * caller forgets to increment the notice revision or update the stored SHA.
+ * The notice bytes are evidence, not an automatic mailing enclosure.
+ */
+function assertStoredControllingNotice(row: StoredRow): void {
+  try {
+    assertDebtValidationPersistedPdf(row.notice_pdf_bytes, row.trusted_notice.sha256);
+  } catch {
+    throw new Error("debt_validation_persisted_notice_changed");
+  }
 }
 
 function expectedCheckoutKey(ownerId: string, matterId: string, binding: DebtValidationApprovalBinding): string {
@@ -143,6 +158,7 @@ export function createPostgresDebtValidationMatterRepository(
           ownerId, matterId, binding, current: current(row),
         });
         assertDebtValidationPersistedPdf(row.pdf_bytes, row.packet.pdfSha256);
+        assertStoredControllingNotice(row);
         if (row.checkout_key) {
           throw new Error("debt_validation_order_already_claimed");
         }
@@ -176,6 +192,7 @@ export function createPostgresDebtValidationMatterRepository(
           currentIntake: row.current_intake,
         });
         assertDebtValidationPersistedPdf(row.pdf_bytes, row.packet.pdfSha256);
+        assertStoredControllingNotice(row);
         if (idempotencyKey !== expectedCheckoutKey(ownerId, matterId, row.approval)) {
           throw new Error("debt_validation_checkout_key_mismatch");
         }
