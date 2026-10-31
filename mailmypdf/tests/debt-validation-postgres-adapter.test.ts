@@ -1167,3 +1167,80 @@ test("debt-validation HTTP checkout: provider failure is reconciled without a se
   );
   assert.equal(after.rows[0]?.checkout_key, key, "original claim is immutable across retries");
 });
+
+
+test("debt-validation HTTP checkout: in-flight provider submission permits receipt-only retry", { timeout: 15000 }, async (t) => {
+  // Two requests overlap while the FIRST mocked provider callback has not
+  // returned. The durable SQL claim must already exist, so the second request
+  // can only reconcile; it cannot charge or mail again. Offline PGlite only.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  const origin = "https://mailmypdf.example";
+  let submissions = 0;
+  let receiptLookups = 0;
+  let signalFirstSubmission!: () => void;
+  let releaseFirstSubmission!: () => void;
+  const firstSubmissionStarted = new Promise<void>((resolve) => { signalFirstSubmission = resolve; });
+  const firstSubmissionReleased = new Promise<void>((resolve) => { releaseFirstSubmission = resolve; });
+  const handle = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+    submitNewClaim: async () => {
+      submissions++;
+      signalFirstSubmission();
+      await firstSubmissionReleased;
+      return "pending";
+    },
+    reconcileClaim: async () => {
+      receiptLookups++;
+      return "pending";
+    },
+  });
+  const request = () => new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify({
+      matterId: matter,
+      reviewedPdfSha256: sha(pdf),
+      reviewedTotalCents: 1499,
+      reviewedMailClass: "certified",
+      userConfirmedCheckout: true,
+    }),
+  });
+
+  const originalRequest = handle(request());
+  try {
+    await firstSubmissionStarted;
+    assert.equal(submissions, 1, "first durable claim permits one mock submission");
+    const beforeRetry = await db.query<{ checkout_key: string | null }>(
+      "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter],
+    );
+    const claimedKey = beforeRetry.rows[0]?.checkout_key;
+    assert.match(claimedKey ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/,
+      "order claim must be durable before the provider callback completes");
+
+    const retry = await handle(request());
+    assert.equal(retry.status, 202, "overlapping retry remains pending, not a second mailing");
+    assert.deepEqual(await retry.json(), { code: "checkout_claim_pending" });
+    assert.equal(submissions, 1, "no second mocked Stripe/Lob submission during in-flight call");
+    assert.equal(receiptLookups, 1, "retry performs read-only receipt reconciliation");
+    const afterRetry = await db.query<{ checkout_key: string | null }>(
+      "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter],
+    );
+    assert.equal(afterRetry.rows[0]?.checkout_key, claimedKey,
+      "concurrent retry preserves the original durable order key");
+  } finally {
+    releaseFirstSubmission();
+  }
+  const first = await originalRequest;
+  assert.equal(first.status, 202);
+  assert.deepEqual(await first.json(), { code: "checkout_claim_pending" });
+  assert.equal(submissions, 1);
+  assert.equal(receiptLookups, 1);
+});
