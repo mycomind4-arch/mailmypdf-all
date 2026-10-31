@@ -20,8 +20,8 @@ import {
   confirmLocalRecipient,
   emptyDebtValidationIntake,
   localDebtValidationLetterDate,
+  fingerprintLocalDebtValidationNoticePdf,
   replaceLocalNotice,
-  readLocalDebtValidationNoticePdf,
   revokeLocalRecipientConfirmation,
 } from "../local-review";
 import { debtValidationStepWorkflow } from "../step-workflow";
@@ -125,18 +125,18 @@ export function DebtValidationStart() {
     setIntake((current) => replaceLocalNotice(current, { documentId: "", sha256: "" }));
     if (!file) return;
     try {
-      const bytes = await readLocalDebtValidationNoticePdf(file);
-      const hash = await crypto.subtle.digest("SHA-256", bytes);
-      if (generation !== fileGeneration.current) return;
-      const sha256 = Array.from(new Uint8Array(hash))
-        .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      const { sha256, previewUrl } = await fingerprintLocalDebtValidationNoticePdf(file);
+      if (generation !== fileGeneration.current) {
+        URL.revokeObjectURL(previewUrl);
+        return;
+      }
       setIntake((current) => replaceLocalNotice(current, {
         documentId: "local:" + sha256,
         sha256,
       }));
-      // The displayed source is created from the SAME validated bytes used
-      // for the fingerprint and is never a remote or user-supplied URL.
-      setNoticePreviewUrl(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })));
+      // The viewer URL and fingerprint were produced from identical, validated
+      // source bytes. The effect above revokes the previous URL on replacement.
+      setNoticePreviewUrl(previewUrl);
       setNoticeFileName(file.name);
     } catch (error) {
       if (generation === fileGeneration.current) {
