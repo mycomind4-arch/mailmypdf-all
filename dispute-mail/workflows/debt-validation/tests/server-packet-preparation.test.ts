@@ -163,4 +163,12 @@ test("server packet preparation: verified notice postal address without an addre
     packet: prepared.packet, reviewedPdfSha256: prepared.packet.pdfSha256,
   });
   assert.equal(binding.recipientAddress, expectedEnvelopeRecipient.toUpperCase());
+
+  assert.throws(() => createDebtValidationApprovalBinding({
+    ownerId: input.ownerId, matterId: input.matterId,
+    intake: input.intake, trustedNotice: input.trustedNotice,
+    packet: { ...prepared.packet, recipientAddress: postalLines },
+    reviewedPdfSha256: prepared.packet.pdfSha256,
+  }), /debt_validation_recipient_changed/,
+  "A packet that drops the collector addressee must not be approvable");
 });
