@@ -1699,3 +1699,54 @@ test("debt-validation host checkout bridge binds verified owner, explicit consen
   );
   assert.match(state.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
+
+
+test("PostgreSQL debt validation: changed return identity revokes reviewed envelope and checkout", async (t) => {
+  // A customer's return address and printed signature are part of the
+  // approved physical envelope/letter. Changing either after consent must
+  // invalidate both the read-only review summary and any mailing claim,
+  // even when the collector, controlling notice and PDF bytes are unchanged.
+  for (const [label, change] of [
+    ["return mailing address", { consumerMailingAddress: "77 Test Road\\nEureka, CA 95501" }],
+    ["consumer name/signature", { consumerName: "Different Synthetic Consumer" }],
+  ] as const) {
+    const { db, repository, seed, approve } = await setup();
+    t.after(() => db.close());
+    await seed();
+    await approve();
+    const revised = { ...fixture().currentIntake, ...change };
+    await db.query(
+      "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, JSON.stringify(revised)],
+    );
+
+    const origin = "https://mailmypdf.example";
+    const review = createDebtValidationPacketReviewHttpHandler({
+      allowedOrigin: origin, repository, authenticate: async () => ({ id: owner }),
+    });
+    const summary = await review(new Request(
+      origin + "/api/debt-validation/review?matterId=" + matter + "&view=summary",
+    ));
+    assert.equal(summary.status, 409, label + " cannot silently change the reviewed envelope");
+    assert.deepEqual(await summary.json(), { code: "debt_validation_intake_changed" });
+
+    let submissions = 0;
+    let receiptReads = 0;
+    await assert.rejects(
+      checkoutDebtValidationMatter({
+        ownerId: owner, matterId: matter, repository,
+        checkout: async () => { submissions++; return "mocked-submission"; },
+        replayCheckout: async () => { receiptReads++; return "mocked-receipt"; },
+      }),
+      /debt_validation_stale_intake/,
+      label + " must revoke the original approval before any physical-mail handoff",
+    );
+    assert.equal(submissions, 0, label + " cannot submit a mailing");
+    assert.equal(receiptReads, 0, label + " cannot reconcile a nonexistent order");
+    const stored = await db.query<{ checkout_key: string | null }>(
+      "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter],
+    );
+    assert.equal(stored.rows[0]?.checkout_key, null, label + " cannot reserve checkout");
+  }
+});
