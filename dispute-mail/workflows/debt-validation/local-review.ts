@@ -141,3 +141,22 @@ export async function readLocalDebtValidationNoticePdf(
   }
   return bytes;
 }
+
+/**
+ * Create a local reference preview only after canonical PDF validation, using
+ * the exact bytes that determine the controlling-notice fingerprint. The URL
+ * is a browser blob URL, never a remote document upload. The caller MUST
+ * revoke it when the notice is replaced, the selection becomes stale, or the
+ * component unmounts. An injected URL factory keeps this contract testable.
+ */
+export async function fingerprintLocalDebtValidationNoticePdf(
+  file: Pick<File, "name" | "type" | "size" | "arrayBuffer">,
+  createObjectUrl: (blob: Blob) => string = (blob) => URL.createObjectURL(blob),
+): Promise<{ sha256: string; previewUrl: string }> {
+  const bytes = await readLocalDebtValidationNoticePdf(file);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  const sha256 = Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const previewUrl = createObjectUrl(new Blob([bytes], { type: "application/pdf" }));
+  return { sha256, previewUrl };
+}
