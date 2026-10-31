@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import {
   normalizeMailingAddress,
+  draftDebtValidationEnvelopeAddress,
   validateDebtValidationIntake,
   type DebtValidationIntake,
 } from "./domain";
@@ -119,6 +120,7 @@ function assertPacket(
   matterId: string,
   notice: TrustedDebtValidationNotice,
   packet: DebtValidationPacketSnapshot,
+  intake: DebtValidationIntake,
 ): void {
   if (!packet || packet.ownerId !== ownerId || packet.matterId !== matterId) fail("packet_scope");
   if (!Number.isSafeInteger(packet.matterVersion) || packet.matterVersion < 1
@@ -130,7 +132,11 @@ function assertPacket(
     || !validSha(packet.noticeSha256)
     || !sameSha(packet.noticeSha256, notice.sha256)
     || packet.noticeVersion !== notice.version) fail("stale_notice");
-  if (!packet.recipientAddress || !sameAddress(packet.recipientAddress, notice.responseMailingAddress)) {
+  // The verified notice may contain only postal lines. The physical-mail
+  // destination must additionally include the collector addressee whenever
+  // it is absent from those lines, matching the customer-reviewed envelope.
+  if (!packet.recipientAddress ||
+    !sameAddress(packet.recipientAddress, draftDebtValidationEnvelopeAddress(intake).recipientAddress)) {
     fail("recipient_changed");
   }
 }
@@ -150,8 +156,8 @@ export function createDebtValidationApprovalBinding(args: {
 }): DebtValidationApprovalBinding {
   const { ownerId, matterId, intake, reviewedPdfSha256, trustedNotice, packet } = args;
   assertTrustedNotice(ownerId, matterId, trustedNotice);
-  assertPacket(ownerId, matterId, trustedNotice, packet);
   if (validateDebtValidationIntake(intake).length) fail("invalid_intake");
+  assertPacket(ownerId, matterId, trustedNotice, packet, intake);
   if (intake.noticeDocumentId !== trustedNotice.documentId
     || !sameSha(intake.noticeSha256, trustedNotice.sha256)
     || intake.noticeVersion !== trustedNotice.version
@@ -199,9 +205,9 @@ export function assertDebtValidationCheckoutBinding(args: {
 }): void {
   const { ownerId, matterId, binding, trustedNotice, packet, currentIntake } = args;
   assertTrustedNotice(ownerId, matterId, trustedNotice);
-  assertPacket(ownerId, matterId, trustedNotice, packet);
-  if (!currentIntake || validateDebtValidationIntake(currentIntake).length
-    || currentIntake.noticeDocumentId !== trustedNotice.documentId
+  if (!currentIntake || validateDebtValidationIntake(currentIntake).length) fail("stale_intake");
+  assertPacket(ownerId, matterId, trustedNotice, packet, currentIntake);
+  if (currentIntake.noticeDocumentId !== trustedNotice.documentId
     || !sameSha(currentIntake.noticeSha256, trustedNotice.sha256)
     || currentIntake.noticeVersion !== trustedNotice.version
     || !sameAddress(currentIntake.noticeResponseAddress, trustedNotice.responseMailingAddress)
@@ -223,7 +229,7 @@ export function assertDebtValidationCheckoutBinding(args: {
     || !validSha(binding.intakeSha256) || !sameSha(binding.intakeSha256, packet.intakeSha256)
     || typeof binding.recipientAddress !== "string"
     || !sameAddress(binding.recipientAddress, packet.recipientAddress)
-    || !sameAddress(binding.recipientAddress, trustedNotice.responseMailingAddress)) {
+    || !sameAddress(binding.recipientAddress, draftDebtValidationEnvelopeAddress(currentIntake).recipientAddress)) {
     fail("stale_approval");
   }
 }
