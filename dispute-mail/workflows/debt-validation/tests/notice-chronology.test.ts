@@ -59,3 +59,16 @@ test("debt validation accepts equal/later printed deadlines without calculating 
   const noNoticeDate = { ...fixture(), noticeDate: null };
   assert.deepEqual(validateDebtValidationIntake(noNoticeDate), []);
 });
+
+test("debt validation refuses a letter dated before its controlling notice", () => {
+  const intake = { ...fixture(), noticeDisputeDeadline: "2026-11-30" };
+  assert.deepEqual(validateDebtValidationIntake(intake), []);
+  assert.throws(
+    () => draftDebtValidationLetter(intake, "2026-11-09"),
+    /letter date.*before.*notice date/i,
+    "a response letter cannot predate the collection notice it disputes",
+  );
+  // Same-day or later letters remain possible; no statutory deadline is inferred.
+  assert.match(draftDebtValidationLetter(intake, "2026-11-10"), /I dispute the debt/);
+  assert.match(draftDebtValidationLetter(intake, "2026-11-11"), /I dispute the debt/);
+});
