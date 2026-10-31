@@ -131,9 +131,15 @@ export function validateDebtValidationIntake(input: DebtValidationIntake): DebtV
     || !isMailingAddress(input.noticeResponseAddress)) {
     add("missing_notice", "A reviewed controlling notice and its response address are required.");
   }
+  // Both dates are user-transcribed, not independently verified. If the
+  // purported deadline predates this same notice's date, the intake is
+  // internally contradictory and must not produce an approvable mailing.
+  // This is a consistency check, NOT a calculation of statutory timeliness.
   if ((input.noticeDate && !isRealDate(input.noticeDate))
-    || (input.noticeDisputeDeadline && !isRealDate(input.noticeDisputeDeadline))) {
-    add("invalid_notice_date", "Use only real dates printed on the notice; do not infer a deadline.");
+    || (input.noticeDisputeDeadline && !isRealDate(input.noticeDisputeDeadline))
+    || (input.noticeDate && input.noticeDisputeDeadline
+      && input.noticeDisputeDeadline < input.noticeDate)) {
+    add("invalid_notice_date", "Recheck the actual notice: dates must be real and the printed dispute deadline cannot predate the notice date.");
   }
   if (!input.recipientConfirmed) {
     add("unconfirmed_recipient", "Explicitly confirm the response address from the controlling notice.");
@@ -228,6 +234,10 @@ export function debtValidationTimingNote(input: DebtValidationIntake): string {
   // including while intake validation is blocking the draft.
   if (deadline && (typeof deadline !== "string" || !isRealDate(deadline))) {
     return "The entered dispute deadline is invalid. Recheck the actual notice; do not rely on this date or infer a collection-pause effect.";
+  }
+  if (deadline && input.noticeDate && isRealDate(input.noticeDate)
+    && deadline < input.noticeDate) {
+    return "The entered dispute deadline is earlier than the entered notice date. These dates conflict; recheck the actual notice before relying on any deadline or collection-pause effect.";
   }
   return deadline
     ? "You entered " + deadline
