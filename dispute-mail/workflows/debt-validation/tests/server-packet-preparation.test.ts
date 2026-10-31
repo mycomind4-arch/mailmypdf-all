@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { generatePlainTextPdf, validatePdfForMailing } from "@mailmypdf/packet-builder";
 import { calculateQuote } from "@mailmypdf/pricing";
 import type { DebtValidationIntake } from "../domain";
 import { createDebtValidationApprovalBinding } from "../server-approval-binding";
@@ -68,6 +68,34 @@ test("server packet preparation: real vault notice yields exact letter PDF and r
   });
   assert.equal(binding.totalCents, 2993);
   assert.equal(binding.mailClass, "certified");
+});
+
+test("server packet preparation: a safe 11+ page controlling notice remains evidence, not an outgoing enclosure", async () => {
+  // The source notice is read-only evidence for the recipient and deadline.
+  // Outgoing mail limits apply to the generated letter, not to a longer
+  // controlling notice that is NEVER attached to the physical-mail packet.
+  const input = await fixture();
+  const longNotice = await generatePlainTextPdf("Synthetic collection notice evidence.\\n".replace("\\n", "\n").repeat(450));
+  await assert.rejects(
+    validatePdfForMailing(longNotice),
+    /longer than 10 pages/,
+    "the outgoing mail validator deliberately rejects this many pages",
+  );
+  const noticeSha256 = sha(longNotice);
+  const prepared = await prepareDebtValidationMatterPacket({
+    ...input,
+    noticePdfBytes: longNotice,
+    trustedNotice: { ...input.trustedNotice, sha256: noticeSha256 },
+    intake: {
+      ...input.intake,
+      noticeSha256,
+      confirmedNoticeSha256: noticeSha256,
+    },
+  });
+  assert.equal(prepared.packet.noticeSha256, noticeSha256);
+  assert.equal(prepared.supportingPages, 0, "the long source notice must never become an enclosure");
+  assert.deepEqual(prepared.manifest, []);
+  assert.equal(prepared.responsePages >= 1 && prepared.responsePages <= 10, true);
 });
 
 test("server packet preparation: swapped or forged source PDF cannot become a trusted packet", async () => {
