@@ -11,6 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import type { DebtValidationIntake } from "../../../../dispute-mail/workflows/debt-validation/domain";
+import { prepareDebtValidationMatterPacket } from "../../../../dispute-mail/workflows/debt-validation/server-packet-preparation";
 import {
   assertDebtValidationCheckoutBinding,
   type DebtValidationApprovalBinding,
@@ -222,4 +223,37 @@ export function createPostgresDebtValidationMatterRepository(
       });
     },
   };
+}
+
+/**
+ * Persist a server-generated, validated mailing packet as one immutable matter
+ * snapshot. The caller MUST supply an authenticated ownerId and controlling
+ * notice bytes from that owner's trusted vault, never browser-supplied metadata.
+ *
+ * This is a create-only bridge from packet preparation to the existing
+ * owner-scoped approval/checkout repository. An existing matter must be
+ * revised through a separately reviewed versioned workflow, never overwritten
+ * here (which could invalidate a prior approval or durable order claim).
+ *
+ * No production schema, HTTP route, Stripe/Lob adapter, or migration is
+ * installed by this function.
+ */
+export async function prepareAndPersistDebtValidationMatter(
+  db: DebtValidationSqlDatabase,
+  input: Parameters<typeof prepareDebtValidationMatterPacket>[0],
+): Promise<DebtValidationPacketSnapshot> {
+  const prepared = await prepareDebtValidationMatterPacket(input);
+  const { ownerId, matterId, intake, trustedNotice, noticePdfBytes } = input;
+  const inserted = await db.transaction((tx) => tx.query(
+    "INSERT INTO debt_validation_matter_snapshots " +
+      "(owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes) " +
+      "VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea,$7::bytea) " +
+      "ON CONFLICT (owner_id,matter_id) DO NOTHING RETURNING owner_id",
+    [ownerId, matterId, JSON.stringify(intake), JSON.stringify(trustedNotice),
+      JSON.stringify(prepared.packet), prepared.pdfBytes, noticePdfBytes],
+  ));
+  if (inserted.rows.length !== 1) {
+    throw new Error("debt_validation_matter_already_exists");
+  }
+  return prepared.packet;
 }
