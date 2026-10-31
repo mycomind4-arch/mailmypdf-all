@@ -206,6 +206,6 @@ export function debtValidationTimingNote(input: DebtValidationIntake): string {
   }
   return deadline
     ? "You entered " + deadline
-      + " as the deadline printed on the controlling notice. This date has not been independently verified. Confirm the notice, receipt and applicable law before relying on any deadline or collection-pause effect."
+      + " as the deadline printed on the controlling notice. This date is not independently verified. Confirm the notice, receipt and applicable law before relying on any deadline or collection-pause effect."
     : "No verified notice-specific dispute deadline is recorded. Do not infer a 30-day deadline or collection-pause effect.";
 }
