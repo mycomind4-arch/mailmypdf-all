@@ -1062,6 +1062,9 @@ importers:
       '@mailmypdf/design-system':
         specifier: workspace:*
         version: link:../packages/design-system
+      '@mailmypdf/packet-builder':
+        specifier: workspace:*
+        version: link:../packages/packet-builder
       '@mailmypdf/pricing':
         specifier: workspace:*
         version: link:../packages/pricing

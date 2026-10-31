@@ -7,7 +7,7 @@
 
 import { calculateQuote, type MailClass, type Quote } from "@mailmypdf/pricing";
 import type { AuthenticatedUserContext } from "./auth.server";
-import { CaseError, CaseNotFoundError, loadCase } from "./case.server";
+import { CaseError, CaseNotFoundError, loadCase, type WorkflowCase } from "./case.server";
 import {
   assemblePacket,
   loadPacketDocuments,
@@ -54,6 +54,25 @@ export interface MaterializedPacketPreview extends PacketPreview {
 export interface ReviewedPacket {
   packetSha256: string;
   totalCents: number;
+}
+
+/**
+ * Debt validation has a separate notice/recipient/PDF-bound approval contract.
+ * Until its authenticated atomic repository adapter is wired, the generic v2
+ * case and MCP approval/checkout paths must not authorize it. This guard is
+ * intentionally checked at BOTH approval and approved-packet materialization.
+ */
+export function assertGenericCaseExecutionAllowed(
+  workflowCase: Pick<WorkflowCase, "workflow_id" | "vertical_id">,
+): void {
+  // The case API stores caller-provided workflow IDs. Both the legacy
+  // short ID plus vertical and the canonical qualified registry ID must be
+  // blocked until the notice-bound, atomic debt-validation adapter is wired.
+  if ((workflowCase.workflow_id === "debt-validation"
+      && workflowCase.vertical_id === "dispute-mail")
+    || workflowCase.workflow_id === "dispute-mail/debt-validation") {
+    throw new PacketError("Debt validation approval and checkout are not yet enabled.");
+  }
 }
 
 export function assertReviewedPacket(expected: unknown, actual: ReviewedPacket): void {
@@ -284,6 +303,7 @@ export async function materializeApprovedPacket(
   context: AuthenticatedUserContext,
 ): Promise<MaterializedApprovedPacket> {
   const workflowCase = await loadCase(caseId, context);
+  assertGenericCaseExecutionAllowed(workflowCase);
   const { data: approval, error } = await context.supabase
     .from("case_approvals")
     .select("id, case_id, packet_sha256, manifest, response_pages, supporting_pages, recipient, mail_class, quote")
@@ -367,6 +387,9 @@ export async function approvePacket(
   },
   context: AuthenticatedUserContext,
 ): Promise<{ approvalId: string; preview: PacketPreview }> {
+  // The generic approval RPC does not bind debt-validation notice provenance,
+  // explicit recipient confirmation, or the exact persisted PDF bytes.
+  assertGenericCaseExecutionAllowed(await loadCase(input.caseId, context));
   const preview = await previewPacket(input.caseId, input.mailClass, context);
   assertReviewedPacket(input.reviewed, {
     packetSha256: preview.packetSha256,
