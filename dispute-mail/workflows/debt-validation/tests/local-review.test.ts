@@ -1,4 +1,4 @@
-import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
+import { generatePlainTextPdf, validatePdfForMailing } from "@mailmypdf/packet-builder";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -80,7 +80,8 @@ test("local debt-validation notice: a genuine printable PDF is accepted and fing
 test("local debt-validation notice: a safe 11+ page source is reviewable but cannot be mailed as an enclosure", async () => {
   // The controlling collection notice is evidence, not part of the outgoing
   // letter. Browser selection must match the server's reference-only policy.
-  const pdf = await generatePlainTextPdf("Synthetic long collection notice evidence.\\n".repeat(450));
+  const pdf = await generatePlainTextPdf("Synthetic long collection notice evidence.\n".repeat(450));
+  await assert.rejects(validatePdfForMailing(pdf), /longer than 10 pages/);
   const notice = new File([new Uint8Array(pdf)], "long-source.pdf", { type: "application/pdf" });
   const bytes = await readLocalDebtValidationNoticePdf(notice);
   assert.deepEqual(new Uint8Array(bytes), pdf);
