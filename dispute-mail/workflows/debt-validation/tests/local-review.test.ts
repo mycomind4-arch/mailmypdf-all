@@ -6,6 +6,7 @@ import {
   changeLocalRecipient,
   confirmLocalRecipient,
   emptyDebtValidationIntake,
+  localDebtValidationLetterDate,
   replaceLocalNotice,
   readLocalDebtValidationNoticePdf,
 } from "../local-review";
@@ -119,4 +120,14 @@ test("local debt-validation notice: empty, oversized, non-PDF and truncated read
     name: "truncated.pdf", type: "application/pdf", size: 100,
     arrayBuffer: async () => new TextEncoder().encode("%PDF-1.7").buffer,
   }), /read completely/);
+});
+
+test("local debt-validation letter date uses the customer's calendar day instead of UTC", () => {
+  // 6:55 p.m. Pacific on October 30 is already October 31 in UTC.
+  const pacificEvening = new Date("2026-10-31T01:55:09.000Z");
+  assert.equal(pacificEvening.toISOString().slice(0, 10), "2026-10-31");
+  assert.equal(localDebtValidationLetterDate(pacificEvening, "America/Los_Angeles"), "2026-10-30");
+  // Also cover the year boundary in Pacific standard time.
+  assert.equal(localDebtValidationLetterDate(new Date("2027-01-01T07:30:00.000Z"), "America/Los_Angeles"), "2026-12-31");
+  assert.equal(localDebtValidationLetterDate(pacificEvening, "Pacific/Kiritimati"), "2026-10-31");
 });
