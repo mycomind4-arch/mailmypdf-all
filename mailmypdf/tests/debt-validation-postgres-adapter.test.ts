@@ -488,6 +488,51 @@ test("PostgreSQL debt validation: recipient confirmation revoked after approval 
   assert.equal(result.rows[0]?.checkout_key, null, "stale preflight must never reserve an order");
 });
 
+test("PostgreSQL debt validation: recipient confirmation revoked after checkout preflight blocks atomic claim", async (t) => {
+  const { db, repository, seed, approve, armBeforeTransaction } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  // A valid approval and checkout preflight cannot authorize a submission
+  // after the customer revokes consent before the locked order transaction.
+  // Deliberately keep the packet, PDF and notice metadata unchanged.
+  armBeforeTransaction(async () => {
+    const revoked = fixture().currentIntake;
+    revoked.recipientConfirmed = false;
+    await db.query(
+      "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, JSON.stringify(revoked)],
+    );
+  });
+
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  let receiptReads = 0;
+  await assert.rejects(checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => {
+      stripeCalls++;
+      lobCalls++;
+      return "must-not-submit";
+    },
+    replayCheckout: async () => {
+      receiptReads++;
+      return "must-not-reconcile";
+    },
+  }), /debt_validation_stale_intake/);
+
+  assert.equal(stripeCalls, 0, "revoked confirmation cannot submit payment");
+  assert.equal(lobCalls, 0, "revoked confirmation cannot submit physical mail");
+  assert.equal(receiptReads, 0, "no receipt lookup without an order claim");
+  const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.ok(stored.rows[0]?.approval, "existing approval is retained for audit");
+  assert.equal(stored.rows[0]?.checkout_key, null, "revocation prevents a durable checkout claim");
+});
+
 test("PostgreSQL debt validation: PDF replaced after checkout preflight blocks atomic claim and providers", async (t) => {
   const { db, repository, seed, approve, armBeforeTransaction } = await setup();
   t.after(() => db.close());
