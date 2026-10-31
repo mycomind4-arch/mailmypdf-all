@@ -1,11 +1,13 @@
 import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { validateDebtValidationIntake, draftDebtValidationLetter } from "../domain";
 import {
   changeLocalRecipient,
   confirmLocalRecipient,
   emptyDebtValidationIntake,
+  fingerprintLocalDebtValidationNoticePdf,
   localDebtValidationLetterDate,
   replaceLocalNotice,
   readLocalDebtValidationNoticePdf,
@@ -130,4 +132,33 @@ test("local debt-validation letter date uses the customer's calendar day instead
   // Also cover the year boundary in Pacific standard time.
   assert.equal(localDebtValidationLetterDate(new Date("2027-01-01T07:30:00.000Z"), "America/Los_Angeles"), "2026-12-31");
   assert.equal(localDebtValidationLetterDate(pacificEvening, "Pacific/Kiritimati"), "2026-10-31");
+});
+
+test("local debt-validation notice reference: the preview contains exactly the fingerprinted, validated source", async () => {
+  const pdf = await generatePlainTextPdf("Synthetic collector notice with an address to compare.");
+  const notice = new File([new Uint8Array(pdf)], "synthetic.pdf", { type: "application/pdf" });
+  const created: Blob[] = [];
+  const result = await fingerprintLocalDebtValidationNoticePdf(notice, (blob) => {
+    created.push(blob);
+    return "blob:synthetic-notice";
+  });
+  assert.equal(result.sha256, createHash("sha256").update(pdf).digest("hex"));
+  assert.equal(result.previewUrl, "blob:synthetic-notice");
+  assert.equal(created.length, 1);
+  assert.equal(created[0]!.type, "application/pdf");
+  assert.deepEqual(new Uint8Array(await created[0]!.arrayBuffer()), pdf,
+    "the reference viewer must never display different bytes from the controlling notice");
+});
+
+test("local debt-validation notice reference: malformed source cannot create a preview URL", async () => {
+  let created = 0;
+  const invalid = new File(["%PDF-1.7\\n%%EOF"], "forged.pdf", { type: "application/pdf" });
+  await assert.rejects(
+    fingerprintLocalDebtValidationNoticePdf(invalid, () => {
+      created++;
+      return "blob:should-not-exist";
+    }),
+    /safe, readable PDF|malformed|no pages/i,
+  );
+  assert.equal(created, 0, "no browser reference URL is created for an invalid controlling notice");
 });
