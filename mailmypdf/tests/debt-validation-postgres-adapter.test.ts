@@ -143,6 +143,38 @@ test("PostgreSQL debt validation: exact owner-scoped bytes, approval and one dur
   assert.match(stored.rows[0]!.checkout_key, /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
 
+test("PostgreSQL debt validation: exact approval retry after checkout is read-only", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const binding = await approve();
+  let providerSubmissions = 0;
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { providerSubmissions++; return "synthetic-receipt"; },
+  });
+  const query = "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2";
+  const before = await db.query<{ approval: unknown; checkout_key: string | null }>(query, [owner, matter]);
+  assert.match(before.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+
+  // Retrying the SAME explicit consent after a durable order claim must be
+  // idempotent. Previously the checkout_key check rejected before comparing
+  // the existing approved binding.
+  assert.deepEqual(await approve(), binding);
+  const after = await db.query<{ approval: unknown; checkout_key: string | null }>(query, [owner, matter]);
+  assert.deepEqual(after.rows, before.rows, "retry cannot mutate approval or order claim");
+  assert.equal(providerSubmissions, 1, "approval retry cannot resubmit payment or mail");
+
+  await assert.rejects(approveDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    reviewedPdfSha256: "f".repeat(64), reviewedTotalCents: 1499,
+    reviewedMailClass: "certified", userApprovedExactPacket: true,
+  }), /debt_validation_/, "a different packet is not an idempotent retry");
+  const final = await db.query<{ approval: unknown; checkout_key: string | null }>(query, [owner, matter]);
+  assert.deepEqual(final.rows, before.rows);
+  assert.equal(providerSubmissions, 1);
+});
+
 test("PostgreSQL debt validation: owner B cannot read, approve or claim owner A's matter", async (t) => {
   const { db, repository, seed, approve } = await setup();
   t.after(() => db.close());

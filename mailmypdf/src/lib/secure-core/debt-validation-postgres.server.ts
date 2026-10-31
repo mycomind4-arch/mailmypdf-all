@@ -159,14 +159,17 @@ export function createPostgresDebtValidationMatterRepository(
         });
         assertDebtValidationPersistedPdf(row.pdf_bytes, row.packet.pdfSha256);
         assertStoredControllingNotice(row);
-        if (row.checkout_key) {
-          throw new Error("debt_validation_order_already_claimed");
-        }
         if (row.approval) {
           if (!sameBinding(row.approval, binding)) {
             throw new Error("debt_validation_conflicting_approval");
           }
-          return; // Identical explicit approval retry, no second write.
+          // A completed checkout does not revoke an identical, already
+          // recorded approval. This retry is read-only and cannot create an
+          // order or trigger another provider submission.
+          return;
+        }
+        if (row.checkout_key) {
+          throw new Error("debt_validation_order_already_claimed");
         }
         await tx.query(
           "UPDATE debt_validation_matter_snapshots SET approval=$3::jsonb " +
