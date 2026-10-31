@@ -558,7 +558,7 @@ test("debt-validation HTTP approval boundary: authenticated owner, exact review 
       snapshot.currentIntake.recipientConfirmed = false;
     }],
     ["recipient changed", (snapshot: DebtValidationMatterSnapshot) => {
-      snapshot.currentIntake.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701";
+      snapshot.currentIntake.collectorResponseAddress = "Example Collections\nPO Box 999\nAustin, TX 78701";
     }],
     ["controlling notice replaced", (snapshot: DebtValidationMatterSnapshot) => {
       snapshot.currentIntake.noticeSha256 = "a".repeat(64);
