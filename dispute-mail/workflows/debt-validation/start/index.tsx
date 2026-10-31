@@ -10,6 +10,7 @@ import {
 } from "@mailmypdf/workflow-ui";
 import {
   debtValidationTimingNote,
+  draftDebtValidationEnvelopeAddress,
   draftDebtValidationLetter,
   validateDebtValidationIntake,
   type DebtValidationIntake,
@@ -57,6 +58,14 @@ export function DebtValidationStart() {
       return null;
     }
   }, [blockers, intake, letterDate]);
+  const envelopeAddress = useMemo(() => {
+    if (blockers.length) return null;
+    try {
+      return draftDebtValidationEnvelopeAddress(intake);
+    } catch {
+      return null;
+    }
+  }, [blockers, intake]);
 
   // Any source, recipient, confirmation, letter or date edit revokes the preview.
   useEffect(() => {
@@ -266,6 +275,23 @@ export function DebtValidationStart() {
               <TextField type="date" value={letterDate}
                 onChange={(event) => setLetterDate(event.target.value)} />
             </Field>
+            {envelopeAddress && (
+              <SectionCard title="Envelope address preview — draft only">
+                <p className="wf-intake-note">
+                  These addresses come from your manually transcribed, confirmed notice
+                  and return address. This is not an envelope PDF, USPS address
+                  verification, an approved mailing, or proof of delivery.
+                </p>
+                <p className="wf-intake-note"><strong>Return address</strong></p>
+                <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                  {envelopeAddress.returnAddress}
+                </pre>
+                <p className="wf-intake-note"><strong>Recipient address</strong></p>
+                <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                  {envelopeAddress.recipientAddress}
+                </pre>
+              </SectionCard>
+            )}
             {letter && (
               <SectionCard title="Review-only letter draft">
                 <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{letter}</pre>
