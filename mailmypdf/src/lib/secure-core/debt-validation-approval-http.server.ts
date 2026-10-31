@@ -9,8 +9,9 @@ import {
   approveDebtValidationMatter,
   checkoutDebtValidationMatter,
   type DebtValidationMatterRepository,
+  assertDebtValidationPersistedPdf,
 } from "../../../../dispute-mail/workflows/debt-validation/server-matter-approval";
-import type { DebtValidationApprovalBinding } from "../../../../dispute-mail/workflows/debt-validation/server-approval-binding";
+import { createDebtValidationApprovalBinding, type DebtValidationApprovalBinding } from "../../../../dispute-mail/workflows/debt-validation/server-approval-binding";
 
 interface AuthenticatedActor { id: string }
 
@@ -244,6 +245,82 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
       const code = error instanceof Error ? error.message : "";
       if (/^debt_validation_[a-z_]+$/.test(code)) return response(409, code);
       return response(500, "checkout_unavailable");
+    }
+  };
+}
+
+/**
+ * Read-only, authenticated preview of the exact server-persisted letter PDF.
+ *
+ * NOT MOUNTED. This is the missing review boundary between owner-scoped packet
+ * persistence and explicit approval. It never records consent, reserves an
+ * order, contacts Stripe/Lob, or exposes the controlling notice as an enclosure.
+ * A future host must provide reviewed authentication, schema/RLS and routing.
+ */
+export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidationApprovalHttpDependencies) {
+  if (!deps.allowedOrigin || new URL(deps.allowedOrigin).origin !== deps.allowedOrigin) {
+    throw new Error("debt_validation_invalid_allowed_origin");
+  }
+  return async (request: Request): Promise<Response> => {
+    if (request.method !== "GET") return response(405, "method_not_allowed");
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return response(400, "invalid_review_request");
+    }
+    if (url.origin !== deps.allowedOrigin || request.headers.get("sec-fetch-site") === "cross-site") {
+      return response(403, "origin_not_allowed");
+    }
+    let actor: AuthenticatedActor | null;
+    try {
+      actor = await deps.authenticate(request);
+    } catch {
+      return response(401, "authentication_required");
+    }
+    if (!actor?.id?.trim()) return response(401, "authentication_required");
+    const entries = Array.from(url.searchParams.entries());
+    const matterId = entries.length === 1 && entries[0]?.[0] === "matterId"
+      ? entries[0][1] : "";
+    if (!matterId.trim() || matterId.length > 200) {
+      return response(400, "invalid_review_request");
+    }
+    try {
+      const snapshot = await deps.repository.loadCurrent(actor.id, matterId);
+      if (!snapshot) return response(404, "review_packet_not_found");
+      // Only an internally consistent, notice-bound packet can be presented as
+      // the server review artifact. This is NOT the user's approval action.
+      createDebtValidationApprovalBinding({
+        ownerId: actor.id,
+        matterId,
+        intake: snapshot.currentIntake,
+        trustedNotice: snapshot.trustedNotice,
+        packet: snapshot.packet,
+        reviewedPdfSha256: snapshot.packet.pdfSha256,
+      });
+      const bytes = await deps.repository.loadPacketPdfBytes(actor.id, matterId);
+      assertDebtValidationPersistedPdf(bytes, snapshot.packet.pdfSha256);
+      // Copy the bytes to avoid returning a mutable repository buffer.
+      const payload = Uint8Array.from(bytes!);
+      return new Response(payload.buffer as ArrayBuffer, {
+        status: 200,
+        headers: {
+          "content-type": "application/pdf",
+          "cache-control": "private, no-store",
+          "content-disposition": 'inline; filename="debt-validation-review.pdf"',
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "SAMEORIGIN",
+          "referrer-policy": "no-referrer",
+          "x-robots-tag": "noindex, nofollow",
+          "x-reviewed-pdf-sha256": snapshot.packet.pdfSha256,
+          "x-reviewed-total-cents": String(snapshot.packet.totalCents),
+          "x-reviewed-mail-class": snapshot.packet.mailClass,
+        },
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (/^debt_validation_[a-z_]+$/.test(code)) return response(409, code);
+      return response(500, "review_unavailable");
     }
   };
 }
