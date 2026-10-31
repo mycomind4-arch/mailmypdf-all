@@ -26,6 +26,7 @@ const schema = String.raw`
     trusted_notice jsonb NOT NULL,
     packet jsonb NOT NULL,
     pdf_bytes bytea NOT NULL,
+    notice_pdf_bytes bytea NOT NULL,
     approval jsonb,
     checkout_key text,
     PRIMARY KEY (owner_id, matter_id)
@@ -37,9 +38,10 @@ const matter = "synthetic-matter-1";
 const address = "Example Collections\nPO Box 456\nAustin, TX 78701";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const pdf = new TextEncoder().encode("%PDF-1.4\nSynthetic reviewed packet\n%%EOF");
+const sourceNoticePdf = new TextEncoder().encode("%PDF-1.4\nSynthetic controlling collection notice\n%%EOF");
 
 function fixture(ownerId = owner): DebtValidationMatterSnapshot {
-  const noticeSha = "a".repeat(64);
+  const noticeSha = sha(sourceNoticePdf);
   const intake: DebtValidationIntake = {
     consumerName: "Synthetic Consumer",
     consumerMailingAddress: "123 Example St\nSacramento, CA 95814",
@@ -90,9 +92,9 @@ async function setup() {
   const repository = createPostgresDebtValidationMatterRepository(sql);
   const seed = async (ownerId = owner, snapshot = fixture(ownerId), bytes = pdf) =>
     db.query(
-      "INSERT INTO debt_validation_matter_snapshots (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea)",
+      "INSERT INTO debt_validation_matter_snapshots (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea,$7::bytea)",
       [ownerId, matter, JSON.stringify(snapshot.currentIntake),
-        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytes],
+        JSON.stringify(snapshot.trustedNotice), JSON.stringify(snapshot.packet), bytes, sourceNoticePdf],
     );
   const approve = (ownerId = owner) => approveDebtValidationMatter({
     ownerId, matterId: matter, repository,
@@ -230,4 +232,41 @@ test("PostgreSQL debt validation: changed recipient, controlling notice or PDF b
       await db.close();
     }
   }
+});
+
+
+test("PostgreSQL debt validation: changed stored controlling notice bytes block approval and checkout", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const changedNotice = new TextEncoder().encode("Replaced notice with different payment instructions");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, changedNotice],
+  );
+  await assert.rejects(approve(), /debt_validation_persisted_notice_changed/);
+  const before = await db.query<{ approval: unknown }>(
+    "SELECT approval FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2", [owner, matter],
+  );
+  assert.equal(before.rows[0]?.approval, null, "no approval is persisted for a replaced source");
+
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  await approve();
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, changedNotice],
+  );
+  let providerCalls = 0;
+  await assert.rejects(checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { providerCalls++; return "should-not-submit"; },
+  }), /debt_validation_persisted_notice_changed/);
+  assert.equal(providerCalls, 0, "no mocked Stripe/Lob handoff after source replacement");
+  const after = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2", [owner, matter],
+  );
+  assert.equal(after.rows[0]?.checkout_key, null, "no durable order claim after source replacement");
 });
