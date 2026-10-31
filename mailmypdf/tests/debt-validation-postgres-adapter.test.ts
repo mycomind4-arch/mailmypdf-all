@@ -2106,3 +2106,54 @@ test("PostgreSQL debt validation: receipt recording and reconciliation reject ch
     "restoring exact approved source and packet preserves the legitimate receipt path");
   assert.equal(mockSubmissions, 1);
 });
+
+
+test("debt-validation HTTP checkout: a new claim cannot report mailing recorded without durable receipts", async (t) => {
+  // A trusted callback can accidentally report "recorded" before its payment
+  // and mailing acknowledgements have been persisted. The HTTP response must
+  // use read-only receipt reconciliation, not the submission callback's claim.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  const origin = "https://mailmypdf.example";
+  let submissions = 0;
+  let receiptReads = 0;
+  const checkout = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+    submitNewClaim: async () => {
+      submissions++;
+      return "recorded" as const; // No provider receipts actually exist.
+    },
+    reconcileClaim: async () => {
+      receiptReads++;
+      return "pending" as const;
+    },
+  });
+  const request = () => new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify({
+      matterId: matter,
+      reviewedPdfSha256: sha(pdf),
+      reviewedTotalCents: 1499,
+      reviewedMailClass: "certified",
+      userConfirmedCheckout: true,
+    }),
+  });
+
+  const first = await checkout(request());
+  assert.equal(first.status, 202, "unreconciled receipts must not be represented as recorded");
+  assert.deepEqual(await first.json(), { code: "checkout_claim_pending" });
+  assert.equal(submissions, 1, "only the first durable claim may submit");
+  assert.equal(receiptReads, 1, "first response verifies durable receipts read-only");
+
+  const retry = await checkout(request());
+  assert.equal(retry.status, 202);
+  assert.deepEqual(await retry.json(), { code: "checkout_claim_pending" });
+  assert.equal(submissions, 1, "retry cannot charge or mail a second time");
+  assert.equal(receiptReads, 2);
+});
