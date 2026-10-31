@@ -75,7 +75,7 @@ test("server packet preparation: a safe 11+ page controlling notice remains evid
   // Outgoing mail limits apply to the generated letter, not to a longer
   // controlling notice that is NEVER attached to the physical-mail packet.
   const input = await fixture();
-  const longNotice = await generatePlainTextPdf("Synthetic collection notice evidence.\\n".replace("\\n", "\n").repeat(450));
+  const longNotice = await generatePlainTextPdf("Synthetic collection notice evidence.\n".repeat(450));
   await assert.rejects(
     validatePdfForMailing(longNotice),
     /longer than 10 pages/,
