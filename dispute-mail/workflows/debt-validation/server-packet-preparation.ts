@@ -11,7 +11,7 @@
  * approval and fulfillment; this preparation step is NOT mailing consent.
  */
 import { createHash } from "node:crypto";
-import { validatePdfForMailing, type PacketManifestEntry } from "@mailmypdf/packet-builder";
+import { validatePdfForMailing, validatePdfForReference, type PacketManifestEntry } from "@mailmypdf/packet-builder";
 import { calculateQuote } from "@mailmypdf/pricing";
 import { draftDebtValidationEnvelopeAddress, validateDebtValidationIntake, type DebtValidationIntake } from "./domain";
 import { createLocalDebtValidationPdfPreview } from "./pdf-preview";
@@ -55,7 +55,10 @@ export async function prepareDebtValidationMatterPacket(input: {
     throw new Error("debt_validation_source_integrity");
   }
   try {
-    await validatePdfForMailing(noticePdfBytes);
+    // The controlling notice is evidence only. It is not mailed as an
+    // enclosure, so its safe page count may exceed the outgoing 10-page cap.
+    // All other PDF safety checks remain mandatory.
+    await validatePdfForReference(noticePdfBytes);
   } catch {
     throw new Error("debt_validation_invalid_source_pdf");
   }
