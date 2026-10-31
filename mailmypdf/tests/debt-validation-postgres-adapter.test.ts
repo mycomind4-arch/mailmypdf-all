@@ -1061,3 +1061,69 @@ test("debt-validation HTTP: request stream failure details never escape approval
   assert.equal(stored.rows[0]?.checkout_key, null);
   assert.equal(submissions, 0, "a failed request body never reaches mocked payment or mailing");
 });
+
+
+test("debt-validation HTTP checkout: provider failure is reconciled without a second physical-mail submission", async (t) => {
+  // An ambiguous provider failure happens AFTER the durable order claim.
+  // HTTP retries must never charge or mail again; only a read-only receipt
+  // reconciliation is permitted. This is isolated PGlite + mocked callbacks.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  const origin = "https://mailmypdf.example";
+  let submissions = 0;
+  let receiptLookups = 0;
+  const handle = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+    submitNewClaim: async () => {
+      submissions++;
+      throw new Error("synthetic_uncertain_provider_outcome");
+    },
+    reconcileClaim: async () => {
+      receiptLookups++;
+      return "pending";
+    },
+  });
+  const request = () => new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify({
+      matterId: matter,
+      reviewedPdfSha256: sha(pdf),
+      reviewedTotalCents: 1499,
+      reviewedMailClass: "certified",
+      userConfirmedCheckout: true,
+    }),
+  });
+
+  const first = await handle(request());
+  assert.equal(first.status, 500, "provider uncertainty is not a successful mailing");
+  assert.deepEqual(await first.json(), { code: "checkout_unavailable" },
+    "internal provider exception details must not escape the HTTP boundary");
+  assert.equal(submissions, 1, "only the first durable claim invokes the mock provider");
+  assert.equal(receiptLookups, 0);
+  const claimed = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  const key = claimed.rows[0]?.checkout_key;
+  assert.match(key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/,
+    "a failed callback must not erase the durable claim");
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const retry = await handle(request());
+    assert.equal(retry.status, 202, "retry is pending receipt reconciliation");
+    assert.deepEqual(await retry.json(), { code: "checkout_claim_pending" });
+    assert.equal(submissions, 1, "HTTP retries must not invoke mocked Stripe/Lob again");
+    assert.equal(receiptLookups, attempt, "retry uses read-only receipt lookup");
+  }
+  const after = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(after.rows[0]?.checkout_key, key, "original claim is immutable across retries");
+});
