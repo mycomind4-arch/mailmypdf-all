@@ -366,6 +366,28 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       await db.transaction(async (tx) => {
         const row = await readRow(tx, ownerId, matterId, true);
         assertReceiptClaim(row, ownerId, matterId, verified);
+        // A mailing acknowledgement cannot certify a physical-mailing stage
+        // unless this exact owner/order already has a valid payment receipt.
+        // Keep the check under the matter row lock so concurrent callbacks
+        // cannot bypass the ordering rule. This is a ledger guard, NOT an
+        // authorization to submit a letter to Lob.
+        if (normalized.kind === "mailing") {
+          const paid = await tx.query(
+            "SELECT provider,provider_reference,evidence_sha256 " +
+              "FROM debt_validation_checkout_receipts " +
+              "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='payment'",
+            [ownerId, matterId, verified.idempotencyKey],
+          );
+          if (paid.rows.length !== 1) {
+            throw new Error("debt_validation_payment_receipt_required");
+          }
+          validateProviderReceipt({
+            kind: "payment",
+            provider: paid.rows[0]!.provider as string,
+            providerReference: paid.rows[0]!.provider_reference as string,
+            evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
+          });
+        }
         const existing = await tx.query(
           "SELECT provider,provider_reference,evidence_sha256 " +
             "FROM debt_validation_checkout_receipts " +
@@ -427,6 +449,11 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       }
       const payment = receipts.get("payment") ?? null;
       const mailing = receipts.get("mailing") ?? null;
+      // Fail closed on a legacy or manually corrupted mailing-only row.
+      // Payment and mailing receipts must never be conflated.
+      if (mailing && !payment) {
+        throw new Error("debt_validation_payment_receipt_required");
+      }
       return {
         status: payment && mailing ? "recorded" : "pending",
         payment,
