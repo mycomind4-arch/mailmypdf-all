@@ -160,6 +160,62 @@ test("PostgreSQL debt validation: owner B cannot read, approve or claim owner A'
   assert.deepEqual(rows.rows.map((row) => row.owner_id), [owner]);
 });
 
+test("PostgreSQL debt validation: two owners sharing a matter ID keep approvals and checkout claims isolated", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  // Matter IDs are not globally unique: a malicious owner must never obtain
+  // another customer's approval, receipt or durable order reservation.
+  await seed(owner);
+  await seed(other);
+
+  const bindingA = await approve(owner);
+  const bindingB = await approve(other);
+  assert.equal(bindingA.ownerId, owner);
+  assert.equal(bindingB.ownerId, other);
+  assert.deepEqual(await repository.loadApproval(owner, matter), bindingA);
+  assert.deepEqual(await repository.loadApproval(other, matter), bindingB);
+
+  let submissionsA = 0;
+  let submissionsB = 0;
+  const keyA = await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async ({ idempotencyKey }) => { submissionsA++; return idempotencyKey; },
+  });
+  // An owner-A binding cannot claim or replay the identically named owner-B
+  // matter even when both packets have identical PDF bytes and quote values.
+  await assert.rejects(repository.claimCheckout(other, matter, {
+    binding: bindingA, idempotencyKey: keyA,
+    expectedMatterVersion: bindingA.matterVersion,
+  }), /debt_validation_concurrent_checkout_change/);
+
+  const keyB = await checkoutDebtValidationMatter({
+    ownerId: other, matterId: matter, repository,
+    checkout: async ({ idempotencyKey }) => { submissionsB++; return idempotencyKey; },
+  });
+  assert.notEqual(keyA, keyB, "owner identity must be part of the durable idempotency key");
+  assert.equal(submissionsA, 1);
+  assert.equal(submissionsB, 1);
+
+  let replayReads = 0;
+  const replay = await checkoutDebtValidationMatter({
+    ownerId: other, matterId: matter, repository,
+    checkout: async () => { submissionsB++; return "duplicate-provider-submission"; },
+    replayCheckout: async ({ idempotencyKey }) => { replayReads++; return idempotencyKey; },
+  });
+  assert.equal(replay, keyB);
+  assert.equal(replayReads, 1, "owner B's retry only reads the existing receipt");
+  assert.equal(submissionsB, 1, "no second payment or mailing callback");
+
+  const rows = await db.query<{ owner_id: string; checkout_key: string | null }>(
+    "SELECT owner_id,checkout_key FROM debt_validation_matter_snapshots WHERE matter_id=$1 ORDER BY owner_id",
+    [matter],
+  );
+  assert.deepEqual(rows.rows, [
+    { owner_id: owner, checkout_key: keyA },
+    { owner_id: other, checkout_key: keyB },
+  ]);
+});
+
 test("PostgreSQL debt validation: no confirmation and replaced PDF fail before approval", async (t) => {
   const { db, repository, seed, approve } = await setup();
   t.after(() => db.close());
