@@ -4,7 +4,8 @@
  *
  * Deliberately NOT mounted on any route. A release owner must first review
  * hosted owner-scoped persistence/RLS, source-byte storage, and route policy.
- * No checkout, Stripe, Lob, or mailing handler is exposed by this bridge.
+ * A checkout HTTP handler is available only through explicitly injected
+ * callbacks; no provider adapter or live mailing route is configured here.
  */
 import { AuthenticationError, requireAuthenticatedUser } from "./auth.server";
 import {
