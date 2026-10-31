@@ -417,6 +417,20 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           }
           return;
         }
+        // If a legacy/corrupted mailing acknowledgement already exists with
+        // no payment, do not legitimize that invalid history by inserting a
+        // payment afterwards. Exact existing payment retries above remain
+        // idempotent even when mailing has subsequently completed.
+        if (normalized.kind === "payment") {
+          const mailed = await tx.query(
+            "SELECT kind FROM debt_validation_checkout_receipts " +
+              "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='mailing'",
+            [ownerId, matterId, verified.idempotencyKey],
+          );
+          if (mailed.rows.length !== 0) {
+            throw new Error("debt_validation_mailing_before_payment");
+          }
+        }
         await tx.query(
           "INSERT INTO debt_validation_checkout_receipts " +
             "(owner_id,matter_id,checkout_key,kind,provider,provider_reference,evidence_sha256) " +
