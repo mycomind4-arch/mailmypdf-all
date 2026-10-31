@@ -1,3 +1,5 @@
+import { createDebtValidationHostReviewAndApprovalHandlers } from "../src/lib/secure-core/debt-validation-host-review.server";
+import { AuthenticationError } from "../src/lib/secure-core/auth.server";
 import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler, createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -1499,4 +1501,69 @@ test("PostgreSQL debt validation: existing checkout claim cannot reconcile a sil
   assert.equal(await checkout(), originalKey);
   assert.equal(providerSubmissions, 1, "a valid retry still cannot submit twice");
   assert.equal(receiptLookups, 1, "valid retry uses the read-only receipt adapter");
+});
+
+test("debt-validation host auth bridge scopes review and approval to verified bearer identity", async (t) => {
+  // Real isolated PostgreSQL repository and HTTP boundaries; fake only the
+  // external identity verification. This host bridge is NOT a mounted route.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const handlers = createDebtValidationHostReviewAndApprovalHandlers(
+    { repository, allowedOrigin: origin },
+    async (request) => {
+      const bearer = request.headers.get("authorization");
+      if (bearer === "Bearer owner-a") return { user: { id: owner } };
+      if (bearer === "Bearer owner-b") return { user: { id: other } };
+      throw new AuthenticationError("Synthetic invalid bearer");
+    },
+  );
+  const review = (authorization = "Bearer owner-a") => handlers.review(
+    new Request(origin + "/api/debt-validation/review?matterId=" + matter, {
+      headers: { authorization },
+    }),
+  );
+  const approvalBody = {
+    matterId: matter, reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    userApprovedExactPacket: true,
+  };
+  const approveRequest = (authorization = "Bearer owner-a", body: Record<string, unknown> = approvalBody,
+    requestOrigin = origin) => handlers.approval(new Request(origin + "/api/debt-validation/approval", {
+      method: "POST",
+      headers: {
+        authorization, origin: requestOrigin, "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }));
+
+  assert.equal((await review("")).status, 401);
+  assert.equal((await review("Bearer owner-b")).status, 404);
+  assert.equal((await review()).status, 200);
+  assert.equal((await approveRequest("")).status, 401);
+  assert.equal((await approveRequest("Bearer owner-b")).status, 409);
+  assert.equal((await approveRequest("Bearer owner-a", approvalBody, "https://evil.example")).status, 403);
+  assert.equal((await approveRequest("Bearer owner-a", { ...approvalBody, ownerId: other })).status, 400);
+
+  // Silently swapping the trusted source bytes cannot turn a valid review
+  // into an approval, even with a verified owner and an unchanged packet hash.
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("%PDF-1.4\\nSynthetic swapped source\\n%%EOF")],
+  );
+  assert.equal((await approveRequest()).status, 409);
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  assert.equal((await approveRequest()).status, 200);
+  const state = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.ok(state.rows[0]?.approval, "exact reviewed packet may be approved");
+  assert.equal(state.rows[0]?.checkout_key, null, "review/approval cannot reserve an order");
+  assert.deepEqual(Object.keys(handlers).sort(), ["approval", "review"],
+    "the host bridge must not expose checkout or a mailing provider");
 });
