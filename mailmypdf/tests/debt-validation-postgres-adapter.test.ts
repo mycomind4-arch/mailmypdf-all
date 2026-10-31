@@ -2031,3 +2031,78 @@ test("debt-validation host checkout isolates identical matter IDs and PDF hashes
   assert.deepEqual(rows.rows.map((row) => ({ ownerId: row.owner_id, key: row.checkout_key })),
     submissions, "each owner has a distinct durable order reservation");
 });
+
+
+test("PostgreSQL debt validation: receipt recording and reconciliation reject changed source, recipient and PDF", async (t) => {
+  // A prior checkout claim must not make later receipt writes or reconciliation
+  // trust stale approval metadata. All data and provider counters are offline.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  let mockSubmissions = 0;
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { mockSubmissions++; return "pending" as const; },
+  });
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_receipt_guard", evidenceSha256: "a".repeat(64),
+  };
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_receipt_guard", evidenceSha256: "b".repeat(64),
+  };
+  await ledger.record(owner, matter, verified, payment);
+
+  const update = (field: string, value: unknown) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET " + field +
+      "=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, value],
+  );
+  const alteredNotice = new TextEncoder().encode("%PDF-1.4\\nSynthetic replaced source\\n%%EOF");
+  await update("notice_pdf_bytes", alteredNotice);
+  await assert.rejects(ledger.record(owner, matter, verified, mailing),
+    /debt_validation_persisted_notice_changed/);
+  await assert.rejects(ledger.reconcile(owner, matter, verified),
+    /debt_validation_persisted_notice_changed/);
+  await update("notice_pdf_bytes", sourceNoticePdf);
+
+  await update("current_intake", { ...fixture().currentIntake, recipientConfirmed: false });
+  await assert.rejects(ledger.record(owner, matter, verified, mailing),
+    /debt_validation_/);
+  await assert.rejects(ledger.reconcile(owner, matter, verified),
+    /debt_validation_/);
+  await update("current_intake", fixture().currentIntake);
+
+  await update("pdf_bytes", new TextEncoder().encode("%PDF-1.4\\nTampered reviewed packet\\n%%EOF"));
+  await assert.rejects(ledger.record(owner, matter, verified, mailing),
+    /debt_validation_persisted_pdf_changed/);
+  await assert.rejects(ledger.reconcile(owner, matter, verified),
+    /debt_validation_persisted_pdf_changed/);
+  await update("pdf_bytes", pdf);
+
+  const before = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(before.rows.map((row) => row.kind), ["payment"],
+    "none of the rejected paths may create a mailing acknowledgement");
+  assert.equal(mockSubmissions, 1, "receipt checks must never resubmit a provider");
+  await ledger.record(owner, matter, verified, mailing);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
+    "restoring exact approved source and packet preserves the legitimate receipt path");
+  assert.equal(mockSubmissions, 1);
+});
