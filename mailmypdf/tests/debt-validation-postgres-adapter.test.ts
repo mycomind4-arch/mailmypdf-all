@@ -1,3 +1,4 @@
+import { createDebtValidationApprovalHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -486,6 +487,95 @@ test("PostgreSQL debt validation: approval transaction rejects same-version sour
         checkout: async () => { providerCalls++; return "must-not-submit"; },
       }), /debt_validation_approval_missing/, name);
       assert.equal(providerCalls, 0, name + ": no payment or mailing handoff");
+    } finally {
+      await db.close();
+    }
+  }
+});
+
+test("debt-validation HTTP approval boundary: authenticated owner, exact review and fail-closed mutations", async () => {
+  const origin = "https://mailmypdf.example";
+  const request = (payload: Record<string, unknown>, options: { origin?: string; token?: string } = {}) =>
+    new Request(origin + "/api/debt-validation/approval", {
+      method: "POST",
+      headers: {
+        origin: options.origin ?? origin,
+        authorization: options.token ?? "Bearer synthetic-owner-a",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  const reviewed = {
+    matterId: matter,
+    reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499,
+    reviewedMailClass: "certified",
+    userApprovedExactPacket: true,
+  };
+  const fresh = async (snapshot = fixture()) => {
+    const state = await setup();
+    await state.seed(owner, snapshot);
+    const handle = createDebtValidationApprovalHttpHandler({
+      allowedOrigin: origin,
+      repository: state.repository,
+      authenticate: async (req) => {
+        const token = req.headers.get("authorization");
+        return token === "Bearer synthetic-owner-a" ? { id: owner }
+          : token === "Bearer synthetic-owner-b" ? { id: other } : null;
+      },
+    });
+    return { ...state, handle };
+  };
+
+  {
+    const { db, handle } = await fresh();
+    try {
+      const success = await handle(request(reviewed));
+      assert.equal(success.status, 200);
+      assert.equal((await success.json()).code, "approved");
+      assert.equal((await handle(request(reviewed))).status, 200,
+        "same exact packet approval retry is idempotent");
+      const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+        "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter],
+      );
+      assert.ok(stored.rows[0]?.approval, "only an explicit reviewed packet may be approved");
+      assert.equal(stored.rows[0]?.checkout_key, null, "HTTP approval never claims an order");
+      assert.equal((await handle(request(reviewed, { origin: "https://attacker.example" }))).status, 403);
+      assert.equal((await handle(request(reviewed, { token: "Bearer invalid" }))).status, 401);
+      assert.equal((await handle(request(reviewed, { token: "Bearer synthetic-owner-b" }))).status, 409,
+        "another authenticated owner cannot approve this matter");
+      assert.equal((await handle(request({ ...reviewed, ownerId: other }))).status, 400,
+        "request-supplied owner is never authoritative");
+      assert.equal((await handle(request({ ...reviewed, userApprovedExactPacket: false }))).status, 400);
+    } finally {
+      await db.close();
+    }
+  }
+
+  for (const [label, mutate] of [
+    ["confirmation revoked", (snapshot: DebtValidationMatterSnapshot) => {
+      snapshot.currentIntake.recipientConfirmed = false;
+    }],
+    ["recipient changed", (snapshot: DebtValidationMatterSnapshot) => {
+      snapshot.currentIntake.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701";
+    }],
+    ["controlling notice replaced", (snapshot: DebtValidationMatterSnapshot) => {
+      snapshot.currentIntake.noticeSha256 = "a".repeat(64);
+    }],
+  ] as Array<[string, (snapshot: DebtValidationMatterSnapshot) => void]>) {
+    const snapshot = fixture();
+    mutate(snapshot);
+    const { db, handle } = await fresh(snapshot);
+    try {
+      const rejected = await handle(request(reviewed));
+      assert.equal(rejected.status, 409, label);
+      const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+        "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter],
+      );
+      assert.equal(stored.rows[0]?.approval, null, label + ": no approval");
+      assert.equal(stored.rows[0]?.checkout_key, null, label + ": no checkout claim");
     } finally {
       await db.close();
     }
