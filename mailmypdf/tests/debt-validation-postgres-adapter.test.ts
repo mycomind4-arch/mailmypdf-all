@@ -1,4 +1,4 @@
-import { createDebtValidationApprovalHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
+import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -735,4 +735,143 @@ test("debt-validation HTTP approval: malformed, cross-origin and altered quote r
   const accepted = await handle(json(reviewed));
   assert.equal(accepted.status, 200, "a subsequent valid explicit approval remains available");
   assert.equal((await accepted.json()).code, "approved");
+});
+
+
+test("debt-validation HTTP checkout: exact owner review, one durable claim and read-only retry", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  let submissions = 0;
+  let reconciliations = 0;
+  const handle = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async (req) =>
+      req.headers.get("authorization") === "Bearer synthetic-owner-a" ? { id: owner }
+        : req.headers.get("authorization") === "Bearer synthetic-owner-b" ? { id: other } : null,
+    submitNewClaim: async () => { submissions++; return "pending"; },
+    reconcileClaim: async () => { reconciliations++; return "pending"; },
+  });
+  const reviewed = {
+    matterId: matter,
+    reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499,
+    reviewedMailClass: "certified",
+    userConfirmedCheckout: true,
+  };
+  const request = (payload: Record<string, unknown>, headers: Record<string, string> = {}) =>
+    new Request(origin + "/api/debt-validation/checkout", {
+      method: "POST",
+      headers: {
+        origin,
+        authorization: "Bearer synthetic-owner-a",
+        "content-type": "application/json",
+        ...headers,
+      },
+      body: JSON.stringify(payload),
+    });
+  assert.equal((await handle(request(reviewed))).status, 409,
+    "checkout cannot reserve an order before exact approval");
+  await approve();
+
+  const invalid: Array<[string, Record<string, unknown>, Record<string, string>, number]> = [
+    ["missing explicit checkout consent", { ...reviewed, userConfirmedCheckout: false }, {}, 400],
+    ["altered reviewed quote", { ...reviewed, reviewedTotalCents: 1599 }, {}, 409],
+    ["altered mailing class", { ...reviewed, reviewedMailClass: "registered" }, {}, 409],
+    ["altered PDF digest", { ...reviewed, reviewedPdfSha256: "f".repeat(64) }, {}, 409],
+    ["untrusted owner", { ...reviewed, ownerId: other }, {}, 400],
+    ["untrusted checkout key", { ...reviewed, idempotencyKey: "retry-2" }, {}, 400],
+    ["untrusted notice", { ...reviewed, trustedNotice: {} }, {}, 400],
+    ["cross-site request", reviewed, { origin: "https://attacker.example" }, 403],
+    ["unauthenticated request", reviewed, { authorization: "" }, 401],
+    ["another owner", reviewed, { authorization: "Bearer synthetic-owner-b" }, 409],
+  ];
+  for (const [label, payload, headers, status] of invalid) {
+    const rejected = await handle(request(payload, headers));
+    assert.equal(rejected.status, status, label);
+    const stored = await db.query<{ checkout_key: string | null }>(
+      "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter],
+    );
+    assert.equal(stored.rows[0]?.checkout_key, null, label + ": no durable claim");
+    assert.equal(submissions, 0, label + ": zero mocked Stripe/Lob handoffs");
+  }
+
+  const first = await handle(request(reviewed));
+  assert.equal(first.status, 202);
+  assert.equal((await first.json()).code, "checkout_claim_pending");
+  assert.equal(submissions, 1);
+  assert.equal(reconciliations, 0);
+  const retry = await handle(request(reviewed));
+  assert.equal(retry.status, 202);
+  assert.equal((await retry.json()).code, "checkout_claim_pending");
+  assert.equal(submissions, 1, "same checkout cannot submit to mocked providers twice");
+  assert.equal(reconciliations, 1, "retry is a read-only receipt lookup");
+  const stored = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.match(stored.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+});
+
+test("debt-validation HTTP checkout: changed recipient or controlling notice fails closed", async () => {
+  const origin = "https://mailmypdf.example";
+  const cases: Array<[string, (snapshot: DebtValidationMatterSnapshot) => void, "intake" | "notice"]> = [
+    ["recipient confirmation revoked", (snapshot) => {
+      snapshot.currentIntake.recipientConfirmed = false;
+    }, "intake"],
+    ["recipient changed after approval", (snapshot) => {
+      snapshot.currentIntake.collectorResponseAddress = "Example Collections\\nPO Box 999\\nAustin, TX 78701";
+    }, "intake"],
+    ["controlling notice replaced", (snapshot) => {
+      snapshot.trustedNotice.sha256 = "a".repeat(64);
+    }, "notice"],
+  ];
+  for (const [label, mutate, field] of cases) {
+    const { db, repository, seed, approve } = await setup();
+    try {
+      await seed();
+      await approve();
+      const changed = fixture();
+      mutate(changed);
+      await db.query(
+        "UPDATE debt_validation_matter_snapshots SET " +
+          (field === "intake" ? "current_intake=$3::jsonb" : "trusted_notice=$3::jsonb") +
+          " WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter, JSON.stringify(field === "intake" ? changed.currentIntake : changed.trustedNotice)],
+      );
+      let submissions = 0;
+      let reconciliations = 0;
+      const handle = createDebtValidationCheckoutHttpHandler({
+        allowedOrigin: origin,
+        repository,
+        authenticate: async () => ({ id: owner }),
+        submitNewClaim: async () => { submissions++; return "pending"; },
+        reconcileClaim: async () => { reconciliations++; return "pending"; },
+      });
+      const result = await handle(new Request(origin + "/api/debt-validation/checkout", {
+        method: "POST",
+        headers: { origin, "content-type": "application/json" },
+        body: JSON.stringify({
+          matterId: matter,
+          reviewedPdfSha256: sha(pdf),
+          reviewedTotalCents: 1499,
+          reviewedMailClass: "certified",
+          userConfirmedCheckout: true,
+        }),
+      }));
+      assert.equal(result.status, 409, label);
+      const stored = await db.query<{ checkout_key: string | null }>(
+        "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+        [owner, matter],
+      );
+      assert.equal(stored.rows[0]?.checkout_key, null, label + ": no order claim");
+      assert.equal(submissions, 0, label + ": zero mocked provider submissions");
+      assert.equal(reconciliations, 0, label + ": zero receipt lookups");
+    } finally {
+      await db.close();
+    }
+  }
 });
