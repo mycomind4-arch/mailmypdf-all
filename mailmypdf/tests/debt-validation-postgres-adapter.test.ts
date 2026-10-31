@@ -1858,3 +1858,72 @@ test("PostgreSQL debt validation: durable two-stage mock provider receipts recon
   assert.deepEqual(persisted.rows.map((row) => row.kind).sort(), ["mailing", "payment"]);
   assert.equal(mockedProviderSubmissions, 1);
 });
+
+
+test("debt-validation host checkout isolates identical matter IDs and PDF hashes across owners", async (t) => {
+  // Identical matter IDs, source bytes, reviewed PDF and quote must never
+  // collapse two authenticated customers into one physical-mailing claim.
+  // Embedded PGlite and local counters only: no hosted DB, Stripe or Lob.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed(owner);
+  await seed(other);
+  const origin = "https://mailmypdf.example";
+  const verifyUser = async (request: Request) => {
+    if (request.headers.get("authorization") === "Bearer owner-a") return { user: { id: owner } };
+    if (request.headers.get("authorization") === "Bearer owner-b") return { user: { id: other } };
+    throw new AuthenticationError("Synthetic invalid bearer");
+  };
+  const approval = createDebtValidationHostReviewAndApprovalHandlers(
+    { repository, allowedOrigin: origin }, verifyUser,
+  ).approval;
+  const submissions: Array<{ ownerId: string; key: string }> = [];
+  const receiptReads: Array<{ ownerId: string; key: string }> = [];
+  const checkout = createDebtValidationHostCheckoutHandler({
+    repository, allowedOrigin: origin,
+    submitNewClaim: async ({ binding, idempotencyKey }) => {
+      submissions.push({ ownerId: binding.ownerId, key: idempotencyKey });
+      return "pending" as const;
+    },
+    reconcileClaim: async ({ binding, idempotencyKey }) => {
+      receiptReads.push({ ownerId: binding.ownerId, key: idempotencyKey });
+      return "pending" as const;
+    },
+  }, verifyUser);
+  const reviewed = {
+    matterId: matter, reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+  };
+  const post = (handler: (request: Request) => Promise<Response>, token: string,
+    body: Record<string, unknown>) => handler(new Request(origin + "/api/debt-validation/action", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer " + token, origin, "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  }));
+  const checkoutBody = { ...reviewed, userConfirmedCheckout: true };
+  assert.equal((await post(approval, "owner-a", {
+    ...reviewed, userApprovedExactPacket: true,
+  })).status, 200);
+  assert.equal((await post(checkout, "owner-b", checkoutBody)).status, 409,
+    "owner A's approval must never authorize B's identical matter and PDF");
+  assert.equal(submissions.length, 0);
+  assert.equal((await post(checkout, "owner-a", checkoutBody)).status, 202);
+  assert.equal((await post(approval, "owner-b", {
+    ...reviewed, userApprovedExactPacket: true,
+  })).status, 200);
+  assert.equal((await post(checkout, "owner-b", checkoutBody)).status, 202);
+  assert.deepEqual(submissions.map((item) => item.ownerId), [owner, other]);
+  assert.notEqual(submissions[0]?.key, submissions[1]?.key,
+    "durable idempotency must include verified owner even for identical PDF hashes");
+  assert.equal((await post(checkout, "owner-a", checkoutBody)).status, 202);
+  assert.equal((await post(checkout, "owner-b", checkoutBody)).status, 202);
+  assert.equal(submissions.length, 2, "neither retry may submit again");
+  assert.deepEqual(receiptReads, submissions, "each retry reconciles only its owner's claim");
+  const rows = await db.query<{ owner_id: string; checkout_key: string | null }>(
+    "SELECT owner_id,checkout_key FROM debt_validation_matter_snapshots ORDER BY owner_id",
+  );
+  assert.deepEqual(rows.rows.map((row) => ({ ownerId: row.owner_id, key: row.checkout_key })),
+    submissions, "each owner has a distinct durable order reservation");
+});
