@@ -77,6 +77,15 @@ test("local debt-validation notice: a genuine printable PDF is accepted and fing
   assert.deepEqual(new Uint8Array(bytes), pdf);
 });
 
+test("local debt-validation notice: a safe 11+ page source is reviewable but cannot be mailed as an enclosure", async () => {
+  // The controlling collection notice is evidence, not part of the outgoing
+  // letter. Browser selection must match the server's reference-only policy.
+  const pdf = await generatePlainTextPdf("Synthetic long collection notice evidence.\\n".repeat(450));
+  const notice = new File([new Uint8Array(pdf)], "long-source.pdf", { type: "application/pdf" });
+  const bytes = await readLocalDebtValidationNoticePdf(notice);
+  assert.deepEqual(new Uint8Array(bytes), pdf);
+});
+
 test("local debt-validation notice: forged PDF header and EOF cannot stand in for readable source pages", async () => {
   // A marker-only upload previously passed and could be fingerprinted as a
   // controlling notice despite containing no parseable PDF page.
