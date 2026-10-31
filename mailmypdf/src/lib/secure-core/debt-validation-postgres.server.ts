@@ -447,13 +447,21 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       return db.transaction(async (tx) => {
         const row = await readRow(tx, ownerId, matterId, true);
         assertReceiptClaim(row, ownerId, matterId, verified);
+        // The read-only gate cannot authorize a SECOND mailing after the
+        // provider's mailing acknowledgement has already been recorded.
+        // Check both receipt stages under the same matter row lock. This is
+        // not an in-flight submission claim: a future provider adapter must
+        // separately enforce durable provider idempotency before submission.
         const paid = await tx.query(
-          "SELECT provider,provider_reference,evidence_sha256 " +
+          "SELECT kind,provider,provider_reference,evidence_sha256 " +
             "FROM debt_validation_checkout_receipts " +
-            "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3 AND kind='payment'",
+            "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3",
           [ownerId, matterId, verified.idempotencyKey],
         );
-        if (paid.rows.length !== 1) {
+        if (paid.rows.some((item) => item.kind === "mailing")) {
+          throw new Error("debt_validation_mailing_already_recorded");
+        }
+        if (paid.rows.length !== 1 || paid.rows[0]?.kind !== "payment") {
           throw new Error("debt_validation_payment_receipt_required");
         }
         const receipt: DebtValidationProviderReceipt = {
