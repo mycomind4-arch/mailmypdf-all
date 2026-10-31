@@ -233,7 +233,16 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
         ownerId: actor.id,
         matterId: body.matterId,
         repository: deps.repository,
-        checkout: deps.submitNewClaim,
+        checkout: async (verified) => {
+          const submitted = await deps.submitNewClaim(verified);
+          // A provider callback's optimistic "recorded" return is not
+          // durable evidence of payment AND physical-mail acknowledgement.
+          // Only the read-only receipt reconciler may confirm that status.
+          // Pending submissions remain pending without an extra lookup.
+          return submitted === "recorded"
+            ? deps.reconcileClaim(verified)
+            : submitted;
+        },
         replayCheckout: deps.reconcileClaim,
       });
       if (progress !== "pending" && progress !== "recorded") {
