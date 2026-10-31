@@ -82,12 +82,24 @@ function fixture(ownerId = owner): DebtValidationMatterSnapshot {
 async function setup() {
   const db = new PGlite();
   await db.exec(schema);
+  // Deterministically inject a committed change after an orchestration
+  // preflight read but before the repository's atomic transaction begins.
+  // The adapter must re-read under its row lock instead of trusting preflight.
+  let beforeTransaction: (() => Promise<unknown>) | undefined;
+  const armBeforeTransaction = (hook: () => Promise<unknown>) => {
+    beforeTransaction = hook;
+  };
   // Explicit adapters make the production SQL transaction contract testable
   // against real PostgreSQL semantics without network or credentials.
   const sql: DebtValidationSqlDatabase = {
     query: (statement, parameters = []) => db.query(statement, parameters),
-    transaction: (work) => db.transaction(async (tx) =>
-      work({ query: (statement, parameters = []) => tx.query(statement, parameters) })),
+    transaction: async (work) => {
+      const hook = beforeTransaction;
+      beforeTransaction = undefined;
+      await hook?.();
+      return db.transaction(async (tx) =>
+        work({ query: (statement, parameters = []) => tx.query(statement, parameters) }));
+    },
   };
   const repository = createPostgresDebtValidationMatterRepository(sql);
   const seed = async (ownerId = owner, snapshot = fixture(ownerId), bytes = pdf) =>
@@ -101,7 +113,7 @@ async function setup() {
     reviewedPdfSha256: sha(pdf), reviewedTotalCents: 1499,
     reviewedMailClass: "certified", userApprovedExactPacket: true,
   });
-  return { db, repository, seed, approve };
+  return { db, repository, seed, approve, armBeforeTransaction };
 }
 
 test("PostgreSQL debt validation: exact owner-scoped bytes, approval and one durable checkout claim", async (t) => {
@@ -269,4 +281,63 @@ test("PostgreSQL debt validation: changed stored controlling notice bytes block 
     "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2", [owner, matter],
   );
   assert.equal(after.rows[0]?.checkout_key, null, "no durable order claim after source replacement");
+});
+
+
+test("PostgreSQL debt validation: recipient confirmation revoked after approval preflight blocks atomic commit", async (t) => {
+  const { db, seed, approve, armBeforeTransaction } = await setup();
+  t.after(() => db.close());
+  await seed();
+
+  armBeforeTransaction(async () => {
+    const changed = fixture().currentIntake;
+    changed.recipientConfirmed = false;
+    await db.query(
+      "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, JSON.stringify(changed)],
+    );
+  });
+
+  await assert.rejects(approve(), /debt_validation_/);
+  const result = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(result.rows[0]?.approval, null, "stale preflight must never persist approval");
+  assert.equal(result.rows[0]?.checkout_key, null, "stale preflight must never reserve an order");
+});
+
+test("PostgreSQL debt validation: PDF replaced after checkout preflight blocks atomic claim and providers", async (t) => {
+  const { db, repository, seed, approve, armBeforeTransaction } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  armBeforeTransaction(async () => {
+    await db.query(
+      "UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter, new TextEncoder().encode("changed after checkout preflight")],
+    );
+  });
+
+  let stripeCalls = 0;
+  let lobCalls = 0;
+  await assert.rejects(
+    checkoutDebtValidationMatter({
+      ownerId: owner, matterId: matter, repository,
+      checkout: async () => {
+        stripeCalls++;
+        lobCalls++;
+        return "must-not-submit";
+      },
+    }),
+    /debt_validation_persisted_pdf_changed/,
+  );
+  assert.equal(stripeCalls, 0);
+  assert.equal(lobCalls, 0);
+  const result = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(result.rows[0]?.checkout_key, null, "changed bytes must never reserve an order");
 });
