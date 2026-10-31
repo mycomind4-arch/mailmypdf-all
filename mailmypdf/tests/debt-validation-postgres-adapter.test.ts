@@ -2080,12 +2080,12 @@ test("PostgreSQL debt validation: receipt recording and reconciliation reject ch
     /debt_validation_persisted_notice_changed/);
   await update("notice_pdf_bytes", sourceNoticePdf);
 
-  await update("current_intake", { ...fixture().currentIntake, recipientConfirmed: false });
+  await update("current_intake", JSON.stringify({ ...fixture().currentIntake, recipientConfirmed: false }));
   await assert.rejects(ledger.record(owner, matter, verified, mailing),
     /debt_validation_/);
   await assert.rejects(ledger.reconcile(owner, matter, verified),
     /debt_validation_/);
-  await update("current_intake", fixture().currentIntake);
+  await update("current_intake", JSON.stringify(fixture().currentIntake));
 
   await update("pdf_bytes", new TextEncoder().encode("%PDF-1.4\\nTampered reviewed packet\\n%%EOF"));
   await assert.rejects(ledger.record(owner, matter, verified, mailing),
