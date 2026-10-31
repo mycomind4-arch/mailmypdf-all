@@ -2,11 +2,38 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   debtValidationTimingNote,
+  draftDebtValidationEnvelopeAddress,
   draftDebtValidationLetter,
   normalizeMailingAddress,
   validateDebtValidationIntake,
   type DebtValidationIntake,
 } from "../domain";
+
+
+test("debt-validation envelope address preview matches the confirmed notice and return address", () => {
+  const exact = draftDebtValidationEnvelopeAddress(fixture());
+  assert.equal(exact.recipientAddress, "Sample Collections\nPO Box 456\nAustin, TX 78701");
+  assert.equal(exact.returnAddress, "Synthetic Consumer\n123 Example St\nSacramento, CA 95814");
+  const unnamed = fixture();
+  unnamed.collectorResponseAddress = "PO Box 456\nAustin, TX 78701";
+  unnamed.noticeResponseAddress = unnamed.collectorResponseAddress;
+  unnamed.confirmedRecipientAddress = unnamed.collectorResponseAddress;
+  assert.equal(draftDebtValidationEnvelopeAddress(unnamed).recipientAddress,
+    "Sample Collections\nPO Box 456\nAustin, TX 78701");
+});
+
+test("debt-validation envelope address preview fails closed for unconfirmed or replaced notice", () => {
+  const cases = [
+    { ...fixture(), recipientConfirmed: false },
+    { ...fixture(), collectorResponseAddress: "Sample Collections\nPO Box 999\nAustin, TX 78701" },
+    { ...fixture(), noticeSha256: replacementSha },
+    { ...fixture(), noticeDocumentId: "replacement-notice" },
+    { ...fixture(), noticeVersion: 4 },
+  ];
+  for (const input of cases) {
+    assert.throws(() => draftDebtValidationEnvelopeAddress(input), /Debt validation envelope blocked:/);
+  }
+});
 
 const sha = "a".repeat(64);
 const replacementSha = "b".repeat(64);
