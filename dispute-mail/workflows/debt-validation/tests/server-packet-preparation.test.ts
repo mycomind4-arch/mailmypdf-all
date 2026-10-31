@@ -143,3 +143,24 @@ test("server packet preparation: canonical measured-page quote rejects client pr
     );
   }
 });
+
+test("server packet preparation: verified notice postal address without an addressee still binds the collector name for physical mailing", async () => {
+  const input = await fixture();
+  const postalLines = "PO Box 456\nAustin, TX 78701";
+  input.intake.collectorResponseAddress = postalLines;
+  input.intake.noticeResponseAddress = postalLines;
+  input.intake.confirmedRecipientAddress = postalLines;
+  input.trustedNotice.responseMailingAddress = postalLines;
+
+  const prepared = await prepareDebtValidationMatterPacket(input);
+  const expectedEnvelopeRecipient = "Example Collections\n" + postalLines;
+  assert.equal(prepared.packet.recipientAddress, expectedEnvelopeRecipient,
+    "The server packet must include the collector addressee shown in the browser envelope preview");
+
+  const binding = createDebtValidationApprovalBinding({
+    ownerId: input.ownerId, matterId: input.matterId,
+    intake: input.intake, trustedNotice: input.trustedNotice,
+    packet: prepared.packet, reviewedPdfSha256: prepared.packet.pdfSha256,
+  });
+  assert.equal(binding.recipientAddress, expectedEnvelopeRecipient.toUpperCase());
+});
