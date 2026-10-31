@@ -523,3 +523,26 @@ test("debt-validation matter: reused durable claim must not submit payment or ma
   assert.equal(state.claims, 1, "Only one durable order may be reserved");
   assert.equal(providerCalls, 1, "Reused claims must not invoke the side-effecting provider callback");
 });
+
+
+test("debt-validation matter: explicit approval must match the reviewed price and physical mail class", async () => {
+  for (const reviewed of [
+    {},
+    { reviewedTotalCents: 1498, reviewedMailClass: "certified" },
+    { reviewedTotalCents: 1499, reviewedMailClass: "standard" },
+    { reviewedTotalCents: "1499", reviewedMailClass: "certified" },
+  ]) {
+    const { state, repository } = fakeStore();
+    await assert.rejects(
+      approveDebtValidationMatter({
+        ownerId: "owner-1", matterId: "matter-1", repository,
+        reviewedPdfSha256: b, userApprovedExactPacket: true,
+        ...reviewed,
+      }),
+      /debt_validation_reviewed_quote_mismatch/,
+      "A matching PDF hash is not consent to a different or unreviewed charge or mail class",
+    );
+    assert.equal(state.saves, 0, "A mismatched quote must not persist approval");
+    assert.equal(state.approval, null);
+  }
+});
