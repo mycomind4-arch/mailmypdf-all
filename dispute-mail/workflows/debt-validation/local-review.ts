@@ -133,7 +133,8 @@ export async function readLocalDebtValidationNoticePdf(
   }
   // A PDF header and %%EOF can be forged without a single parseable page.
   // Use the canonical reference-PDF parser, which also rejects encrypted, active,
-  // oversized or zero-page documents before the local source is fingerprinted.\n  // Evidence-only source PDFs may exceed the 10-page outgoing-mail limit.
+  // oversized or zero-page documents before the local source is fingerprinted.
+  // Evidence-only source PDFs may exceed the 10-page outgoing-mail limit.
   try {
     await validatePdfForReference(new Uint8Array(bytes));
   } catch {
