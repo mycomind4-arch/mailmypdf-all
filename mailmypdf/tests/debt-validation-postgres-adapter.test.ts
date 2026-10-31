@@ -341,3 +341,60 @@ test("PostgreSQL debt validation: PDF replaced after checkout preflight blocks a
   );
   assert.equal(result.rows[0]?.checkout_key, null, "changed bytes must never reserve an order");
 });
+
+
+test("PostgreSQL debt validation: failed first provider callback cannot resubmit on retry", async (t) => {
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+
+  let firstSubmissions = 0;
+  await assert.rejects(
+    checkoutDebtValidationMatter({
+      ownerId: owner, matterId: matter, repository,
+      checkout: async () => {
+        firstSubmissions++;
+        throw new Error("synthetic_provider_unavailable");
+      },
+    }),
+    /synthetic_provider_unavailable/,
+  );
+  assert.equal(firstSubmissions, 1, "the first durable claim reaches the mock once");
+
+  const first = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.match(first.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+
+  // A failed callback leaves an uncertain external outcome. The order claim
+  // MUST remain durable: retries cannot charge or mail again, even if the
+  // original callback failed before returning a receipt.
+  let repeatSubmissions = 0;
+  await assert.rejects(
+    checkoutDebtValidationMatter({
+      ownerId: owner, matterId: matter, repository,
+      checkout: async () => { repeatSubmissions++; return "duplicate-submission"; },
+    }),
+    /debt_validation_checkout_replay_requires_receipt/,
+  );
+  assert.equal(repeatSubmissions, 0, "a retry without receipt reconciliation must fail closed");
+
+  let readOnlyReplays = 0;
+  const result = await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { repeatSubmissions++; return "duplicate-submission"; },
+    replayCheckout: async () => { readOnlyReplays++; return "pending-reconciliation"; },
+  });
+  assert.equal(result, "pending-reconciliation");
+  assert.equal(readOnlyReplays, 1);
+  assert.equal(repeatSubmissions, 0, "reconciliation never invokes the side-effecting callback");
+
+  const after = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(after.rows[0]?.checkout_key, first.rows[0]?.checkout_key,
+    "the original claim remains stable after provider failure and retries");
+});
