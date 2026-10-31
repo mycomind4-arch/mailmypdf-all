@@ -1618,6 +1618,41 @@ test("debt-validation host checkout bridge binds verified owner, explicit consen
     "Bearer owner-a", origin, "/api/debt-validation/approval");
   assert.equal(approved.status, 200, "only exact packet and quote may be approved");
   assert.equal(submissions, 0, "approval is never provider authorization");
+
+  // Exercise the VERIFIED HOST checkout boundary, not just the domain helper:
+  // approval cannot authorize a later checkout when notice/recipient consent
+  // has changed behind the unchanged reviewed PDF and quote. All mutations
+  // are isolated synthetic PostgreSQL rows; no real provider is available.
+  const originalIntake = fixture().currentIntake;
+  const replaceIntake = (intake: DebtValidationIntake) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify(intake)],
+  );
+  await replaceIntake({ ...originalIntake, recipientConfirmed: false });
+  assert.equal((await post(checkout, checkoutBody)).status, 409,
+    "revoked confirmation must block the host checkout after approval");
+  await replaceIntake({ ...originalIntake, collectorResponseAddress: "Other Recipient\\nPO Box 9" });
+  assert.equal((await post(checkout, checkoutBody)).status, 409,
+    "recipient changed after confirmation must block the host checkout");
+  await replaceIntake(originalIntake);
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("%PDF-1.4\\nReplaced controlling notice\\n%%EOF")],
+  );
+  assert.equal((await post(checkout, checkoutBody)).status, 409,
+    "replaced controlling notice bytes must block the host checkout");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  assert.equal(submissions, 0, "all post-approval negative paths must avoid mock provider submissions");
+  assert.equal(receiptReads, 0, "all post-approval negative paths must avoid receipt reconciliation");
+  const preClaim = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(preClaim.rows[0]?.checkout_key, null, "rejected checkout must not reserve an order");
+
   assert.equal((await post(checkout, checkoutBody)).status, 202);
   assert.equal((await post(checkout, checkoutBody)).status, 202);
   assert.equal(submissions, 1, "one durable claim triggers only one sandbox callback");
