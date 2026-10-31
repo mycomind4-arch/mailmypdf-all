@@ -18,7 +18,7 @@ import type { DebtValidationIntake } from "../../dispute-mail/workflows/debt-val
 
 // Isolated, embedded PostgreSQL (PGlite); never connects to hosted Supabase,
 // Stripe, Lob, or a customer account. This is a test-only schema, NOT a migration.
-const schema = String.raw\`
+const schema = String.raw`
   CREATE TABLE debt_validation_matter_snapshots (
     owner_id text NOT NULL,
     matter_id text NOT NULL,
@@ -30,7 +30,7 @@ const schema = String.raw\`
     checkout_key text,
     PRIMARY KEY (owner_id, matter_id)
   );
-\`;
+`;
 const owner = "synthetic-owner-a";
 const other = "synthetic-owner-b";
 const matter = "synthetic-matter-1";
