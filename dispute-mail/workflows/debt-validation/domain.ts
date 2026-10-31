@@ -167,6 +167,13 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
   const issues = validateDebtValidationIntake(input);
   if (issues.length) throw new Error("Debt validation blocked: " + issues.map((issue) => issue.code).join(", "));
   if (!isRealDate(letterDate)) throw new Error("A real letter date is required.");
+  // The letter is a response to this controlling notice. A manually entered
+  // letter date before the notice issue date is chronologically impossible and
+  // must not be printed on a reviewable PDF or persisted mailing packet.
+  // This is not a statutory deadline or mailing-timeliness determination.
+  if (input.noticeDate && letterDate < input.noticeDate) {
+    throw new Error("Letter date cannot be before the controlling notice date.");
+  }
   const recipientLines = input.collectorResponseAddress.trim().split(/\r?\n/);
   const recipientAlreadyNamed = cleanLine(recipientLines[0] ?? "").toUpperCase()
     === cleanLine(input.collectorName).toUpperCase();
