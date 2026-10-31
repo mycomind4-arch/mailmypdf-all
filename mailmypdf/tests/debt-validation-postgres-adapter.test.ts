@@ -581,3 +581,70 @@ test("debt-validation HTTP approval boundary: authenticated owner, exact review 
     }
   }
 });
+
+test("debt-validation HTTP approval: malformed, cross-origin and altered quote requests cannot persist consent", async (t) => {
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  await seed();
+  const origin = "https://mailmypdf.example";
+  const handle = createDebtValidationApprovalHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async (request) =>
+      request.headers.get("authorization") === "Bearer synthetic-owner-a"
+        ? { id: owner } : null,
+  });
+  const reviewed = {
+    matterId: matter,
+    reviewedPdfSha256: sha(pdf),
+    reviewedTotalCents: 1499,
+    reviewedMailClass: "certified",
+    userApprovedExactPacket: true,
+  };
+  const request = (body: string, headers: Record<string, string> = {}) =>
+    new Request(origin + "/api/debt-validation/approval", {
+      method: "POST",
+      headers: {
+        origin,
+        authorization: "Bearer synthetic-owner-a",
+        "content-type": "application/json",
+        ...headers,
+      },
+      body,
+    });
+  const json = (payload: Record<string, unknown>, headers?: Record<string, string>) =>
+    request(JSON.stringify(payload), headers);
+  const cases: Array<[string, Request, number]> = [
+    ["cross-site origin", json(reviewed, { origin: "https://attacker.example" }), 403],
+    ["missing origin", json(reviewed, { origin: "" }), 403],
+    ["missing authentication", json(reviewed, { authorization: "" }), 401],
+    ["missing explicit consent", json({ ...reviewed, userApprovedExactPacket: false }), 400],
+    ["changed reviewed price", json({ ...reviewed, reviewedTotalCents: 1599 }), 409],
+    ["changed reviewed mailing class", json({ ...reviewed, reviewedMailClass: "registered" }), 409],
+    ["unreviewed packet digest", json({ ...reviewed, reviewedPdfSha256: "a".repeat(64) }), 409],
+    ["negative quote", json({ ...reviewed, reviewedTotalCents: -1 }), 409],
+    ["client-supplied trusted notice", json({ ...reviewed, trustedNotice: {} }), 400],
+    ["client-supplied approval binding", json({ ...reviewed, binding: {} }), 400],
+    ["client-supplied packet", json({ ...reviewed, packet: {} }), 400],
+    ["malformed JSON", request("{not-json"), 400],
+    ["non-JSON content type", json(reviewed, { "content-type": "text/plain" }), 415],
+    ["oversized request", request(JSON.stringify({ ...reviewed, padding: "x".repeat(9000) })), 413],
+    ["spoofed small content length", request(
+      JSON.stringify({ ...reviewed, padding: "x".repeat(9000) }),
+      { "content-length": "1" },
+    ), 413],
+  ];
+  for (const [label, input, status] of cases) {
+    const result = await handle(input);
+    assert.equal(result.status, status, label);
+    const stored = await db.query<{ approval: unknown; checkout_key: string | null }>(
+      "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+      [owner, matter],
+    );
+    assert.equal(stored.rows[0]?.approval, null, label + ": no persisted approval");
+    assert.equal(stored.rows[0]?.checkout_key, null, label + ": no checkout reservation");
+  }
+  const accepted = await handle(json(reviewed));
+  assert.equal(accepted.status, 200, "a subsequent valid explicit approval remains available");
+  assert.equal((await accepted.json()).code, "approved");
+});
