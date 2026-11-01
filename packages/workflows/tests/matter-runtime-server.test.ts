@@ -962,7 +962,7 @@ test("CP2000 HTTP approval and checkout reject hidden printable-destination chan
   });
   const refused = await invalidSource.post("approval", {
     ...invalidSource.approvalBody,
-    recipient: { ...CP2000_RECIPIENT, line1: CP2000_RECIPIENT.line1 + "\u200b" },
+    recipient: { ...CP2000_RECIPIENT },
   });
   assert.equal(refused.status, 409, "hidden characters from source analysis cannot be approved");
   assert.equal((await body(refused)).code, "CP2000_NOTICE_ADDRESS_UNPRINTABLE");
