@@ -394,7 +394,7 @@ function mailClass(value: unknown): "standard" | "certified" | "registered" {
 
 // Postal labels and return addresses must not silently carry invisible
 // Unicode controls or embedded line breaks into a provider submission.
-const NON_PRINTABLE_MAILING_FIELD = /[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]/u;
+const NON_PRINTABLE_MAILING_FIELD = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 function mailingAddress(value: unknown): WorkflowMailingAddress {
   const object = asObject(value);
