@@ -271,3 +271,39 @@ test("debt-validation: timing note never presents transcribed or impossible date
   assert.doesNotMatch(impossible, /2026-02-30/);
   assert.ok(codes({ ...fixture(), noticeDisputeDeadline: "2026-02-30" }).includes("invalid_notice_date"));
 });
+
+
+test("debt-validation: reject hidden line breaks in physical-mail addresses without rejecting CRLF", () => {
+  const base = fixture();
+  // A lone CR or Unicode paragraph/line separator is folded into whitespace
+  // during postal comparison but remains in the actual address text sent to
+  // PDF/envelope generation. A provider may interpret it as a new address line.
+  for (const separator of ["\r", "\u2028", "\u2029"]) {
+    const destination = "Sample Collections\n123 Example St" + separator
+      + "PO Box 999\nAustin, TX 78701";
+    const changed = {
+      ...base,
+      collectorResponseAddress: destination,
+      noticeResponseAddress: destination,
+      confirmedRecipientAddress: destination,
+    };
+    assert.ok(codes(changed).includes("missing_collector"), "collector separator " + JSON.stringify(separator));
+    assert.ok(codes(changed).includes("missing_notice"), "notice separator " + JSON.stringify(separator));
+    assert.throws(() => draftDebtValidationEnvelopeAddress(changed), /Debt validation envelope blocked/);
+    assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"), /Debt validation blocked/);
+    const consumer = { ...base, consumerMailingAddress:
+      "123 Example St" + separator + "PO Box 999\nSacramento, CA 95814" };
+    assert.ok(codes(consumer).includes("missing_consumer"), "return separator " + JSON.stringify(separator));
+  }
+
+  // Windows line endings are genuine line delimiters and remain supported.
+  const crlf = "Sample Collections\r\nPO Box 456\r\nAustin, TX 78701";
+  const valid = {
+    ...base,
+    collectorResponseAddress: crlf,
+    noticeResponseAddress: crlf,
+    confirmedRecipientAddress: crlf,
+    consumerMailingAddress: "123 Example St\r\nSacramento, CA 95814",
+  };
+  assert.deepEqual(codes(valid), []);
+});
