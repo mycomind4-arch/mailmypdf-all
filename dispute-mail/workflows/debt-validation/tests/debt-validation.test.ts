@@ -336,7 +336,7 @@ test("debt-validation: single-line identity and account fields reject Unicode li
 // explicit bidi overrides and isolates in all physical-mail identity fields.
 test("debt-validation: reject bidirectional spoofing controls in envelope and identity fields", () => {
   const base = fixture();
-  for (const control of ["\u202a", "\u202e", "\u2066", "\u2069"]) {
+  for (const control of ["\u061c", "\u200e", "\u200f", "\u202a", "\u202e", "\u2066", "\u2069"]) {
     const returnAddress = { ...base,
       consumerMailingAddress: "123 Example St" + control + "\nSacramento, CA 95814" };
     assert.ok(codes(returnAddress).includes("missing_consumer"), "return address " + JSON.stringify(control));
@@ -357,5 +357,5 @@ test("debt-validation: reject bidirectional spoofing controls in envelope and id
       assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"), /Debt validation blocked/);
     }
   }
-  assert.deepEqual(codes(base), [], "ordinary physical-mail identities remain valid");
+  assert.ok(codes({ ...base, disputeExplanation: "Dispute " + "\u202e" + " amount" }).includes("missing_dispute"),\n    "bidirectional override cannot be embedded in printed dispute text");\n  assert.deepEqual(codes(base), [], "ordinary physical-mail identities remain valid");
 });
