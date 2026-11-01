@@ -429,6 +429,19 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           }
           return;
         }
+        // A provider acknowledgement identifies one physical order, not just
+        // one owner's receipt row. Never let the same payment intent or letter
+        // identifier certify a second checkout, even under another owner.
+        // The hosted schema must also enforce UNIQUE(kind,provider,provider_reference)
+        // for concurrency safety; the offline PGlite fixture has that index.
+        const reusedReference = await tx.query(
+          "SELECT owner_id,matter_id,checkout_key FROM debt_validation_checkout_receipts " +
+            "WHERE kind=$1 AND provider=$2 AND provider_reference=$3",
+          [normalized.kind, normalized.provider, normalized.providerReference],
+        );
+        if (reusedReference.rows.length !== 0) {
+          throw new Error("debt_validation_provider_reference_reused");
+        }
         // If a legacy/corrupted mailing acknowledgement already exists with
         // no payment, do not legitimize that invalid history by inserting a
         // payment afterwards. Exact existing payment retries above remain
