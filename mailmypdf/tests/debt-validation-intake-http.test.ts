@@ -206,6 +206,44 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   const requestCheckout = (payload: unknown, authorization?: string) =>
     action("/api/debt-validation/checkout", payload, checkout, authorization);
   const confirmedCheckout = { ...reviewed, userConfirmedCheckout: true };
+  const updateNotice = (bytes: Uint8Array) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId, bytes],
+  );
+  const updateIntake = (value: typeof intake) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId, JSON.stringify(value)],
+  );
+
+  // Revocation between exact PDF review and approval must invalidate BOTH
+  // read-only review surfaces and the actual server approval endpoint. A
+  // stale browser digest/quote must not turn into consent for a changed notice
+  // or a recipient whose confirmation was withdrawn.
+  const approvedRequest = { ...reviewed, userApprovedExactPacket: true };
+  const reviewRequests = [reviewUrl, reviewUrl + "&view=summary"];
+  await updateNotice(await generatePlainTextPdf("Synthetic notice replaced before approval."));
+  for (const url of reviewRequests) {
+    assert.equal((await review(new Request(url, {
+      headers: { authorization: "Bearer synthetic" },
+    }))).status, 409, "replaced controlling notice blocks PDF and summary review");
+  }
+  assert.equal((await requestApproval(approvedRequest)).status, 409,
+    "approval must recheck the controlling notice's actual stored bytes");
+  await updateNotice(noticePdfBytes);
+
+  await updateIntake({ ...intake, recipientConfirmed: false });
+  for (const url of reviewRequests) {
+    assert.equal((await review(new Request(url, {
+      headers: { authorization: "Bearer synthetic" },
+    }))).status, 409, "revoked recipient confirmation blocks PDF and summary review");
+  }
+  assert.equal((await requestApproval(approvedRequest)).status, 409,
+    "approval must not reuse an earlier recipient confirmation");
+  await updateIntake(intake);
+  const preapproval = await db.query("SELECT approval,checkout_key FROM debt_validation_matter_snapshots");
+  assert.equal(preapproval.rows[0]?.approval, null);
+  assert.equal(preapproval.rows[0]?.checkout_key, null);
+  assert.equal(providerSubmissions, 0, "stale review cannot submit mocked providers");
 
   assert.equal((await requestCheckout(confirmedCheckout)).status, 409,
     "a prepared/reviewed packet without approval cannot claim checkout");
@@ -222,17 +260,9 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
 
   // Even after valid approval, replacing the controlling notice bytes or
   // revoking recipient confirmation must fail before any mock handoff.
-  const updateNotice = (bytes: Uint8Array) => db.query(
-    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
-    [ownerId, matterId, bytes],
-  );
   await updateNotice(await generatePlainTextPdf("Synthetic replaced notice."));
   assert.equal((await requestCheckout(confirmedCheckout)).status, 409);
   await updateNotice(noticePdfBytes);
-  const updateIntake = (value: typeof intake) => db.query(
-    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
-    [ownerId, matterId, JSON.stringify(value)],
-  );
   await updateIntake({ ...intake, recipientConfirmed: false });
   assert.equal((await requestCheckout(confirmedCheckout)).status, 409);
   await updateIntake(intake);
