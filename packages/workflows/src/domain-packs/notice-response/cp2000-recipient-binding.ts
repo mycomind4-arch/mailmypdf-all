@@ -146,6 +146,11 @@ function sourceBinding(
       // recipient approval against a changed printed notice date/deadline.
       decisionDate: analysis.result.decisionDate,
       deadline: analysis.result.deadline,
+      // A persisted/imported analysis can be corrected without increasing
+      // its version. Bind all transcribed notice facts, not only chronology
+      // and recipient, so a previously approved physical-mail packet cannot
+      // be checked out against a materially different proposed adjustment.
+      analysisResult: analysis.result,
     }),
   };
 }
