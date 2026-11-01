@@ -166,6 +166,43 @@ test("CP2000 approval RPC preserves exact ID and source-bound quote, rejects bad
   const before = await db.query<{ count: number }>("SELECT count(*)::integer AS count FROM public.case_approvals");
   assert.equal(before.rows[0]?.count, 0);
 
+  // Approval, case status, and the security audit are one transaction. If
+  // the audit write fails after the approval insert, no partial approval may
+  // remain available for checkout. This uses the checked-in RPC, not a mock.
+  await db.exec(`
+    CREATE FUNCTION public.reject_approval_audit() RETURNS trigger
+      LANGUAGE plpgsql AS $audit$
+    BEGIN
+      IF NEW.event_type = 'case.packet_approved' THEN
+        RAISE EXCEPTION 'synthetic_approval_audit_failure';
+      END IF;
+      RETURN NEW;
+    END;
+    $audit$;
+    CREATE TRIGGER reject_approval_audit
+      BEFORE INSERT ON public.security_events
+      FOR EACH ROW EXECUTE FUNCTION public.reject_approval_audit();
+  `);
+  await assert.rejects(
+    db.query(callSql, args),
+    /synthetic_approval_audit_failure/,
+    "a failed approval audit write must roll back the entire approval transaction",
+  );
+  const failedAudit = await db.query<{
+    approvals: number; events: number; status: string;
+  }>(`
+    SELECT (SELECT count(*)::integer FROM public.case_approvals) AS approvals,
+           (SELECT count(*)::integer FROM public.security_events) AS events,
+           (SELECT status FROM public.workflow_cases WHERE id = $1) AS status
+  `, [caseId]);
+  assert.deepEqual(failedAudit.rows[0], {
+    approvals: 0, events: 0, status: "drafted",
+  }, "audit failure must not leave an approved packet, audit row, or approved case");
+  await db.exec(`
+    DROP TRIGGER reject_approval_audit ON public.security_events;
+    DROP FUNCTION public.reject_approval_audit();
+  `);
+
   const inserted = await db.query<{
     id: string; case_id: string; owner_id: string; packet_sha256: string;
     supporting_pages: number; recipient: typeof recipient; quote: typeof quote;
