@@ -1072,7 +1072,21 @@ test("CP2000 production approval adapter preserves notice binding through the se
   // in-memory authenticated HTTP journey above. This does not claim a hosted
   // Supabase round trip or exercise any real provider.
   const { readFile } = await import("node:fs/promises");
-  const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
+  // The package test command compiles this file under dist-test/, while
+  // direct tsx execution uses tests/. Find the repository root in either case.
+  const { dirname, resolve } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  let directory = dirname(fileURLToPath(import.meta.url));
+  while (directory !== dirname(directory)) {
+    try {
+      await readFile(resolve(directory, "mailmypdf/src/lib/secure-core/workflow-runtime-host.server.ts"), "utf8");
+      break;
+    } catch (error) {
+      if ((error as { code?: string }).code !== "ENOENT") throw error;
+      directory = dirname(directory);
+    }
+  }
+  const read = (path: string) => readFile(resolve(directory, path), "utf8");
   const [host, approval, migration, permissions] = await Promise.all([
     read("../../../mailmypdf/src/lib/secure-core/workflow-runtime-host.server.ts"),
     read("../../../mailmypdf/src/lib/secure-core/case-approval.server.ts"),
