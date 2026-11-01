@@ -7,7 +7,7 @@ import type {
  * React must discard the old confirmation checkboxes whenever the exact
  * reviewed mailing changes. Rebuilding a preview while it is already visible
  * otherwise preserves ApprovalChecklist's internal checked state, even if
- * the new packet hash or quoted price differs.
+ * the new packet hash, quoted price, recipient, or controlling notice facts differ.
  */
 export function noticeResponseApprovalReviewIdentity(input: {
   packet: Pick<WorkflowPacketPreview, "packetSha256"> & {
@@ -15,8 +15,10 @@ export function noticeResponseApprovalReviewIdentity(input: {
   };
   recipient: WorkflowMailingAddress;
   mailClass: "standard" | "certified" | "registered";
+  /** The notice facts the user actually reviewed, not merely the envelope. */
+  analysis: { documentId: string; version: number; result: unknown } | null;
 }): string {
-  const { packet, recipient, mailClass } = input;
+  const { packet, recipient, mailClass, analysis } = input;
   return JSON.stringify([
     packet.packetSha256,
     packet.quote.totalCents,
@@ -27,5 +29,8 @@ export function noticeResponseApprovalReviewIdentity(input: {
     recipient.city,
     recipient.state,
     recipient.postal,
+    analysis?.documentId ?? null,
+    analysis?.version ?? null,
+    analysis?.result ?? null,
   ]);
 }
