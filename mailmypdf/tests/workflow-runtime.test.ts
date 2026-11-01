@@ -237,3 +237,34 @@ test("the immigration cover letter resolves only under the immigration-mail vert
   assert.match(workflow.draftInstructions, /not the filing/);
   assert.throws(() => resolveCaseWorkflow("immigration-filing-cover-letter", "appeal-mail"), /enabled case runtime/);
 });
+
+
+test("CP2000 host approval adapter preserves the notice binding through the server-only RPC quote", async () => {
+  // Guard the real host adapter and migration contract, not a mock in-memory
+  // approval store. This static check is NOT a hosted database RPC roundtrip.
+  const { readFile } = await import("node:fs/promises");
+  const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
+  const [host, approval, migration, permissions] = await Promise.all([
+    read("../src/lib/secure-core/workflow-runtime-host.server.ts"),
+    read("../src/lib/secure-core/case-approval.server.ts"),
+    read("../supabase/migrations/20260920100000_workflow_runtime_bridge.sql"),
+    read("../supabase/migrations/20260927020000_restore_server_only_workflow_approval.sql"),
+  ]);
+
+  assert.match(host, /recipientConfirmation:\s*approval\.recipientConfirmation/);
+  assert.match(host, /approvalId:\s*approval\.approvalId/);
+  assert.match(approval, /p_quote:\s*\{[\s\S]*?\.\.\.preview\.quote,[\s\S]*?cp2000RecipientConfirmation:\s*input\.recipientConfirmation/);
+  assert.match(approval, /p_approval_id:\s*input\.approvalId\s*\?\?\s*null/);
+
+  // The nine-argument approval RPC must retain both the explicit approval ID
+  // and the complete JSONB quote; it must remain unavailable to user sessions.
+  assert.match(migration, /p_quote\s+jsonb,\s*p_approval_id\s+uuid\s+default\s+null/i);
+  assert.match(migration, /coalesce\(p_approval_id,\s*gen_random_uuid\(\)\)[\s\S]*?p_recipient,\s*p_mail_class,\s*p_quote/i);
+  assert.match(permissions, /revoke\s+all\s+on\s+function\s+public\.approve_case_packet\([\s\S]*?from\s+public,\s*anon,\s*authenticated/i);
+  assert.match(permissions, /grant\s+execute\s+on\s+function\s+public\.approve_case_packet\([\s\S]*?to\s+service_role/i);
+
+  // Checkout loads only the owning user's approval and reconstructs the
+  // source confirmation from the quote, without a client-supplied fallback.
+  assert.match(host, /\.from\("case_approvals"\)[\s\S]*?\.eq\("case_id",\s*matterId\)[\s\S]*?\.eq\("owner_id",\s*context\.user\.id\)/);
+  assert.match(host, /recipientConfirmation:\s*quote\.cp2000RecipientConfirmation/);
+});
