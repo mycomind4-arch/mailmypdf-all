@@ -306,4 +306,61 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     [ownerId, matterId],
   );
   assert.match(final.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
+
+  // A provider may fail AFTER the durable order claim but BEFORE it returns
+  // an acknowledgement. A retry must never infer that nothing was submitted
+  // and must only reconcile the existing claim (no second charge/mail call).
+  const outageMatterId = "synthetic-submission-outage";
+  const outageIntake = createDebtValidationIntakeHttpHandler({
+    allowedOrigin: origin, authenticate,
+    loadVerifiedNotice: async (owner, matter, document) =>
+      owner === ownerId && matter === outageMatterId && document === "notice-1"
+        ? { trustedNotice: { ...trustedNotice, matterId: outageMatterId }, noticePdfBytes }
+        : null,
+    persistPreparedMatter: (input) => prepareAndPersistDebtValidationMatter(sql, input),
+  });
+  const outagePreparedResponse = await outageIntake(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer synthetic", origin },
+    body: JSON.stringify({ ...body, matterId: outageMatterId }),
+  }));
+  assert.equal(outagePreparedResponse.status, 201);
+  const outagePrepared = await outagePreparedResponse.json() as {
+    pdfSha256: string; totalCents: number;
+  };
+  const outageReviewed = {
+    matterId: outageMatterId,
+    reviewedPdfSha256: outagePrepared.pdfSha256,
+    reviewedTotalCents: outagePrepared.totalCents,
+    reviewedMailClass: "certified",
+  };
+  assert.equal((await requestApproval({ ...outageReviewed, userApprovedExactPacket: true })).status, 200);
+  let failedSubmissions = 0;
+  let outageReconciliations = 0;
+  const outageCheckout = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+    submitNewClaim: async () => {
+      failedSubmissions++;
+      throw new Error("synthetic_provider_timeout_after_submission");
+    },
+    reconcileClaim: async () => {
+      outageReconciliations++;
+      return "pending" as const;
+    },
+  });
+  const outageCheckoutRequest = { ...outageReviewed, userConfirmedCheckout: true };
+  const firstOutage = await action("/api/debt-validation/checkout", outageCheckoutRequest, outageCheckout);
+  assert.equal(firstOutage.status, 500, "provider timeout after a durable claim fails closed");
+  assert.equal((await firstOutage.json() as { code: string }).code, "checkout_unavailable",
+    "provider error details must not be exposed to the browser");
+  const claimed = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, outageMatterId],
+  );
+  assert.match(claimed.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/,
+    "the order claim survives an ambiguous provider timeout");
+  assert.equal((await action("/api/debt-validation/checkout", outageCheckoutRequest, outageCheckout)).status, 202,
+    "retry reconciles the already-claimed order without submitting again");
+  assert.equal(failedSubmissions, 1, "ambiguous provider failure must never cause duplicate submissions");
+  assert.equal(outageReconciliations, 1, "retry performs exactly one read-only receipt lookup");
 });
