@@ -135,8 +135,14 @@ function assertPacket(
   // The verified notice may contain only postal lines. The physical-mail
   // destination must additionally include the collector addressee whenever
   // it is absent from those lines, matching the customer-reviewed envelope.
-  if (!packet.recipientAddress ||
-    !sameAddress(packet.recipientAddress, draftDebtValidationEnvelopeAddress(intake).recipientAddress)) {
+  // The physical-mail destination is a byte-sensitive review artifact.
+  // Postal-equivalent normalization can conceal CR, Unicode line separators
+  // or tabs that a downstream label renderer may interpret as extra lines.
+  // The packet preparer stores this exact canonical printable destination.
+  // Never approve or check out a different persisted representation.
+  const printableRecipient = draftDebtValidationEnvelopeAddress(intake).recipientAddress;
+  if (typeof packet.recipientAddress !== "string"
+    || packet.recipientAddress !== printableRecipient) {
     fail("recipient_changed");
   }
 }
