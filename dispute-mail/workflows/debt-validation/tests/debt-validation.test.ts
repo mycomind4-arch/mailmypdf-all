@@ -307,3 +307,25 @@ test("debt-validation: reject hidden line breaks in physical-mail addresses with
   };
   assert.deepEqual(codes(valid), []);
 });
+
+
+// Postal and letter identity fields are single-line even though Unicode line
+// separators are not ASCII CR/LF. A hidden separator in a collector addressee
+// or return name could become an extra line in the actual physical envelope.
+test("debt-validation: single-line identity and account fields reject Unicode line separators", () => {
+  const original = fixture();
+  for (const separator of ["\u2028", "\u2029"]) {
+    for (const field of ["consumerName", "collectorName", "accountReference"] as const) {
+      const changed = { ...original, [field]: "Synthetic" + separator + "Forged recipient" };
+      const expected = field === "consumerName" ? "missing_consumer"
+        : field === "collectorName" ? "missing_collector" : "missing_account";
+      assert.ok(codes(changed).includes(expected),
+        field + " accepted hidden separator " + JSON.stringify(separator));
+      assert.throws(() => draftDebtValidationEnvelopeAddress(changed),
+        /Debt validation envelope blocked/);
+      assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"),
+        /Debt validation blocked/);
+    }
+  }
+  assert.deepEqual(codes(original), [], "ordinary one-line names and account references remain valid");
+});
