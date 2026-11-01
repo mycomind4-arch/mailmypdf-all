@@ -526,6 +526,7 @@ test("debt-validation real generated physical-mail packet traverses isolated app
   assert.equal((await checkout(requestCheckout())).status, 202,
     "payment acknowledgement alone cannot certify a physical mailing");
   assert.equal(submissions, 1, "receipt reconciliation cannot resubmit the order");
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, verified)).status, "claimed");
   await ledger.record(owner, matter, verified, {
     kind: "mailing", provider: "mock_lob",
     providerReference: "letter_generated_pdf", evidenceSha256: "b".repeat(64),
@@ -1860,6 +1861,13 @@ test("PostgreSQL debt validation: durable two-stage mock provider receipts recon
   }), "pending");
   assert.equal(mockedProviderSubmissions, 1, "retry must not submit to a provider");
 
+  await assert.rejects(ledger.record(owner, matter, verified, mailing),
+    /debt_validation_mailing_handoff_required/,
+    "payment alone must never certify a mailing without the one-time reservation");
+  assert.deepEqual((await ledger.reconcile(owner, matter, verified)).mailing, null);
+  assert.equal(mockedProviderSubmissions, 1, "rejected receipt must not submit mock mail");
+  const handoff = await ledger.claimMailingHandoff(owner, matter, verified);
+  assert.equal(handoff.status, "claimed");
   await ledger.record(owner, matter, verified, mailing);
   const complete = await ledger.reconcile(owner, matter, verified);
   assert.equal(complete.status, "recorded");
@@ -1870,6 +1878,23 @@ test("PostgreSQL debt validation: durable two-stage mock provider receipts recon
     checkout: submit, replayCheckout: reconcile,
   }), "recorded");
   assert.equal(mockedProviderSubmissions, 1);
+
+  // Simulate a manually deleted reservation: even a matching pair of receipts
+  // must not certify an unauthorized mailing or accept an identical replay.
+  await db.query(
+    "DELETE FROM debt_validation_mailing_handoffs WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  await assert.rejects(ledger.reconcile(owner, matter, verified),
+    /debt_validation_mailing_handoff_required/);
+  await assert.rejects(ledger.record(owner, matter, verified, mailing),
+    /debt_validation_mailing_handoff_required/);
+  assert.equal(mockedProviderSubmissions, 1);
+  await db.query(
+    "INSERT INTO debt_validation_mailing_handoffs (owner_id,matter_id,checkout_key) VALUES ($1,$2,$3)",
+    [owner, matter, verified.idempotencyKey],
+  );
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
 
   // Exact receipt retries are idempotent; contradictory receipts, wrong owner
   // or wrong checkout key must not alter the durable evidence.
@@ -1979,6 +2004,7 @@ test("PostgreSQL debt validation: mailing receipt requires prior payment evidenc
   );
   await ledger.record(owner, matter, verified, payment);
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "pending");
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, verified)).status, "claimed");
   await ledger.record(owner, matter, verified, mailing);
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
   assert.equal(mockSubmissions, 1, "ledger reads and writes cannot resubmit providers");
@@ -2121,6 +2147,7 @@ test("PostgreSQL debt validation: receipt recording and reconciliation reject ch
   assert.deepEqual(before.rows.map((row) => row.kind), ["payment"],
     "none of the rejected paths may create a mailing acknowledgement");
   assert.equal(mockSubmissions, 1, "receipt checks must never resubmit a provider");
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, verified)).status, "claimed");
   await ledger.record(owner, matter, verified, mailing);
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
     "restoring exact approved source and packet preserves the legitimate receipt path");
@@ -2285,6 +2312,7 @@ test("PostgreSQL debt validation: pre-mailing payment gate fails closed on missi
     kind: "mailing" as const, provider: "mock_lob",
     providerReference: "letter_synthetic_premail", evidenceSha256: "b".repeat(64),
   };
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, verified)).status, "claimed");
   await ledger.record(owner, matter, verified, mailing);
   await assert.rejects(attemptMail(), /debt_validation_mailing_already_recorded/,
     "recorded mailing must not authorize another mocked Lob handoff");
