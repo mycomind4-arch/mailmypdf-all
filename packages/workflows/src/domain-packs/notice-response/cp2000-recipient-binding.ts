@@ -9,6 +9,29 @@ import {
   type ExactPacketApproval,
 } from "../../matter-runtime.js";
 
+/** Postal labels and reviewed envelopes must not contain invisible format controls or line breaks. */
+const NON_PRINTABLE_POSTAL = /[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]/u;
+
+function assertPrintablePostalFields(
+  address: {
+    name?: unknown;
+    line1?: unknown;
+    line2?: unknown;
+    city?: unknown;
+    state?: unknown;
+    postal?: unknown;
+  },
+  code: string,
+): void {
+  if ([address.name, address.line1, address.line2, address.city, address.state, address.postal]
+    .some((value) => typeof value === "string" && NON_PRINTABLE_POSTAL.test(value))) {
+    throw new WorkflowRuntimeError(
+      "The CP2000 postal destination contains invisible or multiline control characters. Verify the printable address.",
+      code,
+    );
+  }
+}
+
 /**
  * A CP2000 destination is the response address printed on the controlling
  * notice, never a generic IRS office or a fax destination. This guard is
@@ -23,6 +46,7 @@ function noticeAddress(analysis: WorkflowMatterAnalysis): WorkflowMailingAddress
     );
   }
   const raw = value as Record<string, unknown>;
+  assertPrintablePostalFields(raw, "CP2000_NOTICE_ADDRESS_UNPRINTABLE");
   if (["line1", "city", "state", "postal"].some((field) =>
     typeof raw[field] !== "string" || !(raw[field] as string).trim()
   )) {
@@ -130,6 +154,7 @@ function assertExactDestination(
   recipient: WorkflowMailingAddress,
   analysis: WorkflowMatterAnalysis,
 ): void {
+  assertPrintablePostalFields(recipient, "CP2000_RECIPIENT_UNPRINTABLE");
   const actual = normalizeMailingAddress(recipient);
   const expected = noticeAddress(analysis);
   // When the notice omits an addressee, noticeAddress supplies the IRS name.
