@@ -398,6 +398,18 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
             providerReference: paid.rows[0]!.provider_reference as string,
             evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
           });
+          // A receipt must never certify a mailing that bypassed the durable
+          // one-time handoff reservation. Keep the lookup under the same
+          // matter lock as the payment and receipt writes, including replays.
+          const handoffs = await tx.query(
+            "SELECT checkout_key FROM debt_validation_mailing_handoffs " +
+              "WHERE owner_id=$1 AND matter_id=$2",
+            [ownerId, matterId],
+          );
+          if (handoffs.rows.length !== 1 ||
+              handoffs.rows[0]!.checkout_key !== verified.idempotencyKey) {
+            throw new Error("debt_validation_mailing_handoff_required");
+          }
         }
         const existing = await tx.query(
           "SELECT provider,provider_reference,evidence_sha256 " +
@@ -618,6 +630,19 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       // Payment and mailing receipts must never be conflated.
       if (mailing && !payment) {
         throw new Error("debt_validation_payment_receipt_required");
+      }
+      if (mailing) {
+        // A manually inserted/legacy mailing receipt with no matching
+        // reservation is not proof that an authorized handoff occurred.
+        const handoffs = await tx.query(
+          "SELECT checkout_key FROM debt_validation_mailing_handoffs " +
+            "WHERE owner_id=$1 AND matter_id=$2",
+          [ownerId, matterId],
+        );
+        if (handoffs.rows.length !== 1 ||
+            handoffs.rows[0]!.checkout_key !== verified.idempotencyKey) {
+          throw new Error("debt_validation_mailing_handoff_required");
+        }
       }
       return {
         status: payment && mailing ? "recorded" : "pending",
