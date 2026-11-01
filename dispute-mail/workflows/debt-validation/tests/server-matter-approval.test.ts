@@ -14,7 +14,7 @@ import {
   debtValidationIntakeSha256,
   type DebtValidationApprovalBinding,
 } from "../server-approval-binding";
-import type { DebtValidationIntake } from "../domain";
+import { normalizeMailingAddress, type DebtValidationIntake } from "../domain";
 
 const a = "a".repeat(64);
 // Synthetic persisted packet bytes; this test checks identity, not PDF parsing.
@@ -582,5 +582,36 @@ test("debt-validation matter: hidden line controls in persisted envelope metadat
     assert.equal(beforeCheckout.state.claims, 0, "No durable claim for altered postal bytes");
     assert.equal(stripeCalls, 0);
     assert.equal(lobCalls, 0);
+  }
+});
+
+
+test("debt-validation matter: corrupted persisted approval recipient cannot authorize checkout", async () => {
+  // The stored packet, controlling notice, and intake are unchanged. Only
+  // the persisted approval's recipient string has been altered. Whitespace
+  // normalization previously treated these distinct postal bytes as equal.
+  for (const replacement of ["PO\u2028BOX", "PO\tBOX", "PO  BOX"]) {
+    const { state, repository } = fakeStore();
+    await approveDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository,
+      reviewedPdfSha256: b, reviewedTotalCents: 1499,
+      reviewedMailClass: "certified", userApprovedExactPacket: true,
+    });
+    const canonical = state.approval!.recipientAddress;
+    const altered = canonical.replace("PO BOX", replacement);
+    assert.notEqual(altered, canonical);
+    assert.equal(normalizeMailingAddress(altered), normalizeMailingAddress(canonical),
+      "Regression must exercise a normalization-equivalent but byte-different recipient");
+    state.approval!.recipientAddress = altered;
+
+    let stripeCalls = 0;
+    let lobCalls = 0;
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1", repository,
+      checkout: async () => { stripeCalls++; lobCalls++; },
+    }), /debt_validation_stale_approval/);
+    assert.equal(state.claims, 0, "A corrupted approval must not reserve an order");
+    assert.equal(stripeCalls, 0, "A corrupted approval must not initiate payment");
+    assert.equal(lobCalls, 0, "A corrupted approval must not submit mail");
   }
 });
