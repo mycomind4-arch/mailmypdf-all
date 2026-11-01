@@ -42,7 +42,7 @@ export interface DebtValidationBlocker {
 
 const SHA256 = /^[0-9a-f]{64}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const FORBIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+// Reject explicit Unicode bidirectional formatting controls as well as C0/C1\n// controls. These can visually reorder the reviewed postal/letter text while\n// leaving the underlying bytes unchanged for PDF and mailing providers.\nconst FORBIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
 // Keep address validation and the bytes rendered on the PDF/envelope in sync.
 // Lone CR and Unicode line/paragraph separators can be treated as extra
 // postal lines downstream even though whitespace normalization folds them.
