@@ -95,6 +95,16 @@ function renderedRecipientAddress(input: DebtValidationIntake): string {
     : [collector, destination].join("\n")).replace(/\t/g, " ");
 }
 
+/** Keep the consumer addressee exactly once on the physical return envelope. */
+function renderedReturnAddress(input: DebtValidationIntake): string {
+  const source = input.consumerMailingAddress.trim();
+  const firstLine = cleanLine(source.split(/\r?\n/)[0] ?? "").toUpperCase();
+  const consumer = cleanLine(input.consumerName);
+  return (firstLine === consumer.toUpperCase()
+    ? source
+    : [consumer, source].join("\n")).replace(/\t/g, " ");
+}
+
 function isSingleLine(value: string, limit: number): boolean {
   // Names and account references are rendered as single envelope/letter lines.
   // Unicode paragraph/line separators are line breaks, not harmless spaces.
@@ -148,6 +158,13 @@ export function validateDebtValidationIntake(input: DebtValidationIntake): DebtV
     && isMailingAddress(input.collectorResponseAddress)
     && !isMailingAddress(renderedRecipientAddress(input))) {
     add("invalid_envelope", "The full envelope destination exceeds the supported mailing-address format; verify a shorter postal destination on the notice.");
+  }
+  // A syntactically valid six-line return address can become seven lines
+  // after adding the consumer addressee. Validate the actual printed envelope.
+  if (isSingleLine(input.consumerName, 200)
+    && isMailingAddress(input.consumerMailingAddress)
+    && !isMailingAddress(renderedReturnAddress(input))) {
+    add("invalid_envelope", "The full return envelope address exceeds the supported mailing-address format; shorten or verify the return address.");
   }
   if (!isSingleLine(input.accountReference, 100)) {
     add("missing_account", "Identify the account or reference shown on the notice.");
@@ -208,8 +225,7 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
     === cleanLine(input.collectorName).toUpperCase();
   const lines = [
     letterDate,
-    input.consumerName.trim(),
-    input.consumerMailingAddress.trim(),
+    renderedReturnAddress(input),
     "",
     ...(!recipientAlreadyNamed ? [input.collectorName.trim()] : []),
     input.collectorResponseAddress.trim(),
@@ -255,7 +271,7 @@ export function draftDebtValidationEnvelopeAddress(input: DebtValidationIntake):
     throw new Error("Debt validation envelope blocked: " + issues.map((issue) => issue.code).join(", "));
   }
   return {
-    returnAddress: [input.consumerName.trim(), input.consumerMailingAddress.trim()].join("\n").replace(/\t/g, " "),
+    returnAddress: renderedReturnAddress(input),
     recipientAddress: renderedRecipientAddress(input),
   };
 }
