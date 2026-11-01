@@ -33,7 +33,7 @@ export type DebtValidationBlockerCode =
   | "missing_consumer" | "missing_collector" | "missing_account"
   | "missing_dispute" | "missing_notice" | "invalid_notice_date"
   | "unconfirmed_recipient" | "recipient_mismatch" | "notice_changed"
-  | "invalid_text";
+  | "invalid_text" | "invalid_envelope";
 
 export interface DebtValidationBlocker {
   code: DebtValidationBlockerCode;
@@ -85,6 +85,16 @@ function isMailingAddress(value: string): boolean {
     && hasDeliveryLine;
 }
 
+/** The final envelope may need the collector name added to the notice's postal lines. */
+function renderedRecipientAddress(input: DebtValidationIntake): string {
+  const destination = input.collectorResponseAddress.trim();
+  const firstLine = cleanLine(destination.split(/\r?\n/)[0] ?? "").toUpperCase();
+  const collector = cleanLine(input.collectorName);
+  return (firstLine === collector.toUpperCase()
+    ? destination
+    : [collector, destination].join("\n")).replace(/\t/g, " ");
+}
+
 function isSingleLine(value: string, limit: number): boolean {
   // Names and account references are rendered as single envelope/letter lines.
   // Unicode paragraph/line separators are line breaks, not harmless spaces.
@@ -130,6 +140,14 @@ export function validateDebtValidationIntake(input: DebtValidationIntake): DebtV
   }
   if (!isSingleLine(input.collectorName, 200) || !isMailingAddress(input.collectorResponseAddress)) {
     add("missing_collector", "Provide the collector name and complete mailing destination.");
+  }
+  // The notice's address can satisfy the six-line intake limit while the
+  // actual envelope exceeds it after inserting the collector addressee.
+  // Apply the SAME postal-shape check to the derived physical destination.
+  if (isSingleLine(input.collectorName, 200)
+    && isMailingAddress(input.collectorResponseAddress)
+    && !isMailingAddress(renderedRecipientAddress(input))) {
+    add("invalid_envelope", "The full envelope destination exceeds the supported mailing-address format; verify a shorter postal destination on the notice.");
   }
   if (!isSingleLine(input.accountReference, 100)) {
     add("missing_account", "Identify the account or reference shown on the notice.");
@@ -236,14 +254,9 @@ export function draftDebtValidationEnvelopeAddress(input: DebtValidationIntake):
   if (issues.length) {
     throw new Error("Debt validation envelope blocked: " + issues.map((issue) => issue.code).join(", "));
   }
-  const destination = input.collectorResponseAddress.trim();
-  const firstLine = cleanLine(destination.split(/\r?\n/)[0] ?? "").toUpperCase();
-  const collector = cleanLine(input.collectorName);
   return {
     returnAddress: [input.consumerName.trim(), input.consumerMailingAddress.trim()].join("\n").replace(/\t/g, " "),
-    recipientAddress: (firstLine === collector.toUpperCase()
-      ? destination
-      : [collector, destination].join("\n")).replace(/\t/g, " "),
+    recipientAddress: renderedRecipientAddress(input),
   };
 }
 
