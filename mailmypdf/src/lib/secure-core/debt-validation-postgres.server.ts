@@ -342,7 +342,7 @@ function validateProviderReceipt(receipt: DebtValidationProviderReceipt): void {
       typeof receipt.providerReference !== "string" ||
       !receipt.providerReference.trim() ||
       receipt.providerReference.length > 256 ||
-      /[\u0000-\u001f\u007f]/.test(receipt.providerReference) ||
+      /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/u.test(receipt.providerReference) ||
       typeof receipt.evidenceSha256 !== "string" ||
       !/^[a-f0-9]{64}$/i.test(receipt.evidenceSha256)) {
     throw new Error("debt_validation_invalid_provider_receipt");
