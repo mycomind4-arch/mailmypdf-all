@@ -2484,6 +2484,13 @@ test("PostgreSQL debt validation: provider acknowledgements cannot be replayed a
     providerReference: "pi_one_order_only", evidenceSha256: "a".repeat(64),
   };
   await ledger.record(owner, matter, claimA, payment);
+  // Provider identity is case-insensitive. The same Stripe payment reference
+  // must not fund another owner's order merely by changing provider casing.
+  await assert.rejects(
+    ledger.record(other, matter, claimB, { ...payment, provider: "MOCK_STRIPE" }),
+    /debt_validation_provider_reference_reused/,
+    "provider capitalization cannot bypass the global payment reference guard",
+  );
   let mockedMailSubmissions = 0;
   await assert.rejects(
     ledger.record(other, matter, claimB, payment),
