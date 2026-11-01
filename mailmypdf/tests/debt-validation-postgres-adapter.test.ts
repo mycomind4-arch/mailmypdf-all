@@ -207,6 +207,38 @@ test("debt-validation review summary binds the exact physical envelope to the st
   assert.equal(state.rows[0]?.checkout_key, null, "review cannot reserve checkout");
 });
 
+test("debt-validation review summary normalizes pasted tabs to match the physical return envelope", async (t) => {
+  // An approved summary must show exactly the printable return address used
+  // for the generated letter/envelope, not raw browser paste whitespace.
+  // Synthetic PGlite only: no provider calls, mailing, or hosted persistence.
+  const { db, repository, seed } = await setup();
+  t.after(() => db.close());
+  const snapshot = fixture();
+  snapshot.currentIntake.consumerName = "Synthetic\tConsumer";
+  snapshot.currentIntake.consumerMailingAddress = "123\tExample St\\nSacramento, CA 95814".replace("\\n", "\n");
+  snapshot.packet.intakeSha256 = debtValidationIntakeSha256(snapshot.currentIntake);
+  await seed(owner, snapshot);
+  const origin = "https://mailmypdf.example";
+  const handle = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin,
+    repository,
+    authenticate: async () => ({ id: owner }),
+  });
+  const result = await handle(new Request(
+    origin + "/api/debt-validation/review?matterId=" + matter + "&view=summary",
+  ));
+  assert.equal(result.status, 200);
+  const summary = await result.json() as { returnAddress: string };
+  assert.equal(summary.returnAddress, "Synthetic Consumer\\n123 Example St\\nSacramento, CA 95814".replaceAll("\\n", "\n"));
+  assert.equal(summary.returnAddress.includes("\t"), false);
+  const state = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "SELECT approval,checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(state.rows[0]?.approval, null, "review must not approve");
+  assert.equal(state.rows[0]?.checkout_key, null, "review must not reserve checkout");
+});
+
 test("debt-validation review requires a single source-and-packet snapshot, never split reads", async (t) => {
   const { db, repository, seed } = await setup();
   t.after(() => db.close());
