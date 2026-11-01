@@ -485,6 +485,18 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
         };
         validateProviderReceipt(receipt);
+        // This legacy read-only preflight is not a mailing reservation. Once
+        // any process has claimed the durable handoff, it must not appear to
+        // authorize another provider attempt while the receipt is pending.
+        // The matter row lock serializes this check with claimMailingHandoff.
+        const handoffs = await tx.query(
+          "SELECT checkout_key FROM debt_validation_mailing_handoffs " +
+            "WHERE owner_id=$1 AND matter_id=$2",
+          [ownerId, matterId],
+        );
+        if (handoffs.rows.length !== 0) {
+          throw new Error("debt_validation_mailing_handoff_already_claimed");
+        }
         return normalizeReceipt(receipt);
       });
     },
