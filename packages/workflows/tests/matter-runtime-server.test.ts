@@ -985,3 +985,46 @@ test("CP2000 HTTP approval and checkout reject hidden printable-destination chan
   assert.equal((await body(checkout)).code, "CP2000_RECIPIENT_UNPRINTABLE");
   assert.equal(changedAfterApproval.deps.checkoutCalls.count, 0);
 });
+
+
+test("CP2000 authenticated owner isolation and exact reviewed packet hash gate prevent unauthorized checkout", async () => {
+  const { deps, handle, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+  const path = (action: string) => `/matters/${matterId}/${action}`;
+  const postAsOther = (action: string, data: Record<string, unknown>) =>
+    handle(requestAs("other", path(action), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+
+  const anonymousApproval = await handle(new Request(
+    `https://example.test/api/workflow-runtime${path("approval")}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(approvalBody),
+    },
+  ));
+  assert.equal(anonymousApproval.status, 401, "anonymous approval cannot reach another user's packet");
+  assert.equal((await postAsOther("approval", approvalBody)).status, 404,
+    "an authenticated second owner cannot approve the first owner's matter");
+  assert.equal((await postAsOther("packet", { mailClass: "certified" })).status, 404,
+    "an authenticated second owner cannot obtain the first owner's packet preview");
+
+  const stalePreview = await post("approval", {
+    ...approvalBody, expectedPacketSha256: "f".repeat(64),
+  });
+  assert.equal(stalePreview.status, 409,
+    "even the legitimate owner must approve the exact reviewed packet hash");
+  assert.equal(deps.store.approvals.size, 0, "rejected approvals cannot persist");
+  assert.equal(deps.checkoutCalls.count, 0, "rejected approvals cannot start checkout");
+
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  assert.equal((await postAsOther("checkout", { approvalId, sender: CP2000_SENDER })).status, 404,
+    "another authenticated owner cannot reuse a valid approval ID to start checkout");
+  assert.equal(deps.checkoutCalls.count, 0, "cross-owner checkout must never reach the provider");
+
+  const legitimateCheckout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(legitimateCheckout.status, 200,
+    "legitimate approved checkout remains available after all rejected requests");
+  assert.equal(deps.checkoutCalls.count, 1, "only the approved owner reaches the mocked checkout");
+});
