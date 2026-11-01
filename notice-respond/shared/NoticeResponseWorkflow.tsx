@@ -364,6 +364,14 @@ export default function NoticeResponseWorkflow({
     try {
       const next = await client.analyze(matterId);
       setAnalysis(next);
+      // Reanalysis can change the controlling notice without changing the
+      // outgoing packet bytes. Discard stale checklist, draft, and approval.
+      setFactsSaved(false);
+      setDraftSaved(false);
+      setDraftValidation(null);
+      setDraftStrategy(null);
+      setPacket(null);
+      setApprovalId("");
       const detectedAddress = responseAddressFromAnalysis(next, profile.primaryDocumentLabel);
       if (detectedAddress) setRecipient(detectedAddress);
     } catch (cause) {
@@ -1047,7 +1055,7 @@ export default function NoticeResponseWorkflow({
           </SectionCard>
           {packet && (
             <ApprovalChecklist
-              key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass })}
+              key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass, analysis })}
               reviewItems={[
                 {
                   id: "hash",
