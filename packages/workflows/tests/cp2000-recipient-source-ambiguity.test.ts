@@ -197,6 +197,45 @@ test("CP2000 checkout revokes recipient confirmation when transcribed notice dat
   }
 });
 
+test("CP2000 checkout rejects same-version changed notice decision and adjustment facts", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-substantive-facts-drift",
+    matterId: "matter-1",
+    workflowId: "cp2000-response",
+    packetSha256: "a".repeat(64),
+    totalCents: 299,
+    recipient,
+    mailClass: "certified",
+    approvedBy: "owner-1",
+    approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.doesNotThrow(() => assertApprovedCp2000Recipient({
+    approval, analysis, documents: [source],
+  }));
+
+  for (const changedResult of [
+    { decision: "Different proposed adjustment" },
+    { workflowDetails: { ...analysis.result.workflowDetails, proposedTax: 25000 } },
+  ]) {
+    const correctedAnalysis: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: { ...analysis.result, ...changedResult },
+    };
+    assert.equal(correctedAnalysis.version, analysis.version);
+    assert.throws(
+      () => assertApprovedCp2000Recipient({
+        approval, analysis: correctedAnalysis, documents: [source],
+      }),
+      /changed after approval|CP2000_RECIPIENT_CONFIRMATION_STALE/i,
+      "material notice facts must not change behind an already approved physical-mail packet",
+    );
+  }
+});
+
 test("CP2000 checkout rejects a changed notice reference on the same analysis version", () => {
   const binding = confirmCp2000Recipient({
     confirmedFromNotice: true, recipient, analysis, documents: [source],
