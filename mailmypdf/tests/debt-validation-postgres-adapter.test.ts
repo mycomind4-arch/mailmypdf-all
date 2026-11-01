@@ -59,7 +59,7 @@ const schema = String.raw`
   -- Provider identifiers must never be reused for another owner/order.
   -- The hosted schema must independently enforce this uniqueness on release.
   CREATE UNIQUE INDEX debt_validation_provider_receipt_unique
-    ON debt_validation_checkout_receipts (kind,provider,provider_reference);
+    ON debt_validation_checkout_receipts (kind,lower(provider),provider_reference);
 `;
 const owner = "synthetic-owner-a";
 const other = "synthetic-owner-b";
@@ -2484,6 +2484,9 @@ test("PostgreSQL debt validation: provider acknowledgements cannot be replayed a
     providerReference: "pi_one_order_only", evidenceSha256: "a".repeat(64),
   };
   await ledger.record(owner, matter, claimA, payment);
+  await ledger.record(owner, matter, claimA, { ...payment, provider: "MOCK_STRIPE" });
+  // An identical receipt with a differently cased provider is an idempotent
+  // replay of the same acknowledgement, not a second payment.
   // Provider identity is case-insensitive. The same Stripe payment reference
   // must not fund another owner's order merely by changing provider casing.
   await assert.rejects(
@@ -2509,6 +2512,11 @@ test("PostgreSQL debt validation: provider acknowledgements cannot be replayed a
     providerReference: "letter_one_order_only", evidenceSha256: "b".repeat(64),
   };
   await ledger.record(owner, matter, claimA, mailing);
+  await assert.rejects(
+    ledger.record(other, matter, claimB, { ...mailing, provider: "MOCK_LOB" }),
+    /debt_validation_provider_reference_reused/,
+    "provider capitalization cannot reuse one physical letter ID across orders",
+  );
   await assert.rejects(
     ledger.record(other, matter, claimB, mailing),
     /debt_validation_provider_reference_reused/,
