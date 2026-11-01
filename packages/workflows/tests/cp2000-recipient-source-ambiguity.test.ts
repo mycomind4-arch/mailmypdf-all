@@ -282,3 +282,53 @@ test("CP2000 recipient must use the IRS addressee when the notice has no explici
     "a persisted recipient name drift must fail checkout even if notice and postal lines are unchanged",
   );
 });
+
+test("CP2000 approval rejects invisible or multiline characters in the extracted postal destination", () => {
+  for (const line1 of [
+    "100 Synthetic\u202e Notice Response Way",
+    "100 Synthetic\u200b Notice Response Way",
+    "100 Synthetic Notice Response Way\n",
+  ]) {
+    const corruptedRecipient = { ...recipient, line1 };
+    const corruptedAnalysis: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: {
+        ...analysis.result,
+        workflowDetails: { responseAddress: corruptedRecipient },
+      },
+    };
+    assert.throws(
+      () => confirmCp2000Recipient({
+        confirmedFromNotice: true,
+        recipient: corruptedRecipient,
+        analysis: corruptedAnalysis,
+        documents: [source],
+      }),
+      /printable|control|invalid/i,
+      "unprintable source address must not authorize physical-mail recipient approval",
+    );
+  }
+});
+
+test("CP2000 checkout rejects a persisted approved recipient with hidden trailing line breaks", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-hidden-recipient",
+    matterId: "matter-1",
+    workflowId: "cp2000-response",
+    packetSha256: "a".repeat(64),
+    totalCents: 299,
+    recipient: { ...recipient, line1: recipient.line1 + "\n" },
+    mailClass: "certified",
+    approvedBy: "owner-1",
+    approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.throws(
+    () => assertApprovedCp2000Recipient({ approval, analysis, documents: [source] }),
+    /printable|control|invalid/i,
+    "normalization must not hide a changed printable envelope destination at checkout",
+  );
+});
