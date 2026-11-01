@@ -2534,3 +2534,82 @@ test("PostgreSQL debt validation: provider acknowledgements cannot be replayed a
   await ledger.record(other, matter, claimB, otherPayment);
   assert.equal(mockedMailSubmissions, 0);
 });
+
+test("PostgreSQL debt validation: legacy duplicate provider references cannot certify two orders", async (t) => {
+  // Model a legacy/hosted database missing the required global UNIQUE index.
+  // An old duplicate payment or letter reference must not be reported as
+  // two completed mailings by read-only reconciliation.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed(owner);
+  await seed(other, fixture(other));
+  await approve(owner);
+  await approve(other);
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  let mockedCheckoutCalls = 0;
+  const claimFor = async (ownerId: string) => {
+    const binding = await repository.loadApproval(ownerId, matter);
+    assert.ok(binding);
+    const idempotencyKey = await checkoutDebtValidationMatter({
+      ownerId, matterId: matter, repository,
+      checkout: async (verified) => {
+        mockedCheckoutCalls++;
+        return verified.idempotencyKey;
+      },
+    });
+    return { binding, idempotencyKey, expectedMatterVersion: binding.matterVersion };
+  };
+  const first = await claimFor(owner);
+  const second = await claimFor(other);
+  assert.equal(mockedCheckoutCalls, 2);
+
+  const paymentA = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_legacy_first", evidenceSha256: "a".repeat(64),
+  };
+  const paymentB = { ...paymentA, providerReference: "pi_legacy_second" };
+  const mailingA = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_legacy_first", evidenceSha256: "b".repeat(64),
+  };
+  const mailingB = { ...mailingA, providerReference: "letter_legacy_second" };
+  await ledger.record(owner, matter, first, paymentA);
+  await ledger.record(other, matter, second, paymentB);
+  await ledger.claimMailingHandoff(owner, matter, first);
+  await ledger.claimMailingHandoff(other, matter, second);
+  await ledger.record(owner, matter, first, mailingA);
+  await ledger.record(other, matter, second, mailingB);
+  assert.equal((await ledger.reconcile(owner, matter, first)).status, "recorded");
+  assert.equal((await ledger.reconcile(other, matter, second)).status, "recorded");
+
+  // Only the isolated test fixture loses its index; never a hosted migration.
+  await db.exec("DROP INDEX debt_validation_provider_receipt_unique");
+  for (const [kind, duplicate, original] of [
+    ["payment", paymentA.providerReference, paymentB.providerReference],
+    ["mailing", mailingA.providerReference, mailingB.providerReference],
+  ] as const) {
+    await db.query(
+      "UPDATE debt_validation_checkout_receipts SET provider_reference=$4 " +
+        "WHERE owner_id=$1 AND matter_id=$2 AND kind=$3",
+      [other, matter, kind, duplicate],
+    );
+    await assert.rejects(
+      ledger.reconcile(owner, matter, first),
+      /debt_validation_provider_reference_reused/,
+      kind + ": first owner must not certify duplicated provider evidence",
+    );
+    await assert.rejects(
+      ledger.reconcile(other, matter, second),
+      /debt_validation_provider_reference_reused/,
+      kind + ": second owner must not certify duplicated provider evidence",
+    );
+    assert.equal(mockedCheckoutCalls, 2, "corrupt receipts cannot trigger new provider submissions");
+    await db.query(
+      "UPDATE debt_validation_checkout_receipts SET provider_reference=$4 " +
+        "WHERE owner_id=$1 AND matter_id=$2 AND kind=$3",
+      [other, matter, kind, original],
+    );
+    assert.equal((await ledger.reconcile(owner, matter, first)).status, "recorded");
+    assert.equal((await ledger.reconcile(other, matter, second)).status, "recorded");
+  }
+});
