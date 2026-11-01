@@ -392,8 +392,18 @@ function mailClass(value: unknown): "standard" | "certified" | "registered" {
   throw new HttpError(400, "mailClass is invalid");
 }
 
+// Postal labels and return addresses must not silently carry invisible
+// Unicode controls or embedded line breaks into a provider submission.
+const NON_PRINTABLE_MAILING_FIELD = /[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]/u;
+
 function mailingAddress(value: unknown): WorkflowMailingAddress {
   const object = asObject(value);
+  for (const field of ["name", "line1", "line2", "city", "state", "postal"] as const) {
+    const raw = object[field];
+    if (typeof raw === "string" && NON_PRINTABLE_MAILING_FIELD.test(raw)) {
+      throw new HttpError(400, `Mailing address ${field} contains invisible or multiline characters`);
+    }
+  }
   return {
     name: requiredString(object.name, "name"),
     line1: requiredString(object.line1, "line1"),
