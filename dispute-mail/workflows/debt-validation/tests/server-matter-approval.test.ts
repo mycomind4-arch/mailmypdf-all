@@ -546,3 +546,41 @@ test("debt-validation matter: explicit approval must match the reviewed price an
     assert.equal(state.approval, null);
   }
 });
+
+
+test("debt-validation matter: hidden line controls in persisted envelope metadata fail closed", async () => {
+  // The intake and trusted notice remain valid. Only the stored physical
+  // envelope destination is corrupted. Whitespace-equivalent normalization
+  // must not certify bytes that a postal renderer may interpret differently.
+  for (const hidden of ["\\u2028", "\\r", "\\t"]) {
+    const injected = address.replace("PO Box", "PO" + hidden + "Box");
+    const beforeApproval = fakeStore();
+    beforeApproval.state.snapshot!.packet.recipientAddress = injected;
+    await assert.rejects(approveDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, reviewedTotalCents: 1499,
+      reviewedMailClass: "certified", userApprovedExactPacket: true,
+      repository: beforeApproval.repository,
+    }), /debt_validation_recipient_changed/);
+    assert.equal(beforeApproval.state.saves, 0, "No approval for altered postal bytes");
+
+    const beforeCheckout = fakeStore();
+    await approveDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1",
+      reviewedPdfSha256: b, reviewedTotalCents: 1499,
+      reviewedMailClass: "certified", userApprovedExactPacket: true,
+      repository: beforeCheckout.repository,
+    });
+    beforeCheckout.state.snapshot!.packet.recipientAddress = injected;
+    let stripeCalls = 0;
+    let lobCalls = 0;
+    await assert.rejects(checkoutDebtValidationMatter({
+      ownerId: "owner-1", matterId: "matter-1",
+      repository: beforeCheckout.repository,
+      checkout: async () => { stripeCalls++; lobCalls++; },
+    }), /debt_validation_recipient_changed/);
+    assert.equal(beforeCheckout.state.claims, 0, "No durable claim for altered postal bytes");
+    assert.equal(stripeCalls, 0);
+    assert.equal(lobCalls, 0);
+  }
+});
