@@ -225,3 +225,60 @@ test("CP2000 checkout rejects a changed notice reference on the same analysis ve
     "a different controlling notice reference requires fresh review even if source ID, address, and version are unchanged",
   );
 });
+
+test("CP2000 recipient must use the IRS addressee when the notice has no explicit name", () => {
+  const noticeWithoutName: WorkflowMatterAnalysis = {
+    ...analysis,
+    result: {
+      ...analysis.result,
+      workflowDetails: {
+        responseAddress: {
+          line1: recipient.line1,
+          city: recipient.city,
+          state: recipient.state,
+          postal: recipient.postal,
+        },
+      },
+    },
+  };
+  const wrongAddressee = { ...recipient, name: "Synthetic Third Party" };
+
+  const confirmed = confirmCp2000Recipient({
+    confirmedFromNotice: true,
+    recipient,
+    analysis: noticeWithoutName,
+    documents: [source],
+  });
+  assert.ok(confirmed.sourceFingerprint, "the legitimate default IRS addressee remains valid");
+
+  assert.throws(
+    () => confirmCp2000Recipient({
+      confirmedFromNotice: true,
+      recipient: wrongAddressee,
+      analysis: noticeWithoutName,
+      documents: [source],
+    }),
+    /recipient differs|CP2000_RECIPIENT_MISMATCH/i,
+    "the same postal location with a different addressee must not be approved",
+  );
+
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-addressee-drift",
+    matterId: "matter-1",
+    workflowId: "cp2000-response",
+    packetSha256: "a".repeat(64),
+    totalCents: 299,
+    recipient: wrongAddressee,
+    mailClass: "certified",
+    approvedBy: "owner-1",
+    approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: confirmed,
+  };
+  assert.throws(
+    () => assertApprovedCp2000Recipient({
+      approval, analysis: noticeWithoutName, documents: [source],
+    }),
+    /recipient differs|CP2000_RECIPIENT_MISMATCH/i,
+    "a persisted recipient name drift must fail checkout even if notice and postal lines are unchanged",
+  );
+});
