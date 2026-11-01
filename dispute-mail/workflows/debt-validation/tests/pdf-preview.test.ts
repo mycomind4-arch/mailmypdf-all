@@ -82,3 +82,26 @@ test("debt-validation: browser PDF preview rejects packets beyond the actual mai
     /Debt validation PDF exceeds mailing limits or cannot be validated/,
   );
 });
+
+
+test("debt-validation: pasted tabs remain readable in the letter, envelope and generated mailing PDF", async () => {
+  // A pasted tab is accepted as whitespace by intake validation, but the
+  // standard PDF font cannot be relied on to render it as a postal/text glyph.
+  // Review text, envelope preview and printable PDF must use ordinary spaces.
+  const base = confirmedIntake();
+  const withTabs = {
+    ...base,
+    consumerName: "Synthetic\tConsumer",
+    consumerMailingAddress: "123\tExample Street\nEureka, CA 95501",
+    disputeExplanation: "I dispute\tthe claimed balance.",
+  };
+  const { draftDebtValidationLetter, draftDebtValidationEnvelopeAddress } = await import("../domain");
+  const letter = draftDebtValidationLetter(withTabs, "2026-10-30");
+  const envelope = draftDebtValidationEnvelopeAddress(withTabs);
+  assert.doesNotMatch(letter, /\t/, "the reviewable letter must not contain invisible tab glyphs");
+  assert.match(letter, /I dispute the claimed balance\./);
+  assert.doesNotMatch(envelope.returnAddress, /\t/, "the envelope must use the same printable postal lines");
+  const packet = await createLocalDebtValidationPdfPreview(withTabs, "2026-10-30");
+  assert.ok(packet.responsePages >= 1);
+  assert.equal(packet.supportingPages, 0);
+});
