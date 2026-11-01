@@ -154,7 +154,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(pdfReview.status, 200);
   assert.equal(pdfReview.headers.get("content-type"), "application/pdf");
   assert.equal(pdfReview.headers.get("x-reviewed-pdf-sha256"), result.pdfSha256);
-  assert.equal(sha(new Uint8Array(await pdfReview.arrayBuffer())), result.pdfSha256,
+  const reviewedPdfBytes = new Uint8Array(await pdfReview.arrayBuffer());
+  assert.equal(sha(reviewedPdfBytes), result.pdfSha256,
     "the exact prepared server PDF must be the bytes served for review");
   assert.equal((await review(new Request(reviewUrl))).status, 401,
     "anonymous visitors cannot download the stored PDF");
@@ -214,6 +215,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
     [ownerId, matterId, bytes],
   );
+  const updatePacket = (bytes: Uint8Array) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId, bytes],
+  );
   const updateIntake = (value: typeof intake) => db.query(
     "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
     [ownerId, matterId, JSON.stringify(value)],
@@ -261,6 +266,15 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     ...reviewed, userApprovedExactPacket: true,
   }, approval, "Bearer other-owner")).status, 409,
   "another authenticated owner cannot approve the reviewed packet");
+
+  // The PDF actually served for review is the only approved mailing artifact.
+  // Substituting stored PDF bytes without updating their digest must fail closed
+  // at the authenticated checkout boundary before any provider callback.
+  await updatePacket(await generatePlainTextPdf("Synthetic substituted approved letter."));
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 409,
+    "changed approved PDF bytes must invalidate checkout despite unchanged metadata");
+  assert.equal(providerSubmissions, 0, "tampered PDF cannot reach mocked providers");
+  await updatePacket(reviewedPdfBytes);
 
   // Even after valid approval, replacing the controlling notice bytes or
   // revoking recipient confirmation must fail before any mock handoff.
