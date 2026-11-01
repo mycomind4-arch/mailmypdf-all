@@ -1028,3 +1028,40 @@ test("CP2000 authenticated owner isolation and exact reviewed packet hash gate p
     "legitimate approved checkout remains available after all rejected requests");
   assert.equal(deps.checkoutCalls.count, 1, "only the approved owner reaches the mocked checkout");
 });
+
+test("CP2000 persisted approval confirmation survives JSON storage and fails closed when lost or altered", async () => {
+  // The production adapter persists recipientConfirmation inside the approval
+  // quote JSON. Exercise the authenticated checkout boundary after the same
+  // JSON serialization a database round trip applies; no provider is called.
+  for (const scenario of ["intact", "missing", "tampered"] as const) {
+    const { deps, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200, scenario);
+    const approvalId = (await body(approved)).approvalId as string;
+    const stored = deps.store.approvals.get(matterId)!;
+    const roundTripped = JSON.parse(JSON.stringify(stored)) as ExactPacketApproval;
+    assert.equal(roundTripped.recipientConfirmation?.sourceDocumentId,
+      "synthetic-cp2000-page-one", "the source identity must survive JSON persistence");
+
+    if (scenario === "missing") {
+      delete roundTripped.recipientConfirmation;
+    } else if (scenario === "tampered") {
+      roundTripped.recipientConfirmation = {
+        ...roundTripped.recipientConfirmation!,
+        sourceFingerprint: "tampered-approval-quote",
+      };
+    }
+    deps.store.approvals.set(matterId, roundTripped);
+
+    const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+    if (scenario === "intact") {
+      assert.equal(checkout.status, 200, "an unchanged serialized approval can proceed");
+      assert.equal(deps.checkoutCalls.count, 1, "one authorized mock checkout");
+    } else {
+      assert.equal(checkout.status, 409, scenario);
+      assert.equal((await body(checkout)).code, "CP2000_RECIPIENT_CONFIRMATION_STALE");
+      assert.equal(deps.checkoutCalls.count, 0,
+        "a lost or altered persisted confirmation cannot start mocked checkout");
+    }
+  }
+});
