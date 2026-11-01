@@ -2812,7 +2812,6 @@ test("PostgreSQL debt validation: invisible provider-reference controls cannot b
     expectedMatterVersion: binding.matterVersion,
   };
   let checkoutSubmissions = 0;
-  let mockedMailSubmissions = 0;
   await checkoutDebtValidationMatter({
     ownerId: owner, matterId: matter, repository,
     checkout: async () => { checkoutSubmissions++; return "pending" as const; },
@@ -2857,7 +2856,8 @@ test("PostgreSQL debt validation: invisible provider-reference controls cannot b
     [owner, matter],
   );
   assert.deepEqual(after.rows.map((row) => row.kind), ["payment"]);
-  assert.equal(mockedMailSubmissions, 0, "invalid receipt paths cannot submit physical mail");
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "pending",
+    "rejected mailing references cannot certify a physical mailing");
   assert.equal(checkoutSubmissions, 1, "receipt validation cannot resubmit checkout");
   await ledger.record(owner, matter, verified, mailing);
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
