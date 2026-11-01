@@ -104,7 +104,7 @@ test("CP2000 approval RPC preserves exact ID and source-bound quote, rejects bad
   // Exercise the actual checked-in SQL guard rather than trusting a mock owner filter.
   await db.exec(`
     CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
-      $ SELECT '44444444-4444-4444-8444-444444444444'::uuid $;
+      'SELECT ''44444444-4444-4444-8444-444444444444''::uuid';
   `);
   await assert.rejects(
     db.query(callSql, args),
@@ -125,7 +125,7 @@ test("CP2000 approval RPC preserves exact ID and source-bound quote, rejects bad
   // A matching authenticated identity must retain the existing successful path.
   await db.exec(`
     CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
-      $ SELECT '22222222-2222-4222-8222-222222222222'::uuid $;
+      'SELECT ''22222222-2222-4222-8222-222222222222''::uuid';
   `);
 
   // A stale/incorrect page count cannot create an approval or a security event.
