@@ -74,8 +74,11 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   let persistCalls = 0;
   let providerSubmissions = 0;
   let source = { trustedNotice, noticePdfBytes };
-  const authenticate = async (request: Request) => request.headers.get("authorization") === "Bearer synthetic"
-    ? { id: ownerId } : null;
+  const authenticate = async (request: Request) => {
+    const token = request.headers.get("authorization");
+    return token === "Bearer synthetic" ? { id: ownerId }
+      : token === "Bearer other-owner" ? { id: "other-owner" } : null;
+  };
   const handler = createDebtValidationIntakeHttpHandler({
     allowedOrigin: origin,
     authenticate,
@@ -142,6 +145,22 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(snapshot.pdfSha256, result.pdfSha256);
   assert.equal(snapshot.recipientAddress, address);
   assert.equal(snapshot.totalCents, result.totalCents);
+  // The same authenticated intake must expose the ACTUAL server-stored PDF,
+  // not only a digest/quote or an unrelated browser-generated preview.
+  const reviewUrl = origin + "/api/debt-validation/review?matterId=" + matterId;
+  const pdfReview = await review(new Request(reviewUrl, {
+    headers: { authorization: "Bearer synthetic" },
+  }));
+  assert.equal(pdfReview.status, 200);
+  assert.equal(pdfReview.headers.get("content-type"), "application/pdf");
+  assert.equal(pdfReview.headers.get("x-reviewed-pdf-sha256"), result.pdfSha256);
+  assert.equal(sha(new Uint8Array(await pdfReview.arrayBuffer())), result.pdfSha256,
+    "the exact prepared server PDF must be the bytes served for review");
+  assert.equal((await review(new Request(reviewUrl))).status, 401,
+    "anonymous visitors cannot download the stored PDF");
+  assert.equal((await review(new Request(reviewUrl, {
+    headers: { authorization: "Bearer other-owner" },
+  }))).status, 404, "a different authenticated owner cannot read the packet");
   const state = await db.query("SELECT approval,checkout_key FROM debt_validation_matter_snapshots");
   assert.equal(state.rows.length, 1);
   assert.equal(state.rows[0]?.approval, null);
@@ -196,6 +215,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   })).status, 409, "a changed quote cannot be approved");
   assert.equal(providerSubmissions, 0);
   assert.equal((await requestApproval({ ...reviewed, userApprovedExactPacket: true })).status, 200);
+  assert.equal((await action("/api/debt-validation/approval", {
+    ...reviewed, userApprovedExactPacket: true,
+  }, approval, "Bearer other-owner")).status, 409,
+  "another authenticated owner cannot approve the reviewed packet");
 
   // Even after valid approval, replacing the controlling notice bytes or
   // revoking recipient confirmation must fail before any mock handoff.
@@ -217,6 +240,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(receiptReads, 0);
 
   assert.equal((await requestCheckout(confirmedCheckout, "")).status, 401);
+  assert.equal((await requestCheckout(confirmedCheckout, "Bearer other-owner")).status, 409,
+    "another authenticated owner cannot claim checkout");
   assert.equal((await requestCheckout({ ...confirmedCheckout, reviewedTotalCents: result.totalCents + 1 })).status, 409);
   assert.equal((await requestCheckout(confirmedCheckout)).status, 202);
   assert.equal((await requestCheckout(confirmedCheckout)).status, 202,
