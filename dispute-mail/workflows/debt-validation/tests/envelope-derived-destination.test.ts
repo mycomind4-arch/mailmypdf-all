@@ -7,6 +7,11 @@ import {
   type DebtValidationIntake,
 } from "../domain";
 import { createLocalDebtValidationPdfPreview } from "../pdf-preview";
+import {
+  assertDebtValidationCheckoutBinding,
+  createDebtValidationApprovalBinding,
+  type DebtValidationPacketSnapshot,
+} from "../server-approval-binding";
 
 const sha = "a".repeat(64);
 const collector = "Example Collections";
@@ -51,6 +56,30 @@ test("debt validation rejects a notice address that becomes seven envelope lines
     mockedProviderSubmissions++;
   }, /invalid_envelope/);
   assert.equal(mockedProviderSubmissions, 0);
+
+  // The same invalid derived destination must also be refused by the
+  // authenticated server-side approval/checkout binding, not only by UI.
+  const packet: DebtValidationPacketSnapshot = {
+    ownerId: "owner-1", matterId: "matter-1", matterVersion: 1,
+    totalCents: 1499, mailClass: "standard", pdfSha256: sha,
+    enclosureManifestSha256: sha, intakeSha256: sha,
+    recipientAddress: sourceAddress,
+    noticeDocumentId: intake.noticeDocumentId,
+    noticeSha256: sha, noticeVersion: 1,
+  };
+  const trustedNotice = {
+    ownerId: "owner-1", matterId: "matter-1",
+    documentId: intake.noticeDocumentId, sha256: sha, version: 1,
+    responseMailingAddress: sourceAddress, mailingAddressVerified: true,
+  };
+  assert.throws(() => createDebtValidationApprovalBinding({
+    ownerId: "owner-1", matterId: "matter-1", intake,
+    reviewedPdfSha256: sha, trustedNotice, packet,
+  }), /debt_validation_invalid_intake/);
+  assert.throws(() => assertDebtValidationCheckoutBinding({
+    ownerId: "owner-1", matterId: "matter-1",
+    currentIntake: intake, trustedNotice, packet, binding: packet,
+  }), /debt_validation_stale_intake/);
 });
 
 test("debt validation preserves valid six-line destinations with or without an added collector addressee", () => {
