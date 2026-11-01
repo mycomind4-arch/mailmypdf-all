@@ -183,7 +183,9 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     allowedOrigin: origin, repository, authenticate,
     submitNewClaim: async () => {
       providerSubmissions++;
-      return "pending" as const;
+      // An optimistic provider response is not verified payment AND mailing
+      // evidence. The HTTP boundary must consult the read-only reconciler.
+      return "recorded" as const;
     },
     reconcileClaim: async () => {
       receiptReads++;
@@ -273,11 +275,15 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal((await requestCheckout(confirmedCheckout, "Bearer other-owner")).status, 409,
     "another authenticated owner cannot claim checkout");
   assert.equal((await requestCheckout({ ...confirmedCheckout, reviewedTotalCents: result.totalCents + 1 })).status, 409);
-  assert.equal((await requestCheckout(confirmedCheckout)).status, 202);
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 202,
+    "optimistic provider success cannot certify mailing without independent receipts");
+  assert.equal(receiptReads, 1,
+    "new-claim provider success must be checked against read-only receipt evidence");
   assert.equal((await requestCheckout(confirmedCheckout)).status, 202,
     "retry must reconcile the same durable checkout claim");
   assert.equal(providerSubmissions, 1, "one mock checkout handoff for the approved packet");
-  assert.equal(receiptReads, 1, "replay is read-only, never a second provider submission");
+  assert.equal(receiptReads, 2,
+    "first optimistic success and replay both reconcile without resubmission");
   const final = await db.query<{ checkout_key: string | null }>(
     "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
     [ownerId, matterId],
