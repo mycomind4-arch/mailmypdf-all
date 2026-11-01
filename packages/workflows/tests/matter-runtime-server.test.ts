@@ -948,3 +948,40 @@ test("CP2000 notice-bound recipient confirmation: source replacement or recipien
     assert.equal(deps.checkoutCalls.count, 0, scenario);
   }
 });
+
+test("CP2000 HTTP approval and checkout reject hidden printable-destination changes without a provider handoff", async () => {
+  const invalidSource = await cp2000ApprovalFixture();
+  await invalidSource.deps.store.saveAnalysis("user-1", invalidSource.matterId, {
+    ...invalidSource.analysis,
+    result: {
+      ...invalidSource.analysis.result,
+      workflowDetails: {
+        responseAddress: { ...CP2000_RECIPIENT, line1: CP2000_RECIPIENT.line1 + "\u200b" },
+      },
+    },
+  });
+  const refused = await invalidSource.post("approval", {
+    ...invalidSource.approvalBody,
+    recipient: { ...CP2000_RECIPIENT, line1: CP2000_RECIPIENT.line1 + "\u200b" },
+  });
+  assert.equal(refused.status, 409, "hidden characters from source analysis cannot be approved");
+  assert.equal((await body(refused)).code, "CP2000_NOTICE_ADDRESS_UNPRINTABLE");
+  assert.equal(invalidSource.deps.store.approvals.size, 0);
+  assert.equal(invalidSource.deps.checkoutCalls.count, 0);
+
+  const changedAfterApproval = await cp2000ApprovalFixture();
+  const approved = await changedAfterApproval.post("approval", changedAfterApproval.approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  const persisted = changedAfterApproval.deps.store.approvals.get(changedAfterApproval.matterId)!;
+  changedAfterApproval.deps.store.approvals.set(changedAfterApproval.matterId, {
+    ...persisted,
+    recipient: { ...persisted.recipient, line1: persisted.recipient.line1 + "\n" },
+  });
+  const checkout = await changedAfterApproval.post("checkout", {
+    approvalId, sender: CP2000_SENDER,
+  });
+  assert.equal(checkout.status, 409, "hidden line breaks in approved recipient must invalidate checkout");
+  assert.equal((await body(checkout)).code, "CP2000_RECIPIENT_UNPRINTABLE");
+  assert.equal(changedAfterApproval.deps.checkoutCalls.count, 0);
+});
