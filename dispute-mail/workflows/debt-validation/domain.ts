@@ -83,7 +83,9 @@ function isMailingAddress(value: string): boolean {
 }
 
 function isSingleLine(value: string, limit: number): boolean {
-  return Boolean(value.trim()) && value.length <= limit && !/[\r\n]/.test(value)
+  // Names and account references are rendered as single envelope/letter lines.
+  // Unicode paragraph/line separators are line breaks, not harmless spaces.
+  return Boolean(value.trim()) && value.length <= limit && !/[\r\n\u2028\u2029]/u.test(value)
     && !FORBIDDEN.test(value);
 }
 
