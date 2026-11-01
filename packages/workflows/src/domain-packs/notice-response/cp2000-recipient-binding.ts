@@ -113,6 +113,11 @@ function sourceBinding(
       securityStatus: source.securityStatus,
       usable: source.usable,
       responseAddress: destination,
+      // Notice chronology may be corrected during review/import without a
+      // corresponding analysis-version increment. Never reuse a prior exact
+      // recipient approval against a changed printed notice date/deadline.
+      decisionDate: analysis.result.decisionDate,
+      deadline: analysis.result.deadline,
     }),
   };
 }
