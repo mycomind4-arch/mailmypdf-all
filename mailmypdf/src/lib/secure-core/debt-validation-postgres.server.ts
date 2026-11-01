@@ -421,12 +421,19 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           if (paid.rows.length !== 1) {
             throw new Error("debt_validation_payment_receipt_required");
           }
-          validateProviderReceipt({
-            kind: "payment",
+          const payment = {
+            kind: "payment" as const,
             provider: paid.rows[0]!.provider as string,
             providerReference: paid.rows[0]!.provider_reference as string,
             evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
-          });
+          };
+          validateProviderReceipt(payment);
+          // Recheck global payment provenance at the final mailing receipt
+          // boundary. A legacy duplicate introduced after handoff reservation
+          // must not be recorded as a completed physical mailing.
+          await assertUniquePaymentForMailing(
+            tx, ownerId, matterId, verified.idempotencyKey, payment,
+          );
           // A receipt must never certify a mailing that bypassed the durable
           // one-time handoff reservation. Keep the lookup under the same
           // matter lock as the payment and receipt writes, including replays.
