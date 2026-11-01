@@ -12,6 +12,7 @@ import {
   assertDebtValidationPersistedPdf,
 } from "../../../../dispute-mail/workflows/debt-validation/server-matter-approval";
 import { createDebtValidationApprovalBinding, type DebtValidationApprovalBinding } from "../../../../dispute-mail/workflows/debt-validation/server-approval-binding";
+import { draftDebtValidationEnvelopeAddress } from "../../../../dispute-mail/workflows/debt-validation/domain";
 
 interface AuthenticatedActor { id: string }
 
@@ -336,7 +337,10 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
           totalCents: snapshot.packet.totalCents,
           mailClass: snapshot.packet.mailClass,
           recipientAddress: snapshot.packet.recipientAddress,
-          returnAddress: [intake.consumerName.trim(), intake.consumerMailingAddress.trim()].join("\n"),
+          // Use the same printable address normalization as the reviewed
+          // letter and physical envelope; pasted tabs must not survive only
+          // in the approval summary.
+          returnAddress: draftDebtValidationEnvelopeAddress(intake).returnAddress,
           noticeDocumentId: snapshot.packet.noticeDocumentId,
           noticeSha256: snapshot.packet.noticeSha256,
           noticeVersion: snapshot.packet.noticeVersion,
