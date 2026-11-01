@@ -2791,3 +2791,75 @@ test("PostgreSQL debt validation: legacy duplicate payment cannot be recorded as
   assert.equal((await ledger.reconcile(owner, matter, claims.get(owner)!)).status, "recorded");
   assert.equal((await ledger.reconcile(other, matter, claims.get(other)!)).status, "pending");
 });
+
+test("PostgreSQL debt validation: invisible provider-reference controls cannot become payment or mailing evidence", async (t) => {
+  // Provider IDs are opaque identifiers, but invisible format controls can
+  // make two references appear identical in review or audit logs. The ledger
+  // must reject them before any durable receipt write. Offline PGlite only.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  let checkoutSubmissions = 0;
+  let mockedMailSubmissions = 0;
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => { checkoutSubmissions++; return "pending" as const; },
+  });
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_clean", evidenceSha256: "a".repeat(64),
+  };
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_clean", evidenceSha256: "b".repeat(64),
+  };
+  const invisible = ["\u200b", "\u202e", "\u2060", "\ufeff", "\u2028"];
+  for (const control of invisible) {
+    await assert.rejects(
+      ledger.record(owner, matter, verified, {
+        ...payment, providerReference: "pi_synthetic" + control + "_clean",
+      }),
+      /debt_validation_invalid_provider_receipt/,
+      "invisible payment identifier must not be persisted",
+    );
+  }
+  const before = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.equal(before.rows.length, 0, "invalid payment references cannot create receipts");
+  await ledger.record(owner, matter, verified, payment);
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, verified)).status, "claimed");
+  for (const control of invisible) {
+    await assert.rejects(
+      ledger.record(owner, matter, verified, {
+        ...mailing, providerReference: "letter_synthetic" + control + "_clean",
+      }),
+      /debt_validation_invalid_provider_receipt/,
+      "invisible mailing identifier must not be persisted",
+    );
+  }
+  const after = await db.query<{ kind: string }>(
+    "SELECT kind FROM debt_validation_checkout_receipts WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(after.rows.map((row) => row.kind), ["payment"]);
+  assert.equal(mockedMailSubmissions, 0, "invalid receipt paths cannot submit physical mail");
+  assert.equal(checkoutSubmissions, 1, "receipt validation cannot resubmit checkout");
+  await ledger.record(owner, matter, verified, mailing);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
+    "valid ASCII provider identifiers retain normal receipt reconciliation");
+});
