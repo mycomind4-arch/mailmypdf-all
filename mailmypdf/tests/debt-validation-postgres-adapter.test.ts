@@ -56,6 +56,10 @@ const schema = String.raw`
     evidence_sha256 text NOT NULL,
     PRIMARY KEY (owner_id,matter_id,checkout_key,kind)
   );
+  -- Provider identifiers must never be reused for another owner/order.
+  -- The hosted schema must independently enforce this uniqueness on release.
+  CREATE UNIQUE INDEX debt_validation_provider_receipt_unique
+    ON debt_validation_checkout_receipts (kind,provider,provider_reference);
 `;
 const owner = "synthetic-owner-a";
 const other = "synthetic-owner-b";
@@ -2439,4 +2443,79 @@ test("PostgreSQL debt validation: durable pre-mailing claim permits only one moc
     "completed mailings must not receive another provider handoff");
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
   assert.equal(mockedMailSubmissions, 1);
+});
+
+
+test("PostgreSQL debt validation: provider acknowledgements cannot be replayed across owners or orders", async (t) => {
+  // Synthetic offline provider IDs. Both owners have the same matter ID and
+  // reviewed PDF, but independent approvals and durable checkout claims.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed(owner);
+  await seed(other, fixture(other));
+  await approve(owner);
+  await approve(other);
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const verifiedFor = async (ownerId: string) => {
+    const binding = await repository.loadApproval(ownerId, matter);
+    assert.ok(binding);
+    return {
+      binding,
+      idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+        ownerId, matter, binding.matterVersion, binding.pdfSha256,
+        binding.intakeSha256, binding.enclosureManifestSha256,
+        binding.totalCents, binding.mailClass,
+      ]), "utf8").digest("hex"),
+      expectedMatterVersion: binding.matterVersion,
+    };
+  };
+  const claimA = await verifiedFor(owner);
+  const claimB = await verifiedFor(other);
+  assert.notEqual(claimA.idempotencyKey, claimB.idempotencyKey);
+  for (const ownerId of [owner, other]) {
+    assert.equal(await checkoutDebtValidationMatter({
+      ownerId, matterId: matter, repository,
+      checkout: async () => "pending" as const,
+    }), "pending");
+  }
+
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_one_order_only", evidenceSha256: "a".repeat(64),
+  };
+  await ledger.record(owner, matter, claimA, payment);
+  let mockedMailSubmissions = 0;
+  await assert.rejects(
+    ledger.record(other, matter, claimB, payment),
+    /debt_validation_provider_reference_reused/,
+    "a single payment intent must never fund two independent orders",
+  );
+  assert.equal((await ledger.reconcile(other, matter, claimB)).payment, null);
+  assert.equal(mockedMailSubmissions, 0, "rejected replay must not submit physical mail");
+
+  const otherPayment = { ...payment, providerReference: "pi_independent_order" };
+  await ledger.record(other, matter, claimB, otherPayment);
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, claimA)).status, "claimed");
+  assert.equal((await ledger.claimMailingHandoff(other, matter, claimB)).status, "claimed");
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_one_order_only", evidenceSha256: "b".repeat(64),
+  };
+  await ledger.record(owner, matter, claimA, mailing);
+  await assert.rejects(
+    ledger.record(other, matter, claimB, mailing),
+    /debt_validation_provider_reference_reused/,
+    "a single provider letter ID must not certify two different mailings",
+  );
+  assert.equal((await ledger.reconcile(other, matter, claimB)).mailing, null);
+  assert.equal(mockedMailSubmissions, 0);
+  await ledger.record(other, matter, claimB, {
+    ...mailing, providerReference: "letter_independent_order",
+  });
+  assert.equal((await ledger.reconcile(owner, matter, claimA)).status, "recorded");
+  assert.equal((await ledger.reconcile(other, matter, claimB)).status, "recorded");
+  // Exact retries remain read-only and preserve the original provider evidence.
+  await ledger.record(owner, matter, claimA, payment);
+  await ledger.record(other, matter, claimB, otherPayment);
+  assert.equal(mockedMailSubmissions, 0);
 });
