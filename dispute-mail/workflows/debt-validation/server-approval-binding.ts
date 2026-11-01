@@ -234,7 +234,10 @@ export function assertDebtValidationCheckoutBinding(args: {
     || !sameSha(binding.enclosureManifestSha256, packet.enclosureManifestSha256)
     || !validSha(binding.intakeSha256) || !sameSha(binding.intakeSha256, packet.intakeSha256)
     || typeof binding.recipientAddress !== "string"
-    || !sameAddress(binding.recipientAddress, packet.recipientAddress)
+    // An approval is stored as the canonical normalized recipient at creation.
+    // Do not re-normalize a corrupted approval at checkout: hidden separators
+    // or altered spacing can compare equal while representing different bytes.
+    || binding.recipientAddress !== normalizeMailingAddress(packet.recipientAddress)
     || !sameAddress(binding.recipientAddress, draftDebtValidationEnvelopeAddress(currentIntake).recipientAddress)) {
     fail("stale_approval");
   }
