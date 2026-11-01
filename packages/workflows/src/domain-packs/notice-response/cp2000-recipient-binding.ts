@@ -132,15 +132,15 @@ function assertExactDestination(
 ): void {
   const actual = normalizeMailingAddress(recipient);
   const expected = noticeAddress(analysis);
-  if (actual.line1 !== expected.line1 ||
+  // When the notice omits an addressee, noticeAddress supplies the IRS name.
+  // The printable recipient must still match that canonical name exactly:
+  // postal lines alone do not authorize mailing to another organization.
+  if (actual.name !== expected.name ||
+      actual.line1 !== expected.line1 ||
       actual.line2 !== expected.line2 ||
       actual.city !== expected.city ||
       actual.state !== expected.state ||
-      actual.postal !== expected.postal ||
-      (analysis.result.workflowDetails?.responseAddress &&
-        typeof (analysis.result.workflowDetails.responseAddress as Record<string, unknown>).name === "string" &&
-        (analysis.result.workflowDetails.responseAddress as Record<string, unknown>).name &&
-        actual.name !== expected.name)) {
+      actual.postal !== expected.postal) {
     throw new WorkflowRuntimeError(
       "The recipient differs from the response mailing address on the controlling CP2000 notice.",
       "CP2000_RECIPIENT_MISMATCH",
