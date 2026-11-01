@@ -2645,3 +2645,76 @@ test("PostgreSQL debt validation: legacy duplicate provider references cannot ce
     assert.equal((await ledger.reconcile(other, matter, second)).status, "recorded");
   }
 });
+
+
+test("PostgreSQL debt validation: duplicated legacy payment cannot authorize a new mailing handoff", async (t) => {
+  // Simulate a legacy/hosted schema missing global receipt uniqueness.
+  // A payment reference reused across owners must not authorize either
+  // physical-mail provider submission, even if read-only reconciliation
+  // would eventually reject the duplicated receipt.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed(owner);
+  await seed(other, fixture(other));
+  await approve(owner);
+  await approve(other);
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  const claims = new Map<string, {
+    binding: NonNullable<Awaited<ReturnType<typeof repository.loadApproval>>>;
+    idempotencyKey: string;
+    expectedMatterVersion: number;
+  }>();
+  for (const ownerId of [owner, other]) {
+    const binding = await repository.loadApproval(ownerId, matter);
+    assert.ok(binding);
+    const idempotencyKey = await checkoutDebtValidationMatter({
+      ownerId, matterId: matter, repository,
+      checkout: async (verified) => verified.idempotencyKey,
+    });
+    claims.set(ownerId, { binding, idempotencyKey, expectedMatterVersion: binding.matterVersion });
+  }
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_first_owner", evidenceSha256: "a".repeat(64),
+  };
+  await ledger.record(owner, matter, claims.get(owner)!, payment);
+  await ledger.record(other, matter, claims.get(other)!, {
+    ...payment, providerReference: "pi_second_owner",
+  });
+
+  // Only the isolated PGlite fixture is altered; no hosted schema is touched.
+  await db.exec("DROP INDEX debt_validation_provider_receipt_unique");
+  await db.query(
+    "UPDATE debt_validation_checkout_receipts " +
+      "SET provider='MOCK_STRIPE', provider_reference=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2 AND kind='payment'",
+    [other, matter, payment.providerReference],
+  );
+  let mockLobSubmissions = 0;
+  for (const ownerId of [owner, other]) {
+    const claim = claims.get(ownerId)!;
+    await assert.rejects(
+      ledger.requireRecordedPaymentForMailing(ownerId, matter, claim),
+      /debt_validation_provider_reference_reused/,
+      ownerId + ": legacy duplicate payment cannot pass pre-mailing preflight",
+    );
+    await assert.rejects(
+      ledger.claimMailingHandoff(ownerId, matter, claim).then((handoff) => {
+        if (handoff.status === "claimed") mockLobSubmissions++;
+      }),
+      /debt_validation_provider_reference_reused/,
+      ownerId + ": legacy duplicate payment cannot reserve a physical-mail handoff",
+    );
+  }
+  assert.equal(mockLobSubmissions, 0, "duplicate payment must trigger zero mock Lob submissions");
+  const handoffs = await db.query("SELECT checkout_key FROM debt_validation_mailing_handoffs");
+  assert.equal(handoffs.rows.length, 0, "rejected payment cannot create a durable mailing reservation");
+
+  await db.query(
+    "UPDATE debt_validation_checkout_receipts SET provider_reference=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2 AND kind='payment'",
+    [other, matter, "pi_second_owner"],
+  );
+  assert.equal((await ledger.claimMailingHandoff(owner, matter, claims.get(owner)!)).status, "claimed",
+    "independent payment evidence still permits a single durable mock handoff");
+});
