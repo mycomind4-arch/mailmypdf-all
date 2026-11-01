@@ -43,6 +43,11 @@ export interface DebtValidationBlocker {
 const SHA256 = /^[0-9a-f]{64}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FORBIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+// Keep address validation and the bytes rendered on the PDF/envelope in sync.
+// Lone CR and Unicode line/paragraph separators can be treated as extra
+// postal lines downstream even though whitespace normalization folds them.
+// CRLF is a legitimate Windows line ending and is explicitly allowed.
+const HIDDEN_ADDRESS_LINE_BREAK = /\r(?!\n)|[\u2028\u2029]/u;
 // Require a city as well as a recognized state and ZIP. A bare "TX 78701"
 // must not pass as a complete last line for a physical-mail destination.
 const ADDRESS_LAST_LINE = /^(.+?)(?:,\s*|\s+)([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/i;
@@ -72,6 +77,7 @@ function isMailingAddress(value: string): boolean {
   const hasDeliveryLine = lines.slice(0, -1).some((line) => deliveryLine.test(line));
   return lines.length >= 2 && lines.length <= 6
     && value.length <= 500 && !FORBIDDEN.test(value)
+    && !HIDDEN_ADDRESS_LINE_BREAK.test(value)
     && Boolean(/\p{L}/u.test(city) && region && US_POSTAL_REGIONS.has(region))
     && hasDeliveryLine;
 }
