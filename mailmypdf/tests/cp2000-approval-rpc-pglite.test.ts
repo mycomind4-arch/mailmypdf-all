@@ -100,6 +100,34 @@ test("CP2000 approval RPC preserves exact ID and source-bound quote, rejects bad
     JSON.stringify(recipient), "certified", JSON.stringify(quote), approvalId,
   ];
 
+  // A service-only RPC must still reject a foreign authenticated identity.
+  // Exercise the actual checked-in SQL guard rather than trusting a mock owner filter.
+  await db.exec(`
+    CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
+      $ SELECT '44444444-4444-4444-8444-444444444444'::uuid $;
+  `);
+  await assert.rejects(
+    db.query(callSql, args),
+    /case not found/,
+    "a different authenticated owner must not approve another customer's case",
+  );
+  const foreignAttempt = await db.query<{
+    approvals: number; events: number; status: string;
+  }>(`
+    SELECT (SELECT count(*)::integer FROM public.case_approvals) AS approvals,
+           (SELECT count(*)::integer FROM public.security_events) AS events,
+           (SELECT status FROM public.workflow_cases WHERE id = $1) AS status
+  `, [caseId]);
+  assert.deepEqual(foreignAttempt.rows[0], {
+    approvals: 0, events: 0, status: "drafted",
+  }, "a rejected cross-owner RPC must leave approval, audit, and case state unchanged");
+
+  // A matching authenticated identity must retain the existing successful path.
+  await db.exec(`
+    CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
+      $ SELECT '22222222-2222-4222-8222-222222222222'::uuid $;
+  `);
+
   // A stale/incorrect page count cannot create an approval or a security event.
   await assert.rejects(db.query(callSql, [...args.slice(0, 4), 1, ...args.slice(5)]));
   const before = await db.query<{ count: number }>("SELECT count(*)::integer AS count FROM public.case_approvals");
