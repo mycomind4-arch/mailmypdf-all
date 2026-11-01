@@ -991,9 +991,9 @@ test("CP2000 checkout rejects invisible or multiline sender fields before a mock
   // The recipient is notice-bound, but the sender also appears on the
   // physical envelope. A visually hidden sender change must fail closed.
   for (const sender of [
-    { ...CP2000_SENDER, line1: CP2000_SENDER.line1 + "\\u200b" },
-    { ...CP2000_SENDER, line2: "Suite 1\\nOther destination" },
-    { ...CP2000_SENDER, name: "Synthetic\\u2028Taxpayer" },
+    { ...CP2000_SENDER, line1: CP2000_SENDER.line1 + "\u200b" },
+    { ...CP2000_SENDER, line2: "Suite 1\nOther destination" },
+    { ...CP2000_SENDER, name: "Synthetic\u2028Taxpayer" },
   ]) {
     const { deps, post, approvalBody } = await cp2000ApprovalFixture();
     const approved = await post("approval", approvalBody);
