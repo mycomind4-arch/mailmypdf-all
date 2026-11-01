@@ -289,10 +289,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   // persisted approval are immutable even if the browser replays old hashes.
   const changedEnvelopeIntakes: Array<{ label: string; value: typeof intake }> = [
     { label: "recipient", value: { ...intake,
-      confirmedRecipientAddress: "Example Collections\\nPO Box 999\\nAustin, TX 78701",
+      confirmedRecipientAddress: "Example Collections\nPO Box 999\nAustin, TX 78701",
     } },
     { label: "return address", value: { ...intake,
-      consumerMailingAddress: "999 Changed St\\nSacramento, CA 95814",
+      consumerMailingAddress: "999 Changed St\nSacramento, CA 95814",
     } },
   ];
   for (const { label, value } of changedEnvelopeIntakes) {
