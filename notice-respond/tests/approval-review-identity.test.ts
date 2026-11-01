@@ -18,6 +18,7 @@ const reviewed = {
   },
   recipient,
   mailClass: "certified" as const,
+  analysis: { documentId: "notice-1", version: 1, result: { issuer: "IRS", deadline: "printed-date-A" } },
 };
 
 describe("Notice Respond exact-mailing approval confirmation identity", () => {
@@ -47,13 +48,45 @@ describe("Notice Respond exact-mailing approval confirmation identity", () => {
     })).not.toBe(original);
   });
 
+  it("invalidates checked confirmations when controlling notice facts change without a packet change", () => {
+    const original = noticeResponseApprovalReviewIdentity(reviewed);
+    expect(noticeResponseApprovalReviewIdentity({
+      ...reviewed,
+      analysis: { ...reviewed.analysis, version: 2 },
+    })).not.toBe(original);
+    expect(noticeResponseApprovalReviewIdentity({
+      ...reviewed,
+      analysis: { ...reviewed.analysis, result: { ...reviewed.analysis.result, deadline: "printed-date-B" } },
+    })).not.toBe(original);
+    expect(noticeResponseApprovalReviewIdentity({
+      ...reviewed,
+      analysis: { ...reviewed.analysis, documentId: "replacement-notice" },
+    })).not.toBe(original);
+    expect(noticeResponseApprovalReviewIdentity({
+      ...reviewed,
+      analysis: { ...reviewed.analysis, result: { ...reviewed.analysis.result } },
+    })).toBe(original);
+  });
+
+  it("discards the previous packet and approval when the controlling notice is reanalyzed", () => {
+    const source = readFileSync(
+      new URL("../shared/NoticeResponseWorkflow.tsx", import.meta.url), "utf8",
+    );
+    const analyze = source.split("async function analyzeSource(): Promise<void> {")[1]
+      ?.split("async function saveFacts(): Promise<void> {")[0];
+    expect(analyze).toBeTruthy();
+    expect(analyze).toContain("setPacket(null)");
+    expect(analyze).toContain('setApprovalId("")');
+    expect(analyze).toContain("setDraftSaved(false)");
+  });
+
   it("keys the mounted ApprovalChecklist to the reviewed mailing identity", () => {
     const source = readFileSync(
       new URL("../shared/NoticeResponseWorkflow.tsx", import.meta.url),
       "utf8",
     );
     expect(source).toContain(
-      "key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass })}",
+      "key={noticeResponseApprovalReviewIdentity({ packet, recipient, mailClass, analysis })}",
     );
     // This guards against preserving checked boxes across a second preview
     // while the existing ApprovalChecklist component remains mounted.
