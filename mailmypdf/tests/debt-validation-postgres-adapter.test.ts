@@ -40,6 +40,12 @@ const schema = String.raw`
     checkout_key text,
     PRIMARY KEY (owner_id, matter_id)
   );
+  CREATE TABLE debt_validation_mailing_handoffs (
+    owner_id text NOT NULL,
+    matter_id text NOT NULL,
+    checkout_key text NOT NULL,
+    PRIMARY KEY (owner_id,matter_id)
+  );
   CREATE TABLE debt_validation_checkout_receipts (
     owner_id text NOT NULL,
     matter_id text NOT NULL,
@@ -2288,4 +2294,111 @@ test("PostgreSQL debt validation: pre-mailing payment gate fails closed on missi
     "pre-mailing replay checks never resubmit checkout");
   assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded",
     "completed orders remain available for read-only receipt reconciliation");
+});
+
+
+test("PostgreSQL debt validation: durable pre-mailing claim permits only one mock provider handoff", async (t) => {
+  // Fully offline: PGlite, synthetic payment evidence and an in-memory mock.
+  // This exercises the exact approval/checkout state without Stripe or Lob.
+  const { db, repository, seed, approve } = await setup();
+  t.after(() => db.close());
+  await seed();
+  await approve();
+  const binding = await repository.loadApproval(owner, matter);
+  assert.ok(binding);
+  const verified = {
+    binding,
+    idempotencyKey: "debt_validation_checkout_" + createHash("sha256").update(JSON.stringify([
+      owner, matter, binding.matterVersion, binding.pdfSha256,
+      binding.intakeSha256, binding.enclosureManifestSha256,
+      binding.totalCents, binding.mailClass,
+    ]), "utf8").digest("hex"),
+    expectedMatterVersion: binding.matterVersion,
+  };
+  const ledger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  let mockedMailSubmissions = 0;
+  const mockHandoff = async (currentLedger = ledger) => {
+    const claim = await currentLedger.claimMailingHandoff(owner, matter, verified);
+    if (claim.status === "claimed") mockedMailSubmissions += 1;
+    return claim;
+  };
+
+  await assert.rejects(mockHandoff(), /debt_validation_receipt_claim_mismatch/,
+    "approval alone must not reserve a physical mailing");
+  await checkoutDebtValidationMatter({
+    ownerId: owner, matterId: matter, repository,
+    checkout: async () => "pending" as const,
+  });
+  await assert.rejects(mockHandoff(), /debt_validation_payment_receipt_required/,
+    "an order claim without payment is not a mailing authorization");
+  assert.equal(mockedMailSubmissions, 0);
+
+  const payment = {
+    kind: "payment" as const, provider: "mock_stripe",
+    providerReference: "pi_synthetic_handoff", evidenceSha256: "a".repeat(64),
+  };
+  await ledger.record(owner, matter, verified, payment);
+  await assert.rejects(
+    ledger.claimMailingHandoff(other, matter, verified),
+    /debt_validation_receipt_claim_mismatch/,
+    "a different owner cannot claim the payment or mailing",
+  );
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify({ ...fixture().currentIntake, recipientConfirmed: false })],
+  );
+  await assert.rejects(mockHandoff(), /debt_validation_/,
+    "revoked notice-recipient confirmation must block the handoff");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, JSON.stringify(fixture().currentIntake)],
+  );
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, new TextEncoder().encode("%PDF-1.4\\nReplaced notice\\n%%EOF")],
+  );
+  await assert.rejects(mockHandoff(), /debt_validation_persisted_notice_changed/,
+    "silently replaced controlling notice must block mailing");
+  await db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3 " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter, sourceNoticePdf],
+  );
+  assert.equal(mockedMailSubmissions, 0, "all negative cases must submit zero mock mail");
+
+  const first = await mockHandoff();
+  assert.equal(first.status, "claimed");
+  assert.equal(first.providerIdempotencyKey, verified.idempotencyKey);
+  assert.deepEqual(first.payment, payment);
+  assert.equal(mockedMailSubmissions, 1);
+  const retry = await mockHandoff();
+  assert.equal(retry.status, "reused");
+  assert.equal(mockedMailSubmissions, 1, "an in-flight mailing cannot be resubmitted");
+
+  // Recreate the ledger to simulate process restart with no mailing receipt:
+  // the durable reservation survives and forces read-only reconciliation.
+  const restartedLedger = createPostgresDebtValidationReceiptLedger(sqlFromDb(db));
+  assert.equal((await mockHandoff(restartedLedger)).status, "reused");
+  assert.equal(mockedMailSubmissions, 1);
+  const claims = await db.query<{ checkout_key: string }>(
+    "SELECT checkout_key FROM debt_validation_mailing_handoffs " +
+      "WHERE owner_id=$1 AND matter_id=$2",
+    [owner, matter],
+  );
+  assert.deepEqual(claims.rows.map((row) => row.checkout_key), [verified.idempotencyKey]);
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "pending",
+    "an in-flight reservation is not evidence of a mailed letter");
+
+  const mailing = {
+    kind: "mailing" as const, provider: "mock_lob",
+    providerReference: "letter_synthetic_handoff", evidenceSha256: "b".repeat(64),
+  };
+  await ledger.record(owner, matter, verified, mailing);
+  await assert.rejects(mockHandoff(), /debt_validation_mailing_already_recorded/,
+    "completed mailings must not receive another provider handoff");
+  assert.equal((await ledger.reconcile(owner, matter, verified)).status, "recorded");
+  assert.equal(mockedMailSubmissions, 1);
 });
