@@ -2369,11 +2369,21 @@ test("PostgreSQL debt validation: durable pre-mailing claim permits only one moc
   );
   assert.equal(mockedMailSubmissions, 0, "all negative cases must submit zero mock mail");
 
+  // Before the durable reservation, payment evidence may be inspected without
+  // submitting mail. Once reserved, the older preflight must fail closed:
+  // otherwise another host path could treat it as permission to submit twice.
+  assert.deepEqual(await ledger.requireRecordedPaymentForMailing(owner, matter, verified), payment);
   const first = await mockHandoff();
   assert.equal(first.status, "claimed");
   assert.equal(first.providerIdempotencyKey, verified.idempotencyKey);
   assert.deepEqual(first.payment, payment);
   assert.equal(mockedMailSubmissions, 1);
+  await assert.rejects(
+    ledger.requireRecordedPaymentForMailing(owner, matter, verified),
+    /debt_validation_mailing_handoff_already_claimed/,
+    "preflight must not authorize another mock mailing while the first is in flight",
+  );
+  assert.equal(mockedMailSubmissions, 1, "rejected preflight must not submit another letter");
   const retry = await mockHandoff();
   assert.equal(retry.status, "reused");
   assert.equal(mockedMailSubmissions, 1, "an in-flight mailing cannot be resubmitted");
