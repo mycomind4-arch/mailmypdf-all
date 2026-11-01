@@ -357,5 +357,7 @@ test("debt-validation: reject bidirectional spoofing controls in envelope and id
       assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"), /Debt validation blocked/);
     }
   }
-  assert.ok(codes({ ...base, disputeExplanation: "Dispute " + "\u202e" + " amount" }).includes("missing_dispute"),\n    "bidirectional override cannot be embedded in printed dispute text");\n  assert.deepEqual(codes(base), [], "ordinary physical-mail identities remain valid");
+  assert.ok(codes({ ...base, disputeExplanation: "Dispute " + "\u202e" + " amount" }).includes("missing_dispute"),
+    "bidirectional override cannot be embedded in printed dispute text");
+  assert.deepEqual(codes(base), [], "ordinary physical-mail identities remain valid");
 });
