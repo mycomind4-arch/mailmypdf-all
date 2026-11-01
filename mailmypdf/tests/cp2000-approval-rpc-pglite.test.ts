@@ -128,6 +128,39 @@ test("CP2000 approval RPC preserves exact ID and source-bound quote, rejects bad
       'SELECT ''22222222-2222-4222-8222-222222222222''::uuid';
   `);
 
+  // The checked-in approval RPC must not bypass the packet-document security
+  // gate. Simulate a rejected source attachment at the gate boundary and
+  // require transaction rollback before an approval or audit entry is stored.
+  // This is NOT a test of the real scanner or a hosted database migration.
+  await db.exec(`
+    CREATE OR REPLACE FUNCTION public.case_packet_documents(p_case_id uuid)
+      RETURNS TABLE(document_id uuid) LANGUAGE plpgsql AS $scan$
+    BEGIN
+      RAISE EXCEPTION 'synthetic_unsafe_packet_document';
+    END;
+    $scan$;
+  `);
+  await assert.rejects(
+    db.query(callSql, args),
+    /synthetic_unsafe_packet_document/,
+    "a failed packet security gate must block the approval RPC",
+  );
+  const blockedPacket = await db.query<{
+    approvals: number; events: number; status: string;
+  }>(`
+    SELECT (SELECT count(*)::integer FROM public.case_approvals) AS approvals,
+           (SELECT count(*)::integer FROM public.security_events) AS events,
+           (SELECT status FROM public.workflow_cases WHERE id = $1) AS status
+  `, [caseId]);
+  assert.deepEqual(blockedPacket.rows[0], {
+    approvals: 0, events: 0, status: "drafted",
+  }, "rejected packet security checks must leave approval, audit and case state untouched");
+  await db.exec(`
+    CREATE OR REPLACE FUNCTION public.case_packet_documents(p_case_id uuid)
+      RETURNS TABLE(document_id uuid) LANGUAGE sql AS
+      'SELECT NULL::uuid WHERE FALSE';
+  `);
+
   // A stale/incorrect page count cannot create an approval or a security event.
   await assert.rejects(db.query(callSql, [...args.slice(0, 4), 1, ...args.slice(5)]));
   const before = await db.query<{ count: number }>("SELECT count(*)::integer AS count FROM public.case_approvals");
