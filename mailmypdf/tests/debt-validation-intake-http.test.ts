@@ -179,6 +179,7 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     allowedOrigin: origin, repository, authenticate,
   });
   let receiptReads = 0;
+  let receiptLookupUnavailable = false;
   const checkout = createDebtValidationCheckoutHttpHandler({
     allowedOrigin: origin, repository, authenticate,
     submitNewClaim: async () => {
@@ -189,6 +190,7 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     },
     reconcileClaim: async () => {
       receiptReads++;
+      if (receiptLookupUnavailable) throw new Error("synthetic_receipt_lookup_unavailable");
       return "pending" as const;
     },
   });
@@ -284,6 +286,21 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(providerSubmissions, 1, "one mock checkout handoff for the approved packet");
   assert.equal(receiptReads, 2,
     "first optimistic success and replay both reconcile without resubmission");
+  // An outage during read-only receipt reconciliation must never re-submit
+  // the already durably claimed order. Once lookup recovers, the same claim
+  // remains pending until independently verified payment AND mailing receipts.
+  receiptLookupUnavailable = true;
+  const failedLookup = await requestCheckout(confirmedCheckout);
+  assert.equal(failedLookup.status, 500, "receipt lookup outage must fail closed");
+  assert.equal((await failedLookup.json() as { code: string }).code, "checkout_unavailable");
+  assert.equal(providerSubmissions, 1, "receipt lookup failure cannot re-submit the claimed order");
+  assert.equal(receiptReads, 3, "failed replay attempted only a read-only receipt lookup");
+  receiptLookupUnavailable = false;
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 202,
+    "recovered receipt lookup resumes reconciliation of the existing claim");
+  assert.equal(providerSubmissions, 1, "recovery cannot submit another payment or mailing");
+  assert.equal(receiptReads, 4, "recovery uses read-only reconciliation");
+
   const final = await db.query<{ checkout_key: string | null }>(
     "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
     [ownerId, matterId],
