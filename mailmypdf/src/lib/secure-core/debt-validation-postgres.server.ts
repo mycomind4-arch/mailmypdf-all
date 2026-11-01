@@ -639,6 +639,22 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
         if (receipts.has(receipt.kind)) {
           throw new Error("debt_validation_duplicate_provider_receipt");
         }
+        // A legacy or corrupted database may lack the global provider-ref
+        // uniqueness constraint. Never certify two owners' payments or letters
+        // as completed merely because each owner has one locally valid row.
+        // This is defense in depth: the hosted schema must still enforce the
+        // unique index to prevent concurrent cross-order inserts.
+        const references = await tx.query(
+          "SELECT owner_id,matter_id,checkout_key FROM debt_validation_checkout_receipts " +
+            "WHERE kind=$1 AND lower(provider)=lower($2) AND provider_reference=$3",
+          [receipt.kind, receipt.provider, receipt.providerReference],
+        );
+        if (references.rows.length !== 1 ||
+            references.rows[0]!.owner_id !== ownerId ||
+            references.rows[0]!.matter_id !== matterId ||
+            references.rows[0]!.checkout_key !== verified.idempotencyKey) {
+          throw new Error("debt_validation_provider_reference_reused");
+        }
         receipts.set(receipt.kind, normalizeReceipt(receipt));
       }
       const payment = receipts.get("payment") ?? null;
