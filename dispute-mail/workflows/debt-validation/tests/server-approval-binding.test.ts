@@ -180,7 +180,8 @@ test("debt-validation approval: printable mailing-address edits invalidate the r
       "The approval digest must change when the printable letter changes");
     assert.throws(() => createDebtValidationApprovalBinding({
       ...original, intake: edited,
-    }), /debt_validation_intake_changed/);
+    }), /debt_validation_(?:intake_changed|recipient_changed)/,
+    "A changed printable recipient may fail at the stricter envelope parity gate");
   }
 });
 
