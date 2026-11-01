@@ -987,6 +987,31 @@ test("CP2000 HTTP approval and checkout reject hidden printable-destination chan
 });
 
 
+test("CP2000 checkout rejects invisible or multiline sender fields before a mocked provider handoff", async () => {
+  // The recipient is notice-bound, but the sender also appears on the
+  // physical envelope. A visually hidden sender change must fail closed.
+  for (const sender of [
+    { ...CP2000_SENDER, line1: CP2000_SENDER.line1 + "\\u200b" },
+    { ...CP2000_SENDER, line2: "Suite 1\\nOther destination" },
+    { ...CP2000_SENDER, name: "Synthetic\\u2028Taxpayer" },
+  ]) {
+    const { deps, post, approvalBody } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200);
+    const approvalId = (await body(approved)).approvalId as string;
+    const checkout = await post("checkout", { approvalId, sender });
+    assert.equal(checkout.status, 400, "unprintable return-address data must reject checkout");
+    assert.equal(deps.checkoutCalls.count, 0, "no provider callback for unprintable sender");
+  }
+
+  const valid = await cp2000ApprovalFixture();
+  const approved = await valid.post("approval", valid.approvalBody);
+  const approvalId = (await body(approved)).approvalId as string;
+  assert.equal((await valid.post("checkout", { approvalId, sender: CP2000_SENDER })).status, 200,
+    "an unchanged printable sender must still reach checkout");
+  assert.equal(valid.deps.checkoutCalls.count, 1);
+});
+
 test("CP2000 authenticated owner isolation and exact reviewed packet hash gate prevent unauthorized checkout", async () => {
   const { deps, handle, post, approvalBody, matterId } = await cp2000ApprovalFixture();
   const path = (action: string) => `/matters/${matterId}/${action}`;
