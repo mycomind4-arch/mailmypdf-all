@@ -284,18 +284,27 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   await updateIntake({ ...intake, recipientConfirmed: false });
   assert.equal((await requestCheckout(confirmedCheckout)).status, 409);
   await updateIntake(intake);
-  // An approved physical envelope must not silently inherit a later change
-  // to either its recipient or its return address. The reviewed letter and
-  // persisted approval are immutable even if the browser replays old hashes.
-  const changedEnvelopeIntakes: Array<{ label: string; value: typeof intake }> = [
+  // Approval binds both the physical envelope and the exact letter contents.
+  // Changing the recipient, sender, consumer identity, account or dispute
+  // after PDF review must not reuse consent for the original approved packet.
+  const changedApprovedIntakes: Array<{ label: string; value: typeof intake }> = [
     { label: "recipient", value: { ...intake,
       confirmedRecipientAddress: "Example Collections\nPO Box 999\nAustin, TX 78701",
     } },
     { label: "return address", value: { ...intake,
       consumerMailingAddress: "999 Changed St\nSacramento, CA 95814",
     } },
+    { label: "consumer name", value: { ...intake,
+      consumerName: "Different Synthetic Consumer",
+    } },
+    { label: "account reference", value: { ...intake,
+      accountReference: "SYNTHETIC-OTHER-ACCOUNT",
+    } },
+    { label: "dispute text", value: { ...intake,
+      disputeExplanation: "Different dispute and verification request.",
+    } },
   ];
-  for (const { label, value } of changedEnvelopeIntakes) {
+  for (const { label, value } of changedApprovedIntakes) {
     await updateIntake(value);
     assert.equal((await requestCheckout(confirmedCheckout)).status, 409,
       `post-approval ${label} change must invalidate checkout`);
