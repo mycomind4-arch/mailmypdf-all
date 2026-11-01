@@ -352,7 +352,10 @@ function validateProviderReceipt(receipt: DebtValidationProviderReceipt): void {
 function normalizeReceipt(receipt: DebtValidationProviderReceipt): DebtValidationProviderReceipt {
   return {
     kind: receipt.kind,
-    provider: receipt.provider,
+    // Provider names are ASCII case-insensitive identifiers. Without
+    // canonicalization, the same payment or letter reference could be
+    // reused under MOCK_STRIPE versus mock_stripe across owners.
+    provider: receipt.provider.toLowerCase(),
     providerReference: receipt.providerReference,
     evidenceSha256: receipt.evidenceSha256.toLowerCase(),
   };
@@ -422,7 +425,7 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
         }
         if (existing.rows.length === 1) {
           const previous = existing.rows[0]!;
-          if (previous.provider !== normalized.provider ||
+          if (String(previous.provider).toLowerCase() !== normalized.provider ||
               previous.provider_reference !== normalized.providerReference ||
               previous.evidence_sha256 !== normalized.evidenceSha256) {
             throw new Error("debt_validation_conflicting_provider_receipt");
@@ -432,11 +435,12 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
         // A provider acknowledgement identifies one physical order, not just
         // one owner's receipt row. Never let the same payment intent or letter
         // identifier certify a second checkout, even under another owner.
-        // The hosted schema must also enforce UNIQUE(kind,provider,provider_reference)
-        // for concurrency safety; the offline PGlite fixture has that index.
+        // The hosted schema must enforce a UNIQUE index on
+        // (kind, lower(provider), provider_reference) for concurrency safety;
+        // the offline PGlite fixture has this case-insensitive index.
         const reusedReference = await tx.query(
           "SELECT owner_id,matter_id,checkout_key FROM debt_validation_checkout_receipts " +
-            "WHERE kind=$1 AND provider=$2 AND provider_reference=$3",
+            "WHERE kind=$1 AND lower(provider)=$2 AND provider_reference=$3",
           [normalized.kind, normalized.provider, normalized.providerReference],
         );
         if (reusedReference.rows.length !== 0) {
