@@ -316,7 +316,7 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     allowedOrigin: origin, authenticate,
     loadVerifiedNotice: async (owner, matter, document) =>
       owner === ownerId && (matter === outageMatterId || matter === inFlightMatterId) && document === "notice-1"
-        ? { trustedNotice: { ...trustedNotice, matterId: outageMatterId }, noticePdfBytes }
+        ? { trustedNotice: { ...trustedNotice, matterId: matter }, noticePdfBytes }
         : null,
     persistPreparedMatter: (input) => prepareAndPersistDebtValidationMatter(sql, input),
   });
