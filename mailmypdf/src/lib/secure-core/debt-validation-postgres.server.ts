@@ -489,6 +489,82 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
       });
     },
 
+    /**
+     * Atomically reserve a single physical-mail provider handoff after payment.
+     * The claim is committed BEFORE any caller may invoke a provider. A reused
+     * claim is reconciliation-only: it MUST NEVER trigger another submission,
+     * even if the first process crashed before recording a mailing receipt.
+     *
+     * This is an offline persistence primitive, not a live Lob integration.
+     * The future host must independently verify payment provider evidence and
+     * pass the stable checkout key as its provider idempotency key.
+     */
+    async claimMailingHandoff(
+      ownerId: string,
+      matterId: string,
+      verified: VerifiedDebtValidationReceiptClaim,
+    ): Promise<{
+      status: "claimed" | "reused";
+      providerIdempotencyKey: string;
+      payment: DebtValidationProviderReceipt;
+    }> {
+      requireScope(ownerId, matterId);
+      return db.transaction(async (tx) => {
+        const row = await readRow(tx, ownerId, matterId, true);
+        assertReceiptClaim(row, ownerId, matterId, verified);
+        const receipts = await tx.query(
+          "SELECT kind,provider,provider_reference,evidence_sha256 " +
+            "FROM debt_validation_checkout_receipts " +
+            "WHERE owner_id=$1 AND matter_id=$2 AND checkout_key=$3",
+          [ownerId, matterId, verified.idempotencyKey],
+        );
+        if (receipts.rows.some((receipt) => receipt.kind === "mailing")) {
+          throw new Error("debt_validation_mailing_already_recorded");
+        }
+        if (receipts.rows.length !== 1 || receipts.rows[0]?.kind !== "payment") {
+          throw new Error("debt_validation_payment_receipt_required");
+        }
+        const payment: DebtValidationProviderReceipt = {
+          kind: "payment",
+          provider: receipts.rows[0]!.provider as string,
+          providerReference: receipts.rows[0]!.provider_reference as string,
+          evidenceSha256: receipts.rows[0]!.evidence_sha256 as string,
+        };
+        validateProviderReceipt(payment);
+        const normalized = normalizeReceipt(payment);
+        // The unique owner/matter constraint prevents a second handoff even
+        // if a caller tries to manufacture a new checkout key. The matter row
+        // lock serializes competing claims and notice/recipient edits.
+        const existing = await tx.query(
+          "SELECT checkout_key FROM debt_validation_mailing_handoffs " +
+            "WHERE owner_id=$1 AND matter_id=$2",
+          [ownerId, matterId],
+        );
+        if (existing.rows.length > 1 ||
+            (existing.rows.length === 1 &&
+              existing.rows[0]!.checkout_key !== verified.idempotencyKey)) {
+          throw new Error("debt_validation_conflicting_mailing_handoff");
+        }
+        if (existing.rows.length === 1) {
+          return {
+            status: "reused" as const,
+            providerIdempotencyKey: verified.idempotencyKey,
+            payment: normalized,
+          };
+        }
+        await tx.query(
+          "INSERT INTO debt_validation_mailing_handoffs " +
+            "(owner_id,matter_id,checkout_key) VALUES ($1,$2,$3)",
+          [ownerId, matterId, verified.idempotencyKey],
+        );
+        return {
+          status: "claimed" as const,
+          providerIdempotencyKey: verified.idempotencyKey,
+          payment: normalized,
+        };
+      });
+    },
+
     /** Read-only reconciliation; never calls a payment or mailing provider. */
     async reconcile(
       ownerId: string,
