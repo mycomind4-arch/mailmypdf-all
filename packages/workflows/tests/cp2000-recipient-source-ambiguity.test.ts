@@ -163,3 +163,36 @@ test("CP2000 checkout revokes recipient binding when issuer classification chang
     "checkout must reject a changed issuer even if source, address and analysis version remain the same",
   );
 });
+
+test("CP2000 checkout revokes recipient confirmation when transcribed notice dates change without an analysis version bump", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-date-drift", matterId: "matter-1",
+    workflowId: "cp2000-response", packetSha256: "a".repeat(64),
+    totalCents: 299, recipient, mailClass: "certified",
+    approvedBy: "owner-1", approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.doesNotThrow(() => assertApprovedCp2000Recipient({
+    approval, analysis, documents: [source],
+  }));
+  for (const changed of [
+    { deadline: "2026-11-15" },
+    { decisionDate: "2026-10-15" },
+  ]) {
+    const staleAnalysis: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: { ...analysis.result, ...changed },
+    };
+    assert.equal(staleAnalysis.version, analysis.version, "simulate same-version imported/replaced analysis");
+    assert.throws(
+      () => assertApprovedCp2000Recipient({
+        approval, analysis: staleAnalysis, documents: [source],
+      }),
+      /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
+      "a changed notice date/deadline must require fresh review even when the source ID and response address match",
+    );
+  }
+});
