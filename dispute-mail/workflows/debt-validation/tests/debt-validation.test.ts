@@ -329,3 +329,33 @@ test("debt-validation: single-line identity and account fields reject Unicode li
   }
   assert.deepEqual(codes(original), [], "ordinary one-line names and account references remain valid");
 });
+
+ 
+// Directional formatting controls can make the address/identity displayed in
+// the reviewed PDF differ visually from the underlying postal bytes. Reject
+// explicit bidi overrides and isolates in all physical-mail identity fields.
+test("debt-validation: reject bidirectional spoofing controls in envelope and identity fields", () => {
+  const base = fixture();
+  for (const control of ["\u202a", "\u202e", "\u2066", "\u2069"]) {
+    const returnAddress = { ...base,
+      consumerMailingAddress: "123 Example St" + control + "\nSacramento, CA 95814" };
+    assert.ok(codes(returnAddress).includes("missing_consumer"), "return address " + JSON.stringify(control));
+    assert.throws(() => draftDebtValidationEnvelopeAddress(returnAddress), /Debt validation envelope blocked/);
+
+    const destination = "Sample Collections\nPO Box 456" + control + "\nAustin, TX 78701";
+    const recipient = { ...base, collectorResponseAddress: destination,
+      noticeResponseAddress: destination, confirmedRecipientAddress: destination };
+    assert.ok(codes(recipient).includes("missing_collector"), "recipient address " + JSON.stringify(control));
+    assert.ok(codes(recipient).includes("missing_notice"), "notice address " + JSON.stringify(control));
+    assert.throws(() => draftDebtValidationLetter(recipient, "2026-10-30"), /Debt validation blocked/);
+
+    for (const field of ["consumerName", "collectorName", "accountReference"] as const) {
+      const changed = { ...base, [field]: "Synthetic" + control + "Spoofed" };
+      const expected = field === "consumerName" ? "missing_consumer"
+        : field === "collectorName" ? "missing_collector" : "missing_account";
+      assert.ok(codes(changed).includes(expected), field + " accepted " + JSON.stringify(control));
+      assert.throws(() => draftDebtValidationLetter(changed, "2026-10-30"), /Debt validation blocked/);
+    }
+  }
+  assert.deepEqual(codes(base), [], "ordinary physical-mail identities remain valid");
+});
