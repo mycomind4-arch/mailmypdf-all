@@ -213,7 +213,10 @@ export function draftDebtValidationLetter(input: DebtValidationIntake, letterDat
     "Sincerely,",
     input.consumerName.trim(),
   );
-  return lines.join("\n");
+  // Tabs are valid paste whitespace but not reliable glyphs in the standard
+  // PDF font or postal envelope. Show the same printable spaces in the text
+  // review that the generated letter will contain.
+  return lines.join("\n").replace(/\t/g, " ");
 }
 
 /**
@@ -234,10 +237,10 @@ export function draftDebtValidationEnvelopeAddress(input: DebtValidationIntake):
   const firstLine = cleanLine(destination.split(/\r?\n/)[0] ?? "").toUpperCase();
   const collector = cleanLine(input.collectorName);
   return {
-    returnAddress: [input.consumerName.trim(), input.consumerMailingAddress.trim()].join("\n"),
-    recipientAddress: firstLine === collector.toUpperCase()
+    returnAddress: [input.consumerName.trim(), input.consumerMailingAddress.trim()].join("\n").replace(/\t/g, " "),
+    recipientAddress: (firstLine === collector.toUpperCase()
       ? destination
-      : [collector, destination].join("\n"),
+      : [collector, destination].join("\n")).replace(/\t/g, " "),
   };
 }
 
