@@ -361,6 +361,32 @@ function normalizeReceipt(receipt: DebtValidationProviderReceipt): DebtValidatio
   };
 }
 
+/**
+ * A legacy or corrupted receipt ledger may contain the same payment intent
+ * under two owner-scoped orders. Reconciliation catches that duplication,
+ * but physical-mail authorization must fail BEFORE reserving a Lob handoff.
+ * The hosted schema must independently enforce global uniqueness as well.
+ */
+async function assertUniquePaymentForMailing(
+  tx: DebtValidationSqlSession,
+  ownerId: string,
+  matterId: string,
+  checkoutKey: string,
+  payment: DebtValidationProviderReceipt,
+): Promise<void> {
+  const references = await tx.query(
+    "SELECT owner_id,matter_id,checkout_key FROM debt_validation_checkout_receipts " +
+      "WHERE kind='payment' AND lower(provider)=lower($1) AND provider_reference=$2",
+    [payment.provider, payment.providerReference],
+  );
+  if (references.rows.length !== 1 ||
+      references.rows[0]!.owner_id !== ownerId ||
+      references.rows[0]!.matter_id !== matterId ||
+      references.rows[0]!.checkout_key !== checkoutKey) {
+    throw new Error("debt_validation_provider_reference_reused");
+  }
+}
+
 export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlDatabase) {
   return {
     /**
@@ -514,6 +540,7 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           evidenceSha256: paid.rows[0]!.evidence_sha256 as string,
         };
         validateProviderReceipt(receipt);
+        await assertUniquePaymentForMailing(tx, ownerId, matterId, verified.idempotencyKey, receipt);
         // This legacy read-only preflight is not a mailing reservation. Once
         // any process has claimed the durable handoff, it must not appear to
         // authorize another provider attempt while the receipt is pending.
@@ -572,6 +599,7 @@ export function createPostgresDebtValidationReceiptLedger(db: DebtValidationSqlD
           evidenceSha256: receipts.rows[0]!.evidence_sha256 as string,
         };
         validateProviderReceipt(payment);
+        await assertUniquePaymentForMailing(tx, ownerId, matterId, verified.idempotencyKey, payment);
         const normalized = normalizeReceipt(payment);
         // The unique owner/matter constraint prevents a second handoff even
         // if a caller tries to manufacture a new checkout key. The matter row
