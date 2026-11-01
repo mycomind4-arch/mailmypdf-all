@@ -10,7 +10,7 @@ import {
 } from "../../matter-runtime.js";
 
 /** Postal labels and reviewed envelopes must not contain invisible format controls or line breaks. */
-const NON_PRINTABLE_POSTAL = /[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]/u;
+const NON_PRINTABLE_POSTAL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 function assertPrintablePostalFields(
   address: {
