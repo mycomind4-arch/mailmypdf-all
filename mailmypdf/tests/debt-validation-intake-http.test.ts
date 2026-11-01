@@ -311,10 +311,11 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   // an acknowledgement. A retry must never infer that nothing was submitted
   // and must only reconcile the existing claim (no second charge/mail call).
   const outageMatterId = "synthetic-submission-outage";
+  const inFlightMatterId = "synthetic-inflight-retry";
   const outageIntake = createDebtValidationIntakeHttpHandler({
     allowedOrigin: origin, authenticate,
     loadVerifiedNotice: async (owner, matter, document) =>
-      owner === ownerId && matter === outageMatterId && document === "notice-1"
+      owner === ownerId && (matter === outageMatterId || matter === inFlightMatterId) && document === "notice-1"
         ? { trustedNotice: { ...trustedNotice, matterId: outageMatterId }, noticePdfBytes }
         : null,
     persistPreparedMatter: (input) => prepareAndPersistDebtValidationMatter(sql, input),
@@ -363,4 +364,56 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     "retry reconciles the already-claimed order without submitting again");
   assert.equal(failedSubmissions, 1, "ambiguous provider failure must never cause duplicate submissions");
   assert.equal(outageReconciliations, 1, "retry performs exactly one read-only receipt lookup");
+
+  // Retry WHILE the first provider submission is still in flight. The durable
+  // order claim must already exist before the first provider callback begins;
+  // an overlapping request can only read the same claim, never submit again.
+  const inFlightPreparedResponse = await outageIntake(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer synthetic", origin },
+    body: JSON.stringify({ ...body, matterId: inFlightMatterId }),
+  }));
+  assert.equal(inFlightPreparedResponse.status, 201);
+  const inFlightPrepared = await inFlightPreparedResponse.json() as {
+    pdfSha256: string; totalCents: number;
+  };
+  const inFlightReviewed = {
+    matterId: inFlightMatterId,
+    reviewedPdfSha256: inFlightPrepared.pdfSha256,
+    reviewedTotalCents: inFlightPrepared.totalCents,
+    reviewedMailClass: "certified",
+  };
+  assert.equal((await requestApproval({ ...inFlightReviewed, userApprovedExactPacket: true })).status, 200);
+  let inFlightSubmissions = 0;
+  let inFlightReceiptReads = 0;
+  let signalFirstSubmission!: () => void;
+  let releaseFirstSubmission!: () => void;
+  const firstSubmissionStarted = new Promise<void>((resolve) => { signalFirstSubmission = resolve; });
+  const firstSubmissionMayFinish = new Promise<void>((resolve) => { releaseFirstSubmission = resolve; });
+  const inFlightCheckout = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+    submitNewClaim: async () => {
+      inFlightSubmissions++;
+      signalFirstSubmission();
+      await firstSubmissionMayFinish;
+      return "pending" as const;
+    },
+    reconcileClaim: async () => {
+      inFlightReceiptReads++;
+      return "pending" as const;
+    },
+  });
+  const inFlightRequest = { ...inFlightReviewed, userConfirmedCheckout: true };
+  const firstInFlight = action("/api/debt-validation/checkout", inFlightRequest, inFlightCheckout);
+  await firstSubmissionStarted;
+  try {
+    const overlappingRetry = await action("/api/debt-validation/checkout", inFlightRequest, inFlightCheckout);
+    assert.equal(overlappingRetry.status, 202, "overlapping retry only reconciles the durable claim");
+    assert.equal(inFlightSubmissions, 1, "in-flight retry cannot submit a second charge or letter");
+    assert.equal(inFlightReceiptReads, 1, "in-flight retry uses read-only receipt reconciliation");
+  } finally {
+    releaseFirstSubmission();
+  }
+  assert.equal((await firstInFlight).status, 202, "original pending submission completes normally");
+  assert.equal(inFlightSubmissions, 1, "only one provider handoff across overlapping checkout requests");
 });
