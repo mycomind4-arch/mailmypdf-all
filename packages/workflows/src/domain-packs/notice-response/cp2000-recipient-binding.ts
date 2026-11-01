@@ -113,6 +113,10 @@ function sourceBinding(
       securityStatus: source.securityStatus,
       usable: source.usable,
       responseAddress: destination,
+      // A corrected controlling-notice reference can identify a different
+      // taxpayer/account even if source ID, analysis version and address stay
+      // unchanged. Require fresh recipient confirmation before checkout.
+      referenceNumber: analysis.result.referenceNumber,
       // Notice chronology may be corrected during review/import without a
       // corresponding analysis-version increment. Never reuse a prior exact
       // recipient approval against a changed printed notice date/deadline.
