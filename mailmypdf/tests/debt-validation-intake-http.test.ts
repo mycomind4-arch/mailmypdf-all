@@ -9,7 +9,11 @@ import {
   createPostgresDebtValidationMatterRepository,
   type DebtValidationSqlDatabase,
 } from "../src/lib/secure-core/debt-validation-postgres.server";
-import { createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
+import {
+  createDebtValidationApprovalHttpHandler,
+  createDebtValidationCheckoutHttpHandler,
+  createDebtValidationPacketReviewHttpHandler,
+} from "../src/lib/secure-core/debt-validation-approval-http.server";
 
 const origin = "https://mailmypdf.example";
 const ownerId = "synthetic-owner";
@@ -17,7 +21,7 @@ const matterId = "synthetic-matter";
 const address = "Example Collections\nPO Box 456\nAustin, TX 78701";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-test("authenticated debt-validation intake prepares a verified vault notice for exact server PDF review, never checkout", async (t) => {
+test("authenticated debt-validation intake, exact PDF review, explicit approval and idempotent mocked checkout", async (t) => {
   const db = new PGlite();
   t.after(() => db.close());
   await db.exec(`
@@ -70,10 +74,11 @@ test("authenticated debt-validation intake prepares a verified vault notice for 
   let persistCalls = 0;
   let providerSubmissions = 0;
   let source = { trustedNotice, noticePdfBytes };
+  const authenticate = async (request: Request) => request.headers.get("authorization") === "Bearer synthetic"
+    ? { id: ownerId } : null;
   const handler = createDebtValidationIntakeHttpHandler({
     allowedOrigin: origin,
-    authenticate: async (request) => request.headers.get("authorization") === "Bearer synthetic"
-      ? { id: ownerId } : null,
+    authenticate,
     loadVerifiedNotice: async (owner, matter, document) => {
       sourceReads += 1;
       if (owner !== ownerId || matter !== matterId || document !== "notice-1") return null;
@@ -127,9 +132,11 @@ test("authenticated debt-validation intake prepares a verified vault notice for 
   assert.match(result.pdfSha256, /^[a-f0-9]{64}$/);
   assert.equal(result.totalCents > 0, true);
   const review = createDebtValidationPacketReviewHttpHandler({
-    allowedOrigin: origin, repository, authenticate: async () => ({ id: ownerId }),
+    allowedOrigin: origin, repository, authenticate,
   });
-  const summary = await review(new Request(origin + "/api/debt-validation/review?matterId=" + matterId + "&view=summary"));
+  const summary = await review(new Request(origin + "/api/debt-validation/review?matterId=" + matterId + "&view=summary", {
+    headers: { authorization: "Bearer synthetic" },
+  }));
   assert.equal(summary.status, 200);
   const snapshot = await summary.json() as { pdfSha256: string; recipientAddress: string; totalCents: number };
   assert.equal(snapshot.pdfSha256, result.pdfSha256);
@@ -145,4 +152,80 @@ test("authenticated debt-validation intake prepares a verified vault notice for 
   const after = await db.query("SELECT count(*)::int AS count FROM debt_validation_matter_snapshots");
   assert.equal(after.rows[0]?.count, 1);
   assert.equal(sourceReads > 0, true);
+
+  // The exact PDF/quote returned by authenticated intake and review must be
+  // the only packet that can receive a separate, explicit server approval.
+  // No live Stripe, Lob, hosted DB or mailing adapter is used in this test.
+  const approval = createDebtValidationApprovalHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+  });
+  let receiptReads = 0;
+  const checkout = createDebtValidationCheckoutHttpHandler({
+    allowedOrigin: origin, repository, authenticate,
+    submitNewClaim: async () => {
+      providerSubmissions++;
+      return "pending" as const;
+    },
+    reconcileClaim: async () => {
+      receiptReads++;
+      return "pending" as const;
+    },
+  });
+  const action = (path: string, payload: unknown, handle: (request: Request) => Promise<Response>,
+    authorization = "Bearer synthetic") => handle(new Request(origin + path, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, authorization },
+    body: JSON.stringify(payload),
+  }));
+  const reviewed = {
+    matterId,
+    reviewedPdfSha256: result.pdfSha256,
+    reviewedTotalCents: result.totalCents,
+    reviewedMailClass: "certified",
+  };
+  const requestApproval = (payload: unknown) => action("/api/debt-validation/approval", payload, approval);
+  const requestCheckout = (payload: unknown, authorization?: string) =>
+    action("/api/debt-validation/checkout", payload, checkout, authorization);
+  const confirmedCheckout = { ...reviewed, userConfirmedCheckout: true };
+
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 409,
+    "a prepared/reviewed packet without approval cannot claim checkout");
+  assert.equal((await requestApproval({ ...reviewed, userApprovedExactPacket: false })).status, 400);
+  assert.equal((await requestApproval({
+    ...reviewed, reviewedTotalCents: result.totalCents + 1, userApprovedExactPacket: true,
+  })).status, 409, "a changed quote cannot be approved");
+  assert.equal(providerSubmissions, 0);
+  assert.equal((await requestApproval({ ...reviewed, userApprovedExactPacket: true })).status, 200);
+
+  // Even after valid approval, replacing the controlling notice bytes or
+  // revoking recipient confirmation must fail before any mock handoff.
+  const updateNotice = (bytes: Uint8Array) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId, bytes],
+  );
+  await updateNotice(await generatePlainTextPdf("Synthetic replaced notice."));
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 409);
+  await updateNotice(noticePdfBytes);
+  const updateIntake = (value: typeof intake) => db.query(
+    "UPDATE debt_validation_matter_snapshots SET current_intake=$3::jsonb WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId, JSON.stringify(value)],
+  );
+  await updateIntake({ ...intake, recipientConfirmed: false });
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 409);
+  await updateIntake(intake);
+  assert.equal(providerSubmissions, 0, "stale notice or recipient never submits mock providers");
+  assert.equal(receiptReads, 0);
+
+  assert.equal((await requestCheckout(confirmedCheckout, "")).status, 401);
+  assert.equal((await requestCheckout({ ...confirmedCheckout, reviewedTotalCents: result.totalCents + 1 })).status, 409);
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 202);
+  assert.equal((await requestCheckout(confirmedCheckout)).status, 202,
+    "retry must reconcile the same durable checkout claim");
+  assert.equal(providerSubmissions, 1, "one mock checkout handoff for the approved packet");
+  assert.equal(receiptReads, 1, "replay is read-only, never a second provider submission");
+  const final = await db.query<{ checkout_key: string | null }>(
+    "SELECT checkout_key FROM debt_validation_matter_snapshots WHERE owner_id=$1 AND matter_id=$2",
+    [ownerId, matterId],
+  );
+  assert.match(final.rows[0]?.checkout_key ?? "", /^debt_validation_checkout_[a-f0-9]{64}$/);
 });
