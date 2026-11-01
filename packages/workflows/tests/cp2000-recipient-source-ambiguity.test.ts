@@ -196,3 +196,32 @@ test("CP2000 checkout revokes recipient confirmation when transcribed notice dat
     );
   }
 });
+
+test("CP2000 checkout rejects a changed notice reference on the same analysis version", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-reference-drift", matterId: "matter-1",
+    workflowId: "cp2000-response", packetSha256: "a".repeat(64),
+    totalCents: 299, recipient, mailClass: "certified",
+    approvedBy: "owner-1", approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.doesNotThrow(() => assertApprovedCp2000Recipient({
+    approval, analysis, documents: [source],
+  }));
+
+  const correctedAnalysis: WorkflowMatterAnalysis = {
+    ...analysis,
+    result: { ...analysis.result, referenceNumber: "CP2000-REVISED-SYNTHETIC" },
+  };
+  assert.equal(correctedAnalysis.version, analysis.version);
+  assert.throws(
+    () => assertApprovedCp2000Recipient({
+      approval, analysis: correctedAnalysis, documents: [source],
+    }),
+    /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
+    "a different controlling notice reference requires fresh review even if source ID, address, and version are unchanged",
+  );
+});
