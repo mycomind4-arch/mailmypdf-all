@@ -65,7 +65,6 @@ create table public.debt_validation_mailing_handoffs (
   created_at timestamptz not null default now(),
   primary key (owner_id, matter_id),
   constraint debt_validation_handoff_checkout_fk
-    constraint debt_validation_receipt_checkout_fk
     foreign key (owner_id, matter_id, checkout_key)
     references public.debt_validation_matter_snapshots(owner_id, matter_id, checkout_key)
     on delete cascade
@@ -82,7 +81,8 @@ create table public.debt_validation_checkout_receipts (
   evidence_sha256 text not null check (evidence_sha256 ~ '^[0-9a-f]{64}$'),
   created_at timestamptz not null default now(),
   primary key (owner_id, matter_id, checkout_key, kind),
-  foreign key (owner_id, matter_id, checkout_key)
+  constraint debt_validation_receipt_checkout_fk
+    foreign key (owner_id, matter_id, checkout_key)
     references public.debt_validation_matter_snapshots(owner_id, matter_id, checkout_key)
     on delete cascade
 );
