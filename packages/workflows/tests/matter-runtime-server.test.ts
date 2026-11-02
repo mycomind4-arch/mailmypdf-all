@@ -828,6 +828,7 @@ async function cp2000ApprovalFixture() {
       summary: "Synthetic controlling CP2000 notice with a first-page mailing address.",
       reasons: [], missingInformation: [], suggestedEvidence: [],
       promptInjectionObserved: false,
+      analyzedSourceSha256: source.sha256!,
       workflowDetails: { responseAddress: { ...CP2000_RECIPIENT } },
     },
   };
@@ -1105,4 +1106,18 @@ test("CP2000 persisted approval confirmation survives JSON storage and fails clo
         "a lost or altered persisted confirmation cannot start mocked checkout");
     }
   }
+});
+
+
+test("CP2000 authenticated approval refuses changed source bytes after analysis, before approval", async () => {
+  const { deps, post, approvalBody, matterId, source } = await cp2000ApprovalFixture();
+  const altered = { ...source, sha256: "b".repeat(64) };
+  assert.equal(altered.documentId, source.documentId);
+  assert.equal(altered.sizeBytes, source.sizeBytes);
+  await deps.store.replaceDocuments("user-1", matterId, [altered]);
+  const refused = await post("approval", approvalBody);
+  assert.equal(refused.status, 409);
+  assert.equal((await body(refused)).code, "CP2000_ANALYZED_SOURCE_CHANGED");
+  assert.equal(deps.store.approvals.size, 0, "stale analysis must not mint an approval");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked payment/provider handoff");
 });
