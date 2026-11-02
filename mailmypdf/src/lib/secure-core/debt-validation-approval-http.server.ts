@@ -279,7 +279,13 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
     } catch {
       return response(400, "invalid_review_request");
     }
-    if (url.origin !== deps.allowedOrigin || request.headers.get("sec-fetch-site") === "cross-site") {
+    // Browsers may send an Origin header for credentialed cross-origin GETs.
+    // An omitted Origin remains valid for direct same-origin navigation, but a
+    // supplied foreign/null Origin must never reach owner-scoped PDF storage.
+    const suppliedOrigin = request.headers.get("origin");
+    if (url.origin !== deps.allowedOrigin
+      || (suppliedOrigin !== null && suppliedOrigin !== deps.allowedOrigin)
+      || request.headers.get("sec-fetch-site") === "cross-site") {
       return response(403, "origin_not_allowed");
     }
     let actor: AuthenticatedActor | null;
