@@ -184,6 +184,17 @@ test("draft debt-validation stays discoverable but cannot create an MCP matter b
     (error: unknown) => error instanceof Error
       && /not certified for chat-guided execution/i.test(error.message),
   );
+
+  // The registry's qualified canonical ID must not bypass the chat
+  // certification gate even if a caller skips the discovery response.
+  // Reject before the MCP runtime can create a matter or initiate checkout.
+  await assert.rejects(
+    () => executeMcpTool(request, "create_matter", {
+      workflow_id: "dispute-mail/debt-validation",
+      section_id: "dispute-mail",
+    }),
+    Error,
+  );
 });
 
 test("every connector tool has a valid capability contract", () => {
