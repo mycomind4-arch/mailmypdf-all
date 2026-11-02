@@ -159,6 +159,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     headers: { authorization: "Bearer synthetic" },
   }));
   assert.equal(summary.status, 200);
+  assert.equal(summary.headers.get("cross-origin-resource-policy"), "same-origin",
+    "private envelope and quote summary cannot be embedded cross-origin");
   const snapshot = await summary.json() as {
     pdfSha256: string; recipientAddress: string; totalCents: number;
     matterVersion: number; enclosureManifestSha256: string;
@@ -181,6 +183,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   }));
   assert.equal(pdfReview.status, 200);
   assert.equal(pdfReview.headers.get("content-type"), "application/pdf");
+  assert.equal(pdfReview.headers.get("cross-origin-resource-policy"), "same-origin",
+    "private reviewed PDF cannot be embedded cross-origin");
   assert.equal(pdfReview.headers.get("x-reviewed-pdf-sha256"), result.pdfSha256);
   assert.equal(pdfReview.headers.get("x-reviewed-matter-version"), String(snapshot.matterVersion));
   assert.equal(pdfReview.headers.get("x-reviewed-enclosure-manifest-sha256"), snapshot.enclosureManifestSha256);
