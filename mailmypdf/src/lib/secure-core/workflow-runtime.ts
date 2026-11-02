@@ -84,6 +84,13 @@ const workflowDetailsSchema = z.object({
   irsReportedIncome: text.nullable().default(null),
   incomeSource: text.nullable().default(null),
   cp2000Analysis: cp2000AnalysisSchema,
+  // Model-reported source facts, NOT independent verification of notice identity.
+  // Missing or ambiguous CP2000 provenance must block notice-bound approval.
+  noticeCode: z.string().trim().max(40).nullable().optional(),
+  responseAddressProvenance: z.object({
+    pageNumber: z.number().int().positive(),
+    role: z.enum(["postal_response", "payment", "fax", "other"]),
+  }).nullable().optional(),
   responseAddress: z.object({
     line1: text,
     line2: text.nullable().default(null),
