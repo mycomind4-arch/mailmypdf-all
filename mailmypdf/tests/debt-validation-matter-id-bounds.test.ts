@@ -200,16 +200,27 @@ test("debt-validation private PDF review rejects a foreign Origin before authent
     assert.equal(denied.status, 403, suppliedOrigin);
     assert.equal((await denied.json()).code, "origin_not_allowed");
   }
-  assert.equal(authenticationCalls, 0, "foreign Origin must not invoke bearer verification");
-  assert.equal(repositoryReads, 0, "foreign Origin must not read a private PDF");
+  // A sibling subdomain is "same-site" but not same-origin. Browsers may
+  // omit Origin on a GET, so Fetch Metadata must independently reject it.
+  // Unknown values must also fail closed before bearer verification/storage.
+  for (const fetchSite of ["same-site", "cross-site", "unexpected"]) {
+    const denied = await review(new Request(url, {
+      headers: { "sec-fetch-site": fetchSite },
+    }));
+    assert.equal(denied.status, 403, fetchSite);
+    assert.equal((await denied.json()).code, "origin_not_allowed");
+  }
+  assert.equal(authenticationCalls, 0, "foreign Origin or site must not invoke bearer verification");
+  assert.equal(repositoryReads, 0, "foreign Origin or site must not read a private PDF");
 
   // Normal direct navigation has no Origin header. Explicit same-origin
-  // navigation is also allowed through the origin gate and reaches the
-  // owner-scoped lookup, which deliberately returns not found here.
-  for (const headers of [{}, { origin }]) {
+  // navigation and user-initiated Fetch Metadata "none" remain supported.
+  for (const headers of [
+    {}, { origin }, { "sec-fetch-site": "same-origin" }, { "sec-fetch-site": "none" },
+  ]) {
     const allowed = await review(new Request(url, { headers }));
     assert.equal(allowed.status, 404);
   }
-  assert.equal(authenticationCalls, 2);
-  assert.equal(repositoryReads, 2);
+  assert.equal(authenticationCalls, 4);
+  assert.equal(repositoryReads, 4);
 });
