@@ -345,6 +345,11 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
           code: "review_ready",
           matterId,
           pdfSha256: snapshot.packet.pdfSha256,
+          // Expose the same immutable packet revision and enclosure digest
+          // as the reviewed PDF response. A UI must not silently combine
+          // an old preview with a newer quote or attachment manifest.
+          matterVersion: snapshot.packet.matterVersion,
+          enclosureManifestSha256: snapshot.packet.enclosureManifestSha256,
           totalCents: snapshot.packet.totalCents,
           mailClass: snapshot.packet.mailClass,
           recipientAddress: snapshot.packet.recipientAddress,
@@ -377,6 +382,8 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
           "referrer-policy": "no-referrer",
           "x-robots-tag": "noindex, nofollow",
           "x-reviewed-pdf-sha256": snapshot.packet.pdfSha256,
+          "x-reviewed-matter-version": String(snapshot.packet.matterVersion),
+          "x-reviewed-enclosure-manifest-sha256": snapshot.packet.enclosureManifestSha256,
           "x-reviewed-total-cents": String(snapshot.packet.totalCents),
           "x-reviewed-mail-class": snapshot.packet.mailClass,
         },
