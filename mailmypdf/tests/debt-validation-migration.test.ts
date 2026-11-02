@@ -195,6 +195,40 @@ test("debt-validation migration enforces exact checkout FKs, one handoff and glo
   );
 });
 
+test("debt-validation SQL refuses mailing handoff or receipt until payment and reservation are persisted", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await claim(db, ownerA, keyA);
+  const reserve = () => db.query(
+    "insert into public.debt_validation_mailing_handoffs(owner_id,matter_id,checkout_key) values ($1,$2,$3)",
+    [ownerA, matter, keyA],
+  );
+  await assert.rejects(
+    reserve(),
+    /debt_validation_verified_payment_required/,
+    "a checkout claim alone must never authorize physical mailing",
+  );
+  await assert.rejects(
+    receipt(db, ownerA, keyA, "mailing", "mock_lob", "letter_unpaid"),
+    /debt_validation_verified_payment_required/,
+    "a direct service-role mailing acknowledgement cannot bypass payment verification",
+  );
+  await receipt(db, ownerA, keyA, "payment", "mock_stripe", "pi_paid");
+  await assert.rejects(
+    receipt(db, ownerA, keyA, "mailing", "mock_lob", "letter_unreserved"),
+    /debt_validation_mailing_handoff_required/,
+    "payment alone cannot certify a mailing without its durable handoff reservation",
+  );
+  await reserve();
+  await receipt(db, ownerA, keyA, "mailing", "mock_lob", "letter_reserved");
+  const recorded = await db.query<{ kind: string }>(
+    "select kind from public.debt_validation_checkout_receipts where owner_id=$1 and matter_id=$2 order by kind",
+    [ownerA, matter],
+  );
+  assert.deepEqual(recorded.rows.map((row) => row.kind), ["mailing", "payment"]);
+});
+
 test("debt-validation migration rejects duplicate matter creation under overlapping attempts", async (t) => {
   const db = await setup();
   t.after(() => db.close());
