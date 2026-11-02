@@ -93,6 +93,39 @@ create unique index debt_validation_provider_receipt_unique
   on public.debt_validation_checkout_receipts
   (kind, lower(provider), provider_reference);
 
+-- The SQL ledger must enforce the same payment-before-mailing boundary as
+-- the server adapter. A service-role caller cannot insert a mailing handoff
+-- or mailing acknowledgement by bypassing the application-level guard.
+-- A checkout claim alone is NOT verified payment or mailing authorization.
+create function public.require_debt_validation_paid_mailing_stage()
+returns trigger language plpgsql set search_path = public as $paid_mail$
+begin
+  if not exists (
+    select 1 from public.debt_validation_checkout_receipts
+    where owner_id = new.owner_id and matter_id = new.matter_id
+      and checkout_key = new.checkout_key and kind = 'payment'
+  ) then
+    raise exception 'debt_validation_verified_payment_required';
+  end if;
+  if TG_TABLE_NAME = 'debt_validation_checkout_receipts' and not exists (
+    select 1 from public.debt_validation_mailing_handoffs
+    where owner_id = new.owner_id and matter_id = new.matter_id
+      and checkout_key = new.checkout_key
+  ) then
+    raise exception 'debt_validation_mailing_handoff_required';
+  end if;
+  return new;
+end;
+$paid_mail$;
+
+create trigger debt_validation_handoff_requires_payment
+  before insert on public.debt_validation_mailing_handoffs
+  for each row execute function public.require_debt_validation_paid_mailing_stage();
+create trigger debt_validation_mailing_receipt_requires_handoff
+  before insert on public.debt_validation_checkout_receipts
+  for each row when (new.kind = 'mailing')
+  execute function public.require_debt_validation_paid_mailing_stage();
+
 -- Once acknowledged, receipts and handoffs cannot be silently rewritten.
 -- Deletes remain server-only for separately reviewed retention handling.
 create function public.reject_debt_validation_ledger_update()
@@ -135,5 +168,7 @@ create policy debt_validation_receipt_owner_read
 revoke all on function public.guard_debt_validation_snapshot_update()
   from public, anon, authenticated;
 revoke all on function public.reject_debt_validation_ledger_update()
+  from public, anon, authenticated;
+revoke all on function public.require_debt_validation_paid_mailing_stage()
   from public, anon, authenticated;
 commit;
