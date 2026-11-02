@@ -98,6 +98,30 @@ function assertIrsIssuer(analysis: WorkflowMatterAnalysis): void {
   }
 }
 
+/**
+ * These are model-transcribed source facts, not independent document review.
+ * An absent, different or ambiguous notice code/page role cannot authorize
+ * CP2000 mailing. Human review of the actual source is still mandatory.
+ */
+function assertCp2000NoticeProvenance(analysis: WorkflowMatterAnalysis): void {
+  const details = analysis.result.workflowDetails;
+  const noticeCode = details?.noticeCode;
+  if (typeof noticeCode !== "string" || noticeCode.trim().toUpperCase() !== "CP2000") {
+    throw new WorkflowRuntimeError(
+      "The controlling notice is not positively identified as CP2000. Reanalyze and verify the source before approval.",
+      "CP2000_NOTICE_CODE_UNVERIFIED",
+    );
+  }
+  const provenance = details?.responseAddressProvenance;
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance) ||
+      provenance.pageNumber !== 1 || provenance.role !== "postal_response") {
+    throw new WorkflowRuntimeError(
+      "The controlling notice does not identify a first-page postal response destination. Verify the source before approval.",
+      "CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED",
+    );
+  }
+}
+
 function sourceBinding(
   analysis: WorkflowMatterAnalysis,
   documents: readonly WorkflowMatterDocument[],
@@ -106,6 +130,7 @@ function sourceBinding(
   // or imported matters may contain conflicting source links. Never bind a
   // mailing recipient to whichever notice happens to appear first.
   assertIrsIssuer(analysis);
+  assertCp2000NoticeProvenance(analysis);
   const sources = documents.filter((document) => document.role === "subject_notice");
   if (sources.length > 1) {
     throw new WorkflowRuntimeError(
