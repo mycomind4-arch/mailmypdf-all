@@ -64,7 +64,9 @@ create table public.debt_validation_mailing_handoffs (
   checkout_key text not null,
   created_at timestamptz not null default now(),
   primary key (owner_id, matter_id),
-  foreign key (owner_id, matter_id, checkout_key)
+  constraint debt_validation_handoff_checkout_fk
+    constraint debt_validation_receipt_checkout_fk
+    foreign key (owner_id, matter_id, checkout_key)
     references public.debt_validation_matter_snapshots(owner_id, matter_id, checkout_key)
     on delete cascade
 );
