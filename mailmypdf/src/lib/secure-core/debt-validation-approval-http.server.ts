@@ -123,7 +123,7 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
     if (Object.keys(body).some((key) => !approvalFields.has(key))) {
       return response(400, "untrusted_approval_fields");
     }
-    if (typeof body.matterId !== "string" || !body.matterId.trim()
+    if (typeof body.matterId !== "string" || !body.matterId.trim() || body.matterId.length > 200
       || typeof body.reviewedPdfSha256 !== "string"
       || !/^[a-f0-9]{64}$/i.test(body.reviewedPdfSha256)
       || body.userApprovedExactPacket !== true
@@ -211,7 +211,7 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
     if (Object.keys(body).some((key) => !checkoutFields.has(key))) {
       return response(400, "untrusted_checkout_fields");
     }
-    if (typeof body.matterId !== "string" || !body.matterId.trim()
+    if (typeof body.matterId !== "string" || !body.matterId.trim() || body.matterId.length > 200
       || typeof body.reviewedPdfSha256 !== "string"
       || !/^[a-f0-9]{64}$/i.test(body.reviewedPdfSha256)
       || !Number.isSafeInteger(body.reviewedTotalCents)
