@@ -25,6 +25,23 @@ create table public.debt_validation_matter_snapshots (
     and (packet->>'matterId' = matter_id) is true)
 );
 
+-- Prevent a privileged caller from seeding a matter already approved or
+-- checked out. Creation and customer consent must be separate durable stages;
+-- the approval/checkout UPDATE path performs its own atomic validation.
+create function public.guard_debt_validation_snapshot_insert()
+returns trigger language plpgsql set search_path = public as $insert_guard$
+begin
+  if new.approval is not null or new.checkout_key is not null then
+    raise exception 'debt_validation_initial_approval_forbidden';
+  end if;
+  return new;
+end;
+$insert_guard$;
+
+create trigger debt_validation_snapshot_insert_guard
+  before insert on public.debt_validation_matter_snapshots
+  for each row execute function public.guard_debt_validation_snapshot_insert();
+
 -- The exact controlling notice, intake and reviewed packet are create-only.
 -- Only a first approval and a subsequent one-time checkout claim may change.
 -- This is defense in depth against stale writes, including service-role code.
@@ -165,6 +182,8 @@ create policy debt_validation_handoff_owner_read
 create policy debt_validation_receipt_owner_read
   on public.debt_validation_checkout_receipts for select to authenticated
   using (owner_id = auth.uid());
+revoke all on function public.guard_debt_validation_snapshot_insert()
+  from public, anon, authenticated;
 revoke all on function public.guard_debt_validation_snapshot_update()
   from public, anon, authenticated;
 revoke all on function public.reject_debt_validation_ledger_update()
