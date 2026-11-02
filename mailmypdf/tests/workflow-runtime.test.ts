@@ -244,12 +244,19 @@ test("CP2000 host approval adapter preserves the notice binding through the serv
   // approval store. This static check is NOT a hosted database RPC roundtrip.
   const { readFile } = await import("node:fs/promises");
   const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
-  const [host, approval, migration, permissions] = await Promise.all([
+  const [host, approval, caseServer, migration, permissions] = await Promise.all([
     read("../src/lib/secure-core/workflow-runtime-host.server.ts"),
     read("../src/lib/secure-core/case-approval.server.ts"),
+    read("../src/lib/secure-core/case.server.ts"),
     read("../supabase/migrations/20260920100000_workflow_runtime_bridge.sql"),
     read("../supabase/migrations/20260927020000_restore_server_only_workflow_approval.sql"),
   ]);
+
+  // The authenticated owner-scoped vault query must supply the recorded source
+  // digest; the host must not silently drop it before CP2000 approval/checkout.
+  assert.match(caseServer, /\.from\("secure_documents"\)[\s\S]*?\.select\("[^"]*sha256[^"]*"\)[\s\S]*?\.eq\("owner_id",\s*context\.user\.id\)/);
+  assert.match(caseServer, /sha256:\s*document\?\.sha256\s*\?\?\s*null/);
+  assert.match(host, /sha256:\s*row\.sha256/);
 
   assert.match(host, /recipientConfirmation:\s*approval\.recipientConfirmation/);
   assert.match(host, /approvalId:\s*approval\.approvalId/);
