@@ -106,16 +106,21 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     matterId, noticeDocumentId: "notice-1", letterDate: "2026-10-30",
     mailClass: "certified", intake,
   };
-  const post = (value: unknown, auth = "Bearer synthetic", requestOrigin = origin) =>
+  const post = (value: unknown, auth = "Bearer synthetic", requestOrigin = origin, declaredLength?: string) =>
     handler(new Request(origin + "/api/debt-validation/intake", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: auth,
         origin: requestOrigin,
+        ...(declaredLength ? { "content-length": declaredLength } : {}),
       },
       body: JSON.stringify(value),
     }));
+  assert.equal((await post(body, "Bearer synthetic", origin, "8193")).status, 413);
+  assert.equal(sourceReads, 0, "oversized declared intake cannot read a notice");
+  assert.equal(persistCalls, 0, "oversized declared intake cannot persist a packet");
+  assert.equal(providerSubmissions, 0, "oversized declared intake cannot submit mail or payment");
   assert.equal((await post(body, "")).status, 401);
   assert.equal((await post(body, "Bearer other-owner")).status, 404,
     "host-verified other owner cannot load the controlling notice");

@@ -57,6 +57,12 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
     throw new Error("invalid_content_type");
   }
   const limit = 8192;
+  // Reject an oversized declared body before consuming its stream. The
+  // streaming byte limit below remains authoritative for absent/false lengths.
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null && Number(declaredLength) > limit) {
+    throw new Error("body_too_large");
+  }
   if (!request.body) throw new Error("invalid_json");
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
