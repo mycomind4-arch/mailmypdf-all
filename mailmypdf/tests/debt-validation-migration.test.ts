@@ -249,6 +249,15 @@ test("debt-validation migration enforces exact checkout FKs, one handoff and glo
   await claim(db, ownerA, keyA);
   await claim(db, ownerB, keyB);
   await receipt(db, ownerA, keyA, "payment", "mock_stripe", "pi_unique");
+  // Direct service-role SQL must not treat whitespace variants as different
+  // provider IDs, even if an application adapter was accidentally bypassed.
+  for (const reference of ["pi_unique ", " pi_unique", "pi_uni que", "pi_unique\t"]) {
+    await assert.rejects(
+      receipt(db, ownerB, keyB, "payment", "mock_stripe", reference),
+      /check constraint/,
+      "SQL must reject whitespace before checking provider uniqueness",
+    );
+  }
   await assert.rejects(
     receipt(db, ownerB, keyB, "payment", "MOCK_STRIPE", "pi_unique"),
     /duplicate key/,
@@ -268,6 +277,11 @@ test("debt-validation migration enforces exact checkout FKs, one handoff and glo
     /duplicate key/,
   );
   await receipt(db, ownerA, keyA, "mailing", "mock_lob", "letter_unique");
+  await assert.rejects(
+    receipt(db, ownerB, keyB, "mailing", "mock_lob", "letter_unique "),
+    /check constraint/,
+    "SQL must reject whitespace variants of mailing provider references",
+  );
   // With payment already recorded for B, reserve its own handoff before
   // testing cross-owner provider-reference uniqueness. The SQL stage guard
   // must not mask the actual uniqueness assertion.
