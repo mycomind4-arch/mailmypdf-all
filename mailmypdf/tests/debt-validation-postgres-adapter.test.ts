@@ -2797,7 +2797,7 @@ test("PostgreSQL debt validation: legacy duplicate payment cannot be recorded as
   assert.equal((await ledger.reconcile(other, matter, claims.get(other)!)).status, "pending");
 });
 
-test("PostgreSQL debt validation: invisible provider-reference controls cannot become payment or mailing evidence", async (t) => {
+test("PostgreSQL debt validation: invisible controls and whitespace cannot become provider evidence", async (t) => {
   // Provider IDs are opaque identifiers, but invisible format controls can
   // make two references appear identical in review or audit logs. The ledger
   // must reject them before any durable receipt write. Offline PGlite only.
@@ -2831,6 +2831,18 @@ test("PostgreSQL debt validation: invisible provider-reference controls cannot b
     providerReference: "letter_synthetic_clean", evidenceSha256: "b".repeat(64),
   };
   const invisible = ["\u200b", "\u202e", "\u2060", "\ufeff", "\u2028"];
+  // A duplicate provider reference with spaces, tabs or a nonbreaking space
+  // must never become a distinct durable payment or mailing acknowledgement.
+  const whitespace = [" leading", "trailing ", "internal space", "internal\tcontrol", "internal\u00a0nbsp"];
+  for (const reference of whitespace) {
+    await assert.rejects(
+      ledger.record(owner, matter, verified, {
+        ...payment, providerReference: reference,
+      }),
+      /debt_validation_invalid_provider_receipt/,
+      "whitespace payment identifier must not be persisted",
+    );
+  }
   for (const control of invisible) {
     await assert.rejects(
       ledger.record(owner, matter, verified, {
@@ -2854,6 +2866,15 @@ test("PostgreSQL debt validation: invisible provider-reference controls cannot b
       }),
       /debt_validation_invalid_provider_receipt/,
       "invisible mailing identifier must not be persisted",
+    );
+  }
+  for (const reference of whitespace) {
+    await assert.rejects(
+      ledger.record(owner, matter, verified, {
+        ...mailing, providerReference: reference,
+      }),
+      /debt_validation_invalid_provider_receipt/,
+      "whitespace mailing identifier must not be persisted",
     );
   }
   const after = await db.query<{ kind: string }>(
