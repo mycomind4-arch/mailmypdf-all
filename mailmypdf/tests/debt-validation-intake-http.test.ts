@@ -4,7 +4,11 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
 import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
-import { createDebtValidationHostIntakeHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
+import {
+  createDebtValidationHostIntakeHandler,
+  createDebtValidationHostReviewAndApprovalHandlers,
+  createDebtValidationHostCheckoutHandler,
+} from "../src/lib/secure-core/debt-validation-host-review.server";
 import { AuthenticationError } from "../src/lib/secure-core/auth.server";
 import {
   prepareAndPersistDebtValidationMatter,
@@ -12,9 +16,7 @@ import {
   type DebtValidationSqlDatabase,
 } from "../src/lib/secure-core/debt-validation-postgres.server";
 import {
-  createDebtValidationApprovalHttpHandler,
   createDebtValidationCheckoutHttpHandler,
-  createDebtValidationPacketReviewHttpHandler,
 } from "../src/lib/secure-core/debt-validation-approval-http.server";
 
 const origin = "https://mailmypdf.example";
@@ -81,11 +83,15 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     return token === "Bearer synthetic" ? { id: ownerId }
       : token === "Bearer other-owner" ? { id: "other-owner" } : null;
   };
-  // Exercise the actual unmounted host bearer-to-owner adapter for intake,
-  // not only the lower-level HTTP handler with a preselected actor.
+  // Exercise the unmounted host bearer-to-owner adapter for every step,
+  // not only the lower-level HTTP handlers with a preselected actor.
+  const verifyUser = async (request: Request) => {
+    const actor = await authenticate(request);
+    if (!actor) throw new AuthenticationError("synthetic_invalid_bearer");
+    return { user: { id: actor.id } };
+  };
   const handler = createDebtValidationHostIntakeHandler({
     allowedOrigin: origin,
-    authenticate,
     loadVerifiedNotice: async (owner, matter, document) => {
       sourceReads += 1;
       if (owner !== ownerId || matter !== matterId || document !== "notice-1") return null;
@@ -95,11 +101,7 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
       persistCalls += 1;
       return prepareAndPersistDebtValidationMatter(sql, input);
     },
-  }, async (request) => {
-    const actor = await authenticate(request);
-    if (!actor) throw new AuthenticationError("synthetic_invalid_bearer");
-    return { user: { id: actor.id } };
-  });
+  }, verifyUser);
   const body = {
     matterId, noticeDocumentId: "notice-1", letterDate: "2026-10-30",
     mailClass: "certified", intake,
@@ -144,9 +146,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(result.code, "packet_prepared_for_review");
   assert.match(result.pdfSha256, /^[a-f0-9]{64}$/);
   assert.equal(result.totalCents > 0, true);
-  const review = createDebtValidationPacketReviewHttpHandler({
-    allowedOrigin: origin, repository, authenticate,
-  });
+  const hostReviewAndApproval = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin, repository,
+  }, verifyUser);
+  const review = hostReviewAndApproval.review;
   const summary = await review(new Request(origin + "/api/debt-validation/review?matterId=" + matterId + "&view=summary", {
     headers: { authorization: "Bearer synthetic" },
   }));
@@ -186,13 +189,11 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   // The exact PDF/quote returned by authenticated intake and review must be
   // the only packet that can receive a separate, explicit server approval.
   // No live Stripe, Lob, hosted DB or mailing adapter is used in this test.
-  const approval = createDebtValidationApprovalHttpHandler({
-    allowedOrigin: origin, repository, authenticate,
-  });
+  const approval = hostReviewAndApproval.approval;
   let receiptReads = 0;
   let receiptLookupUnavailable = false;
-  const checkout = createDebtValidationCheckoutHttpHandler({
-    allowedOrigin: origin, repository, authenticate,
+  const checkout = createDebtValidationHostCheckoutHandler({
+    allowedOrigin: origin, repository,
     submitNewClaim: async () => {
       providerSubmissions++;
       // An optimistic provider response is not verified payment AND mailing
@@ -204,7 +205,7 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
       if (receiptLookupUnavailable) throw new Error("synthetic_receipt_lookup_unavailable");
       return "pending" as const;
     },
-  });
+  }, verifyUser);
   const action = (path: string, payload: unknown, handle: (request: Request) => Promise<Response>,
     authorization = "Bearer synthetic") => handle(new Request(origin + path, {
     method: "POST",
@@ -266,6 +267,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
 
   assert.equal((await requestCheckout(confirmedCheckout)).status, 409,
     "a prepared/reviewed packet without approval cannot claim checkout");
+  assert.equal((await action("/api/debt-validation/approval", {
+    ...reviewed, userApprovedExactPacket: true,
+  }, approval, "")).status, 401,
+  "an unauthenticated host caller cannot approve a reviewed packet");
   assert.equal((await requestApproval({ ...reviewed, userApprovedExactPacket: false })).status, 400);
   assert.equal((await requestApproval({
     ...reviewed, reviewedTotalCents: result.totalCents + 1, userApprovedExactPacket: true,
