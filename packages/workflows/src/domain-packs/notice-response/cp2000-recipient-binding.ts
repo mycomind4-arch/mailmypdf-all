@@ -124,6 +124,15 @@ function sourceBinding(
   if (!Number.isSafeInteger(analysis.version) || analysis.version < 1) {
     throw new WorkflowRuntimeError("CP2000 notice analysis is invalid.", "CP2000_NOTICE_CHANGED");
   }
+  // A source notice is not part of the outgoing packet by default. Its
+  // registered, owner-scoped byte digest must therefore be bound separately
+  // to the exact recipient approval. Never fall back to filename/size alone.
+  if (typeof source.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(source.sha256)) {
+    throw new WorkflowRuntimeError(
+      "The controlling CP2000 notice has no trusted source digest. Reattach and verify the notice before approval.",
+      "CP2000_NOTICE_DIGEST_MISSING",
+    );
+  }
   const destination = noticeAddress(analysis);
   return {
     sourceDocumentId: source.documentId,
@@ -133,6 +142,7 @@ function sourceBinding(
       filename: source.filename,
       mimeType: source.mimeType,
       sizeBytes: source.sizeBytes,
+      sha256: source.sha256.toLowerCase(),
       pageCount: source.pageCount,
       securityStatus: source.securityStatus,
       usable: source.usable,
