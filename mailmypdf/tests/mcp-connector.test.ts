@@ -160,6 +160,32 @@ test("MCP matter creation fails before runtime access for uncertified workflows"
   );
 });
 
+test("draft debt-validation stays discoverable but cannot create an MCP matter before certification", async () => {
+  // This workflow has an offline authenticated packet implementation on its
+  // feature branch, not a reviewed platform runtime or mailing integration.
+  const workflow = getWorkflowDescriptor("debt-validation");
+  assert.ok(workflow);
+  assert.equal(workflow.sectionId, "dispute-mail");
+  assert.equal(getMcpWorkflowProtocolRegistration(workflow.workflowId), null);
+  assert.equal(getMcpWorkflowProtocolDefinition(workflow.workflowId), null);
+
+  const request = new Request("https://mailmypdf.ai/api/mcp");
+  const discovery = await executeMcpTool(request, "get_workflow", {
+    workflow_id: workflow.workflowId,
+  }) as { workflow: { chatExecution: { certified: boolean } } };
+  assert.equal(discovery.workflow.chatExecution.certified, false);
+
+  // Reject before any authenticated matter creation or payment/mailing path.
+  await assert.rejects(
+    () => executeMcpTool(request, "create_matter", {
+      workflow_id: workflow.workflowId,
+      section_id: workflow.sectionId,
+    }),
+    (error: unknown) => error instanceof Error
+      && /not certified for chat-guided execution/i.test(error.message),
+  );
+});
+
 test("every connector tool has a valid capability contract", () => {
   assert.deepEqual(validateMcpToolCapabilityContracts(), []);
 
