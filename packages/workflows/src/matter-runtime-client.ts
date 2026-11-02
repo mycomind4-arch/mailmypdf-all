@@ -14,6 +14,8 @@ export type WorkflowMatterDocument = {
   filename: string;
   mimeType: string | null;
   sizeBytes: number | null;
+  /** Registered source-byte digest; optional for older non-CP2000 clients. */
+  sha256?: string | null;
   securityStatus: string;
   usable: boolean;
 };
