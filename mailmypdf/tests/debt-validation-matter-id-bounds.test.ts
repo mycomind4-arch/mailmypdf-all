@@ -238,11 +238,11 @@ test("debt-validation HTTP boundaries reject 129-character IDs before private re
   let approvalReads = 0;
   let reviewReads = 0;
   let providerCalls = 0;
-  const address = "Example Collections\\nPO Box 456\\nAustin, TX 78701";
+  const address = "Example Collections\nPO Box 456\nAustin, TX 78701";
   const digest = "a".repeat(64);
   const intake = {
     consumerName: "Synthetic Consumer",
-    consumerMailingAddress: "123 Example St\\nSacramento, CA 95814",
+    consumerMailingAddress: "123 Example St\nSacramento, CA 95814",
     collectorName: "Example Collections",
     collectorResponseAddress: address,
     accountReference: "SYNTHETIC-123",
