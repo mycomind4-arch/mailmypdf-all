@@ -145,7 +145,7 @@ export function createDebtValidationIntakeHttpHandler(deps: DebtValidationIntake
     }
     const { matterId, noticeDocumentId, letterDate, mailClass } = body;
     const rawIntake = body.intake;
-    if (typeof matterId !== "string" || !matterId.trim() || matterId.length > 200
+    if (typeof matterId !== "string" || !matterId.trim() || matterId.length > 128
       || typeof noticeDocumentId !== "string" || !noticeDocumentId.trim()
       || noticeDocumentId.length > 200 || !validDate(letterDate)
       || !["standard", "certified", "registered"].includes(String(mailClass))
