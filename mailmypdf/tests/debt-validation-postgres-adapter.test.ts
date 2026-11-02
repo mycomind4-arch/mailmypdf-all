@@ -180,10 +180,14 @@ test("debt-validation review summary binds the exact physical envelope to the st
   assert.equal(summary.status, 200);
   assert.match(summary.headers.get("content-type") ?? "", /application\/json/);
   assert.match(summary.headers.get("cache-control") ?? "", /no-store/);
+  const persisted = await repository.loadCurrent(owner, matter);
+  assert.ok(persisted, "review must match an owner-scoped persisted packet");
   assert.deepEqual(await summary.json(), {
     code: "review_ready",
     matterId: matter,
     pdfSha256: sha(pdf),
+    matterVersion: persisted.packet.matterVersion,
+    enclosureManifestSha256: persisted.packet.enclosureManifestSha256,
     totalCents: 1499,
     mailClass: "certified",
     recipientAddress: address,
