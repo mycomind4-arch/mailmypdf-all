@@ -226,3 +226,114 @@ test("debt-validation private PDF review rejects a foreign Origin before authent
   assert.equal(authenticationCalls, 4);
   assert.equal(repositoryReads, 4);
 });
+
+test("debt-validation HTTP boundaries reject 129-character IDs before private reads or provider callbacks", async () => {
+  // The versioned, unapplied PostgreSQL schema allows at most 128 characters.
+  // A 129-character ID previously passed HTTP validation and could reach
+  // expensive notice/PDF preparation before the database rejected the insert.
+  const atLimit = "m".repeat(128);
+  const overLimit = "m".repeat(129);
+  let noticeReads = 0;
+  let packetWrites = 0;
+  let approvalReads = 0;
+  let reviewReads = 0;
+  let providerCalls = 0;
+  const address = "Example Collections\\nPO Box 456\\nAustin, TX 78701";
+  const digest = "a".repeat(64);
+  const intake = {
+    consumerName: "Synthetic Consumer",
+    consumerMailingAddress: "123 Example St\\nSacramento, CA 95814",
+    collectorName: "Example Collections",
+    collectorResponseAddress: address,
+    accountReference: "SYNTHETIC-123",
+    disputeExplanation: "I dispute the stated balance and request verification.",
+    requestOriginalCreditor: true,
+    noticeDocumentId: "notice-1",
+    noticeSha256: digest,
+    noticeVersion: 1,
+    noticeResponseAddress: address,
+    noticeDate: "2026-10-10",
+    noticeDisputeDeadline: null,
+    recipientConfirmed: true,
+    confirmedRecipientAddress: address,
+    confirmedNoticeSha256: digest,
+    confirmedNoticeDocumentId: "notice-1",
+    confirmedNoticeVersion: 1,
+  };
+  const repository = {
+    loadCurrent: async () => { approvalReads++; return null; },
+    loadApproval: async () => { approvalReads++; return null; },
+    loadReviewArtifact: async () => { reviewReads++; return null; },
+  } as unknown as DebtValidationMatterRepository;
+  const authenticate = async () => ({ id: "synthetic-owner" });
+  const deps = { allowedOrigin: origin, authenticate, repository };
+  const intakeHandler = createDebtValidationIntakeHttpHandler({
+    allowedOrigin: origin, authenticate,
+    loadVerifiedNotice: async () => { noticeReads++; return null; },
+    persistPreparedMatter: async () => {
+      packetWrites++;
+      throw new Error("unexpected_packet_persistence");
+    },
+  });
+  const approvalHandler = createDebtValidationApprovalHttpHandler(deps);
+  const checkoutHandler = createDebtValidationCheckoutHttpHandler({
+    ...deps,
+    submitNewClaim: async () => { providerCalls++; return "pending" as const; },
+    reconcileClaim: async () => { providerCalls++; return "pending" as const; },
+  });
+  const reviewHandler = createDebtValidationPacketReviewHttpHandler(deps);
+  const post = (path: string, body: unknown) => new Request(origin + path, {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const intakeBody = (matterId: string) => ({
+    matterId, noticeDocumentId: "notice-1",
+    letterDate: "2026-10-30", mailClass: "certified", intake,
+  });
+  const reviewedBody = (matterId: string) => ({
+    ...reviewed, matterId,
+  });
+
+  const rejectedIntake = await intakeHandler(post("/api/debt-validation/intake", intakeBody(overLimit)));
+  assert.equal(rejectedIntake.status, 400);
+  assert.equal((await rejectedIntake.json()).code, "invalid_intake_request");
+  const rejectedApproval = await approvalHandler(post("/api/debt-validation/approval", {
+    ...reviewedBody(overLimit), userApprovedExactPacket: true,
+  }));
+  assert.equal(rejectedApproval.status, 400);
+  assert.equal((await rejectedApproval.json()).code, "invalid_approval_request");
+  const rejectedCheckout = await checkoutHandler(post("/api/debt-validation/checkout", {
+    ...reviewedBody(overLimit), userConfirmedCheckout: true,
+  }));
+  assert.equal(rejectedCheckout.status, 400);
+  assert.equal((await rejectedCheckout.json()).code, "invalid_checkout_request");
+  const rejectedReview = await reviewHandler(new Request(
+    origin + "/api/debt-validation/review?matterId=" + overLimit,
+  ));
+  assert.equal(rejectedReview.status, 400);
+  assert.equal((await rejectedReview.json()).code, "invalid_review_request");
+  assert.equal(noticeReads, 0);
+  assert.equal(packetWrites, 0);
+  assert.equal(approvalReads, 0);
+  assert.equal(reviewReads, 0);
+  assert.equal(providerCalls, 0);
+
+  // Exactly 128 characters still passes the HTTP size gate and reaches the
+  // normal owner-scoped lookup. These stubs return not found, not a packet.
+  assert.equal((await intakeHandler(post("/api/debt-validation/intake", intakeBody(atLimit)))).status, 404);
+  assert.equal((await approvalHandler(post("/api/debt-validation/approval", {
+    ...reviewedBody(atLimit), userApprovedExactPacket: true,
+  }))).status, 409);
+  assert.equal((await checkoutHandler(post("/api/debt-validation/checkout", {
+    ...reviewedBody(atLimit), userConfirmedCheckout: true,
+  }))).status, 409);
+  assert.equal((await reviewHandler(new Request(
+    origin + "/api/debt-validation/review?matterId=" + atLimit,
+  ))).status, 404);
+  assert.equal(noticeReads, 1);
+  assert.equal(approvalReads, 2);
+  assert.equal(reviewReads, 1);
+  assert.equal(packetWrites, 0);
+  assert.equal(providerCalls, 0);
+});
