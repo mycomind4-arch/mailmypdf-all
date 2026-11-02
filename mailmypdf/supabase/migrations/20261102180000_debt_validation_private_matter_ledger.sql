@@ -55,6 +55,30 @@ begin
          old.packet, old.pdf_bytes, old.notice_pdf_bytes) then
     raise exception 'debt_validation_immutable_packet_identity';
   end if;
+  -- A service-role write must not attach an approval for a different
+  -- owner, packet, quote, enclosure or controlling notice. This is only a
+  -- structural integrity check: the trusted server must still prove actual
+  -- customer consent and independently authenticate provider callbacks.
+  -- Recipient text is normalized in the application binding and is not
+  -- asserted byte-equal here; the approval/checkout adapter verifies it.
+  if old.approval is null and new.approval is not null then
+    if not (
+      (new.approval->>'ownerId' = new.owner_id::text) is true
+      and (new.approval->>'matterId' = new.matter_id) is true
+      and (new.approval->>'matterVersion' = new.packet->>'matterVersion') is true
+      and (new.approval->>'totalCents' = new.packet->>'totalCents') is true
+      and (new.approval->>'mailClass' = new.packet->>'mailClass') is true
+      and (lower(new.approval->>'pdfSha256') = lower(new.packet->>'pdfSha256')) is true
+      and (lower(new.approval->>'enclosureManifestSha256') =
+           lower(new.packet->>'enclosureManifestSha256')) is true
+      and (lower(new.approval->>'intakeSha256') = lower(new.packet->>'intakeSha256')) is true
+      and (new.approval->>'noticeDocumentId' = new.packet->>'noticeDocumentId') is true
+      and (lower(new.approval->>'noticeSha256') = lower(new.packet->>'noticeSha256')) is true
+      and (new.approval->>'noticeVersion' = new.packet->>'noticeVersion') is true
+    ) then
+      raise exception 'debt_validation_approval_packet_mismatch';
+    end if;
+  end if;
   if old.approval is not null and new.approval is distinct from old.approval then
     raise exception 'debt_validation_immutable_approval';
   end if;
