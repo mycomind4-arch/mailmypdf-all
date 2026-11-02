@@ -5,6 +5,7 @@
 // case discloses its contents once rather than once per step.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import { computeSha256 } from "@mailmypdf/documents";
 import {
   analyzeCp2000Notice,
   buildCp2000EvidenceChecklist,
@@ -82,6 +83,14 @@ export async function runNoticeAnalysisModel(
   if (!notice) throw new CaseNotFoundError("This case has no notice to analyse yet");
 
   const document = await loadDisclosableDocument(caseId, notice.document_id, context);
+  // Bind CP2000 analysis to the bytes actually verified and disclosed to the model,
+  // not merely the digest currently registered when a later approval is requested.
+  const analyzedSourceSha256 = workflow.id === "cp2000-response"
+    ? computeSha256(Buffer.from(document.base64, "base64"))
+    : null;
+  if (analyzedSourceSha256 && analyzedSourceSha256 !== notice.sha256) {
+    throw new CaseError("The controlling notice changed during analysis. Analyze it again.");
+  }
 
   const { text, model } = await askModelAboutDocument({
     document,
@@ -137,7 +146,13 @@ export async function runNoticeAnalysisModel(
       })
     : parsed;
 
-  return { documentId: notice.document_id, model, result };
+  return {
+    documentId: notice.document_id,
+    model,
+    result: analyzedSourceSha256
+      ? validateNoticeAnalysis({ ...result, analyzedSourceSha256 })
+      : result,
+  };
 }
 
 /** Records a previously-computed analysis conclusion. See runNoticeAnalysisModel. */
