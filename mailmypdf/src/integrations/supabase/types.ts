@@ -77,6 +77,23 @@ type RecoveryExecutionRow = {
   request_sha256: string; record: Json; state: string; revision: number;
 }
 
+// Schema from 20261102180000_debt_validation_private_matter_ledger.sql.
+// Bytea values are represented as strings by the PostgREST transport; the
+// server-side transactional adapter uses Uint8Array with native PostgreSQL.
+type DebtValidationMatterSnapshotRow = {
+  owner_id: string; matter_id: string; current_intake: Json; trusted_notice: Json;
+  packet: Json; pdf_bytes: string; notice_pdf_bytes: string;
+  approval: Json | null; checkout_key: string | null; created_at: string;
+}
+type DebtValidationMailingHandoffRow = {
+  owner_id: string; matter_id: string; checkout_key: string; created_at: string;
+}
+type DebtValidationCheckoutReceiptRow = {
+  owner_id: string; matter_id: string; checkout_key: string;
+  kind: string; provider: string; provider_reference: string;
+  evidence_sha256: string; created_at: string;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -99,6 +116,43 @@ export type Database = {
   }
   public: {
     Tables: {
+      debt_validation_matter_snapshots: {
+        Row: DebtValidationMatterSnapshotRow
+        Insert: Omit<DebtValidationMatterSnapshotRow, "approval" | "checkout_key" | "created_at"> & {
+          approval?: Json | null; checkout_key?: string | null; created_at?: string
+        }
+        // Only server-side one-time approval and checkout claims may update.
+        Update: { approval?: Json | null; checkout_key?: string | null }
+        Relationships: []
+      }
+      debt_validation_mailing_handoffs: {
+        Row: DebtValidationMailingHandoffRow
+        Insert: Omit<DebtValidationMailingHandoffRow, "created_at"> & { created_at?: string }
+        Update: { [_ in never]: never }
+        Relationships: [
+          {
+            foreignKeyName: "debt_validation_mailing_handoffs_owner_id_matter_id_checkout_key_fkey"
+            columns: ["owner_id", "matter_id", "checkout_key"]
+            isOneToOne: true
+            referencedRelation: "debt_validation_matter_snapshots"
+            referencedColumns: ["owner_id", "matter_id", "checkout_key"]
+          },
+        ]
+      }
+      debt_validation_checkout_receipts: {
+        Row: DebtValidationCheckoutReceiptRow
+        Insert: Omit<DebtValidationCheckoutReceiptRow, "created_at"> & { created_at?: string }
+        Update: { [_ in never]: never }
+        Relationships: [
+          {
+            foreignKeyName: "debt_validation_checkout_receipts_owner_id_matter_id_checkout_key_fkey"
+            columns: ["owner_id", "matter_id", "checkout_key"]
+            isOneToOne: false
+            referencedRelation: "debt_validation_matter_snapshots"
+            referencedColumns: ["owner_id", "matter_id", "checkout_key"]
+          },
+        ]
+      }
       recovery_case_goals: {
         Row: RecoveryGoalRow
         Insert: Omit<RecoveryGoalRow, 'state' | 'revision' | 'created_at'> & { created_at?: string }
