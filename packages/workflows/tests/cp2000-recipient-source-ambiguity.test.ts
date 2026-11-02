@@ -52,6 +52,7 @@ const analysis: WorkflowMatterAnalysis = {
     missingInformation: [],
     suggestedEvidence: [],
     promptInjectionObserved: false,
+    analyzedSourceSha256: source.sha256!,
     workflowDetails: { responseAddress: recipient },
   },
 };
@@ -416,4 +417,29 @@ test("CP2000 approval fails closed when the trusted source digest is missing or 
       /trusted source digest|CP2000_NOTICE_DIGEST_MISSING/i,
     );
   }
+});
+
+
+test("CP2000 approval rejects source bytes replaced after analysis but before first approval", () => {
+  const replacedBeforeApproval = { ...source, sha256: "b".repeat(64) };
+  assert.equal(replacedBeforeApproval.documentId, source.documentId);
+  assert.equal(replacedBeforeApproval.sizeBytes, source.sizeBytes);
+  assert.throws(
+    () => confirmCp2000Recipient({
+      confirmedFromNotice: true, recipient, analysis, documents: [replacedBeforeApproval],
+    }),
+    (error: unknown) => error instanceof Error && "code" in error &&
+      error.code === "CP2000_ANALYZED_SOURCE_CHANGED",
+    "an unchanged document ID and metadata cannot substitute for the analyzed bytes",
+  );
+  assert.throws(
+    () => confirmCp2000Recipient({
+      confirmedFromNotice: true, recipient,
+      analysis: { ...analysis, result: { ...analysis.result, analyzedSourceSha256: undefined } },
+      documents: [source],
+    }),
+    (error: unknown) => error instanceof Error && "code" in error &&
+      error.code === "CP2000_ANALYZED_SOURCE_CHANGED",
+    "legacy CP2000 analyses without trusted analyzed-byte provenance must fail closed",
+  );
 });
