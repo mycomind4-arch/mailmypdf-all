@@ -366,6 +366,8 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
             ...headers,
             "referrer-policy": "no-referrer",
             "x-robots-tag": "noindex, nofollow",
+            // Private envelope/quote data must not be embedded by another origin.
+            "cross-origin-resource-policy": "same-origin",
           },
         });
       }
@@ -379,6 +381,8 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
           "content-disposition": 'inline; filename="debt-validation-review.pdf"',
           "x-content-type-options": "nosniff",
           "x-frame-options": "SAMEORIGIN",
+          // Defense in depth against cross-origin embedding of private PDF bytes.
+          "cross-origin-resource-policy": "same-origin",
           "referrer-policy": "no-referrer",
           "x-robots-tag": "noindex, nofollow",
           "x-reviewed-pdf-sha256": snapshot.packet.pdfSha256,
