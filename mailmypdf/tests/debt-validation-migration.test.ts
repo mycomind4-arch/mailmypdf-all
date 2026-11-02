@@ -15,6 +15,21 @@ const matter = "synthetic-matter";
 const keyA = "debt_validation_checkout_" + "a".repeat(64);
 const keyB = "debt_validation_checkout_" + "b".repeat(64);
 
+function packetFixture(ownerId: string, matterId = matter) {
+  return {
+    ownerId, matterId, matterVersion: 1, totalCents: 1499,
+    mailClass: "certified", pdfSha256: "a".repeat(64),
+    enclosureManifestSha256: "b".repeat(64), intakeSha256: "c".repeat(64),
+    recipientAddress: "Synthetic Collector\\nPO Box 123\\nAustin, TX 78701",
+    noticeDocumentId: "notice-1", noticeSha256: "a".repeat(64),
+    noticeVersion: 1,
+  };
+}
+
+function approvalFixture(ownerId: string, matterId = matter) {
+  return { ...packetFixture(ownerId, matterId) };
+}
+
 async function setup() {
   const db = new PGlite();
   await db.exec(`
@@ -41,7 +56,7 @@ async function seed(db: PGlite, ownerId: string, matterId = matter) {
       on conflict (owner_id,matter_id) do nothing returning owner_id`,
     [ownerId, matterId, JSON.stringify({ recipientConfirmed: true }),
       JSON.stringify({ ownerId, matterId, sha256: "a".repeat(64) }),
-      JSON.stringify({ ownerId, matterId, matterVersion: 1 }),
+      JSON.stringify(packetFixture(ownerId, matterId)),
       new TextEncoder().encode("%PDF-1.4\nSynthetic response\n%%EOF"),
       new TextEncoder().encode("%PDF-1.4\nSynthetic notice\n%%EOF")],
   );
@@ -50,7 +65,7 @@ async function seed(db: PGlite, ownerId: string, matterId = matter) {
 async function claim(db: PGlite, ownerId: string, checkoutKey: string) {
   await db.query(
     "update public.debt_validation_matter_snapshots set approval=$3::jsonb where owner_id=$1 and matter_id=$2",
-    [ownerId, matter, JSON.stringify({ matterVersion: 1, pdfSha256: "a".repeat(64) })],
+    [ownerId, matter, JSON.stringify(approvalFixture(ownerId))],
   );
   await db.query(
     "update public.debt_validation_matter_snapshots set checkout_key=$3 where owner_id=$1 and matter_id=$2",
@@ -102,6 +117,44 @@ test("debt-validation migration rejects preapproved matter creation even from a 
   assert.equal(created.rows.length, 1, "normal unapproved matter creation still succeeds");
   assert.equal(created.rows[0]!.approval, null);
   assert.equal(created.rows[0]!.checkout_key, null);
+});
+
+test("debt-validation SQL rejects an approval for a different owner, PDF, quote or notice", async (t) => {
+  // Execute the actual unapplied migration as a privileged SQL caller. This
+  // checks structural integrity only, not genuine user consent or Stripe/Lob.
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  const approval = approvalFixture(ownerA);
+  for (const [label, changed] of [
+    ["other owner", { ownerId: ownerB }],
+    ["other PDF", { pdfSha256: "f".repeat(64) }],
+    ["changed price", { totalCents: 1 }],
+    ["changed enclosure", { enclosureManifestSha256: "e".repeat(64) }],
+    ["missing source identity", { noticeSha256: undefined }],
+  ] as const) {
+    await assert.rejects(
+      db.query(
+        "update public.debt_validation_matter_snapshots set approval=$3::jsonb where owner_id=$1 and matter_id=$2",
+        [ownerA, matter, JSON.stringify({ ...approval, ...changed })],
+      ),
+      /debt_validation_approval_packet_mismatch/,
+      label + " cannot become a durable approval",
+    );
+  }
+  const before = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "select approval,checkout_key from public.debt_validation_matter_snapshots where owner_id=$1 and matter_id=$2",
+    [ownerA, matter],
+  );
+  assert.equal(before.rows[0]?.approval, null);
+  assert.equal(before.rows[0]?.checkout_key, null);
+  await claim(db, ownerA, keyA);
+  const after = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "select approval,checkout_key from public.debt_validation_matter_snapshots where owner_id=$1 and matter_id=$2",
+    [ownerA, matter],
+  );
+  assert.deepEqual(after.rows[0]?.approval, approval, "matching approval still works");
+  assert.equal(after.rows[0]?.checkout_key, keyA);
 });
 
 test("debt-validation migration applies offline and owner-scoped RLS denies other users and all browser writes", async (t) => {
