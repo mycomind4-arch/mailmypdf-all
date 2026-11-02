@@ -112,6 +112,9 @@ const workflowDetailsSchema = z.object({
 });
 
 const noticeAnalysisSchema = z.object({
+  // Trusted server-computed digest of the PDF bytes analyzed for CP2000.
+  // Older analyses lack it and must be reanalyzed before notice-bound approval.
+  analyzedSourceSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   decision: text.nullable(), issuer: text.nullable(), referenceNumber: text.nullable(),
   decisionDate: date, deadline: date,
   confidence: z.enum(["high", "medium", "low"]), summary: text,
