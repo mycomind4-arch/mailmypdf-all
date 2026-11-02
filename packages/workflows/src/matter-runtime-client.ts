@@ -40,6 +40,8 @@ export type WorkflowMatterAnalysis = {
   model: string;
   createdAt: string;
   result: {
+    /** Server-computed digest of source bytes analyzed; required by CP2000 approval. */
+    analyzedSourceSha256?: string;
     decision: string | null;
     issuer: string | null;
     referenceNumber: string | null;
