@@ -91,6 +91,7 @@ function toMatterDocument(row: CaseDocument): WorkflowMatterDocument {
     filename: row.filename,
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,
+    sha256: row.sha256,
     securityStatus: row.security_status,
     usable: row.usable,
   };
