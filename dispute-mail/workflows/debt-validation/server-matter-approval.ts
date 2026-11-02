@@ -160,10 +160,14 @@ export async function approveDebtValidationMatter(input: {
   /** Price and physical mail class shown to the authenticated user with the exact PDF. */
   reviewedTotalCents?: unknown;
   reviewedMailClass?: unknown;
+  /** Optional for domain-only callers; the authenticated HTTP boundary requires both. */
+  reviewedMatterVersion?: unknown;
+  reviewedEnclosureManifestSha256?: unknown;
   repository: DebtValidationMatterRepository;
 }): Promise<DebtValidationApprovalBinding> {
   const { ownerId, matterId, reviewedPdfSha256, userApprovedExactPacket,
-    reviewedTotalCents, reviewedMailClass, repository } = input;
+    reviewedTotalCents, reviewedMailClass, reviewedMatterVersion,
+    reviewedEnclosureManifestSha256, repository } = input;
   identity(ownerId, matterId);
   if (userApprovedExactPacket !== true) {
     throw new Error("debt_validation_explicit_approval_required");
@@ -175,6 +179,17 @@ export async function approveDebtValidationMatter(input: {
     || reviewedTotalCents !== snapshot.packet.totalCents
     || reviewedMailClass !== snapshot.packet.mailClass) {
     throw new Error("debt_validation_reviewed_quote_mismatch");
+  }
+  // The HTTP boundary requires these fields. A changed enclosure or packet
+  // revision must reject before consent is persisted, even if PDF/price match.
+  if (reviewedMatterVersion !== undefined || reviewedEnclosureManifestSha256 !== undefined) {
+    if (!Number.isSafeInteger(reviewedMatterVersion)
+      || reviewedMatterVersion !== snapshot.packet.matterVersion
+      || typeof reviewedEnclosureManifestSha256 !== "string"
+      || !/^[a-f0-9]{64}$/i.test(reviewedEnclosureManifestSha256)
+      || reviewedEnclosureManifestSha256.toLowerCase() !== snapshot.packet.enclosureManifestSha256.toLowerCase()) {
+      throw new Error("debt_validation_reviewed_packet_identity_mismatch");
+    }
   }
   assertDebtValidationPersistedPdf(
     await repository.loadPacketPdfBytes(ownerId, matterId),

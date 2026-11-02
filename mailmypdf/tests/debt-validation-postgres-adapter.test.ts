@@ -140,7 +140,7 @@ async function setup() {
   const approve = (ownerId = owner) => approveDebtValidationMatter({
     ownerId, matterId: matter, repository,
     reviewedPdfSha256: sha(pdf), reviewedTotalCents: 1499,
-    reviewedMailClass: "certified", userApprovedExactPacket: true,
+    reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64), userApprovedExactPacket: true,
   });
   return { db, repository, seed, approve, armBeforeTransaction };
 }
@@ -517,7 +517,8 @@ test("debt-validation real generated physical-mail packet traverses isolated app
     matterId: matter,
     reviewedPdfSha256: storedPacket.pdfSha256,
     reviewedTotalCents: quote.totalCents,
-    reviewedMailClass: "certified",
+    reviewedMailClass: "certified", reviewedMatterVersion: storedPacket.matterVersion,
+    reviewedEnclosureManifestSha256: storedPacket.enclosureManifestSha256,
   };
   const approved = await approval(post("/api/debt-validation/approval", {
     ...reviewed, userApprovedExactPacket: true,
@@ -631,7 +632,7 @@ test("PostgreSQL debt validation: exact approval retry after checkout is read-on
   await assert.rejects(approveDebtValidationMatter({
     ownerId: owner, matterId: matter, repository,
     reviewedPdfSha256: "f".repeat(64), reviewedTotalCents: 1499,
-    reviewedMailClass: "certified", userApprovedExactPacket: true,
+    reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64), userApprovedExactPacket: true,
   }), /debt_validation_/, "a different packet is not an idempotent retry");
   const final = await db.query<{ approval: unknown; checkout_key: string | null }>(query, [owner, matter]);
   assert.deepEqual(final.rows, before.rows);
@@ -1105,7 +1106,7 @@ test("debt-validation HTTP approval boundary: authenticated owner, exact review 
     matterId: matter,
     reviewedPdfSha256: sha(pdf),
     reviewedTotalCents: 1499,
-    reviewedMailClass: "certified",
+    reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
     userApprovedExactPacket: true,
   };
   const fresh = async (snapshot = fixture()) => {
@@ -1194,7 +1195,7 @@ test("debt-validation HTTP approval: malformed, cross-origin and altered quote r
     matterId: matter,
     reviewedPdfSha256: sha(pdf),
     reviewedTotalCents: 1499,
-    reviewedMailClass: "certified",
+    reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
     userApprovedExactPacket: true,
   };
   const request = (body: string, headers: Record<string, string> = {}) =>
@@ -1269,7 +1270,7 @@ test("debt-validation HTTP checkout: exact owner review, one durable claim and r
     matterId: matter,
     reviewedPdfSha256: sha(pdf),
     reviewedTotalCents: 1499,
-    reviewedMailClass: "certified",
+    reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
     userConfirmedCheckout: true,
   };
   const request = (payload: Record<string, unknown>, headers: Record<string, string> = {}) =>
@@ -1369,7 +1370,7 @@ test("debt-validation HTTP checkout: changed recipient or controlling notice fai
           matterId: matter,
           reviewedPdfSha256: sha(pdf),
           reviewedTotalCents: 1499,
-          reviewedMailClass: "certified",
+          reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
           userConfirmedCheckout: true,
         }),
       }));
@@ -1466,7 +1467,7 @@ test("debt-validation HTTP checkout: provider failure is reconciled without a se
       matterId: matter,
       reviewedPdfSha256: sha(pdf),
       reviewedTotalCents: 1499,
-      reviewedMailClass: "certified",
+      reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
       userConfirmedCheckout: true,
     }),
   });
@@ -1538,7 +1539,7 @@ test("debt-validation HTTP checkout: in-flight provider submission permits recei
       matterId: matter,
       reviewedPdfSha256: sha(pdf),
       reviewedTotalCents: 1499,
-      reviewedMailClass: "certified",
+      reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
       userConfirmedCheckout: true,
     }),
   });
@@ -1653,7 +1654,7 @@ test("debt-validation host auth bridge scopes review and approval to verified be
   );
   const approvalBody = {
     matterId: matter, reviewedPdfSha256: sha(pdf),
-    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    reviewedTotalCents: 1499, reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
     userApprovedExactPacket: true,
   };
   const approveRequest = (authorization = "Bearer owner-a", body: Record<string, unknown> = approvalBody,
@@ -1721,7 +1722,7 @@ test("debt-validation host checkout bridge binds verified owner, explicit consen
   }, verifyUser);
   const reviewed = {
     matterId: matter, reviewedPdfSha256: sha(pdf),
-    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    reviewedTotalCents: 1499, reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
   };
   const post = (handler: (request: Request) => Promise<Response>, body: Record<string, unknown>,
     authorization = "Bearer owner-a", requestOrigin = origin,
@@ -2082,7 +2083,7 @@ test("debt-validation host checkout isolates identical matter IDs and PDF hashes
   }, verifyUser);
   const reviewed = {
     matterId: matter, reviewedPdfSha256: sha(pdf),
-    reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    reviewedTotalCents: 1499, reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
   };
   const post = (handler: (request: Request) => Promise<Response>, token: string,
     body: Record<string, unknown>) => handler(new Request(origin + "/api/debt-validation/action", {
@@ -2227,7 +2228,7 @@ test("debt-validation HTTP checkout: a new claim cannot report mailing recorded 
       matterId: matter,
       reviewedPdfSha256: sha(pdf),
       reviewedTotalCents: 1499,
-      reviewedMailClass: "certified",
+      reviewedMailClass: "certified", reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: "b".repeat(64),
       userConfirmedCheckout: true,
     }),
   });

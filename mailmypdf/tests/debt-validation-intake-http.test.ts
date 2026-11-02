@@ -147,7 +147,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
 
   const prepared = await post(body);
   assert.equal(prepared.status, 201);
-  const result = await prepared.json() as { code: string; pdfSha256: string; totalCents: number };
+  const result = await prepared.json() as { code: string; pdfSha256: string; totalCents: number;
+    matterVersion: number; enclosureManifestSha256: string };
   assert.equal(result.code, "packet_prepared_for_review");
   assert.match(result.pdfSha256, /^[a-f0-9]{64}$/);
   assert.equal(result.totalCents > 0, true);
@@ -174,6 +175,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.ok(persisted);
   assert.equal(snapshot.matterVersion, persisted.packet.matterVersion);
   assert.equal(snapshot.enclosureManifestSha256, persisted.packet.enclosureManifestSha256);
+  assert.equal(result.matterVersion, snapshot.matterVersion);
+  assert.equal(result.enclosureManifestSha256, snapshot.enclosureManifestSha256);
   assert.match(snapshot.enclosureManifestSha256, /^[a-f0-9]{64}$/);
   // The same authenticated intake must expose the ACTUAL server-stored PDF,
   // not only a digest/quote or an unrelated browser-generated preview.
@@ -238,6 +241,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     reviewedPdfSha256: result.pdfSha256,
     reviewedTotalCents: result.totalCents,
     reviewedMailClass: "certified",
+    reviewedMatterVersion: snapshot.matterVersion,
+    reviewedEnclosureManifestSha256: snapshot.enclosureManifestSha256,
   };
   const requestApproval = (payload: unknown) => action("/api/debt-validation/approval", payload, approval);
   const requestCheckout = (payload: unknown, authorization?: string) =>
@@ -417,12 +422,15 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(outagePreparedResponse.status, 201);
   const outagePrepared = await outagePreparedResponse.json() as {
     pdfSha256: string; totalCents: number;
+    matterVersion: number; enclosureManifestSha256: string;
   };
   const outageReviewed = {
     matterId: outageMatterId,
     reviewedPdfSha256: outagePrepared.pdfSha256,
     reviewedTotalCents: outagePrepared.totalCents,
     reviewedMailClass: "certified",
+    reviewedMatterVersion: outagePrepared.matterVersion,
+    reviewedEnclosureManifestSha256: outagePrepared.enclosureManifestSha256,
   };
   assert.equal((await requestApproval({ ...outageReviewed, userApprovedExactPacket: true })).status, 200);
   let failedSubmissions = 0;
@@ -465,12 +473,15 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(inFlightPreparedResponse.status, 201);
   const inFlightPrepared = await inFlightPreparedResponse.json() as {
     pdfSha256: string; totalCents: number;
+    matterVersion: number; enclosureManifestSha256: string;
   };
   const inFlightReviewed = {
     matterId: inFlightMatterId,
     reviewedPdfSha256: inFlightPrepared.pdfSha256,
     reviewedTotalCents: inFlightPrepared.totalCents,
     reviewedMailClass: "certified",
+    reviewedMatterVersion: inFlightPrepared.matterVersion,
+    reviewedEnclosureManifestSha256: inFlightPrepared.enclosureManifestSha256,
   };
   assert.equal((await requestApproval({ ...inFlightReviewed, userApprovedExactPacket: true })).status, 200);
   let inFlightSubmissions = 0;

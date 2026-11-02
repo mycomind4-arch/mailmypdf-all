@@ -91,7 +91,8 @@ function invalidBodyResponse(error: unknown): Response {
 
 const approvalFields = new Set([
   "matterId", "reviewedPdfSha256", "reviewedTotalCents",
-  "reviewedMailClass", "userApprovedExactPacket",
+  "reviewedMailClass", "reviewedMatterVersion",
+  "reviewedEnclosureManifestSha256", "userApprovedExactPacket",
 ]);
 
 export function createDebtValidationApprovalHttpHandler(deps: DebtValidationApprovalHttpDependencies) {
@@ -127,6 +128,10 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
       || typeof body.reviewedPdfSha256 !== "string"
       || !/^[a-f0-9]{64}$/i.test(body.reviewedPdfSha256)
       || body.userApprovedExactPacket !== true
+      || !Number.isSafeInteger(body.reviewedMatterVersion)
+      || (body.reviewedMatterVersion as number) < 1
+      || typeof body.reviewedEnclosureManifestSha256 !== "string"
+      || !/^[a-f0-9]{64}$/i.test(body.reviewedEnclosureManifestSha256)
       || !Number.isSafeInteger(body.reviewedTotalCents)
       || !["standard", "certified", "registered"].includes(String(body.reviewedMailClass))) {
       return response(400, "invalid_approval_request");
@@ -139,6 +144,8 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
         reviewedPdfSha256: body.reviewedPdfSha256,
         reviewedTotalCents: body.reviewedTotalCents,
         reviewedMailClass: body.reviewedMailClass,
+        reviewedMatterVersion: body.reviewedMatterVersion,
+        reviewedEnclosureManifestSha256: body.reviewedEnclosureManifestSha256,
         userApprovedExactPacket: true,
       });
       return response(200, "approved", {
@@ -180,7 +187,8 @@ export interface DebtValidationCheckoutHttpDependencies extends DebtValidationAp
 
 const checkoutFields = new Set([
   "matterId", "reviewedPdfSha256", "reviewedTotalCents",
-  "reviewedMailClass", "userConfirmedCheckout",
+  "reviewedMailClass", "reviewedMatterVersion",
+  "reviewedEnclosureManifestSha256", "userConfirmedCheckout",
 ]);
 
 export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationCheckoutHttpDependencies) {
@@ -214,6 +222,10 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
     if (typeof body.matterId !== "string" || !body.matterId.trim() || body.matterId.length > 200
       || typeof body.reviewedPdfSha256 !== "string"
       || !/^[a-f0-9]{64}$/i.test(body.reviewedPdfSha256)
+      || !Number.isSafeInteger(body.reviewedMatterVersion)
+      || (body.reviewedMatterVersion as number) < 1
+      || typeof body.reviewedEnclosureManifestSha256 !== "string"
+      || !/^[a-f0-9]{64}$/i.test(body.reviewedEnclosureManifestSha256)
       || !Number.isSafeInteger(body.reviewedTotalCents)
       || !["standard", "certified", "registered"].includes(String(body.reviewedMailClass))
       || body.userConfirmedCheckout !== true) {
@@ -224,7 +236,10 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
       if (!approved
         || approved.pdfSha256.toLowerCase() !== body.reviewedPdfSha256.toLowerCase()
         || approved.totalCents !== body.reviewedTotalCents
-        || approved.mailClass !== body.reviewedMailClass) {
+        || approved.mailClass !== body.reviewedMailClass
+        || approved.matterVersion !== body.reviewedMatterVersion
+        || typeof approved.enclosureManifestSha256 !== "string"
+        || approved.enclosureManifestSha256.toLowerCase() !== body.reviewedEnclosureManifestSha256.toLowerCase()) {
         return response(409, "debt_validation_approval_or_quote_changed");
       }
       // The domain function independently rechecks the current notice, intake,

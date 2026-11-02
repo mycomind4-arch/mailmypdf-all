@@ -186,6 +186,8 @@ export function createDebtValidationIntakeHttpHandler(deps: DebtValidationIntake
       });
       return reply(201, "packet_prepared_for_review", {
         matterId, pdfSha256: packet.pdfSha256,
+        matterVersion: packet.matterVersion,
+        enclosureManifestSha256: packet.enclosureManifestSha256,
         totalCents: packet.totalCents, mailClass: packet.mailClass,
       });
     } catch (error) {

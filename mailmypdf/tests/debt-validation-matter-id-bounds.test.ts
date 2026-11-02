@@ -15,6 +15,8 @@ const reviewed = {
   reviewedPdfSha256: "a".repeat(64),
   reviewedTotalCents: 2993,
   reviewedMailClass: "certified",
+  reviewedMatterVersion: 2,
+  reviewedEnclosureManifestSha256: "b".repeat(64),
 };
 
 test("debt-validation approval rejects oversized matter IDs before reading owner-scoped state", async () => {
