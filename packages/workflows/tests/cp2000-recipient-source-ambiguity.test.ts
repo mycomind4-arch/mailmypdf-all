@@ -53,7 +53,11 @@ const analysis: WorkflowMatterAnalysis = {
     suggestedEvidence: [],
     promptInjectionObserved: false,
     analyzedSourceSha256: source.sha256!,
-    workflowDetails: { responseAddress: recipient },
+    workflowDetails: {
+      noticeCode: "CP2000",
+      responseAddressProvenance: { pageNumber: 1, role: "postal_response" },
+      responseAddress: recipient,
+    },
   },
 };
 
@@ -273,6 +277,7 @@ test("CP2000 recipient must use the IRS addressee when the notice has no explici
     result: {
       ...analysis.result,
       workflowDetails: {
+        ...analysis.result.workflowDetails,
         responseAddress: {
           line1: recipient.line1,
           city: recipient.city,
@@ -335,7 +340,7 @@ test("CP2000 approval rejects invisible or multiline characters in the extracted
       ...analysis,
       result: {
         ...analysis.result,
-        workflowDetails: { responseAddress: corruptedRecipient },
+        workflowDetails: { ...analysis.result.workflowDetails, responseAddress: corruptedRecipient },
       },
     };
     assert.throws(
@@ -442,4 +447,74 @@ test("CP2000 approval rejects source bytes replaced after analysis but before fi
       error.code === "CP2000_ANALYZED_SOURCE_CHANGED",
     "legacy CP2000 analyses without trusted analyzed-byte provenance must fail closed",
   );
+});
+
+test("CP2000 approval refuses missing, other-notice and ambiguous notice codes", () => {
+  for (const noticeCode of [undefined, null, "", "CP14", "CP504", "unknown"]) {
+    const unverified: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: {
+        ...analysis.result,
+        workflowDetails: { ...analysis.result.workflowDetails, noticeCode },
+      },
+    };
+    assert.throws(
+      () => confirmCp2000Recipient({
+        confirmedFromNotice: true, recipient, analysis: unverified, documents: [source],
+      }),
+      (error: unknown) => error instanceof Error && "code" in error &&
+        error.code === "CP2000_NOTICE_CODE_UNVERIFIED",
+      `notice code ${String(noticeCode)} must not be treated as CP2000`,
+    );
+  }
+});
+
+test("CP2000 approval refuses missing, later-page, fax and payment-only response destinations", () => {
+  for (const responseAddressProvenance of [
+    undefined, null, { pageNumber: 2, role: "postal_response" },
+    { pageNumber: 1, role: "fax" }, { pageNumber: 1, role: "payment" },
+    { pageNumber: 1, role: "other" },
+  ]) {
+    const unverified: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: {
+        ...analysis.result,
+        workflowDetails: { ...analysis.result.workflowDetails, responseAddressProvenance },
+      },
+    };
+    assert.throws(
+      () => confirmCp2000Recipient({
+        confirmedFromNotice: true, recipient, analysis: unverified, documents: [source],
+      }),
+      (error: unknown) => error instanceof Error && "code" in error &&
+        error.code === "CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED",
+    );
+  }
+});
+
+test("CP2000 checkout rechecks notice identity and postal page role after approval", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-provenance", matterId: "matter-1",
+    workflowId: "cp2000-response", packetSha256: "c".repeat(64),
+    totalCents: 299, recipient, mailClass: "certified",
+    approvedBy: "owner-1", approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.doesNotThrow(() => assertApprovedCp2000Recipient({ approval, analysis, documents: [source] }));
+  for (const change of [
+    { noticeCode: "CP504" },
+    { responseAddressProvenance: { pageNumber: 1, role: "fax" } },
+  ]) {
+    const changed: WorkflowMatterAnalysis = {
+      ...analysis,
+      result: { ...analysis.result, workflowDetails: { ...analysis.result.workflowDetails, ...change } },
+    };
+    assert.throws(
+      () => assertApprovedCp2000Recipient({ approval, analysis: changed, documents: [source] }),
+      /CP2000|controlling notice|postal response/i,
+    );
+  }
 });
