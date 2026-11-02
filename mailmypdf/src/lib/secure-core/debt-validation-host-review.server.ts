@@ -14,10 +14,30 @@ import {
   createDebtValidationPacketReviewHttpHandler,
   type DebtValidationCheckoutHttpDependencies,
 } from "./debt-validation-approval-http.server";
+import {
+  createDebtValidationIntakeHttpHandler,
+  type DebtValidationIntakeHttpDependencies,
+} from "./debt-validation-intake-http.server";
 import type { DebtValidationMatterRepository } from "../../../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
 type VerifiedUser = { user: { id: string } };
 type VerifyUser = (request: Request) => Promise<VerifiedUser>;
+
+/**
+ * Unmounted authenticated intake bridge: derive the owner only from the
+ * existing host bearer verifier, never from browser-supplied matter data.
+ * The trusted host must still supply owner-scoped notice storage and an
+ * atomic create-only persistence adapter; no provider is configured here.
+ */
+export function createDebtValidationHostIntakeHandler(
+  input: Omit<DebtValidationIntakeHttpDependencies, "authenticate">,
+  verifyUser: VerifyUser = requireAuthenticatedUser,
+) {
+  return createDebtValidationIntakeHttpHandler({
+    ...input,
+    authenticate: verifiedActor(verifyUser),
+  });
+}
 
 export function createDebtValidationHostReviewAndApprovalHandlers(
   input: { repository: DebtValidationMatterRepository; allowedOrigin: string },

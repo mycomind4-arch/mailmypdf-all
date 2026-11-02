@@ -4,6 +4,8 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { generatePlainTextPdf } from "@mailmypdf/packet-builder";
 import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
+import { createDebtValidationHostIntakeHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
+import { AuthenticationError } from "../src/lib/secure-core/auth.server";
 import {
   prepareAndPersistDebtValidationMatter,
   createPostgresDebtValidationMatterRepository,
@@ -79,7 +81,9 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     return token === "Bearer synthetic" ? { id: ownerId }
       : token === "Bearer other-owner" ? { id: "other-owner" } : null;
   };
-  const handler = createDebtValidationIntakeHttpHandler({
+  // Exercise the actual unmounted host bearer-to-owner adapter for intake,
+  // not only the lower-level HTTP handler with a preselected actor.
+  const handler = createDebtValidationHostIntakeHandler({
     allowedOrigin: origin,
     authenticate,
     loadVerifiedNotice: async (owner, matter, document) => {
@@ -91,6 +95,10 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
       persistCalls += 1;
       return prepareAndPersistDebtValidationMatter(sql, input);
     },
+  }, async (request) => {
+    const actor = await authenticate(request);
+    if (!actor) throw new AuthenticationError("synthetic_invalid_bearer");
+    return { user: { id: actor.id } };
   });
   const body = {
     matterId, noticeDocumentId: "notice-1", letterDate: "2026-10-30",
@@ -107,6 +115,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
       body: JSON.stringify(value),
     }));
   assert.equal((await post(body, "")).status, 401);
+  assert.equal((await post(body, "Bearer other-owner")).status, 404,
+    "host-verified other owner cannot load the controlling notice");
   assert.equal((await post(body, "Bearer synthetic", "https://evil.example")).status, 403);
   assert.equal((await post({ ...body, ownerId: "other-owner" })).status, 400);
   assert.equal((await post({ ...body, totalCents: 1 })).status, 400);
