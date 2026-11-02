@@ -112,7 +112,7 @@ function assertCp2000NoticeProvenance(analysis: WorkflowMatterAnalysis): void {
       "CP2000_NOTICE_CODE_UNVERIFIED",
     );
   }
-  const provenance = details?.responseAddressProvenance;
+  const provenance = details?.responseAddressProvenance as Record<string, unknown> | null | undefined;
   if (!provenance || typeof provenance !== "object" || Array.isArray(provenance) ||
       provenance.pageNumber !== 1 || provenance.role !== "postal_response") {
     throw new WorkflowRuntimeError(
