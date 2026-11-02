@@ -283,9 +283,14 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
     // An omitted Origin remains valid for direct same-origin navigation, but a
     // supplied foreign/null Origin must never reach owner-scoped PDF storage.
     const suppliedOrigin = request.headers.get("origin");
+    // Same-site is not the same as same-origin: a sibling subdomain may be
+    // controlled independently. Only direct user navigation ("none") and
+    // actual same-origin requests may reach private document storage.
+    // Fail closed for malformed/unknown Fetch Metadata values as well.
+    const fetchSite = request.headers.get("sec-fetch-site");
     if (url.origin !== deps.allowedOrigin
       || (suppliedOrigin !== null && suppliedOrigin !== deps.allowedOrigin)
-      || request.headers.get("sec-fetch-site") === "cross-site") {
+      || (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none")) {
       return response(403, "origin_not_allowed");
     }
     let actor: AuthenticatedActor | null;
