@@ -4,6 +4,7 @@ import {
   createDebtValidationApprovalHttpHandler,
   createDebtValidationCheckoutHttpHandler,
 } from "../src/lib/secure-core/debt-validation-approval-http.server";
+import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
 import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
 const origin = "https://mailmypdf.example";
@@ -132,6 +133,43 @@ test("debt-validation approval and checkout enforce actual streamed body size de
       assert.equal(repositoryReads, 0, "oversized stream cannot read owner-scoped matter data");
       assert.equal(providerSubmissions, 0, "oversized stream cannot submit mocked providers");
       assert.equal(receiptReads, 0, "oversized stream cannot reconcile receipts");
+    });
+  }
+});
+
+test("debt-validation intake enforces streamed body size before trusted notice access", async (t) => {
+  let noticeReads = 0;
+  let packetWrites = 0;
+  const handler = createDebtValidationIntakeHttpHandler({
+    allowedOrigin: origin,
+    authenticate: async () => ({ id: "synthetic-owner" }),
+    loadVerifiedNotice: async () => {
+      noticeReads++;
+      throw new Error("oversized_body_must_not_read_notice");
+    },
+    persistPreparedMatter: async () => {
+      packetWrites++;
+      throw new Error("oversized_body_must_not_persist_packet");
+    },
+  });
+  // Unlike a declared-size-only guard, this must reject the ACTUAL stream
+  // even when the client omits or lies about Content-Length. It must do so
+  // before touching the owner-scoped notice vault or preparing any PDF.
+  for (const declaredLength of [undefined, "1"] as const) {
+    await t.test(declaredLength === undefined ? "no declared length" : "understated length", async () => {
+      const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+        method: "POST",
+        headers: {
+          origin,
+          "content-type": "application/json",
+          ...(declaredLength === undefined ? {} : { "content-length": declaredLength }),
+        },
+        body: JSON.stringify({ padding: "x".repeat(8193) }),
+      }));
+      assert.equal(response.status, 413);
+      assert.equal((await response.json()).code, "body_too_large");
+      assert.equal(noticeReads, 0, "rejected intake must not read the controlling notice");
+      assert.equal(packetWrites, 0, "rejected intake must not persist a packet");
     });
   }
 });
