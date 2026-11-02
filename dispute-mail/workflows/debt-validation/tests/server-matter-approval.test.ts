@@ -141,9 +141,41 @@ function fakeStore() {
   return { state, repository };
 }
 
+
+test("debt-validation matter: domain-only approval requires exact reviewed revision and enclosure manifest", async () => {
+  for (const identity of [
+    { reviewedMatterVersion: undefined, reviewedEnclosureManifestSha256: undefined },
+    { reviewedMatterVersion: undefined, reviewedEnclosureManifestSha256: c },
+    { reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: undefined },
+    { reviewedMatterVersion: 3, reviewedEnclosureManifestSha256: c },
+    { reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: d },
+  ]) {
+    const { state, repository } = fakeStore();
+    let pdfReads = 0;
+    const originalRead = repository.loadPacketPdfBytes;
+    repository.loadPacketPdfBytes = async (ownerId, matterId) => {
+      pdfReads++;
+      return originalRead(ownerId, matterId);
+    };
+    await assert.rejects(
+      approveDebtValidationMatter({
+        ownerId: "owner-1", matterId: "matter-1", repository,
+        reviewedPdfSha256: b, reviewedTotalCents: 1499,
+        reviewedMailClass: "certified", userApprovedExactPacket: true,
+        ...identity,
+      }),
+      /debt_validation_reviewed_packet_identity_mismatch/,
+      "a matching PDF digest and quote cannot replace explicit packet identity",
+    );
+    assert.equal(pdfReads, 0, "invalid packet identity rejects before stored PDF reads");
+    assert.equal(state.saves, 0, "invalid packet identity cannot persist consent");
+    assert.equal(state.approval, null);
+  }
+});
+
 test("debt-validation matter: confirmed exact reviewed packet persists and uses stable checkout idempotency", async () => {
   const { state, repository } = fakeStore();
-  const binding = await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+  const binding = await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   });
   assert.equal(state.saves, 1);
@@ -183,13 +215,13 @@ test("debt-validation matter: absent state, unconfirmed recipient and mismatched
   ]) {
     const { state, repository } = fakeStore();
     mutate(state);
-    await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+    await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
       ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
     }), /debt_validation_/);
     assert.equal(state.saves, 0);
   }
   const { state, repository } = fakeStore();
-  await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+  await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: d, repository,
   }), /debt_validation_unreviewed_packet/);
   assert.equal(state.saves, 0);
@@ -213,7 +245,7 @@ test("debt-validation matter: every stale checkout fails before mocked Stripe or
   let lobCalls = 0;
   for (const mutate of mutations) {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
       ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
     });
     mutate(state.snapshot!);
@@ -233,7 +265,7 @@ test("debt-validation matter: no stored approval or no current snapshot blocks c
   await assert.rejects(checkoutDebtValidationMatter({
     ownerId: "owner-1", matterId: "matter-1", repository, checkout,
   }), /debt_validation_approval_missing/);
-  await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+  await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   });
   state.snapshot = null;
@@ -266,7 +298,7 @@ test("debt-validation matter: same-version notice or packet edits during approva
       mutate(state.snapshot!); // Same matterVersion, but state changed before atomic persist.
       return reviewed;
     };
-    await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository,
     }), /debt_validation_/);
@@ -291,7 +323,7 @@ test("debt-validation matter: optimistic matter revision conflict prevents durab
     state.snapshot!.packet.matterVersion++;
     return result;
   };
-  await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
+  await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified", userApprovedExactPacket: true,
     ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b, repository,
   }), /debt_validation_concurrent_change/);
   assert.equal(state.saves, 0);
@@ -302,7 +334,7 @@ test("debt-validation matter: explicit exact-packet approval is required before 
     const { state, repository } = fakeStore();
     const explicitApproval = approvalSignal === undefined ? {} : { userApprovedExactPacket: approvalSignal };
     await assert.rejects(
-      approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+      approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
         ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b,
         repository, ...explicitApproval,
       }),
@@ -325,7 +357,7 @@ test("debt-validation matter: atomic claim rejects edits between preflight and p
   let mailingCalls = 0;
   for (const change of changes) {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository,
     });
@@ -368,7 +400,7 @@ test("debt-validation matter: atomic guards reject a fully readdressed valid not
       changeAddress(state.snapshot!); // Concurrent update before atomic approval insert.
       return previouslyReviewed;
     };
-    await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository,
     }), /debt_validation_concurrent_approval_change/);
@@ -378,7 +410,7 @@ test("debt-validation matter: atomic guards reject a fully readdressed valid not
 
   {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository,
     });
@@ -406,14 +438,14 @@ test("debt-validation matter: missing or altered stored PDF bytes fail closed be
   for (const replacement of [null, new TextEncoder().encode("%PDF-1.4\\nChanged letter\\n%%EOF")]) {
     const beforeApproval = fakeStore();
     beforeApproval.state.pdfBytes = replacement;
-    await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository: beforeApproval.repository,
     }), /debt_validation_persisted_pdf_changed/);
     assert.equal(beforeApproval.state.saves, 0);
 
     const beforeCheckout = fakeStore();
-    await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, repository: beforeCheckout.repository,
     });
@@ -437,14 +469,14 @@ test("debt-validation matter: same-version PDF replacement during atomic approva
     beforeApproval.state.pdfBytes = changed;
     return previouslyReviewed;
   };
-  await assert.rejects(approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+  await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
     userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
     reviewedPdfSha256: b, repository: beforeApproval.repository,
   }), /debt_validation_persisted_pdf_changed/);
   assert.equal(beforeApproval.state.saves, 0);
 
   const beforeCheckout = fakeStore();
-  await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+  await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
     userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
     reviewedPdfSha256: b, repository: beforeCheckout.repository,
   });
@@ -479,7 +511,7 @@ test("debt-validation matter: missing or mismatched durable order-claim receipts
   let lobCalls = 0;
   for (const corrupt of corruptions) {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
       ownerId: "owner-1", matterId: "matter-1", reviewedPdfSha256: b,
       userApprovedExactPacket: true, repository,
     });
@@ -504,7 +536,7 @@ test("debt-validation matter: missing or mismatched durable order-claim receipts
 
 test("debt-validation matter: reused durable claim must not submit payment or mail a second time", async () => {
   const { state, repository } = fakeStore();
-  await approveDebtValidationMatter({ reviewedTotalCents: 1499, reviewedMailClass: "certified",
+  await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c, reviewedTotalCents: 1499, reviewedMailClass: "certified",
     userApprovedExactPacket: true, ownerId: "owner-1", matterId: "matter-1",
     reviewedPdfSha256: b, repository,
   });
@@ -534,7 +566,7 @@ test("debt-validation matter: explicit approval must match the reviewed price an
   ]) {
     const { state, repository } = fakeStore();
     await assert.rejects(
-      approveDebtValidationMatter({
+      approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c,
         ownerId: "owner-1", matterId: "matter-1", repository,
         reviewedPdfSha256: b, userApprovedExactPacket: true,
         ...reviewed,
@@ -556,7 +588,7 @@ test("debt-validation matter: hidden line controls in persisted envelope metadat
     const injected = address.replace("PO Box", "PO" + hidden + "Box");
     const beforeApproval = fakeStore();
     beforeApproval.state.snapshot!.packet.recipientAddress = injected;
-    await assert.rejects(approveDebtValidationMatter({
+    await assert.rejects(approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c,
       ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, reviewedTotalCents: 1499,
       reviewedMailClass: "certified", userApprovedExactPacket: true,
@@ -565,7 +597,7 @@ test("debt-validation matter: hidden line controls in persisted envelope metadat
     assert.equal(beforeApproval.state.saves, 0, "No approval for altered postal bytes");
 
     const beforeCheckout = fakeStore();
-    await approveDebtValidationMatter({
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c,
       ownerId: "owner-1", matterId: "matter-1",
       reviewedPdfSha256: b, reviewedTotalCents: 1499,
       reviewedMailClass: "certified", userApprovedExactPacket: true,
@@ -592,7 +624,7 @@ test("debt-validation matter: corrupted persisted approval recipient cannot auth
   // normalization previously treated these distinct postal bytes as equal.
   for (const replacement of ["PO\u2028BOX", "PO\tBOX", "PO  BOX"]) {
     const { state, repository } = fakeStore();
-    await approveDebtValidationMatter({
+    await approveDebtValidationMatter({ reviewedMatterVersion: 2, reviewedEnclosureManifestSha256: c,
       ownerId: "owner-1", matterId: "matter-1", repository,
       reviewedPdfSha256: b, reviewedTotalCents: 1499,
       reviewedMailClass: "certified", userApprovedExactPacket: true,
