@@ -5,6 +5,7 @@
 // case discloses its contents once rather than once per step.
 
 import type { AuthenticatedUserContext } from "./auth.server";
+import { computeSha256 } from "@mailmypdf/documents";
 import {
   analyzeCp2000Notice,
   buildCp2000EvidenceChecklist,
@@ -82,6 +83,14 @@ export async function runNoticeAnalysisModel(
   if (!notice) throw new CaseNotFoundError("This case has no notice to analyse yet");
 
   const document = await loadDisclosableDocument(caseId, notice.document_id, context);
+  // Bind CP2000 analysis to the bytes actually verified and disclosed to the model,
+  // not merely the digest currently registered when a later approval is requested.
+  const analyzedSourceSha256 = workflow.id === "cp2000-response"
+    ? computeSha256(Buffer.from(document.base64, "base64"))
+    : null;
+  if (analyzedSourceSha256 && analyzedSourceSha256 !== notice.sha256) {
+    throw new CaseError("The controlling notice changed during analysis. Analyze it again.");
+  }
 
   const { text, model } = await askModelAboutDocument({
     document,
@@ -101,6 +110,11 @@ export async function runNoticeAnalysisModel(
       "irsReportedIncome (string or null), incomeSource (string or null), " +
       "paymentInstructions (string or null), and responseAddress " +
       "(null or { line1, line2, city, state, postal }, using the exact response address printed on the notice)" +
+      (workflow.id === "cp2000-response"
+        ? ", noticeCode (exact notice code visibly printed, e.g. CP2000, CP14 or CP504; null if unreadable), " +
+          "responseAddressProvenance (null or { pageNumber: positive integer, role: \"postal_response\" | \"payment\" | \"fax\" | \"other\" }; " +
+          "report the actual printed page and purpose, never infer page one or mailing purpose)"
+        : "") +
       (workflow.analysisDetailFields ? `, and also ${workflow.analysisDetailFields}` : "") +
       ". " +
       "Use workflowDetails only for facts actually printed in the notice; use null or [] rather than guessing. Return JSON only.",
@@ -115,8 +129,8 @@ export async function runNoticeAnalysisModel(
           ...parsed.workflowDetails,
           cp2000Analysis: (() => {
             const noticeFacts = {
-              isCp2000: true,
-              classificationConfidence: 1,
+              isCp2000: parsed.workflowDetails.noticeCode === "CP2000",
+              classificationConfidence: parsed.workflowDetails.noticeCode === "CP2000" ? 1 : 0,
               taxYear: parsed.workflowDetails.taxYear,
               responseDate: parsed.deadline,
               proposedTax: parsed.workflowDetails.proposedTax,
@@ -137,7 +151,13 @@ export async function runNoticeAnalysisModel(
       })
     : parsed;
 
-  return { documentId: notice.document_id, model, result };
+  return {
+    documentId: notice.document_id,
+    model,
+    result: analyzedSourceSha256
+      ? validateNoticeAnalysis({ ...result, analyzedSourceSha256 })
+      : result,
+  };
 }
 
 /** Records a previously-computed analysis conclusion. See runNoticeAnalysisModel. */
@@ -316,8 +336,8 @@ export async function generateDraftResponse(
     ? (() => {
         const details = analysis.result.workflowDetails;
         const noticeFacts = {
-          isCp2000: true,
-          classificationConfidence: 1,
+          isCp2000: details.noticeCode === "CP2000",
+          classificationConfidence: details.noticeCode === "CP2000" ? 1 : 0,
           taxYear: details.taxYear,
           responseDate: analysis.result.deadline,
           proposedTax: details.proposedTax,
@@ -364,8 +384,8 @@ export async function generateDraftResponse(
     ? validateCp2000Draft({
         draft: bodyText,
         notice: {
-          isCp2000: true,
-          classificationConfidence: 1,
+          isCp2000: analysis.result.workflowDetails.noticeCode === "CP2000",
+          classificationConfidence: analysis.result.workflowDetails.noticeCode === "CP2000" ? 1 : 0,
           taxYear: analysis.result.workflowDetails.taxYear,
           responseDate: analysis.result.deadline,
           proposedTax: analysis.result.workflowDetails.proposedTax,
@@ -377,8 +397,8 @@ export async function generateDraftResponse(
           incomeSource: analysis.result.workflowDetails.incomeSource,
         },
         analysis: analysis.result.workflowDetails.cp2000Analysis ?? analyzeCp2000Notice({
-          isCp2000: true,
-          classificationConfidence: 1,
+          isCp2000: analysis.result.workflowDetails.noticeCode === "CP2000",
+          classificationConfidence: analysis.result.workflowDetails.noticeCode === "CP2000" ? 1 : 0,
           taxYear: analysis.result.workflowDetails.taxYear,
           responseDate: analysis.result.deadline,
           proposedTax: analysis.result.workflowDetails.proposedTax,
