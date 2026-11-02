@@ -193,7 +193,7 @@ test("CP2000 checkout revokes recipient confirmation when transcribed notice dat
       () => assertApprovedCp2000Recipient({
         approval, analysis: staleAnalysis, documents: [source],
       }),
-      /CP2000_ANALYZED_SOURCE_CHANGED|differ from the analyzed source/i,
+      /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
       "a changed notice date/deadline must require fresh review even when the source ID and response address match",
     );
   }
@@ -400,7 +400,7 @@ test("CP2000 source-byte digest changes revoke approval even when source metadat
     () => assertApprovedCp2000Recipient({
       approval, analysis, documents: [changedBytes],
     }),
-    /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
+    /CP2000_ANALYZED_SOURCE_CHANGED|differ from the analyzed source/i,
     "a different registered SHA-256 must revoke the original approval",
   );
 });
