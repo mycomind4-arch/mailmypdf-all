@@ -159,10 +159,20 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     headers: { authorization: "Bearer synthetic" },
   }));
   assert.equal(summary.status, 200);
-  const snapshot = await summary.json() as { pdfSha256: string; recipientAddress: string; totalCents: number };
+  const snapshot = await summary.json() as {
+    pdfSha256: string; recipientAddress: string; totalCents: number;
+    matterVersion: number; enclosureManifestSha256: string;
+  };
   assert.equal(snapshot.pdfSha256, result.pdfSha256);
   assert.equal(snapshot.recipientAddress, address);
   assert.equal(snapshot.totalCents, result.totalCents);
+  // The exact PDF and envelope/quote summary must identify the same durable
+  // revision and enclosure manifest, not just the same letter digest.
+  const persisted = await repository.loadCurrent(ownerId, matterId);
+  assert.ok(persisted);
+  assert.equal(snapshot.matterVersion, persisted.packet.matterVersion);
+  assert.equal(snapshot.enclosureManifestSha256, persisted.packet.enclosureManifestSha256);
+  assert.match(snapshot.enclosureManifestSha256, /^[a-f0-9]{64}$/);
   // The same authenticated intake must expose the ACTUAL server-stored PDF,
   // not only a digest/quote or an unrelated browser-generated preview.
   const reviewUrl = origin + "/api/debt-validation/review?matterId=" + matterId;
@@ -172,6 +182,8 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(pdfReview.status, 200);
   assert.equal(pdfReview.headers.get("content-type"), "application/pdf");
   assert.equal(pdfReview.headers.get("x-reviewed-pdf-sha256"), result.pdfSha256);
+  assert.equal(pdfReview.headers.get("x-reviewed-matter-version"), String(snapshot.matterVersion));
+  assert.equal(pdfReview.headers.get("x-reviewed-enclosure-manifest-sha256"), snapshot.enclosureManifestSha256);
   const reviewedPdfBytes = new Uint8Array(await pdfReview.arrayBuffer());
   assert.equal(sha(reviewedPdfBytes), result.pdfSha256,
     "the exact prepared server PDF must be the bytes served for review");
