@@ -179,6 +179,13 @@ test("debt-validation migration enforces exact checkout FKs, one handoff and glo
     /duplicate key/,
   );
   await receipt(db, ownerA, keyA, "mailing", "mock_lob", "letter_unique");
+  // With payment already recorded for B, reserve its own handoff before
+  // testing cross-owner provider-reference uniqueness. The SQL stage guard
+  // must not mask the actual uniqueness assertion.
+  await db.query(
+    "insert into public.debt_validation_mailing_handoffs(owner_id,matter_id,checkout_key) values ($1,$2,$3)",
+    [ownerB, matter, keyB],
+  );
   await assert.rejects(
     receipt(db, ownerB, keyB, "mailing", "MOCK_LOB", "letter_unique"),
     /duplicate key/,
