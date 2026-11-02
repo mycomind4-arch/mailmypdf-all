@@ -272,6 +272,66 @@ test("debt-validation SQL refuses mailing handoff or receipt until payment and r
   assert.deepEqual(recorded.rows.map((row) => row.kind), ["mailing", "payment"]);
 });
 
+test("debt-validation migration scopes both provider-ledger tables to the authenticated owner", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  for (const [ownerId, checkoutKey, suffix] of [
+    [ownerA, keyA, "a"],
+    [ownerB, keyB, "b"],
+  ] as const) {
+    await seed(db, ownerId);
+    await claim(db, ownerId, checkoutKey);
+    await receipt(db, ownerId, checkoutKey, "payment", "mock_stripe", "pi_owner_" + suffix);
+    await db.query(
+      "insert into public.debt_validation_mailing_handoffs(owner_id,matter_id,checkout_key) values ($1,$2,$3)",
+      [ownerId, matter, checkoutKey],
+    );
+    await receipt(db, ownerId, checkoutKey, "mailing", "mock_lob", "letter_owner_" + suffix);
+  }
+
+  // Exercise the exact migration's GRANTs and RLS policies as a browser role,
+  // not as the privileged fixture setup role that bypasses owner isolation.
+  await db.exec(`set role authenticated; set request.jwt.claim.sub = '${ownerA}';`);
+  for (const [table, expectedCount] of [
+    ["debt_validation_mailing_handoffs", 1],
+    ["debt_validation_checkout_receipts", 2],
+  ] as const) {
+    const visible = await db.query<{ owner_id: string }>(
+      `select owner_id from public.${table} order by owner_id`,
+    );
+    assert.equal(visible.rows.length, expectedCount);
+    assert.ok(visible.rows.every((row) => row.owner_id === ownerA),
+      `${table} must expose only the authenticated owner's records`);
+    const foreign = await db.query(
+      `select owner_id from public.${table} where owner_id=$1`,
+      [ownerB],
+    );
+    assert.equal(foreign.rows.length, 0,
+      `${table} must not disclose a guessed other-owner receipt or handoff`);
+  }
+  await assert.rejects(
+    db.query("delete from public.debt_validation_checkout_receipts where owner_id=$1", [ownerA]),
+    /permission denied/,
+    "an authenticated browser cannot erase its own payment or mailing evidence",
+  );
+  await assert.rejects(
+    db.query("delete from public.debt_validation_mailing_handoffs where owner_id=$1", [ownerA]),
+    /permission denied/,
+    "an authenticated browser cannot erase its own mailing reservation",
+  );
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+
+  await db.exec("set role anon;");
+  for (const table of ["debt_validation_mailing_handoffs", "debt_validation_checkout_receipts"]) {
+    await assert.rejects(
+      db.query(`select owner_id from public.${table}`),
+      /permission denied/,
+      `anonymous clients must not read ${table}`,
+    );
+  }
+  await db.exec("reset role;");
+});
+
 test("debt-validation migration rejects duplicate matter creation under overlapping attempts", async (t) => {
   const db = await setup();
   t.after(() => db.close());
