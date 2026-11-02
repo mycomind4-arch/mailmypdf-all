@@ -131,7 +131,7 @@ export type Database = {
         Update: { [_ in never]: never }
         Relationships: [
           {
-            foreignKeyName: "debt_validation_mailing_handoffs_owner_id_matter_id_checkout_key_fkey"
+            foreignKeyName: "debt_validation_handoff_checkout_fk"
             columns: ["owner_id", "matter_id", "checkout_key"]
             isOneToOne: true
             referencedRelation: "debt_validation_matter_snapshots"
@@ -145,7 +145,7 @@ export type Database = {
         Update: { [_ in never]: never }
         Relationships: [
           {
-            foreignKeyName: "debt_validation_checkout_receipts_owner_id_matter_id_checkout_key_fkey"
+            foreignKeyName: "debt_validation_receipt_checkout_fk"
             columns: ["owner_id", "matter_id", "checkout_key"]
             isOneToOne: false
             referencedRelation: "debt_validation_matter_snapshots"
