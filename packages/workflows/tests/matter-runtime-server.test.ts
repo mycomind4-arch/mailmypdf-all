@@ -814,6 +814,7 @@ async function cp2000ApprovalFixture() {
     role: "subject_notice", evidenceKind: null, pageCount: 3,
     included: true, position: 0, filename: "cp2000-notice.pdf",
     mimeType: "application/pdf", sizeBytes: 1200,
+    sha256: "a".repeat(64),
     securityStatus: "clean", usable: true,
   };
   await deps.store.replaceDocuments("user-1", matterId, [source]);
@@ -947,6 +948,21 @@ test("CP2000 notice-bound recipient confirmation: source replacement or recipien
     assert.match((await body(checkout)).code, /CP2000_RECIPIENT_CONFIRMATION_STALE|CP2000_RECIPIENT_MISMATCH/);
     assert.equal(deps.checkoutCalls.count, 0, scenario);
   }
+});
+
+test("CP2000 authenticated checkout rejects changed source bytes with identical notice metadata", async () => {
+  const { deps, post, approvalBody, matterId, source } = await cp2000ApprovalFixture();
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200, JSON.stringify(await approved.clone().json()));
+  const approvalId = (await body(approved)).approvalId as string;
+  const alteredSource = { ...source, sha256: "b".repeat(64) };
+  assert.equal(alteredSource.documentId, source.documentId);
+  assert.equal(alteredSource.sizeBytes, source.sizeBytes);
+  await deps.store.replaceDocuments("user-1", matterId, [alteredSource]);
+  const refused = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(refused.status, 409);
+  assert.equal((await body(refused)).code, "CP2000_RECIPIENT_CONFIRMATION_STALE");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked payment or provider handoff");
 });
 
 test("CP2000 HTTP approval and checkout reject hidden printable-destination changes without a provider handoff", async () => {
