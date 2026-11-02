@@ -103,7 +103,13 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
     if (request.method !== "POST") return response(405, "method_not_allowed");
     // Cookies must not authorize a cross-origin POST. The trusted origin is
     // supplied by server configuration, never by the request or its Host header.
-    if (request.headers.get("origin") !== deps.allowedOrigin) {
+    // Fetch Metadata is an additional browser-origin guard. A sibling
+    // subdomain is same-site but not same-origin; reject it before auth,
+    // owner-scoped storage, consent, or a provider callback. Requests from
+    // non-browser clients may omit this header but still require Origin.
+    const fetchSite = request.headers.get("sec-fetch-site");
+    if (request.headers.get("origin") !== deps.allowedOrigin
+      || (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none")) {
       return response(403, "origin_not_allowed");
     }
     let actor: AuthenticatedActor | null;
@@ -197,7 +203,13 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
   }
   return async (request: Request): Promise<Response> => {
     if (request.method !== "POST") return response(405, "method_not_allowed");
-    if (request.headers.get("origin") !== deps.allowedOrigin) {
+    // Fetch Metadata is an additional browser-origin guard. A sibling
+    // subdomain is same-site but not same-origin; reject it before auth,
+    // owner-scoped storage, consent, or a provider callback. Requests from
+    // non-browser clients may omit this header but still require Origin.
+    const fetchSite = request.headers.get("sec-fetch-site");
+    if (request.headers.get("origin") !== deps.allowedOrigin
+      || (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none")) {
       return response(403, "origin_not_allowed");
     }
     let actor: AuthenticatedActor | null;

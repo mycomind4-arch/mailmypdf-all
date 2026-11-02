@@ -4,6 +4,7 @@ import {
   createDebtValidationApprovalHttpHandler,
   createDebtValidationCheckoutHttpHandler,
 } from "../src/lib/secure-core/debt-validation-approval-http.server";
+import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
 import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
 // Isolated boundary regression: no hosted database, provider, payment or mail.
@@ -106,4 +107,53 @@ test("checkout rejects missing or changed reviewed packet identity before any or
   assert.equal(reads, 2);
   assert.equal(submissions, 0);
   assert.equal(reconciliations, 0);
+});
+
+test("intake, approval and checkout reject sibling-site and malformed Fetch Metadata before auth or side effects", async () => {
+  let authenticationCalls = 0;
+  let trustedNoticeReads = 0;
+  let approvalReads = 0;
+  let providerCalls = 0;
+  const authenticate = async () => {
+    authenticationCalls++;
+    return { id: "synthetic-owner" };
+  };
+  const repository = {
+    loadApproval: async () => { approvalReads++; return null; },
+    loadCurrent: async () => { approvalReads++; return null; },
+  } as unknown as DebtValidationMatterRepository;
+  const handlers: Array<{ name: string; handle: (request: Request) => Promise<Response> }> = [
+    { name: "intake", handle: createDebtValidationIntakeHttpHandler({
+      allowedOrigin: origin,
+      authenticate,
+      loadVerifiedNotice: async () => { trustedNoticeReads++; return null; },
+      persistPreparedMatter: async () => { throw new Error("unexpected_persistence"); },
+    }) },
+    { name: "approval", handle: createDebtValidationApprovalHttpHandler({
+      allowedOrigin: origin, authenticate, repository,
+    }) },
+    { name: "checkout", handle: createDebtValidationCheckoutHttpHandler({
+      allowedOrigin: origin, authenticate, repository,
+      submitNewClaim: async () => { providerCalls++; return "pending"; },
+      reconcileClaim: async () => { providerCalls++; return "pending"; },
+    }) },
+  ];
+  for (const { name, handle } of handlers) {
+    const request = (site: string) => new Request(origin + "/api/debt-validation/" + name, {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", "sec-fetch-site": site },
+      body: "{}",
+    });
+    for (const site of ["same-site", "cross-site", "invalid-metadata"]) {
+      const blocked = await handle(request(site));
+      assert.equal(blocked.status, 403, name + " must reject " + site);
+      assert.equal((await blocked.json() as { code: string }).code, "origin_not_allowed");
+    }
+    // A legitimate same-origin request still reaches ordinary body validation.
+    assert.equal((await handle(request("same-origin"))).status, 400);
+  }
+  assert.equal(authenticationCalls, 3, "rejected requests never authenticate");
+  assert.equal(trustedNoticeReads, 0, "rejected requests never load source documents");
+  assert.equal(approvalReads, 0, "rejected requests never read approvals");
+  assert.equal(providerCalls, 0, "rejected requests never charge or submit mail");
 });

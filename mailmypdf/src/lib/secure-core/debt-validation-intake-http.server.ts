@@ -115,7 +115,13 @@ export function createDebtValidationIntakeHttpHandler(deps: DebtValidationIntake
   }
   return async (request: Request): Promise<Response> => {
     if (request.method !== "POST") return reply(405, "method_not_allowed");
-    if (request.headers.get("origin") !== deps.allowedOrigin) {
+    // Fetch Metadata is an additional browser-origin guard. A sibling
+    // subdomain is same-site but not same-origin; reject it before auth,
+    // owner-scoped storage, consent, or a provider callback. Requests from
+    // non-browser clients may omit this header but still require Origin.
+    const fetchSite = request.headers.get("sec-fetch-site");
+    if (request.headers.get("origin") !== deps.allowedOrigin
+      || (fetchSite !== null && fetchSite !== "same-origin" && fetchSite !== "none")) {
       return reply(403, "origin_not_allowed");
     }
     let actor: { id: string } | null;
