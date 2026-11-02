@@ -829,7 +829,11 @@ async function cp2000ApprovalFixture() {
       reasons: [], missingInformation: [], suggestedEvidence: [],
       promptInjectionObserved: false,
       analyzedSourceSha256: source.sha256!,
-      workflowDetails: { responseAddress: { ...CP2000_RECIPIENT } },
+      workflowDetails: {
+        noticeCode: "CP2000",
+        responseAddressProvenance: { pageNumber: 1, role: "postal_response" },
+        responseAddress: { ...CP2000_RECIPIENT },
+      },
     },
   };
   await deps.store.saveAnalysis("user-1", matterId, analysis);
@@ -1120,4 +1124,51 @@ test("CP2000 authenticated approval refuses changed source bytes after analysis,
   assert.equal((await body(refused)).code, "CP2000_ANALYZED_SOURCE_CHANGED");
   assert.equal(deps.store.approvals.size, 0, "stale analysis must not mint an approval");
   assert.equal(deps.checkoutCalls.count, 0, "no mocked payment/provider handoff");
+});
+
+test("CP2000 HTTP approval refuses other IRS notice codes and nonpostal page provenance", async () => {
+  for (const change of [
+    { noticeCode: "CP14" },
+    { noticeCode: "CP504" },
+    { noticeCode: null },
+    { responseAddressProvenance: { pageNumber: 2, role: "postal_response" } },
+    { responseAddressProvenance: { pageNumber: 1, role: "fax" } },
+    { responseAddressProvenance: null },
+  ]) {
+    const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+    await deps.store.saveAnalysis("user-1", matterId, {
+      ...analysis,
+      result: {
+        ...analysis.result,
+        workflowDetails: { ...analysis.result.workflowDetails, ...change },
+      },
+    });
+    const refused = await post("approval", approvalBody);
+    assert.equal(refused.status, 409, JSON.stringify(change));
+    assert.match((await body(refused)).code,
+      /CP2000_NOTICE_CODE_UNVERIFIED|CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED/);
+    assert.equal(deps.store.approvals.size, 0, "no consent written for unverified source");
+    assert.equal(deps.checkoutCalls.count, 0, "no mocked checkout/provider handoff");
+  }
+});
+
+test("CP2000 HTTP checkout refuses notice reclassification after exact approval", async () => {
+  const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  await deps.store.saveAnalysis("user-1", matterId, {
+    ...analysis,
+    result: {
+      ...analysis.result,
+      workflowDetails: {
+        ...analysis.result.workflowDetails,
+        responseAddressProvenance: { pageNumber: 1, role: "payment" },
+      },
+    },
+  });
+  const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(checkout.status, 409);
+  assert.equal((await body(checkout)).code, "CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked provider handoff after source reclassification");
 });
