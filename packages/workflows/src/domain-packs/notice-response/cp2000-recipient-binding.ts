@@ -133,6 +133,16 @@ function sourceBinding(
       "CP2000_NOTICE_DIGEST_MISSING",
     );
   }
+  // A registered digest alone does not prove that this analysis describes
+  // those bytes. Fail closed on old analyses and same-ID post-analysis swaps.
+  if (typeof analysis.result.analyzedSourceSha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(analysis.result.analyzedSourceSha256) ||
+      analysis.result.analyzedSourceSha256 !== source.sha256.toLowerCase()) {
+    throw new WorkflowRuntimeError(
+      "The controlling CP2000 notice bytes differ from the analyzed source. Analyze the notice again before approval.",
+      "CP2000_ANALYZED_SOURCE_CHANGED",
+    );
+  }
   const destination = noticeAddress(analysis);
   return {
     sourceDocumentId: source.documentId,
