@@ -30,6 +30,7 @@ const source: WorkflowMatterDocument = {
   filename: "cp2000-one.pdf",
   mimeType: "application/pdf",
   sizeBytes: 1234,
+  sha256: "a".repeat(64),
   securityStatus: "clean",
   usable: true,
 };
@@ -370,4 +371,49 @@ test("CP2000 checkout rejects a persisted approved recipient with hidden trailin
     /printable|control|invalid/i,
     "normalization must not hide a changed printable envelope destination at checkout",
   );
+});
+
+test("CP2000 source-byte digest changes revoke approval even when source metadata and analysis are unchanged", () => {
+  const binding = confirmCp2000Recipient({
+    confirmedFromNotice: true, recipient, analysis, documents: [source],
+  });
+  const approval: ExactPacketApproval = {
+    approvalId: "approval-source-bytes",
+    matterId: "matter-1",
+    workflowId: "cp2000-response",
+    packetSha256: "c".repeat(64),
+    totalCents: 299,
+    recipient,
+    mailClass: "certified",
+    approvedBy: "owner-1",
+    approvedAt: "2026-10-30T00:00:00.000Z",
+    recipientConfirmation: binding,
+  };
+  assert.doesNotThrow(() => assertApprovedCp2000Recipient({
+    approval, analysis, documents: [source],
+  }));
+  const changedBytes = { ...source, sha256: "b".repeat(64) };
+  assert.equal(changedBytes.documentId, source.documentId);
+  assert.equal(changedBytes.sizeBytes, source.sizeBytes);
+  assert.throws(
+    () => assertApprovedCp2000Recipient({
+      approval, analysis, documents: [changedBytes],
+    }),
+    /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
+    "a different registered SHA-256 must revoke the original approval",
+  );
+});
+
+test("CP2000 approval fails closed when the trusted source digest is missing or malformed", () => {
+  for (const sha256 of [undefined, null, "", "not-a-digest"]) {
+    assert.throws(
+      () => confirmCp2000Recipient({
+        confirmedFromNotice: true,
+        recipient,
+        analysis,
+        documents: [{ ...source, sha256 }],
+      }),
+      /trusted source digest|CP2000_NOTICE_DIGEST_MISSING/i,
+    );
+  }
 });
