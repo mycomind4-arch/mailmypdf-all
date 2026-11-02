@@ -323,6 +323,18 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
     { label: "dispute text", value: { ...intake,
       disputeExplanation: "Different dispute and verification request.",
     } },
+    { label: "collector name", value: { ...intake,
+      collectorName: "Different Synthetic Collector",
+    } },
+    { label: "original creditor request", value: { ...intake,
+      requestOriginalCreditor: false,
+    } },
+    { label: "printed notice date", value: { ...intake,
+      noticeDate: "2026-10-11",
+    } },
+    { label: "printed dispute deadline", value: { ...intake,
+      noticeDisputeDeadline: "2026-11-10",
+    } },
   ];
   for (const { label, value } of changedApprovedIntakes) {
     await updateIntake(value);
