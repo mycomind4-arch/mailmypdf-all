@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createDebtValidationApprovalHttpHandler,
   createDebtValidationCheckoutHttpHandler,
+  createDebtValidationPacketReviewHttpHandler,
 } from "../src/lib/secure-core/debt-validation-approval-http.server";
 import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
 import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
@@ -172,4 +173,43 @@ test("debt-validation intake enforces streamed body size before trusted notice a
       assert.equal(packetWrites, 0, "rejected intake must not persist a packet");
     });
   }
+});
+
+test("debt-validation private PDF review rejects a foreign Origin before authentication or storage", async () => {
+  let authenticationCalls = 0;
+  let repositoryReads = 0;
+  const repository = {
+    loadReviewArtifact: async () => {
+      repositoryReads++;
+      return null;
+    },
+  } as unknown as DebtValidationMatterRepository;
+  const review = createDebtValidationPacketReviewHttpHandler({
+    allowedOrigin: origin,
+    authenticate: async () => {
+      authenticationCalls++;
+      return { id: "synthetic-owner" };
+    },
+    repository,
+  });
+  const url = origin + "/api/debt-validation/review?matterId=synthetic-matter";
+  for (const suppliedOrigin of ["https://attacker.example", "null"]) {
+    const denied = await review(new Request(url, {
+      headers: { origin: suppliedOrigin },
+    }));
+    assert.equal(denied.status, 403, suppliedOrigin);
+    assert.equal((await denied.json()).code, "origin_not_allowed");
+  }
+  assert.equal(authenticationCalls, 0, "foreign Origin must not invoke bearer verification");
+  assert.equal(repositoryReads, 0, "foreign Origin must not read a private PDF");
+
+  // Normal direct navigation has no Origin header. Explicit same-origin
+  // navigation is also allowed through the origin gate and reaches the
+  // owner-scoped lookup, which deliberately returns not found here.
+  for (const headers of [{}, { origin }]) {
+    const allowed = await review(new Request(url, { headers }));
+    assert.equal(allowed.status, 404);
+  }
+  assert.equal(authenticationCalls, 2);
+  assert.equal(repositoryReads, 2);
 });
