@@ -19,10 +19,10 @@ create table public.debt_validation_matter_snapshots (
   primary key (owner_id, matter_id),
   unique (owner_id, matter_id, checkout_key),
   check (checkout_key is null or approval is not null),
-  check (trusted_notice->>'ownerId' = owner_id::text
-    and trusted_notice->>'matterId' = matter_id),
-  check (packet->>'ownerId' = owner_id::text
-    and packet->>'matterId' = matter_id)
+  check ((trusted_notice->>'ownerId' = owner_id::text) is true
+    and (trusted_notice->>'matterId' = matter_id) is true),
+  check ((packet->>'ownerId' = owner_id::text) is true
+    and (packet->>'matterId' = matter_id) is true)
 );
 
 -- The exact controlling notice, intake and reviewed packet are create-only.
