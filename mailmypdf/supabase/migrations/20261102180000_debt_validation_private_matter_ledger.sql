@@ -117,8 +117,11 @@ create table public.debt_validation_checkout_receipts (
   checkout_key text not null,
   kind text not null check (kind in ('payment', 'mailing')),
   provider text not null check (provider ~ '^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$'),
+  -- A provider reference is an opaque token, not a display label. Reject
+  -- whitespace variants before the cross-order unique index is evaluated.
   provider_reference text not null
-    check (length(btrim(provider_reference)) between 1 and 256),
+    check (length(btrim(provider_reference)) between 1 and 256
+      and provider_reference !~ '[[:space:]]'),
   evidence_sha256 text not null check (evidence_sha256 ~ '^[0-9a-f]{64}$'),
   created_at timestamptz not null default now(),
   primary key (owner_id, matter_id, checkout_key, kind),
