@@ -193,7 +193,7 @@ test("CP2000 checkout revokes recipient confirmation when transcribed notice dat
       () => assertApprovedCp2000Recipient({
         approval, analysis: staleAnalysis, documents: [source],
       }),
-      /CP2000_RECIPIENT_CONFIRMATION_STALE|changed after approval/i,
+      /CP2000_ANALYZED_SOURCE_CHANGED|differ from the analyzed source/i,
       "a changed notice date/deadline must require fresh review even when the source ID and response address match",
     );
   }
