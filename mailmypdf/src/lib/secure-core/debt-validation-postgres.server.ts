@@ -341,6 +341,9 @@ function validateProviderReceipt(receipt: DebtValidationProviderReceipt): void {
       !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(receipt.provider) ||
       typeof receipt.providerReference !== "string" ||
       !receipt.providerReference.trim() ||
+      // Provider IDs are opaque tokens. Whitespace variants of one reference
+      // must not evade cross-order uniqueness or mislead receipt reconciliation.
+      /\s/u.test(receipt.providerReference) ||
       receipt.providerReference.length > 256 ||
       /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/u.test(receipt.providerReference) ||
       typeof receipt.evidenceSha256 !== "string" ||
