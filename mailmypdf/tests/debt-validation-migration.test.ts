@@ -110,6 +110,16 @@ test("debt-validation migration applies offline and owner-scoped RLS denies othe
 test("debt-validation migration freezes source/packet identity and makes approval and checkout one-way", async (t) => {
   const db = await setup();
   t.after(() => db.close());
+  await assert.rejects(
+    db.query(`insert into public.debt_validation_matter_snapshots
+      (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes)
+      values ($1,$2,'{}'::jsonb,$3::jsonb,$4::jsonb,$5::bytea,$6::bytea)`,
+      [ownerA, matter, JSON.stringify({ matterId: matter }),
+        JSON.stringify({ ownerId: ownerA, matterId: matter }),
+        new TextEncoder().encode("pdf"), new TextEncoder().encode("notice")]),
+    /check constraint/,
+    "missing trusted-notice owner identity must not pass SQL's nullable CHECK semantics",
+  );
   await seed(db, ownerA);
   await assert.rejects(
     db.query("update public.debt_validation_matter_snapshots set checkout_key=$3 where owner_id=$1 and matter_id=$2",
