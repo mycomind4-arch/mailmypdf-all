@@ -962,7 +962,7 @@ test("CP2000 authenticated checkout rejects changed source bytes with identical 
   await deps.store.replaceDocuments("user-1", matterId, [alteredSource]);
   const refused = await post("checkout", { approvalId, sender: CP2000_SENDER });
   assert.equal(refused.status, 409);
-  assert.equal((await body(refused)).code, "CP2000_RECIPIENT_CONFIRMATION_STALE");
+  assert.equal((await body(refused)).code, "CP2000_ANALYZED_SOURCE_CHANGED");
   assert.equal(deps.checkoutCalls.count, 0, "no mocked payment or provider handoff");
 });
 
