@@ -68,6 +68,42 @@ async function receipt(db: PGlite, ownerId: string, checkoutKey: string, kind: s
   );
 }
 
+test("debt-validation migration rejects preapproved matter creation even from a privileged SQL caller", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  const insertPreapproved = (approval: object | null, checkoutKey: string | null) => db.query(
+    `insert into public.debt_validation_matter_snapshots
+      (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes,approval,checkout_key)
+      values ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,$6::bytea,$7::bytea,$8::jsonb,$9)`,
+    [ownerA, matter, JSON.stringify({ recipientConfirmed: true }),
+      JSON.stringify({ ownerId: ownerA, matterId: matter, sha256: "a".repeat(64) }),
+      JSON.stringify({ ownerId: ownerA, matterId: matter, matterVersion: 1 }),
+      new TextEncoder().encode("%PDF-1.4\\nSynthetic response\\n%%EOF"),
+      new TextEncoder().encode("%PDF-1.4\\nSynthetic notice\\n%%EOF"),
+      approval === null ? null : JSON.stringify(approval), checkoutKey],
+  );
+  await assert.rejects(
+    insertPreapproved({ matterVersion: 1, pdfSha256: "a".repeat(64) }, null),
+    /debt_validation_initial_approval_forbidden/,
+    "privileged SQL must not fabricate approval during matter creation",
+  );
+  await assert.rejects(
+    insertPreapproved({ matterVersion: 1, pdfSha256: "a".repeat(64) }, keyA),
+    /debt_validation_initial_approval_forbidden/,
+    "privileged SQL must not bypass both approval and checkout stages",
+  );
+  const absent = await db.query("select owner_id from public.debt_validation_matter_snapshots");
+  assert.equal(absent.rows.length, 0, "rejected inserts must not leave partial matter state");
+  await seed(db, ownerA);
+  const created = await db.query<{ approval: unknown; checkout_key: string | null }>(
+    "select approval,checkout_key from public.debt_validation_matter_snapshots where owner_id=$1 and matter_id=$2",
+    [ownerA, matter],
+  );
+  assert.equal(created.rows.length, 1, "normal unapproved matter creation still succeeds");
+  assert.equal(created.rows[0]!.approval, null);
+  assert.equal(created.rows[0]!.checkout_key, null);
+});
+
 test("debt-validation migration applies offline and owner-scoped RLS denies other users and all browser writes", async (t) => {
   const db = await setup();
   t.after(() => db.close());
