@@ -537,3 +537,27 @@ test("debt-validation authenticated browser cannot forge another owner's provide
   );
   assert.deepEqual(recorded.rows.map((row) => row.provider_reference), ["pi_owner_b"]);
 });
+
+
+test("debt-validation authenticated browser cannot reserve a mailing handoff", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await claim(db, ownerA, keyA);
+  await receipt(db, ownerA, keyA, "payment", "mock_stripe", "pi_browser_gate");
+  await db.exec(`set role authenticated; set request.jwt.claim.sub = '${ownerA}';`);
+  await assert.rejects(
+    db.query(
+      "insert into public.debt_validation_mailing_handoffs(owner_id,matter_id,checkout_key) values ($1,$2,$3)",
+      [ownerA, matter, keyA],
+    ),
+    /permission denied|row-level security policy/,
+    "payment evidence must not let browser credentials reserve physical mailing",
+  );
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+  const handoffs = await db.query(
+    "select checkout_key from public.debt_validation_mailing_handoffs where owner_id=$1",
+    [ownerA],
+  );
+  assert.equal(handoffs.rows.length, 0, "rejected browser handoff must not persist");
+});
