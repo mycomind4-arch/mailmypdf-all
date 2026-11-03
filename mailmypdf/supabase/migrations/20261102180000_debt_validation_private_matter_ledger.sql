@@ -117,11 +117,19 @@ create table public.debt_validation_checkout_receipts (
   checkout_key text not null,
   kind text not null check (kind in ('payment', 'mailing')),
   provider text not null check (provider ~ '^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$'),
-  -- A provider reference is an opaque token, not a display label. Reject
-  -- whitespace variants before the cross-order unique index is evaluated.
+  -- Opaque provider IDs must not differ only by invisible formatting.
+  -- Mirror the server's Unicode whitespace/format-control rejection; the
+  -- POSIX space class alone does not cover zero-width or bidi controls.
+  -- This is an unapplied migration: review with the provider adapter before release.
   provider_reference text not null
     check (length(btrim(provider_reference)) between 1 and 256
-      and provider_reference !~ '[[:space:]]'),
+      and provider_reference !~ '[[:space:][:cntrl:]]'
+      and translate(provider_reference,
+        chr(160) || chr(1564) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) ||
+        chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) ||
+        chr(8203) || chr(8204) || chr(8205) || chr(8206) || chr(8207) || chr(8232) || chr(8233) ||
+        chr(8234) || chr(8235) || chr(8236) || chr(8237) || chr(8238) || chr(8239) || chr(8287) ||
+        chr(8288) || chr(8294) || chr(8295) || chr(8296) || chr(8297) || chr(12288) || chr(65279), '') = provider_reference),
   evidence_sha256 text not null check (evidence_sha256 ~ '^[0-9a-f]{64}$'),
   created_at timestamptz not null default now(),
   primary key (owner_id, matter_id, checkout_key, kind),

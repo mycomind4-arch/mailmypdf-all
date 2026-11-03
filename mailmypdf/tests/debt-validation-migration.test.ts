@@ -305,6 +305,35 @@ test("debt-validation migration enforces exact checkout FKs, one handoff and glo
   );
 });
 
+test("debt-validation SQL rejects invisible Unicode provider-reference variants", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await claim(db, ownerA, keyA);
+  // Exercise the exact versioned SQL as a privileged writer, bypassing the
+  // TypeScript receipt validator. Invisible variants must not become evidence.
+  for (const [label, reference] of [
+    ["nonbreaking space", "pi\\u00a0unique"],
+    ["zero-width space", "pi\\u200bunique"],
+    ["right-to-left override", "pi\\u202eunique"],
+    ["word joiner", "pi\\u2060unique"],
+    ["line separator", "pi\\u2028unique"],
+    ["byte-order mark", "pi\\ufeffunique"],
+  ] as const) {
+    await assert.rejects(
+      receipt(db, ownerA, keyA, "payment", "mock_stripe", reference),
+      /check constraint/,
+      label + " must not create a second opaque provider identity",
+    );
+  }
+  const recorded = await db.query(
+    "select provider_reference from public.debt_validation_checkout_receipts where owner_id=$1",
+    [ownerA],
+  );
+  assert.equal(recorded.rows.length, 0, "invalid payment evidence must not persist");
+  await receipt(db, ownerA, keyA, "payment", "mock_stripe", "pi_unique");
+});
+
 test("debt-validation SQL refuses mailing handoff or receipt until payment and reservation are persisted", async (t) => {
   const db = await setup();
   t.after(() => db.close());
