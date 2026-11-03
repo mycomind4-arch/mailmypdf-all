@@ -457,6 +457,28 @@ test("debt-validation authenticated sessions cannot mutate provider evidence eve
   assert.deepEqual(recorded.rows.map((row) => row.provider_reference), ["pi_owner_a"]);
 });
 
+test("debt-validation authenticated browser cannot create a matter snapshot", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await db.exec(`set role authenticated; set request.jwt.claim.sub = '${ownerA}';`);
+  await assert.rejects(
+    db.query(`insert into public.debt_validation_matter_snapshots
+      (owner_id,matter_id,current_intake,trusted_notice,packet,pdf_bytes,notice_pdf_bytes)
+      values ($1,$2,'{}'::jsonb,'{}'::jsonb,'{}'::jsonb,$3::bytea,$4::bytea)`,
+      [ownerA, "browser-created", new TextEncoder().encode("fake PDF"),
+        new TextEncoder().encode("fake notice")]),
+    /permission denied/,
+    "browser role must not bypass authenticated server intake and create a private packet",
+  );
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+  const created = await db.query(
+    "select matter_id from public.debt_validation_matter_snapshots where owner_id=$1 and matter_id=$2",
+    [ownerA, "browser-created"],
+  );
+  assert.equal(created.rows.length, 0, "rejected browser insert must not persist");
+});
+
 test("debt-validation migration denies unclaimed authenticated sessions and anonymous snapshot reads", async (t) => {
   const db = await setup();
   t.after(() => db.close());
