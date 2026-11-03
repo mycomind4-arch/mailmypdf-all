@@ -428,6 +428,35 @@ test("debt-validation migration scopes both provider-ledger tables to the authen
   await db.exec("reset role;");
 });
 
+test("debt-validation authenticated sessions cannot mutate provider evidence even for their own matter", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await claim(db, ownerA, keyA);
+  await receipt(db, ownerA, keyA, "payment", "mock_stripe", "pi_owner_a");
+  await db.query(
+    "insert into public.debt_validation_mailing_handoffs(owner_id,matter_id,checkout_key) values ($1,$2,$3)",
+    [ownerA, matter, keyA],
+  );
+  await db.exec(`set role authenticated; set request.jwt.claim.sub = '${ownerA}';`);
+  for (const [table, column, value] of [
+    ["debt_validation_checkout_receipts", "provider_reference", "pi_forged"],
+    ["debt_validation_mailing_handoffs", "checkout_key", keyB],
+  ] as const) {
+    await assert.rejects(
+      db.query(`update public.${table} set ${column}=$1 where owner_id=$2`, [value, ownerA]),
+      /permission denied/,
+      `authenticated clients must not rewrite their own ${table} evidence`,
+    );
+  }
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+  const recorded = await db.query<{ provider_reference: string }>(
+    "select provider_reference from public.debt_validation_checkout_receipts where owner_id=$1",
+    [ownerA],
+  );
+  assert.deepEqual(recorded.rows.map((row) => row.provider_reference), ["pi_owner_a"]);
+});
+
 test("debt-validation migration denies unclaimed authenticated sessions and anonymous snapshot reads", async (t) => {
   const db = await setup();
   t.after(() => db.close());
