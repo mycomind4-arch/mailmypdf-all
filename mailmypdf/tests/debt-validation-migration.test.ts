@@ -428,6 +428,26 @@ test("debt-validation migration scopes both provider-ledger tables to the authen
   await db.exec("reset role;");
 });
 
+test("debt-validation migration denies unclaimed authenticated sessions and anonymous snapshot reads", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await db.exec("set role authenticated;");
+  const noClaim = await db.query("select owner_id from public.debt_validation_matter_snapshots");
+  assert.equal(noClaim.rows.length, 0, "missing auth.uid() must disclose no private PDF records");
+  await db.exec("set request.jwt.claim.sub = '';");
+  const emptyClaim = await db.query("select owner_id from public.debt_validation_matter_snapshots");
+  assert.equal(emptyClaim.rows.length, 0, "empty JWT subject must disclose no private PDF records");
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+  await db.exec("set role anon;");
+  await assert.rejects(
+    db.query("select pdf_bytes from public.debt_validation_matter_snapshots"),
+    /permission denied/,
+    "anonymous clients must never read the persisted letter PDF",
+  );
+  await db.exec("reset role;");
+});
+
 test("debt-validation migration rejects duplicate matter creation under overlapping attempts", async (t) => {
   const db = await setup();
   t.after(() => db.close());
