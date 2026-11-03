@@ -125,6 +125,24 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal((await post(body, "Bearer other-owner")).status, 404,
     "host-verified other owner cannot load the controlling notice");
   assert.equal((await post(body, "Bearer synthetic", "https://evil.example")).status, 403);
+  // A same-site sibling subdomain must not bypass the exact-origin check.
+  // Fetch Metadata is defense-in-depth for authenticated browser requests.
+  const siblingSiteRequest = new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json", authorization: "Bearer synthetic",
+      origin, "sec-fetch-site": "same-site",
+    },
+    body: JSON.stringify(body),
+  });
+  const readsBeforeSibling = sourceReads;
+  assert.equal((await handler(siblingSiteRequest)).status, 403);
+  assert.equal(sourceReads, readsBeforeSibling,
+    "same-site cross-origin requests cannot load private notices");
+  assert.equal(persistCalls, 0,
+    "rejected sibling-site requests cannot persist a packet");
+  assert.equal(providerSubmissions, 0);
+
   assert.equal((await post({ ...body, ownerId: "other-owner" })).status, 400);
   assert.equal((await post({ ...body, totalCents: 1 })).status, 400);
   assert.equal((await post({ ...body, letterDate: "2026-02-30" })).status, 400);
