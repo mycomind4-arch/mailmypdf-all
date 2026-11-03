@@ -313,12 +313,12 @@ test("debt-validation SQL rejects invisible Unicode provider-reference variants"
   // Exercise the exact versioned SQL as a privileged writer, bypassing the
   // TypeScript receipt validator. Invisible variants must not become evidence.
   for (const [label, reference] of [
-    ["nonbreaking space", "pi\\u00a0unique"],
-    ["zero-width space", "pi\\u200bunique"],
-    ["right-to-left override", "pi\\u202eunique"],
-    ["word joiner", "pi\\u2060unique"],
-    ["line separator", "pi\\u2028unique"],
-    ["byte-order mark", "pi\\ufeffunique"],
+    ["nonbreaking space", "pi\u00a0unique"],
+    ["zero-width space", "pi\u200bunique"],
+    ["right-to-left override", "pi\u202eunique"],
+    ["word joiner", "pi\u2060unique"],
+    ["line separator", "pi\u2028unique"],
+    ["byte-order mark", "pi\ufeffunique"],
   ] as const) {
     await assert.rejects(
       receipt(db, ownerA, keyA, "payment", "mock_stripe", reference),
