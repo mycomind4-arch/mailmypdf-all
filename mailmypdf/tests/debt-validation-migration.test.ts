@@ -512,3 +512,28 @@ test("debt-validation migration rejects duplicate matter creation under overlapp
   const rows = await db.query("select owner_id from public.debt_validation_matter_snapshots");
   assert.equal(rows.rows.length, 1);
 });
+
+
+test("debt-validation authenticated browser cannot forge another owner's provider evidence", async (t) => {
+  const db = await setup();
+  t.after(() => db.close());
+  await seed(db, ownerA);
+  await seed(db, ownerB);
+  await claim(db, ownerB, keyB);
+  await receipt(db, ownerB, keyB, "payment", "mock_stripe", "pi_owner_b");
+  await db.exec(`set role authenticated; set request.jwt.claim.sub = '${ownerA}';`);
+  await assert.rejects(
+    db.query(`insert into public.debt_validation_checkout_receipts
+      (owner_id,matter_id,checkout_key,kind,provider,provider_reference,evidence_sha256)
+      values ($1,$2,$3,'payment','mock_stripe','pi_forged',$4)`,
+      [ownerB, matter, keyB, "f".repeat(64)]),
+    /permission denied|row-level security policy/,
+    "browser credentials must not fabricate another customer's payment evidence",
+  );
+  await db.exec("reset role; reset request.jwt.claim.sub;");
+  const recorded = await db.query<{ provider_reference: string }>(
+    "select provider_reference from public.debt_validation_checkout_receipts where owner_id=$1",
+    [ownerB],
+  );
+  assert.deepEqual(recorded.rows.map((row) => row.provider_reference), ["pi_owner_b"]);
+});
