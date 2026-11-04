@@ -74,7 +74,8 @@ function verifiedActor(verifyUser: VerifyUser) {
       const verified = await verifyUser(request);
       // Never trust a browser-selected owner; only a verified identity may
       // access a matter or claim a payment/mailing operation.
-      return verified?.user?.id?.trim() ? { id: verified.user.id } : null;
+      const id: unknown = verified?.user?.id;
+      return typeof id === "string" && id.trim() ? { id } : null;
     } catch (error) {
       if (error instanceof AuthenticationError) return null;
       throw error;
