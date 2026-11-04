@@ -290,6 +290,26 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   const requestCheckout = (payload: unknown, authorization?: string) =>
     action("/api/debt-validation/checkout", payload, checkout, authorization);
   const confirmedCheckout = { ...reviewed, userConfirmedCheckout: true };
+  // Exercise the authenticated host approval and checkout HTTP boundaries,
+  // not just intake: same-site sibling origins cannot reuse bearer consent.
+  // These requests must fail before owner-scoped state or provider handoff.
+  for (const [path, handle, payload] of [
+    ["/api/debt-validation/approval", approval, { ...reviewed, userApprovedExactPacket: true }],
+    ["/api/debt-validation/checkout", checkout, { ...reviewed, userConfirmedCheckout: true }],
+  ] as const) {
+    const crossSite = new Request(origin + path, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json", authorization: "Bearer synthetic",
+        origin, "sec-fetch-site": "same-site",
+      },
+      body: JSON.stringify(payload),
+    });
+    assert.equal((await handle(crossSite)).status, 403,
+      `${path} must reject same-site cross-origin consent`);
+  }
+  assert.equal(providerSubmissions, 0, "cross-origin checkout cannot submit providers");
+  assert.equal(receiptReads, 0, "cross-origin checkout cannot reconcile receipts");
   const updateNotice = (bytes: Uint8Array) => db.query(
     "UPDATE debt_validation_matter_snapshots SET notice_pdf_bytes=$3::bytea WHERE owner_id=$1 AND matter_id=$2",
     [ownerId, matterId, bytes],
