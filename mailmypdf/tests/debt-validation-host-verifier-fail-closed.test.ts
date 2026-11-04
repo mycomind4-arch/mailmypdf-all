@@ -56,3 +56,29 @@ test("host intake rejects an identity provider returning a blank user ID without
   assert.equal(writes, 0);
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
+
+test("host intake rejects a malformed non-string verified user ID without private storage access", async () => {
+  let sourceReads = 0;
+  let writes = 0;
+  const handler = createDebtValidationHostIntakeHandler({
+    allowedOrigin: origin,
+    loadVerifiedNotice: async () => {
+      sourceReads++;
+      throw new Error("private notice must not be read");
+    },
+    persistPreparedMatter: async () => {
+      writes++;
+      throw new Error("packet must not be persisted");
+    },
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(sourceReads, 0);
+  assert.equal(writes, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
