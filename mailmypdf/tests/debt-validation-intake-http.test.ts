@@ -118,6 +118,30 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
       body: JSON.stringify(value),
     }));
   assert.equal((await post(body, "Bearer synthetic", origin, "8193")).status, 413);
+  // A browser or proxy can omit Content-Length (or declare a smaller value).
+  // The streaming limit must independently reject oversized JSON before any
+  // private notice read, durable packet write, or provider handoff.
+  const oversizedStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(JSON.stringify(body)));
+      controller.enqueue(new Uint8Array(8193));
+      controller.close();
+    },
+  });
+  const oversizedResponse = await handler(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json", authorization: "Bearer synthetic", origin,
+      "content-length": "1",
+    },
+    body: oversizedStream,
+    duplex: "half",
+  } as RequestInit));
+  assert.equal(oversizedResponse.status, 413,
+    "actual streamed bytes must override a false small declared length");
+  assert.equal(sourceReads, 0, "oversized stream cannot read a private notice");
+  assert.equal(persistCalls, 0, "oversized stream cannot persist a packet");
+  assert.equal(providerSubmissions, 0, "oversized stream cannot submit providers");
   assert.equal(sourceReads, 0, "oversized declared intake cannot read a notice");
   assert.equal(persistCalls, 0, "oversized declared intake cannot persist a packet");
   assert.equal(providerSubmissions, 0, "oversized declared intake cannot submit mail or payment");
