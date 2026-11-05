@@ -223,7 +223,7 @@ test("host packet review rejects identity-provider outages without reading priva
 });
 
 test("host packet review rejects noncanonical verified owner IDs before private reads", async () => {
-  for (const id of [" owner-123", "owner-123 ", "owner-123\\n"]) {
+  for (const id of [" owner-123", "owner-123 ", "owner-123\n"]) {
     let repositoryCalls = 0;
     const repository = new Proxy({}, {
       get() {
