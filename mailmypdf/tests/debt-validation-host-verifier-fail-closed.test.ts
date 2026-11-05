@@ -140,3 +140,26 @@ test("host checkout rejects malformed verified identity before matter access or 
   assert.equal(providerCalls, 0);
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
+
+test("host packet review rejects malformed verified identity before reading a private matter", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { review } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await review(new Request(origin + "/api/debt-validation/review", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
