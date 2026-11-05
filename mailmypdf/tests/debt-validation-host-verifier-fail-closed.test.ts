@@ -153,10 +153,9 @@ test("host packet review rejects malformed verified identity before reading a pr
     allowedOrigin: origin,
     repository: repository as unknown as DebtValidationMatterRepository,
   }, async () => ({ user: { id: 12345 as unknown as string } }));
-  const response = await review(new Request(origin + "/api/debt-validation/review", {
-    method: "POST",
-    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
-    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  const response = await review(new Request(origin + "/api/debt-validation/review?matterId=synthetic-matter", {
+    method: "GET",
+    headers: { origin, authorization: "Bearer synthetic" },
   }));
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { code: "authentication_required" });
