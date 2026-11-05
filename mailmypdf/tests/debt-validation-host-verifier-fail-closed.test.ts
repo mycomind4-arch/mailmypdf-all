@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers } from "../src/lib/secure-core/debt-validation-host-review.server";
+import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers, createDebtValidationHostCheckoutHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
 
 import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
@@ -105,5 +105,38 @@ test("host approval rejects malformed verified identity before reading or changi
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { code: "authentication_required" });
   assert.equal(repositoryCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host checkout rejects malformed verified identity before matter access or provider callbacks", async () => {
+  let repositoryCalls = 0;
+  let providerCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const handler = createDebtValidationHostCheckoutHandler({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+    submitNewClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+    reconcileClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await handler(new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(providerCalls, 0);
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
