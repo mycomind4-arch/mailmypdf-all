@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDebtValidationHostIntakeHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
+import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers } from "../src/lib/secure-core/debt-validation-host-review.server";
+
+import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
 const origin = "https://mailmypdf.example";
 
@@ -80,5 +82,28 @@ test("host intake rejects a malformed non-string verified user ID without privat
   assert.deepEqual(await response.json(), { code: "authentication_required" });
   assert.equal(sourceReads, 0);
   assert.equal(writes, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host approval rejects malformed verified identity before reading or changing a matter", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { approval } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await approval(new Request(origin + "/api/debt-validation/approval", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
