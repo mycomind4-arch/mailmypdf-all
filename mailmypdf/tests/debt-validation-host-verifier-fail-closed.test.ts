@@ -245,3 +245,28 @@ test("host packet review rejects noncanonical verified owner IDs before private 
     assert.equal(response.headers.get("cache-control"), "no-store");
   }
 });
+
+test("host approval rejects identity-provider outages before reading or mutating reviewed packets", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { approval } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => {
+    throw new Error("synthetic identity provider outage");
+  });
+  const response = await approval(new Request(origin + "/api/debt-validation/approval", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter", userApprovedExactPacket: true }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0, "no reviewed packet or approval state may be accessed");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
