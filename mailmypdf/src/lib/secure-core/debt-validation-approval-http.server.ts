@@ -118,7 +118,7 @@ export function createDebtValidationApprovalHttpHandler(deps: DebtValidationAppr
     } catch {
       return response(401, "authentication_required");
     }
-    if (!actor?.id?.trim()) return response(401, "authentication_required");
+    if (typeof actor?.id !== "string" || !actor.id || actor.id !== actor.id.trim()) return response(401, "authentication_required");
     let body: Record<string, unknown>;
     try {
       body = await boundedJson(request);
@@ -218,7 +218,7 @@ export function createDebtValidationCheckoutHttpHandler(deps: DebtValidationChec
     } catch {
       return response(401, "authentication_required");
     }
-    if (!actor?.id?.trim()) return response(401, "authentication_required");
+    if (typeof actor?.id !== "string" || !actor.id || actor.id !== actor.id.trim()) return response(401, "authentication_required");
     let body: Record<string, unknown>;
     try {
       body = await boundedJson(request);
@@ -326,7 +326,7 @@ export function createDebtValidationPacketReviewHttpHandler(deps: DebtValidation
     } catch {
       return response(401, "authentication_required");
     }
-    if (!actor?.id?.trim()) return response(401, "authentication_required");
+    if (typeof actor?.id !== "string" || !actor.id || actor.id !== actor.id.trim()) return response(401, "authentication_required");
     const entries = Array.from(url.searchParams.entries());
     const matterValues = url.searchParams.getAll("matterId");
     const viewValues = url.searchParams.getAll("view");
