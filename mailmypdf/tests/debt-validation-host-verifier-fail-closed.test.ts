@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
+
 import test from "node:test";
 import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers, createDebtValidationHostCheckoutHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
 
@@ -308,5 +310,29 @@ test("unmounted direct HTTP boundaries reject malformed actor IDs before private
       assert.equal(response.headers.get("cache-control"), "no-store");
     }
     assert.equal(repositoryCalls, 0);
+  }
+});
+
+
+test("direct intake rejects malformed owner IDs before reading a verified notice", async () => {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\\n"]) {
+    let reads = 0;
+    let writes = 0;
+    const handler = createDebtValidationIntakeHttpHandler({
+      allowedOrigin: origin,
+      authenticate: async () => ({ id: id as string }),
+      loadVerifiedNotice: async () => { reads++; throw new Error("unexpected private notice read"); },
+      persistPreparedMatter: async () => { writes++; throw new Error("unexpected packet write"); },
+    });
+    const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+      body: JSON.stringify({ matterId: "synthetic-matter" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
   }
 });
