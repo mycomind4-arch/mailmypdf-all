@@ -315,7 +315,7 @@ test("unmounted direct HTTP boundaries reject malformed actor IDs before private
 
 
 test("direct intake rejects malformed owner IDs before reading a verified notice", async () => {
-  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\\n"]) {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\n"]) {
     let reads = 0;
     let writes = 0;
     const handler = createDebtValidationIntakeHttpHandler({
