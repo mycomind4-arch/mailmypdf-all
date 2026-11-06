@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers, createDebtValidationHostCheckoutHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
 
+import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler, createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
+
 import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
 
 const origin = "https://mailmypdf.example";
@@ -269,4 +271,42 @@ test("host approval rejects identity-provider outages before reading or mutating
   assert.deepEqual(await response.json(), { code: "authentication_required" });
   assert.equal(repositoryCalls, 0, "no reviewed packet or approval state may be accessed");
   assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+
+test("unmounted direct HTTP boundaries reject malformed actor IDs before private repository access", async () => {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\\n"]) {
+    let repositoryCalls = 0;
+    const repository = new Proxy({}, {
+      get() {
+        repositoryCalls++;
+        throw new Error("private repository must not be accessed");
+      },
+    }) as DebtValidationMatterRepository;
+    const deps = {
+      allowedOrigin: origin,
+      repository,
+      authenticate: async () => ({ id: id as string }),
+    };
+    const cases = [
+      { handler: createDebtValidationApprovalHttpHandler(deps), method: "POST", path: "/approval" },
+      { handler: createDebtValidationCheckoutHttpHandler({
+        ...deps,
+        submitNewClaim: async () => { throw new Error("provider must not be invoked"); },
+        reconcileClaim: async () => { throw new Error("provider must not be invoked"); },
+      }), method: "POST", path: "/checkout" },
+      { handler: createDebtValidationPacketReviewHttpHandler(deps), method: "GET", path: "/review?matterId=synthetic-matter" },
+    ];
+    for (const { handler, method, path } of cases) {
+      const response = await handler(new Request(origin + path, {
+        method,
+        headers: { origin, ...(method === "POST" ? { "content-type": "application/json" } : {}) },
+        ...(method === "POST" ? { body: JSON.stringify({ matterId: "synthetic-matter" }) } : {}),
+      }));
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), { code: "authentication_required" });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+    assert.equal(repositoryCalls, 0);
+  }
 });
