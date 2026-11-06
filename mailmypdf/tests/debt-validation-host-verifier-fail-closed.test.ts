@@ -275,7 +275,7 @@ test("host approval rejects identity-provider outages before reading or mutating
 
 
 test("unmounted direct HTTP boundaries reject malformed actor IDs before private repository access", async () => {
-  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\\n"]) {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\n"]) {
     let repositoryCalls = 0;
     const repository = new Proxy({}, {
       get() {
