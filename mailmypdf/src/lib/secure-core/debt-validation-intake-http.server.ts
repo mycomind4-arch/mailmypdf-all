@@ -130,7 +130,9 @@ export function createDebtValidationIntakeHttpHandler(deps: DebtValidationIntake
     } catch {
       return reply(401, "authentication_required");
     }
-    if (!actor?.id?.trim()) return reply(401, "authentication_required");
+    if (typeof actor?.id !== "string" || !actor.id.trim() || actor.id !== actor.id.trim()) {
+      return reply(401, "authentication_required");
+    }
 
     let body: Record<string, unknown>;
     try {
