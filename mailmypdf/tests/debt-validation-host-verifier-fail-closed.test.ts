@@ -369,3 +369,27 @@ test("direct intake rejects malformed owner IDs before reading a verified notice
     assert.equal(writes, 0);
   }
 });
+
+
+test("direct intake rejects invisible Unicode owner IDs before reading or writing private matter data", async () => {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+    let reads = 0;
+    let writes = 0;
+    const handler = createDebtValidationIntakeHttpHandler({
+      allowedOrigin: origin,
+      authenticate: async () => ({ id }),
+      loadVerifiedNotice: async () => { reads++; throw new Error("unexpected private notice read"); },
+      persistPreparedMatter: async () => { writes++; throw new Error("unexpected packet write"); },
+    });
+    const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+      body: JSON.stringify({ matterId: "synthetic-matter" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
+  }
+});
