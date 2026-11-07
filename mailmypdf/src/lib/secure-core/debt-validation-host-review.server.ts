@@ -76,7 +76,7 @@ function verifiedActor(verifyUser: VerifyUser) {
       // access a matter or claim a payment/mailing operation.
       const id: unknown = verified?.user?.id;
       // Reject noncanonical IDs rather than silently selecting a different owner.
-      return typeof id === "string" && id.length > 0 && id === id.trim() && !/[\u0000-\u001f\u007f]/u.test(id) ? { id } : null;
+      return typeof id === "string" && id.length > 0 && id === id.trim() && !/[\u0000-\u001f\u007f\p{Cf}]/u.test(id) ? { id } : null;
     } catch (error) {
       if (error instanceof AuthenticationError) return null;
       throw error;
