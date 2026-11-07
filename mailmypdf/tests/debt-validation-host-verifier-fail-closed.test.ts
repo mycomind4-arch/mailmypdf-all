@@ -1,0 +1,395 @@
+import assert from "node:assert/strict";
+import { createDebtValidationIntakeHttpHandler } from "../src/lib/secure-core/debt-validation-intake-http.server";
+
+import test from "node:test";
+import { createDebtValidationHostIntakeHandler, createDebtValidationHostReviewAndApprovalHandlers, createDebtValidationHostCheckoutHandler } from "../src/lib/secure-core/debt-validation-host-review.server";
+
+import { createDebtValidationApprovalHttpHandler, createDebtValidationCheckoutHttpHandler, createDebtValidationPacketReviewHttpHandler } from "../src/lib/secure-core/debt-validation-approval-http.server";
+
+import type { DebtValidationMatterRepository } from "../../dispute-mail/workflows/debt-validation/server-matter-approval";
+
+const origin = "https://mailmypdf.example";
+
+test("host intake fails closed when identity verification errors before reading a private notice", async () => {
+  let sourceReads = 0;
+  let writes = 0;
+  const handler = createDebtValidationHostIntakeHandler({
+    allowedOrigin: origin,
+    loadVerifiedNotice: async () => {
+      sourceReads++;
+      throw new Error("private notice must not be read");
+    },
+    persistPreparedMatter: async () => {
+      writes++;
+      throw new Error("packet must not be persisted");
+    },
+  }, async () => {
+    throw new Error("identity provider temporarily unavailable");
+  });
+  const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.equal(sourceReads, 0);
+  assert.equal(writes, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host intake rejects an identity provider returning a blank user ID without touching private storage", async () => {
+  let sourceReads = 0;
+  let writes = 0;
+  const handler = createDebtValidationHostIntakeHandler({
+    allowedOrigin: origin,
+    loadVerifiedNotice: async () => {
+      sourceReads++;
+      throw new Error("private notice must not be read");
+    },
+    persistPreparedMatter: async () => {
+      writes++;
+      throw new Error("packet must not be persisted");
+    },
+  }, async () => ({ user: { id: "   " } }));
+  const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(sourceReads, 0);
+  assert.equal(writes, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host intake rejects a malformed non-string verified user ID without private storage access", async () => {
+  let sourceReads = 0;
+  let writes = 0;
+  const handler = createDebtValidationHostIntakeHandler({
+    allowedOrigin: origin,
+    loadVerifiedNotice: async () => {
+      sourceReads++;
+      throw new Error("private notice must not be read");
+    },
+    persistPreparedMatter: async () => {
+      writes++;
+      throw new Error("packet must not be persisted");
+    },
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(sourceReads, 0);
+  assert.equal(writes, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host approval rejects malformed verified identity before reading or changing a matter", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { approval } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await approval(new Request(origin + "/api/debt-validation/approval", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host checkout rejects malformed verified identity before matter access or provider callbacks", async () => {
+  let repositoryCalls = 0;
+  let providerCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const handler = createDebtValidationHostCheckoutHandler({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+    submitNewClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+    reconcileClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await handler(new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(providerCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host packet review rejects malformed verified identity before reading a private matter", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { review } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => ({ user: { id: 12345 as unknown as string } }));
+  const response = await review(new Request(origin + "/api/debt-validation/review?matterId=synthetic-matter", {
+    method: "GET",
+    headers: { origin, authorization: "Bearer synthetic" },
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host checkout rejects identity-provider outages before private matter or provider access", async () => {
+  let repositoryCalls = 0;
+  let providerCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const handler = createDebtValidationHostCheckoutHandler({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+    submitNewClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+    reconcileClaim: async () => {
+      providerCalls++;
+      throw new Error("provider must not be invoked");
+    },
+  }, async () => {
+    throw new Error("identity provider temporarily unavailable");
+  });
+  const response = await handler(new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter" }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(providerCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host packet review rejects identity-provider outages without reading private PDF storage", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { review } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => {
+    throw new Error("identity provider temporarily unavailable");
+  });
+  const response = await review(new Request(origin + "/api/debt-validation/review?matterId=synthetic-matter", {
+    method: "GET",
+    headers: { origin, authorization: "Bearer synthetic" },
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("host rejects invisible Unicode owner format controls before private review or checkout", async () => {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+    let reads = 0;
+    let providerCalls = 0;
+    const repository = new Proxy({}, {
+      get() { reads++; throw new Error("private storage must not be read"); },
+    }) as DebtValidationMatterRepository;
+    const verify = async () => ({ user: { id } });
+    const handlers = createDebtValidationHostReviewAndApprovalHandlers({ repository, allowedOrigin: origin }, verify);
+    const checkout = createDebtValidationHostCheckoutHandler({
+      repository, allowedOrigin: origin,
+      submitNewClaim: async () => { providerCalls++; throw new Error("no provider"); },
+      reconcileClaim: async () => { providerCalls++; throw new Error("no provider"); },
+    }, verify);
+    for (const [handler, method, route] of [
+      [handlers.review, "GET", "/review?matterId=synthetic-matter"],
+      [handlers.approval, "POST", "/approval"],
+      [checkout, "POST", "/checkout"],
+    ] as const) {
+      const response = await handler(new Request(origin + route, {
+        method,
+        headers: { origin, authorization: "Bearer synthetic", ...(method === "POST" ? { "content-type": "application/json" } : {}) },
+        ...(method === "POST" ? { body: JSON.stringify({ matterId: "synthetic-matter" }) } : {}),
+      }));
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), { code: "authentication_required" });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+    assert.equal(reads, 0);
+    assert.equal(providerCalls, 0);
+  }
+});
+
+test("host packet review rejects noncanonical verified owner IDs before private reads", async () => {
+  for (const id of [" owner-123", "owner-123 ", "owner-123\n"]) {
+    let repositoryCalls = 0;
+    const repository = new Proxy({}, {
+      get() {
+        repositoryCalls++;
+        throw new Error("private matter repository must not be accessed");
+      },
+    });
+    const { review } = createDebtValidationHostReviewAndApprovalHandlers({
+      allowedOrigin: origin,
+      repository: repository as unknown as DebtValidationMatterRepository,
+    }, async () => ({ user: { id } }));
+    const response = await review(new Request(origin + "/api/debt-validation/review?matterId=synthetic-matter", {
+      method: "GET",
+      headers: { origin, authorization: "Bearer synthetic" },
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(repositoryCalls, 0);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+});
+
+test("host approval rejects identity-provider outages before reading or mutating reviewed packets", async () => {
+  let repositoryCalls = 0;
+  const repository = new Proxy({}, {
+    get() {
+      repositoryCalls++;
+      throw new Error("private matter repository must not be accessed");
+    },
+  });
+  const { approval } = createDebtValidationHostReviewAndApprovalHandlers({
+    allowedOrigin: origin,
+    repository: repository as unknown as DebtValidationMatterRepository,
+  }, async () => {
+    throw new Error("synthetic identity provider outage");
+  });
+  const response = await approval(new Request(origin + "/api/debt-validation/approval", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ matterId: "synthetic-matter", userApprovedExactPacket: true }),
+  }));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { code: "authentication_required" });
+  assert.equal(repositoryCalls, 0, "no reviewed packet or approval state may be accessed");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+
+test("unmounted direct HTTP boundaries reject malformed actor IDs before private repository access", async () => {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\n"]) {
+    let repositoryCalls = 0;
+    const repository = new Proxy({}, {
+      get() {
+        repositoryCalls++;
+        throw new Error("private repository must not be accessed");
+      },
+    }) as DebtValidationMatterRepository;
+    const deps = {
+      allowedOrigin: origin,
+      repository,
+      authenticate: async () => ({ id: id as string }),
+    };
+    const cases = [
+      { handler: createDebtValidationApprovalHttpHandler(deps), method: "POST", path: "/approval" },
+      { handler: createDebtValidationCheckoutHttpHandler({
+        ...deps,
+        submitNewClaim: async () => { throw new Error("provider must not be invoked"); },
+        reconcileClaim: async () => { throw new Error("provider must not be invoked"); },
+      }), method: "POST", path: "/checkout" },
+      { handler: createDebtValidationPacketReviewHttpHandler(deps), method: "GET", path: "/review?matterId=synthetic-matter" },
+    ];
+    for (const { handler, method, path } of cases) {
+      const response = await handler(new Request(origin + path, {
+        method,
+        headers: { origin, ...(method === "POST" ? { "content-type": "application/json" } : {}) },
+        ...(method === "POST" ? { body: JSON.stringify({ matterId: "synthetic-matter" }) } : {}),
+      }));
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), { code: "authentication_required" });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+    assert.equal(repositoryCalls, 0);
+  }
+});
+
+
+test("direct intake rejects malformed owner IDs before reading a verified notice", async () => {
+  for (const id of [12345, " owner-123", "owner-123 ", "owner-123\n"]) {
+    let reads = 0;
+    let writes = 0;
+    const handler = createDebtValidationIntakeHttpHandler({
+      allowedOrigin: origin,
+      authenticate: async () => ({ id: id as string }),
+      loadVerifiedNotice: async () => { reads++; throw new Error("unexpected private notice read"); },
+      persistPreparedMatter: async () => { writes++; throw new Error("unexpected packet write"); },
+    });
+    const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+      body: JSON.stringify({ matterId: "synthetic-matter" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
+  }
+});
+
+
+test("direct intake rejects invisible Unicode owner IDs before reading or writing private matter data", async () => {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+    let reads = 0;
+    let writes = 0;
+    const handler = createDebtValidationIntakeHttpHandler({
+      allowedOrigin: origin,
+      authenticate: async () => ({ id }),
+      loadVerifiedNotice: async () => { reads++; throw new Error("unexpected private notice read"); },
+      persistPreparedMatter: async () => { writes++; throw new Error("unexpected packet write"); },
+    });
+    const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+      body: JSON.stringify({ matterId: "synthetic-matter" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
+  }
+});

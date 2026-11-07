@@ -1,3 +1,8 @@
+// Execute the generic approval/checkout debt-validation bypass regression in the
+// existing workflow-runtime CI job without changing GitHub Actions configuration.
+import "./debt-validation-generic-execution-gate.test";
+// Exercise real PostgreSQL row locks and owner-scoped debt-validation claims in this same CI job.
+import "./debt-validation-postgres-adapter.test";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validateNoticeAnalysis, resolveCaseWorkflow, assertDraftReady } from "../src/lib/secure-core/workflow-runtime";

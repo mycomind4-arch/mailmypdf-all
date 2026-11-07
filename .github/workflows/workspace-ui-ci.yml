@@ -159,7 +159,9 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          # Node 24.22.1 repeatedly crashed V8/Wasm in PGlite-backed notice tests.
+          # Keep this test-only gate on Node 22 until upstream compatibility is verified.
+          node-version: 22
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
@@ -270,7 +272,10 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          # PGlite/Wasm tests have intermittently crashed under Node 24's V8
+          # JIT in this section. Factory Validation already runs the same
+          # focused debt-validation suite on Node 22; isolate only this job.
+          node-version: ${{ matrix.app == 'dispute-mail' && '22' || '24' }}
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
