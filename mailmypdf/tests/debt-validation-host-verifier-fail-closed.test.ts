@@ -226,6 +226,39 @@ test("host packet review rejects identity-provider outages without reading priva
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
+test("host rejects invisible Unicode owner format controls before private review or checkout", async () => {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+    let reads = 0;
+    let providerCalls = 0;
+    const repository = new Proxy({}, {
+      get() { reads++; throw new Error("private storage must not be read"); },
+    }) as DebtValidationMatterRepository;
+    const verify = async () => ({ user: { id } });
+    const handlers = createDebtValidationHostReviewAndApprovalHandlers({ repository, allowedOrigin: origin }, verify);
+    const checkout = createDebtValidationHostCheckoutHandler({
+      repository, allowedOrigin: origin,
+      submitNewClaim: async () => { providerCalls++; throw new Error("no provider"); },
+      reconcileClaim: async () => { providerCalls++; throw new Error("no provider"); },
+    }, verify);
+    for (const [handler, method, route] of [
+      [handlers.review, "GET", "/review?matterId=synthetic-matter"],
+      [handlers.approval, "POST", "/approval"],
+      [checkout, "POST", "/checkout"],
+    ] as const) {
+      const response = await handler(new Request(origin + route, {
+        method,
+        headers: { origin, authorization: "Bearer synthetic", ...(method === "POST" ? { "content-type": "application/json" } : {}) },
+        ...(method === "POST" ? { body: JSON.stringify({ matterId: "synthetic-matter" }) } : {}),
+      }));
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), { code: "authentication_required" });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+    assert.equal(reads, 0);
+    assert.equal(providerCalls, 0);
+  }
+});
+
 test("host packet review rejects noncanonical verified owner IDs before private reads", async () => {
   for (const id of [" owner-123", "owner-123 ", "owner-123\n"]) {
     let repositoryCalls = 0;
