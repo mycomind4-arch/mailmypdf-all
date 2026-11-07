@@ -130,7 +130,8 @@ export function createDebtValidationIntakeHttpHandler(deps: DebtValidationIntake
     } catch {
       return reply(401, "authentication_required");
     }
-    if (typeof actor?.id !== "string" || !actor.id.trim() || actor.id !== actor.id.trim()) {
+    if (typeof actor?.id !== "string" || !actor.id.trim() || actor.id !== actor.id.trim()
+      || /[\u0000-\u001f\u007f\p{Cf}]/u.test(actor.id)) {
       return reply(401, "authentication_required");
     }
 
