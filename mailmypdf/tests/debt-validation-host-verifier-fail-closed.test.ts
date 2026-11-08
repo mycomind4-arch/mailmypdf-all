@@ -416,7 +416,7 @@ test("direct intake rejects identity-provider outages before private notice read
 });
 
 test("host intake rejects invisible verified owner IDs before notice access or persistence", async () => {
-  for (const id of ["owner\\u200b-a", "owner\\u2066-a", "owner\\u2069-a"]) {
+  for (const id of ["owner\u200b-a", "owner\u2066-a", "owner\u2069-a"]) {
     let reads = 0;
     let writes = 0;
     const handler = createDebtValidationHostIntakeHandler({
