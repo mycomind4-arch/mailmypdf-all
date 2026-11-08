@@ -414,3 +414,25 @@ test("direct intake rejects identity-provider outages before private notice read
   assert.equal(reads, 0);
   assert.equal(writes, 0);
 });
+
+test("host intake rejects invisible verified owner IDs before notice access or persistence", async () => {
+  for (const id of ["owner\\u200b-a", "owner\\u2066-a", "owner\\u2069-a"]) {
+    let reads = 0;
+    let writes = 0;
+    const handler = createDebtValidationHostIntakeHandler({
+      allowedOrigin: origin,
+      loadVerifiedNotice: async () => { reads++; throw new Error("private notice must not be read"); },
+      persistPreparedMatter: async () => { writes++; throw new Error("matter must not be written"); },
+    }, async () => ({ user: { id } }));
+    const response = await handler(new Request(origin + "/api/debt-validation/intake", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+      body: JSON.stringify({ matterId: "synthetic-matter" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { code: "authentication_required" });
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(reads, 0);
+    assert.equal(writes, 0);
+  }
+});
