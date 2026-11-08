@@ -372,7 +372,7 @@ test("direct intake rejects malformed owner IDs before reading a verified notice
 
 
 test("direct intake rejects invisible Unicode owner IDs before reading or writing private matter data", async () => {
-  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a", "owner\u202e-a", "owner\u2066-a", "owner\u2069-a"]) {
     let reads = 0;
     let writes = 0;
     const handler = createDebtValidationIntakeHttpHandler({
