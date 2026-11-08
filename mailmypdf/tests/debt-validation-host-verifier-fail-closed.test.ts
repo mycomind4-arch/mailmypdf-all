@@ -227,7 +227,7 @@ test("host packet review rejects identity-provider outages without reading priva
 });
 
 test("host rejects invisible Unicode owner format controls before private review or checkout", async () => {
-  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a"]) {
+  for (const id of ["owner\u200b-a", "owner\u200d-a", "owner\u2060-a", "owner\ufeff-a", "owner\u202e-a", "owner\u2066-a", "owner\u2069-a"]) {
     let reads = 0;
     let providerCalls = 0;
     const repository = new Proxy({}, {
