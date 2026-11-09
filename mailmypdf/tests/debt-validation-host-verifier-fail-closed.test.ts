@@ -436,3 +436,47 @@ test("host intake rejects invisible verified owner IDs before notice access or p
     assert.equal(writes, 0);
   }
 });
+
+
+test("host checkout derives owner from verified identity, never a browser-selected owner", async () => {
+  const observedOwners: string[] = [];
+  let providerCalls = 0;
+  const repository = {
+    loadApproval: async (ownerId: string) => {
+      observedOwners.push(ownerId);
+      return null; // No approval exists for the authenticated owner.
+    },
+  } as unknown as DebtValidationMatterRepository;
+  const handler = createDebtValidationHostCheckoutHandler({
+    allowedOrigin: origin,
+    repository,
+    submitNewClaim: async () => { providerCalls++; throw new Error("unexpected provider call"); },
+    reconcileClaim: async () => { providerCalls++; throw new Error("unexpected reconciliation"); },
+  }, async () => ({ user: { id: "verified-owner" } }));
+  const packet = {
+    matterId: "synthetic-matter",
+    reviewedPdfSha256: "a".repeat(64),
+    reviewedTotalCents: 1499,
+    reviewedMailClass: "certified",
+    reviewedMatterVersion: 1,
+    reviewedEnclosureManifestSha256: "b".repeat(64),
+    userConfirmedCheckout: true,
+  };
+  const forged = await handler(new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify({ ...packet, ownerId: "other-owner" }),
+  }));
+  assert.equal(forged.status, 400);
+  assert.deepEqual(await forged.json(), { code: "untrusted_checkout_fields" });
+  assert.deepEqual(observedOwners, [], "forged owner must be rejected before storage reads");
+  const valid = await handler(new Request(origin + "/api/debt-validation/checkout", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", authorization: "Bearer synthetic" },
+    body: JSON.stringify(packet),
+  }));
+  assert.equal(valid.status, 409);
+  assert.deepEqual(await valid.json(), { code: "debt_validation_approval_or_quote_changed" });
+  assert.deepEqual(observedOwners, ["verified-owner"]);
+  assert.equal(providerCalls, 0);
+});
