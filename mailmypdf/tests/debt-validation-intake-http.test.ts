@@ -429,6 +429,14 @@ test("authenticated debt-validation intake, exact PDF review, explicit approval 
   assert.equal(providerSubmissions, 0, "stale notice or recipient never submits mock providers");
   assert.equal(receiptReads, 0);
 
+  // Explicit checkout consent is separate from PDF approval. A missing or
+  // withdrawn checkout confirmation must never reach the provider boundary.
+  assert.equal((await requestCheckout({ ...confirmedCheckout, userConfirmedCheckout: false })).status, 400,
+    "approval alone cannot authorize payment or mailing");
+  assert.equal((await requestCheckout({ ...reviewed })).status, 400,
+    "missing checkout confirmation cannot reuse packet approval");
+  assert.equal(providerSubmissions, 0, "unconfirmed checkout cannot submit providers");
+  assert.equal(receiptReads, 0, "unconfirmed checkout cannot query provider receipts");
   assert.equal((await requestCheckout(confirmedCheckout, "")).status, 401);
   assert.equal((await requestCheckout(confirmedCheckout, "Bearer other-owner")).status, 409,
     "another authenticated owner cannot claim checkout");
