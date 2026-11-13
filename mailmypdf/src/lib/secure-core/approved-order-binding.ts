@@ -5,6 +5,13 @@ type ExistingWorkflowOrder = {
   approved_packet_sha256: string | null;
   approved_price_cents: number | null;
   price_cents: number;
+  email: string;
+  sender_name: string;
+  sender_line1: string;
+  sender_line2: string | null;
+  sender_city: string;
+  sender_state: string;
+  sender_postal: string;
   vertical_metadata: unknown;
 };
 
@@ -14,6 +21,15 @@ type ExpectedWorkflowOrder = {
   ownerId: string;
   packetSha256: string;
   totalCents: number;
+  email: string;
+  sender: {
+    name: string;
+    line1: string;
+    line2?: string | null;
+    city: string;
+    state: string;
+    postal: string;
+  };
 };
 
 export function assertApprovedWorkflowOrderMatches(
@@ -31,6 +47,13 @@ export function assertApprovedWorkflowOrderMatches(
     order.approved_packet_sha256 !== expected.packetSha256 ||
     order.approved_price_cents !== expected.totalCents ||
     order.price_cents !== expected.totalCents ||
+    order.email !== expected.email ||
+    order.sender_name !== expected.sender.name ||
+    order.sender_line1 !== expected.sender.line1 ||
+    (order.sender_line2 ?? null) !== (expected.sender.line2 ?? null) ||
+    order.sender_city !== expected.sender.city ||
+    order.sender_state !== expected.sender.state.toUpperCase() ||
+    order.sender_postal !== expected.sender.postal ||
     binding?.source !== "secure-workflow" ||
     binding.owner_user_id !== expected.ownerId ||
     binding.workflow_case_id !== expected.caseId ||
