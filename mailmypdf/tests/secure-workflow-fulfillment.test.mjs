@@ -30,7 +30,7 @@ test("unified IRS notice workflow continues an immutable approval into checkout"
   assert.match(checkout, /case_approval_id:\s*input\.approvalId/);
   assert.match(checkout, /approved_packet_sha256:\s*input\.packet\.packetSha256/);
   assert.match(checkout, /approved_price_cents:\s*input\.packet\.quote\.totalCents/);
-  assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
+  assert.match(checkout, /workflowCheckoutAttemptKey\(input\.approvalId, replacedSessionId\)/);
   assert.match(checkout, /Checkout session could not be bound to the approved order/);
 });
 
