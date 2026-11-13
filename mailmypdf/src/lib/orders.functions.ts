@@ -135,9 +135,9 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
           existingSession.mode !== "payment" ||
           existingSession.currency !== "usd"
         ) return { error: "Existing checkout does not match this mailing order." };
-        if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
-          return { error: "The checkout total changed. Go back and review the price again." };
         if (existingSession.status === "open") {
+          if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
+            return { error: "The checkout total changed. Go back and review the price again." };
           if (!existingSession.client_secret) {
             return { error: "Existing Stripe checkout has no payable client secret." };
           }
