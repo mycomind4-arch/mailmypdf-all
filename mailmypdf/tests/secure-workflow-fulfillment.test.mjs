@@ -98,13 +98,18 @@ test("saved IRS workflows resume from the case URL after checkout cancellation",
   assert.match(approvalRoute, /GET:\s*async/);
 });
 
-test("expired Stripe workflow sessions release their order claim before retry", async () => {
+test("expired Stripe workflow sessions retain a compare-and-swap claim during retry", async () => {
   const checkout = await appSource("src/lib/secure-core/workflow-checkout.server.ts");
+  const binding = await appSource("src/lib/secure-core/approved-order-binding.ts");
 
-  assert.match(checkout, /Expired\/cancelled sessions must release the order claim/);
-  assert.match(checkout, /\.update\(\{ stripe_session_id: null \}\)/);
-  assert.match(checkout, /\.eq\("stripe_session_id", priorSessionId\)/);
-  assert.match(checkout, /workflow_checkout_\$\{input\.approvalId\}/);
+  // Releasing to NULL before replacement allows another request to recover
+  // the original expired Stripe idempotency session, trapping checkout.
+  assert.doesNotMatch(checkout, /\.update\(\{ stripe_session_id: null \}\)/);
+  assert.match(checkout, /replacedSessionId = priorSessionId/);
+  assert.match(checkout, /claimQuery\.eq\("stripe_session_id", replacedSessionId\)/);
+  assert.match(checkout, /workflowCheckoutAttemptKey\(input\.approvalId, replacedSessionId\)/);
+  assert.match(binding, /crypto\.subtle\.digest/);
+  assert.match(checkout, /assertHostedCheckoutSessionMatches/);
 });
 
 test("IRS evidence is scan-gated and source notices are not automatic enclosures", async () => {
