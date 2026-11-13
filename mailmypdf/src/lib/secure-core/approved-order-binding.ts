@@ -40,3 +40,49 @@ export function assertApprovedWorkflowOrderMatches(
     throw new Error("Existing workflow order does not match the authenticated approved packet.");
   }
 }
+
+type CheckoutSessionIdentity = {
+  id: string;
+  mode: string | null;
+  status: string | null;
+  amount_total: number | null;
+  currency: string | null;
+  metadata: Record<string, string> | null;
+};
+
+export function assertHostedCheckoutSessionMatches(
+  session: CheckoutSessionIdentity,
+  order: { id: string; price_cents: number },
+  approvalId: string,
+  caseId: string,
+): void {
+  if (
+    session.mode !== "payment" ||
+    session.currency !== "usd" ||
+    session.amount_total !== order.price_cents ||
+    session.metadata?.orderId !== order.id ||
+    session.metadata?.workflowCaseId !== caseId ||
+    session.metadata?.caseApprovalId !== approvalId
+  ) {
+    throw new Error("Stripe checkout session identity does not match the approved mailing.");
+  }
+}
+
+/**
+ * Exactly one Stripe create key per previous session. After a confirmed
+ * expired session, retry with a different key so Stripe cannot replay the
+ * expired first checkout. Concurrent retries of the same predecessor keep
+ * the same key. This never uses a client-supplied nonce.
+ */
+export async function workflowCheckoutAttemptKey(
+  approvalId: string,
+  previousSessionId: string | null,
+): Promise<string> {
+  if (!previousSessionId) return `workflow_checkout_${approvalId}`;
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(previousSessionId),
+  );
+  const suffix = Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+  return `workflow_checkout_${approvalId}_retry_${suffix}`;
+}
