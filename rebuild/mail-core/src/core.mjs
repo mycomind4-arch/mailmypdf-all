@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const required = (value, field) => {
@@ -18,47 +18,65 @@ export function packet({ ownerId, pdf, sender, recipient, priceCents, currency='
   return Object.freeze({ ...snapshot, packetSha256 });
 }
 export class MockMailCore {
-  constructor() { this.orders=new Map(); this.paymentEvents=new Set(); this.sendKeys=new Set(); this.submissions=[]; }
-  create({ownerId,...input}) {
-    const value=packet({ownerId,...input}), id=randomUUID();
-    this.orders.set(id,{id,ownerId,packet:value,state:'review',approval:null,checkoutId:null,submissionId:null});
-    return id;
+  #orders=new Map();
+  #paymentEvents=new Set();
+  #sendKeys=new Set();
+  #submissions=[];
+  #mockPaymentKey;
+  constructor({mockPaymentKey}={}) {
+    this.#mockPaymentKey=mockPaymentKey ?? randomUUID();
   }
-  get(id,ownerId) {
-    const order=this.orders.get(id);
+  get submissions() { return structuredClone(this.#submissions); }
+  #getOrder(id,ownerId) {
+    const order=this.#orders.get(id);
     if (!order || order.ownerId!==ownerId) throw new Error('not found');
     return order;
   }
+  // Synthetic payment signatures only; never use as a Stripe webhook verifier.
+  mockPaymentSignature(event) {
+    return createHmac('sha256',this.#mockPaymentKey).update(JSON.stringify(event)).digest('hex');
+  }
+  create({ownerId,...input}) {
+    const value=packet({ownerId,...input}), id=randomUUID();
+    this.#orders.set(id,{id,ownerId,packet:value,state:'review',approval:null,checkoutId:null,submissionId:null});
+    return id;
+  }
+  get(id,ownerId) { return structuredClone(this.#getOrder(id,ownerId)); }
   approve(id,ownerId,packetSha256) {
-    const order=this.get(id,ownerId);
+    const order=this.#getOrder(id,ownerId);
     if(order.state!=='review' || order.packet.packetSha256!==packetSha256) throw new Error('packet mismatch or invalid state');
     order.approval={packetSha256,at:Date.now()};
     order.state='approved';
   }
   checkout(id,ownerId) {
-    const order=this.get(id,ownerId);
+    const order=this.#getOrder(id,ownerId);
     if(order.state!=='approved' || order.approval?.packetSha256!==order.packet.packetSha256) throw new Error('approval required');
     order.checkoutId ??= 'test_checkout_'+id;
     return order.checkoutId;
   }
-  paid({eventId,checkoutId,amountCents,currency='usd',packetSha256}) {
-    if(this.paymentEvents.has(eventId)) return false;
-    const order=[...this.orders.values()].find(o=>o.checkoutId===checkoutId);
+  paid(event,signature) {
+    const {eventId,checkoutId,amountCents,currency='usd',packetSha256}=event ?? {};
+    if(typeof signature!=='string' || !/^[a-f0-9]{64}$/.test(signature)) throw new Error('verified mock payment signature required');
+    const expected=this.mockPaymentSignature(event);
+    if(!timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex'))) throw new Error('verified mock payment signature required');
+    if(typeof eventId!=='string' || !eventId.trim()) throw new Error('payment event ID required');
+    if(this.#paymentEvents.has(eventId)) return false;
+    const order=[...this.#orders.values()].find(o=>o.checkoutId===checkoutId);
     if(!order || order.state!=='approved' || !order.approval || order.approval.packetSha256!==packetSha256 || order.packet.packetSha256!==packetSha256 || order.packet.priceCents!==amountCents || order.packet.currency!==currency) throw new Error('unverified payment');
-    this.paymentEvents.add(eventId);
+    this.#paymentEvents.add(eventId);
     order.state='paid';
     return true;
   }
   submit(id,ownerId) {
-    const order=this.get(id,ownerId);
+    const order=this.#getOrder(id,ownerId);
     if(order.state==='submitted') return order.submissionId;
     if(order.state!=='paid' || !order.approval || order.approval.packetSha256!==order.packet.packetSha256) throw new Error('verified payment and approval required');
     const key='mail_'+id;
-    if(this.sendKeys.has(key)) return order.submissionId;
-    this.sendKeys.add(key);
+    if(this.#sendKeys.has(key)) return order.submissionId;
+    this.#sendKeys.add(key);
     order.submissionId='test_lob_'+id;
     order.state='submitted';
-    this.submissions.push({key,packetSha256:order.packet.packetSha256});
+    this.#submissions.push({key,packetSha256:order.packet.packetSha256});
     return order.submissionId;
   }
 }
