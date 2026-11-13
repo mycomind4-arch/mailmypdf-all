@@ -8,6 +8,9 @@ on:
       - 'mailmypdf/tests/approved-order-binding.test.ts'
       - 'mailmypdf/src/lib/orders.functions.ts'
       - 'mailmypdf/tests/checkout-claim-race.test.mjs'
+      - 'mailmypdf/tests/checkout-boundary.test.mjs'
+      - 'mailmypdf/src/lib/feature-flags.ts'
+      - 'mailmypdf/tests/feature-flags-admin.test.mjs'
       - 'mailmypdf/tests/secure-workflow-fulfillment.test.mjs'
       - '.github/workflows/minimal-mail-core.yml'
   push:
@@ -20,6 +23,9 @@ on:
       - 'mailmypdf/tests/approved-order-binding.test.ts'
       - 'mailmypdf/src/lib/orders.functions.ts'
       - 'mailmypdf/tests/checkout-claim-race.test.mjs'
+      - 'mailmypdf/tests/checkout-boundary.test.mjs'
+      - 'mailmypdf/src/lib/feature-flags.ts'
+      - 'mailmypdf/tests/feature-flags-admin.test.mjs'
       - 'mailmypdf/tests/secure-workflow-fulfillment.test.mjs'
       - '.github/workflows/minimal-mail-core.yml'
 permissions:
@@ -38,4 +44,4 @@ jobs:
       - name: Verify authenticated workflow checkout binding
         run: node --experimental-strip-types --test mailmypdf/tests/approved-order-binding.test.ts
       - name: Verify direct-mail checkout ownership race and fulfillment boundaries
-        run: node --test mailmypdf/tests/checkout-claim-race.test.mjs mailmypdf/tests/checkout-boundary.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/secure-workflow-fulfillment.test.mjs
+        run: node --test mailmypdf/tests/checkout-claim-race.test.mjs mailmypdf/tests/checkout-boundary.test.mjs mailmypdf/tests/payment-fulfillment-boundary.test.mjs mailmypdf/tests/secure-workflow-fulfillment.test.mjs mailmypdf/tests/feature-flags-admin.test.mjs
