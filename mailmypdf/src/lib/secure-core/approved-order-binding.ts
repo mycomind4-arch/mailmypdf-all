@@ -109,3 +109,13 @@ export async function workflowCheckoutAttemptKey(
   const suffix = Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
   return `workflow_checkout_${approvalId}_retry_${suffix}`;
 }
+
+/** Direct upload checkouts retain their original Stripe idempotency key on
+ * first attempt and advance only when the previous session has expired. */
+export async function directCheckoutAttemptKey(
+  orderId: string,
+  previousSessionId: string | null,
+): Promise<string> {
+  const key = await workflowCheckoutAttemptKey(orderId, previousSessionId);
+  return key.replace(/^workflow_checkout_/, "checkout_");
+}
