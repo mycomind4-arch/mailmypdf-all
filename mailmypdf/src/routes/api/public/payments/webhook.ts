@@ -378,6 +378,7 @@ async function markOrderPaid(
     })
     .eq("id", orderId)
     .eq("status", "draft")
+    .eq("stripe_session_id", session.id)
     .select("id");
 
   if (updateErr) {
