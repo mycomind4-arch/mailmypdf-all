@@ -4,6 +4,7 @@
 import { getConfig } from "@/config";
 import { canonicalJSON } from "@/lib/proof-of-service/hashing";
 import { flags } from "@/lib/feature-flags";
+import { assertWorkflowFulfillmentMatchesApproval } from "@/lib/secure-core/approved-order-binding";
 import {
   type OrderStatus,
   type TransitionContext,
@@ -368,6 +369,36 @@ async function assertApprovedOrderIntegrity(
       });
 
       throw new Error("Approved mailing PDF changed after approval; provider submission blocked");
+    }
+  }
+
+  // Workflow orders must be revalidated against the independent,
+  // immutable case_approvals row immediately before Lob receives the
+  // PDF. A matching PDF hash alone does NOT authorize a changed destination.
+  if (order.case_approval_id || order.workflow_case_id) {
+    if (!order.case_approval_id || !order.workflow_case_id) {
+      throw new Error("Incomplete workflow approval binding; Lob submission blocked");
+    }
+    const { data: immutableApproval, error: approvalError } = await supabaseAdmin
+      .from("case_approvals")
+      .select("id,case_id,owner_id,packet_sha256,recipient,mail_class,quote")
+      .eq("id", order.case_approval_id)
+      .eq("case_id", order.workflow_case_id)
+      .maybeSingle();
+    if (approvalError) throw new Error("Cannot verify immutable workflow approval");
+    try {
+      assertWorkflowFulfillmentMatchesApproval(order, immutableApproval);
+    } catch (error) {
+      await supabaseAdmin.from("order_events").insert({
+        order_id: order.id,
+        type: "fulfillment.workflow_approval_snapshot_mismatch",
+        label: "Workflow mailing details no longer match immutable user approval",
+        metadata: {
+          workflow_case_id: order.workflow_case_id,
+          case_approval_id: order.case_approval_id,
+        },
+      });
+      throw error;
     }
   }
 
