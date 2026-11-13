@@ -82,11 +82,16 @@ export const getMailCheckoutQuote = createServerFn({ method: "POST" })
       const session = await createStripeClient().checkout.sessions.retrieve(
         order.stripe_session_id,
       );
-      if (session.status !== "open" || session.amount_total == null)
-        throw new Error(
-          "This checkout is no longer open. Check the order status before paying again.",
-        );
-      return { totalCents: session.amount_total };
+      if (session.metadata?.orderId !== order.id || session.mode !== "payment" || session.currency !== "usd") {
+        throw new Error("Stripe checkout identity does not match this order.");
+      }
+      if (session.status === "open" && session.amount_total != null) {
+        return { totalCents: session.amount_total };
+      }
+      if (session.status !== "expired") {
+        throw new Error("This checkout has already progressed beyond payment or cannot be retried.");
+      }
+      // Expired sessions may be replaced after the user reviews the current quote.
     }
     const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
     const { totalCents } = await mailCheckoutQuote(order);
