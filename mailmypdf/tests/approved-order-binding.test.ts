@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertApprovedWorkflowOrderMatches, assertHostedCheckoutSessionMatches, workflowCheckoutAttemptKey } from "../src/lib/secure-core/approved-order-binding.ts";
+import { assertApprovedWorkflowOrderMatches, assertHostedCheckoutSessionMatches, workflowCheckoutAttemptKey, directCheckoutAttemptKey } from "../src/lib/secure-core/approved-order-binding.ts";
 
 const expected = {
   approvalId: "approval-1", caseId: "case-1", ownerId: "user-1",
@@ -90,4 +90,16 @@ test("expired Stripe checkout retry gets a new deterministic idempotency key", a
   assert.notEqual(retry1, initial);
   assert.notEqual(retry2, retry1);
   assert.ok(retry1.length < 255);
+});
+
+test("direct mail keeps original checkout key and creates distinct retry keys", async () => {
+  const initial = await directCheckoutAttemptKey("order-1", null);
+  const previous = await directCheckoutAttemptKey("order-1", "cs_expired_1");
+  const repeat = await directCheckoutAttemptKey("order-1", "cs_expired_1");
+  const next = await directCheckoutAttemptKey("order-1", "cs_expired_2");
+  assert.equal(initial, "checkout_order-1");
+  assert.notEqual(previous, initial);
+  assert.equal(previous, repeat);
+  assert.notEqual(next, previous);
+  assert.match(previous, /^checkout_order-1_retry_[0-9a-f]{64}$/);
 });
