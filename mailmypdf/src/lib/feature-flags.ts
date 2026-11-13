@@ -153,12 +153,11 @@ export const flags = {
    * Returns all flags and their current values for admin dashboard display.
    */
   getAllFlags(): Array<{ key: string; description: string; value: boolean; runtimeToggleable: boolean }> {
+    const current = this.toObject();
     return Object.entries(FLAG_DEFINITIONS).map(([name, def]) => ({
       key: name,
       description: def.description,
-      value: this[`is${name.charAt(0).toUpperCase()}${name.slice(1)}Enabled` as keyof typeof flags]
-        ? true
-        : false,
+      value: current[name] ?? false,
       runtimeToggleable: def.runtimeToggleable,
     }));
   },
