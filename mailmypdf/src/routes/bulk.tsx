@@ -126,6 +126,8 @@ ACME Corp,789 Business Blvd,Suite 100,Austin,TX,78701`;
   };
 
   const startBulkCheckout = async () => {
+    setError("Bulk checkout is paused for billing safety. Use single-letter mailing instead.");
+    return;
     if (!file || !rawFileRef.current || !csvText) {
       setError("Missing PDF or recipient list.");
       return;
@@ -192,7 +194,10 @@ ACME Corp,789 Business Blvd,Suite 100,Austin,TX,78701`;
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl font-bold">Bulk Mail</h1>
         <p className="mt-2 text-muted-foreground">
-          Upload one PDF and a CSV of recipients. We'll print and mail each letter individually — one checkout, one price.
+          Bulk mailing preparation is available, but payment is temporarily paused while batch billing is secured.
+        </p>
+        <p className="mt-3 rounded-md border border-amber-400/40 p-4 text-sm" role="status">
+          No bulk payment will be collected. For mailing now, <a href="/send" className="underline font-medium">send a single PDF</a>.
         </p>
 
         {/* Step indicator */}
@@ -404,10 +409,10 @@ ACME Corp,789 Business Blvd,Suite 100,Austin,TX,78701`;
               </button>
               <button
                 onClick={startBulkCheckout}
-                disabled={!canGoTo(2) || submitting || !preview}
+                disabled={true}
                 className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-cobalt/90 disabled:opacity-50"
               >
-                {submitting ? "Creating orders..." : `Pay ${preview ? formatUSD(preview.totalCents) : ""} →`}
+                Bulk checkout paused
               </button>
             </div>
           </div>
