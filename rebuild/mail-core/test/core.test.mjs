@@ -54,3 +54,21 @@ test('returned order and submission snapshots cannot bypass payment or corrupt i
  core.submissions[0].key='changed';
  assert.equal(core.submissions[0].key,'mail_'+id);
 });
+
+test('expired approval fails closed at checkout, payment and submission',()=>{
+ let clock=1000;
+ const core=new MockMailCore({now:()=>clock,approvalTtlMs:100});
+ const id=core.create(input),sha=core.get(id,'alice').packet.packetSha256;
+ core.approve(id,'alice',sha);
+ clock=1101;
+ assert.throws(()=>core.checkout(id,'alice'),/expired/);
+ clock=1000;
+ const checkoutId=core.checkout(id,'alice');
+ clock=1101;
+ const payment={eventId:'evt_expired',checkoutId,amountCents:499,packetSha256:sha};
+ assert.throws(()=>core.paid(payment,core.mockPaymentSignature(payment)),/unverified payment/);
+ clock=1000;
+ core.paid(payment,core.mockPaymentSignature(payment));
+ clock=1101;
+ assert.throws(()=>core.submit(id,'alice'),/verified payment/);
+});
