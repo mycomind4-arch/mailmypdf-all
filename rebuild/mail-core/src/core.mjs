@@ -23,8 +23,11 @@ export class MockMailCore {
   #sendKeys=new Set();
   #submissions=[];
   #mockPaymentKey;
-  constructor({mockPaymentKey}={}) {
+  constructor({mockPaymentKey,approvalTtlMs=15*60*1000,now=()=>Date.now()}={}) {
+    if(!Number.isSafeInteger(approvalTtlMs) || approvalTtlMs<=0) throw new Error('valid approval TTL required');
     this.#mockPaymentKey=mockPaymentKey ?? randomUUID();
+    this.approvalTtlMs=approvalTtlMs;
+    this.now=now;
   }
   get submissions() { return structuredClone(this.#submissions); }
   #getOrder(id,ownerId) {
@@ -45,12 +48,15 @@ export class MockMailCore {
   approve(id,ownerId,packetSha256) {
     const order=this.#getOrder(id,ownerId);
     if(order.state!=='review' || order.packet.packetSha256!==packetSha256) throw new Error('packet mismatch or invalid state');
-    order.approval={packetSha256,at:Date.now()};
+    order.approval={packetSha256,at:this.now()};
     order.state='approved';
+  }
+  #validApproval(order) {
+    return !!order.approval && order.approval.packetSha256===order.packet.packetSha256 && this.now()>=order.approval.at && this.now()-order.approval.at<=this.approvalTtlMs;
   }
   checkout(id,ownerId) {
     const order=this.#getOrder(id,ownerId);
-    if(order.state!=='approved' || order.approval?.packetSha256!==order.packet.packetSha256) throw new Error('approval required');
+    if(order.state!=='approved' || !this.#validApproval(order)) throw new Error('approval required or expired');
     order.checkoutId ??= 'test_checkout_'+id;
     return order.checkoutId;
   }
@@ -62,7 +68,7 @@ export class MockMailCore {
     if(typeof eventId!=='string' || !eventId.trim()) throw new Error('payment event ID required');
     if(this.#paymentEvents.has(eventId)) return false;
     const order=[...this.#orders.values()].find(o=>o.checkoutId===checkoutId);
-    if(!order || order.state!=='approved' || !order.approval || order.approval.packetSha256!==packetSha256 || order.packet.packetSha256!==packetSha256 || order.packet.priceCents!==amountCents || order.packet.currency!==currency) throw new Error('unverified payment');
+    if(!order || order.state!=='approved' || !this.#validApproval(order) || order.approval.packetSha256!==packetSha256 || order.packet.packetSha256!==packetSha256 || order.packet.priceCents!==amountCents || order.packet.currency!==currency) throw new Error('unverified payment');
     this.#paymentEvents.add(eventId);
     order.state='paid';
     return true;
@@ -70,7 +76,7 @@ export class MockMailCore {
   submit(id,ownerId) {
     const order=this.#getOrder(id,ownerId);
     if(order.state==='submitted') return order.submissionId;
-    if(order.state!=='paid' || !order.approval || order.approval.packetSha256!==order.packet.packetSha256) throw new Error('verified payment and approval required');
+    if(order.state!=='paid' || !this.#validApproval(order)) throw new Error('verified payment and approval required');
     const key='mail_'+id;
     if(this.#sendKeys.has(key)) return order.submissionId;
     this.#sendKeys.add(key);
