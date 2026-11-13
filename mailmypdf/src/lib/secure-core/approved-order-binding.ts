@@ -119,3 +119,85 @@ export async function directCheckoutAttemptKey(
   const key = await workflowCheckoutAttemptKey(orderId, previousSessionId);
   return key.replace(/^workflow_checkout_/, "checkout_");
 }
+
+/** Fail closed immediately before Lob receives a signed approved workflow PDF.
+ * The independent, immutable case_approvals row—not the mutable order
+ * recipient—is authoritative for destination, mail class, price and owner.
+ */
+export function assertWorkflowFulfillmentMatchesApproval(
+  order: {
+    case_approval_id: string | null;
+    workflow_case_id: string | null;
+    approved_packet_sha256: string | null;
+    approved_price_cents: number | null;
+    price_cents: number;
+    email: string;
+    recipient_name: string;
+    recipient_line1: string;
+    recipient_line2: string | null;
+    recipient_city: string;
+    recipient_state: string;
+    recipient_postal: string;
+    sender_name: string;
+    sender_line1: string;
+    sender_line2: string | null;
+    sender_city: string;
+    sender_state: string;
+    sender_postal: string;
+    mail_class: string;
+    color: boolean;
+    vertical_metadata: unknown;
+  },
+  approval: {
+    id: string;
+    case_id: string;
+    owner_id: string;
+    packet_sha256: string;
+    recipient: unknown;
+    mail_class: string;
+    quote: unknown;
+  } | null,
+): void {
+  const fail = (): never => {
+    throw new Error("Workflow mailing details do not match immutable approval; Lob submission blocked");
+  };
+  if (!approval) fail();
+  const r = approval.recipient;
+  const q = approval.quote;
+  const m = order.vertical_metadata;
+  const recipient = r && typeof r === "object" && !Array.isArray(r) ? r as Record<string, unknown> : null;
+  const quote = q && typeof q === "object" && !Array.isArray(q) ? q as Record<string, unknown> : null;
+  const metadata = m && typeof m === "object" && !Array.isArray(m) ? m as Record<string, unknown> : null;
+  const senderRaw = metadata?.sender_snapshot;
+  const sender = senderRaw && typeof senderRaw === "object" && !Array.isArray(senderRaw)
+    ? senderRaw as Record<string, unknown> : null;
+
+  if (
+    !order.case_approval_id || !order.workflow_case_id || !order.approved_packet_sha256 ||
+    approval.id !== order.case_approval_id ||
+    approval.case_id !== order.workflow_case_id ||
+    approval.packet_sha256 !== order.approved_packet_sha256 ||
+    quote?.totalCents !== order.price_cents ||
+    order.approved_price_cents !== order.price_cents ||
+    approval.mail_class !== order.mail_class ||
+    order.color !== false ||
+    recipient?.name !== order.recipient_name ||
+    recipient?.line1 !== order.recipient_line1 ||
+    (recipient?.line2 ?? null) !== (order.recipient_line2 ?? null) ||
+    recipient?.city !== order.recipient_city ||
+    recipient?.state !== order.recipient_state ||
+    recipient?.postal !== order.recipient_postal ||
+    metadata?.source !== "secure-workflow" ||
+    metadata?.owner_user_id !== approval.owner_id ||
+    metadata?.workflow_case_id !== order.workflow_case_id ||
+    metadata?.case_approval_id !== approval.id ||
+    metadata?.approved_packet_sha256 !== approval.packet_sha256 ||
+    metadata?.billing_email !== order.email ||
+    sender?.name !== order.sender_name ||
+    sender?.line1 !== order.sender_line1 ||
+    (sender?.line2 ?? null) !== (order.sender_line2 ?? null) ||
+    sender?.city !== order.sender_city ||
+    sender?.state !== order.sender_state ||
+    sender?.postal !== order.sender_postal
+  ) fail();
+}
