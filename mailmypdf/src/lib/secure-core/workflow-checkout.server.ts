@@ -29,7 +29,7 @@ export async function createOrLoadOrder(input: {
 
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("orders")
-    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
+    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata, email, sender_name, sender_line1, sender_line2, sender_city, sender_state, sender_postal")
     .eq("case_approval_id", input.approvalId)
     .maybeSingle();
 
@@ -41,6 +41,8 @@ export async function createOrLoadOrder(input: {
       approvalId: input.approvalId,
       packetSha256: input.packet.packetSha256,
       totalCents: input.packet.quote.totalCents,
+      email: input.email,
+      sender: input.sender,
     });
     return existing;
   }
@@ -98,7 +100,7 @@ export async function createOrLoadOrder(input: {
         approved_packet_sha256: input.packet.packetSha256,
       },
     })
-    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
+    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata, email, sender_name, sender_line1, sender_line2, sender_city, sender_state, sender_postal")
     .single();
 
   if (insertError || !created) {
@@ -108,7 +110,7 @@ export async function createOrLoadOrder(input: {
     if (insertError?.code === "23505") {
       const { data: raced } = await supabaseAdmin
         .from("orders")
-        .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
+        .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata, email, sender_name, sender_line1, sender_line2, sender_city, sender_state, sender_postal")
         .eq("case_approval_id", input.approvalId)
         .maybeSingle();
       if (raced) {
@@ -120,6 +122,8 @@ export async function createOrLoadOrder(input: {
           approvalId: input.approvalId,
           packetSha256: input.packet.packetSha256,
           totalCents: input.packet.quote.totalCents,
+          email: input.email,
+          sender: input.sender,
         });
         return raced;
       }
