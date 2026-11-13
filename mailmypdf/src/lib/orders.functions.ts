@@ -15,6 +15,7 @@ import { z } from "zod";
 import { getMailService } from "@/services";
 import type { OrderStatus } from "@/lib/order-state-machine";
 import { approvedMailPriceMatches } from "@/lib/approved-mail-price";
+import { directCheckoutAttemptKey } from "@/lib/secure-core/approved-order-binding";
 
 // ── Shared Schemas ─────────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
 
     try {
       const stripe = createStripeClient();
+      let replacedSessionId: string | null = null;
 
       if (order.stripe_session_id) {
         const existingSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
@@ -130,13 +132,18 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
         ) return { error: "Existing checkout does not match this mailing order." };
         if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
           return { error: "The checkout total changed. Go back and review the price again." };
-        if (existingSession.status !== "open")
-          return {
-            error: "This checkout is no longer open. Check your order status before paying again.",
-          };
-        if (existingSession.client_secret) {
+        if (existingSession.status === "open") {
+          if (!existingSession.client_secret) {
+            return { error: "Existing Stripe checkout has no payable client secret." };
+          }
           return { clientSecret: existingSession.client_secret };
         }
+        if (existingSession.status !== "expired") {
+          return { error: "This checkout is no longer payable. Check your order status." };
+        }
+        // Retain the expired Stripe ID until a new session atomically wins the
+        // database compare-and-swap; no NULL-claim window and no old-key replay.
+        replacedSessionId = existingSession.id;
       }
 
       const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
@@ -167,7 +174,7 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
         metadata: { orderId: order.id },
       };
       const session = await stripe.checkout.sessions.create(sessionParams as any, {
-        idempotencyKey: `checkout_${order.id}`,
+        idempotencyKey: await directCheckoutAttemptKey(order.id, replacedSessionId),
       });
 
       const { data: claimed, error: claimError } = await supabaseAdmin
@@ -175,7 +182,7 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
         .update({ stripe_session_id: session.id })
         .eq("id", order.id)
         .eq("status", "draft")
-        .is("stripe_session_id", null)
+        [replacedSessionId ? "eq" : "is"]("stripe_session_id", replacedSessionId)
         .select("id");
 
       if (claimError || !claimed || claimed.length !== 1) {
