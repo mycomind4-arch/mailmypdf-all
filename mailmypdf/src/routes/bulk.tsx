@@ -5,7 +5,7 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe
 import { SiteHeader, SiteFooter } from "@/components/site-chrome";
 import { getStripe } from "@/lib/stripe";
 import { calculateTotalPrice, MAIL_CLASS_LABELS, type MailClass } from "@/lib/pricing";
-import { previewBulkOrder, createBulkOrder, createBulkCheckout } from "@/lib/bulk-orders.functions";
+import { previewBulkOrder } from "@/lib/bulk-orders.functions";
 
 export const Route = createFileRoute("/bulk")({
   head: () => ({
@@ -49,8 +49,6 @@ function fileToBase64(file: File): Promise<string> {
 
 function BulkPage() {
   const previewBulkFn = useServerFn(previewBulkOrder);
-  const createBulkFn = useServerFn(createBulkOrder);
-  const createBulkCheckoutFn = useServerFn(createBulkCheckout);
 
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<{ name: string; sizeBytes: number; pages: number } | null>(null);
@@ -127,52 +125,6 @@ ACME Corp,789 Business Blvd,Suite 100,Austin,TX,78701`;
 
   const startBulkCheckout = async () => {
     setError("Bulk checkout is paused for billing safety. Use single-letter mailing instead.");
-    return;
-    if (!file || !rawFileRef.current || !csvText) {
-      setError("Missing PDF or recipient list.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const dataBase64 = await fileToBase64(rawFileRef.current);
-      const created = await createBulkFn({
-        data: {
-          email,
-          sender: { ...sender, line2: sender.line2 || null },
-          file: { name: file.name, sizeBytes: file.sizeBytes, dataBase64 },
-          csvText,
-          color,
-          mailClass,
-        },
-      });
-      if ("error" in created) {
-        setError(created.error);
-        setSubmitting(false);
-        return;
-      }
-      const checkoutResult = await createBulkCheckoutFn({
-        data: {
-          bulkOrderId: created.bulkOrderId,
-          orderIds: created.orderIds,
-          token: created.token,
-          totalCents: created.totalCents,
-          email,
-          fileName: file.name,
-        },
-      });
-      if ("error" in checkoutResult) {
-        setError(checkoutResult.error);
-        setSubmitting(false);
-      } else {
-        setCheckout({ clientSecret: checkoutResult.clientSecret });
-        setStep(3);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const fetchClientSecret = useCallback(async (): Promise<string> => {
