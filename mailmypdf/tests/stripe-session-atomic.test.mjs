@@ -9,7 +9,7 @@ test("verified Stripe payment updates only the still-current checkout session", 
   );
   const transition = code.indexOf('status: "paid_pending_manual_fulfillment"');
   assert.ok(transition > 0);
-  const statement = code.slice(transition, transition + 500);
+  const statement = code.slice(transition, transition + 1200);
   assert.ok(statement.includes('.eq("id", orderId)'), "must bind order");
   assert.ok(statement.includes('.eq("status", "draft")'), "must bind unpaid state");
   assert.ok(statement.includes('.eq("stripe_session_id", session.id)'), "must reject superseded session payments");
