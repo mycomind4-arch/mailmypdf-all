@@ -23,3 +23,11 @@ test("legacy bulk payment webhook never authorizes other order IDs or Lob", asyn
   assert.ok(!safety.includes("metadata.orderIds.split"));
   assert.ok(!safety.includes("status: \"paid_pending_manual_fulfillment\""));
 });
+
+test("bulk page discloses the billing pause and disables checkout before any order is created", async () => {
+  const src = await readFile(new URL("../src/routes/bulk.tsx", import.meta.url), "utf8");
+  assert.ok(src.includes('disabled={true}'));
+  assert.ok(src.includes("Bulk checkout paused"));
+  assert.ok(src.includes('href="/send"'));
+  assert.ok(!src.includes("createBulkFn("));
+});
