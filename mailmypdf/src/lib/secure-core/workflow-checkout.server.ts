@@ -1,4 +1,5 @@
 import { assertRecipient, materializeApprovedPacket } from "./case-approval.server";
+import { assertApprovedWorkflowOrderMatches } from "./approved-order-binding";
 import { DocumentService } from "@/services/document.service";
 import {
   createStripeClient,
@@ -24,18 +25,19 @@ export async function createOrLoadOrder(input: {
 
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("orders")
-    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents")
+    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
     .eq("case_approval_id", input.approvalId)
     .maybeSingle();
 
   if (existingError) throw new Error(existingError.message);
   if (existing) {
-    if (
-      existing.approved_packet_sha256 !== input.packet.packetSha256 ||
-      existing.approved_price_cents !== input.packet.quote.totalCents
-    ) {
-      throw new Error("Existing workflow order does not match the approved packet.");
-    }
+    assertApprovedWorkflowOrderMatches(existing, {
+      ownerId: input.userId,
+      caseId: input.caseId,
+      approvalId: input.approvalId,
+      packetSha256: input.packet.packetSha256,
+      totalCents: input.packet.quote.totalCents,
+    });
     return existing;
   }
 
@@ -92,7 +94,7 @@ export async function createOrLoadOrder(input: {
         approved_packet_sha256: input.packet.packetSha256,
       },
     })
-    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents")
+    .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
     .single();
 
   if (insertError || !created) {
@@ -102,10 +104,21 @@ export async function createOrLoadOrder(input: {
     if (insertError?.code === "23505") {
       const { data: raced } = await supabaseAdmin
         .from("orders")
-        .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents")
+        .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata")
         .eq("case_approval_id", input.approvalId)
         .maybeSingle();
-      if (raced) return raced;
+      if (raced) {
+        // A unique-constraint race must obey the same owner/hash/price guard
+        // as the ordinary reused-order path, never blindly return the winner.
+        assertApprovedWorkflowOrderMatches(raced, {
+          ownerId: input.userId,
+          caseId: input.caseId,
+          approvalId: input.approvalId,
+          packetSha256: input.packet.packetSha256,
+          totalCents: input.packet.quote.totalCents,
+        });
+        return raced;
+      }
     }
     throw new Error(insertError?.message ?? "Unable to create workflow mailing order.");
   }
