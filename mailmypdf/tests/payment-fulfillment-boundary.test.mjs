@@ -25,29 +25,18 @@ test("orders remain drafts until a verified payment webhook transitions them", a
   assert.match(payments, /status:\s*"paid_pending_manual_fulfillment"/);
 });
 
-test("automatic Lob submission happens only after the paid transition succeeds", async () => {
+test("automatic Lob submission happens only after exact-session payment succeeds", async () => {
   const payments = await source("src/routes/api/public/payments/webhook.ts");
-
-  // There are two code paths: single-order and bulk-order.
-  // Both must follow the same pattern: transition → guard → auto-submit flag check → submit call.
-  
-  // Single-order path
-  const singleTransition = payments.indexOf("const { data: updated");
-  const singleAutoSubmit = payments.indexOf("flags.isAutoSubmitEnabled() && flags.isLobEnabled()");
-  const singleSubmitCall = payments.indexOf("await submitOrderToLob(order.id)");
-
+  const singleTransition = payments.indexOf('status: "paid_pending_manual_fulfillment"');
+  const guard = payments.indexOf("if (!updated || updated.length === 0)", singleTransition);
+  const autoSubmit = payments.indexOf("flags.isAutoSubmitEnabled() && flags.isLobEnabled()", guard);
+  const submitCall = payments.indexOf("await submitOrderToLob(orderId)", autoSubmit);
   assert.ok(singleTransition >= 0, "paid transition must exist");
-  assert.ok(singleAutoSubmit > singleTransition, "auto-submit must follow the paid transition");
-  assert.ok(singleSubmitCall > singleAutoSubmit, "Lob submission must remain inside the guarded post-payment block");
-
-  // Bulk-order path (if present)
-  const bulkGuard = payments.indexOf("if (!updated || updated.length === 0)");
-  if (bulkGuard >= 0) {
-    const bulkAutoSubmit = payments.indexOf("flags.isAutoSubmitEnabled() && flags.isLobEnabled()", bulkGuard);
-    const bulkSubmitCall = payments.indexOf("await submitOrderToLob(orderId)", bulkGuard);
-    assert.ok(bulkAutoSubmit > bulkGuard, "bulk auto-submit must follow the transition guard");
-    assert.ok(bulkSubmitCall > bulkAutoSubmit, "bulk Lob submission must follow auto-submit check");
-  }
+  assert.ok(guard > singleTransition, "repeated payment must be idempotent");
+  assert.ok(autoSubmit > guard, "auto-submit must follow the paid transition");
+  assert.ok(submitCall > autoSubmit, "Lob must remain inside the guarded post-payment block");
+  assert.ok(payments.includes('.eq("stripe_session_id", session.id)'), "exact stored session must be bound");
+  assert.ok(!payments.includes("metadata.orderIds.split"), "unverified legacy bulk sessions must not pay unrelated orders");
 });
 
 test("Lob submission is idempotent and restricted to paid or retryable states", async () => {

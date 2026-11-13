@@ -180,97 +180,21 @@ async function markOrderPaid(
     return;
   }
 
-  // ── Check for bulk order ────────────────────────────────────────────────
-  const metadata = session.metadata ?? {};
-  if (metadata.isBulk === "true" && metadata.orderIds) {
-    const orderIds: string[] = metadata.orderIds.split(",").filter(Boolean);
-    const bulkOrderId = metadata.bulkOrderId ?? "unknown";
-    log.info("processing bulk order payment", { bulkOrderId, orderCount: orderIds.length, sessionId: session.id, eventId });
-
-    if (await isDuplicateEvent(bulkOrderId, "payment.received", eventId)) {
-      log.info("duplicate bulk checkout.session.completed — skipping", { bulkOrderId, eventId });
-      return;
-    }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Mark each order as paid individually (using orderIds from metadata)
-    const updatedOrders: { id: string }[] = [];
-    for (const orderId of orderIds) {
-      const { data: updated, error: updateErr } = await supabaseAdmin
-        .from("orders")
-        .update({
-          status: "paid_pending_manual_fulfillment",
-          paid_at: new Date().toISOString(),
-          stripe_session_id: session.id ?? null,
-        })
-        .eq("id", orderId)
-        .eq("status", "draft")
-        .select("id");
-      if (updateErr) {
-        log.error("failed to mark bulk order paid", { orderId, error: updateErr.message, eventId });
-        continue;
-      }
-      if (updated && updated.length > 0) {
-        updatedOrders.push(updated[0]);
-      }
-    }
-
-    if (updatedOrders.length === 0) {
-      log.info("bulk orders already processed — idempotent no-op", { bulkOrderId, eventId });
-      return;
-    }
-
-    log.info("bulk orders marked paid", { bulkOrderId, count: updatedOrders.length, eventId });
-
-    // Record events for all orders
-    for (const order of updatedOrders) {
-      await recordProcessedEvent(order.id, "payment.received", eventId, "Payment received (bulk)", {
-        stripe_session_id: session.id,
-        bulk_order_id: bulkOrderId,
-      });
-      await supabaseAdmin.from("order_events").insert({
-        order_id: order.id,
-        type: "order.pending_fulfillment",
-        label: "Preparing for mailing",
-      });
-    }
-
-    logWebhook({
-      provider: "stripe",
-      eventType: "checkout.session.completed",
-      externalId: eventId,
-      message: `bulk payment received — ${updatedOrders.length} letters — $${((session.amount_total ?? 0) / 100).toFixed(2)}`,
-      level: "info",
-      metadata: { bulkOrderId, count: updatedOrders.length, amountCents: session.amount_total },
+  // SECURITY HOLD: legacy bulk checkout sessions were created using
+  // unverified client-supplied order IDs and price without an atomic persisted
+  // session claim. Never turn one bulk payment into paid single-letter orders.
+  // If Stripe reports a legacy bulk payment, flag for manual reconciliation/
+  // refund rather than automatically submitting unverified recipients to Lob.
+  if (session.metadata?.isBulk === "true") {
+    log.error("legacy bulk payment requires manual reconciliation; no order marked paid", {
+      bulkOrderId: session.metadata?.bulkOrderId ?? null,
+      eventId,
+      sessionId: session.id,
     });
-
-    // Send confirmation email (use first order)
-    await sendPaymentConfirmationEmail(supabaseAdmin, updatedOrders[0].id, requestOrigin);
-
-    // Auto-submit all orders to Lob
-    try {
-      const { submitOrderToLob } = await import("@/lib/lob.server");
-      const { flags } = await import("@/lib/feature-flags");
-      if (flags.isAutoSubmitEnabled() && flags.isLobEnabled()) {
-        let submitted = 0;
-        for (const order of updatedOrders) {
-          try {
-            await submitOrderToLob(order.id);
-            submitted++;
-          } catch (e) {
-            log.error("bulk auto-submit to Lob failed", { orderId: order.id, error: e instanceof Error ? e.message : String(e) });
-          }
-        }
-        log.info("bulk auto-submitted to Lob", { bulkOrderId, submitted, total: updatedOrders.length });
-      }
-    } catch (e) {
-      log.error("bulk Lob submission error", { bulkOrderId, error: e instanceof Error ? e.message : String(e) });
-    }
     return;
   }
 
-  // ── Single order (existing flow) ───────────────────────────────────────
+  // ── Single order: verified persisted checkout session only ──────────────
   const orderId = getOrderId(session);
   if (!orderId) {
     log.error("checkout session missing metadata.orderId", { sessionId: session.id, eventId });
@@ -378,6 +302,7 @@ async function markOrderPaid(
     })
     .eq("id", orderId)
     .eq("status", "draft")
+    .eq("stripe_session_id", session.id)
     .select("id");
 
   if (updateErr) {

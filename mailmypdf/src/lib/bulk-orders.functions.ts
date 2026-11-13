@@ -307,50 +307,18 @@ const bulkCheckoutInput = z.object({
 
 export const createBulkCheckout = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkCheckoutInput.parse(data))
-  .handler(async ({ data }): Promise<{ clientSecret: string } | { error: string }> => {
-    const { createStripeClient, getMailMyPdfBaseUrl, getStripeErrorMessage } = await import("@/lib/stripe.server");
-
-    try {
-      const stripe = createStripeClient();
-      const baseUrl = getMailMyPdfBaseUrl();
-      const returnUrl = new URL("/bulk", `${baseUrl}/`);
-      returnUrl.searchParams.set("bulk", data.bulkOrderId);
-      returnUrl.searchParams.set("token", data.token);
-      returnUrl.searchParams.set("paid", "1");
-
-      const description = `MailMyPDF Bulk Mail — ${data.orderIds.length} letter${data.orderIds.length === 1 ? "" : "s"}`;
-
-      const session = await stripe.checkout.sessions.create({
-        line_items: [{
-          price_data: {
-            currency: "usd",
-            product_data: { name: description },
-            unit_amount: data.totalCents,
-          },
-          quantity: 1,
-        }],
-        mode: "payment" as const,
-        ui_mode: "embedded_page" as const,
-        return_url: returnUrl.toString(),
-        customer_email: data.email,
-        payment_intent_data: { description: `${description}${data.fileName ? ` · ${data.fileName}` : ""}` },
-        metadata: {
-          bulkOrderId: data.bulkOrderId,
-          orderIds: data.orderIds.join(","),
-          isBulk: "true",
-        },
-      } as any, {
-        idempotencyKey: `bulk_checkout_${data.bulkOrderId}`,
-      });
-
-      if (!session.client_secret) {
-        return { error: "Failed to create checkout session." };
-      }
-
-      return { clientSecret: session.client_secret };
-    } catch (error) {
-      return { error: getStripeErrorMessage(error) };
-    }
+  .handler(async (): Promise<{ clientSecret: string } | { error: string }> => {
+    // SECURITY HOLD: the legacy bulk API previously trusted client-supplied
+    // order IDs and total price, then created a payable Stripe session before
+    // atomically binding it to the actual database orders. A single cheap
+    // payment could authorize multiple unrelated orders in the webhook.
+    //
+    // Leave bulk preview and draft preparation intact, but reject checkout
+    // until a server-priced, owner-bound, all-or-nothing batch checkout and
+    // webhook are implemented and covered by sandbox tests.
+    return {
+      error: "Bulk checkout is temporarily unavailable. Please use single-letter mailing while safe batch billing is repaired.",
+    };
   });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

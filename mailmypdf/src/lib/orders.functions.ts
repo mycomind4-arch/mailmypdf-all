@@ -15,6 +15,7 @@ import { z } from "zod";
 import { getMailService } from "@/services";
 import type { OrderStatus } from "@/lib/order-state-machine";
 import { approvedMailPriceMatches } from "@/lib/approved-mail-price";
+import { directCheckoutAttemptKey } from "@/lib/secure-core/approved-order-binding";
 
 // ── Shared Schemas ─────────────────────────────────────────────────────────────
 
@@ -81,11 +82,16 @@ export const getMailCheckoutQuote = createServerFn({ method: "POST" })
       const session = await createStripeClient().checkout.sessions.retrieve(
         order.stripe_session_id,
       );
-      if (session.status !== "open" || session.amount_total == null)
-        throw new Error(
-          "This checkout is no longer open. Check the order status before paying again.",
-        );
-      return { totalCents: session.amount_total };
+      if (session.metadata?.orderId !== order.id || session.mode !== "payment" || session.currency !== "usd") {
+        throw new Error("Stripe checkout identity does not match this order.");
+      }
+      if (session.status === "open" && session.amount_total != null) {
+        return { totalCents: session.amount_total };
+      }
+      if (session.status !== "expired") {
+        throw new Error("This checkout has already progressed beyond payment or cannot be retried.");
+      }
+      // Expired sessions may be replaced after the user reviews the current quote.
     }
     const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
     const { totalCents } = await mailCheckoutQuote(order);
@@ -120,18 +126,29 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
 
     try {
       const stripe = createStripeClient();
+      let replacedSessionId: string | null = null;
 
       if (order.stripe_session_id) {
         const existingSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
-        if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
-          return { error: "The checkout total changed. Go back and review the price again." };
-        if (existingSession.status !== "open")
-          return {
-            error: "This checkout is no longer open. Check your order status before paying again.",
-          };
-        if (existingSession.client_secret) {
+        if (
+          existingSession.metadata?.orderId !== order.id ||
+          existingSession.mode !== "payment" ||
+          existingSession.currency !== "usd"
+        ) return { error: "Existing checkout does not match this mailing order." };
+        if (existingSession.status === "open") {
+          if (!approvedMailPriceMatches(data.approvedPriceCents, existingSession.amount_total))
+            return { error: "The checkout total changed. Go back and review the price again." };
+          if (!existingSession.client_secret) {
+            return { error: "Existing Stripe checkout has no payable client secret." };
+          }
           return { clientSecret: existingSession.client_secret };
         }
+        if (existingSession.status !== "expired") {
+          return { error: "This checkout is no longer payable. Check your order status." };
+        }
+        // Retain the expired Stripe ID until a new session atomically wins the
+        // database compare-and-swap; no NULL-claim window and no old-key replay.
+        replacedSessionId = existingSession.id;
       }
 
       const { mailCheckoutQuote } = await import("@/lib/mail-checkout-quote.server");
@@ -162,31 +179,56 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
         metadata: { orderId: order.id },
       };
       const session = await stripe.checkout.sessions.create(sessionParams as any, {
-        idempotencyKey: `checkout_${order.id}`,
+        idempotencyKey: await directCheckoutAttemptKey(order.id, replacedSessionId),
       });
 
-      const { data: claimed, error: claimError } = await supabaseAdmin
+      const claimQuery = supabaseAdmin
         .from("orders")
         .update({ stripe_session_id: session.id })
         .eq("id", order.id)
-        .eq("status", "draft")
-        .is("stripe_session_id", null)
-        .select("id");
+        .eq("status", "draft");
+      const { data: claimed, error: claimError } = await (
+        replacedSessionId
+          ? claimQuery.eq("stripe_session_id", replacedSessionId)
+          : claimQuery.is("stripe_session_id", null)
+      ).select("id");
 
       if (claimError || !claimed || claimed.length !== 1) {
-        const { logger } = await import("@/lib/logger");
-        try {
-          await stripe.checkout.sessions.expire(session.id);
-        } catch (expirationError) {
-          logger.error("Could not expire checkout session after draft ownership was lost", {
-            orderId: order.id,
-            sessionId: session.id,
-            expirationError,
-          });
+        // Stripe idempotency returns the SAME session to concurrent calls.
+        // Never expire it when another request successfully persisted it.
+        const { data: winner, error: winnerError } = await supabaseAdmin
+          .from("orders")
+          .select("stripe_session_id, status")
+          .eq("id", order.id)
+          .eq("lookup_token", data.token)
+          .maybeSingle();
+        if (winnerError || !winner) {
+          return { error: "Unable to reconcile checkout ownership. Please check your order status." };
         }
-        return {
-          error: "This draft expired before checkout could begin. Please upload the PDF again.",
-        };
+        if (winner.status !== "draft") {
+          return { error: "This order has already progressed beyond checkout." };
+        }
+        if (winner.stripe_session_id) {
+          const actual = winner.stripe_session_id === session.id
+            ? session
+            : await stripe.checkout.sessions.retrieve(winner.stripe_session_id);
+          if (
+            actual.metadata?.orderId !== order.id ||
+            actual.mode !== "payment" ||
+            actual.currency !== "usd"
+          ) return { error: "Checkout identity changed. Please contact support." };
+          if (!approvedMailPriceMatches(data.approvedPriceCents, actual.amount_total)) {
+            return { error: "The checkout total changed. Go back and review the price again." };
+          }
+          if (actual.status === "open" && actual.client_secret) {
+            return { clientSecret: actual.client_secret };
+          }
+          return { error: "The existing checkout is no longer payable. Review the order status." };
+        }
+        // No winner is recorded. Do not expire an unconfirmed session here:
+        // a delayed claim could still complete; the verified webhook itself
+        // requires its exact ID to match the order's persisted session.
+        return { error: "The checkout could not be confirmed. Please retry from your order." };
       }
 
       return { clientSecret: session.client_secret ?? "" };

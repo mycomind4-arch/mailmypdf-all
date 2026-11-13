@@ -45,7 +45,7 @@ test("checkout session creation is idempotent and reuses an existing session", a
   assert.match(orders, /stripe_session_id/);
   assert.match(orders, /checkout\.sessions\.retrieve/);
   assert.match(orders, /idempotencyKey:/);
-  assert.match(orders, /checkout_\$\{order\.id\}/);
+  assert.match(orders, /directCheckoutAttemptKey\(order\.id, replacedSessionId\)/);
 });
 
 test("checkout does not silently enable automatic tax", async () => {
