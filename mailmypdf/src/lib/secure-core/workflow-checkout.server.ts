@@ -98,6 +98,15 @@ export async function createOrLoadOrder(input: {
         workflow_case_id: input.caseId,
         case_approval_id: input.approvalId,
         approved_packet_sha256: input.packet.packetSha256,
+        billing_email: input.email,
+        sender_snapshot: {
+          name: input.sender.name,
+          line1: input.sender.line1,
+          line2: input.sender.line2 ?? null,
+          city: input.sender.city,
+          state: input.sender.state.toUpperCase(),
+          postal: input.sender.postal,
+        },
       },
     })
     .select("id, lookup_token, stripe_session_id, status, price_cents, approved_packet_sha256, approved_price_cents, case_approval_id, workflow_case_id, vertical_metadata, email, sender_name, sender_line1, sender_line2, sender_city, sender_state, sender_postal")
