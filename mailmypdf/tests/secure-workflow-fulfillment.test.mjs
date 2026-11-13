@@ -69,6 +69,9 @@ test("successful Lob submission remains authoritative even if workflow projectio
   const lob = await appSource("src/lib/lob.server.ts");
 
   assert.match(lob, /workflow_case_id/);
+  assert.match(lob, /assertWorkflowFulfillmentMatchesApproval\(order, immutableApproval\)/);
+  assert.match(lob, /fulfillment\.workflow_approval_snapshot_mismatch/);
+  assert.match(lob, /\.from\("case_approvals"\)/);
   assert.match(lob, /\.update\(\{ status: "submitted" \}\)/);
   assert.match(lob, /workflow\.case_sync_failed/);
   assert.doesNotMatch(lob, /Order submitted but workflow case could not be synchronized/);
