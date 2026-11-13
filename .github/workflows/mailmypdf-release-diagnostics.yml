@@ -1,0 +1,69 @@
+name: MailMyPDF Safe Release Diagnostics
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mailmypdf-release-diagnostics.yml'
+      - 'mailmypdf/scripts/production-readiness.mjs'
+      - 'mailmypdf/scripts/verify-deployment.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    name: Read-only configuration preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PAYMENTS_ENV: sandbox
+      AUTO_SUBMIT_TO_LOB: "false"
+      MAILMYPDF_BASE_URL: https://mailmypdf.mycomind4.workers.dev
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.MAILMYPDF_EXPECTED_SUPABASE_PROJECT_REF }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      STRIPE_SANDBOX_API_KEY: ${{ secrets.STRIPE_SANDBOX_API_KEY }}
+      VITE_PAYMENTS_CLIENT_TOKEN: ${{ secrets.VITE_PAYMENTS_CLIENT_TOKEN }}
+      PAYMENTS_SANDBOX_WEBHOOK_SECRET: ${{ secrets.PAYMENTS_SANDBOX_WEBHOOK_SECRET }}
+      LOB_API_KEY: ${{ secrets.LOB_API_KEY }}
+      LOB_WEBHOOK_SECRET: ${{ secrets.LOB_WEBHOOK_SECRET }}
+      MAILMYPDF_CLEANUP_SECRET: ${{ secrets.MAILMYPDF_CLEANUP_SECRET }}
+      MAILMYPDF_SCANNER_JOB_SECRET: ${{ secrets.MAILMYPDF_SCANNER_JOB_SECRET }}
+      MAILMYPDF_MALWARE_SCANNER_URL: ${{ secrets.MAILMYPDF_MALWARE_SCANNER_URL }}
+      MAILMYPDF_MALWARE_SCANNER_KEY: ${{ secrets.MAILMYPDF_MALWARE_SCANNER_KEY }}
+      MAILMYPDF_RETENTION_JOB_SECRET: ${{ secrets.MAILMYPDF_RETENTION_JOB_SECRET }}
+      MAILMYPDF_CONNECTOR_JOB_SECRET: ${{ secrets.MAILMYPDF_CONNECTOR_JOB_SECRET }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_FROM_ADDRESS: ${{ secrets.RESEND_FROM_ADDRESS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate Cloudflare deployment credential presence
+        shell: bash
+        run: |
+          fail=0
+          for name in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN; do
+            if [ -z "${!name:-}" ]; then echo "MISSING: $name"; fail=1; else echo "PRESENT: $name"; fi
+          done
+          exit "$fail"
+      - name: Validate sandbox release environment without provider calls
+        run: node mailmypdf/scripts/production-readiness.mjs
+  deployed-site:
+    name: Read-only public Worker + MCP smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Probe current public HTTPS origin, no payments or mailing
+        env:
+          MAILMYPDF_BASE_URL: https://mailmypdf.mycomind4.workers.dev
+        run: node mailmypdf/scripts/verify-deployment.mjs
