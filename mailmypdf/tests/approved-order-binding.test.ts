@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertApprovedWorkflowOrderMatches } from "../src/lib/secure-core/approved-order-binding";
+import { assertApprovedWorkflowOrderMatches } from "../src/lib/secure-core/approved-order-binding.ts";
 
 const expected = {
   approvalId: "approval-1", caseId: "case-1", ownerId: "user-1",
