@@ -177,13 +177,16 @@ export const createCheckoutForOrder = createServerFn({ method: "POST" })
         idempotencyKey: await directCheckoutAttemptKey(order.id, replacedSessionId),
       });
 
-      const { data: claimed, error: claimError } = await supabaseAdmin
+      const claimQuery = supabaseAdmin
         .from("orders")
         .update({ stripe_session_id: session.id })
         .eq("id", order.id)
-        .eq("status", "draft")
-        [replacedSessionId ? "eq" : "is"]("stripe_session_id", replacedSessionId)
-        .select("id");
+        .eq("status", "draft");
+      const { data: claimed, error: claimError } = await (
+        replacedSessionId
+          ? claimQuery.eq("stripe_session_id", replacedSessionId)
+          : claimQuery.is("stripe_session_id", null)
+      ).select("id");
 
       if (claimError || !claimed || claimed.length !== 1) {
         // Stripe idempotency returns the SAME session to concurrent calls.
