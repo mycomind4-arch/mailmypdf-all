@@ -1,5 +1,9 @@
 import { assertRecipient, materializeApprovedPacket } from "./case-approval.server";
-import { assertApprovedWorkflowOrderMatches } from "./approved-order-binding";
+import {
+  assertApprovedWorkflowOrderMatches,
+  assertHostedCheckoutSessionMatches,
+  workflowCheckoutAttemptKey,
+} from "./approved-order-binding";
 import { DocumentService } from "@/services/document.service";
 import {
   createStripeClient,
@@ -168,6 +172,10 @@ export async function ensureCheckoutSession(input: {
   };
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // An order that is already paid must never offer another open checkout URL.
+  if (input.order.status !== "draft") {
+    return { checkoutUrl: null, sessionId: input.order.stripe_session_id };
+  }
   const stripe = createStripeClient();
 
   const bindConnectorReceipt = async <T extends {
@@ -200,10 +208,15 @@ export async function ensureCheckoutSession(input: {
     return bound as T;
   };
 
+  let replacedSessionId: string | null = null;
   if (input.order.stripe_session_id) {
     const priorSessionId = input.order.stripe_session_id;
     let existing = await stripe.checkout.sessions.retrieve(priorSessionId);
-    if (existing.status === "open" && existing.url) {
+    assertHostedCheckoutSessionMatches(
+      existing, input.order, input.approvalId, input.caseId,
+    );
+    if (existing.status === "open") {
+      if (!existing.url) throw new Error("Stripe has no payable link for the existing checkout.");
       existing = await bindConnectorReceipt(existing);
       return { checkoutUrl: existing.url, sessionId: existing.id };
     }
@@ -211,41 +224,15 @@ export async function ensureCheckoutSession(input: {
       await bindConnectorReceipt(existing);
       return { checkoutUrl: null, sessionId: existing.id };
     }
-
-    // Expired/cancelled sessions must release the order claim before a new
-    // approval-bound checkout can be created.
-    const { data: released, error: releaseError } = await supabaseAdmin
-      .from("orders")
-      .update({ stripe_session_id: null })
-      .eq("id", input.order.id)
-      .eq("status", "draft")
-      .eq("stripe_session_id", priorSessionId)
-      .select("id");
-
-    if (releaseError) throw new Error(releaseError.message);
-    if (released && released.length === 1) {
-      input.order.stripe_session_id = null;
-    } else {
-      const { data: current } = await supabaseAdmin
-        .from("orders")
-        .select("stripe_session_id, status")
-        .eq("id", input.order.id)
-        .maybeSingle();
-      if (current?.status !== "draft") {
-        return { checkoutUrl: null, sessionId: current?.stripe_session_id ?? priorSessionId };
-      }
-      if (current?.stripe_session_id) {
-        const winner = await stripe.checkout.sessions.retrieve(current.stripe_session_id);
-        if (winner.status === "open" && winner.url) {
-          return { checkoutUrl: winner.url, sessionId: winner.id };
-        }
-      }
-      throw new Error("Unable to release the expired checkout session.");
+    if (existing.status !== "expired") {
+      throw new Error("Unable to safely replace the existing checkout session.");
     }
-  }
 
-  if (input.order.status !== "draft") {
-    return { checkoutUrl: null, sessionId: input.order.stripe_session_id };
+    // Keep the expired session ID as a database compare-and-swap token.
+    // Clearing it before creating a replacement would expose a window where
+    // a concurrent retry reused the original Stripe idempotency key and
+    // received the same expired session indefinitely.
+    replacedSessionId = priorSessionId;
   }
 
   const baseUrl = getMailMyPdfBaseUrl();
@@ -289,16 +276,20 @@ export async function ensureCheckoutSession(input: {
       },
     },
   }, {
-    idempotencyKey: `workflow_checkout_${input.approvalId}`,
+    idempotencyKey: await workflowCheckoutAttemptKey(input.approvalId, replacedSessionId),
   });
 
-  const { data: claimed, error: claimError } = await supabaseAdmin
+  assertHostedCheckoutSessionMatches(session, input.order, input.approvalId, input.caseId);
+  const claimQuery = supabaseAdmin
     .from("orders")
     .update({ stripe_session_id: session.id })
     .eq("id", input.order.id)
-    .eq("status", "draft")
-    .is("stripe_session_id", null)
-    .select("id");
+    .eq("status", "draft");
+  const { data: claimed, error: claimError } = await (
+    replacedSessionId
+      ? claimQuery.eq("stripe_session_id", replacedSessionId)
+      : claimQuery.is("stripe_session_id", null)
+  ).select("id");
 
   if (claimError) throw new Error(claimError.message);
 
@@ -309,16 +300,19 @@ export async function ensureCheckoutSession(input: {
       .eq("id", input.order.id)
       .maybeSingle();
 
-    if (winner?.stripe_session_id === session.id && winner.status === "draft") {
-      return { checkoutUrl: session.url, sessionId: session.id };
+    if (winner?.stripe_session_id === session.id) {
+      // The matching session was claimed (or already paid) by a concurrent
+      // request. Never expire another request's winning checkout.
+      return { checkoutUrl: winner.status === "draft" ? session.url : null, sessionId: session.id };
     }
 
     try { await stripe.checkout.sessions.expire(session.id); } catch {}
 
     if (winner?.stripe_session_id) {
       const existing = await stripe.checkout.sessions.retrieve(winner.stripe_session_id);
+      assertHostedCheckoutSessionMatches(existing, input.order, input.approvalId, input.caseId);
       return {
-        checkoutUrl: existing.status === "open" ? existing.url : null,
+        checkoutUrl: winner.status === "draft" && existing.status === "open" ? existing.url : null,
         sessionId: existing.id,
       };
     }
