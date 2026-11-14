@@ -59,7 +59,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Install workspace
+      - name: Install workspace without optional ONNX CUDA download
+        env:
+          npm_config_onnxruntime_node_install: skip
         run: pnpm install --frozen-lockfile
       - name: Build Appeal Mail workspace dependencies
         run: |

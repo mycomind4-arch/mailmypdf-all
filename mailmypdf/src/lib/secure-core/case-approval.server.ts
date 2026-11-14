@@ -6,14 +6,18 @@
 // enclosed pages before it will record an approval.
 
 import { calculateQuote, type MailClass, type Quote } from "@mailmypdf/pricing";
+import { unresolvedPlaceholderMessage } from "@mailmypdf/workflows";
+import { createSecurePacketStorageAdapter } from "@mailmypdf/packet-builder/storage-adapter";
 import type { AuthenticatedUserContext } from "./auth.server";
 import { CaseError, CaseNotFoundError, loadCase } from "./case.server";
 import {
   assemblePacket,
+  createCasePacketStorageAdapter,
   loadPacketDocuments,
   persistMeasuredPageCounts,
   PacketError,
   type PacketManifestEntry,
+  type PacketDocumentRow,
 } from "./packet.server";
 
 const PAGE_WIDTH = 612;
@@ -67,17 +71,40 @@ export function assertReviewedPacket(expected: unknown, actual: ReviewedPacket):
     throw new PacketError("The packet or price changed. Review the updated preview before approving.");
 }
 
+// Postal fields cross an untrusted JSON boundary. A newline or invisible
+// direction-control character can change the envelope's visible destination
+// even when the reviewed recipient object appears unchanged.
+const UNSAFE_RECIPIENT_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/;
+const USPS_STATE_CODES = new Set(
+  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI FM MH PW AA AE AP".split(" "),
+);
+
 export function assertRecipient(value: unknown): Recipient {
-  const r = value as Partial<Recipient> | null;
-  if (!r) throw new CaseError("A recipient is required");
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new CaseError("A recipient is required");
+  }
+  const r = value as Partial<Recipient>;
   for (const field of ["name", "line1", "city", "state", "postal"] as const) {
     const v = r[field];
     if (typeof v !== "string" || !v.trim()) throw new CaseError(`Recipient ${field} is required`);
     if (v.length > 200) throw new CaseError(`Recipient ${field} is too long`);
+    if (UNSAFE_RECIPIENT_CHARACTER.test(v) || unresolvedPlaceholderMessage(v)) {
+      throw new CaseError(`Recipient ${field} contains unsafe or unfinished text`);
+    }
+  }
+  // Do not silently drop an invalid apartment/suite line: that could turn a
+  // complete address into an undeliverable one without the customer's review.
+  if (r.line2 != null && typeof r.line2 !== "string") {
+    throw new CaseError("Recipient line2 must be text");
+  }
+  if (typeof r.line2 === "string" &&
+      (r.line2.length > 200 || UNSAFE_RECIPIENT_CHARACTER.test(r.line2) ||
+       unresolvedPlaceholderMessage(r.line2))) {
+    throw new CaseError("Recipient line2 contains unsafe or unfinished text");
   }
   const state = r.state!.trim().toUpperCase();
   const postal = r.postal!.trim();
-  if (!/^[A-Z]{2}$/.test(state)) throw new CaseError("Recipient state must be a 2-letter code");
+  if (!USPS_STATE_CODES.has(state)) throw new CaseError("Recipient state is not a supported US postal code");
   if (!/^\d{5}(-\d{4})?$/.test(postal)) throw new CaseError("Recipient ZIP code is invalid");
 
   return {
@@ -93,6 +120,21 @@ export function assertRecipient(value: unknown): Recipient {
 export function assertMailClass(value: unknown): MailClass {
   if (value === "standard" || value === "certified" || value === "registered") return value;
   throw new CaseError("Select a mailing method");
+}
+
+/**
+ * The generic workflow runtime blocks unresolved placeholders, but the
+ * authenticated /api/v2/cases routes can be called directly. Enforce the same
+ * rule at their shared packet materialization boundary so an incomplete
+ * response cannot be previewed as mail-ready, approved, or fulfilled.
+ * Saving an unfinished draft remains allowed.
+ */
+export function assertMailableDraftText(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new PacketError("The response draft is empty. Complete it before preparing a mailing packet.");
+  }
+  const unresolved = unresolvedPlaceholderMessage(value);
+  if (unresolved) throw new PacketError(unresolved);
 }
 
 /** Renders the approved draft text into the response letter that leads the packet. */
@@ -112,12 +154,28 @@ export async function renderResponseLetter(bodyText: string): Promise<Uint8Array
     let current = "";
     for (const word of paragraph.split(/\s+/)) {
       const candidate = current ? `${current} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, FONT_SIZE) > usableWidth && current) {
-        lines.push(current);
-        current = word;
-      } else {
+      if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= usableWidth) {
         current = candidate;
+        continue;
       }
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      // A single long URL, reference number or unbroken token can exceed the
+      // printable width. Split it at glyph boundaries rather than drawing it
+      // off the right edge of the physical page.
+      let segment = "";
+      for (const glyph of word) {
+        const next = segment + glyph;
+        if (segment && font.widthOfTextAtSize(next, FONT_SIZE) > usableWidth) {
+          lines.push(segment);
+          segment = glyph;
+        } else {
+          segment = next;
+        }
+      }
+      current = segment;
     }
     lines.push(current);
   }
@@ -155,7 +213,26 @@ async function loadCurrentDraft(
     .maybeSingle();
   if (error) throw new CaseError(error.message);
   if (!data) throw new CaseNotFoundError("This case has no drafted response yet");
+  assertMailableDraftText(data.body_text);
   return { version: data.version, body: data.body_text };
+}
+
+/**
+ * Use the owner-scoped storage adapter in the actual preview and approval
+ * paths, not only in synthetic IRS tests. Signed reads recheck the selected
+ * document list; the canonical packet builder still verifies every SHA-256.
+ * No measured-page write, approval, payment, or mailing happens here.
+ */
+async function assembleOwnedCasePacket(
+  caseId: string,
+  letter: Uint8Array,
+  documents: PacketDocumentRow[],
+  context: AuthenticatedUserContext,
+) {
+  const storage = createSecurePacketStorageAdapter(
+    createCasePacketStorageAdapter(caseId, context),
+  );
+  return assemblePacket(letter, documents, (row) => storage.readBytes(context.user.id, row));
 }
 
 /**
@@ -174,7 +251,7 @@ export async function materializePacketPreview(
   const documents = await loadPacketDocuments(caseId, context);
 
   const letter = await renderResponseLetter(draft.body);
-  const packet = await assemblePacket(letter, documents);
+  const packet = await assembleOwnedCasePacket(caseId, letter, documents, context);
   if (options.persistMeasuredPages !== false) {
     await persistMeasuredPageCounts(caseId, packet.manifest, context);
   }
@@ -272,6 +349,55 @@ function normalizedManifest(value: unknown): Array<{
 }
 
 /**
+ * Verify an approval through an independent, owner-scoped read after the
+ * service-role RPC writes it. An RPC receipt is not durable proof of consent.
+ * This is a readback guard, NOT permission to charge or mail.
+ */
+export function assertRecordedCaseApproval(
+  recorded: unknown,
+  expected: {
+    approvalId: string;
+    caseId: string;
+    ownerId: string;
+    packetSha256: string;
+    manifest: PacketManifestEntry[];
+    responsePages: number;
+    supportingPages: number;
+    recipient: Recipient;
+    mailClass: MailClass;
+    totalCents: number;
+  },
+): void {
+  const invalid = () => new PacketError("Approval persistence could not be verified");
+  if (!recorded || typeof recorded !== "object") throw invalid();
+  const row = recorded as Record<string, unknown>;
+  if (
+    row.id !== expected.approvalId ||
+    row.case_id !== expected.caseId ||
+    row.owner_id !== expected.ownerId ||
+    row.packet_sha256 !== expected.packetSha256 ||
+    row.response_pages !== expected.responsePages ||
+    row.supporting_pages !== expected.supportingPages ||
+    row.mail_class !== expected.mailClass
+  ) throw invalid();
+
+  const quote = row.quote as Record<string, unknown> | null;
+  if (!quote || !Number.isSafeInteger(quote.totalCents) ||
+      quote.totalCents !== expected.totalCents) throw invalid();
+
+  try {
+    // JSONB may reorder object keys and older records may use snake_case.
+    // Compare canonical attachment fields, not raw JSON serialization.
+    if (JSON.stringify(normalizedManifest(row.manifest)) !==
+        JSON.stringify(normalizedManifest(expected.manifest))) throw invalid();
+    if (JSON.stringify(assertRecipient(row.recipient)) !==
+        JSON.stringify(assertRecipient(expected.recipient))) throw invalid();
+  } catch {
+    throw invalid();
+  }
+}
+
+/**
  * Rebuild the exact approved packet immediately before order creation.
  *
  * Approval is not treated as permission to mail arbitrary later state: the
@@ -305,7 +431,7 @@ export async function materializeApprovedPacket(
   const draft = await loadCurrentDraft(caseId, context);
   const documents = await loadPacketDocuments(caseId, context);
   const letter = await renderResponseLetter(draft.body);
-  const packet = await assemblePacket(letter, documents);
+  const packet = await assembleOwnedCasePacket(caseId, letter, documents, context);
   await persistMeasuredPageCounts(caseId, packet.manifest, context);
 
   const quote = calculateQuote({
@@ -367,6 +493,10 @@ export async function approvePacket(
   },
   context: AuthenticatedUserContext,
 ): Promise<{ approvalId: string; preview: PacketPreview }> {
+  // The generic workflow-runtime host also calls this function directly.
+  // Validate before the service-role approval RPC, not only in the v2 route
+  // or during the later durable-record readback.
+  const recipient = assertRecipient(input.recipient);
   const preview = await previewPacket(input.caseId, input.mailClass, context);
   assertReviewedPacket(input.reviewed, {
     packetSha256: preview.packetSha256,
@@ -380,7 +510,7 @@ export async function approvePacket(
     p_manifest: preview.manifest as unknown as never,
     p_response_pages: preview.responsePages,
     p_supporting_pages: preview.supportingPages,
-    p_recipient: input.recipient as unknown as never,
+    p_recipient: recipient as unknown as never,
     p_mail_class: input.mailClass,
     p_quote: preview.quote as unknown as never,
     p_approval_id: input.approvalId ?? null,
@@ -388,7 +518,33 @@ export async function approvePacket(
 
   if (error) throw new PacketError(error.message);
   const approval = data as unknown as { id: string } | null;
-  if (!approval?.id) throw new PacketError("Approval was not recorded");
+  if (!approval?.id || (input.approvalId && approval.id !== input.approvalId)) {
+    throw new PacketError("Approval was not recorded");
+  }
+
+  // Read through the authenticated RLS client, not the service-role writer.
+  // A plausible RPC receipt alone cannot establish that the correct owner's
+  // exact packet, destination and reviewed price were durably recorded.
+  const { data: recorded, error: readError } = await context.supabase
+    .from("case_approvals")
+    .select("id, case_id, owner_id, packet_sha256, manifest, response_pages, supporting_pages, recipient, mail_class, quote")
+    .eq("id", approval.id)
+    .eq("case_id", input.caseId)
+    .eq("owner_id", context.user.id)
+    .maybeSingle();
+  if (readError) throw new PacketError("Approval persistence could not be verified");
+  assertRecordedCaseApproval(recorded, {
+    approvalId: approval.id,
+    caseId: input.caseId,
+    ownerId: context.user.id,
+    packetSha256: preview.packetSha256,
+    manifest: preview.manifest,
+    responsePages: preview.responsePages,
+    supportingPages: preview.supportingPages,
+    recipient,
+    mailClass: input.mailClass,
+    totalCents: preview.quote.totalCents,
+  });
 
   return { approvalId: approval.id, preview };
 }

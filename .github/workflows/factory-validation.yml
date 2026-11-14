@@ -39,8 +39,15 @@ jobs:
         run: pnpm workflow:materialize:check
       - name: Build shared pricing package for runtime imports
         run: pnpm --filter @mailmypdf/pricing build
+      # Workspace test tasks may rebuild @mailmypdf/workflows/dist while
+      # app tests import its ESM barrel. Serialize to prevent partial-export
+      # races (e.g. missing getSsaReconsiderationWorkflowProfile).
       - name: Run tests
-        run: pnpm test
+        run: pnpm exec turbo test --concurrency=1
       - name: Build workspace
         if: ${{ success() || failure() }}
-        run: pnpm build
+        # The legacy app build:shared hooks rebuild the same dist packages.
+        # Parallel Turbo app builds can overwrite a package barrel while
+        # another app's Vite/Rolldown bundle is reading it (MISSING_EXPORT).
+        # Serialize this acceptance build until those hooks are deduplicated.
+        run: pnpm exec turbo build --concurrency=1

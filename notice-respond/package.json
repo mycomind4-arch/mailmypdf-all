@@ -13,6 +13,7 @@
   "dependencies": {
     "@mailmypdf/design-system": "workspace:*",
     "@mailmypdf/document-intelligence": "workspace:*",
+    "@mailmypdf/packet-builder": "workspace:*",
     "@mailmypdf/seo": "workspace:*",
     "@mailmypdf/workflow-ui": "workspace:*",
     "@mailmypdf/workflows": "workspace:*",
@@ -21,7 +22,6 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@mailmypdf/packet-builder": "workspace:*",
     "@mailmypdf/payment-fulfillment": "workspace:*",
     "@mailmypdf/proof": "workspace:*",
     "@mailmypdf/workflow-acceptance": "workspace:*",

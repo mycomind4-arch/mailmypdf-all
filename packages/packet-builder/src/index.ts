@@ -147,6 +147,12 @@ export async function generatePlainTextPdf(text: string): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
 
   const doc = await PDFDocument.create();
+  // A preview and its later approval may be assembled hours apart. pdf-lib
+  // otherwise embeds the current clock time, changing the standalone PDF's
+  // bytes and SHA-256 even when the reviewed letter text has not changed.
+  // The packet assembler already fixes its own metadata to this epoch.
+  doc.setCreationDate(new Date(0));
+  doc.setModificationDate(new Date(0));
   const font = await doc.embedFont(StandardFonts.TimesRoman);
   const safeText = normalizeForStandardPdfFont(text);
   const sourceLines = splitIntoLines(safeText);
@@ -266,6 +272,53 @@ const MAX_PACKET_PAGES = 400;
 
 export class PacketError extends Error {}
 
+/**
+ * The preview's zero-based page exclusions must identify real pages.
+ * Silently ignoring an invalid index can mail pages the user believed removed.
+ * Treat absent/null selections as no exclusions for existing persisted drafts.
+ */
+function checkedExcludedPages(
+  indices: readonly number[] | null | undefined,
+  pageCount: number,
+  label: string,
+): Set<number> {
+  if (indices == null) return new Set<number>();
+  if (!Array.isArray(indices) || indices.some((index) =>
+    !Number.isSafeInteger(index) || index < 0 || index >= pageCount
+  )) {
+    throw new PacketError(`${label} has invalid excluded page indices`);
+  }
+  return new Set(indices);
+}
+
+/**
+ * Parse a persisted packet before presenting it for exact-document review.
+ * A matching digest alone does not establish a readable, unencrypted PDF.
+ * This performs no approval, payment, or mailing.
+ */
+export async function inspectPacketPdfPageCount(bytes: Uint8Array): Promise<number> {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 5 ||
+      bytes.length > 20 * 1024 * 1024) {
+    throw new PacketError("Stored packet PDF is invalid");
+  }
+  try {
+    const { PDFDocument } = await loadPdfLib();
+    const pdf = await PDFDocument.load(bytes, {
+      ignoreEncryption: false,
+      throwOnInvalidObject: true,
+      updateMetadata: false,
+    });
+    const pages = pdf.getPageCount();
+    if (pdf.isEncrypted || !Number.isSafeInteger(pages) ||
+        pages < 1 || pages > MAX_PACKET_PAGES) {
+      throw new Error("Invalid PDF page count");
+    }
+    return pages;
+  } catch {
+    throw new PacketError("Stored packet PDF is not readable");
+  }
+}
+
 export interface PacketDocumentRow {
   document_id: string;
   role: "subject_notice" | "evidence";
@@ -334,7 +387,7 @@ async function appendPdf(
     if (allIndices.length > MAX_ATTACHMENT_PAGES) {
       throw new PacketError(`${row.safe_filename} exceeds ${MAX_ATTACHMENT_PAGES} pages`);
     }
-    const excluded = new Set(row.excluded_pages ?? []);
+    const excluded = checkedExcludedPages(row.excluded_pages, allIndices.length, row.safe_filename);
     const indices = allIndices.filter((i) => !excluded.has(i));
     if (indices.length < 1) throw new PacketError(`${row.safe_filename} has no pages left after removing pages in the preview`);
     const copied = await packet.copyPages(attachment, indices);
@@ -398,7 +451,7 @@ export async function assemblePacket(
   }).catch(() => {
     throw new PacketError("The generated response letter is not a readable PDF");
   });
-  const excludedResponsePages = new Set(options.excludedResponsePages ?? []);
+  const excludedResponsePages = checkedExcludedPages(options.excludedResponsePages, response.getPageCount(), "The generated response letter");
   const responseIndices = response.getPageIndices().filter((i) => !excludedResponsePages.has(i));
   if (responseIndices.length < 1) throw new PacketError("The generated response letter has no pages left after removing pages in the preview");
   const responsePageRefs = await packet.copyPages(response, responseIndices);

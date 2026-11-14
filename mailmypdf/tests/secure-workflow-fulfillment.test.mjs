@@ -38,7 +38,12 @@ test("approved packet is rebuilt and compared before order creation", async () =
   const approval = await appSource("src/lib/secure-core/case-approval.server.ts");
 
   assert.match(approval, /export async function materializeApprovedPacket/);
-  assert.match(approval, /assemblePacket\(letter, documents\)/);
+  // The approved packet still uses canonical PDF assembly, but reads each
+  // enclosure through the authenticated, current-selection storage bridge.
+  assert.match(approval, /assembleOwnedCasePacket\(caseId, letter, documents, context\)/);
+  assert.match(approval, /createSecurePacketStorageAdapter/);
+  assert.match(approval, /createCasePacketStorageAdapter/);
+  assert.match(approval, /return assemblePacket\(letter, documents,/);
   assert.match(approval, /packet\.sha256 !== approval\.packet_sha256/);
   assert.match(approval, /JSON\.stringify\(storedManifest\) !== JSON\.stringify\(currentManifest\)/);
   assert.match(approval, /quote\.totalCents !== storedQuote\.totalCents/);
