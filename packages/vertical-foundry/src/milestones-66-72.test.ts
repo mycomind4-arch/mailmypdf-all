@@ -487,7 +487,7 @@ test('ProductionApprovalGate enforces scope matching', () => {
   assert.ok(result.reason.includes('repository'))
 })
 
-test('ProductionApprovalGate supports expiring approvals', async () => {
+test('ProductionApprovalGate supports expiring approvals', () => {
   const gate = new ProductionApprovalGate()
   const manifest = {
     id: 'vert-1',
@@ -500,7 +500,8 @@ test('ProductionApprovalGate supports expiring approvals', async () => {
     previewUrl: 'https://preview.test.com',
   }
 
-  // Create approval that expires in 1ms
+  // Give the grant a comfortable validity window so slow CI scheduling
+  // cannot expire it before the explicit approval is recorded.
   const approval = gate.requestApproval({
     verticalId: 'vert-1',
     runId: 'run-1',
@@ -508,17 +509,38 @@ test('ProductionApprovalGate supports expiring approvals', async () => {
     repository: 'org/repo',
     branch: 'foundry/vert-1',
     reason: 'Requesting',
-    expiresInMs: 1,
+    expiresInMs: 60_000,
   })
 
   gate.grantApproval(approval.id, 'admin@example.com')
+  assert.ok(gate.canDeployToProduction(manifest).authorized)
 
-  // Wait for expiry
-  await new Promise((resolve) => setTimeout(resolve, 10))
+  // Advance the record's expiry boundary without sleeping or relying on
+  // a millisecond timer, while exercising the real authorization check.
+  approval.expiresAt = new Date(Date.now() - 60_000).toISOString()
 
   const result = gate.canDeployToProduction(manifest)
   assert.ok(!result.authorized)
   assert.ok(result.reason.includes('expired'))
+})
+
+test('ProductionApprovalGate rejects an approval already expired before grant', () => {
+  const gate = new ProductionApprovalGate()
+  const approval = gate.requestApproval({
+    verticalId: 'vert-1',
+    runId: 'run-1',
+    previewUrl: 'https://preview.test.com',
+    repository: 'org/repo',
+    branch: 'foundry/vert-1',
+    reason: 'Requesting',
+    expiresInMs: -60_000,
+  })
+
+  assert.throws(
+    () => gate.grantApproval(approval.id, 'admin@example.com'),
+    /has expired/,
+  )
+  assert.equal(gate.getApproval('vert-1')?.status, 'expired')
 })
 
 // ── Milestone 72: Portfolio Dashboard Tests ──────────────────────────────────

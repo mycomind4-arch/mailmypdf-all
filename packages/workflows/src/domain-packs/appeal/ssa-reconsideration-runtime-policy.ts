@@ -55,10 +55,33 @@ function text(value: unknown, label: string, max: number, required = false): str
   return normalized;
 }
 
+/**
+ * Do not treat a denial from an unrelated agency as an SSA reconsideration.
+ * The notice analyzer must identify the issuing agency; an unknown issuer
+ * requires review instead of generating or mailing SSA forms.
+ */
+function isSsaIssuingAgency(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const issuer = value.trim().replace(/\s+/g, " ").replace(/\./g, "").toLowerCase();
+  return /^(?:ssa|(?:us )?social security(?: administration)?(?: \(ssa\))?)$/.test(issuer);
+}
+
 function assertReconsiderationAnalysis(
   program: SsaReconsiderationProgram,
   analysis: WorkflowMatterAnalysis,
 ): Exclude<SsaDecisionBasis, "unknown"> {
+  // A confirmed appeal level and decision basis do not, by themselves, prove
+  // that the source notice denied benefits. Never construct a denial appeal
+  // from an approval or an unclassified decision.
+  // The analyzer may return "Denied" or "denied"; accept only that
+  // decision after case/whitespace normalization, never an approval or
+  // an unknown decision.
+  if (!isSsaIssuingAgency(analysis.result.issuer)) {
+    throw new Error(`The source ${program} notice must identify the Social Security Administration as the issuer.`);
+  }
+  if (typeof analysis.result.decision !== "string" || analysis.result.decision.trim().toLowerCase() !== "denied") {
+    throw new Error(`The source ${program} notice must confirm a denial before reconsideration.`);
+  }
   const stage = analysis.result.workflowDetails?.appealStage;
   if (stage !== "reconsideration") {
     throw new Error(
@@ -81,19 +104,116 @@ function assertRequiredForms(
   const required = requiredSsaReconsiderationFormKinds(basis);
   if (!required.length) throw new Error("The required SSA form set cannot be chosen until the denial basis is confirmed.");
 
+  // Each required form must be a distinct uploaded PDF. The matter attachment
+  // API permits one owned document to be attached under multiple evidence kinds.
+  const usedDocumentIds = new Map<string, SsaReconsiderationFormKind>();
+  // An uploaded denial notice is evidence of the decision, not a completed
+  // SSA-561/3441/827 form. The matter API can attach the same owned PDF under
+  // multiple roles; reject that alias before constructing a mailing packet.
+  const sourceDocumentIds = new Set(
+    documents.filter((document) => document.role === "subject_notice").map((document) => document.documentId),
+  );
   for (const kind of required) {
-    const found = documents.find(
+    const label = SSA_RECONSIDERATION_FORMS.find((form) => form.kind === kind)?.label ?? kind;
+    const includedForms = documents.filter(
       (document) =>
         document.role === "evidence" &&
         document.evidenceKind === kind &&
-        document.included &&
-        document.usable &&
-        document.securityStatus === "clean",
+        document.included,
     );
-    if (!found) {
-      const label = SSA_RECONSIDERATION_FORMS.find((form) => form.kind === kind)?.label ?? kind;
+    // The mailing packet must contain exactly one completed copy of each
+    // required official form. Retained but excluded historical uploads do not
+    // count; multiple included copies make the outgoing packet ambiguous.
+    if (includedForms.length > 1) {
+      throw new Error(`${label} has duplicate included attachments; keep exactly one for mailing.`);
+    }
+    const found = includedForms[0];
+    if (!found || found.mimeType !== "application/pdf" || !found.usable || found.securityStatus !== "clean") {
       throw new Error(`${label} must be completed, uploaded, included, and clear security scanning.`);
     }
+    if (sourceDocumentIds.has(found.documentId)) {
+      throw new Error(`${label} reuses the analyzed denial notice PDF; upload the completed SSA form separately.`);
+    }
+    const priorKind = usedDocumentIds.get(found.documentId);
+    if (priorKind && priorKind !== kind) {
+      throw new Error(`${label} reuses the same uploaded PDF as ${priorKind}; upload distinct completed PDFs for required forms.`);
+    }
+    usedDocumentIds.set(found.documentId, kind);
+  }
+
+  // The matter API can attach the same owned PDF under different evidence
+  // kinds. Checking only the required SSA forms misses an included copy
+  // relabeled as supplemental evidence, which would mail the PDF twice.
+  // Historical excluded uploads do not contribute to the outgoing packet.
+  const includedEvidenceIds = new Set<string>();
+  for (const document of documents) {
+    if (document.role !== "evidence" || !document.included) continue;
+    if (includedEvidenceIds.has(document.documentId)) {
+      throw new Error("The same uploaded PDF appears in duplicate included SSA attachments; remove the extra selection.");
+    }
+    includedEvidenceIds.add(document.documentId);
+  }
+}
+
+// TIFF is useful as a scanned *source* notice for analysis, but the shared
+// physical-mail packet builder can only enclose PDF, PNG and JPEG bytes.
+const SSA_SUPPORTED_SOURCE_MIME_TYPES = new Set([
+  "application/pdf", "image/png", "image/jpeg", "image/tiff",
+]);
+const SSA_SUPPORTED_PACKET_MIME_TYPES = new Set([
+  "application/pdf", "image/png", "image/jpeg",
+]);
+
+function assertSupportedSourceNoticeFormat(document: WorkflowMatterDocument): void {
+  // Source notices are analyzed rather than mailed, so they are commonly
+  // included=false. Still enforce the manifest's upload format contract.
+  if (!SSA_SUPPORTED_SOURCE_MIME_TYPES.has(document.mimeType ?? "")) {
+    throw new Error("The source denial notice must be a supported PDF or image file.");
+  }
+}
+
+function assertSupportedIncludedEvidenceFormats(
+  documents: readonly WorkflowMatterDocument[],
+  program: SsaReconsiderationProgram,
+): void {
+  // Source notices are excluded from outgoing mail by default, but must
+  // still be valid inputs for analysis and reconsideration preparation.
+  for (const document of documents) {
+    if (document.role === "subject_notice") assertSupportedSourceNoticeFormat(document);
+  }
+  // The shared physical-mail packet builder only renders PDF, PNG and JPEG.
+  // An analyzed TIFF notice may remain excluded, but including it (or a TIFF
+  // supplemental upload) must not be reported as ready for mailed PDF assembly.
+  if (documents.some((document) =>
+    document.included &&
+    !SSA_SUPPORTED_PACKET_MIME_TYPES.has(document.mimeType ?? "")
+  )) {
+    throw new Error(`Included ${program} documents must be a supported PDF or image (PNG or JPEG) file; convert TIFF to PDF, PNG or JPEG before mailing.`);
+  }
+}
+
+function assertCurrentSourceAnalysis(
+  documents: readonly WorkflowMatterDocument[],
+  analysis: WorkflowMatterAnalysis,
+): void {
+  // The stored analysis is bound to the exact uploaded denial document. If a
+  // claimant replaces the notice, a previously confirmed denial must not be
+  // reused to draft, preview, approve, or pay for a different source.
+  // The runtime attaches subject_notice with included=false by default:
+  // source notices are analyzed, not mailed as outgoing evidence. Requiring
+  // included=true here would block every normal SSDI/SSI intake from drafting.
+  const sources = documents.filter((document) => document.role === "subject_notice");
+  // Multiple source notices make the analysis-to-source binding ambiguous,
+  // even if one document ID matches the saved analysis.
+  const source = sources[0];
+  if (sources.length !== 1 || !source || source.documentId !== analysis.documentId) {
+    throw new Error("The source notice does not match the analyzed denial notice; analyze the current source notice again.");
+  }
+  assertSupportedSourceNoticeFormat(source);
+  // Apply the same fail-closed security boundary to fact intake, draft, and
+  // packet review. A previously analyzed notice may later be quarantined.
+  if (!source.usable || source.securityStatus !== "clean") {
+    throw new Error("The current denial notice must clear security scanning before continuing.");
   }
 }
 
@@ -103,7 +223,6 @@ function chatInputFieldsForProgram(program: SsaReconsiderationProgram) {
     { id: "claimantAddress", required: true },
     { id: "phone", required: true },
     { id: "representativeName", required: false },
-    { id: "responseMode", required: true },
     { id: "confirmedReconsideration", required: true },
     { id: "reasonsForDisagreement", required: true },
     { id: "conditionChanges", required: false },
@@ -164,10 +283,13 @@ export function createSsaReconsiderationRuntimePolicy(
       assertReconsiderationAnalysis(program, analysis);
     },
 
-    validateInput(input, analysis) {
+    validateInput(input, analysis, matter) {
       if (!analysis) throw new Error(`Analyze the ${program} denial before saving claimant facts.`);
+      // A replaced denial notice invalidates the prior analysis even before
+      // draft generation. Do not persist facts under the wrong source decision.
+      assertCurrentSourceAnalysis(matter.documents, analysis);
       const basis = assertReconsiderationAnalysis(program, analysis);
-      if (input.responseMode !== "reconsideration" || input.confirmedReconsideration !== true) {
+      if ((input.responseMode !== undefined && input.responseMode !== "reconsideration") || input.confirmedReconsideration !== true) {
         throw new Error("The claimant must explicitly confirm reconsideration before continuing.");
       }
 
@@ -219,17 +341,39 @@ export function createSsaReconsiderationRuntimePolicy(
 
     validateDocumentsBeforeDraft(documents, analysis) {
       assertReconsiderationAnalysis(program, analysis);
+      // The source denial notice is untrusted input too: fail closed for every
+      // included document, not only those classified as supporting evidence.
       const blockedIncluded = documents.filter(
-        (document) => document.role === "evidence" && document.included && (!document.usable || document.securityStatus !== "clean"),
+        (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
       );
       if (blockedIncluded.length) {
-        throw new Error(`Every included ${program} evidence document must clear security scanning before drafting.`);
+        throw new Error(`Every included ${program} document must clear security scanning before drafting.`);
       }
+      assertSupportedIncludedEvidenceFormats(documents, program);
     },
 
     validateDocumentsBeforePacket(documents, analysis) {
       const basis = assertReconsiderationAnalysis(program, analysis);
+      // Preserve form-specific errors for required SSA-561/3441/827 uploads.
       assertRequiredForms(documents, basis);
+      // Draft-time scanning is not sufficient: supplemental evidence can be
+      // quarantined or revoked before preview, approval, or checkout. The
+      // shared host enforces this too, but policy consumers must fail closed.
+      const blockedIncluded = documents.filter(
+        (document) => document.included && (!document.usable || document.securityStatus !== "clean"),
+      );
+      if (blockedIncluded.length) {
+        throw new Error(`Every included ${program} document must clear security scanning before packet review.`);
+      }
+      assertSupportedIncludedEvidenceFormats(documents, program);
+    },
+
+    validateBeforeDraft({ matter, analysis }) {
+      assertCurrentSourceAnalysis(matter.documents, analysis);
+    },
+
+    validateBeforePacket({ matter, analysis }) {
+      assertCurrentSourceAnalysis(matter.documents, analysis);
     },
   } satisfies WorkflowRuntimePolicy);
 }

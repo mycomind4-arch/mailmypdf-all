@@ -75,6 +75,22 @@ test("SSDI policy accepts only its canonical new-architecture identity", () => {
   }), /identity/i);
 });
 
+test("SSDI policy accepts a confirmed denial regardless of notice capitalization, but rejects non-denials", () => {
+  const denial = analysis("reconsideration", "medical");
+  assert.equal(denial.result.decision, "Denied");
+  assert.doesNotThrow(() => ssdiDenialRuntimePolicy.validateAnalysis?.(denial));
+
+  for (const decision of ["approved", "pending", null]) {
+    assert.throws(
+      () => ssdiDenialRuntimePolicy.validateAnalysis?.({
+        ...denial,
+        result: { ...denial.result, decision },
+      }),
+      /confirm a denial/i,
+    );
+  }
+});
+
 test("SSDI policy fails closed on wrong or unknown appeal level", () => {
   assert.throws(() => ssdiDenialRuntimePolicy.validateAnalysis?.(analysis("hearing", "medical")), /reconsideration/i);
   assert.throws(() => ssdiDenialRuntimePolicy.validateAnalysis?.(analysis("unknown", "medical")), /not confirmed/i);
@@ -82,15 +98,22 @@ test("SSDI policy fails closed on wrong or unknown appeal level", () => {
   assert.doesNotThrow(() => ssdiDenialRuntimePolicy.validateAnalysis?.(analysis("reconsideration", "medical")));
 });
 
-test("SSDI policy requires explicit reconsideration confirmation and claimant facts", () => {
-  assert.doesNotThrow(() => ssdiDenialRuntimePolicy.validateInput(validInput, analysis("reconsideration", "medical")));
+test("SSDI policy requires current denial analysis, reconsideration confirmation and claimant facts", () => {
+  const source = { ...document("source"), documentId: "source-1", role: "subject_notice", evidenceKind: null };
+  const matter = { documents: [source] } as never;
+  const denial = analysis("reconsideration", "medical");
+  assert.doesNotThrow(() => ssdiDenialRuntimePolicy.validateInput(validInput, denial, matter));
   assert.throws(
-    () => ssdiDenialRuntimePolicy.validateInput({ ...validInput, confirmedReconsideration: false }, analysis("reconsideration", "medical")),
+    () => ssdiDenialRuntimePolicy.validateInput({ ...validInput, confirmedReconsideration: false }, denial, matter),
     /explicitly confirm/i,
   );
   assert.throws(
-    () => ssdiDenialRuntimePolicy.validateInput({ ...validInput, reasonsForDisagreement: "" }, analysis("reconsideration", "medical")),
+    () => ssdiDenialRuntimePolicy.validateInput({ ...validInput, reasonsForDisagreement: "" }, denial, matter),
     /Reasons for disagreement is required/i,
+  );
+  assert.throws(
+    () => ssdiDenialRuntimePolicy.validateInput(validInput, denial, { documents: [{ ...source, documentId: "replacement" }] } as never),
+    /source notice.*analy[sz]/i,
   );
 });
 

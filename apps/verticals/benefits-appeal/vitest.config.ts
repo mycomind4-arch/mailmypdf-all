@@ -9,5 +9,5 @@ export default defineConfig({
       '@mailmypdf/pricing': fileURLToPath(new URL('../../../packages/pricing/src/index.ts', import.meta.url)),
     },
   },
-  test: { include: ['src/**/*.test.ts', 'tests/payment/*.test.ts'], environment: 'node' },
+  test: { include: ['src/**/*.test.ts', 'tests/payment/*.test.ts', 'tests/vitest/*.test.ts'], environment: 'node' },
 });
