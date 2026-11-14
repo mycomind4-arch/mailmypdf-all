@@ -95,6 +95,8 @@ export interface CaseDocument {
   filename: string;
   mime_type: string | null;
   size_bytes: number | null;
+  /** Owner-scoped digest recorded when the secure source was registered. */
+  sha256: string | null;
   security_status: string;
   /** True once malware scanning has released the document for use. */
   usable: boolean;
@@ -170,7 +172,7 @@ export async function listCaseDocuments(
 
   const { data: documents, error: documentError } = await context.supabase
     .from("secure_documents")
-    .select("id, safe_filename, mime_type, size_bytes, security_status, deleted_at, deletion_requested_at")
+    .select("id, safe_filename, mime_type, size_bytes, sha256, security_status, deleted_at, deletion_requested_at")
     .in("id", attachments.map((row) => row.document_id))
     .eq("owner_id", context.user.id);
   if (documentError) throw new CaseError(documentError.message);
@@ -191,6 +193,7 @@ export async function listCaseDocuments(
       filename: document?.safe_filename ?? "",
       mime_type: document?.mime_type ?? null,
       size_bytes: document?.size_bytes ?? null,
+      sha256: document?.sha256 ?? null,
       security_status: status,
       usable: status === "clean" && !document?.deleted_at && !document?.deletion_requested_at,
     };

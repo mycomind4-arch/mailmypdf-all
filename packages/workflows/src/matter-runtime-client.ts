@@ -14,6 +14,8 @@ export type WorkflowMatterDocument = {
   filename: string;
   mimeType: string | null;
   sizeBytes: number | null;
+  /** Registered source-byte digest; optional for older non-CP2000 clients. */
+  sha256?: string | null;
   securityStatus: string;
   usable: boolean;
 };
@@ -38,6 +40,8 @@ export type WorkflowMatterAnalysis = {
   model: string;
   createdAt: string;
   result: {
+    /** Server-computed digest of source bytes analyzed; required by CP2000 approval. */
+    analyzedSourceSha256?: string;
     decision: string | null;
     issuer: string | null;
     referenceNumber: string | null;
@@ -142,6 +146,8 @@ export interface WorkflowMatterClient {
     preview: WorkflowPacketPreview;
     recipient: WorkflowMailingAddress;
     mailClass: "standard" | "certified" | "registered";
+    /** CP2000: affirmative checklist action for the controlling notice destination. */
+    recipientConfirmedFromNotice?: boolean;
   }): Promise<{ approvalId: string; packetSha256: string; quote: WorkflowPacketPreview["quote"] }>;
 
   loadApproval(matterId: string): Promise<{
@@ -305,6 +311,7 @@ export function createHttpWorkflowMatterClient(input: {
           expectedTotalCents: value.preview.quote.totalCents,
           recipient: value.recipient,
           mailClass: value.mailClass,
+          recipientConfirmedFromNotice: value.recipientConfirmedFromNotice,
         }),
       });
     },
