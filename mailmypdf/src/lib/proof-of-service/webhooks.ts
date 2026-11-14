@@ -9,6 +9,7 @@
 import { createHmac } from "node:crypto";
 import type { WebhookEvent, WebhookEventType } from "./types";
 import { embeddedOne } from "./embedded";
+import { collectWebhookRetryRows, processWebhookRetryBatch, requireWebhookRetryTarget, assertIdempotentWebhookDelivery } from "./webhook-retry-query";
 
 interface WebhookDeliveryRecord {
   id: string;
@@ -22,6 +23,34 @@ interface WebhookDeliveryRecord {
 }
 
 const MAX_ATTEMPTS = 5;
+
+/**
+ * A webhook delivery is only durable when its status transition is persisted.
+ * Never treat a failed status write as a successful delivery or queued retry.
+ */
+async function persistWebhookDeliveryStatus(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient,
+  eventId: string,
+  values: {
+    status: "delivered" | "failed" | "retrying";
+    attempts: number;
+    response_code: number | null;
+    next_retry_at?: string;
+  },
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("proof_webhook_deliveries")
+    .update(values)
+    .eq("event_id", eventId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error(
+      `Failed to persist proof webhook ${values.status} status: ${error?.message ?? "no matching delivery record"}`,
+    );
+  }
+}
 
 /**
  * Dispatch a webhook event to the tenant's webhook URL.
@@ -51,8 +80,24 @@ export async function dispatchWebhook(
     });
 
   if (insertError) {
-    // If duplicate event_id, skip — already delivered or in progress
-    if (insertError.code === "23505") return;
+    if (insertError.code === "23505") {
+      // A global unique event_id can collide with a different tenant or an
+      // irrecoverably failed event. Neither is safe to treat as delivered.
+      const { data: existing, error: lookupError } = await supabaseAdmin
+        .from("proof_webhook_deliveries")
+        .select("tenant_id, communication_id, event_type, status")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      if (lookupError) {
+        throw new Error(`Failed to verify duplicate proof webhook event: ${lookupError.message}`);
+      }
+      assertIdempotentWebhookDelivery(existing, {
+        tenantId,
+        communicationId,
+        eventType: event.event_type,
+      });
+      return;
+    }
     throw new Error(`Failed to create webhook delivery: ${insertError.message}`);
   }
 
@@ -86,8 +131,11 @@ async function attemptWebhookDelivery(
 
   const signatureHeader = `t=${timestamp},v1=${signature}`;
 
+  // Only network failures are retriable here. A database write failure after
+  // HTTP 2xx must propagate, not be mistaken for a network failure.
+  let response: Response;
   try {
-    const response = await fetch(webhookUrl, {
+    response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -97,24 +145,19 @@ async function attemptWebhookDelivery(
       body,
       signal: AbortSignal.timeout(10000), // 10s timeout
     });
-
-    if (response.ok) {
-      // Success
-      await supabaseAdmin
-        .from("proof_webhook_deliveries")
-        .update({
-          status: "delivered",
-          attempts: attempt,
-          response_code: response.status,
-        })
-        .eq("event_id", eventId);
-    } else {
-      // Non-2xx response — treat as failure
-      await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, response.status);
-    }
-  } catch (err) {
-    // Network error or timeout
+  } catch {
     await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, null);
+    return;
+  }
+
+  if (response.ok) {
+    await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+      status: "delivered",
+      attempts: attempt,
+      response_code: response.status,
+    });
+  } else {
+    await handleWebhookFailure(event, tenantId, webhookUrl, webhookSecret, deps, eventId, attempt, response.status);
   }
 }
 
@@ -135,15 +178,15 @@ async function handleWebhookFailure(
 
   if (attempt >= MAX_ATTEMPTS) {
     // Give up
-    await supabaseAdmin
-      .from("proof_webhook_deliveries")
-      .update({
-        status: "failed",
-        attempts: attempt,
-        response_code: responseCode,
-      })
-      .eq("event_id", eventId);
-    return;
+    await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+      status: "failed",
+      attempts: attempt,
+      response_code: responseCode,
+    });
+    // The terminal failure is durable, but it is not successful delivery.
+    // Surface it to the batch processor so the maintenance run cannot return
+    // HTTP 200 while a tenant's webhook is permanently undelivered.
+    throw new Error(`Proof webhook delivery exhausted ${attempt} attempts`);
   }
 
   // Schedule retry with exponential backoff
@@ -151,15 +194,12 @@ async function handleWebhookFailure(
   const backoffMs = [60_000, 300_000, 1_800_000, 7_200_000][attempt - 1] ?? 7_200_000;
   const nextRetry = new Date(Date.now() + backoffMs).toISOString();
 
-  await supabaseAdmin
-    .from("proof_webhook_deliveries")
-    .update({
-      status: "retrying",
-      attempts: attempt,
-      next_retry_at: nextRetry,
-      response_code: responseCode,
-    })
-    .eq("event_id", eventId);
+  await persistWebhookDeliveryStatus(supabaseAdmin, eventId, {
+    status: "retrying",
+    attempts: attempt,
+    next_retry_at: nextRetry,
+    response_code: responseCode,
+  });
 
   // Note: actual retry execution would be handled by a scheduled job
   // that picks up records with status='retrying' and next_retry_at <= now
@@ -175,8 +215,10 @@ export async function processPendingRetries(
   const { supabaseAdmin } = deps;
   const now = new Date().toISOString();
 
-  // Find deliveries that need retry
-  const { data: pending, error } = await supabaseAdmin
+  // Keep scans independent: one failed database query must still fail cron,
+  // but must not suppress deliveries found by the other successful query.
+  const scanErrors: Error[] = [];
+  const retryRows = await collectWebhookRetryRows(supabaseAdmin
     .from("proof_webhook_deliveries")
     .select(`
       event_id,
@@ -184,34 +226,50 @@ export async function processPendingRetries(
       payload,
       attempts,
       tenant_id,
-      proof_tenants!inner (webhook_url, webhook_secret)
+      proof_tenants (webhook_url, webhook_secret)
     `)
     .eq("status", "retrying")
     .lte("next_retry_at", now)
-    .limit(50);
+    .limit(50), scanErrors);
 
-  if (error || !pending) return 0;
+  // A crash or failed status write after inserting a delivery can leave it
+  // permanently "pending". The retrying-only scan never recovers those rows.
+  // Give in-flight first attempts five minutes to finish before replaying.
+  // Webhooks are at-least-once; consumers must deduplicate by event_id.
+  const staleCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+  const pendingRows = await collectWebhookRetryRows(supabaseAdmin
+    .from("proof_webhook_deliveries")
+    .select(`
+      event_id,
+      event_type,
+      payload,
+      attempts,
+      tenant_id,
+      proof_tenants (webhook_url, webhook_secret)
+    `)
+    .eq("status", "pending")
+    .lte("created_at", staleCutoff)
+    .limit(50), scanErrors);
 
-  let processed = 0;
-  for (const record of pending) {
-    const tenant = embeddedOne<Record<string, unknown>>(record.proof_tenants);
-    const webhookUrl = tenant?.webhook_url as string | undefined;
-    const webhookSecret = (tenant?.webhook_secret ?? null) as string | null;
+  return processWebhookRetryBatch([
+    ...retryRows.map((row) => ({ row, attempt: (row.attempts as number) + 1 })),
+    ...pendingRows.map((row) => ({ row, attempt: 1 })),
+  ], async ({ row, attempt }) => {
+    const tenant = embeddedOne<Record<string, unknown>>(row.proof_tenants);
+    // A missing tenant or disabled webhook must be reported, not silently
+    // skipped forever. Left joins keep orphaned delivery rows visible.
+    const { webhookUrl, webhookSecret } = requireWebhookRetryTarget(tenant);
 
-    if (!webhookUrl) continue;
-
-    const event = record.payload as WebhookEvent;
+    const event = row.payload as WebhookEvent;
     await attemptWebhookDelivery(
       event,
-      record.tenant_id as string,
+      row.tenant_id as string,
       webhookUrl,
       webhookSecret,
       deps,
-      record.event_id as string,
-      (record.attempts as number) + 1,
+      row.event_id as string,
+      attempt,
     );
-    processed++;
-  }
-
-  return processed;
+    return true;
+  }, scanErrors);
 }

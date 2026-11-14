@@ -1,0 +1,109 @@
+/** A failed retry scan must not be reported as zero work completed. */
+export function requireWebhookRetryRows<T>(query: {
+  data: T[] | null;
+  error: { message: string } | null;
+}): T[] {
+  if (query.error) {
+    throw new Error(`Pending proof webhook retries query failed: ${query.error.message}`);
+  }
+  if (query.data === null) {
+    throw new Error("Pending proof webhook retries query returned no rows array");
+  }
+  return query.data;
+}
+
+/**
+ * A failed scan must be visible to cron, but must not suppress independent
+ * deliveries returned by another successful scan.
+ */
+export async function collectWebhookRetryRows<T>(
+  query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  errors: Error[],
+): Promise<T[]> {
+  try {
+    return requireWebhookRetryRows(await query);
+  } catch (error) {
+    errors.push(error instanceof Error ? error : new Error(String(error)));
+    return [];
+  }
+}
+
+/** Preserve completed work when a retry batch partially fails. */
+export class WebhookRetryBatchError extends AggregateError {
+  readonly processed: number;
+
+  constructor(errors: Error[], processed: number) {
+    super(
+      errors,
+      `Proof webhook retry batch failed for ${errors.length} delivery(s) after ${processed} processed: ${errors.map((error) => error.message).join("; ")}`,
+    );
+    this.name = "WebhookRetryBatchError";
+    this.processed = processed;
+  }
+}
+
+/**
+ * A broken webhook delivery must not starve independent retries later in the
+ * batch. Keep processing, but fail the cron run if any delivery failed.
+ */
+export async function processWebhookRetryBatch<T>(
+  rows: readonly T[],
+  handle: (row: T) => Promise<boolean>,
+  priorErrors: readonly Error[] = [],
+): Promise<number> {
+  let processed = 0;
+  const errors: Error[] = [...priorErrors];
+  for (const row of rows) {
+    try {
+      if (await handle(row)) processed++;
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+  if (errors.length) {
+    throw new WebhookRetryBatchError(errors, processed);
+  }
+  return processed;
+}
+
+/** A queued delivery without a valid tenant destination must not disappear as a zero-work retry. */
+export function requireWebhookRetryTarget(tenant: Record<string, unknown> | null | undefined): {
+  webhookUrl: string;
+  webhookSecret: string | null;
+} {
+  if (!tenant) throw new Error("Proof webhook retry tenant record is missing");
+  const webhookUrl = tenant.webhook_url;
+  if (typeof webhookUrl !== "string" || webhookUrl.trim() === "") {
+    throw new Error("Proof webhook retry tenant has no configured webhook URL");
+  }
+  const secret = tenant.webhook_secret;
+  if (secret != null && typeof secret !== "string") {
+    throw new Error("Proof webhook retry tenant has an invalid webhook secret");
+  }
+  return { webhookUrl, webhookSecret: (secret ?? null) as string | null };
+}
+
+
+/**
+ * A unique event ID is global across tenants. A 23505 conflict is only
+ * idempotent when the existing delivery belongs to this same event and has
+ * either been delivered or remains durably eligible for retry.
+ */
+export function assertIdempotentWebhookDelivery(
+  existing: { tenant_id: string; communication_id: string | null; event_type: string; status: string } | null,
+  expected: { tenantId: string; communicationId: string; eventType: string },
+): void {
+  if (!existing) {
+    throw new Error("Duplicate proof webhook event ID has no matching delivery record");
+  }
+  if (
+    existing.tenant_id !== expected.tenantId ||
+    existing.communication_id !== expected.communicationId ||
+    existing.event_type !== expected.eventType
+  ) {
+    throw new Error("Duplicate proof webhook event ID belongs to a different delivery");
+  }
+  if (!["pending", "retrying", "delivered"].includes(existing.status)) {
+    throw new Error(`Duplicate proof webhook event ID has non-retriable status: ${existing.status}`);
+  }
+}

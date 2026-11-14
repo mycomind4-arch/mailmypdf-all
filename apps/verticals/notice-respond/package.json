@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "pnpm run build:shared && vite dev",
     "prebuild": "node -e \"const fs=require('fs');fs.rmSync('node_modules/.nitro',{recursive:true,force:true})\"",
-    "build": "pnpm run build:shared && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.mjs src/domain/__tests__/domain-ownership.test.ts src/domain/__tests__/workflow-directory-routes.test.ts src/domain/__tests__/workflow-runtime-gates.test.ts && pnpm exec vitest run src/domain/__tests__ --exclude **/domain-ownership.test.ts --exclude **/workflow-directory-routes.test.ts --exclude **/workflow-runtime-gates.test.ts",
-    "verify:launch": "npm test && npm run build",
+    "verify:launch": "npm test && pnpm run build:shared && npm run build",
     "build:shared": "pnpm --filter @mailmypdf/workflow-ui build && pnpm --filter @mailmypdf/step-workflow build"
   },
   "dependencies": {
