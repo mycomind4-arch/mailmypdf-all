@@ -198,8 +198,8 @@ describe("Universal Pricing Regression Suite", () => {
 
     it("FREE workflow can be quoted with 0 total", () => {
       const quote = calculateQuote({
-        workflowId: "biometrics",
-        verticalId: "immigration-mail",
+        workflowId: "mail-a-pdf",
+        verticalId: "mailmypdf",
         actualPages: 1,
       });
       assert.equal(quote.totalCents, 0);
@@ -207,8 +207,8 @@ describe("Universal Pricing Regression Suite", () => {
 
     it("FREE workflow with mail charges only the mail", () => {
       const quote = calculateQuote({
-        workflowId: "biometrics",
-        verticalId: "immigration-mail",
+        workflowId: "mail-a-pdf",
+        verticalId: "mailmypdf",
         actualPages: 1,
         mailClass: "certified",
       });
@@ -304,15 +304,15 @@ describe("Universal Pricing Regression Suite", () => {
 
   // ── 10. Full profile count ────────────────────────────────────────────────
   describe("Ecosystem coverage", () => {
-    it("has at least 170 production profiles", () => {
-      assert.ok(ALL_PRODUCTION.length >= 170,
-        `Expected at least 170 production profiles, got ${ALL_PRODUCTION.length}`);
+    it("has at least 160 production profiles (immigration-mail is intentionally gated)", () => {
+      assert.ok(ALL_PRODUCTION.length >= 160,
+        `Expected at least 160 production profiles, got ${ALL_PRODUCTION.length}`);
     });
 
     it("covers all major verticals", () => {
       const requiredVerticals = [
         "mailmypdf", "notice-respond", "dispute-mail", "appeal-mail",
-        "immigration-mail", "insurance-claims", "benefits-appeal",
+        "insurance-claims", "benefits-appeal",
         "records-requests", "code-enforcement", "mailmypdf-private-office",
         "mailmypdf-smallbusiness",
       ];
@@ -321,5 +321,39 @@ describe("Universal Pricing Regression Suite", () => {
         assert.ok(count > 0, `Vertical ${v} has no production profiles`);
       }
     });
+  });
+});
+
+// ── 11. Legal-risk gate: immigration workflows must not be purchasable ──────
+// Unlicensed immigration help is heavily regulated (UPL / notario-fraud laws).
+// These workflows stay gated until an attorney has reviewed them. To un-gate,
+// flip commercialStatus back to "production" AND update this test deliberately.
+describe("Immigration-mail legal-risk gate", () => {
+  const immigration = getPricingProfilesByVertical("immigration-mail");
+
+  it("immigration-mail still has its 19 profiles defined (gated, not deleted)", () => {
+    assert.equal(immigration.length, 19);
+  });
+
+  it("no immigration-mail profile is purchasable", () => {
+    for (const p of immigration) {
+      assert.notEqual(p.commercialStatus, "production",
+        `${p.workflowId} must not be 'production' until attorney review`);
+    }
+  });
+
+  it("quoting any immigration-mail workflow is refused", () => {
+    for (const p of immigration) {
+      assert.throws(
+        () => calculateQuote({ workflowId: p.workflowId, verticalId: "immigration-mail", actualPages: 1 }),
+        /not available for purchase/,
+        `${p.workflowId} must not be quotable`,
+      );
+    }
+  });
+
+  it("gating immigration does not disable other verticals", () => {
+    const quote = calculateQuote({ workflowId: "mail-a-pdf", verticalId: "mailmypdf", actualPages: 1 });
+    assert.equal(quote.totalCents, 0);
   });
 });

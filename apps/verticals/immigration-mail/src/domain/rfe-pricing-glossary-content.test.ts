@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import './test-support-ungated-pricing';
 import { calculatePricing, determineComplexity, estimateWeight, PRICING_TIERS, POSTAGE_RATES, AVAILABLE_ADDONS } from './rfe-pricing';
 import { findGlossaryTerm, explainTerm, RFE_GLOSSARY } from './rfe-glossary';
 import { ALL_RFE_PAGES, RFE_LANDING_PAGE, RFE_SUPPORTING_PAGES, KEYWORD_CLUSTERS, findRFEPage } from './rfe-content';

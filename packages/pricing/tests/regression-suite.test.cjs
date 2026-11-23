@@ -101,8 +101,8 @@ describe('Universal Pricing Regression Suite', () => {
     });
 
     it('FREE workflow quotes 0 and with mail charges only mail', () => {
-      assert.equal(calculateQuote({ workflowId: 'biometrics', verticalId: 'immigration-mail', actualPages: 1 }).totalCents, 0);
-      const q = calculateQuote({ workflowId: 'biometrics', verticalId: 'immigration-mail', actualPages: 1, mailClass: 'certified' });
+      assert.equal(calculateQuote({ workflowId: 'mail-a-pdf', verticalId: 'mailmypdf', actualPages: 1 }).totalCents, 0);
+      const q = calculateQuote({ workflowId: 'mail-a-pdf', verticalId: 'mailmypdf', actualPages: 1, mailClass: 'certified' });
       assert.equal(q.basePriceCents, 0);
       assert.equal(q.totalCents, PRICES.certified);
     });
@@ -161,12 +161,12 @@ describe('Universal Pricing Regression Suite', () => {
   });
 
   describe('Ecosystem coverage', () => {
-    it('has at least 170 production profiles', () => {
-      assert.ok(ALL_PRODUCTION.length >= 170, `Expected >= 170, got ${ALL_PRODUCTION.length}`);
+    it('has at least 160 production profiles (immigration-mail intentionally gated)', () => {
+      assert.ok(ALL_PRODUCTION.length >= 160, `Expected >= 160, got ${ALL_PRODUCTION.length}`);
     });
 
     it('covers all major verticals', () => {
-      const required = ['mailmypdf', 'notice-respond', 'dispute-mail', 'appeal-mail', 'immigration-mail', 'insurance-claims', 'benefits-appeal', 'records-requests', 'code-enforcement', 'mailmypdf-private-office', 'mailmypdf-smallbusiness'];
+      const required = ['mailmypdf', 'notice-respond', 'dispute-mail', 'appeal-mail', 'insurance-claims', 'benefits-appeal', 'records-requests', 'code-enforcement', 'mailmypdf-private-office', 'mailmypdf-smallbusiness'];
       for (const v of required) {
         const count = getPricingProfilesByVertical(v).filter(p => p.commercialStatus === 'production').length;
         assert.ok(count > 0, `Vertical ${v} has no production profiles`);

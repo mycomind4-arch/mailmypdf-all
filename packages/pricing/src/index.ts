@@ -584,15 +584,15 @@ const immigrationProfiles: WorkflowPricingProfile[] = [
   profile("respond-to-notice", "immigration-mail", "ADVANCED", 5999, {
     includedMail: "standard",
     pricingRationale: "Immigration notice with authority resolution and USCIS domain logic",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("supporting-documents", "immigration-mail", "STANDARD", 2999, {
     pricingRationale: "Supporting document submission — structured workflow",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("explanation-letter", "immigration-mail", "STANDARD", 2999, {
     pricingRationale: "Immigration explanation letter — structured workflow",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
 ];
 
@@ -639,75 +639,75 @@ const immigrationExtendedProfiles: WorkflowPricingProfile[] = [
   profile("rfe", "immigration-mail", "ADVANCED", 7999, {
     includedMail: "standard",
     pricingRationale: "RFE response — evidence analysis, authority mapping, deadline extraction, draft preparation. Attorney equivalent $700-$2000.",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("noid", "immigration-mail", "HIGH_STAKES", 9999, {
     includedMail: "standard",
     includedPages: 12,
     pricingRationale: "NOID response — high-stakes immigration matter with complex legal analysis",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i130", "immigration-mail", "STANDARD", 2999, {
     pricingRationale: "I-130 petition response — structured workflow with evidentiary requirements",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i751", "immigration-mail", "STANDARD", 2999, {
     pricingRationale: "I-751 joint filing/bona fide marriage evidence preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i601", "immigration-mail", "HIGH_STAKES", 9999, {
     includedMail: "standard",
     includedPages: 12,
     pricingRationale: "I-601 waiver — extreme hardship analysis, multi-pathway reasoning, qualifying relative analysis. Attorney equivalent $3000-$8000.",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i765", "immigration-mail", "ESSENTIAL", 1499, {
     pricingRationale: "I-765 work authorization — straightforward application preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i131", "immigration-mail", "ESSENTIAL", 1499, {
     pricingRationale: "I-131 travel document — straightforward application preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("i90", "immigration-mail", "ESSENTIAL", 1299, {
     pricingRationale: "I-90 green card replacement — simple application",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("foia", "immigration-mail", "ESSENTIAL", 1299, {
     pricingRationale: "FOIA request — structured records request preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("visa-refusal", "immigration-mail", "ADVANCED", 5999, {
     includedMail: "standard",
     pricingRationale: "Visa refusal response — consular processing analysis with legal argumentation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("appeal", "immigration-mail", "ADVANCED", 5999, {
     includedMail: "standard",
     pricingRationale: "Immigration appeal — complex appellate briefing preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("biometrics", "immigration-mail", "FREE", 0, {
     pricingRationale: "Biometrics appointment letter — simple commodity workflow",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("case-inquiry", "immigration-mail", "ESSENTIAL", 1299, {
     pricingRationale: "Case status inquiry — structured correspondence",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("consular", "immigration-mail", "ADVANCED", 5999, {
     includedMail: "standard",
     pricingRationale: "Consular processing — complex jurisdictional and procedural analysis",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("naturalization", "immigration-mail", "STANDARD", 2999, {
     pricingRationale: "N-400 naturalization — structured eligibility analysis and preparation",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
   profile("denial", "immigration-mail", "ADVANCED", 5999, {
     includedMail: "standard",
     pricingRationale: "Immigration denial response — complex legal analysis and strategy",
-    commercialStatus: "production",
+    commercialStatus: "internal",
   }),
 ];
 

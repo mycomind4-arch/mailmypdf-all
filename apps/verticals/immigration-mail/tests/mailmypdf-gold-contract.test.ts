@@ -35,6 +35,19 @@ describe("MailMyPDF Gold fulfillment contract", () => {
     expect(source).toContain("instanceof FormData");
   });
 
+  it("refuses gated immigration workflows instead of selling them at postage price", async () => {
+    // Immigration workflows are withheld from sale pending attorney review.
+    // A non-production profile must be rejected BEFORE the mailing-only
+    // fallback, which would otherwise charge just the postage price.
+    const checkout = await read("src/routes/api/checkout.ts");
+    const gate = checkout.indexOf('profile.commercialStatus !== "production"');
+    const fallback = checkout.indexOf("quoteTotalCents = PRICES[method]");
+    expect(gate).toBeGreaterThan(-1);
+    expect(fallback).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(fallback);
+    expect(checkout).toContain("status: 403");
+  });
+
   it("requires authenticated payment before fulfillment", async () => {
     const checkout = await read("src/routes/api/checkout.ts");
     const fulfillment = await read("src/routes/api/mail/response.ts");

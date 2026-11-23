@@ -147,6 +147,22 @@ export const Route = createFileRoute("/api/checkout")({
 
           // ── Canonical pricing — server-authoritative quote ─────────
           const profile = getWorkflowPricingProfile(workflowId);
+
+          // LEGAL-RISK GATE: immigration workflows are withheld from sale until
+          // an attorney has reviewed them (unlicensed immigration help is
+          // heavily regulated). A gated profile must be REFUSED here. Without
+          // this check it would fall through to the mailing-only branch below
+          // and sell the workflow at the bare postage price.
+          if (profile && profile.commercialStatus !== "production") {
+            return Response.json(
+              {
+                error:
+                  "This immigration workflow is not currently available for purchase.",
+              },
+              { status: 403 }
+            );
+          }
+
           let quoteTotalCents: number;
           let quoteSnapshot: string | null = null;
           let stripeLineItemName: string;

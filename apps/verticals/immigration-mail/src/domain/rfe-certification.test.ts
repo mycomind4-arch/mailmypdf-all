@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import './test-support-ungated-pricing';
 import { runRFEE2ECertification, ALL_RFE_CERT_STAGES, type RFECertInput } from './rfe-certification';
 
 const RFE_TEXT = `U.S. Citizenship and Immigration Services
