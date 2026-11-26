@@ -307,7 +307,9 @@ async function markOrderPaid(
 
   if (updateErr) {
     log.error("failed to mark paid", { orderId, error: updateErr.message, eventId });
-    return;
+    // Do not acknowledge a settled payment until its durable transition succeeds.
+    // Stripe must retry transient database failures rather than lose the payment event.
+    throw new Error("Stripe paid-order persistence failed");
   }
 
   if (!updated || updated.length === 0) {
@@ -577,7 +579,8 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
             message: `webhook processing error: ${e instanceof Error ? e.message : String(e)}`,
             level: "error",
           });
-          const resp = new Response("Webhook error", { status: 400 });
+          // Processing failures are retryable; Stripe must not treat them as delivered.
+          const resp = new Response("Webhook error", { status: 500 });
           return attachRequestId(resp, requestId);
         }
       },
