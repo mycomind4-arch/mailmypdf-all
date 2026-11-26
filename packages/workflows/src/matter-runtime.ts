@@ -79,6 +79,12 @@ export type ExactPacketApproval = {
   mailClass: "standard" | "certified" | "registered";
   approvedBy: string;
   approvedAt: string;
+  /** CP2000-only source identity bound to the explicit recipient confirmation. */
+  recipientConfirmation?: {
+    sourceDocumentId: string;
+    analysisVersion: number;
+    sourceFingerprint: string;
+  };
 };
 
 export function createExactPacketApproval(input: {
@@ -90,6 +96,7 @@ export function createExactPacketApproval(input: {
   mailClass: ExactPacketApproval["mailClass"];
   approvedBy: string;
   approvedAt?: string;
+  recipientConfirmation?: ExactPacketApproval["recipientConfirmation"];
 }): ExactPacketApproval {
   if (!/^[0-9a-f]{64}$/i.test(input.preview.packetSha256)) {
     throw new WorkflowRuntimeError("Packet hash is invalid.", "PACKET_HASH_INVALID");
@@ -111,6 +118,7 @@ export function createExactPacketApproval(input: {
     mailClass: input.mailClass,
     approvedBy: input.approvedBy,
     approvedAt: input.approvedAt ?? new Date().toISOString(),
+    ...(input.recipientConfirmation ? { recipientConfirmation: Object.freeze({ ...input.recipientConfirmation }) } : {}),
   });
 }
 

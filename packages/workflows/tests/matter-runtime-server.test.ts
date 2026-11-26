@@ -14,6 +14,9 @@ import {
   type WorkflowRuntimeStoredEvent,
   type WorkflowRuntimeStoredInput,
 } from "../src/index.js";
+import { createWorkflowDraftBasis } from "../src/draft-basis.js";
+import { getNoticeResponseRuntimePolicy } from "../src/domain-packs/notice-response/runtime-policy.js";
+import { getNoticeResponseWorkflowProfile } from "../src/domain-packs/notice-response/profiles.js";
 
 class MemoryStore implements WorkflowRuntimeStore {
   readonly matters = new Map<string, { ownerId: string; snapshot: WorkflowMatterSnapshot }>();
@@ -780,4 +783,392 @@ test("shared runtime refuses a packet and an approval while the draft still has 
     body: JSON.stringify({ mailClass: "certified" }),
   }));
   assert.equal(response.status, 200, "a resolved draft builds a packet normally");
+});
+
+
+const CP2000_RECIPIENT = {
+  name: "Internal Revenue Service",
+  line1: "100 Synthetic Notice Response Way",
+  line2: null,
+  city: "Fresno",
+  state: "CA",
+  postal: "93725",
+} as const;
+const CP2000_SENDER = {
+  name: "Synthetic Taxpayer", line1: "2 Example St",
+  city: "Eureka", state: "CA", postal: "95501",
+};
+
+async function cp2000ApprovalFixture() {
+  const deps = dependencies();
+  deps.policyFor = (workflowId) => workflowId === "cp2000-response"
+    ? getNoticeResponseRuntimePolicy(workflowId)
+    : null;
+  const matter = await deps.store.createMatter({
+    ownerId: "user-1", workflowId: "cp2000-response",
+    verticalId: "notice-respond", createdAt: "2026-09-17T00:00:00.000Z",
+  });
+  const matterId = matter.id;
+  const source: WorkflowMatterDocument = {
+    id: "attachment-1", documentId: "synthetic-cp2000-page-one",
+    role: "subject_notice", evidenceKind: null, pageCount: 3,
+    included: true, position: 0, filename: "cp2000-notice.pdf",
+    mimeType: "application/pdf", sizeBytes: 1200,
+    sha256: "a".repeat(64),
+    securityStatus: "clean", usable: true,
+  };
+  await deps.store.replaceDocuments("user-1", matterId, [source]);
+  const analysis: WorkflowMatterAnalysis = {
+    version: 1, documentId: source.documentId, model: "synthetic-offline",
+    createdAt: "2026-09-17T00:00:00.000Z",
+    result: {
+      decision: "Proposed CP2000 adjustment", issuer: "IRS",
+      referenceNumber: "CP2000-SYNTHETIC", decisionDate: "2026-09-01",
+      deadline: "2026-10-01", confidence: "high",
+      summary: "Synthetic controlling CP2000 notice with a first-page mailing address.",
+      reasons: [], missingInformation: [], suggestedEvidence: [],
+      promptInjectionObserved: false,
+      analyzedSourceSha256: source.sha256!,
+      workflowDetails: {
+        noticeCode: "CP2000",
+        responseAddressProvenance: { pageNumber: 1, role: "postal_response" },
+        responseAddress: { ...CP2000_RECIPIENT },
+      },
+    },
+  };
+  await deps.store.saveAnalysis("user-1", matterId, analysis);
+  const policy = getNoticeResponseRuntimePolicy("cp2000-response")!;
+  const profile = getNoticeResponseWorkflowProfile("cp2000-response")!;
+  const input = policy.validateInput({
+    taxpayerName: "Synthetic Taxpayer",
+    taxpayerAddress: "2 Example St, Eureka CA 95501",
+    noticeNumber: "CP2000-SYNTHETIC", taxPeriod: "2025",
+    responseMode: profile.responseModes[0]!.value,
+    requestedAction: "Review the proposed adjustment.",
+    evidenceReviewComplete: true, factsConfirmed: true,
+    mailingAppropriateConfirmed: true,
+  }, analysis, (await deps.store.loadMatter("user-1", matterId))!);
+  const savedInput = await deps.store.saveInput("user-1", matterId, input);
+  await deps.store.saveDraft("user-1", matterId, {
+    bodyText: "Synthetic CP2000 response with reviewed notice and evidence.",
+    basis: createWorkflowDraftBasis({
+      analysis, inputVersion: savedInput.version, documents: [source],
+    }),
+  });
+  const handle = createWorkflowRuntimeRequestHandler(deps);
+  const post = (path: string, data: Record<string, unknown>) => handle(request(
+    `/matters/${matterId}/${path}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  ));
+  const preview = (await body(await post("packet", { mailClass: "certified" }))).packet;
+  const approvalBody = {
+    expectedPacketSha256: preview.packetSha256,
+    expectedTotalCents: preview.quote.totalCents,
+    mailClass: "certified",
+    recipient: { ...CP2000_RECIPIENT, line1: String(CP2000_RECIPIENT.line1) },
+    recipientConfirmedFromNotice: true as boolean,
+  };
+  return { deps, matterId, source, analysis, policy, handle, post, approvalBody };
+}
+
+test("CP2000 notice-bound recipient confirmation: missing affirmation and changed destination fail before checkout", async () => {
+  for (const scenario of ["unconfirmed", "changed recipient", "missing notice address", "non-IRS issuer"] as const) {
+    const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+    if (scenario === "unconfirmed") approvalBody.recipientConfirmedFromNotice = false;
+    if (scenario === "changed recipient") approvalBody.recipient.line1 = "999 Wrong IRS Office";
+    if (scenario === "missing notice address") {
+      await deps.store.saveAnalysis("user-1", matterId, {
+        ...analysis, result: {
+          ...analysis.result, workflowDetails: { responseAddress: null },
+        },
+      });
+    }
+    if (scenario === "non-IRS issuer") {
+      await deps.store.saveAnalysis("user-1", matterId, {
+        ...analysis, result: { ...analysis.result, issuer: "Social Security Administration" },
+      });
+    }
+    const response = await post("approval", approvalBody);
+    assert.equal(response.status, 409, scenario);
+    assert.match((await body(response)).code, /CP2000_RECIPIENT_CONFIRMATION_REQUIRED|CP2000_RECIPIENT_MISMATCH|CP2000_NOTICE_ADDRESS_MISSING|CP2000_NOTICE_ISSUER_MISMATCH/);
+    assert.equal(deps.store.approvals.size, 0, scenario);
+    assert.equal(deps.checkoutCalls.count, 0, scenario);
+  }
+});
+
+test("CP2000 notice-bound recipient confirmation: exact packet and controlling notice approve and reach mocked checkout", async () => {
+  const { deps, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+  const response = await post("approval", approvalBody);
+  assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
+  const approvalId = (await body(response)).approvalId as string;
+  const stored = deps.store.approvals.get(matterId)!;
+  assert.equal(stored.recipientConfirmation?.sourceDocumentId, "synthetic-cp2000-page-one");
+  assert.equal(stored.recipientConfirmation?.analysisVersion, 1);
+  const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(checkout.status, 200);
+  assert.equal(deps.checkoutCalls.count, 1);
+});
+
+test("CP2000 notice-bound recipient confirmation: source replacement or recipient mutation blocks checkout", async () => {
+  for (const scenario of ["replaced notice", "mutated approved recipient", "reanalyzed notice"] as const) {
+    const { deps, post, approvalBody, matterId, source, analysis, policy } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200);
+    const approvalId = (await body(approved)).approvalId as string;
+    if (scenario === "mutated approved recipient") {
+      const existing = deps.store.approvals.get(matterId)!;
+      deps.store.approvals.set(matterId, {
+        ...existing, recipient: { ...existing.recipient, line1: "999 Wrong IRS Office" },
+      });
+    } else {
+      const nextSource = scenario === "replaced notice"
+        ? { ...source, documentId: "replacement-cp2000-notice", filename: "replacement.pdf" }
+        : source;
+      const nextAnalysis = {
+        ...analysis, version: 2, documentId: nextSource.documentId,
+      };
+      await deps.store.replaceDocuments("user-1", matterId, [nextSource]);
+      await deps.store.saveAnalysis("user-1", matterId, nextAnalysis);
+      const input = policy.validateInput({
+        taxpayerName: "Synthetic Taxpayer",
+        taxpayerAddress: "2 Example St, Eureka CA 95501",
+        noticeNumber: "CP2000-SYNTHETIC", taxPeriod: "2025",
+        responseMode: getNoticeResponseWorkflowProfile("cp2000-response")!.responseModes[0]!.value,
+        requestedAction: "Review the proposed adjustment.",
+        evidenceReviewComplete: true, factsConfirmed: true,
+        mailingAppropriateConfirmed: true,
+      }, nextAnalysis, (await deps.store.loadMatter("user-1", matterId))!);
+      const saved = await deps.store.saveInput("user-1", matterId, input);
+      await deps.store.saveDraft("user-1", matterId, {
+        bodyText: "Synthetic CP2000 response with reviewed notice and evidence.",
+        basis: createWorkflowDraftBasis({
+          analysis: nextAnalysis, inputVersion: saved.version, documents: [nextSource],
+        }),
+      });
+    }
+    const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+    assert.equal(checkout.status, 409, scenario);
+    assert.match((await body(checkout)).code, /CP2000_RECIPIENT_CONFIRMATION_STALE|CP2000_RECIPIENT_MISMATCH/);
+    assert.equal(deps.checkoutCalls.count, 0, scenario);
+  }
+});
+
+test("CP2000 authenticated checkout rejects changed source bytes with identical notice metadata", async () => {
+  const { deps, post, approvalBody, matterId, source } = await cp2000ApprovalFixture();
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200, JSON.stringify(await approved.clone().json()));
+  const approvalId = (await body(approved)).approvalId as string;
+  const alteredSource = { ...source, sha256: "b".repeat(64) };
+  assert.equal(alteredSource.documentId, source.documentId);
+  assert.equal(alteredSource.sizeBytes, source.sizeBytes);
+  await deps.store.replaceDocuments("user-1", matterId, [alteredSource]);
+  const refused = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(refused.status, 409);
+  assert.equal((await body(refused)).code, "CP2000_ANALYZED_SOURCE_CHANGED");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked payment or provider handoff");
+});
+
+test("CP2000 HTTP approval and checkout reject hidden printable-destination changes without a provider handoff", async () => {
+  const invalidSource = await cp2000ApprovalFixture();
+  await invalidSource.deps.store.saveAnalysis("user-1", invalidSource.matterId, {
+    ...invalidSource.analysis,
+    result: {
+      ...invalidSource.analysis.result,
+      workflowDetails: {
+        responseAddress: { ...CP2000_RECIPIENT, line1: CP2000_RECIPIENT.line1 + "\u200b" },
+      },
+    },
+  });
+  const refused = await invalidSource.post("approval", {
+    ...invalidSource.approvalBody,
+    recipient: { ...CP2000_RECIPIENT },
+  });
+  assert.equal(refused.status, 409, "hidden characters from source analysis cannot be approved");
+  assert.equal((await body(refused)).code, "CP2000_NOTICE_ADDRESS_UNPRINTABLE");
+  assert.equal(invalidSource.deps.store.approvals.size, 0);
+  assert.equal(invalidSource.deps.checkoutCalls.count, 0);
+
+  const changedAfterApproval = await cp2000ApprovalFixture();
+  const approved = await changedAfterApproval.post("approval", changedAfterApproval.approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  const persisted = changedAfterApproval.deps.store.approvals.get(changedAfterApproval.matterId)!;
+  changedAfterApproval.deps.store.approvals.set(changedAfterApproval.matterId, {
+    ...persisted,
+    recipient: { ...persisted.recipient, line1: persisted.recipient.line1 + "\n" },
+  });
+  const checkout = await changedAfterApproval.post("checkout", {
+    approvalId, sender: CP2000_SENDER,
+  });
+  assert.equal(checkout.status, 409, "hidden line breaks in approved recipient must invalidate checkout");
+  assert.equal((await body(checkout)).code, "CP2000_RECIPIENT_UNPRINTABLE");
+  assert.equal(changedAfterApproval.deps.checkoutCalls.count, 0);
+});
+
+
+test("CP2000 checkout rejects invisible or multiline sender fields before a mocked provider handoff", async () => {
+  // The recipient is notice-bound, but the sender also appears on the
+  // physical envelope. A visually hidden sender change must fail closed.
+  for (const sender of [
+    { ...CP2000_SENDER, line1: CP2000_SENDER.line1 + "\u200b" },
+    { ...CP2000_SENDER, line2: "Suite 1\nOther destination" },
+    { ...CP2000_SENDER, name: "Synthetic\u2028Taxpayer" },
+  ]) {
+    const { deps, post, approvalBody } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200);
+    const approvalId = (await body(approved)).approvalId as string;
+    const checkout = await post("checkout", { approvalId, sender });
+    assert.equal(checkout.status, 400, "unprintable return-address data must reject checkout");
+    assert.equal(deps.checkoutCalls.count, 0, "no provider callback for unprintable sender");
+  }
+
+  const valid = await cp2000ApprovalFixture();
+  const approved = await valid.post("approval", valid.approvalBody);
+  const approvalId = (await body(approved)).approvalId as string;
+  assert.equal((await valid.post("checkout", { approvalId, sender: CP2000_SENDER })).status, 200,
+    "an unchanged printable sender must still reach checkout");
+  assert.equal(valid.deps.checkoutCalls.count, 1);
+});
+
+test("CP2000 authenticated owner isolation and exact reviewed packet hash gate prevent unauthorized checkout", async () => {
+  const { deps, handle, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+  const path = (action: string) => `/matters/${matterId}/${action}`;
+  const postAsOther = (action: string, data: Record<string, unknown>) =>
+    handle(requestAs("other", path(action), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    }));
+
+  const anonymousApproval = await handle(new Request(
+    `https://example.test/api/workflow-runtime${path("approval")}`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(approvalBody),
+    },
+  ));
+  assert.equal(anonymousApproval.status, 401, "anonymous approval cannot reach another user's packet");
+  assert.equal((await postAsOther("approval", approvalBody)).status, 404,
+    "an authenticated second owner cannot approve the first owner's matter");
+  assert.equal((await postAsOther("packet", { mailClass: "certified" })).status, 404,
+    "an authenticated second owner cannot obtain the first owner's packet preview");
+
+  const stalePreview = await post("approval", {
+    ...approvalBody, expectedPacketSha256: "f".repeat(64),
+  });
+  assert.equal(stalePreview.status, 409,
+    "even the legitimate owner must approve the exact reviewed packet hash");
+  assert.equal(deps.store.approvals.size, 0, "rejected approvals cannot persist");
+  assert.equal(deps.checkoutCalls.count, 0, "rejected approvals cannot start checkout");
+
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  assert.equal((await postAsOther("checkout", { approvalId, sender: CP2000_SENDER })).status, 404,
+    "another authenticated owner cannot reuse a valid approval ID to start checkout");
+  assert.equal(deps.checkoutCalls.count, 0, "cross-owner checkout must never reach the provider");
+
+  const legitimateCheckout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(legitimateCheckout.status, 200,
+    "legitimate approved checkout remains available after all rejected requests");
+  assert.equal(deps.checkoutCalls.count, 1, "only the approved owner reaches the mocked checkout");
+});
+
+test("CP2000 persisted approval confirmation survives JSON storage and fails closed when lost or altered", async () => {
+  // The production adapter persists recipientConfirmation inside the approval
+  // quote JSON. Exercise the authenticated checkout boundary after the same
+  // JSON serialization a database round trip applies; no provider is called.
+  for (const scenario of ["intact", "missing", "tampered"] as const) {
+    const { deps, post, approvalBody, matterId } = await cp2000ApprovalFixture();
+    const approved = await post("approval", approvalBody);
+    assert.equal(approved.status, 200, scenario);
+    const approvalId = (await body(approved)).approvalId as string;
+    const stored = deps.store.approvals.get(matterId)!;
+    const roundTripped = JSON.parse(JSON.stringify(stored)) as ExactPacketApproval;
+    assert.equal(roundTripped.recipientConfirmation?.sourceDocumentId,
+      "synthetic-cp2000-page-one", "the source identity must survive JSON persistence");
+
+    if (scenario === "missing") {
+      delete roundTripped.recipientConfirmation;
+    } else if (scenario === "tampered") {
+      roundTripped.recipientConfirmation = {
+        ...roundTripped.recipientConfirmation!,
+        sourceFingerprint: "tampered-approval-quote",
+      };
+    }
+    deps.store.approvals.set(matterId, roundTripped);
+
+    const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+    if (scenario === "intact") {
+      assert.equal(checkout.status, 200, "an unchanged serialized approval can proceed");
+      assert.equal(deps.checkoutCalls.count, 1, "one authorized mock checkout");
+    } else {
+      assert.equal(checkout.status, 409, scenario);
+      assert.equal((await body(checkout)).code, "CP2000_RECIPIENT_CONFIRMATION_STALE");
+      assert.equal(deps.checkoutCalls.count, 0,
+        "a lost or altered persisted confirmation cannot start mocked checkout");
+    }
+  }
+});
+
+
+test("CP2000 authenticated approval refuses changed source bytes after analysis, before approval", async () => {
+  const { deps, post, approvalBody, matterId, source } = await cp2000ApprovalFixture();
+  const altered = { ...source, sha256: "b".repeat(64) };
+  assert.equal(altered.documentId, source.documentId);
+  assert.equal(altered.sizeBytes, source.sizeBytes);
+  await deps.store.replaceDocuments("user-1", matterId, [altered]);
+  const refused = await post("approval", approvalBody);
+  assert.equal(refused.status, 409);
+  assert.equal((await body(refused)).code, "CP2000_ANALYZED_SOURCE_CHANGED");
+  assert.equal(deps.store.approvals.size, 0, "stale analysis must not mint an approval");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked payment/provider handoff");
+});
+
+test("CP2000 HTTP approval refuses other IRS notice codes and nonpostal page provenance", async () => {
+  for (const change of [
+    { noticeCode: "CP14" },
+    { noticeCode: "CP504" },
+    { noticeCode: null },
+    { responseAddressProvenance: { pageNumber: 2, role: "postal_response" } },
+    { responseAddressProvenance: { pageNumber: 1, role: "fax" } },
+    { responseAddressProvenance: null },
+  ]) {
+    const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+    await deps.store.saveAnalysis("user-1", matterId, {
+      ...analysis,
+      result: {
+        ...analysis.result,
+        workflowDetails: { ...analysis.result.workflowDetails, ...change },
+      },
+    });
+    const refused = await post("approval", approvalBody);
+    assert.equal(refused.status, 409, JSON.stringify(change));
+    assert.match((await body(refused)).code,
+      /CP2000_NOTICE_CODE_UNVERIFIED|CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED/);
+    assert.equal(deps.store.approvals.size, 0, "no consent written for unverified source");
+    assert.equal(deps.checkoutCalls.count, 0, "no mocked checkout/provider handoff");
+  }
+});
+
+test("CP2000 HTTP checkout refuses notice reclassification after exact approval", async () => {
+  const { deps, post, approvalBody, matterId, analysis } = await cp2000ApprovalFixture();
+  const approved = await post("approval", approvalBody);
+  assert.equal(approved.status, 200);
+  const approvalId = (await body(approved)).approvalId as string;
+  await deps.store.saveAnalysis("user-1", matterId, {
+    ...analysis,
+    result: {
+      ...analysis.result,
+      workflowDetails: {
+        ...analysis.result.workflowDetails,
+        responseAddressProvenance: { pageNumber: 1, role: "payment" },
+      },
+    },
+  });
+  const checkout = await post("checkout", { approvalId, sender: CP2000_SENDER });
+  assert.equal(checkout.status, 409);
+  assert.equal((await body(checkout)).code, "CP2000_NOTICE_ADDRESS_PROVENANCE_UNVERIFIED");
+  assert.equal(deps.checkoutCalls.count, 0, "no mocked provider handoff after source reclassification");
 });

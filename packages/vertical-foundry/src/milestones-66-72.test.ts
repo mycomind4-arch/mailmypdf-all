@@ -500,7 +500,9 @@ test('ProductionApprovalGate supports expiring approvals', async () => {
     previewUrl: 'https://preview.test.com',
   }
 
-  // Create approval that expires in 1ms
+  // Give the approval ample time to be granted under loaded CI. A 1ms
+  // window races the grant itself and intermittently fails before this test
+  // reaches the expiration behavior it intends to exercise.
   const approval = gate.requestApproval({
     verticalId: 'vert-1',
     runId: 'run-1',
@@ -508,13 +510,14 @@ test('ProductionApprovalGate supports expiring approvals', async () => {
     repository: 'org/repo',
     branch: 'foundry/vert-1',
     reason: 'Requesting',
-    expiresInMs: 1,
+    expiresInMs: 60_000,
   })
 
   gate.grantApproval(approval.id, 'admin@example.com')
 
-  // Wait for expiry
-  await new Promise((resolve) => setTimeout(resolve, 10))
+  // The returned record is the gate's stored record. Expire it explicitly
+  // rather than sleeping against wall-clock scheduling and CI contention.
+  approval.expiresAt = new Date(Date.now() - 1_000).toISOString()
 
   const result = gate.canDeployToProduction(manifest)
   assert.ok(!result.authorized)

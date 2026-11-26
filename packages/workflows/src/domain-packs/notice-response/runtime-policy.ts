@@ -9,6 +9,7 @@ import type {
 } from "../../matter-runtime-server.js";
 import { WorkflowRuntimeError } from "../../matter-runtime.js";
 import { assertStoredAnalysisReadyForDraft } from "../../runtime-safety.js";
+import { confirmCp2000Recipient, assertApprovedCp2000Recipient } from "./cp2000-recipient-binding.js";
 import { defineWorkflowRuntimeChatContract } from "../../workflow-chat-contract.js";
 import {
   NOTICE_RESPONSE_WORKFLOW_PROFILES,
@@ -298,6 +299,25 @@ export function createNoticeResponseRuntimePolicy(
       assertStoredAnalysisReadyForDraft(analysis, documents);
     },
 
+    ...(workflowId === "cp2000-response" ? {
+      confirmRecipientForApproval({ matter, analysis, recipient, confirmedFromNotice }: {
+        matter: WorkflowMatterSnapshot;
+        analysis: WorkflowMatterAnalysis;
+        recipient: import("../../matter-runtime-client.js").WorkflowMailingAddress;
+        confirmedFromNotice: unknown;
+      }) {
+        return confirmCp2000Recipient({
+          confirmedFromNotice, recipient, analysis, documents: matter.documents,
+        });
+      },
+      validateApprovedRecipient({ matter, analysis, approval }: {
+        matter: WorkflowMatterSnapshot;
+        analysis: WorkflowMatterAnalysis;
+        approval: import("../../matter-runtime.js").ExactPacketApproval;
+      }) {
+        assertApprovedCp2000Recipient({ approval, analysis, documents: matter.documents });
+      },
+    } : {}),
     validateBeforePacket({ matter, caseInput }: {
       matter: WorkflowMatterSnapshot;
       caseInput: WorkflowRuntimeStoredInput;
